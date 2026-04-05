@@ -36,15 +36,12 @@ See it in action [here](https://www.youtube.com/watch?v=dvM6cyqYSw8).
 
 > **Node.js requirement:** Node.js 18 or later is required. Bullseye (Debian 11) ships with Node.js 12 by default, but works fine if Node.js 18+ is installed manually (e.g. via [NodeSource](https://github.com/nodesource/distributions)). Bookworm (Debian 12) and Trixie (Debian 13) are recommended as they ship with a more recent Node.js.
 
-To install, clone the repo and run
+Clone the repo, then install dependencies:
 
     $ npm install
-
-Then build the client
-
     $ cd client && npm install && npm run prod && cd ..
 
-Start the server with
+To start the server manually:
 
     $ npm start
 
@@ -60,8 +57,14 @@ Two methods are available in the `deploy/` folder.
 
 Starts the server automatically at boot, independent of the graphical session. Restarts automatically on failure.
 
+Full installation sequence:
+
 ```bash
+git clone https://github.com/thicla01/pi-weather-station.git
+cd pi-weather-station
 cp deploy/pi-weather-server.service ~/.config/systemd/user/
+npm install
+cd client && npm install && npm run prod && cd ..
 systemctl --user enable pi-weather-server
 systemctl --user start pi-weather-server
 loginctl enable-linger $USER
