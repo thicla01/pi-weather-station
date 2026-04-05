@@ -53,6 +53,12 @@ Now point your browser to `https://localhost:8443` and put it in full screen mod
 
 Two methods are available in the `deploy/` folder.
 
+> **Which compositor am I using?** Run the following command to find out:
+> ```bash
+> ps aux | grep -E 'labwc|wayfire' | grep -v grep
+> ```
+> If the output mentions `labwc`, you are using labwc. If it mentions `wayfire`, you are using wayfire. As a general rule, Trixie (Debian 13) uses labwc by default and Bookworm (Debian 12) uses wayfire by default.
+
 ### Option 1 — systemd (recommended)
 
 Starts the server automatically at boot, independent of the graphical session. Restarts automatically on failure.
