@@ -53,11 +53,13 @@ Now point your browser to `https://localhost:8443` and put it in full screen mod
 
 Two methods are available in the `deploy/` folder.
 
-> **Which compositor am I using?** Run the following command to find out:
+> **Which display server am I using?** Run the following command to find out:
 > ```bash
-> ps aux | grep -E 'labwc|wayfire' | grep -v grep
+> ps aux | grep -E 'labwc|wayfire|Xorg' | grep -v grep
 > ```
-> If the output mentions `labwc`, you are using labwc. If it mentions `wayfire`, you are using wayfire. As a general rule, Trixie (Debian 13) uses labwc by default and Bookworm (Debian 12) uses wayfire by default.
+> - `labwc` → Wayland with labwc (default on Trixie/Debian 13)
+> - `wayfire` → Wayland with wayfire (default on Bookworm/Debian 12)
+> - `Xorg` → X11 (default on Bullseye/Debian 11)
 
 ### Option 1 — systemd (recommended)
 
@@ -76,7 +78,7 @@ systemctl --user start pi-weather-server
 loginctl enable-linger $USER
 ```
 
-Then add Chromium to your Wayland compositor's autostart.
+Then add Chromium to your display server's autostart.
 
 **labwc** (default on Trixie/Debian 13) — add to `~/.config/labwc/autostart`:
 
@@ -89,6 +91,12 @@ Then add Chromium to your Wayland compositor's autostart.
 ```ini
 [autostart]
 chromium = /usr/bin/chromium --kiosk --noerrdialogs --disable-infobars --no-first-run --ozone-platform=wayland --enable-features=OverlayScrollbar --start-maximized
+```
+
+**X11/LXDE** (default on Bullseye/Debian 11) — add to `~/.config/lxsession/LXDE-pi/autostart`:
+
+```bash
+@chromium-browser --kiosk --noerrdialogs --disable-infobars --no-first-run
 ```
 
 View logs with:
@@ -117,6 +125,12 @@ sleep 30 && $HOME/start-weather
 ```ini
 [autostart]
 weather = sleep 30 && $HOME/start-weather
+```
+
+**X11/LXDE** (default on Bullseye/Debian 11) — add to `~/.config/lxsession/LXDE-pi/autostart`:
+
+```bash
+@bash -c "sleep 30 && $HOME/start-weather"
 ```
 
 ## Access from another machine
