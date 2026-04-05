@@ -70,10 +70,19 @@ systemctl --user start pi-weather-server
 loginctl enable-linger $USER
 ```
 
-Then add Chromium to your Wayland compositor's autostart (e.g. `~/.config/labwc/autostart`):
+Then add Chromium to your Wayland compositor's autostart.
+
+**labwc** (default on Trixie/Debian 13) — add to `~/.config/labwc/autostart`:
 
 ```bash
 /usr/bin/chromium --kiosk --noerrdialogs --disable-infobars --no-first-run --ozone-platform=wayland --enable-features=OverlayScrollbar --start-maximized
+```
+
+**wayfire** (default on Bookworm/Debian 12) — add to `~/.config/wayfire.ini` under the `[autostart]` section:
+
+```ini
+[autostart]
+chromium = /usr/bin/chromium --kiosk --noerrdialogs --disable-infobars --no-first-run --ozone-platform=wayland --enable-features=OverlayScrollbar --start-maximized
 ```
 
 View logs with:
@@ -91,10 +100,17 @@ cp deploy/start-weather ~/start-weather
 chmod +x ~/start-weather
 ```
 
-Then in `~/.config/labwc/autostart`:
+**labwc** (default on Trixie/Debian 13) — add to `~/.config/labwc/autostart`:
 
 ```bash
 sleep 30 && $HOME/start-weather
+```
+
+**wayfire** (default on Bookworm/Debian 12) — add to `~/.config/wayfire.ini` under the `[autostart]` section:
+
+```ini
+[autostart]
+weather = sleep 30 && $HOME/start-weather
 ```
 
 ## Access from another machine
