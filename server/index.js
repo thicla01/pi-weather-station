@@ -3,6 +3,9 @@ const bodyParser = require("body-parser");
 const path = require("path");
 const cors = require("cors");
 const open = require("open");
+const https = require("https");
+const fs = require("fs");
+const { execSync } = require("child_process");
 const ver = require("../package.json").version;
 const appName = require("../package.json").name;
 
@@ -20,7 +23,52 @@ const { getCoords } = geolocationCtrl;
 
 const DIST_DIR = "/../client/dist";
 const PORT = 8080;
+const HTTPS_PORT = 8443;
 const app = express();
+
+const sslOptions = (() => {
+  const keyPath = path.join(__dirname, "key.pem");
+  const certPath = path.join(__dirname, "cert.pem");
+
+  const certExpiresSoon = () => {
+    try {
+      const output = execSync(`openssl x509 -enddate -noout -in "${certPath}"`, { stdio: "pipe" }).toString();
+      const match = output.match(/notAfter=(.*)/);
+      if (!match) return true;
+      const expiry = new Date(match[1]);
+      const daysLeft = (expiry - Date.now()) / (1000 * 60 * 60 * 24);
+      return daysLeft < 30;
+    } catch {
+      return true;
+    }
+  };
+
+  if (!fs.existsSync(keyPath) || !fs.existsSync(certPath) || certExpiresSoon()) {
+    console.log("SSL certificates not found, generating self-signed certificates...");
+    try {
+      execSync(
+        `openssl req -x509 -newkey rsa:2048 -keyout "${keyPath}" -out "${certPath}" -days 825 -nodes` +
+        ` -subj "/CN=localhost"` +
+        ` -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"`,
+        { stdio: "pipe" }
+      );
+      fs.chmodSync(keyPath, 0o600);
+      console.log("SSL certificates generated successfully.");
+    } catch (err) {
+      console.error("Failed to generate SSL certificates:", err.message);
+      return null;
+    }
+  }
+
+  try {
+    return {
+      key: fs.readFileSync(keyPath),
+      cert: fs.readFileSync(certPath),
+    };
+  } catch {
+    return null;
+  }
+})();
 
 // ***** dev only:
 // const livereload = require("livereload");
@@ -38,10 +86,18 @@ const app = express();
 app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static(path.join(`${__dirname}/${DIST_DIR}`)));
-app.listen(PORT, "localhost", async () => {
-  await open(`http://localhost:${PORT}`);
-  console.log(`${appName} v${ver} has started on port ${PORT}`);
-});
+
+if (sslOptions) {
+  https.createServer(sslOptions, app).listen(HTTPS_PORT, async () => {
+    await open(`https://localhost:${HTTPS_PORT}`);
+    console.log(`${appName} v${ver} has started on port ${HTTPS_PORT} (HTTPS)`);
+  });
+} else {
+  app.listen(PORT, async () => {
+    await open(`http://localhost:${PORT}`);
+    console.log(`${appName} v${ver} has started on port ${PORT} (HTTP)`);
+  });
+}
 
 app.get("/settings", getSettings);
 app.post("/settings", createSettingsFile);
