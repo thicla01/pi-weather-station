@@ -34,9 +34,7 @@ See it in action [here](https://www.youtube.com/watch?v=dvM6cyqYSw8).
 
 # Setup
 
-> **Raspberry Pi OS requirement:** These instructions require **Raspberry Pi OS Bookworm (Debian 12)** or later (Trixie/Debian 13 recommended). Bullseye (Debian 11) ships with Node.js 12 by default, which is incompatible with the build dependencies (`css-loader` v7 and `postcss-preset-env` v10 require Node.js >= 18).
-
-> You will need to have [Node.js](https://nodejs.org/) 18 or later installed.
+> **Node.js requirement:** Node.js 18 or later is required. Bullseye (Debian 11) ships with Node.js 12 by default, but works fine if Node.js 18+ is installed manually (e.g. via [NodeSource](https://github.com/nodesource/distributions)). Bookworm (Debian 12) and Trixie (Debian 13) are recommended as they ship with a more recent Node.js.
 
 To install, clone the repo and run
 
