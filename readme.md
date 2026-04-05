@@ -34,7 +34,7 @@ See it in action [here](https://www.youtube.com/watch?v=dvM6cyqYSw8).
 
 # Setup
 
-> **Raspberry Pi OS requirement:** These instructions require **Raspberry Pi OS Bookworm (Debian 12)** or later. Bullseye (Debian 11) ships with Node.js 12 by default, which is incompatible with the build dependencies (`css-loader` v7 and `postcss-preset-env` v10 require Node.js >= 18).
+> **Raspberry Pi OS requirement:** These instructions require **Raspberry Pi OS Bookworm (Debian 12)** or later (Trixie/Debian 13 recommended). Bullseye (Debian 11) ships with Node.js 12 by default, which is incompatible with the build dependencies (`css-loader` v7 and `postcss-preset-env` v10 require Node.js >= 18).
 
 > You will need to have [Node.js](https://nodejs.org/) 18 or later installed.
 
@@ -50,23 +50,86 @@ Start the server with
 
     $ npm start
 
-Now set point your browser to `http://localhost:8080` and put it in full screen mode (`F11` in Chromium).
+Now point your browser to `https://localhost:8443` and put it in full screen mode (`F11` in Chromium).
+
+> **Note:** The server uses a self-signed SSL certificate generated automatically on first launch. Your browser will show a security warning — this is expected. You can safely accept the exception for `localhost`.
+
+## Running on startup
+
+Two methods are available in the `deploy/` folder.
+
+### Option 1 — systemd (recommended)
+
+Starts the server automatically at boot, independent of the graphical session. Restarts automatically on failure.
+
+```bash
+cp deploy/pi-weather-server.service ~/.config/systemd/user/
+systemctl --user enable pi-weather-server
+systemctl --user start pi-weather-server
+loginctl enable-linger $USER
+```
+
+Then add Chromium to your Wayland compositor's autostart (e.g. `~/.config/labwc/autostart`):
+
+```bash
+/usr/bin/chromium --kiosk --noerrdialogs --disable-infobars --no-first-run --ozone-platform=wayland --enable-features=OverlayScrollbar --start-maximized
+```
+
+View logs with:
+
+```bash
+journalctl --user -u pi-weather-server -f
+```
+
+### Option 2 — autostart script
+
+Copy the provided script to your home directory and call it from your compositor's autostart:
+
+```bash
+cp deploy/start-weather ~/start-weather
+chmod +x ~/start-weather
+```
+
+Then in `~/.config/labwc/autostart`:
+
+```bash
+sleep 30 && $HOME/start-weather
+```
 
 ## Access from another machine
 
-It's possible to access the app from another machine, but beware that by doing so you'll be exposing the app to your entire network, and someone else could potentially access the app and retrieve your API keys from the settings page. By default the app is only accessible to `localhost`, but if you would like to open it up to your network (at your own risk!), open `/server/index.js` and remove `"localhost"` from the line that contains:
+By default the server only accepts connections from `localhost` (127.0.0.1). This protects your API keys from being accessed by other devices on your network.
 
-```js
-app.listen(PORT, "localhost", async () => {
+> **Warning:** Opening the app to your network means anyone on it could potentially access your API keys from the settings page. Do this at your own risk.
+
+To allow access from other devices, set the `ALLOW_REMOTE=true` environment variable when starting the server.
+
+**With systemd** — edit `~/.config/systemd/user/pi-weather-server.service` and uncomment:
+
+```ini
+Environment=ALLOW_REMOTE=true
 ```
 
-so that it becomes:
+Then reload and restart:
 
-```js
-app.listen(PORT, async () => {
+```bash
+systemctl --user daemon-reload
+systemctl --user restart pi-weather-server
 ```
 
-The server will now serve the app across your network.
+**With the autostart script** — edit `~/start-weather` and uncomment:
+
+```bash
+ALLOW_REMOTE=true /usr/bin/npm start &
+```
+
+**Manually:**
+
+```bash
+ALLOW_REMOTE=true npm start
+```
+
+The server will now serve the app across your network on port 8443 (HTTPS).
 
 # Settings
 
