@@ -24,6 +24,7 @@ const { getCoords } = geolocationCtrl;
 const DIST_DIR = "/../client/dist";
 const PORT = 8080;
 const HTTPS_PORT = 8443;
+const HOST = process.env.ALLOW_REMOTE === "true" ? "0.0.0.0" : "127.0.0.1";
 const app = express();
 
 const sslOptions = (() => {
@@ -88,14 +89,14 @@ app.use(bodyParser.json());
 app.use(express.static(path.join(`${__dirname}/${DIST_DIR}`)));
 
 if (sslOptions) {
-  https.createServer(sslOptions, app).listen(HTTPS_PORT, async () => {
+  https.createServer(sslOptions, app).listen(HTTPS_PORT, HOST, async () => {
     await open(`https://localhost:${HTTPS_PORT}`);
-    console.log(`${appName} v${ver} has started on port ${HTTPS_PORT} (HTTPS)`);
+    console.log(`${appName} v${ver} has started on port ${HTTPS_PORT} (HTTPS, bound to ${HOST})`);
   });
 } else {
-  app.listen(PORT, async () => {
+  app.listen(PORT, HOST, async () => {
     await open(`http://localhost:${PORT}`);
-    console.log(`${appName} v${ver} has started on port ${PORT} (HTTP)`);
+    console.log(`${appName} v${ver} has started on port ${PORT} (HTTP, bound to ${HOST})`);
   });
 }
 

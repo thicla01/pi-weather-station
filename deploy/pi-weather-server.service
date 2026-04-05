@@ -1,0 +1,27 @@
+# Systemd user service for Pi Weather Station server
+#
+# Installation:
+#   cp deploy/pi-weather-server.service ~/.config/systemd/user/
+#   systemctl --user enable pi-weather-server
+#   systemctl --user start pi-weather-server
+#   loginctl enable-linger $USER
+#
+# To allow access from the local network, uncomment the ALLOW_REMOTE line.
+#
+# Logs:
+#   journalctl --user -u pi-weather-server -f
+
+[Unit]
+Description=Pi Weather Station Server
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+WorkingDirectory=%h/pi-weather-station
+ExecStart=/usr/bin/npm start
+Restart=on-failure
+RestartSec=5
+# Environment=ALLOW_REMOTE=true
+
+[Install]
+WantedBy=default.target

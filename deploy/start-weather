@@ -1,0 +1,17 @@
+#!/bin/bash
+# Alternative launch script (without systemd)
+# Used via ~/.config/labwc/autostart or manually
+#
+# Usage:
+#   sleep 30 && $HOME/pi-weather-station/deploy/start-weather
+#
+# To allow access from the local network, uncomment the ALLOW_REMOTE line.
+#
+#km4ack 19APRIL2022
+#thicla01 1 mars 2024
+
+cd $HOME/pi-weather-station/
+sleep 20
+# ALLOW_REMOTE=true /usr/bin/npm start &
+/usr/bin/npm start &
+export DISPLAY=:0 && /usr/bin/chromium --kiosk --noerrdialogs --disable-infobars --no-first-run --ozone-platform=wayland --enable-features=OverlayScrollbar --start-maximized
