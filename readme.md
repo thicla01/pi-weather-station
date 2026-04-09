@@ -36,11 +36,9 @@ See it in action [here](https://www.youtube.com/watch?v=dvM6cyqYSw8).
 
 > **Node.js requirement:** Node.js 18 or later is required. Bullseye (Debian 11) ships with Node.js 12 by default, but works fine if Node.js 18+ is installed manually (e.g. via [NodeSource](https://github.com/nodesource/distributions)). Bookworm (Debian 12) and Trixie (Debian 13) are recommended as they ship with a more recent Node.js.
 
-Before starting, copy the example settings file and add your API keys:
+> **API keys:** If you use the automated install (Option 1), the script will offer to configure your API keys automatically. For a manual setup, copy the example settings file and edit it:
 
     $ cp settings.example.json settings.json
-
-Then edit `settings.json` to add your Mapbox and Tomorrow.io API keys.
 
 To test the installation manually:
 
@@ -76,9 +74,10 @@ bash deploy/install.sh
 
 It will:
 - Check for Node.js (v18 minimum) and offer to install it if missing or outdated
+- Optionally configure your API keys and create `settings.json`
 - Install all dependencies and build the client
 - Configure and start the systemd service
-- Deploy `~/start-server` and configure your display server's autostart automatically
+- Deploy `~/.local/bin/start-server` and configure your display server's autostart automatically
 
 ### Option 2 — systemd (manual)
 
@@ -177,7 +176,7 @@ systemctl --user daemon-reload
 systemctl --user restart pi-weather-server
 ```
 
-**With the autostart script** — edit `~/start-weather` and uncomment:
+**With the autostart script** — edit `~/.local/bin/start-weather` and uncomment:
 
 ```bash
 ALLOW_REMOTE=true /usr/bin/npm start &
