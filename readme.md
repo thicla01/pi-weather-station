@@ -75,6 +75,7 @@ bash deploy/install.sh
 It will:
 - Check for Node.js (v18 minimum) and offer to install it if missing or outdated
 - Optionally configure your API keys and create `settings.json`
+- Optionally enable remote access from other machines on the network (see [Access from another machine](#access-from-another-machine))
 - Install all dependencies and build the client
 - Configure and start the systemd service
 - Deploy `~/.local/bin/start-server` and configure your display server's autostart automatically
@@ -184,6 +185,17 @@ By default the server only accepts connections from `localhost` (127.0.0.1). Thi
 
 > **Warning:** Opening the app to your network means anyone on it could potentially access your API keys from the settings page. Do this at your own risk.
 
+### Option 1 — Automated (recommended)
+
+If you used `deploy/install.sh`, remote access can be configured automatically during installation. The script will:
+- Ask for your Pi's IP address (auto-detected)
+- Generate an SSL certificate that includes the Pi's IP as a Subject Alternative Name (SAN), so other browsers accept it without errors
+- Enable `ALLOW_REMOTE=true` in the systemd service
+
+> **Note:** If your Pi's IP address changes, the SSL certificate will no longer be valid for remote connections. Re-run `bash deploy/install.sh` to regenerate it. To avoid this, assign a static IP to your Pi.
+
+### Option 2 — Manual
+
 To allow access from other devices, set the `ALLOW_REMOTE=true` environment variable when starting the server.
 
 **With systemd** — edit `~/.config/systemd/user/pi-weather-server.service` and uncomment:
@@ -212,6 +224,16 @@ ALLOW_REMOTE=true npm start
 ```
 
 The server will now serve the app across your network on port 8443 (HTTPS).
+
+> **SSL certificate:** The auto-generated certificate only covers `localhost` and `127.0.0.1`. When accessing from another machine, your browser will show a certificate warning. To avoid this, regenerate the certificate with your Pi's IP as a SAN:
+> ```bash
+> openssl req -x509 -newkey rsa:2048 \
+>     -keyout server/key.pem -out server/cert.pem \
+>     -days 825 -nodes -subj "/CN=localhost" \
+>     -addext "subjectAltName=DNS:localhost,IP:127.0.0.1,IP:<your-pi-ip>"
+> chmod 600 server/key.pem
+> ```
+> Then restart the server.
 
 # Settings
 
