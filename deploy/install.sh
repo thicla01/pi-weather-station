@@ -116,11 +116,47 @@ else
 fi
 
 # --- 3. Node.js dependencies ---
+AUDIT_LOG="$REPO_DIR/npm-audit.log"
+{ echo "Pi Weather Station — npm audit report"; echo "Generated: $(date)"; } > "$AUDIT_LOG"
+
 echo ""
 echo ">> Installing dependencies..."
 cd "$REPO_DIR"
 npm install
-cd client && npm install && npm run prod && cd ..
+
+echo ">> Running security audit (server)..."
+echo "" >> "$AUDIT_LOG"
+echo "=== Server — $(date) ===" >> "$AUDIT_LOG"
+if npm audit >> "$AUDIT_LOG" 2>&1; then
+    echo "   No vulnerabilities found."
+else
+    echo "   Vulnerabilities found — running npm audit fix..."
+    npm audit fix 2>&1 | tee -a "$AUDIT_LOG"
+    if npm audit > /dev/null 2>&1; then
+        echo "   All vulnerabilities resolved."
+    else
+        echo "   Some vulnerabilities remain — see npm-audit.log for details."
+    fi
+fi
+
+cd client && npm install
+
+echo ">> Running security audit (client)..."
+echo "" >> "$AUDIT_LOG"
+echo "=== Client — $(date) ===" >> "$AUDIT_LOG"
+if npm audit >> "$AUDIT_LOG" 2>&1; then
+    echo "   No vulnerabilities found."
+else
+    echo "   Vulnerabilities found — running npm audit fix..."
+    npm audit fix 2>&1 | tee -a "$AUDIT_LOG"
+    if npm audit > /dev/null 2>&1; then
+        echo "   All vulnerabilities resolved."
+    else
+        echo "   Some vulnerabilities remain — see npm-audit.log for details."
+    fi
+fi
+
+npm run prod && cd ..
 
 # --- 4. Systemd ---
 echo ""
