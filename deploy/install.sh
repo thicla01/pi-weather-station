@@ -15,58 +15,56 @@ NODE_VERSION=$(node --version 2>/dev/null | sed 's/v//' | cut -d. -f1)
 
 if ! command -v node &>/dev/null || [ "${NODE_VERSION:-0}" -lt "$NODE_MIN" ]; then
     if command -v node &>/dev/null; then
-        echo ">> Node.js $(node --version) détecté mais la version minimale requise est v${NODE_MIN}."
+        echo ">> Node.js $(node --version) detected but version v${NODE_MIN} or later is required."
     else
-        echo ">> Node.js n'est pas installé."
+        echo ">> Node.js is not installed."
     fi
-    read -p "   Voulez-vous installer Node.js v${NODE_MIN} ou supérieur? (o/n) " -n 1 -r
+    read -p "   Install Node.js v${NODE_MIN} or later now? (y/n) " -n 1 -r
     echo
-    if [[ $REPLY =~ ^[Oo]$ ]]; then
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
         OS_CODENAME=$(lsb_release -cs)
         case "$OS_CODENAME" in
             bullseye) NODE_SETUP="setup_18.x" ;;
             *)        NODE_SETUP="setup_22.x" ;;
         esac
-        echo ">> Installation de Node.js ($NODE_SETUP) pour $OS_CODENAME..."
+        echo ">> Installing Node.js ($NODE_SETUP) for $OS_CODENAME..."
         curl -fsSL https://deb.nodesource.com/$NODE_SETUP | sudo -E bash -
         sudo apt-get install -y nodejs
     else
-        echo ">> Installation annulée. Node.js v${NODE_MIN} ou supérieur est requis pour continuer."
+        echo ">> Installation cancelled. Node.js v${NODE_MIN} or later is required."
         exit 1
     fi
 else
-    echo ">> Node.js détecté : $(node --version)"
+    echo ">> Node.js detected: $(node --version)"
 fi
 
-# --- 1. Configuration des clés API ---
+# --- 1. API key configuration ---
 echo ""
 if [ -f "$REPO_DIR/settings.json" ]; then
-    echo ">> Un fichier settings.json existe déjà."
-    read -p "   Voulez-vous le reconfigurer? (o/n) " -n 1 -r
+    echo ">> A settings.json file already exists."
+    read -p "   Reconfigure it? (y/n) " -n 1 -r
     echo
-    CONFIGURE_SETTINGS=$([[ $REPLY =~ ^[Oo]$ ]] && echo "yes" || echo "no")
+    CONFIGURE_SETTINGS=$([[ $REPLY =~ ^[Yy]$ ]] && echo "yes" || echo "no")
 else
-    read -p ">> Voulez-vous configurer vos clés API maintenant? (o/n) " -n 1 -r
+    read -p ">> Configure your API keys now? (y/n) " -n 1 -r
     echo
-    CONFIGURE_SETTINGS=$([[ $REPLY =~ ^[Oo]$ ]] && echo "yes" || echo "no")
+    CONFIGURE_SETTINGS=$([[ $REPLY =~ ^[Yy]$ ]] && echo "yes" || echo "no")
 fi
 
 if [ "$CONFIGURE_SETTINGS" = "yes" ]; then
     echo ""
-    echo "   Appuyez sur Entrée pour conserver la valeur par défaut."
+    echo "   Press Enter to leave a field empty."
     echo ""
 
     read -p "   Tomorrow.io API key (weatherApiKey) : " WEATHER_KEY
     read -p "   Mapbox API key (mapApiKey)           : " MAP_KEY
-    read -p "   LocationIQ API key (optionnel)       : " GEO_KEY
-    read -p "   Latitude de départ  [32.7473]        : " LAT
-    read -p "   Longitude de départ [-97.0945]       : " LON
+    read -p "   LocationIQ API key (optional)        : " GEO_KEY
+    read -p "   Starting latitude                    : " LAT
+    read -p "   Starting longitude                   : " LON
 
     WEATHER_KEY=${WEATHER_KEY:-key}
     MAP_KEY=${MAP_KEY:-key}
     GEO_KEY=${GEO_KEY:-key}
-    LAT=${LAT:-32.7473}
-    LON=${LON:--97.0945}
 
     cat > "$REPO_DIR/settings.json" <<EOF
 {
@@ -77,84 +75,84 @@ if [ "$CONFIGURE_SETTINGS" = "yes" ]; then
   "startingLon": "$LON"
 }
 EOF
-    echo ">> settings.json créé."
+    echo ">> settings.json created."
 else
     if [ ! -f "$REPO_DIR/settings.json" ]; then
         cp "$REPO_DIR/settings.example.json" "$REPO_DIR/settings.json"
-        echo ">> settings.json créé à partir de settings.example.json. Pensez à y ajouter vos clés API."
+        echo ">> settings.json created from settings.example.json. Remember to add your API keys."
     else
-        echo ">> settings.json conservé."
+        echo ">> settings.json unchanged."
     fi
 fi
 
-# --- 2. Dépendances Node.js ---
+# --- 2. Node.js dependencies ---
 echo ""
-echo ">> Installation des dépendances..."
+echo ">> Installing dependencies..."
 cd "$REPO_DIR"
 npm install
 cd client && npm install && npm run prod && cd ..
 
-# --- 2. Systemd ---
+# --- 3. Systemd ---
 echo ""
-echo ">> Configuration du service systemd..."
+echo ">> Configuring systemd service..."
 mkdir -p ~/.config/systemd/user
 cp "$REPO_DIR/deploy/pi-weather-server.service" ~/.config/systemd/user/
 systemctl --user daemon-reload
 systemctl --user enable pi-weather-server
 systemctl --user start pi-weather-server
 loginctl enable-linger "$USER"
-echo ">> Service pi-weather-server activé et démarré."
+echo ">> Service pi-weather-server enabled and started."
 
-# --- 3. Script start-server unifié ---
+# --- 4. Unified start-server script ---
 echo ""
-echo ">> Déploiement de start-server..."
+echo ">> Deploying start-server..."
 mkdir -p ~/.local/bin
 cp "$REPO_DIR/deploy/start-server" ~/.local/bin/start-server
 chmod +x ~/.local/bin/start-server
-echo ">> ~/.local/bin/start-server installé."
+echo ">> ~/.local/bin/start-server installed."
 
-# --- 4. Autostart selon le display server ---
+# --- 5. Autostart based on display server ---
 echo ""
-echo ">> Détection du display server..."
+echo ">> Detecting display server..."
 DISPLAY_SERVER=$(ps aux | grep -E 'labwc|wayfire|Xorg' | grep -v grep | awk '{print $11}' | xargs -I{} basename {} 2>/dev/null | head -1)
 
 case "$DISPLAY_SERVER" in
     labwc)
-        echo ">> Display server détecté : labwc"
+        echo ">> Display server detected: labwc"
         mkdir -p ~/.config/labwc
         cp "$REPO_DIR/deploy/autostart" ~/.config/labwc/autostart
-        echo ">> ~/.config/labwc/autostart configuré."
+        echo ">> ~/.config/labwc/autostart configured."
         ;;
     wayfire)
-        echo ">> Display server détecté : wayfire"
+        echo ">> Display server detected: wayfire"
         WAYFIRE_INI="$HOME/.config/wayfire.ini"
         if grep -q "start-server" "$WAYFIRE_INI" 2>/dev/null; then
-            echo ">> ~/.config/wayfire.ini déjà configuré, aucune modification."
+            echo ">> ~/.config/wayfire.ini already configured, no changes made."
         elif grep -q "\[autostart\]" "$WAYFIRE_INI" 2>/dev/null; then
             sed -i '/\[autostart\]/a start-server = start-server' "$WAYFIRE_INI"
-            echo ">> ~/.config/wayfire.ini mis à jour."
+            echo ">> ~/.config/wayfire.ini updated."
         else
             echo -e "\n[autostart]\nstart-server = start-server" >> "$WAYFIRE_INI"
-            echo ">> Section [autostart] ajoutée dans ~/.config/wayfire.ini."
+            echo ">> [autostart] section added to ~/.config/wayfire.ini."
         fi
         ;;
     Xorg)
-        echo ">> Display server détecté : X11/LXDE"
+        echo ">> Display server detected: X11/LXDE"
         LXDE_AUTOSTART="$HOME/.config/lxsession/LXDE-pi/autostart"
         mkdir -p "$(dirname "$LXDE_AUTOSTART")"
         if grep -q "start-server" "$LXDE_AUTOSTART" 2>/dev/null; then
-            echo ">> $LXDE_AUTOSTART déjà configuré, aucune modification."
+            echo ">> $LXDE_AUTOSTART already configured, no changes made."
         else
             echo "@start-server" >> "$LXDE_AUTOSTART"
-            echo ">> $LXDE_AUTOSTART mis à jour."
+            echo ">> $LXDE_AUTOSTART updated."
         fi
         ;;
     *)
-        echo ">> Display server non détecté."
-        echo "   Configurez l'autostart manuellement. Consultez le README pour les instructions."
+        echo ">> Display server not detected."
+        echo "   Configure autostart manually. See the README for instructions."
         ;;
 esac
 
 echo ""
-echo "=== Installation terminée ==="
-echo "Redémarrez votre session pour lancer l'application automatiquement."
+echo "=== Installation complete ==="
+echo "Restart your session to launch the application automatically."
