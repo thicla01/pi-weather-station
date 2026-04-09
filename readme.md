@@ -77,6 +77,7 @@ It will:
 - Optionally configure your API keys and create `settings.json`
 - Optionally enable remote access from other machines on the network (see [Access from another machine](#access-from-another-machine))
 - Install all dependencies and build the client
+- Run `npm audit` after each install and automatically apply fixes if vulnerabilities are found — results are saved to `npm-audit.log`
 - Configure and start the systemd service
 - Deploy `~/.local/bin/start-server` and configure your display server's autostart automatically
 - Offer to reboot to launch the application automatically
