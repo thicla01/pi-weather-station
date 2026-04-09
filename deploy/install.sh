@@ -155,4 +155,11 @@ esac
 
 echo ""
 echo "=== Installation complete ==="
-echo "Restart your session to launch the application automatically."
+echo ""
+read -p ">> Reboot now to launch the application automatically? (y/n) " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    sudo reboot
+else
+    echo "   Reboot skipped. Run 'sudo reboot' when ready."
+fi
