@@ -19,15 +19,15 @@ if ! command -v node &>/dev/null || [ "${NODE_VERSION:-0}" -lt "$NODE_MIN" ]; th
     else
         echo ">> Node.js is not installed."
     fi
-    read -p "   Install Node.js v${NODE_MIN} or later now? (y/n) " -n 1 -r
+    OS_CODENAME=$(lsb_release -cs)
+    case "$OS_CODENAME" in
+        bullseye) NODE_SETUP="setup_18.x"; NODE_VER="18" ;;
+        *)        NODE_SETUP="setup_22.x"; NODE_VER="22" ;;
+    esac
+    read -p "   Install Node.js v${NODE_VER} LTS now? (y/n) " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        OS_CODENAME=$(lsb_release -cs)
-        case "$OS_CODENAME" in
-            bullseye) NODE_SETUP="setup_18.x" ;;
-            *)        NODE_SETUP="setup_22.x" ;;
-        esac
-        echo ">> Installing Node.js ($NODE_SETUP) for $OS_CODENAME..."
+        echo ">> Installing Node.js v${NODE_VER} LTS for $OS_CODENAME..."
         curl -fsSL https://deb.nodesource.com/$NODE_SETUP | sudo -E bash -
         sudo apt-get install -y nodejs
     else
