@@ -61,11 +61,25 @@ Two methods are available in the `deploy/` folder.
 > - `wayfire` → Wayland with wayfire (default on Bookworm/Debian 12)
 > - `Xorg` → X11 (default on Bullseye/Debian 11)
 
-### Option 1 — systemd (recommended)
+### Automated installation (recommended)
+
+The `deploy/install.sh` script handles the full installation automatically:
+
+```bash
+git clone https://github.com/thicla01/pi-weather-station.git
+cd pi-weather-station
+bash deploy/install.sh
+```
+
+It will:
+- Check for Node.js (v18 minimum) and offer to install it if missing or outdated
+- Install all dependencies and build the client
+- Configure and start the systemd service
+- Deploy `~/start-server` and configure your display server's autostart automatically
+
+### Option 1 — systemd (manual)
 
 Starts the server automatically at boot, independent of the graphical session. Restarts automatically on failure.
-
-Full installation sequence:
 
 ```bash
 git clone https://github.com/thicla01/pi-weather-station.git
@@ -76,29 +90,29 @@ cd client && npm install && npm run prod && cd ..
 systemctl --user enable pi-weather-server
 systemctl --user start pi-weather-server
 loginctl enable-linger $USER
+cp deploy/start-server ~/start-server
+chmod +x ~/start-server
 ```
 
-Then add Chromium to your display server's autostart.
+Then configure your display server's autostart to launch `~/start-server`. This script waits for the server to be ready and automatically detects whether it started on port 8443 (HTTPS) or 8080 (HTTP) before launching Chromium.
 
-**labwc** (default on Trixie/Debian 13) — copy the provided autostart script:
+**labwc** (default on Trixie/Debian 13):
 
 ```bash
 cp deploy/autostart ~/.config/labwc/autostart
 ```
 
-This script waits for the server to be ready and automatically detects whether it started on port 8443 (HTTPS) or 8080 (HTTP) before launching Chromium.
-
 **wayfire** (default on Bookworm/Debian 12) — add to `~/.config/wayfire.ini` under the `[autostart]` section:
 
 ```ini
 [autostart]
-chromium = /usr/bin/chromium --kiosk --noerrdialogs --disable-infobars --no-first-run --ozone-platform=wayland --enable-features=OverlayScrollbar --start-maximized http://localhost:8080
+start-server = ~/start-server
 ```
 
 **X11/LXDE** (default on Bullseye/Debian 11) — add to `~/.config/lxsession/LXDE-pi/autostart`:
 
 ```bash
-@chromium-browser --kiosk --noerrdialogs --disable-infobars --no-first-run
+@~/start-server
 ```
 
 View logs with:
@@ -107,7 +121,7 @@ View logs with:
 journalctl --user -u pi-weather-server -f
 ```
 
-### Option 2 — autostart script
+### Option 2 — autostart script (without systemd)
 
 Copy the provided script to your home directory and call it from your compositor's autostart:
 
