@@ -189,7 +189,7 @@ By default the server only accepts connections from `localhost` (127.0.0.1). Thi
 
 If you used `deploy/install.sh`, remote access can be configured automatically during installation. The script will:
 - Ask for your Pi's IP address (auto-detected)
-- Generate an SSL certificate that includes the Pi's IP as a Subject Alternative Name (SAN), so other browsers accept it without errors
+- Generate an SSL certificate that includes the Pi's IP as a Subject Alternative Name (SAN) — browsers will show a one-time security warning on first visit, which you can safely accept
 - Enable `ALLOW_REMOTE=true` in the systemd service
 
 > **Note:** If your Pi's IP address changes, the SSL certificate will no longer be valid for remote connections. Re-run `bash deploy/install.sh` to regenerate it. To avoid this, assign a static IP to your Pi.
