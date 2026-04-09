@@ -85,25 +85,59 @@ else
     fi
 fi
 
-# --- 2. Node.js dependencies ---
+# --- 2. Remote network access ---
+echo ""
+echo ">> Remote network access..."
+read -p "   Allow access from other machines on the network? (y/n) " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
+    ALLOW_REMOTE="yes"
+    DETECTED_IP=$(hostname -I | awk '{print $1}')
+    echo ""
+    read -p "   Pi IP address [$DETECTED_IP]: " CUSTOM_IP
+    REMOTE_IP=${CUSTOM_IP:-$DETECTED_IP}
+    echo ""
+    echo ">> Generating SSL certificate for localhost and $REMOTE_IP..."
+    openssl req -x509 -newkey rsa:2048 \
+        -keyout "$REPO_DIR/server/key.pem" \
+        -out "$REPO_DIR/server/cert.pem" \
+        -days 825 -nodes \
+        -subj "/CN=localhost" \
+        -addext "subjectAltName=DNS:localhost,IP:127.0.0.1,IP:$REMOTE_IP" 2>/dev/null
+    chmod 600 "$REPO_DIR/server/key.pem"
+    echo ">> SSL certificate generated."
+    echo ""
+    echo "   *** WARNING: If your Pi's IP address changes, the SSL certificate"
+    echo "       will no longer be valid for remote connections."
+    echo "       Re-run install.sh to regenerate it with the new address."
+    echo "       To avoid this, consider assigning a static IP to your Pi."
+else
+    ALLOW_REMOTE="no"
+fi
+
+# --- 3. Node.js dependencies ---
 echo ""
 echo ">> Installing dependencies..."
 cd "$REPO_DIR"
 npm install
 cd client && npm install && npm run prod && cd ..
 
-# --- 3. Systemd ---
+# --- 4. Systemd ---
 echo ""
 echo ">> Configuring systemd service..."
 mkdir -p ~/.config/systemd/user
 cp "$REPO_DIR/deploy/pi-weather-server.service" ~/.config/systemd/user/
+if [ "$ALLOW_REMOTE" = "yes" ]; then
+    sed -i 's/# Environment=ALLOW_REMOTE=true/Environment=ALLOW_REMOTE=true/' \
+        ~/.config/systemd/user/pi-weather-server.service
+fi
 systemctl --user daemon-reload
 systemctl --user enable pi-weather-server
 systemctl --user start pi-weather-server
 loginctl enable-linger "$USER"
 echo ">> Service pi-weather-server enabled and started."
 
-# --- 4. Unified start-server script ---
+# --- 5. Unified start-server script ---
 echo ""
 echo ">> Deploying start-server..."
 mkdir -p ~/.local/bin
@@ -111,7 +145,7 @@ cp "$REPO_DIR/deploy/start-server" ~/.local/bin/start-server
 chmod +x ~/.local/bin/start-server
 echo ">> ~/.local/bin/start-server installed."
 
-# --- 5. Autostart based on display server ---
+# --- 6. Autostart based on display server ---
 echo ""
 echo ">> Detecting display server..."
 DISPLAY_SERVER=$(ps aux | grep -E 'labwc|wayfire|Xorg' | grep -v grep | awk '{print $11}' | xargs -I{} basename {} 2>/dev/null | head -1)
@@ -156,6 +190,12 @@ esac
 echo ""
 echo "=== Installation complete ==="
 echo ""
+if [ "$ALLOW_REMOTE" = "yes" ]; then
+    echo "   Remote access enabled — https://$REMOTE_IP:8443"
+    echo "   NOTE: If your Pi's IP address changes, re-run install.sh to"
+    echo "         regenerate the SSL certificate with the new address."
+    echo ""
+fi
 read -p ">> Reboot now to launch the application automatically? (y/n) " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
