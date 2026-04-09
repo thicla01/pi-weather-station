@@ -43,17 +43,17 @@ case "$DISPLAY_SERVER" in
     wayfire)
         echo ">> Display server detected: wayfire"
         WAYFIRE_INI="$HOME/.config/wayfire.ini"
-        if grep -q "start-server" "$WAYFIRE_INI" 2>/dev/null; then
-            sed -i '/start-server/d' "$WAYFIRE_INI"
-            echo "   start-server entry removed from ~/.config/wayfire.ini."
+        if grep -qE "start-server|start-weather" "$WAYFIRE_INI" 2>/dev/null; then
+            sed -i '/start-server\|start-weather/d' "$WAYFIRE_INI"
+            echo "   start-server/start-weather entry removed from ~/.config/wayfire.ini."
         fi
         ;;
     Xorg)
         echo ">> Display server detected: X11/LXDE"
         LXDE_AUTOSTART="$HOME/.config/lxsession/LXDE-pi/autostart"
-        if grep -q "start-server" "$LXDE_AUTOSTART" 2>/dev/null; then
-            sed -i '/start-server/d' "$LXDE_AUTOSTART"
-            echo "   start-server entry removed from $LXDE_AUTOSTART."
+        if grep -qE "start-server|start-weather" "$LXDE_AUTOSTART" 2>/dev/null; then
+            sed -i '/start-server\|start-weather/d' "$LXDE_AUTOSTART"
+            echo "   start-server/start-weather entry removed from $LXDE_AUTOSTART."
         fi
         ;;
     *)
