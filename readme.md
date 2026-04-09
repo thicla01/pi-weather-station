@@ -61,7 +61,7 @@ Two methods are available in the `deploy/` folder.
 > - `wayfire` → Wayland with wayfire (default on Bookworm/Debian 12)
 > - `Xorg` → X11 (default on Bullseye/Debian 11)
 
-### Automated installation (recommended)
+### Option 1 — Automated installation (recommended)
 
 The `deploy/install.sh` script handles the full installation automatically:
 
@@ -77,7 +77,7 @@ It will:
 - Configure and start the systemd service
 - Deploy `~/start-server` and configure your display server's autostart automatically
 
-### Option 1 — systemd (manual)
+### Option 2 — systemd (manual)
 
 Starts the server automatically at boot, independent of the graphical session. Restarts automatically on failure.
 
@@ -122,7 +122,7 @@ View logs with:
 journalctl --user -u pi-weather-server -f
 ```
 
-### Option 2 — autostart script (without systemd)
+### Option 3 — autostart script (without systemd)
 
 Copy the provided script to your home directory and call it from your compositor's autostart:
 
