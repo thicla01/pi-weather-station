@@ -36,13 +36,16 @@ See it in action [here](https://www.youtube.com/watch?v=dvM6cyqYSw8).
 
 > **Node.js requirement:** Node.js 18 or later is required. Bullseye (Debian 11) ships with Node.js 12 by default, but works fine if Node.js 18+ is installed manually (e.g. via [NodeSource](https://github.com/nodesource/distributions)). Bookworm (Debian 12) and Trixie (Debian 13) are recommended as they ship with a more recent Node.js.
 
-Clone the repo, then install dependencies:
+Before starting, copy the example settings file and add your API keys:
+
+    $ cp settings.example.json settings.json
+
+Then edit `settings.json` to add your Mapbox and Tomorrow.io API keys.
+
+To test the installation manually:
 
     $ npm install
     $ cd client && npm install && npm run prod && cd ..
-
-To start the server manually:
-
     $ npm start
 
 Now point your browser to `https://localhost:8443` and put it in full screen mode (`F11` in Chromium).
@@ -51,7 +54,7 @@ Now point your browser to `https://localhost:8443` and put it in full screen mod
 
 ## Running on startup
 
-Two methods are available in the `deploy/` folder.
+Three options are available in the `deploy/` folder. **Option 1 is recommended** for most users.
 
 > **Which display server am I using?** Run the following command to find out:
 > ```bash
