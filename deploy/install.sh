@@ -10,9 +10,16 @@ echo "=== Pi Weather Station — Installation ==="
 echo ""
 
 # --- 0. Node.js ---
-if ! command -v node &>/dev/null; then
-    echo ">> Node.js n'est pas installé."
-    read -p "   Voulez-vous l'installer maintenant? (o/n) " -n 1 -r
+NODE_MIN=18
+NODE_VERSION=$(node --version 2>/dev/null | sed 's/v//' | cut -d. -f1)
+
+if ! command -v node &>/dev/null || [ "${NODE_VERSION:-0}" -lt "$NODE_MIN" ]; then
+    if command -v node &>/dev/null; then
+        echo ">> Node.js $(node --version) détecté mais la version minimale requise est v${NODE_MIN}."
+    else
+        echo ">> Node.js n'est pas installé."
+    fi
+    read -p "   Voulez-vous installer Node.js v${NODE_MIN} ou supérieur? (o/n) " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Oo]$ ]]; then
         OS_CODENAME=$(lsb_release -cs)
@@ -24,7 +31,7 @@ if ! command -v node &>/dev/null; then
         curl -fsSL https://deb.nodesource.com/$NODE_SETUP | sudo -E bash -
         sudo apt-get install -y nodejs
     else
-        echo ">> Installation annulée. Node.js est requis pour continuer."
+        echo ">> Installation annulée. Node.js v${NODE_MIN} ou supérieur est requis pour continuer."
         exit 1
     fi
 else
