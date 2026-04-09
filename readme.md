@@ -155,6 +155,16 @@ weather = start-weather
 @start-weather
 ```
 
+## Uninstall
+
+To remove the Pi Weather Station service, scripts, and configurations:
+
+```bash
+bash deploy/uninstall.sh
+```
+
+The script will automatically remove the systemd service, `~/.local/bin/start-server`, `~/.local/bin/start-weather`, and the display server's autostart configuration. It will then ask whether to also remove `settings.json`, SSL certificates, `node_modules`, and the project directory.
+
 ## Access from another machine
 
 By default the server only accepts connections from `localhost` (127.0.0.1). This protects your API keys from being accessed by other devices on your network.
