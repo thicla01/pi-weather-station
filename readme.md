@@ -78,6 +78,7 @@ It will:
 - Install all dependencies and build the client
 - Configure and start the systemd service
 - Deploy `~/.local/bin/start-server` and configure your display server's autostart automatically
+- Offer to reboot to launch the application automatically
 
 ### Option 2 — systemd (manual)
 
@@ -124,6 +125,12 @@ View logs with:
 journalctl --user -u pi-weather-server -f
 ```
 
+Then reboot to launch the application automatically:
+
+```bash
+sudo reboot
+```
+
 ### Option 3 — autostart script (without systemd)
 
 Copy the provided script to `~/.local/bin/` and call it from your compositor's autostart:
@@ -153,6 +160,12 @@ weather = start-weather
 
 ```bash
 @start-weather
+```
+
+Then reboot to launch the application automatically:
+
+```bash
+sudo reboot
 ```
 
 ## Uninstall
