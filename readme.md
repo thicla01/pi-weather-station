@@ -90,11 +90,12 @@ cd client && npm install && npm run prod && cd ..
 systemctl --user enable pi-weather-server
 systemctl --user start pi-weather-server
 loginctl enable-linger $USER
-cp deploy/start-server ~/start-server
-chmod +x ~/start-server
+mkdir -p ~/.local/bin
+cp deploy/start-server ~/.local/bin/start-server
+chmod +x ~/.local/bin/start-server
 ```
 
-Then configure your display server's autostart to launch `~/start-server`. This script waits for the server to be ready and automatically detects whether it started on port 8443 (HTTPS) or 8080 (HTTP) before launching Chromium.
+Then configure your display server's autostart to launch `start-server`. This script waits for the server to be ready and automatically detects whether it started on port 8443 (HTTPS) or 8080 (HTTP) before launching Chromium.
 
 **labwc** (default on Trixie/Debian 13):
 
@@ -106,13 +107,13 @@ cp deploy/autostart ~/.config/labwc/autostart
 
 ```ini
 [autostart]
-start-server = ~/start-server
+start-server = start-server
 ```
 
 **X11/LXDE** (default on Bullseye/Debian 11) — add to `~/.config/lxsession/LXDE-pi/autostart`:
 
 ```bash
-@~/start-server
+@start-server
 ```
 
 View logs with:

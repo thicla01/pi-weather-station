@@ -59,9 +59,10 @@ echo ">> Service pi-weather-server activé et démarré."
 # --- 3. Script start-server unifié ---
 echo ""
 echo ">> Déploiement de start-server..."
-cp "$REPO_DIR/deploy/start-server" ~/start-server
-chmod +x ~/start-server
-echo ">> ~/start-server installé."
+mkdir -p ~/.local/bin
+cp "$REPO_DIR/deploy/start-server" ~/.local/bin/start-server
+chmod +x ~/.local/bin/start-server
+echo ">> ~/.local/bin/start-server installé."
 
 # --- 4. Autostart selon le display server ---
 echo ""
@@ -81,10 +82,10 @@ case "$DISPLAY_SERVER" in
         if grep -q "start-server" "$WAYFIRE_INI" 2>/dev/null; then
             echo ">> ~/.config/wayfire.ini déjà configuré, aucune modification."
         elif grep -q "\[autostart\]" "$WAYFIRE_INI" 2>/dev/null; then
-            sed -i '/\[autostart\]/a start-server = ~/start-server' "$WAYFIRE_INI"
+            sed -i '/\[autostart\]/a start-server = start-server' "$WAYFIRE_INI"
             echo ">> ~/.config/wayfire.ini mis à jour."
         else
-            echo -e "\n[autostart]\nstart-server = ~/start-server" >> "$WAYFIRE_INI"
+            echo -e "\n[autostart]\nstart-server = start-server" >> "$WAYFIRE_INI"
             echo ">> Section [autostart] ajoutée dans ~/.config/wayfire.ini."
         fi
         ;;
@@ -95,7 +96,7 @@ case "$DISPLAY_SERVER" in
         if grep -q "start-server" "$LXDE_AUTOSTART" 2>/dev/null; then
             echo ">> $LXDE_AUTOSTART déjà configuré, aucune modification."
         else
-            echo "@~/start-server" >> "$LXDE_AUTOSTART"
+            echo "@start-server" >> "$LXDE_AUTOSTART"
             echo ">> $LXDE_AUTOSTART mis à jour."
         fi
         ;;
