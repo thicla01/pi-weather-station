@@ -124,30 +124,33 @@ journalctl --user -u pi-weather-server -f
 
 ### Option 3 — autostart script (without systemd)
 
-Copy the provided script to your home directory and call it from your compositor's autostart:
+Copy the provided script to `~/.local/bin/` and call it from your compositor's autostart:
 
 ```bash
-cp deploy/start-weather ~/start-weather
-chmod +x ~/start-weather
+mkdir -p ~/.local/bin
+cp deploy/start-weather ~/.local/bin/start-weather
+chmod +x ~/.local/bin/start-weather
 ```
+
+This script starts the Node.js server, waits for it to be ready, and automatically detects whether it started on port 8443 (HTTPS) or 8080 (HTTP) before launching Chromium.
 
 **labwc** (default on Trixie/Debian 13) — add to `~/.config/labwc/autostart`:
 
 ```bash
-sleep 30 && $HOME/start-weather
+start-weather &
 ```
 
 **wayfire** (default on Bookworm/Debian 12) — add to `~/.config/wayfire.ini` under the `[autostart]` section:
 
 ```ini
 [autostart]
-weather = sleep 30 && $HOME/start-weather
+weather = start-weather
 ```
 
 **X11/LXDE** (default on Bullseye/Debian 11) — add to `~/.config/lxsession/LXDE-pi/autostart`:
 
 ```bash
-@bash -c "sleep 30 && $HOME/start-weather"
+@start-weather
 ```
 
 ## Access from another machine
