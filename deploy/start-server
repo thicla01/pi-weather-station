@@ -1,0 +1,24 @@
+#!/bin/bash
+# Pi Weather Station — start-server
+# Waits for the server to be ready, then launches Chromium in kiosk mode.
+# Works with labwc, wayfire, and X11/LXDE display servers.
+
+# Wait for server on 8443 (HTTPS) or 8080 (HTTP)
+for i in $(seq 1 30); do
+    if nc -z localhost 8443 2>/dev/null; then
+        URL="https://localhost:8443"
+        break
+    elif nc -z localhost 8080 2>/dev/null; then
+        URL="http://localhost:8080"
+        break
+    fi
+    sleep 1
+done
+
+# Chromium flags based on display server
+if [ -n "$WAYLAND_DISPLAY" ]; then
+    FLAGS="--ozone-platform=wayland --enable-features=OverlayScrollbar --start-maximized"
+fi
+
+/usr/bin/chromium --kiosk --noerrdialogs --disable-infobars --no-first-run \
+    --ignore-certificate-errors $FLAGS "$URL"
