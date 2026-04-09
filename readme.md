@@ -34,39 +34,206 @@ See it in action [here](https://www.youtube.com/watch?v=dvM6cyqYSw8).
 
 # Setup
 
-> **Raspberry Pi OS requirement:** These instructions require **Raspberry Pi OS Bookworm (Debian 12)** or later. Bullseye (Debian 11) ships with Node.js 12 by default, which is incompatible with the build dependencies (`css-loader` v7 and `postcss-preset-env` v10 require Node.js >= 18).
+> **Node.js requirement:** Node.js 18 or later is required. Bullseye (Debian 11) ships with Node.js 12 by default, but works fine if Node.js 18+ is installed manually (e.g. via [NodeSource](https://github.com/nodesource/distributions)). Bookworm (Debian 12) and Trixie (Debian 13) are recommended as they ship with a more recent Node.js.
 
-> You will need to have [Node.js](https://nodejs.org/) 18 or later installed.
+> **API keys:** If you use the automated install (Option 1), the script will offer to configure your API keys automatically. For a manual setup, copy the example settings file and edit it:
 
-To install, clone the repo and run
+    $ cp settings.example.json settings.json
 
-    npm install
+To test the installation manually:
 
-Then build the client
+    $ npm install
+    $ cd client && npm install && npm run prod && cd ..
+    $ npm start
 
-    cd client && npm install && npm run prod && cd ..
+Now point your browser to `https://localhost:8443` and put it in full screen mode (`F11` in Chromium).
 
-Start the server with
+> **Note:** The server uses a self-signed SSL certificate generated automatically on first launch. Your browser will show a security warning — this is expected. You can safely accept the exception for `localhost`.
 
-    npm start
+## Running on startup
 
-Now set point your browser to `http://localhost:8080` and put it in full screen mode (`F11` in Chromium).
+Three options are available in the `deploy/` folder. **Option 1 is recommended** for most users.
+
+> **Which display server am I using?** Run the following command to find out:
+> ```bash
+> ps aux | grep -E 'labwc|wayfire|Xorg' | grep -v grep
+> ```
+> - `labwc` → Wayland with labwc (default on Trixie/Debian 13)
+> - `wayfire` → Wayland with wayfire (default on Bookworm/Debian 12)
+> - `Xorg` → X11 (default on Bullseye/Debian 11)
+
+### Option 1 — Automated installation (recommended)
+
+The `deploy/install.sh` script handles the full installation automatically:
+
+```bash
+git clone https://github.com/thicla01/pi-weather-station.git
+cd pi-weather-station
+bash deploy/install.sh
+```
+
+It will:
+- Check for Node.js (v18 minimum) and offer to install it if missing or outdated
+- Optionally configure your API keys and create `settings.json`
+- Optionally enable remote access from other machines on the network (see [Access from another machine](#access-from-another-machine))
+- Install all dependencies and build the client
+- Configure and start the systemd service
+- Deploy `~/.local/bin/start-server` and configure your display server's autostart automatically
+- Offer to reboot to launch the application automatically
+
+### Option 2 — systemd (manual)
+
+Starts the server automatically at boot, independent of the graphical session. Restarts automatically on failure.
+
+```bash
+git clone https://github.com/thicla01/pi-weather-station.git
+cd pi-weather-station
+cp deploy/pi-weather-server.service ~/.config/systemd/user/
+npm install
+cd client && npm install && npm run prod && cd ..
+systemctl --user enable pi-weather-server
+systemctl --user start pi-weather-server
+loginctl enable-linger $USER
+mkdir -p ~/.local/bin
+cp deploy/start-server ~/.local/bin/start-server
+chmod +x ~/.local/bin/start-server
+```
+
+Then configure your display server's autostart to launch `start-server`. This script waits for the server to be ready and automatically detects whether it started on port 8443 (HTTPS) or 8080 (HTTP) before launching Chromium.
+
+**labwc** (default on Trixie/Debian 13):
+
+```bash
+cp deploy/autostart ~/.config/labwc/autostart
+```
+
+**wayfire** (default on Bookworm/Debian 12) — add to `~/.config/wayfire.ini` under the `[autostart]` section:
+
+```ini
+[autostart]
+start-server = start-server
+```
+
+**X11/LXDE** (default on Bullseye/Debian 11) — add to `~/.config/lxsession/LXDE-pi/autostart`:
+
+```bash
+@start-server
+```
+
+View logs with:
+
+```bash
+journalctl --user -u pi-weather-server -f
+```
+
+Then reboot to launch the application automatically:
+
+```bash
+sudo reboot
+```
+
+### Option 3 — autostart script (without systemd)
+
+Copy the provided script to `~/.local/bin/` and call it from your compositor's autostart:
+
+```bash
+mkdir -p ~/.local/bin
+cp deploy/start-weather ~/.local/bin/start-weather
+chmod +x ~/.local/bin/start-weather
+```
+
+This script starts the Node.js server, waits for it to be ready, and automatically detects whether it started on port 8443 (HTTPS) or 8080 (HTTP) before launching Chromium.
+
+**labwc** (default on Trixie/Debian 13) — add to `~/.config/labwc/autostart`:
+
+```bash
+start-weather &
+```
+
+**wayfire** (default on Bookworm/Debian 12) — add to `~/.config/wayfire.ini` under the `[autostart]` section:
+
+```ini
+[autostart]
+weather = start-weather
+```
+
+**X11/LXDE** (default on Bullseye/Debian 11) — add to `~/.config/lxsession/LXDE-pi/autostart`:
+
+```bash
+@start-weather
+```
+
+Then reboot to launch the application automatically:
+
+```bash
+sudo reboot
+```
+
+## Uninstall
+
+To remove the Pi Weather Station service, scripts, and configurations:
+
+```bash
+bash deploy/uninstall.sh
+```
+
+The script will automatically remove the systemd service, `~/.local/bin/start-server`, `~/.local/bin/start-weather`, and the display server's autostart configuration. It will then ask whether to also remove `settings.json`, SSL certificates, `node_modules`, and the project directory.
 
 ## Access from another machine
 
-It's possible to access the app from another machine, but beware that by doing so you'll be exposing the app to your entire network, and someone else could potentially access the app and retrieve your API keys from the settings page. By default the app is only accessible to `localhost`, but if you would like to open it up to your network (at your own risk!), open `/server/index.js` and remove `"localhost"` from the line that contains:
+By default the server only accepts connections from `localhost` (127.0.0.1). This protects your API keys from being accessed by other devices on your network.
 
-```js
-app.listen(PORT, "localhost", async () => {
+> **Warning:** Opening the app to your network means anyone on it could potentially access your API keys from the settings page. Do this at your own risk.
+
+### Option 1 — Automated (recommended)
+
+If you used `deploy/install.sh`, remote access can be configured automatically during installation. The script will:
+- Ask for your Pi's IP address (auto-detected)
+- Generate an SSL certificate that includes the Pi's IP as a Subject Alternative Name (SAN), so other browsers accept it without errors
+- Enable `ALLOW_REMOTE=true` in the systemd service
+
+> **Note:** If your Pi's IP address changes, the SSL certificate will no longer be valid for remote connections. Re-run `bash deploy/install.sh` to regenerate it. To avoid this, assign a static IP to your Pi.
+
+### Option 2 — Manual
+
+To allow access from other devices, set the `ALLOW_REMOTE=true` environment variable when starting the server.
+
+**With systemd** — edit `~/.config/systemd/user/pi-weather-server.service` and uncomment:
+
+```ini
+Environment=ALLOW_REMOTE=true
 ```
 
-so that it becomes:
+Then reload and restart:
 
-```js
-app.listen(PORT, async () => {
+```bash
+systemctl --user daemon-reload
+systemctl --user restart pi-weather-server
 ```
 
-The server will now serve the app across your network.
+**With the autostart script** — edit `~/.local/bin/start-weather` and uncomment:
+
+```bash
+ALLOW_REMOTE=true /usr/bin/npm start &
+```
+
+**Manually:**
+
+```bash
+ALLOW_REMOTE=true npm start
+```
+
+The server will now serve the app across your network on port 8443 (HTTPS).
+
+> **SSL certificate:** The auto-generated certificate only covers `localhost` and `127.0.0.1`. When accessing from another machine, your browser will show a certificate warning. To avoid this, regenerate the certificate with your Pi's IP as a SAN:
+> ```bash
+> openssl req -x509 -newkey rsa:2048 \
+>     -keyout server/key.pem -out server/cert.pem \
+>     -days 825 -nodes -subj "/CN=localhost" \
+>     -addext "subjectAltName=DNS:localhost,IP:127.0.0.1,IP:<your-pi-ip>"
+> chmod 600 server/key.pem
+> ```
+> Then restart the server.
 
 # Settings
 

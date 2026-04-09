@@ -1,2 +1,4 @@
 node_modules/
 settings.json
+server/key.pem
+server/cert.pem
