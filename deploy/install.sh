@@ -38,7 +38,56 @@ else
     echo ">> Node.js détecté : $(node --version)"
 fi
 
-# --- 1. Dépendances Node.js ---
+# --- 1. Configuration des clés API ---
+echo ""
+if [ -f "$REPO_DIR/settings.json" ]; then
+    echo ">> Un fichier settings.json existe déjà."
+    read -p "   Voulez-vous le reconfigurer? (o/n) " -n 1 -r
+    echo
+    CONFIGURE_SETTINGS=$([[ $REPLY =~ ^[Oo]$ ]] && echo "yes" || echo "no")
+else
+    read -p ">> Voulez-vous configurer vos clés API maintenant? (o/n) " -n 1 -r
+    echo
+    CONFIGURE_SETTINGS=$([[ $REPLY =~ ^[Oo]$ ]] && echo "yes" || echo "no")
+fi
+
+if [ "$CONFIGURE_SETTINGS" = "yes" ]; then
+    echo ""
+    echo "   Appuyez sur Entrée pour conserver la valeur par défaut."
+    echo ""
+
+    read -p "   Tomorrow.io API key (weatherApiKey) : " WEATHER_KEY
+    read -p "   Mapbox API key (mapApiKey)           : " MAP_KEY
+    read -p "   LocationIQ API key (optionnel)       : " GEO_KEY
+    read -p "   Latitude de départ  [32.7473]        : " LAT
+    read -p "   Longitude de départ [-97.0945]       : " LON
+
+    WEATHER_KEY=${WEATHER_KEY:-key}
+    MAP_KEY=${MAP_KEY:-key}
+    GEO_KEY=${GEO_KEY:-key}
+    LAT=${LAT:-32.7473}
+    LON=${LON:--97.0945}
+
+    cat > "$REPO_DIR/settings.json" <<EOF
+{
+  "weatherApiKey": "$WEATHER_KEY",
+  "mapApiKey": "$MAP_KEY",
+  "reverseGeoApiKey": "$GEO_KEY",
+  "startingLat": "$LAT",
+  "startingLon": "$LON"
+}
+EOF
+    echo ">> settings.json créé."
+else
+    if [ ! -f "$REPO_DIR/settings.json" ]; then
+        cp "$REPO_DIR/settings.example.json" "$REPO_DIR/settings.json"
+        echo ">> settings.json créé à partir de settings.example.json. Pensez à y ajouter vos clés API."
+    else
+        echo ">> settings.json conservé."
+    fi
+fi
+
+# --- 2. Dépendances Node.js ---
 echo ""
 echo ">> Installation des dépendances..."
 cd "$REPO_DIR"
