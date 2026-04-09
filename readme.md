@@ -80,17 +80,19 @@ loginctl enable-linger $USER
 
 Then add Chromium to your display server's autostart.
 
-**labwc** (default on Trixie/Debian 13) — add to `~/.config/labwc/autostart`:
+**labwc** (default on Trixie/Debian 13) — copy the provided autostart script:
 
 ```bash
-/usr/bin/chromium --kiosk --noerrdialogs --disable-infobars --no-first-run --ozone-platform=wayland --enable-features=OverlayScrollbar --start-maximized
+cp deploy/autostart ~/.config/labwc/autostart
 ```
+
+This script waits for the server to be ready and automatically detects whether it started on port 8443 (HTTPS) or 8080 (HTTP) before launching Chromium.
 
 **wayfire** (default on Bookworm/Debian 12) — add to `~/.config/wayfire.ini` under the `[autostart]` section:
 
 ```ini
 [autostart]
-chromium = /usr/bin/chromium --kiosk --noerrdialogs --disable-infobars --no-first-run --ozone-platform=wayland --enable-features=OverlayScrollbar --start-maximized
+chromium = /usr/bin/chromium --kiosk --noerrdialogs --disable-infobars --no-first-run --ozone-platform=wayland --enable-features=OverlayScrollbar --start-maximized http://localhost:8080
 ```
 
 **X11/LXDE** (default on Bullseye/Debian 11) — add to `~/.config/lxsession/LXDE-pi/autostart`:
