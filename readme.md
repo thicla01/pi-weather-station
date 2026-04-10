@@ -19,7 +19,7 @@ See it in action [here](https://www.youtube.com/watch?v=dvM6cyqYSw8).
 
 Security improvements:
 
-- **API key proxying** — Mapbox (map tiles) and LocationIQ (reverse geocoding) API calls are now proxied through the Express server. Keys are never sent to the browser or included in client-side request URLs.
+- **API key proxying** — Mapbox (map tiles) and LocationIQ (reverse geocoding) API calls are now proxied through the Express server. Keys are no longer included in client-side request URLs, keeping them out of browser network logs and third-party server logs. Note: keys are still transmitted to the browser via `GET /settings` for display in the settings panel.
 - **Settings write protection** — `POST`, `PUT`, `PATCH`, and `DELETE` requests to `/settings` are now restricted to `localhost`. Remote users can view the app but cannot modify API keys or coordinates. The settings panel displays a clear message when accessed remotely.
 - **Remote access UX** — When accessing from another machine, the settings panel shows *"API keys and coordinates can only be modified from the Pi."* instead of the Save button. Unit and display preferences (temperature, speed, clock format, etc.) continue to work from any device.
 - **CORS removed** — The `cors` middleware (which allowed any origin to call the API) has been removed. All legitimate requests are same-origin and do not require it.
@@ -198,7 +198,7 @@ The script will automatically remove the systemd service, `~/.local/bin/start-se
 By default the server only accepts connections from `localhost` (127.0.0.1).
 
 When remote access is enabled (`ALLOW_REMOTE=true`), the following protections apply:
-- API keys (Mapbox, LocationIQ) are **never sent to the browser** — all calls to these services are proxied through the server.
+- Mapbox and LocationIQ API calls are **proxied through the server** — keys are no longer visible in client-side request URLs or third-party server logs. Keys are still transmitted to the browser via `GET /settings` for display in the settings panel.
 - The settings panel is **read-only** for remote users — API keys and coordinates can only be modified from the Pi itself.
 - Unit and display preferences (temperature, speed, clock format, etc.) continue to work from any device.
 
