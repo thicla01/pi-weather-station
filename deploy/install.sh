@@ -66,15 +66,17 @@ if [ "$CONFIGURE_SETTINGS" = "yes" ]; then
     MAP_KEY=${MAP_KEY:-key}
     GEO_KEY=${GEO_KEY:-key}
 
-    cat > "$REPO_DIR/settings.json" <<EOF
-{
-  "weatherApiKey": "$WEATHER_KEY",
-  "mapApiKey": "$MAP_KEY",
-  "reverseGeoApiKey": "$GEO_KEY",
-  "startingLat": "$LAT",
-  "startingLon": "$LON"
+    python3 -c "
+import json, sys
+data = {
+    'weatherApiKey': sys.argv[1],
+    'mapApiKey':     sys.argv[2],
+    'reverseGeoApiKey': sys.argv[3],
+    'startingLat':   sys.argv[4] if sys.argv[4] else None,
+    'startingLon':   sys.argv[5] if sys.argv[5] else None,
 }
-EOF
+print(json.dumps(data, indent=2))
+" "$WEATHER_KEY" "$MAP_KEY" "$GEO_KEY" "$LAT" "$LON" > "$REPO_DIR/settings.json"
     echo ">> settings.json created."
 else
     if [ ! -f "$REPO_DIR/settings.json" ]; then

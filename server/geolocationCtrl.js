@@ -8,7 +8,8 @@ function getCoords(req, res) {
   axios
     .get("https://ipapi.co/json/")
     .then((result) => {
-      return res.status(result.status).json(result.data).end();
+      const { latitude, longitude } = result.data;
+      return res.status(200).json({ latitude, longitude }).end();
     })
     .catch((err) => {
       return res.status(500).json(err).end();

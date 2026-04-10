@@ -1,7 +1,6 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const path = require("path");
-const cors = require("cors");
 const open = require("open");
 const https = require("https");
 const fs = require("fs");
@@ -11,6 +10,7 @@ const appName = require("../package.json").name;
 
 const settingsCtrl = require("./settingsCtrl");
 const geolocationCtrl = require("./geolocationCtrl");
+const proxyCtrl = require("./proxyCtrl");
 
 const {
   getSettings,
@@ -20,6 +20,7 @@ const {
   replaceSettings,
 } = settingsCtrl;
 const { getCoords } = geolocationCtrl;
+const { reverseGeocode: proxyReverseGeocode, mapTile } = proxyCtrl;
 
 const DIST_DIR = "/../client/dist";
 const PORT = 8080;
@@ -84,9 +85,17 @@ const sslOptions = (() => {
 // app.use(connectLivereload());
 // *****
 
-app.use(cors());
 app.use(bodyParser.json());
 app.use(express.static(path.join(`${__dirname}/${DIST_DIR}`)));
+
+const localhostOnly = (req, res, next) => {
+  const ip = req.socket.remoteAddress;
+  const isLocalhost = ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1";
+  if (!isLocalhost) {
+    return res.status(403).json("Settings can only be modified from the Pi itself.").end();
+  }
+  next();
+};
 
 if (sslOptions) {
   https.createServer(sslOptions, app).listen(HTTPS_PORT, HOST, async () => {
@@ -101,9 +110,18 @@ if (sslOptions) {
 }
 
 app.get("/settings", getSettings);
-app.post("/settings", createSettingsFile);
-app.put("/settings", replaceSettings);
-app.patch("/setting", setSetting);
-app.delete("/setting", deleteSetting);
+app.post("/settings", localhostOnly, createSettingsFile);
+app.put("/settings", localhostOnly, replaceSettings);
+app.patch("/setting", localhostOnly, setSetting);
+app.delete("/setting", localhostOnly, deleteSetting);
 
 app.get("/geolocation", getCoords);
+
+app.get("/api/is-local", (req, res) => {
+  const ip = req.socket.remoteAddress;
+  const isLocal = ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1";
+  return res.status(200).json({ isLocal });
+});
+
+app.get("/api/reverse-geocode", proxyReverseGeocode);
+app.get("/api/tiles/:style/:z/:x/:y", mapTile);

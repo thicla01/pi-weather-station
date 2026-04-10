@@ -15,6 +15,19 @@ See it in action [here](https://www.youtube.com/watch?v=dvM6cyqYSw8).
 
 > Be mindful of the plan limits for your API keys and understand the terms of each provider, as scrolling around the map and selecting different locations will incur API calls for every location. Additionally, the weather station will periodically make additional api calls to get weather updates throughout the day.
 
+# v2.1.1
+
+Security improvements:
+
+- **API key proxying** — Mapbox (map tiles) and LocationIQ (reverse geocoding) API calls are now proxied through the Express server. Keys are never sent to the browser or included in client-side request URLs.
+- **Settings write protection** — `POST`, `PUT`, `PATCH`, and `DELETE` requests to `/settings` are now restricted to `localhost`. Remote users can view the app but cannot modify API keys or coordinates. The settings panel displays a clear message when accessed remotely.
+- **Remote access UX** — When accessing from another machine, the settings panel shows *"API keys and coordinates can only be modified from the Pi."* instead of the Save button. Unit and display preferences (temperature, speed, clock format, etc.) continue to work from any device.
+- **CORS removed** — The `cors` middleware (which allowed any origin to call the API) has been removed. All legitimate requests are same-origin and do not require it.
+- **Shell injection fix** — `deploy/install.sh` now uses `python3 + json.dumps` to write `settings.json`, preventing potential shell injection via API key input.
+- **JSON parse hardening** — `settings.json` parsing is now wrapped in a try/catch; a corrupted file returns a clean 500 error instead of crashing the server.
+- **Dependency update** — `axios` updated to v1.15.0 to address a SSRF vulnerability (GHSA-3p68-rc4w-qgx5).
+- **SSH keys excluded** — `ssh.key` and `ssh.key.pub` added to `.gitignore`.
+
 # v2.1.0
 
 - Upgraded build system from webpack 4 to webpack 5
@@ -182,9 +195,12 @@ The script will automatically remove the systemd service, `~/.local/bin/start-se
 
 ## Access from another machine
 
-By default the server only accepts connections from `localhost` (127.0.0.1). This protects your API keys from being accessed by other devices on your network.
+By default the server only accepts connections from `localhost` (127.0.0.1).
 
-> **Warning:** Opening the app to your network means anyone on it could potentially access your API keys from the settings page. Do this at your own risk.
+When remote access is enabled (`ALLOW_REMOTE=true`), the following protections apply:
+- API keys (Mapbox, LocationIQ) are **never sent to the browser** — all calls to these services are proxied through the server.
+- The settings panel is **read-only** for remote users — API keys and coordinates can only be modified from the Pi itself.
+- Unit and display preferences (temperature, speed, clock format, etc.) continue to work from any device.
 
 ### Option 1 — Automated (recommended)
 

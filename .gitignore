@@ -3,3 +3,5 @@ settings.json
 server/key.pem
 server/cert.pem
 npm-audit.log
+ssh.key
+ssh.key.pub

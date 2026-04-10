@@ -50,6 +50,7 @@ export function AppContextProvider({ children }) {
   const [mouseHide, setMouseHide] = useState(false);
   const [sunriseTime, setSunriseTime] = useState(null);
   const [sunsetTime, setSunsetTime] = useState(null);
+  const [isLocal, setIsLocal] = useState(true);
 
   /**
    * Save mouse hide state
@@ -106,6 +107,15 @@ export function AppContextProvider({ children }) {
   function saveLengthUnit(newVal) {
     setLengthUnit(newVal);
     window.localStorage.setItem(LENGTH_UNIT_STORAGE_KEY, newVal);
+  }
+
+  function checkIsLocal() {
+    axios.get("/api/is-local").then((res) => {
+      setIsLocal(res.data.isLocal);
+    // eslint-disable-next-line no-unused-vars
+    }).catch((_err) => {
+      // non-critical — default stays true (localhost assumed)
+    });
   }
 
   function loadStoredData() {
@@ -609,6 +619,8 @@ export function AppContextProvider({ children }) {
     updateSunriseSunset,
     sunriseTime,
     sunsetTime,
+    isLocal,
+    checkIsLocal,
   };
 
   return (

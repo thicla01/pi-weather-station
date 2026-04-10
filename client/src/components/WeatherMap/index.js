@@ -147,10 +147,7 @@ const WeatherMap = ({ zoom, dark }) => {
       <AttributionControl position={"bottomleft"} />
       <TileLayer
         attribution='© <a href="https://www.mapbox.com/feedback/">Mapbox</a>'
-        url={`https://api.mapbox.com/styles/v1/mapbox/${
-          dark ? "dark-v10" : "light-v10"
-        }/tiles/{z}/{x}/{y}?access_token={apiKey}`}
-        apiKey={mapApiKey}
+        url={`/api/tiles/${dark ? "dark-v10" : "light-v10"}/{z}/{x}/{y}`}
       />
       {mapTimestamp ? (
         <TileLayer

@@ -20,12 +20,14 @@ const App = () => {
     loadStoredData,
     darkMode,
     mouseHide,
+    checkIsLocal,
   } = useContext(AppContext);
 
   useEffect(() => {
     getCustomLatLon();
     getBrowserGeo();
     loadStoredData();
+    checkIsLocal();
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- initialization, runs once on mount
 
   return (

@@ -17,7 +17,11 @@ function readSettingsFile({ successCb, errorCb }) {
     if (err) {
       errorCb(err);
     } else {
-      successCb(JSON.parse(data));
+      try {
+        successCb(JSON.parse(data));
+      } catch (e) {
+        errorCb(e);
+      }
     }
   });
 }
@@ -200,10 +204,25 @@ function deleteSetting(req, res) {
   });
 }
 
+/**
+ * Returns parsed settings as a Promise, for internal server use
+ *
+ * @returns {Promise<Object>} Parsed settings object
+ */
+function getSettingsData() {
+  return new Promise((resolve, reject) => {
+    if (!fs.existsSync(FILE_PATH)) {
+      return reject(new Error("settings.json not found"));
+    }
+    readSettingsFile({ successCb: resolve, errorCb: reject });
+  });
+}
+
 module.exports = {
   getSettings,
   setSetting,
   deleteSetting,
   createSettingsFile,
   replaceSettings,
+  getSettingsData,
 };

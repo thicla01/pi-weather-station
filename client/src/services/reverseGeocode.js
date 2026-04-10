@@ -4,25 +4,22 @@ let prevCoords = {};
 let prevResult = null;
 
 /**
- * Reverse geocode lookup
+ * Reverse geocode lookup (proxied via local server to keep API key server-side)
  *
  * @param {Object} params
  * @param {Number} params.lat latitude
  * @param {Number} params.lon longitude
- * @param {String} params.apiKey api key
  * @returns {Promise} API result
  */
-function reverseGeocode({ lat, lon, apiKey }) {  
+function reverseGeocode({ lat, lon }) {
   return new Promise((resolve, reject) => {
     if (prevCoords.lat === lat && prevCoords.lon === lon) {
       return resolve(prevResult);
     }
-    
+
     axios
-      .get(
-        `https://us1.locationiq.com/v1/reverse.php?key=${apiKey}&lat=${lat}&lon=${lon}&format=json`
-      )
-      .then((res) => {        
+      .get(`/api/reverse-geocode?lat=${lat}&lon=${lon}`)
+      .then((res) => {
         prevCoords = { lat, lon };
         prevResult = res.data;
         resolve(res.data);
@@ -30,20 +27,6 @@ function reverseGeocode({ lat, lon, apiKey }) {
       .catch((err) => {
         reject(err);
       });
-
-    // return reject(); //tempoarily disabling
-    // axios
-    //   .get(
-    //     `https://api.bigdatacloud.net/data/reverse-geocode?latitude=${lat}&longitude=${lon}&localityLanguage=en`
-    //   )
-    //   .then((res) => {
-    //     prevCoords = { lat, lon };
-    //     prevResult = res.data;
-    //     resolve(res.data);
-    //   })
-    //   .catch((err) => {
-    //     reject(err);
-    //   });
   });
 }
 

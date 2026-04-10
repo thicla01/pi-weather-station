@@ -17,7 +17,7 @@ const LocationName = () => {
   useEffect(() => {
     if (mapGeo && reverseGeoApiKey) {
       const { latitude: lat, longitude: lon } = mapGeo;
-      reverseGeocode({ lat, lon, apiKey: reverseGeoApiKey })
+      reverseGeocode({ lat, lon })
         .then((res) => {
           setName(getName(res));
         })
