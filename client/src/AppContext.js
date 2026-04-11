@@ -52,6 +52,8 @@ export function AppContextProvider({ children }) {
   const [sunsetTime, setSunsetTime] = useState(null);
   const [isLocal, setIsLocal] = useState(true);
   const [remoteSecurityEnabled, setRemoteSecurityEnabled] = useState(false);
+  const [debugEnabled, setDebugEnabled] = useState(false);
+  const [debugMenuOpen, setDebugMenuOpen] = useState(false);
 
   /**
    * Save mouse hide state
@@ -114,10 +116,18 @@ export function AppContextProvider({ children }) {
     axios.get("/api/is-local").then((res) => {
       setIsLocal(res.data.isLocal);
       setRemoteSecurityEnabled(res.data.securityEnabled ?? false);
+      setDebugEnabled(res.data.debugEnabled ?? false);
     // eslint-disable-next-line no-unused-vars
     }).catch((_err) => {
       // non-critical — defaults stay (localhost assumed, security disabled)
     });
+  }
+
+  /**
+   * Toggles debug menu open/closed
+   */
+  function toggleDebugMenuOpen() {
+    setDebugMenuOpen(!debugMenuOpen);
   }
 
   function loadStoredData() {
@@ -588,6 +598,10 @@ export function AppContextProvider({ children }) {
     isLocal,
     remoteSecurityEnabled,
     checkIsLocal,
+    debugEnabled,
+    debugMenuOpen,
+    setDebugMenuOpen,
+    toggleDebugMenuOpen,
   };
 
   return (

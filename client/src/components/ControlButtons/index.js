@@ -9,6 +9,7 @@ import roundLocationOn from "@iconify/icons-ic/round-location-on";
 import roundLocationOff from "@iconify/icons-ic/round-location-off";
 import playFilledAlt from "@iconify/icons-carbon/play-filled-alt";
 import stopFilledAlt from "@iconify/icons-carbon/stop-filled-alt";
+import bugIcon from "@iconify/icons-carbon/debug";
 
 /**
  * Buttons group component
@@ -27,6 +28,10 @@ const ControlButtons = () => {
     toggleSettingsMenuOpen,
     settingsMenuOpen,
     mouseHide,
+    isLocal,
+    debugEnabled,
+    toggleDebugMenuOpen,
+    debugMenuOpen,
   } = useContext(AppContext);
 
   return (
@@ -58,6 +63,14 @@ const ControlButtons = () => {
       >
         <InlineIcon icon={sharpSettings} />
       </div>
+      {isLocal && debugEnabled && (
+        <div
+          onClick={toggleDebugMenuOpen}
+          className={`${debugMenuOpen ? styles.buttonDown : ""}`}
+        >
+          <InlineIcon icon={bugIcon} />
+        </div>
+      )}
     </div>
   );
 };

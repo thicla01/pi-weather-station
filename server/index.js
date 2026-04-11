@@ -11,6 +11,7 @@ const appName = require("../package.json").name;
 const settingsCtrl = require("./settingsCtrl");
 const geolocationCtrl = require("./geolocationCtrl");
 const proxyCtrl = require("./proxyCtrl");
+const debugCtrl = require("./debugCtrl");
 
 const {
   getSettings,
@@ -21,12 +22,14 @@ const {
 } = settingsCtrl;
 const { getCoords } = geolocationCtrl;
 const { reverseGeocode: proxyReverseGeocode, mapTile, weatherCurrent, weatherHourly, weatherDaily } = proxyCtrl;
+const { getDebugInfo, logSecurityEvent } = debugCtrl;
 
 const DIST_DIR = "/../client/dist";
 const PORT = 8080;
 const HTTPS_PORT = 8443;
 const HOST = process.env.ALLOW_REMOTE === "true" ? "0.0.0.0" : "127.0.0.1";
 const REMOTE_SECURITY = process.env.REMOTE_SECURITY === "true";
+const DEBUG = process.env.DEBUG === "true";
 const app = express();
 
 const sslOptions = (() => {
@@ -89,11 +92,21 @@ const sslOptions = (() => {
 app.use(bodyParser.json());
 app.use(express.static(path.join(`${__dirname}/${DIST_DIR}`)));
 
+const isLocalhostIp = (ip) => ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1";
+
 const localhostOnly = (req, res, next) => {
   const ip = req.socket.remoteAddress;
-  const isLocalhost = ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1";
-  if (!isLocalhost) {
+  if (!isLocalhostIp(ip)) {
+    logSecurityEvent(ip, req.method, req.originalUrl);
     return res.status(403).json("Settings can only be modified from the Pi itself.").end();
+  }
+  next();
+};
+
+const debugLocalhostOnly = (req, res, next) => {
+  const ip = req.socket.remoteAddress;
+  if (!isLocalhostIp(ip)) {
+    return res.status(403).json("Debug endpoint is only accessible from the Pi itself.").end();
   }
   next();
 };
@@ -120,8 +133,8 @@ app.get("/geolocation", getCoords);
 
 app.get("/api/is-local", (req, res) => {
   const ip = req.socket.remoteAddress;
-  const isLocal = ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1";
-  return res.status(200).json({ isLocal, securityEnabled: REMOTE_SECURITY });
+  const isLocal = isLocalhostIp(ip);
+  return res.status(200).json({ isLocal, securityEnabled: REMOTE_SECURITY, debugEnabled: DEBUG });
 });
 
 app.get("/api/reverse-geocode", proxyReverseGeocode);
@@ -130,3 +143,5 @@ app.get("/api/tiles/:style/:z/:x/:y", mapTile);
 app.get("/api/weather/current", weatherCurrent);
 app.get("/api/weather/hourly", weatherHourly);
 app.get("/api/weather/daily", weatherDaily);
+
+app.get("/api/debug", debugLocalhostOnly, getDebugInfo);

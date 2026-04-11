@@ -272,4 +272,4 @@ async function weatherDaily(req, res) {
   }
 }
 
-module.exports = { reverseGeocode, mapTile, weatherCurrent, weatherHourly, weatherDaily };
+module.exports = { reverseGeocode, mapTile, weatherCurrent, weatherHourly, weatherDaily, weatherCache };
