@@ -1,3 +1,5 @@
+const fs = require("fs");
+const path = require("path");
 const axios = require("axios").default;
 const { getSettingsData } = require("./settingsCtrl");
 const { recordServiceCall } = require("./serviceStatus");
@@ -11,7 +13,43 @@ const WEATHER_CACHE_TTL = {
   daily:    6 * 60 * 60 * 1000,
 };
 
+const CACHE_FILE = path.join(__dirname, "weather-cache.json");
+
 const weatherCache = {};
+
+function loadCacheFromDisk() {
+  try {
+    const raw = fs.readFileSync(CACHE_FILE, "utf8");
+    const saved = JSON.parse(raw);
+    const now = Date.now();
+    let loaded = 0;
+    for (const [key, entry] of Object.entries(saved)) {
+      if (entry.expiresAt > now) {
+        weatherCache[key] = entry;
+        loaded++;
+      }
+    }
+    if (loaded > 0) console.log(`[cache] Loaded ${loaded} entries from disk`);
+  } catch {
+    // File missing or unreadable — start with empty cache
+  }
+}
+
+function saveCacheToDisk() {
+  try {
+    const now = Date.now();
+    const toSave = {};
+    for (const [key, entry] of Object.entries(weatherCache)) {
+      if (entry.expiresAt > now) toSave[key] = entry;
+    }
+    fs.writeFileSync(CACHE_FILE, JSON.stringify(toSave), "utf8");
+  } catch (err) {
+    console.error("[cache] Failed to save cache to disk:", err.message);
+  }
+}
+
+loadCacheFromDisk();
+setInterval(saveCacheToDisk, 5 * 60 * 1000).unref();
 
 function getCacheKey(type, lat, lon) {
   return `${type}:${lat.toFixed(4)}:${lon.toFixed(4)}`;
@@ -298,4 +336,4 @@ async function weatherDaily(req, res) {
   }
 }
 
-module.exports = { reverseGeocode, mapTile, weatherCurrent, weatherHourly, weatherDaily, weatherCache };
+module.exports = { reverseGeocode, mapTile, weatherCurrent, weatherHourly, weatherDaily, weatherCache, saveCacheToDisk };

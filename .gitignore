@@ -3,5 +3,6 @@ settings.json
 server/key.pem
 server/cert.pem
 npm-audit.log
+server/weather-cache.json
 ssh.key
 ssh.key.pub

@@ -21,7 +21,7 @@ const {
   replaceSettings,
 } = settingsCtrl;
 const { getCoords } = geolocationCtrl;
-const { reverseGeocode: proxyReverseGeocode, mapTile, weatherCurrent, weatherHourly, weatherDaily } = proxyCtrl;
+const { reverseGeocode: proxyReverseGeocode, mapTile, weatherCurrent, weatherHourly, weatherDaily, saveCacheToDisk } = proxyCtrl;
 const { getDebugInfo, logSecurityEvent } = debugCtrl;
 
 const DIST_DIR = "/../client/dist";
@@ -145,3 +145,10 @@ app.get("/api/weather/hourly", weatherHourly);
 app.get("/api/weather/daily", weatherDaily);
 
 app.get("/api/debug", debugLocalhostOnly, getDebugInfo);
+
+function shutdown() {
+  saveCacheToDisk();
+  process.exit(0);
+}
+process.on("SIGTERM", shutdown);
+process.on("SIGINT",  shutdown);
