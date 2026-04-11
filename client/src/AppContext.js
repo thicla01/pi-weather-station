@@ -320,16 +320,6 @@ export function AppContextProvider({ children }) {
     setHourlyWeatherDataErr(null);
     setHourlyWeatherDataErrMsg(null);
     const { latitude, longitude } = coords;
-    const fields = [
-      "temperature",
-      "precipitationProbability",
-      "precipitationIntensity",
-      "windSpeed",
-    ].join("%2c");
-
-    const endTime = new Date(
-      new Date().getTime() + 60 * 60 * 23 * 1000
-    ).toISOString();
 
     return new Promise((resolve, reject) => {
       if (!coords) {
@@ -343,9 +333,7 @@ export function AppContextProvider({ children }) {
       }
 
       axios
-        .get(
-          `https://api.tomorrow.io/v4/timelines?location=${latitude}%2C${longitude}&fields=${fields}&timesteps=1h&apikey=${weatherApiKey}&endTime=${endTime}`
-        )
+        .get(`/api/weather/hourly?lat=${latitude}&lon=${longitude}`)
         .then((res) => {
           if (!res) {
             return reject({ message: "No response" });
@@ -378,16 +366,6 @@ export function AppContextProvider({ children }) {
     setDailyWeatherDataErr(null);
     setDailyWeatherDataErrMsg(null);
     const { latitude, longitude } = coords;
-    const fields = [
-      "temperature",
-      "precipitationProbability",
-      "precipitationIntensity",
-      "windSpeed",
-    ].join("%2c");
-
-    const endTime = new Date(
-      new Date().getTime() + 4 * 60 * 60 * 24 * 1000
-    ).toISOString();
 
     return new Promise((resolve, reject) => {
       if (!coords) {
@@ -400,9 +378,7 @@ export function AppContextProvider({ children }) {
         return reject("Missing weather API key");
       }
       axios
-        .get(
-          `https://api.tomorrow.io/v4/timelines?location=${latitude}%2C${longitude}&fields=${fields}&timesteps=1d&apikey=${weatherApiKey}&endTime=${endTime}`
-        )
+        .get(`/api/weather/daily?lat=${latitude}&lon=${longitude}`)
         .then((res) => {
           if (!res) {
             return reject({ message: "No response" });
@@ -468,16 +444,6 @@ export function AppContextProvider({ children }) {
     setCurrentWeatherDataErrMsg(null);
     const { latitude, longitude } = coords;
 
-    const fields = [
-      "temperature",
-      "humidity",
-      "windSpeed",
-      "precipitationIntensity",
-      "precipitationType",
-      "precipitationProbability",
-      "cloudCover",
-      "weatherCode",
-    ].join("%2c");
     return new Promise((resolve, reject) => {
       if (!coords) {
         setCurrentWeatherDataErr(true);
@@ -490,9 +456,7 @@ export function AppContextProvider({ children }) {
       }
 
       axios
-        .get(
-          `https://api.tomorrow.io/v4/timelines?location=${latitude}%2C${longitude}&fields=${fields}&timesteps=current&apikey=${weatherApiKey}`
-        )
+        .get(`/api/weather/current?lat=${latitude}&lon=${longitude}`)
         .then((res) => {
           if (!res) {
             return reject({ message: "No response" });
