@@ -5,7 +5,7 @@ This is a weather station designed to be used with a Raspberry Pi on the officia
 
 ![pws-screenshot3](https://user-images.githubusercontent.com/15202038/91359998-4625bb80-e7bb-11ea-937e-c87eede41f35.JPG)
 
-The weather station will require you to have API keys from [Mapbox](https://www.mapbox.com/) and [Tomorrow.io](https://www.tomorrow.io/). Optionally, you can use an API key from [LocationIQ](https://locationiq.com/) to preform reverse geocoding.
+The weather station will require you to have API keys from [Mapbox](https://www.mapbox.com/) and [Tomorrow.io](https://www.tomorrow.io/). Optionally, you can use an API key from [LocationIQ](https://locationiq.com/) to perform reverse geocoding. All three API keys are kept server-side and never exposed in client-side requests.
 
 Weather maps are provided by the [RainViewer](https://www.rainviewer.com/) API, which generously does not require an [API key](https://www.rainviewer.com/api.html).
 
@@ -15,7 +15,11 @@ Default geolocation (used when no custom coordinates are configured) is provided
 
 See it in action [here](https://www.youtube.com/watch?v=dvM6cyqYSw8).
 
-> Be mindful of the plan limits for your API keys and understand the terms of each provider, as scrolling around the map and selecting different locations will incur API calls for every location. Additionally, the weather station will periodically make additional api calls to get weather updates throughout the day.
+> Be mindful of the plan limits for your API keys and understand the terms of each provider, as scrolling around the map and selecting different locations will incur API calls for every location. Additionally, the weather station will periodically make additional API calls to get weather updates throughout the day. All weather (Tomorrow.io), map tile (Mapbox), and reverse geocoding (LocationIQ) calls are proxied through the server — multiple browser clients share the same quota rather than each consuming it independently.
+
+# v2.1.2
+
+- **Tomorrow.io proxy** — Weather API calls (current, hourly, daily) are now proxied through the Express server, consistent with Mapbox and LocationIQ. The API key is no longer included in client-side request URLs. Multiple browser clients now share the same quota rather than each consuming it independently.
 
 # v2.1.1
 
@@ -200,7 +204,7 @@ The script will automatically remove the systemd service, `~/.local/bin/start-se
 By default the server only accepts connections from `localhost` (127.0.0.1).
 
 When remote access is enabled (`ALLOW_REMOTE=true`), the following applies:
-- Mapbox and LocationIQ API calls are **proxied through the server** — keys are no longer visible in client-side request URLs or third-party server logs. Keys are still transmitted to the browser via `GET /settings` for display in the settings panel.
+- All API calls (Tomorrow.io, Mapbox, LocationIQ) are **proxied through the server** — keys are never visible in client-side request URLs or third-party server logs. Keys are still transmitted to the browser via `GET /settings` for display in the settings panel.
 - Unit and display preferences (temperature, speed, clock format, etc.) work from any device.
 - Optionally, enable **`REMOTE_SECURITY=true`** to restrict remote users: API key and coordinate fields are hidden in the settings panel, and write operations are blocked server-side. Unit and display preferences remain accessible. Without this, remote users have full access to settings.
 
