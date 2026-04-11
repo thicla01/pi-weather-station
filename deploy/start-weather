@@ -16,10 +16,10 @@ cd "$HOME/pi-weather-station"
 
 # Wait for server on 8443 (HTTPS) or 8080 (HTTP)
 for i in $(seq 1 30); do
-    if nc -z localhost 8443 2>/dev/null; then
+    if (echo > /dev/tcp/localhost/8443) 2>/dev/null; then
         URL="https://localhost:8443"
         break
-    elif nc -z localhost 8080 2>/dev/null; then
+    elif (echo > /dev/tcp/localhost/8080) 2>/dev/null; then
         URL="http://localhost:8080"
         break
     fi
