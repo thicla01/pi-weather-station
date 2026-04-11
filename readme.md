@@ -173,6 +173,7 @@ Copy the provided script to `~/.local/bin/` and call it from your compositor's a
 mkdir -p ~/.local/bin
 cp deploy/start-weather ~/.local/bin/start-weather
 chmod +x ~/.local/bin/start-weather
+sudo cp deploy/logrotate-weather-server /etc/logrotate.d/weather-server
 ```
 
 This script starts the Node.js server, waits for it to be ready, and automatically detects whether it started on port 8443 (HTTPS) or 8080 (HTTP) before launching Chromium.
@@ -194,6 +195,12 @@ weather = start-weather
 
 ```bash
 @start-weather
+```
+
+View logs with:
+
+```bash
+tail -f /tmp/weather-server.log
 ```
 
 Then reboot to launch the application automatically:
