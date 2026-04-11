@@ -122,6 +122,13 @@ else
     REMOTE_SECURITY="no"
 fi
 
+# --- 2b. Debug mode ---
+echo ""
+echo ">> Debug mode..."
+read -p "   Enable debug panel? (localhost only, shows cache/quota/logs) (y/n) " -n 1 -r
+echo
+DEBUG_MODE=$([[ $REPLY =~ ^[Yy]$ ]] && echo "yes" || echo "no")
+
 # --- 3. Node.js dependencies ---
 AUDIT_LOG="$REPO_DIR/npm-audit.log"
 { echo "Pi Weather Station — npm audit report"; echo "Generated: $(date)"; } > "$AUDIT_LOG"
@@ -185,6 +192,10 @@ StandardOutput=append:/tmp/weather-server.log
 StandardError=append:/tmp/weather-server.log
 # Environment=DEBUG=true
 EOF
+if [ "$DEBUG_MODE" = "yes" ]; then
+    sed -i 's/# Environment=DEBUG=true/Environment=DEBUG=true/' \
+        ~/.config/systemd/user/pi-weather-server.service.d/override.conf
+fi
 systemctl --user daemon-reload
 systemctl --user enable pi-weather-server
 systemctl --user start pi-weather-server
@@ -260,6 +271,10 @@ if [ "$ALLOW_REMOTE" = "yes" ]; then
     fi
     echo "   NOTE: If your Pi's IP address changes, re-run install.sh to"
     echo "         regenerate the SSL certificate with the new address."
+    echo ""
+fi
+if [ "$DEBUG_MODE" = "yes" ]; then
+    echo "   Debug panel enabled — accessible from the Pi only (bug icon in the control bar)."
     echo ""
 fi
 read -p ">> Reboot now to launch the application automatically? (y/n) " -n 1 -r
