@@ -17,6 +17,13 @@ See it in action [here](https://www.youtube.com/watch?v=dvM6cyqYSw8).
 
 > Be mindful of the plan limits for your API keys and understand the terms of each provider, as scrolling around the map and selecting different locations will incur API calls for every location. Additionally, the weather station will periodically make additional API calls to get weather updates throughout the day. All weather (Tomorrow.io), map tile (Mapbox), and reverse geocoding (LocationIQ) calls are proxied through the server — multiple browser clients share the same quota rather than each consuming it independently. Weather responses are cached server-side, further reducing API usage.
 
+# v2.1.4
+
+- **Weather cache persistence** — The server-side weather cache is now saved to `server/weather-cache.json` on shutdown and every 5 minutes. On restart, non-expired entries are reloaded automatically, avoiding unnecessary API calls to Tomorrow.io when the server is restarted during development or after a crash.
+- **Debug panel — system info** — The debug panel header now shows the detected hardware model (e.g. `Raspberry Pi 4 Model B`) and OS version (e.g. `Debian GNU/Linux 12 (bookworm)`).
+- **Debug panel — install option** — `deploy/install.sh` now offers to enable the debug panel during installation.
+- **Startup script fix** — Replaced `nc` (netcat) with bash's built-in `/dev/tcp` for server readiness detection in `start-server` and `start-weather`. No external dependency required.
+
 # v2.1.3
 
 - **Server-side weather cache** — Tomorrow.io responses are now cached in memory on the server, reducing API quota consumption when multiple clients are connected or when the page is reloaded frequently. Cache TTLs match the natural update cadence of each data type: 15 minutes for current conditions, 30 minutes for hourly forecasts, and 6 hours for daily forecasts. The cache is shared across all clients regardless of `REMOTE_SECURITY` setting and is cleared on server restart.
