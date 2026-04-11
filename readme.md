@@ -101,7 +101,8 @@ It will:
 - Optionally enable remote access from other machines on the network (see [Access from another machine](#access-from-another-machine))
 - Install all dependencies and build the client
 - Run `npm audit` after each install and automatically apply fixes if vulnerabilities are found — results are saved to `npm-audit.log`
-- Configure and start the systemd service
+- Configure and start the systemd service with log redirection to `/tmp/weather-server.log`
+- Install log rotation (`/etc/logrotate.d/weather-server`) — daily rotation, 7 days history, max 10 MB, compressed
 - Deploy `~/.local/bin/start-server` and configure your display server's autostart automatically
 - Offer to reboot to launch the application automatically
 
@@ -115,6 +116,14 @@ cd pi-weather-station
 cp deploy/pi-weather-server.service ~/.config/systemd/user/
 npm install
 cd client && npm install && npm run prod && cd ..
+mkdir -p ~/.config/systemd/user/pi-weather-server.service.d
+cat > ~/.config/systemd/user/pi-weather-server.service.d/override.conf << 'EOF'
+[Service]
+StandardOutput=append:/tmp/weather-server.log
+StandardError=append:/tmp/weather-server.log
+EOF
+sudo cp deploy/logrotate-weather-server /etc/logrotate.d/weather-server
+systemctl --user daemon-reload
 systemctl --user enable pi-weather-server
 systemctl --user start pi-weather-server
 loginctl enable-linger $USER
@@ -147,7 +156,7 @@ start-server = start-server
 View logs with:
 
 ```bash
-journalctl --user -u pi-weather-server -f
+tail -f /tmp/weather-server.log
 ```
 
 Then reboot to launch the application automatically:
