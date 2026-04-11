@@ -1,0 +1,11 @@
+/tmp/weather-server.log {
+    su pi pi
+    daily
+    rotate 7
+    compress
+    delaycompress
+    missingok
+    notifempty
+    copytruncate
+    size 10M
+}

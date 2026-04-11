@@ -191,6 +191,12 @@ loginctl enable-linger "$USER"
 echo ">> Service pi-weather-server enabled and started."
 echo ">> Server logs available at: tail -f /tmp/weather-server.log"
 
+# --- 4b. Log rotation ---
+echo ""
+echo ">> Configuring log rotation..."
+sudo cp "$REPO_DIR/deploy/logrotate-weather-server" /etc/logrotate.d/weather-server
+echo ">> Log rotation configured (daily, 7 days, max 10M, compressed)."
+
 # --- 5. Unified start-server script ---
 echo ""
 echo ">> Deploying start-server..."
