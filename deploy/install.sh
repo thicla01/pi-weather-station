@@ -178,11 +178,18 @@ if [ "$REMOTE_SECURITY" = "yes" ]; then
     sed -i 's/# Environment=REMOTE_SECURITY=true/Environment=REMOTE_SECURITY=true/' \
         ~/.config/systemd/user/pi-weather-server.service
 fi
+mkdir -p ~/.config/systemd/user/pi-weather-server.service.d
+cat > ~/.config/systemd/user/pi-weather-server.service.d/override.conf << 'EOF'
+[Service]
+StandardOutput=append:/tmp/weather-server.log
+StandardError=append:/tmp/weather-server.log
+EOF
 systemctl --user daemon-reload
 systemctl --user enable pi-weather-server
 systemctl --user start pi-weather-server
 loginctl enable-linger "$USER"
 echo ">> Service pi-weather-server enabled and started."
+echo ">> Server logs available at: tail -f /tmp/weather-server.log"
 
 # --- 5. Unified start-server script ---
 echo ""
