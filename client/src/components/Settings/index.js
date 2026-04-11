@@ -27,6 +27,7 @@ const Settings = () => {
     mouseHide,
     saveMouseHide,
     isLocal,
+    remoteSecurityEnabled,
   } = useContext(AppContext);
 
   const [mapsKey, setMapsKey] = useState(null);
@@ -140,7 +141,11 @@ const Settings = () => {
               />
             </div>
             <div className={styles.saveButtonContainer}>
-              {isLocal ? (
+              {!isLocal && remoteSecurityEnabled ? (
+                <div className={styles.label}>
+                  API keys and coordinates can only be modified from the Pi.
+                </div>
+              ) : (
                 <SaveButton
                   mapsKey={mapsKey}
                   weatherKey={weatherKey}
@@ -148,10 +153,6 @@ const Settings = () => {
                   lat={lat}
                   lon={lon}
                 />
-              ) : (
-                <div className={styles.label}>
-                  API keys and coordinates can only be modified from the Pi.
-                </div>
               )}
             </div>
           </div>

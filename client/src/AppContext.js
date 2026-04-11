@@ -51,6 +51,7 @@ export function AppContextProvider({ children }) {
   const [sunriseTime, setSunriseTime] = useState(null);
   const [sunsetTime, setSunsetTime] = useState(null);
   const [isLocal, setIsLocal] = useState(true);
+  const [remoteSecurityEnabled, setRemoteSecurityEnabled] = useState(false);
 
   /**
    * Save mouse hide state
@@ -112,9 +113,10 @@ export function AppContextProvider({ children }) {
   function checkIsLocal() {
     axios.get("/api/is-local").then((res) => {
       setIsLocal(res.data.isLocal);
+      setRemoteSecurityEnabled(res.data.securityEnabled ?? false);
     // eslint-disable-next-line no-unused-vars
     }).catch((_err) => {
-      // non-critical — default stays true (localhost assumed)
+      // non-critical — defaults stay (localhost assumed, security disabled)
     });
   }
 
@@ -620,6 +622,7 @@ export function AppContextProvider({ children }) {
     sunriseTime,
     sunsetTime,
     isLocal,
+    remoteSecurityEnabled,
     checkIsLocal,
   };
 

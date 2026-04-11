@@ -22,6 +22,7 @@ ExecStart=/usr/bin/npm start
 Restart=on-failure
 RestartSec=5
 # Environment=ALLOW_REMOTE=true
+# Environment=REMOTE_SECURITY=true
 
 [Install]
 WantedBy=default.target
