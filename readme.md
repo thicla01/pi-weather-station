@@ -309,9 +309,16 @@ systemctl --user daemon-reload
 systemctl --user restart pi-weather-server
 ```
 
-**With the autostart script** — edit `~/.local/bin/start-weather` and replace the active `npm start` line with:
+**With the autostart script (Option 3)** — edit `~/.local/bin/start-weather`:
 
 ```bash
+nano ~/.local/bin/start-weather
+```
+
+Comment out the default `npm start` line and uncomment the `DEBUG=true` line:
+
+```bash
+# /usr/bin/npm start >> /tmp/weather-server.log 2>&1 &
 DEBUG=true /usr/bin/npm start >> /tmp/weather-server.log 2>&1 &
 ```
 
