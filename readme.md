@@ -20,6 +20,7 @@ See it in action [here](https://www.youtube.com/watch?v=dvM6cyqYSw8).
 # v2.1.3
 
 - **Server-side weather cache** — Tomorrow.io responses are now cached in memory on the server, reducing API quota consumption when multiple clients are connected or when the page is reloaded frequently. Cache TTLs match the natural update cadence of each data type: 15 minutes for current conditions, 30 minutes for hourly forecasts, and 6 hours for daily forecasts. The cache is shared across all clients regardless of `REMOTE_SECURITY` setting and is cleared on server restart.
+- **Debug panel** — A debug panel is available when `DEBUG=true` is set server-side. The panel is accessible only from the Pi itself (localhost) and shows API service status, quota counters, cache state, server logs, security events, and npm audit results. See [Debug panel](#debug-panel) for details.
 
 # v2.1.2
 
@@ -281,6 +282,46 @@ The server will now serve the app across your network on port 8443 (HTTPS).
 > chmod 600 server/key.pem
 > ```
 > Then restart the server.
+
+## Debug panel
+
+A debug panel is available on the Pi when `DEBUG=true` is set server-side. It shows:
+
+- **Services** — last HTTP status and timestamp for each external API call
+- **Quotas** — hourly, daily, and monthly request counters per service and endpoint, with colour-coded thresholds
+- **Cache** — current in-memory weather cache entries with remaining TTL
+- **Logs** — last 100 lines of the server log
+- **Security events** — blocked requests (when `REMOTE_SECURITY=true` is active)
+- **npm audit** — output of the last `npm audit` run
+
+The debug button (bug icon) appears in the control bar only when `DEBUG=true` and only when the app is accessed from the Pi itself.
+
+**With systemd** — edit `~/.config/systemd/user/pi-weather-server.service` and uncomment:
+
+```ini
+Environment=DEBUG=true
+```
+
+Then reload and restart:
+
+```bash
+systemctl --user daemon-reload
+systemctl --user restart pi-weather-server
+```
+
+**With the autostart script** — edit `~/.local/bin/start-weather` and replace the active `npm start` line with:
+
+```bash
+DEBUG=true /usr/bin/npm start >> /tmp/weather-server.log 2>&1 &
+```
+
+**Manually:**
+
+```bash
+DEBUG=true npm start
+```
+
+> `DEBUG=true` is disabled by default. The `/api/debug` endpoint is always restricted to `localhost` regardless of this setting — it cannot be accessed from remote machines even when `ALLOW_REMOTE=true`.
 
 # Settings
 

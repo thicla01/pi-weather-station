@@ -11,6 +11,7 @@ cd "$HOME/pi-weather-station"
 # Start the Node.js server
 # ALLOW_REMOTE=true /usr/bin/npm start >> /tmp/weather-server.log 2>&1 &
 # ALLOW_REMOTE=true REMOTE_SECURITY=true /usr/bin/npm start >> /tmp/weather-server.log 2>&1 &
+# DEBUG=true /usr/bin/npm start >> /tmp/weather-server.log 2>&1 &
 /usr/bin/npm start >> /tmp/weather-server.log 2>&1 &
 
 # Wait for server on 8443 (HTTPS) or 8080 (HTTP)

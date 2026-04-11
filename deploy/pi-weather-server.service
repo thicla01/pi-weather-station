@@ -23,6 +23,7 @@ Restart=on-failure
 RestartSec=5
 # Environment=ALLOW_REMOTE=true
 # Environment=REMOTE_SECURITY=true
+# Environment=DEBUG=true
 
 [Install]
 WantedBy=default.target
