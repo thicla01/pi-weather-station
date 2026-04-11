@@ -59,6 +59,7 @@ const Debug = () => {
         </div>
 
         <div className={styles.content}>
+          <ServicesSection services={data?.services} />
           <CacheSection cache={data?.cache} />
           <LogsSection logs={data?.logs} />
           <SecuritySection events={data?.securityEvents} />
@@ -70,6 +71,56 @@ const Debug = () => {
 };
 
 export default Debug;
+
+/**
+ * Services section
+ *
+ * @param {Object} props
+ * @param {Object} props.services Map of service name to status info
+ * @returns {JSX.Element} Services section
+ */
+const ServicesSection = ({ services }) => {
+  const entries = services ? Object.entries(services) : [];
+  return (
+    <div className={styles.section}>
+      <div className={styles.sectionTitle}>SERVICES</div>
+      {entries.length === 0 ? (
+        <div className={styles.empty}>No service calls recorded yet</div>
+      ) : (
+        <div className={styles.serviceTable}>
+          <div className={styles.serviceHeader}>
+            <span>SERVICE</span>
+            <span>STATUS</span>
+            <span>LAST CALL</span>
+            <span>COMMENT</span>
+          </div>
+          {entries.map(([name, info]) => {
+            const ok = info.status >= 200 && info.status < 300;
+            const time = new Date(info.lastCall).toLocaleTimeString();
+            return (
+              <div className={styles.serviceEntry} key={name}>
+                <span className={styles.serviceName}>{name}</span>
+                <span className={ok ? styles.serviceStatusOk : styles.serviceStatusErr}>
+                  {info.status}
+                </span>
+                <span className={styles.serviceTime}>{time}</span>
+                <span className={styles.serviceComment}>{info.comment}</span>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+};
+
+ServicesSection.propTypes = {
+  services: PropTypes.objectOf(PropTypes.shape({
+    status: PropTypes.number,
+    lastCall: PropTypes.string,
+    comment: PropTypes.string,
+  })),
+};
 
 /**
  * Cache section

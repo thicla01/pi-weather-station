@@ -80,6 +80,49 @@
   font-style: italic;
 }
 
+.service-table {
+  display: table;
+  width: 100%;
+  max-width: 680px;
+  font-family: monospace;
+  font-size: 11px;
+  border-collapse: collapse;
+}
+
+.service-header {
+  display: table-row;
+  color: #888;
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+
+.service-header > span {
+  display: table-cell;
+  padding: 2px 8px 4px 0;
+  border-bottom: 1px solid #3a3a3a;
+}
+
+.service-header > span:nth-child(1) { width: 180px; }
+.service-header > span:nth-child(2) { width: 55px; }
+.service-header > span:nth-child(3) { width: 90px; }
+
+.service-entry {
+  display: table-row;
+}
+
+.service-entry > span {
+  display: table-cell;
+  padding: 3px 8px 3px 0;
+  border-bottom: 1px solid #2a2a2a;
+  vertical-align: top;
+}
+
+.service-name    { color: #ccc; }
+.service-status-ok  { color: #6dcc6d; font-weight: bold; }
+.service-status-err { color: #ff6b6b; font-weight: bold; }
+.service-time    { color: #888; }
+.service-comment { color: #999; word-break: break-all; }
+
 .cache-table {
   display: table;
   width: 100%;
