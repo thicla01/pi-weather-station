@@ -40,7 +40,15 @@ const Debug = () => {
       classNames="animate-debug"
     >
       <div className={styles.container}>
-        <div className={styles.header}>DEBUG</div>
+        <div className={styles.header}>
+          DEBUG
+          {data?.system && (
+            <div className={styles.systemInfo}>
+              <span>{data.system.hardware}</span>
+              <span>{data.system.os}</span>
+            </div>
+          )}
+        </div>
         <div
           className={styles.closeButton}
           onClick={() => setDebugMenuOpen(false)}

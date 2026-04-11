@@ -4,6 +4,23 @@ const { weatherCache } = require("./proxyCtrl");
 const { getServiceStatus } = require("./serviceStatus");
 const { getCounters } = require("./requestCounter");
 
+function getSystemInfo() {
+  let hardware = "Unknown";
+  let os = "Unknown";
+
+  try {
+    hardware = fs.readFileSync("/proc/device-tree/model", "utf8").replace(/\0/g, "").trim();
+  } catch { /* not a Pi or file not available */ }
+
+  try {
+    const osRelease = fs.readFileSync("/etc/os-release", "utf8");
+    const match = osRelease.match(/^PRETTY_NAME="(.+)"$/m);
+    if (match) os = match[1];
+  } catch { /* file not available */ }
+
+  return { hardware, os };
+}
+
 const securityEvents = [];
 const MAX_SECURITY_EVENTS = 50;
 const LOG_LINES = 100;
@@ -53,7 +70,7 @@ function getDebugInfo(req, res) {
     // file not found — default message applies
   }
 
-  return res.status(200).json({ cache, logs, audit, securityEvents, services: getServiceStatus(), counters: getCounters() });
+  return res.status(200).json({ cache, logs, audit, securityEvents, services: getServiceStatus(), counters: getCounters(), system: getSystemInfo() });
 }
 
 module.exports = { getDebugInfo, logSecurityEvent };
