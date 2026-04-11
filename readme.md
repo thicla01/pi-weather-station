@@ -22,8 +22,8 @@ See it in action [here](https://www.youtube.com/watch?v=dvM6cyqYSw8).
 Security improvements:
 
 - **API key proxying** — Mapbox (map tiles) and LocationIQ (reverse geocoding) API calls are now proxied through the Express server. Keys are no longer included in client-side request URLs, keeping them out of browser network logs and third-party server logs. Note: keys are still transmitted to the browser via `GET /settings` for display in the settings panel.
-- **Settings write protection** — `POST`, `PUT`, `PATCH`, and `DELETE` requests to `/settings` are now restricted to `localhost`. Remote users can view the app but cannot modify API keys or coordinates. The settings panel displays a clear message when accessed remotely.
-- **Remote access UX** — When accessing from another machine, the settings panel shows *"API keys and coordinates can only be modified from the Pi."* instead of the Save button. Unit and display preferences (temperature, speed, clock format, etc.) continue to work from any device.
+- **Settings write protection** — `POST`, `PUT`, `PATCH`, and `DELETE` requests to `/settings` can be restricted to `localhost` by enabling `REMOTE_SECURITY=true`. When active, remote users can view the app but cannot modify API keys or coordinates. The settings panel displays a clear message when accessed remotely.
+- **Remote access UX** — When `REMOTE_SECURITY=true` and accessing from another machine, the settings panel shows *"API keys and coordinates can only be modified from the Pi."* instead of the Save button. Without `REMOTE_SECURITY`, remote users can modify settings freely. Unit and display preferences (temperature, speed, clock format, etc.) continue to work from any device regardless.
 - **CORS removed** — The `cors` middleware (which allowed any origin to call the API) has been removed. All legitimate requests are same-origin and do not require it.
 - **Shell injection fix** — `deploy/install.sh` now uses `python3 + json.dumps` to write `settings.json`, preventing potential shell injection via API key input.
 - **JSON parse hardening** — `settings.json` parsing is now wrapped in a try/catch; a corrupted file returns a clean 500 error instead of crashing the server.
@@ -199,10 +199,10 @@ The script will automatically remove the systemd service, `~/.local/bin/start-se
 
 By default the server only accepts connections from `localhost` (127.0.0.1).
 
-When remote access is enabled (`ALLOW_REMOTE=true`), the following protections apply:
+When remote access is enabled (`ALLOW_REMOTE=true`), the following applies:
 - Mapbox and LocationIQ API calls are **proxied through the server** — keys are no longer visible in client-side request URLs or third-party server logs. Keys are still transmitted to the browser via `GET /settings` for display in the settings panel.
-- The settings panel is **read-only** for remote users — API keys and coordinates can only be modified from the Pi itself.
-- Unit and display preferences (temperature, speed, clock format, etc.) continue to work from any device.
+- Unit and display preferences (temperature, speed, clock format, etc.) work from any device.
+- Optionally, enable **`REMOTE_SECURITY=true`** to make the settings panel read-only for remote users — API keys and coordinates can then only be modified from the Pi itself. Without this, remote users can modify settings freely.
 
 ### Option 1 — Automated (recommended)
 
@@ -210,6 +210,7 @@ If you used `deploy/install.sh`, remote access can be configured automatically d
 - Ask for your Pi's IP address (auto-detected)
 - Generate an SSL certificate that includes the Pi's IP as a Subject Alternative Name (SAN) — browsers will show a one-time security warning on first visit, which you can safely accept
 - Enable `ALLOW_REMOTE=true` in the systemd service
+- Ask whether to restrict remote users to read-only access — if yes, enables `REMOTE_SECURITY=true` in the systemd service
 
 > **Note:** If your Pi's IP address changes, the SSL certificate will no longer be valid for remote connections. Re-run `bash deploy/install.sh` to regenerate it. To avoid this, assign a static IP to your Pi.
 
@@ -217,10 +218,11 @@ If you used `deploy/install.sh`, remote access can be configured automatically d
 
 To allow access from other devices, set the `ALLOW_REMOTE=true` environment variable when starting the server.
 
-**With systemd** — edit `~/.config/systemd/user/pi-weather-server.service` and uncomment:
+**With systemd** — edit `~/.config/systemd/user/pi-weather-server.service` and uncomment the relevant lines:
 
 ```ini
 Environment=ALLOW_REMOTE=true
+# Environment=REMOTE_SECURITY=true  ← also uncomment this to make settings read-only for remote users
 ```
 
 Then reload and restart:
@@ -240,6 +242,8 @@ ALLOW_REMOTE=true /usr/bin/npm start &
 
 ```bash
 ALLOW_REMOTE=true npm start
+# or with read-only remote access:
+ALLOW_REMOTE=true REMOTE_SECURITY=true npm start
 ```
 
 The server will now serve the app across your network on port 8443 (HTTPS).
