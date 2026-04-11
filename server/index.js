@@ -18,6 +18,7 @@ const {
   deleteSetting,
   createSettingsFile,
   replaceSettings,
+  getSettingsData,
 } = settingsCtrl;
 const { getCoords } = geolocationCtrl;
 const { reverseGeocode: proxyReverseGeocode, mapTile } = proxyCtrl;
@@ -110,7 +111,17 @@ if (sslOptions) {
   });
 }
 
-app.get("/settings", getSettings);
+app.get("/settings", (req, res) => {
+  const ip = req.socket.remoteAddress;
+  const isLocal = ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1";
+  if (!REMOTE_SECURITY || isLocal) return getSettings(req, res);
+  getSettingsData()
+    .then(data => {
+      const { weatherApiKey, mapApiKey, reverseGeoApiKey, startingLat, startingLon, ...safeData } = data;
+      return res.status(200).json(safeData);
+    })
+    .catch(() => res.status(500).end());
+});
 app.post("/settings", ...(REMOTE_SECURITY ? [localhostOnly] : []), createSettingsFile);
 app.put("/settings", ...(REMOTE_SECURITY ? [localhostOnly] : []), replaceSettings);
 app.patch("/setting", ...(REMOTE_SECURITY ? [localhostOnly] : []), setSetting);

@@ -77,6 +77,8 @@ const Settings = () => {
     }
   }, [mapApiKey, weatherApiKey, reverseGeoApiKey, customLon, customLat]);
 
+  const isRemoteRestricted = !isLocal && remoteSecurityEnabled;
+
   return (
     <CSSTransition
       in={settingsMenuOpen}
@@ -96,38 +98,42 @@ const Settings = () => {
         </div>
         <div className={styles.settingsContainer}>
           <ToggleButtons />
-          <Input
-            label={"MAPS API KEY"}
-            val={mapsKey}
-            current={currentMapsKey}
-            cb={setMapsKey}
-            required={true}
-          />
-          <Input
-            label={"WEATHER API KEY"}
-            val={weatherKey}
-            current={currentWeatherKey}
-            cb={setWeatherKey}
-            required={true}
-          />
-          <Input
-            label={"GEOLOCATION API KEY"}
-            val={geoKey}
-            current={currentGeoKey}
-            cb={setGeoKey}
-          />
-          <Input
-            label={"CUSTOM STARTING LATITUDE"}
-            val={lat}
-            cb={setLat}
-            current={currentLat}
-          />
-          <Input
-            label={"CUSTOM STARTING LONGITUDE"}
-            val={lon}
-            cb={setLon}
-            current={currentLon}
-          />
+          {!isRemoteRestricted && (
+            <>
+              <Input
+                label={"MAPS API KEY"}
+                val={mapsKey}
+                current={currentMapsKey}
+                cb={setMapsKey}
+                required={true}
+              />
+              <Input
+                label={"WEATHER API KEY"}
+                val={weatherKey}
+                current={currentWeatherKey}
+                cb={setWeatherKey}
+                required={true}
+              />
+              <Input
+                label={"GEOLOCATION API KEY"}
+                val={geoKey}
+                current={currentGeoKey}
+                cb={setGeoKey}
+              />
+              <Input
+                label={"CUSTOM STARTING LATITUDE"}
+                val={lat}
+                cb={setLat}
+                current={currentLat}
+              />
+              <Input
+                label={"CUSTOM STARTING LONGITUDE"}
+                val={lon}
+                cb={setLon}
+                current={currentLon}
+              />
+            </>
+          )}
           <div className={styles.bottomButtonContainer}>
             <div>
               <div className={styles.label}>HIDE MOUSE</div>
@@ -140,12 +146,8 @@ const Settings = () => {
                 cb={saveMouseHide}
               />
             </div>
-            <div className={styles.saveButtonContainer}>
-              {!isLocal && remoteSecurityEnabled ? (
-                <div className={styles.label}>
-                  API keys and coordinates can only be modified from the Pi.
-                </div>
-              ) : (
+            {!isRemoteRestricted && (
+              <div className={styles.saveButtonContainer}>
                 <SaveButton
                   mapsKey={mapsKey}
                   weatherKey={weatherKey}
@@ -153,8 +155,8 @@ const Settings = () => {
                   lat={lat}
                   lon={lon}
                 />
-              )}
-            </div>
+              </div>
+            )}
           </div>
         </div>
       </div>
