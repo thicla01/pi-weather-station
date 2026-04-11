@@ -120,20 +120,20 @@ const Settings = () => {
                 current={currentGeoKey}
                 cb={setGeoKey}
               />
+              <Input
+                label={"CUSTOM STARTING LATITUDE"}
+                val={lat}
+                cb={setLat}
+                current={currentLat}
+              />
+              <Input
+                label={"CUSTOM STARTING LONGITUDE"}
+                val={lon}
+                cb={setLon}
+                current={currentLon}
+              />
             </>
           )}
-          <Input
-            label={"CUSTOM STARTING LATITUDE"}
-            val={lat}
-            cb={setLat}
-            current={currentLat}
-          />
-          <Input
-            label={"CUSTOM STARTING LONGITUDE"}
-            val={lon}
-            cb={setLon}
-            current={currentLon}
-          />
           <div className={styles.bottomButtonContainer}>
             <div>
               <div className={styles.label}>HIDE MOUSE</div>

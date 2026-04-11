@@ -23,7 +23,7 @@ Security improvements:
 
 - **API key proxying** — Mapbox (map tiles) and LocationIQ (reverse geocoding) API calls are now proxied through the Express server. Keys are no longer included in client-side request URLs, keeping them out of browser network logs and third-party server logs. Note: keys are still transmitted to the browser via `GET /settings` for display in the settings panel.
 - **Settings write protection** — `POST`, `PUT`, `PATCH`, and `DELETE` requests to `/settings` can be restricted to `localhost` by enabling `REMOTE_SECURITY=true`. When active, remote users can view the app but cannot modify API keys or coordinates.
-- **Remote access UX** — When `REMOTE_SECURITY=true`, the settings panel hides API key fields for remote users. Coordinates and unit/display preferences remain accessible. Without `REMOTE_SECURITY`, remote users have full access to settings.
+- **Remote access UX** — When `REMOTE_SECURITY=true`, the settings panel hides API key and coordinate fields for remote users. Unit and display preferences (temperature, speed, clock format, mouse) remain accessible as they are stored locally in the browser. Without `REMOTE_SECURITY`, remote users have full access to settings.
 - **CORS removed** — The `cors` middleware (which allowed any origin to call the API) has been removed. All legitimate requests are same-origin and do not require it.
 - **Shell injection fix** — `deploy/install.sh` now uses `python3 + json.dumps` to write `settings.json`, preventing potential shell injection via API key input.
 - **JSON parse hardening** — `settings.json` parsing is now wrapped in a try/catch; a corrupted file returns a clean 500 error instead of crashing the server.
@@ -202,7 +202,7 @@ By default the server only accepts connections from `localhost` (127.0.0.1).
 When remote access is enabled (`ALLOW_REMOTE=true`), the following applies:
 - Mapbox and LocationIQ API calls are **proxied through the server** — keys are no longer visible in client-side request URLs or third-party server logs. Keys are still transmitted to the browser via `GET /settings` for display in the settings panel.
 - Unit and display preferences (temperature, speed, clock format, etc.) work from any device.
-- Optionally, enable **`REMOTE_SECURITY=true`** to restrict remote users: API key fields are hidden in the settings panel, write operations are blocked server-side, and coordinates and unit/display preferences remain accessible. Without this, remote users have full access to settings.
+- Optionally, enable **`REMOTE_SECURITY=true`** to restrict remote users: API key and coordinate fields are hidden in the settings panel, and write operations are blocked server-side. Unit and display preferences remain accessible. Without this, remote users have full access to settings.
 
 ### Option 1 — Automated (recommended)
 
