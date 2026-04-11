@@ -80,6 +80,50 @@
   font-style: italic;
 }
 
+.quota-table {
+  display: table;
+  width: 100%;
+  max-width: 480px;
+  font-family: monospace;
+  font-size: 11px;
+  border-collapse: collapse;
+}
+
+.quota-header {
+  display: table-row;
+  color: #888;
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+
+.quota-header > span {
+  display: table-cell;
+  padding: 2px 8px 4px 0;
+  border-bottom: 1px solid #3a3a3a;
+}
+
+.quota-header > span:nth-child(1) { width: 100px; }
+
+.quota-entry {
+  display: table-row;
+}
+
+.quota-entry > span {
+  display: table-cell;
+  padding: 3px 8px 3px 0;
+  border-bottom: 1px solid #2a2a2a;
+}
+
+.quota-total {
+  border-top: 1px solid #3a3a3a;
+  font-weight: bold;
+}
+
+.quota-endpoint { color: #ccc; }
+.quota-val      { color: #f6f6f4; }
+.quota-warn     { color: #f0a500; font-weight: bold; }
+.quota-err      { color: #ff6b6b; font-weight: bold; }
+
 .service-table {
   display: table;
   width: 100%;

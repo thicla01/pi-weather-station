@@ -60,6 +60,7 @@ const Debug = () => {
 
         <div className={styles.content}>
           <ServicesSection services={data?.services} />
+          <QuotaSection counters={data?.counters} />
           <CacheSection cache={data?.cache} />
           <LogsSection logs={data?.logs} />
           <SecuritySection events={data?.securityEvents} />
@@ -71,6 +72,107 @@ const Debug = () => {
 };
 
 export default Debug;
+
+const SERVICE_LABELS = {
+  "tomorrow.io": "Tomorrow.io",
+  "mapbox":      "Mapbox",
+  "locationiq":  "LocationIQ",
+  "ipapi.co":    "ipapi.co",
+};
+
+const quotaClass = (count, limit, styles) => {
+  if (!limit) return styles.quotaVal;
+  if (count >= limit)           return styles.quotaErr;
+  if (count >= limit * 0.8)     return styles.quotaWarn;
+  return styles.quotaVal;
+};
+
+const fmtVal = (count, limit) =>
+  limit ? `${count} / ${limit.toLocaleString()}` : String(count);
+
+/**
+ * Quota section — one table per service
+ *
+ * @param {Object} props
+ * @param {Object} props.counters Counters from server
+ * @returns {JSX.Element} Quota section
+ */
+const QuotaSection = ({ counters }) => {
+  if (!counters || Object.keys(counters).length === 0) {
+    return (
+      <div className={styles.section}>
+        <div className={styles.sectionTitle}>QUOTAS</div>
+        <div className={styles.empty}>No requests recorded yet</div>
+      </div>
+    );
+  }
+
+  return (
+    <>
+      {Object.entries(counters).map(([service, { quotas, endpoints }]) => {
+        const label = SERVICE_LABELS[service] || service;
+        const endpointList = Object.entries(endpoints);
+
+        // Totals per period
+        const total = { hour: 0, day: 0, month: 0 };
+        endpointList.forEach(([, c]) => {
+          total.hour  += c.hour;
+          total.day   += c.day;
+          total.month += c.month;
+        });
+
+        const showHour  = quotas.hour  != null;
+        const showDay   = quotas.day   != null;
+        const showMonth = quotas.month != null;
+
+        return (
+          <div className={styles.section} key={service}>
+            <div className={styles.sectionTitle}>QUOTA — {label.toUpperCase()}</div>
+            <div className={styles.quotaTable}>
+              <div className={styles.quotaHeader}>
+                <span>ENDPOINT</span>
+                {showHour  && <span>THIS HOUR</span>}
+                {showDay   && <span>TODAY</span>}
+                {showMonth && <span>THIS MONTH</span>}
+              </div>
+              {endpointList.map(([ep, c]) => (
+                <div className={styles.quotaEntry} key={ep}>
+                  <span className={styles.quotaEndpoint}>{ep}</span>
+                  {showHour  && <span className={quotaClass(c.hour,  quotas.hour,  styles)}>{fmtVal(c.hour,  null)}</span>}
+                  {showDay   && <span className={quotaClass(c.day,   quotas.day,   styles)}>{fmtVal(c.day,   null)}</span>}
+                  {showMonth && <span className={quotaClass(c.month, quotas.month, styles)}>{fmtVal(c.month, null)}</span>}
+                </div>
+              ))}
+              {endpointList.length > 1 && (
+                <div className={`${styles.quotaEntry} ${styles.quotaTotal}`}>
+                  <span>TOTAL</span>
+                  {showHour  && <span className={quotaClass(total.hour,  quotas.hour,  styles)}>{fmtVal(total.hour,  quotas.hour)}</span>}
+                  {showDay   && <span className={quotaClass(total.day,   quotas.day,   styles)}>{fmtVal(total.day,   quotas.day)}</span>}
+                  {showMonth && <span className={quotaClass(total.month, quotas.month, styles)}>{fmtVal(total.month, quotas.month)}</span>}
+                </div>
+              )}
+              {endpointList.length === 1 && (
+                <div className={`${styles.quotaEntry} ${styles.quotaTotal}`}>
+                  <span>TOTAL</span>
+                  {showHour  && <span className={quotaClass(total.hour,  quotas.hour,  styles)}>{fmtVal(total.hour,  quotas.hour)}</span>}
+                  {showDay   && <span className={quotaClass(total.day,   quotas.day,   styles)}>{fmtVal(total.day,   quotas.day)}</span>}
+                  {showMonth && <span className={quotaClass(total.month, quotas.month, styles)}>{fmtVal(total.month, quotas.month)}</span>}
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })}
+    </>
+  );
+};
+
+QuotaSection.propTypes = {
+  counters: PropTypes.objectOf(PropTypes.shape({
+    quotas: PropTypes.object,
+    endpoints: PropTypes.object,
+  })),
+};
 
 /**
  * Services section

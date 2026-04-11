@@ -2,6 +2,7 @@ const fs = require("fs");
 const path = require("path");
 const { weatherCache } = require("./proxyCtrl");
 const { getServiceStatus } = require("./serviceStatus");
+const { getCounters } = require("./requestCounter");
 
 const securityEvents = [];
 const MAX_SECURITY_EVENTS = 50;
@@ -52,7 +53,7 @@ function getDebugInfo(req, res) {
     // file not found — default message applies
   }
 
-  return res.status(200).json({ cache, logs, audit, securityEvents, services: getServiceStatus() });
+  return res.status(200).json({ cache, logs, audit, securityEvents, services: getServiceStatus(), counters: getCounters() });
 }
 
 module.exports = { getDebugInfo, logSecurityEvent };

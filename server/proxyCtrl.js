@@ -1,6 +1,7 @@
 const axios = require("axios").default;
 const { getSettingsData } = require("./settingsCtrl");
 const { recordServiceCall } = require("./serviceStatus");
+const { increment } = require("./requestCounter");
 
 const ALLOWED_STYLES = ["dark-v10", "light-v10"];
 
@@ -69,11 +70,13 @@ async function reverseGeocode(req, res) {
     const result = await axios.get(
       `https://us1.locationiq.com/v1/reverse.php?key=${settings.reverseGeoApiKey}&lat=${lat}&lon=${lon}&format=json`
     );
+    increment("locationiq", "geocode");
     recordServiceCall("LocationIQ", 200, "OK");
     return res.status(200).json(result.data).end();
   } catch (err) {
     const status = err?.response?.status || 500;
     const message = err?.response?.data?.error || "Reverse geocoding failed";
+    increment("locationiq", "geocode");
     recordServiceCall("LocationIQ", status, message);
     return res.status(500).json("Reverse geocoding failed").end();
   }
@@ -127,11 +130,13 @@ async function mapTile(req, res) {
     if (contentType) res.setHeader("Content-Type", contentType);
     if (cacheControl) res.setHeader("Cache-Control", cacheControl);
 
+    increment("mapbox", "tiles");
     recordServiceCall("Mapbox", 200, "OK");
     return res.status(200).send(Buffer.from(result.data));
   } catch (err) {
     const status = err?.response?.status || 500;
     const message = err?.response?.data || "Could not fetch map tile";
+    increment("mapbox", "tiles");
     recordServiceCall("Mapbox", status, String(message).slice(0, 100));
     return res.status(500).json("Could not fetch map tile").end();
   }
@@ -177,11 +182,13 @@ async function weatherCurrent(req, res) {
       `https://api.tomorrow.io/v4/timelines?location=${lat}%2C${lon}&fields=${fields}&timesteps=current&apikey=${settings.weatherApiKey}`
     );
     setInCache(cacheKey, result.data, WEATHER_CACHE_TTL.current);
+    increment("tomorrow.io", "current");
     recordServiceCall("Tomorrow.io (current)", 200, "OK");
     return res.status(200).json(result.data).end();
   } catch (err) {
     const status = err?.response?.status || 500;
     const message = err?.response?.data?.message || err?.response?.data || "Weather request failed";
+    increment("tomorrow.io", "current");
     recordServiceCall("Tomorrow.io (current)", status, String(message).slice(0, 100));
     return res.status(status).json(message).end();
   }
@@ -227,11 +234,13 @@ async function weatherHourly(req, res) {
       `https://api.tomorrow.io/v4/timelines?location=${lat}%2C${lon}&fields=${fields}&timesteps=1h&apikey=${settings.weatherApiKey}&endTime=${endTime}`
     );
     setInCache(cacheKey, result.data, WEATHER_CACHE_TTL.hourly);
+    increment("tomorrow.io", "hourly");
     recordServiceCall("Tomorrow.io (hourly)", 200, "OK");
     return res.status(200).json(result.data).end();
   } catch (err) {
     const status = err?.response?.status || 500;
     const message = err?.response?.data?.message || err?.response?.data || "Weather request failed";
+    increment("tomorrow.io", "hourly");
     recordServiceCall("Tomorrow.io (hourly)", status, String(message).slice(0, 100));
     return res.status(status).json(message).end();
   }
@@ -277,11 +286,13 @@ async function weatherDaily(req, res) {
       `https://api.tomorrow.io/v4/timelines?location=${lat}%2C${lon}&fields=${fields}&timesteps=1d&apikey=${settings.weatherApiKey}&endTime=${endTime}`
     );
     setInCache(cacheKey, result.data, WEATHER_CACHE_TTL.daily);
+    increment("tomorrow.io", "daily");
     recordServiceCall("Tomorrow.io (daily)", 200, "OK");
     return res.status(200).json(result.data).end();
   } catch (err) {
     const status = err?.response?.status || 500;
     const message = err?.response?.data?.message || err?.response?.data || "Weather request failed";
+    increment("tomorrow.io", "daily");
     recordServiceCall("Tomorrow.io (daily)", status, String(message).slice(0, 100));
     return res.status(status).json(message).end();
   }
