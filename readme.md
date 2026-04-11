@@ -100,6 +100,7 @@ It will:
 - Check for Node.js (v18 minimum) and offer to install it if missing or outdated
 - Optionally configure your API keys and create `settings.json`
 - Optionally enable remote access from other machines on the network (see [Access from another machine](#access-from-another-machine))
+- Optionally enable the debug panel (see [Debug panel](#debug-panel))
 - Install all dependencies and build the client
 - Run `npm audit` after each install and automatically apply fixes if vulnerabilities are found — results are saved to `npm-audit.log`
 - Configure and start the systemd service with log redirection to `/tmp/weather-server.log`
