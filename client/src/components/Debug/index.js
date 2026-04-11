@@ -181,8 +181,22 @@ QuotaSection.propTypes = {
  * @param {Object} props.services Map of service name to status info
  * @returns {JSX.Element} Services section
  */
+const SERVICE_ORDER = [
+  "Tomorrow.io (current)",
+  "Tomorrow.io (hourly)",
+  "Tomorrow.io (daily)",
+  "Mapbox",
+  "LocationIQ",
+  "ipapi.co",
+];
+
 const ServicesSection = ({ services }) => {
-  const entries = services ? Object.entries(services) : [];
+  const entries = services
+    ? SERVICE_ORDER
+        .filter((k) => services[k])
+        .map((k) => [k, services[k]])
+        .concat(Object.entries(services).filter(([k]) => !SERVICE_ORDER.includes(k)))
+    : [];
   return (
     <div className={styles.section}>
       <div className={styles.sectionTitle}>SERVICES</div>
