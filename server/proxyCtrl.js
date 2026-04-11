@@ -3,6 +3,32 @@ const { getSettingsData } = require("./settingsCtrl");
 
 const ALLOWED_STYLES = ["dark-v10", "light-v10"];
 
+const WEATHER_CACHE_TTL = {
+  current: 15 * 60 * 1000,
+  hourly:  30 * 60 * 1000,
+  daily:    6 * 60 * 60 * 1000,
+};
+
+const weatherCache = {};
+
+function getCacheKey(type, lat, lon) {
+  return `${type}:${lat.toFixed(4)}:${lon.toFixed(4)}`;
+}
+
+function getFromCache(key) {
+  const entry = weatherCache[key];
+  if (!entry) return null;
+  if (Date.now() > entry.expiresAt) {
+    delete weatherCache[key];
+    return null;
+  }
+  return entry.data;
+}
+
+function setInCache(key, data, ttl) {
+  weatherCache[key] = { data, expiresAt: Date.now() + ttl };
+}
+
 /**
  * Proxy: reverse geocode via LocationIQ, keeping the API key server-side
  *
@@ -126,10 +152,15 @@ async function weatherCurrent(req, res) {
   const fields = ["temperature", "humidity", "windSpeed", "precipitationIntensity",
     "precipitationType", "precipitationProbability", "cloudCover", "weatherCode"].join("%2c");
 
+  const cacheKey = getCacheKey("current", lat, lon);
+  const cached = getFromCache(cacheKey);
+  if (cached) return res.status(200).json(cached).end();
+
   try {
     const result = await axios.get(
       `https://api.tomorrow.io/v4/timelines?location=${lat}%2C${lon}&fields=${fields}&timesteps=current&apikey=${settings.weatherApiKey}`
     );
+    setInCache(cacheKey, result.data, WEATHER_CACHE_TTL.current);
     return res.status(200).json(result.data).end();
   } catch (err) {
     const status = err?.response?.status || 500;
@@ -169,10 +200,15 @@ async function weatherHourly(req, res) {
   const fields = ["temperature", "precipitationProbability", "precipitationIntensity", "windSpeed"].join("%2c");
   const endTime = new Date(Date.now() + 60 * 60 * 23 * 1000).toISOString();
 
+  const cacheKey = getCacheKey("hourly", lat, lon);
+  const cached = getFromCache(cacheKey);
+  if (cached) return res.status(200).json(cached).end();
+
   try {
     const result = await axios.get(
       `https://api.tomorrow.io/v4/timelines?location=${lat}%2C${lon}&fields=${fields}&timesteps=1h&apikey=${settings.weatherApiKey}&endTime=${endTime}`
     );
+    setInCache(cacheKey, result.data, WEATHER_CACHE_TTL.hourly);
     return res.status(200).json(result.data).end();
   } catch (err) {
     const status = err?.response?.status || 500;
@@ -212,10 +248,15 @@ async function weatherDaily(req, res) {
   const fields = ["temperature", "precipitationProbability", "precipitationIntensity", "windSpeed"].join("%2c");
   const endTime = new Date(Date.now() + 4 * 60 * 60 * 24 * 1000).toISOString();
 
+  const cacheKey = getCacheKey("daily", lat, lon);
+  const cached = getFromCache(cacheKey);
+  if (cached) return res.status(200).json(cached).end();
+
   try {
     const result = await axios.get(
       `https://api.tomorrow.io/v4/timelines?location=${lat}%2C${lon}&fields=${fields}&timesteps=1d&apikey=${settings.weatherApiKey}&endTime=${endTime}`
     );
+    setInCache(cacheKey, result.data, WEATHER_CACHE_TTL.daily);
     return res.status(200).json(result.data).end();
   } catch (err) {
     const status = err?.response?.status || 500;
