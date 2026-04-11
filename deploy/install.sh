@@ -183,6 +183,7 @@ cat > ~/.config/systemd/user/pi-weather-server.service.d/override.conf << 'EOF'
 [Service]
 StandardOutput=append:/tmp/weather-server.log
 StandardError=append:/tmp/weather-server.log
+# Environment=DEBUG=true
 EOF
 systemctl --user daemon-reload
 systemctl --user enable pi-weather-server

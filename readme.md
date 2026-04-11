@@ -296,13 +296,13 @@ A debug panel is available on the Pi when `DEBUG=true` is set server-side. It sh
 
 The debug button (bug icon) appears in the control bar only when `DEBUG=true` and only when the app is accessed from the Pi itself.
 
-**With systemd** — edit `~/.config/systemd/user/pi-weather-server.service` and uncomment:
+**With systemd (Option 1 or 2)** — edit the override file and uncomment the `DEBUG=true` line:
 
-```ini
-Environment=DEBUG=true
+```bash
+nano ~/.config/systemd/user/pi-weather-server.service.d/override.conf
 ```
 
-Then reload and restart:
+Remove the `#` in front of `# Environment=DEBUG=true`, then reload and restart:
 
 ```bash
 systemctl --user daemon-reload
