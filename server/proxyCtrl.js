@@ -95,4 +95,133 @@ async function mapTile(req, res) {
   }
 }
 
-module.exports = { reverseGeocode, mapTile };
+/**
+ * Proxy: Tomorrow.io current weather, keeping the API key server-side
+ *
+ * @param {Object} req
+ * @param {Object} req.query
+ * @param {String} req.query.lat
+ * @param {String} req.query.lon
+ * @param {Object} res
+ */
+async function weatherCurrent(req, res) {
+  const lat = parseFloat(req.query.lat);
+  const lon = parseFloat(req.query.lon);
+
+  if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+    return res.status(400).json("Invalid coordinates").end();
+  }
+
+  let settings;
+  try {
+    settings = await getSettingsData();
+  } catch {
+    return res.status(500).json("Could not read settings").end();
+  }
+
+  if (!settings.weatherApiKey) {
+    return res.status(503).json("Weather API key not configured").end();
+  }
+
+  const fields = ["temperature", "humidity", "windSpeed", "precipitationIntensity",
+    "precipitationType", "precipitationProbability", "cloudCover", "weatherCode"].join("%2c");
+
+  try {
+    const result = await axios.get(
+      `https://api.tomorrow.io/v4/timelines?location=${lat}%2C${lon}&fields=${fields}&timesteps=current&apikey=${settings.weatherApiKey}`
+    );
+    return res.status(200).json(result.data).end();
+  } catch (err) {
+    const status = err?.response?.status || 500;
+    const message = err?.response?.data || "Weather request failed";
+    return res.status(status).json(message).end();
+  }
+}
+
+/**
+ * Proxy: Tomorrow.io hourly weather, keeping the API key server-side
+ *
+ * @param {Object} req
+ * @param {Object} req.query
+ * @param {String} req.query.lat
+ * @param {String} req.query.lon
+ * @param {Object} res
+ */
+async function weatherHourly(req, res) {
+  const lat = parseFloat(req.query.lat);
+  const lon = parseFloat(req.query.lon);
+
+  if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+    return res.status(400).json("Invalid coordinates").end();
+  }
+
+  let settings;
+  try {
+    settings = await getSettingsData();
+  } catch {
+    return res.status(500).json("Could not read settings").end();
+  }
+
+  if (!settings.weatherApiKey) {
+    return res.status(503).json("Weather API key not configured").end();
+  }
+
+  const fields = ["temperature", "precipitationProbability", "precipitationIntensity", "windSpeed"].join("%2c");
+  const endTime = new Date(Date.now() + 60 * 60 * 23 * 1000).toISOString();
+
+  try {
+    const result = await axios.get(
+      `https://api.tomorrow.io/v4/timelines?location=${lat}%2C${lon}&fields=${fields}&timesteps=1h&apikey=${settings.weatherApiKey}&endTime=${endTime}`
+    );
+    return res.status(200).json(result.data).end();
+  } catch (err) {
+    const status = err?.response?.status || 500;
+    const message = err?.response?.data || "Weather request failed";
+    return res.status(status).json(message).end();
+  }
+}
+
+/**
+ * Proxy: Tomorrow.io daily weather, keeping the API key server-side
+ *
+ * @param {Object} req
+ * @param {Object} req.query
+ * @param {String} req.query.lat
+ * @param {String} req.query.lon
+ * @param {Object} res
+ */
+async function weatherDaily(req, res) {
+  const lat = parseFloat(req.query.lat);
+  const lon = parseFloat(req.query.lon);
+
+  if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+    return res.status(400).json("Invalid coordinates").end();
+  }
+
+  let settings;
+  try {
+    settings = await getSettingsData();
+  } catch {
+    return res.status(500).json("Could not read settings").end();
+  }
+
+  if (!settings.weatherApiKey) {
+    return res.status(503).json("Weather API key not configured").end();
+  }
+
+  const fields = ["temperature", "precipitationProbability", "precipitationIntensity", "windSpeed"].join("%2c");
+  const endTime = new Date(Date.now() + 4 * 60 * 60 * 24 * 1000).toISOString();
+
+  try {
+    const result = await axios.get(
+      `https://api.tomorrow.io/v4/timelines?location=${lat}%2C${lon}&fields=${fields}&timesteps=1d&apikey=${settings.weatherApiKey}&endTime=${endTime}`
+    );
+    return res.status(200).json(result.data).end();
+  } catch (err) {
+    const status = err?.response?.status || 500;
+    const message = err?.response?.data || "Weather request failed";
+    return res.status(status).json(message).end();
+  }
+}
+
+module.exports = { reverseGeocode, mapTile, weatherCurrent, weatherHourly, weatherDaily };

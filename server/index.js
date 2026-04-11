@@ -20,7 +20,7 @@ const {
   replaceSettings,
 } = settingsCtrl;
 const { getCoords } = geolocationCtrl;
-const { reverseGeocode: proxyReverseGeocode, mapTile } = proxyCtrl;
+const { reverseGeocode: proxyReverseGeocode, mapTile, weatherCurrent, weatherHourly, weatherDaily } = proxyCtrl;
 
 const DIST_DIR = "/../client/dist";
 const PORT = 8080;
@@ -126,3 +126,7 @@ app.get("/api/is-local", (req, res) => {
 
 app.get("/api/reverse-geocode", proxyReverseGeocode);
 app.get("/api/tiles/:style/:z/:x/:y", mapTile);
+
+app.get("/api/weather/current", weatherCurrent);
+app.get("/api/weather/hourly", weatherHourly);
+app.get("/api/weather/daily", weatherDaily);
