@@ -124,39 +124,23 @@ CacheSection.propTypes = {
  * @param {Array} props.logs List of log lines
  * @returns {JSX.Element} Logs section
  */
-const parseLogLine = (line) => {
-  const match = line.match(/^\[(\w+)\]\s+(\w+)\s*(.*)/);
-  if (match) return { tag: match[1], action: match[2], detail: match[3] };
-  return { tag: "", action: "", detail: line };
-};
-
 const LogsSection = ({ logs }) => (
   <div className={styles.section}>
     <div className={styles.sectionTitle}>LOGS (last 100 lines)</div>
-    {!logs || logs.length === 0 ? (
-      <div className={styles.empty}>No logs available</div>
-    ) : (
-      <div className={styles.logTable}>
-        <div className={styles.logHeader}>
-          <span>TAG</span>
-          <span>ACTION</span>
-          <span>DETAILS</span>
-        </div>
-        {logs.map((line, i) => {
-          const { tag, action, detail } = parseLogLine(line);
-          const tagClass = tag === "cache" ? styles.logTagCache
-            : tag === "security" ? styles.logTagSecurity
-            : styles.logTagDefault;
+    <div className={styles.logBlock}>
+      {!logs || logs.length === 0 ? (
+        <span className={styles.empty}>No logs available</span>
+      ) : (
+        logs.map((line, i) => {
+          let lineClass = styles.logLineDefault;
+          if (line.includes("[cache]")) lineClass = styles.logLineCache;
+          else if (line.includes("[security]")) lineClass = styles.logLineSecurity;
           return (
-            <div className={styles.logEntry} key={i}>
-              <span className={tagClass}>{tag || "—"}</span>
-              <span className={styles.logAction}>{action || "—"}</span>
-              <span className={styles.logDetail}>{detail}</span>
-            </div>
+            <div key={i} className={lineClass}>{line}</div>
           );
-        })}
-      </div>
-    )}
+        })
+      )}
+    </div>
   </div>
 );
 
