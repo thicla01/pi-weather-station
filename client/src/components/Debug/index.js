@@ -84,14 +84,27 @@ const CacheSection = ({ cache }) => (
     {!cache || cache.length === 0 ? (
       <div className={styles.empty}>No entries in cache</div>
     ) : (
-      cache.map((entry) => (
-        <div className={styles.cacheEntry} key={entry.key}>
-          <span className={styles.cacheKey}>{entry.key}</span>
-          <span className={`${styles.cacheTtl} ${entry.expired ? styles.expired : ""}`}>
-            {entry.expired ? "EXPIRED" : `${entry.expiresIn}s`}
-          </span>
+      <div className={styles.cacheTable}>
+        <div className={styles.cacheHeader}>
+          <span>TYPE</span>
+          <span>LAT</span>
+          <span>LON</span>
+          <span>TTL</span>
         </div>
-      ))
+        {cache.map((entry) => {
+          const [type, lat, lon] = entry.key.split(":");
+          return (
+            <div className={styles.cacheEntry} key={entry.key}>
+              <span className={styles.cacheType}>{type}</span>
+              <span className={styles.cacheCoord}>{lat}</span>
+              <span className={styles.cacheCoord}>{lon}</span>
+              <span className={`${styles.cacheTtl} ${entry.expired ? styles.expired : ""}`}>
+                {entry.expired ? "EXPIRED" : `${entry.expiresIn}s`}
+              </span>
+            </div>
+          );
+        })}
+      </div>
     )}
   </div>
 );

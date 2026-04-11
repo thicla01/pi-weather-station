@@ -80,23 +80,52 @@
   font-style: italic;
 }
 
+.cache-table {
+  display: table;
+  width: 100%;
+  max-width: 480px;
+  font-family: monospace;
+  font-size: 11px;
+  border-collapse: collapse;
+}
+
+.cache-header {
+  display: table-row;
+  color: #888;
+  font-size: 10px;
+  letter-spacing: 1px;
+}
+
+.cache-header > span {
+  display: table-cell;
+  padding: 2px 8px 4px 0;
+  border-bottom: 1px solid #3a3a3a;
+}
+
 .cache-entry {
-  display: flex;
-  justify-content: space-between;
-  padding: 3px 0;
+  display: table-row;
+}
+
+.cache-entry > span {
+  display: table-cell;
+  padding: 3px 8px 3px 0;
   border-bottom: 1px solid #2a2a2a;
 }
 
-.cache-key {
+.cache-type {
+  color: #7ecfff;
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.cache-coord {
   color: #ccc;
-  font-family: monospace;
+  white-space: nowrap;
 }
 
 .cache-ttl {
   color: #7ecfff;
-  font-family: monospace;
   white-space: nowrap;
-  margin-left: 10px;
 }
 
 .cache-ttl.expired {
