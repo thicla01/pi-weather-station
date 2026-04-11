@@ -17,16 +17,23 @@ function getCacheKey(type, lat, lon) {
 
 function getFromCache(key) {
   const entry = weatherCache[key];
-  if (!entry) return null;
-  if (Date.now() > entry.expiresAt) {
-    delete weatherCache[key];
+  if (!entry) {
+    console.log(`[cache] MISS  ${key}`);
     return null;
   }
+  if (Date.now() > entry.expiresAt) {
+    delete weatherCache[key];
+    console.log(`[cache] EXPIRED ${key}`);
+    return null;
+  }
+  const remainingSec = Math.round((entry.expiresAt - Date.now()) / 1000);
+  console.log(`[cache] HIT  ${key} (expires in ${remainingSec}s)`);
   return entry.data;
 }
 
 function setInCache(key, data, ttl) {
   weatherCache[key] = { data, expiresAt: Date.now() + ttl };
+  console.log(`[cache] SET  ${key} (ttl ${ttl / 1000}s)`);
 }
 
 /**
