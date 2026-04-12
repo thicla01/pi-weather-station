@@ -113,7 +113,9 @@ It will:
 - Configure and start the systemd service with log redirection to `/tmp/weather-server.log`
 - Install log rotation (`/etc/logrotate.d/weather-server`) — daily rotation, 7 days history, max 10 MB, compressed
 - Deploy `~/.local/bin/start-server` and configure your display server's autostart automatically
-- Offer to reboot to launch the application automatically
+- Offer to reboot to launch the application automatically (default: yes)
+
+Each prompt shows the default choice in uppercase — pressing Enter accepts the default.
 
 ### Option 2 — systemd (manual)
 
@@ -238,7 +240,12 @@ To remove the Pi Weather Station service, scripts, and configurations:
 bash deploy/uninstall.sh
 ```
 
-The script will automatically remove the systemd service, `~/.local/bin/start-server`, `~/.local/bin/start-weather`, and the display server's autostart configuration. It will then ask whether to also remove `settings.json`, SSL certificates, `node_modules`, and the project directory.
+The script will automatically remove the systemd service, `~/.local/bin/start-server`, `~/.local/bin/start-weather`, and the display server's autostart configuration. It will then ask whether to also remove:
+
+- `settings.json` (contains your API keys) — kept by default
+- SSL certificates (`server/cert.pem`, `server/key.pem`) — kept by default
+- `node_modules` directories — removed by default
+- The entire project directory — kept by default (requires explicit confirmation)
 
 ## Access from another machine
 
