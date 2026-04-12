@@ -64,7 +64,7 @@ esac
 # --- 4. settings.json (optional) ---
 echo ""
 if [ -f "$REPO_DIR/settings.json" ]; then
-    read -p ">> Remove settings.json (contains your API keys)? (y/n) " -n 1 -r
+    read -p ">> Remove settings.json (contains your API keys)? (y/N) " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         rm "$REPO_DIR/settings.json"
@@ -77,7 +77,7 @@ fi
 # --- 5. SSL certificates (optional) ---
 echo ""
 if [ -f "$REPO_DIR/server/cert.pem" ] || [ -f "$REPO_DIR/server/key.pem" ]; then
-    read -p ">> Remove SSL certificates (server/cert.pem, server/key.pem)? (y/n) " -n 1 -r
+    read -p ">> Remove SSL certificates (server/cert.pem, server/key.pem)? (y/N) " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         rm -f "$REPO_DIR/server/cert.pem" "$REPO_DIR/server/key.pem"
@@ -90,9 +90,9 @@ fi
 # --- 6. node_modules (optional) ---
 echo ""
 if [ -d "$REPO_DIR/node_modules" ] || [ -d "$REPO_DIR/client/node_modules" ]; then
-    read -p ">> Remove node_modules directories? (y/n) " -n 1 -r
+    read -p ">> Remove node_modules directories? (Y/n) " -n 1 -r
     echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
+    if [[ -z "$REPLY" || $REPLY =~ ^[Yy]$ ]]; then
         rm -rf "$REPO_DIR/node_modules" "$REPO_DIR/client/node_modules"
         echo "   node_modules removed."
     else
@@ -102,10 +102,10 @@ fi
 
 # --- 7. Project directory (optional) ---
 echo ""
-read -p ">> Remove the entire project directory ($REPO_DIR)? (y/n) " -n 1 -r
+read -p ">> Remove the entire project directory ($REPO_DIR)? (y/N) " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
-    read -p "   Are you sure? This cannot be undone. (y/n) " -n 1 -r
+    read -p "   Are you sure? This cannot be undone. (y/N) " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         rm -rf "$REPO_DIR"
