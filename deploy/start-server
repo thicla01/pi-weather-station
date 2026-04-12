@@ -15,10 +15,13 @@ for i in $(seq 1 30); do
     sleep 1
 done
 
+# Detect Chromium binary (name varies by OS version)
+CHROMIUM=$(which chromium 2>/dev/null || which chromium-browser 2>/dev/null)
+
 # Chromium flags based on display server
 if [ -n "$WAYLAND_DISPLAY" ]; then
     FLAGS="--ozone-platform=wayland --enable-features=OverlayScrollbar --start-maximized"
 fi
 
-/usr/bin/chromium --kiosk --noerrdialogs --disable-infobars --no-first-run \
+"$CHROMIUM" --kiosk --noerrdialogs --disable-infobars --no-first-run \
     --ignore-certificate-errors $FLAGS "$URL"
