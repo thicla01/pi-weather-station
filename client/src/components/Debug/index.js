@@ -48,6 +48,19 @@ const Debug = () => {
               <span>{data.system.os}</span>
             </div>
           )}
+          {data?.network && (
+            <div className={styles.networkInfo}>
+              {data.network.urls.length > 0 ? (
+                data.network.urls.map((url) => (
+                  <span key={url} className={styles.networkUrl}>{url}</span>
+                ))
+              ) : (
+                <span className={styles.networkUrl}>
+                  {data.network.protocol}://localhost:{data.network.port}
+                </span>
+              )}
+            </div>
+          )}
         </div>
         <div
           className={styles.closeButton}
@@ -82,10 +95,11 @@ const Debug = () => {
 export default Debug;
 
 const SERVICE_LABELS = {
-  "tomorrow.io": "Tomorrow.io",
-  "mapbox":      "Mapbox",
-  "locationiq":  "LocationIQ",
-  "ipapi.co":    "ipapi.co",
+  "tomorrow.io":        "Tomorrow.io",
+  "mapbox":             "Mapbox",
+  "locationiq":         "LocationIQ",
+  "ipapi.co":           "ipapi.co",
+  "sunrise-sunset.org": "sunrise-sunset.org",
 };
 
 const quotaClass = (count, limit, styles) => {
@@ -196,6 +210,7 @@ const SERVICE_ORDER = [
   "Mapbox",
   "LocationIQ",
   "ipapi.co",
+  "sunrise-sunset.org",
 ];
 
 const ServicesSection = ({ services }) => {

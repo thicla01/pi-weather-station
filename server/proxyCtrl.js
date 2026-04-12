@@ -336,4 +336,35 @@ async function weatherDaily(req, res) {
   }
 }
 
-module.exports = { reverseGeocode, mapTile, weatherCurrent, weatherHourly, weatherDaily, weatherCache, saveCacheToDisk };
+/**
+ * Proxy: sunrise-sunset.org, avoiding mixed-content issues and enabling service tracking
+ *
+ * @param {Object} req
+ * @param {Object} req.query
+ * @param {String} req.query.lat
+ * @param {String} req.query.lon
+ * @param {Object} res
+ */
+async function sunriseSunset(req, res) {
+  const lat = parseFloat(req.query.lat);
+  const lon = parseFloat(req.query.lon);
+
+  if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+    return res.status(400).json("Invalid coordinates").end();
+  }
+
+  try {
+    const result = await axios.get(
+      `https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lon}&formatted=0`
+    );
+    recordServiceCall("sunrise-sunset.org", 200, "OK");
+    return res.status(200).json(result.data).end();
+  } catch (err) {
+    const status = err?.response?.status || 500;
+    const message = err?.response?.data?.status || "Sunrise/sunset request failed";
+    recordServiceCall("sunrise-sunset.org", status, String(message).slice(0, 100));
+    return res.status(500).json("Sunrise/sunset request failed").end();
+  }
+}
+
+module.exports = { reverseGeocode, mapTile, weatherCurrent, weatherHourly, weatherDaily, sunriseSunset, weatherCache, saveCacheToDisk };

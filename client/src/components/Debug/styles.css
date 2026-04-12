@@ -28,6 +28,19 @@
   font-family: monospace;
 }
 
+.networkInfo {
+  display: flex;
+  flex-direction: column;
+  font-size: 11px;
+  margin-top: 6px;
+  font-family: monospace;
+}
+
+.networkUrl {
+  color: #6dcc6d;
+  letter-spacing: 0.3px;
+}
+
 .close-button {
   font-size: 20px;
   position: absolute;

@@ -17,6 +17,11 @@ See it in action [here](https://www.youtube.com/watch?v=dvM6cyqYSw8).
 
 > Be mindful of the plan limits for your API keys and understand the terms of each provider, as scrolling around the map and selecting different locations will incur API calls for every location. Additionally, the weather station will periodically make additional API calls to get weather updates throughout the day. All weather (Tomorrow.io), map tile (Mapbox), and reverse geocoding (LocationIQ) calls are proxied through the server — multiple browser clients share the same quota rather than each consuming it independently. Weather responses are cached server-side, further reducing API usage.
 
+# v2.1.5
+
+- **Debug panel — network info** — The debug panel header now shows the Pi's IP address(es), server port, protocol, and the full URL(s) to access the app from the network (e.g. `https://192.168.1.42:8443`).
+- **sunrise-sunset.org proxy** — Sunrise/sunset API calls are now proxied through the Express server, consistent with all other external services. This enables service status tracking in the debug panel and avoids mixed-content issues when the server runs over HTTPS.
+
 # v2.1.4
 
 - **Weather cache persistence** — The server-side weather cache is now saved to `server/weather-cache.json` on shutdown and every 5 minutes. On restart, non-expired entries are reloaded automatically, avoiding unnecessary API calls to Tomorrow.io when the server is restarted during development or after a crash.
@@ -252,7 +257,7 @@ The script will automatically remove the systemd service, `~/.local/bin/start-se
 By default the server only accepts connections from `localhost` (127.0.0.1).
 
 When remote access is enabled (`ALLOW_REMOTE=true`), the following applies:
-- All API calls (Tomorrow.io, Mapbox, LocationIQ) are **proxied through the server** — keys are never visible in client-side request URLs or third-party server logs. Keys are still transmitted to the browser via `GET /settings` for display in the settings panel.
+- All API calls (Tomorrow.io, Mapbox, LocationIQ, sunrise-sunset.org) are **proxied through the server** — keys are never visible in client-side request URLs or third-party server logs. Keys are still transmitted to the browser via `GET /settings` for display in the settings panel.
 - Unit and display preferences (temperature, speed, clock format, etc.) work from any device.
 - Optionally, enable **`REMOTE_SECURITY=true`** to restrict remote users: API key and coordinate fields are hidden in the settings panel, and write operations are blocked server-side. Unit and display preferences remain accessible. Without this, remote users have full access to settings.
 
@@ -314,7 +319,7 @@ The server will now serve the app across your network on port 8443 (HTTPS).
 
 A debug panel is available on the Pi when `DEBUG=true` is set server-side. It shows:
 
-- **Services** — last HTTP status and timestamp for each external API call
+- **Services** — last HTTP status and timestamp for each external API call (Tomorrow.io, Mapbox, LocationIQ, ipapi.co, sunrise-sunset.org)
 - **Quotas** — hourly, daily, and monthly request counters per service and endpoint, with colour-coded thresholds
 - **Cache** — current in-memory weather cache entries with remaining TTL
 - **Logs** — last 100 lines of the server log

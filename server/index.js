@@ -21,8 +21,8 @@ const {
   replaceSettings,
 } = settingsCtrl;
 const { getCoords } = geolocationCtrl;
-const { reverseGeocode: proxyReverseGeocode, mapTile, weatherCurrent, weatherHourly, weatherDaily, saveCacheToDisk } = proxyCtrl;
-const { getDebugInfo, logSecurityEvent } = debugCtrl;
+const { reverseGeocode: proxyReverseGeocode, mapTile, weatherCurrent, weatherHourly, weatherDaily, sunriseSunset, saveCacheToDisk } = proxyCtrl;
+const { getDebugInfo, logSecurityEvent, initServerInfo } = debugCtrl;
 
 const DIST_DIR = "/../client/dist";
 const PORT = 8080;
@@ -113,11 +113,13 @@ const debugLocalhostOnly = (req, res, next) => {
 
 if (sslOptions) {
   https.createServer(sslOptions, app).listen(HTTPS_PORT, HOST, async () => {
+    initServerInfo(HTTPS_PORT, "https");
     await open(`https://localhost:${HTTPS_PORT}`);
     console.log(`${appName} v${ver} has started on port ${HTTPS_PORT} (HTTPS, bound to ${HOST})`);
   });
 } else {
   app.listen(PORT, HOST, async () => {
+    initServerInfo(PORT, "http");
     await open(`http://localhost:${PORT}`);
     console.log(`${appName} v${ver} has started on port ${PORT} (HTTP, bound to ${HOST})`);
   });
@@ -143,6 +145,7 @@ app.get("/api/tiles/:style/:z/:x/:y", mapTile);
 app.get("/api/weather/current", weatherCurrent);
 app.get("/api/weather/hourly", weatherHourly);
 app.get("/api/weather/daily", weatherDaily);
+app.get("/api/sunrise-sunset", sunriseSunset);
 
 app.get("/api/debug", debugLocalhostOnly, getDebugInfo);
 

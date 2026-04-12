@@ -1,8 +1,41 @@
 const fs = require("fs");
+const os = require("os");
 const path = require("path");
 const { weatherCache } = require("./proxyCtrl");
 const { getServiceStatus } = require("./serviceStatus");
 const { getCounters } = require("./requestCounter");
+
+let _serverPort = null;
+let _serverProtocol = null;
+
+/**
+ * Called from index.js once the server is listening.
+ *
+ * @param {number} port
+ * @param {string} protocol  "http" or "https"
+ */
+function initServerInfo(port, protocol) {
+  _serverPort = port;
+  _serverProtocol = protocol;
+}
+
+function getNetworkInfo() {
+  const ifaces = os.networkInterfaces();
+  const ips = [];
+  for (const iface of Object.values(ifaces)) {
+    for (const addr of iface) {
+      if (addr.family === "IPv4" && !addr.internal) {
+        ips.push(addr.address);
+      }
+    }
+  }
+  return {
+    ips,
+    port: _serverPort,
+    protocol: _serverProtocol,
+    urls: ips.map((ip) => `${_serverProtocol}://${ip}:${_serverPort}`),
+  };
+}
 
 function getSystemInfo() {
   let hardware = "Unknown";
@@ -70,7 +103,7 @@ function getDebugInfo(req, res) {
     // file not found — default message applies
   }
 
-  return res.status(200).json({ cache, logs, audit, securityEvents, services: getServiceStatus(), counters: getCounters(), system: getSystemInfo() });
+  return res.status(200).json({ cache, logs, audit, securityEvents, services: getServiceStatus(), counters: getCounters(), system: getSystemInfo(), network: getNetworkInfo() });
 }
 
-module.exports = { getDebugInfo, logSecurityEvent };
+module.exports = { getDebugInfo, logSecurityEvent, initServerInfo };

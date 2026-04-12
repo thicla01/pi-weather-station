@@ -417,9 +417,7 @@ export function AppContextProvider({ children }) {
       const { latitude, longitude } = coords;
 
       axios
-        .get(
-          `https://api.sunrise-sunset.org/json?lat=${latitude}&lng=${longitude}&formatted=0`
-        )
+        .get(`/api/sunrise-sunset?lat=${latitude}&lon=${longitude}`)
         .then((res) => {
           const { results } = res?.data;
           if (results) {
