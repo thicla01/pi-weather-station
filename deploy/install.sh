@@ -24,9 +24,9 @@ if ! command -v node &>/dev/null || [ "${NODE_VERSION:-0}" -lt "$NODE_MIN" ]; th
         bullseye) NODE_SETUP="setup_18.x"; NODE_VER="18" ;;
         *)        NODE_SETUP="setup_22.x"; NODE_VER="22" ;;
     esac
-    read -p "   Install Node.js v${NODE_VER} LTS now? (y/n) " -n 1 -r
+    read -p "   Install Node.js v${NODE_VER} LTS now? (Y/n) " -n 1 -r
     echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
+    if [[ -z "$REPLY" || $REPLY =~ ^[Yy]$ ]]; then
         echo ">> Installing Node.js v${NODE_VER} LTS for $OS_CODENAME..."
         curl -fsSL https://deb.nodesource.com/$NODE_SETUP | sudo -E bash -
         sudo apt-get install -y nodejs
@@ -42,11 +42,11 @@ fi
 echo ""
 if [ -f "$REPO_DIR/settings.json" ]; then
     echo ">> A settings.json file already exists."
-    read -p "   Reconfigure it? (y/n) " -n 1 -r
+    read -p "   Reconfigure it? (y/N) " -n 1 -r
     echo
     CONFIGURE_SETTINGS=$([[ $REPLY =~ ^[Yy]$ ]] && echo "yes" || echo "no")
 else
-    read -p ">> Configure your API keys now? (y/n) " -n 1 -r
+    read -p ">> Configure your API keys now? (y/N) " -n 1 -r
     echo
     CONFIGURE_SETTINGS=$([[ $REPLY =~ ^[Yy]$ ]] && echo "yes" || echo "no")
 fi
@@ -90,7 +90,7 @@ fi
 # --- 2. Remote network access ---
 echo ""
 echo ">> Remote network access..."
-read -p "   Allow access from other machines on the network? (y/n) " -n 1 -r
+read -p "   Allow access from other machines on the network? (y/N) " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     ALLOW_REMOTE="yes"
@@ -114,9 +114,9 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo "       Re-run install.sh to regenerate it with the new address."
     echo "       To avoid this, consider assigning a static IP to your Pi."
     echo ""
-    read -p "   Restrict remote users to read-only? (API keys and settings cannot be modified remotely) (y/n) " -n 1 -r
+    read -p "   Restrict remote users to read-only? (API keys and settings cannot be modified remotely) (Y/n) " -n 1 -r
     echo
-    REMOTE_SECURITY=$([[ $REPLY =~ ^[Yy]$ ]] && echo "yes" || echo "no")
+    REMOTE_SECURITY=$([[ -z "$REPLY" || $REPLY =~ ^[Yy]$ ]] && echo "yes" || echo "no")
 else
     ALLOW_REMOTE="no"
     REMOTE_SECURITY="no"
@@ -125,7 +125,7 @@ fi
 # --- 2b. Debug mode ---
 echo ""
 echo ">> Debug mode..."
-read -p "   Enable debug panel? (localhost only, shows cache/quota/logs) (y/n) " -n 1 -r
+read -p "   Enable debug panel? (localhost only, shows cache/quota/logs) (y/N) " -n 1 -r
 echo
 DEBUG_MODE=$([[ $REPLY =~ ^[Yy]$ ]] && echo "yes" || echo "no")
 
@@ -277,9 +277,9 @@ if [ "$DEBUG_MODE" = "yes" ]; then
     echo "   Debug panel enabled — accessible from the Pi only (bug icon in the control bar)."
     echo ""
 fi
-read -p ">> Reboot now to launch the application automatically? (y/n) " -n 1 -r
+read -p ">> Reboot now to launch the application automatically? (Y/n) " -n 1 -r
 echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
+if [[ -z "$REPLY" || $REPLY =~ ^[Yy]$ ]]; then
     sudo reboot
 else
     echo "   Reboot skipped. Run 'sudo reboot' when ready."
