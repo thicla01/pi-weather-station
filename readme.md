@@ -141,7 +141,7 @@ cp deploy/start-server ~/.local/bin/start-server
 chmod +x ~/.local/bin/start-server
 ```
 
-Then configure your display server's autostart to launch `start-server`. This script waits for the server to be ready and automatically detects whether it started on port 8443 (HTTPS) or 8080 (HTTP) before launching Chromium.
+Then configure your display server's autostart to launch `start-server`. This script waits for the server to be ready, automatically detects whether it started on port 8443 (HTTPS) or 8080 (HTTP), and automatically detects the Chromium binary (`chromium` on Bookworm/Trixie, `chromium-browser` on Bullseye).
 
 **labwc** (default on Trixie/Debian 13):
 
@@ -161,6 +161,12 @@ start-server = start-server
 ```bash
 @start-server
 ```
+
+> **Headless Bullseye (no physical screen):** If the desktop panel (taskbar) is missing after boot, also add these lines to the same autostart file:
+> ```
+> @lxpanel --profile LXDE-pi
+> @pcmanfm --desktop --profile LXDE-pi
+> ```
 
 View logs with:
 
@@ -185,7 +191,7 @@ chmod +x ~/.local/bin/start-weather
 sudo cp deploy/logrotate-weather-server /etc/logrotate.d/weather-server
 ```
 
-This script starts the Node.js server, waits for it to be ready, and automatically detects whether it started on port 8443 (HTTPS) or 8080 (HTTP) before launching Chromium.
+This script starts the Node.js server, waits for it to be ready, automatically detects whether it started on port 8443 (HTTPS) or 8080 (HTTP), and automatically detects the Chromium binary (`chromium` on Bookworm/Trixie, `chromium-browser` on Bullseye).
 
 **labwc** (default on Trixie/Debian 13) — add to `~/.config/labwc/autostart`:
 
@@ -205,6 +211,12 @@ weather = start-weather
 ```bash
 @start-weather
 ```
+
+> **Headless Bullseye (no physical screen):** If the desktop panel (taskbar) is missing after boot, also add these lines to the same autostart file:
+> ```
+> @lxpanel --profile LXDE-pi
+> @pcmanfm --desktop --profile LXDE-pi
+> ```
 
 View logs with:
 
