@@ -72,6 +72,12 @@ fi
 # Detect nvm usage regardless of whether node was just installed or already present
 if [ -s "$HOME/.nvm/nvm.sh" ] && [[ "$(which node 2>/dev/null)" == *"/.nvm/"* ]]; then
     NVM_INSTALL=true
+    if command -v nodejs &>/dev/null; then
+        echo ""
+        echo "   NOTE: A system nodejs package is also present alongside nvm."
+        echo "         It will not be used, but you can remove it to avoid confusion:"
+        echo "         sudo apt remove nodejs"
+    fi
 fi
 
 # --- 1. API key configuration ---
