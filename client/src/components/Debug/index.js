@@ -49,6 +49,9 @@ const Debug = () => {
               {data?.appVersion && (
                 <div className={styles.appVersion}>
                   {data.appVersion.name} v{data.appVersion.version} · {data.appVersion.commit}
+                  {data.appVersion.branch && (
+                    <span className={styles.appBranch}> [{data.appVersion.branch}]</span>
+                  )}
                 </div>
               )}
               {data?.system && (

@@ -49,6 +49,11 @@
   letter-spacing: 0.3px;
 }
 
+.appBranch {
+  color: #f0a500;
+  opacity: 1;
+}
+
 .systemInfo {
   display: flex;
   flex-direction: column;

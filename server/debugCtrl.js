@@ -127,14 +127,21 @@ function getAppVersion() {
   const version = pkg.version;
   const name = pkg.name;
   let commit = "unknown";
+  let branch = null;
   try {
     commit = execSync("git rev-parse --short HEAD", {
       cwd: path.join(__dirname, ".."),
       encoding: "utf8",
       timeout: 3000,
     }).trim();
+    const b = execSync("git rev-parse --abbrev-ref HEAD", {
+      cwd: path.join(__dirname, ".."),
+      encoding: "utf8",
+      timeout: 3000,
+    }).trim();
+    if (b && b !== "master") branch = b;
   } catch { /* git not available */ }
-  return { name, version, commit };
+  return { name, version, commit, branch };
 }
 
 function getSystemInfo() {
