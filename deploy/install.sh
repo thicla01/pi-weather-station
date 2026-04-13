@@ -26,7 +26,7 @@ _load_nvm() {
     done
     return 1
 }
-_load_nvm
+_load_nvm || true
 
 NODE_VERSION=$(node --version 2>/dev/null | sed 's/v//' | cut -d. -f1)
 
@@ -49,7 +49,7 @@ if ! command -v node &>/dev/null || [ "${NODE_VERSION:-0}" -lt "$NODE_MIN" ]; th
                 unset NVM_DIR
                 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
                 # Source nvm from wherever it was actually installed
-                _load_nvm
+                _load_nvm || true
                 echo ">> Installing Node.js v22 LTS via nvm..."
                 nvm install 22
                 nvm use 22
