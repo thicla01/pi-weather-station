@@ -19,7 +19,7 @@ See it in action [here](https://www.youtube.com/watch?v=dvM6cyqYSw8).
 
 # v2.1.9
 
-- **Bullseye — Node.js 22 via nvm** — On Raspberry Pi OS Bullseye (32-bit ARM), `install.sh` now installs Node.js 22 via [nvm](https://github.com/nvm-sh/nvm) instead of NodeSource, which does not provide Node.js 22 packages for `armv7l`. nvm is installed to the user account and Node.js 22 is set as the default version. The systemd service is automatically configured to source nvm at startup via a drop-in override (`nvm.conf`). Bookworm and Trixie continue to use NodeSource as before.
+- **Bullseye — Node.js 22 via nvm (32-bit only)** — On Raspberry Pi OS Bullseye **32-bit** (`armv7l`), `install.sh` now installs Node.js 22 via [nvm](https://github.com/nvm-sh/nvm) instead of NodeSource, which does not provide Node.js 22 packages for `armv7l`. nvm is installed to the user account and Node.js 22 is set as the default version. The systemd service is automatically configured to source nvm at startup via a drop-in override (`nvm.conf`). Bullseye **64-bit** (`aarch64`), Bookworm, and Trixie continue to use NodeSource.
 - **Debug panel — git branch** — The debug panel header now shows the active git branch when it differs from `master` (e.g. `pi-weather-station v2.1.9 · abc1234 [feature/my-branch]`). Useful when testing feature branches directly on the Pi.
 - **install.sh — API key prompt default** — When no `settings.json` exists, the API key configuration prompt now defaults to yes (`Y/n`) since configuring keys is required for the app to function.
 - **uninstall.sh — improved nvm cleanup** — The nvm removal section now detects stale `NVM_DIR` references in shell profile files even when `~/.nvm` (or `~/.config/nvm`) has already been manually removed, and cleans them up to prevent conflicts on reinstall.
@@ -92,7 +92,7 @@ Security improvements:
 
 # Setup
 
-> **Node.js requirement:** Node.js 18 or later is required. On **Bullseye (Debian 11)**, `install.sh` installs Node.js 22 via [nvm](https://github.com/nvm-sh/nvm) — NodeSource does not provide Node.js 22 packages for 32-bit ARM (`armv7l`). On **Bookworm (Debian 12)** and **Trixie (Debian 13)**, Node.js 22 is installed via NodeSource.
+> **Node.js requirement:** Node.js 18 or later is required. On **Bullseye 32-bit** (`armv7l`), `install.sh` installs Node.js 22 via [nvm](https://github.com/nvm-sh/nvm) — NodeSource does not provide Node.js 22 packages for `armv7l`. On **Bullseye 64-bit** (`aarch64`), **Bookworm (Debian 12)**, and **Trixie (Debian 13)**, Node.js 22 is installed via NodeSource.
 
 > **API keys:** If you use the automated install (Option 1), the script will offer to configure your API keys automatically. For a manual setup, copy the example settings file and edit it:
 
