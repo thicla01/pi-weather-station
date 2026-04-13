@@ -24,6 +24,8 @@ Weather data from Tomorrow.io was previously fetched directly by the browser, ex
 
 The project had grown more complex to install over time — not by design, but because external dependencies evolved: API changes, new Raspberry Pi OS versions, the transition from X11 to Wayland, and variations in the Chromium binary name across releases. We replaced the scattered manual steps with a guided `install.sh` script that handles Node.js version checks, dependency installation, API key configuration, SSL certificate generation, and startup configuration automatically. Beyond convenience, automation reduces the risk of human error that manual multi-step installations inevitably carry. A matching `uninstall.sh` cleanly reverses every change. Both scripts prompt with clear yes/no defaults so nothing happens by surprise.
 
+Node.js installation is now OS-aware: on Bullseye (32-bit ARM), NodeSource does not provide Node.js 22 packages for `armv7l`, so the installer uses nvm instead. nvm installs to the user account and the systemd service is automatically configured to source it at startup via a drop-in override, working around the fact that systemd does not load the interactive shell profile. On Bookworm and Trixie, NodeSource is used as before. The uninstall script handles both cases, including cleaning up stale nvm references in shell profile files even when the nvm directory has already been manually removed.
+
 ---
 
 **4. Flexible kiosk autostart and debug panel**
@@ -38,4 +40,4 @@ A debug panel (enabled via `DEBUG=true`) provides live visibility into provider 
 
 The interface is now fully localized in English, French, and Spanish using i18next. A language selector is available in the Settings panel, and the browser's language is detected automatically on first load. All UI strings are covered — weather labels, error messages, settings fields, and the entire debug panel.
 
-As part of the same phase, the debug panel header was reorganized into a two-column layout to reduce its vertical footprint: system information (hardware model, OS, version) on the left, network information (URLs, internet connectivity) on the right. The header now also displays the application name, version number, and current Git commit hash, providing an immediate at-a-glance identifier for the running build.
+As part of the same phase, the debug panel header was reorganized into a two-column layout to reduce its vertical footprint: system information (hardware model, OS, version) on the left, network information (URLs, internet connectivity) on the right. The header now also displays the application name, version number, current Git commit hash, and active branch name when not on `master` — making it easy to confirm which build and branch is running directly from the Pi's screen.

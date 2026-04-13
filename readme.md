@@ -17,6 +17,13 @@ See it in action [here](https://www.youtube.com/watch?v=dvM6cyqYSw8).
 
 > Be mindful of the plan limits for your API keys and understand the terms of each provider, as scrolling around the map and selecting different locations will incur API calls for every location. Additionally, the weather station will periodically make additional API calls to get weather updates throughout the day. All weather (Tomorrow.io), map tile (Mapbox), and reverse geocoding (LocationIQ) calls are proxied through the server — multiple browser clients share the same quota rather than each consuming it independently. Weather responses are cached server-side, further reducing API usage.
 
+# v2.1.9
+
+- **Bullseye — Node.js 22 via nvm** — On Raspberry Pi OS Bullseye (32-bit ARM), `install.sh` now installs Node.js 22 via [nvm](https://github.com/nvm-sh/nvm) instead of NodeSource, which does not provide Node.js 22 packages for `armv7l`. nvm is installed to the user account and Node.js 22 is set as the default version. The systemd service is automatically configured to source nvm at startup via a drop-in override (`nvm.conf`). Bookworm and Trixie continue to use NodeSource as before.
+- **Debug panel — git branch** — The debug panel header now shows the active git branch when it differs from `master` (e.g. `pi-weather-station v2.1.9 · abc1234 [feature/my-branch]`). Useful when testing feature branches directly on the Pi.
+- **install.sh — API key prompt default** — When no `settings.json` exists, the API key configuration prompt now defaults to yes (`Y/n`) since configuring keys is required for the app to function.
+- **uninstall.sh — improved nvm cleanup** — The nvm removal section now detects stale `NVM_DIR` references in shell profile files even when `~/.nvm` (or `~/.config/nvm`) has already been manually removed, and cleans them up to prevent conflicts on reinstall.
+
 # v2.1.8
 
 - **Internationalization (i18n)** — The interface is now fully localized in English, French, and Spanish. A language selector is available in the Settings panel. The browser's language is detected automatically on first load, falling back to English if the detected language is not supported. All UI labels, error messages, and debug panel strings are covered.
@@ -85,7 +92,7 @@ Security improvements:
 
 # Setup
 
-> **Node.js requirement:** Node.js 18 or later is required. Bullseye (Debian 11) ships with Node.js 12 by default, but works fine if Node.js 18+ is installed manually (e.g. via [NodeSource](https://github.com/nodesource/distributions)). Bookworm (Debian 12) and Trixie (Debian 13) are recommended as they ship with a more recent Node.js.
+> **Node.js requirement:** Node.js 18 or later is required. On **Bullseye (Debian 11)**, `install.sh` installs Node.js 22 via [nvm](https://github.com/nvm-sh/nvm) — NodeSource does not provide Node.js 22 packages for 32-bit ARM (`armv7l`). On **Bookworm (Debian 12)** and **Trixie (Debian 13)**, Node.js 22 is installed via NodeSource.
 
 > **API keys:** If you use the automated install (Option 1), the script will offer to configure your API keys automatically. For a manual setup, copy the example settings file and edit it:
 
@@ -124,7 +131,7 @@ bash deploy/install.sh
 ```
 
 It will:
-- Check for Node.js (v18 minimum) and offer to install it if missing or outdated
+- Check for Node.js (v18 minimum) and offer to install it if missing or outdated — via nvm on Bullseye, via NodeSource on Bookworm/Trixie
 - Optionally configure your API keys and create `settings.json`
 - Optionally enable remote access from other machines on the network (see [Access from another machine](#access-from-another-machine))
 - Optionally enable the debug panel (see [Debug panel](#debug-panel))
@@ -334,7 +341,7 @@ The server will now serve the app across your network on port 8443 (HTTPS).
 
 A debug panel is available on the Pi when `DEBUG=true` is set server-side. It shows:
 
-- **Header** — application name, version, and Git commit hash; hardware model, OS version, network URL(s), and internet connectivity status (`ONLINE` / `OFFLINE` + latency)
+- **Header** — application name, version, Git commit hash, and active branch (if not `master`); hardware model, OS version, network URL(s), and internet connectivity status (`ONLINE` / `OFFLINE` + latency)
 - **Provider status** — live operational status fetched from each provider's status page (Tomorrow.io, Mapbox, ipapi.co, LocationIQ), cached 30 minutes
 - **Services** — last HTTP status and timestamp for each external API call (Tomorrow.io, Mapbox, LocationIQ, ipapi.co, sunrise-sunset.org)
 - **Quotas** — hourly, daily, and monthly request counters per service and endpoint, with colour-coded thresholds
@@ -367,8 +374,8 @@ nano ~/.local/bin/start-weather
 Comment out the default `npm start` line and uncomment the `DEBUG=true` line:
 
 ```bash
-# /usr/bin/npm start >> /tmp/weather-server.log 2>&1 &
-DEBUG=true /usr/bin/npm start >> /tmp/weather-server.log 2>&1 &
+# npm start >> /tmp/weather-server.log 2>&1 &
+DEBUG=true npm start >> /tmp/weather-server.log 2>&1 &
 ```
 
 **Manually:**
