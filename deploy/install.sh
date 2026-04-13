@@ -98,9 +98,9 @@ if [ -f "$REPO_DIR/settings.json" ]; then
     echo
     CONFIGURE_SETTINGS=$([[ $REPLY =~ ^[Yy]$ ]] && echo "yes" || echo "no")
 else
-    read -p ">> Configure your API keys now? (y/N) " -n 1 -r
+    read -p ">> Configure your API keys now? (Y/n) " -n 1 -r
     echo
-    CONFIGURE_SETTINGS=$([[ $REPLY =~ ^[Yy]$ ]] && echo "yes" || echo "no")
+    CONFIGURE_SETTINGS=$([[ -z "$REPLY" || $REPLY =~ ^[Yy]$ ]] && echo "yes" || echo "no")
 fi
 
 if [ "$CONFIGURE_SETTINGS" = "yes" ]; then
