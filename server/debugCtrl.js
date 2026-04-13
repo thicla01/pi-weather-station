@@ -1,6 +1,7 @@
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
+const { execSync } = require("child_process");
 const axios = require("axios").default;
 const { weatherCache } = require("./proxyCtrl");
 const { getServiceStatus } = require("./serviceStatus");
@@ -121,6 +122,21 @@ function getNetworkInfo() {
   };
 }
 
+function getAppVersion() {
+  const pkg = require("../package.json");
+  const version = pkg.version;
+  const name = pkg.name;
+  let commit = "unknown";
+  try {
+    commit = execSync("git rev-parse --short HEAD", {
+      cwd: path.join(__dirname, ".."),
+      encoding: "utf8",
+      timeout: 3000,
+    }).trim();
+  } catch { /* git not available */ }
+  return { name, version, commit };
+}
+
 function getSystemInfo() {
   let hardware = "Unknown";
   let os = "Unknown";
@@ -192,7 +208,7 @@ async function getDebugInfo(req, res) {
     checkConnectivity(),
   ]);
 
-  return res.status(200).json({ cache, logs, audit, securityEvents, services: getServiceStatus(), counters: getCounters(), system: getSystemInfo(), network: getNetworkInfo(), providerStatus, connectivity });
+  return res.status(200).json({ cache, logs, audit, securityEvents, services: getServiceStatus(), counters: getCounters(), system: getSystemInfo(), network: getNetworkInfo(), providerStatus, connectivity, appVersion: getAppVersion() });
 }
 
 module.exports = { getDebugInfo, logSecurityEvent, initServerInfo };

@@ -31,3 +31,11 @@ The project had grown more complex to install over time — not by design, but b
 The kiosk startup logic (launching Chromium in fullscreen once the server is ready) is now unified in a single `start-server` script installed to `~/.local/bin`. It auto-detects the display server (labwc, wayfire, or X11) and the correct Chromium binary name, so the same script works across Raspberry Pi OS versions without modification. Kiosk mode is optional — users who have enabled remote access (`ALLOW_REMOTE=true`) and prefer to access the app from another device on the network can skip it during installation. The server still starts automatically via systemd either way, and `start-server` remains available for manual use.
 
 A debug panel (enabled via `DEBUG=true`) provides live visibility into provider operational status (Tomorrow.io, Mapbox, ipapi.co, LocationIQ), internet connectivity with latency, network access URLs, cache state, API quota counters, service call history, security events, and server logs.
+
+---
+
+**5. Internationalization and UI refinements**
+
+The interface is now fully localized in English, French, and Spanish using i18next. A language selector is available in the Settings panel, and the browser's language is detected automatically on first load. All UI strings are covered — weather labels, error messages, settings fields, and the entire debug panel.
+
+As part of the same phase, the debug panel header was reorganized into a two-column layout to reduce its vertical footprint: system information (hardware model, OS, version) on the left, network information (URLs, internet connectivity) on the right. The header now also displays the application name, version number, and current Git commit hash, providing an immediate at-a-glance identifier for the running build.

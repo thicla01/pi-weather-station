@@ -14,9 +14,39 @@
 }
 
 .header {
+  flex-shrink: 0;
+}
+
+.headerColumns {
+  display: inline-grid;
+  grid-template-columns: auto auto;
+  gap: 0 24px;
+  align-items: end;
+}
+
+.headerLeft {
+  display: flex;
+  flex-direction: column;
+}
+
+.headerRight {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end;
+}
+
+.headerTitle {
   font-size: 14px;
   color: #7ecfff;
-  flex-shrink: 0;
+}
+
+.appVersion {
+  font-size: 10px;
+  color: #7ecfff;
+  font-family: monospace;
+  opacity: 0.55;
+  margin-top: 2px;
+  letter-spacing: 0.3px;
 }
 
 .systemInfo {
@@ -32,7 +62,6 @@
   display: flex;
   flex-direction: column;
   font-size: 11px;
-  margin-top: 6px;
   font-family: monospace;
 }
 

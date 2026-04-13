@@ -17,6 +17,12 @@ See it in action [here](https://www.youtube.com/watch?v=dvM6cyqYSw8).
 
 > Be mindful of the plan limits for your API keys and understand the terms of each provider, as scrolling around the map and selecting different locations will incur API calls for every location. Additionally, the weather station will periodically make additional API calls to get weather updates throughout the day. All weather (Tomorrow.io), map tile (Mapbox), and reverse geocoding (LocationIQ) calls are proxied through the server — multiple browser clients share the same quota rather than each consuming it independently. Weather responses are cached server-side, further reducing API usage.
 
+# v2.1.8
+
+- **Internationalization (i18n)** — The interface is now fully localized in English, French, and Spanish. A language selector is available in the Settings panel. The browser's language is detected automatically on first load, falling back to English if the detected language is not supported. All UI labels, error messages, and debug panel strings are covered.
+- **Debug panel — two-column header** — The debug panel header is now split into two columns (system info on the left, network info on the right) to reduce vertical height and improve readability.
+- **Debug panel — version display** — The debug panel header now shows the application name, version, and current Git commit hash (e.g. `pi-weather-station v2.1.8 · 9aa3702`).
+
 # v2.1.7
 
 - **Kiosk mode is now optional** — `deploy/install.sh` now asks whether to launch Chromium automatically in fullscreen on startup. When declined, the server still starts via systemd but no autostart is configured — the app can be accessed manually at `https://localhost:8443` or from another machine on the network.
@@ -328,7 +334,7 @@ The server will now serve the app across your network on port 8443 (HTTPS).
 
 A debug panel is available on the Pi when `DEBUG=true` is set server-side. It shows:
 
-- **Header** — hardware model, OS version, network URL(s), and internet connectivity status (`ONLINE` / `OFFLINE` + latency)
+- **Header** — application name, version, and Git commit hash; hardware model, OS version, network URL(s), and internet connectivity status (`ONLINE` / `OFFLINE` + latency)
 - **Provider status** — live operational status fetched from each provider's status page (Tomorrow.io, Mapbox, ipapi.co, LocationIQ), cached 30 minutes
 - **Services** — last HTTP status and timestamp for each external API call (Tomorrow.io, Mapbox, LocationIQ, ipapi.co, sunrise-sunset.org)
 - **Quotas** — hourly, daily, and monthly request counters per service and endpoint, with colour-coded thresholds

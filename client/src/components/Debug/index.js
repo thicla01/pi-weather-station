@@ -43,34 +43,45 @@ const Debug = () => {
     >
       <div className={styles.container}>
         <div className={styles.header}>
-          {t("debug.title")}
-          {data?.system && (
-            <div className={styles.systemInfo}>
-              <span>{data.system.hardware}</span>
-              <span>{data.system.os}</span>
-            </div>
-          )}
-          {data?.network && (
-            <div className={styles.networkInfo}>
-              {data.network.urls.length > 0 ? (
-                data.network.urls.map((url) => (
-                  <span key={url} className={styles.networkUrl}>{url}</span>
-                ))
-              ) : (
-                <span className={styles.networkUrl}>
-                  {data.network.protocol}://localhost:{data.network.port}
-                </span>
+          <div className={styles.headerColumns}>
+            <div className={styles.headerLeft}>
+              <div className={styles.headerTitle}>{t("debug.title")}</div>
+              {data?.appVersion && (
+                <div className={styles.appVersion}>
+                  {data.appVersion.name} v{data.appVersion.version} · {data.appVersion.commit}
+                </div>
               )}
-              {data?.connectivity && (
-                <span className={data.connectivity.online ? styles.connectivityOnline : styles.connectivityOffline}>
-                  {t("debug.internet")}: {data.connectivity.online ? t("debug.online") : t("debug.offline")}
-                  {data.connectivity.online && data.connectivity.latencyMs !== null && (
-                    <span className={styles.connectivityLatency}> {data.connectivity.latencyMs}ms</span>
+              {data?.system && (
+                <div className={styles.systemInfo}>
+                  <span>{data.system.hardware}</span>
+                  <span>{data.system.os}</span>
+                </div>
+              )}
+            </div>
+            <div className={styles.headerRight}>
+              {data?.network && (
+                <div className={styles.networkInfo}>
+                  {data.network.urls.length > 0 ? (
+                    data.network.urls.map((url) => (
+                      <span key={url} className={styles.networkUrl}>{url}</span>
+                    ))
+                  ) : (
+                    <span className={styles.networkUrl}>
+                      {data.network.protocol}://localhost:{data.network.port}
+                    </span>
                   )}
-                </span>
+                  {data?.connectivity && (
+                    <span className={data.connectivity.online ? styles.connectivityOnline : styles.connectivityOffline}>
+                      {t("debug.internet")}: {data.connectivity.online ? t("debug.online") : t("debug.offline")}
+                      {data.connectivity.online && data.connectivity.latencyMs !== null && (
+                        <span className={styles.connectivityLatency}> {data.connectivity.latencyMs}ms</span>
+                      )}
+                    </span>
+                  )}
+                </div>
               )}
             </div>
-          )}
+          </div>
         </div>
         <div
           className={styles.closeButton}
