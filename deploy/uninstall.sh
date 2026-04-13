@@ -105,30 +105,45 @@ if [ -d "$REPO_DIR/node_modules" ] || [ -d "$REPO_DIR/client/node_modules" ]; th
 fi
 
 # --- 7. nvm (optional, Bullseye only) ---
-if [ -s "$HOME/.nvm/nvm.sh" ] && [ "$(lsb_release -cs 2>/dev/null)" = "bullseye" ]; then
+NVM_DIR_EXISTS=false
+NVM_IN_PROFILES=false
+[ -s "$HOME/.nvm/nvm.sh" ] && NVM_DIR_EXISTS=true
+for _PROFILE in "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile"; do
+    grep -q "NVM_DIR" "$_PROFILE" 2>/dev/null && NVM_IN_PROFILES=true && break
+done
+
+if { [ "$NVM_DIR_EXISTS" = "true" ] || [ "$NVM_IN_PROFILES" = "true" ]; } \
+    && [ "$(lsb_release -cs 2>/dev/null)" = "bullseye" ]; then
     echo ""
-    echo ">> nvm detected (used to install Node.js on Bullseye)."
-    echo "   WARNING: nvm manages all Node.js versions for your user account."
-    echo "   Removing it will affect any other project that depends on it."
+    if [ "$NVM_DIR_EXISTS" = "true" ]; then
+        echo ">> nvm detected (used to install Node.js on Bullseye)."
+        echo "   WARNING: nvm manages all Node.js versions for your user account."
+        echo "   Removing it will affect any other project that depends on it."
+    else
+        echo ">> Stale nvm references detected in shell profile files (NVM_DIR)."
+        echo "   The ~/.nvm directory is already gone but profile entries remain."
+    fi
     echo ""
-    read -p "   Remove nvm and all its Node.js versions? (y/N) " -n 1 -r
+    read -p "   Remove nvm and clean shell profile files? (y/N) " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        read -p "   Are you sure? This cannot be undone. (y/N) " -n 1 -r
-        echo
-        if [[ $REPLY =~ ^[Yy]$ ]]; then
-            rm -rf "$HOME/.nvm"
-            for PROFILE in "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile"; do
-                if [ -f "$PROFILE" ]; then
-                    sed -i '/NVM_DIR/d' "$PROFILE"
-                    sed -i '/nvm\.sh/d' "$PROFILE"
-                    sed -i '/nvm_completion/d' "$PROFILE"
-                fi
-            done
-            echo "   nvm removed."
-        else
-            echo "   nvm kept."
+        if [ "$NVM_DIR_EXISTS" = "true" ]; then
+            read -p "   Are you sure? This cannot be undone. (y/N) " -n 1 -r
+            echo
+            [[ ! $REPLY =~ ^[Yy]$ ]] && { echo "   nvm kept."; } || {
+                rm -rf "$HOME/.nvm"
+                echo "   ~/.nvm removed."
+            }
         fi
+        for _PROFILE in "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile"; do
+            if [ -f "$_PROFILE" ]; then
+                sed -i '/NVM_DIR/d' "$_PROFILE"
+                sed -i '/nvm\.sh/d' "$_PROFILE"
+                sed -i '/nvm_completion/d' "$_PROFILE"
+                sed -i '/# nvm/Id' "$_PROFILE"
+            fi
+        done
+        echo "   Shell profile files cleaned."
     else
         echo "   nvm kept."
     fi
