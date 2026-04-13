@@ -41,6 +41,10 @@
   letter-spacing: 0.3px;
 }
 
+.connectivityOnline  { color: #6dcc6d; margin-top: 2px; }
+.connectivityOffline { color: #ff6b6b; margin-top: 2px; }
+.connectivityLatency { color: #999; }
+
 .close-button {
   font-size: 20px;
   position: absolute;

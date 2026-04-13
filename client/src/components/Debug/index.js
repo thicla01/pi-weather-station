@@ -59,6 +59,14 @@ const Debug = () => {
                   {data.network.protocol}://localhost:{data.network.port}
                 </span>
               )}
+              {data?.connectivity && (
+                <span className={data.connectivity.online ? styles.connectivityOnline : styles.connectivityOffline}>
+                  Internet: {data.connectivity.online ? "ONLINE" : "OFFLINE"}
+                  {data.connectivity.online && data.connectivity.latencyMs !== null && (
+                    <span className={styles.connectivityLatency}> {data.connectivity.latencyMs}ms</span>
+                  )}
+                </span>
+              )}
             </div>
           )}
         </div>

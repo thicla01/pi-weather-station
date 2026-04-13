@@ -43,6 +43,27 @@ function parseLocationIQRss(name, xml) {
 let _providerStatusCache = null;
 let _providerStatusFetchedAt = null;
 
+const CONNECTIVITY_TTL = 60 * 1000;
+let _connectivityCache = null;
+let _connectivityFetchedAt = null;
+
+async function checkConnectivity() {
+  const now = Date.now();
+  if (_connectivityCache && _connectivityFetchedAt && (now - _connectivityFetchedAt) < CONNECTIVITY_TTL) {
+    return _connectivityCache;
+  }
+
+  const start = Date.now();
+  try {
+    await axios.head("https://1.1.1.1", { timeout: 3000 });
+    _connectivityCache = { online: true, latencyMs: Date.now() - start };
+  } catch {
+    _connectivityCache = { online: false, latencyMs: null };
+  }
+  _connectivityFetchedAt = Date.now();
+  return _connectivityCache;
+}
+
 async function fetchProviderStatus() {
   const now = Date.now();
   if (_providerStatusCache && _providerStatusFetchedAt && (now - _providerStatusFetchedAt) < PROVIDER_STATUS_TTL) {
@@ -166,9 +187,12 @@ async function getDebugInfo(req, res) {
     // file not found — default message applies
   }
 
-  const providerStatus = await fetchProviderStatus();
+  const [providerStatus, connectivity] = await Promise.all([
+    fetchProviderStatus(),
+    checkConnectivity(),
+  ]);
 
-  return res.status(200).json({ cache, logs, audit, securityEvents, services: getServiceStatus(), counters: getCounters(), system: getSystemInfo(), network: getNetworkInfo(), providerStatus });
+  return res.status(200).json({ cache, logs, audit, securityEvents, services: getServiceStatus(), counters: getCounters(), system: getSystemInfo(), network: getNetworkInfo(), providerStatus, connectivity });
 }
 
 module.exports = { getDebugInfo, logSecurityEvent, initServerInfo };
