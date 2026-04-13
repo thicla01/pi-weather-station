@@ -128,7 +128,7 @@ if { [ "$NVM_DIR_EXISTS" = "true" ] || [ "$NVM_IN_PROFILES" = "true" ]; } \
         echo "   Removing it will affect any other project that depends on it."
     else
         echo ">> Stale nvm references detected in shell profile files (NVM_DIR)."
-        echo "   The ~/.nvm directory is already gone but profile entries remain."
+        echo "   The nvm directory is already gone but profile entries remain."
     fi
     echo ""
     read -p "   Remove nvm and clean shell profile files? (y/N) " -n 1 -r
