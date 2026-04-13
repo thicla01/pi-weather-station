@@ -69,6 +69,11 @@ else
     echo ">> Node.js detected: $(node --version)"
 fi
 
+# Detect nvm usage regardless of whether node was just installed or already present
+if [ -s "$HOME/.nvm/nvm.sh" ] && [[ "$(which node 2>/dev/null)" == *"/.nvm/"* ]]; then
+    NVM_INSTALL=true
+fi
+
 # --- 1. API key configuration ---
 echo ""
 if [ -f "$REPO_DIR/settings.json" ]; then
