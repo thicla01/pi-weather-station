@@ -17,6 +17,11 @@ See it in action [here](https://www.youtube.com/watch?v=dvM6cyqYSw8).
 
 > Be mindful of the plan limits for your API keys and understand the terms of each provider, as scrolling around the map and selecting different locations will incur API calls for every location. Additionally, the weather station will periodically make additional API calls to get weather updates throughout the day. All weather (Tomorrow.io), map tile (Mapbox), and reverse geocoding (LocationIQ) calls are proxied through the server — multiple browser clients share the same quota rather than each consuming it independently. Weather responses are cached server-side, further reducing API usage.
 
+# v2.1.6
+
+- **Debug panel — provider status** — A new PROVIDER STATUS section shows the live operational status of external providers (Tomorrow.io, Mapbox via Atlassian Statuspage JSON API; ipapi.co via HTML scraping; LocationIQ via RSS feed). Results are cached 30 minutes server-side.
+- **Debug panel — internet connectivity** — The debug panel header now shows whether the Pi has internet access (`ONLINE` / `OFFLINE`) and the measured latency to `1.1.1.1`. Cached 60 seconds, fetched in parallel with provider status.
+
 # v2.1.5
 
 - **Debug panel — network info** — The debug panel header now shows the Pi's IP address(es), server port, protocol, and the full URL(s) to access the app from the network (e.g. `https://192.168.1.42:8443`).
@@ -319,6 +324,8 @@ The server will now serve the app across your network on port 8443 (HTTPS).
 
 A debug panel is available on the Pi when `DEBUG=true` is set server-side. It shows:
 
+- **Header** — hardware model, OS version, network URL(s), and internet connectivity status (`ONLINE` / `OFFLINE` + latency)
+- **Provider status** — live operational status fetched from each provider's status page (Tomorrow.io, Mapbox, ipapi.co, LocationIQ), cached 30 minutes
 - **Services** — last HTTP status and timestamp for each external API call (Tomorrow.io, Mapbox, LocationIQ, ipapi.co, sunrise-sunset.org)
 - **Quotas** — hourly, daily, and monthly request counters per service and endpoint, with colour-coded thresholds
 - **Cache** — current in-memory weather cache entries with remaining TTL
