@@ -18,7 +18,7 @@ Wants=network-online.target
 
 [Service]
 WorkingDirectory=%h/pi-weather-station
-ExecStart=/usr/bin/npm start
+ExecStart=/bin/bash -lc "npm start"
 Restart=on-failure
 RestartSec=5
 # Environment=ALLOW_REMOTE=true

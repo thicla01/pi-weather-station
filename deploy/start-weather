@@ -8,11 +8,15 @@
 
 cd "$HOME/pi-weather-station"
 
+# Load nvm if available (used when Node.js was installed via nvm on Bullseye)
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
 # Start the Node.js server
-# ALLOW_REMOTE=true /usr/bin/npm start >> /tmp/weather-server.log 2>&1 &
-# ALLOW_REMOTE=true REMOTE_SECURITY=true /usr/bin/npm start >> /tmp/weather-server.log 2>&1 &
-# DEBUG=true /usr/bin/npm start >> /tmp/weather-server.log 2>&1 &
-/usr/bin/npm start >> /tmp/weather-server.log 2>&1 &
+# ALLOW_REMOTE=true npm start >> /tmp/weather-server.log 2>&1 &
+# ALLOW_REMOTE=true REMOTE_SECURITY=true npm start >> /tmp/weather-server.log 2>&1 &
+# DEBUG=true npm start >> /tmp/weather-server.log 2>&1 &
+npm start >> /tmp/weather-server.log 2>&1 &
 
 # Wait for server on 8443 (HTTPS) or 8080 (HTTP)
 for i in $(seq 1 30); do

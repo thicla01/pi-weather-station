@@ -11,6 +11,12 @@ echo ""
 
 # --- 0. Node.js ---
 NODE_MIN=18
+OS_CODENAME=$(lsb_release -cs)
+
+# Load nvm if already installed (so 'node' is available for version check)
+export NVM_DIR="$HOME/.nvm"
+[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+
 NODE_VERSION=$(node --version 2>/dev/null | sed 's/v//' | cut -d. -f1)
 
 if ! command -v node &>/dev/null || [ "${NODE_VERSION:-0}" -lt "$NODE_MIN" ]; then
@@ -19,21 +25,44 @@ if ! command -v node &>/dev/null || [ "${NODE_VERSION:-0}" -lt "$NODE_MIN" ]; th
     else
         echo ">> Node.js is not installed."
     fi
-    OS_CODENAME=$(lsb_release -cs)
+
     case "$OS_CODENAME" in
-        bullseye) NODE_SETUP="setup_18.x"; NODE_VER="18" ;;
-        *)        NODE_SETUP="setup_22.x"; NODE_VER="22" ;;
+        bullseye)
+            # On Bullseye (32-bit ARM), use nvm — NodeSource does not provide
+            # Node.js 22 packages for armv7l.
+            echo ""
+            read -p "   Install Node.js v22 LTS via nvm? (Y/n) " -n 1 -r
+            echo
+            if [[ -z "$REPLY" || $REPLY =~ ^[Yy]$ ]]; then
+                echo ">> Installing nvm..."
+                curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+                # Source nvm immediately so the rest of this script can use node/npm
+                export NVM_DIR="$HOME/.nvm"
+                [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+                echo ">> Installing Node.js v22 LTS via nvm..."
+                nvm install 22
+                nvm use 22
+                nvm alias default 22
+                echo ">> Node.js $(node --version) installed via nvm."
+            else
+                echo ">> Installation cancelled. Node.js v${NODE_MIN} or later is required."
+                exit 1
+            fi
+            ;;
+        *)
+            # On Bookworm, Trixie and later — use NodeSource (system-wide install)
+            read -p "   Install Node.js v22 LTS via NodeSource? (Y/n) " -n 1 -r
+            echo
+            if [[ -z "$REPLY" || $REPLY =~ ^[Yy]$ ]]; then
+                echo ">> Installing Node.js v22 LTS via NodeSource for $OS_CODENAME..."
+                curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+                sudo apt-get install -y nodejs
+            else
+                echo ">> Installation cancelled. Node.js v${NODE_MIN} or later is required."
+                exit 1
+            fi
+            ;;
     esac
-    read -p "   Install Node.js v${NODE_VER} LTS now? (Y/n) " -n 1 -r
-    echo
-    if [[ -z "$REPLY" || $REPLY =~ ^[Yy]$ ]]; then
-        echo ">> Installing Node.js v${NODE_VER} LTS for $OS_CODENAME..."
-        curl -fsSL https://deb.nodesource.com/$NODE_SETUP | sudo -E bash -
-        sudo apt-get install -y nodejs
-    else
-        echo ">> Installation cancelled. Node.js v${NODE_MIN} or later is required."
-        exit 1
-    fi
 else
     echo ">> Node.js detected: $(node --version)"
 fi

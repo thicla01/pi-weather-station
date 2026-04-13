@@ -13,9 +13,13 @@ systemctl --user stop pi-weather-server 2>/dev/null && echo "   Service stopped.
 systemctl --user disable pi-weather-server 2>/dev/null && echo "   Service disabled." || echo "   Service was not enabled."
 if [ -f "$HOME/.config/systemd/user/pi-weather-server.service" ]; then
     rm "$HOME/.config/systemd/user/pi-weather-server.service"
-    systemctl --user daemon-reload
     echo "   Service file removed."
 fi
+if [ -d "$HOME/.config/systemd/user/pi-weather-server.service.d" ]; then
+    rm -rf "$HOME/.config/systemd/user/pi-weather-server.service.d"
+    echo "   Service override directory removed."
+fi
+systemctl --user daemon-reload
 
 # --- 2. start-server and start-weather scripts ---
 echo ""
@@ -100,7 +104,37 @@ if [ -d "$REPO_DIR/node_modules" ] || [ -d "$REPO_DIR/client/node_modules" ]; th
     fi
 fi
 
-# --- 7. Project directory (optional) ---
+# --- 7. nvm (optional, Bullseye only) ---
+if [ -s "$HOME/.nvm/nvm.sh" ] && [ "$(lsb_release -cs 2>/dev/null)" = "bullseye" ]; then
+    echo ""
+    echo ">> nvm detected (used to install Node.js on Bullseye)."
+    echo "   WARNING: nvm manages all Node.js versions for your user account."
+    echo "   Removing it will affect any other project that depends on it."
+    echo ""
+    read -p "   Remove nvm and all its Node.js versions? (y/N) " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        read -p "   Are you sure? This cannot be undone. (y/N) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            rm -rf "$HOME/.nvm"
+            for PROFILE in "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile"; do
+                if [ -f "$PROFILE" ]; then
+                    sed -i '/NVM_DIR/d' "$PROFILE"
+                    sed -i '/nvm\.sh/d' "$PROFILE"
+                    sed -i '/nvm_completion/d' "$PROFILE"
+                fi
+            done
+            echo "   nvm removed."
+        else
+            echo "   nvm kept."
+        fi
+    else
+        echo "   nvm kept."
+    fi
+fi
+
+# --- 8. Project directory (optional) ---
 echo ""
 read -p ">> Remove the entire project directory ($REPO_DIR)? (y/N) " -n 1 -r
 echo
