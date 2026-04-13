@@ -12,6 +12,7 @@ echo ""
 # --- 0. Node.js ---
 NODE_MIN=18
 OS_CODENAME=$(lsb_release -cs)
+NVM_INSTALL=false
 
 # Load nvm if already installed (so 'node' is available for version check)
 export NVM_DIR="$HOME/.nvm"
@@ -43,6 +44,7 @@ if ! command -v node &>/dev/null || [ "${NODE_VERSION:-0}" -lt "$NODE_MIN" ]; th
                 nvm install 22
                 nvm use 22
                 nvm alias default 22
+                NVM_INSTALL=true
                 echo ">> Node.js $(node --version) installed via nvm."
             else
                 echo ">> Installation cancelled. Node.js v${NODE_MIN} or later is required."
@@ -231,6 +233,16 @@ EOF
 if [ "$DEBUG_MODE" = "yes" ]; then
     sed -i 's/# Environment=DEBUG=true/Environment=DEBUG=true/' \
         ~/.config/systemd/user/pi-weather-server.service.d/override.conf
+fi
+if [ "$NVM_INSTALL" = "true" ]; then
+    # systemd does not source ~/.bashrc (guarded for interactive shells),
+    # so nvm must be loaded explicitly via a drop-in override.
+    cat > ~/.config/systemd/user/pi-weather-server.service.d/nvm.conf << 'EOF'
+[Service]
+ExecStart=
+ExecStart=/bin/bash -c '. %h/.nvm/nvm.sh && exec npm start'
+EOF
+    echo ">> nvm sourcing configured for systemd service."
 fi
 systemctl --user daemon-reload
 systemctl --user enable pi-weather-server
