@@ -1,4 +1,5 @@
 import React, { useContext, useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import styles from "./styles.css";
 import { AppContext } from "~/AppContext";
 import { CSSTransition } from "react-transition-group";
@@ -16,6 +17,7 @@ import "!style-loader!css-loader!./animations.css";
  */
 const Debug = () => {
   const { debugMenuOpen, setDebugMenuOpen } = useContext(AppContext);
+  const { t } = useTranslation();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
 
@@ -41,7 +43,7 @@ const Debug = () => {
     >
       <div className={styles.container}>
         <div className={styles.header}>
-          DEBUG
+          {t("debug.title")}
           {data?.system && (
             <div className={styles.systemInfo}>
               <span>{data.system.hardware}</span>
@@ -61,7 +63,7 @@ const Debug = () => {
               )}
               {data?.connectivity && (
                 <span className={data.connectivity.online ? styles.connectivityOnline : styles.connectivityOffline}>
-                  Internet: {data.connectivity.online ? "ONLINE" : "OFFLINE"}
+                  {t("debug.internet")}: {data.connectivity.online ? t("debug.online") : t("debug.offline")}
                   {data.connectivity.online && data.connectivity.latencyMs !== null && (
                     <span className={styles.connectivityLatency}> {data.connectivity.latencyMs}ms</span>
                   )}
@@ -84,7 +86,7 @@ const Debug = () => {
           <span className={styles.refreshIcon}>
             <InlineIcon icon={refreshIcon} />
           </span>
-          {loading ? "LOADING..." : "REFRESH"}
+          {loading ? t("debug.loading") : t("debug.refresh")}
         </div>
 
         <div className={styles.content}>
@@ -122,6 +124,7 @@ const INDICATOR_CLASS = (indicator, styles) => {
  * @returns {JSX.Element} Provider status section
  */
 const ProviderStatusSection = ({ providerStatus }) => {
+  const { t } = useTranslation();
   const fetchedAt = providerStatus?.fetchedAt
     ? new Date(providerStatus.fetchedAt).toLocaleTimeString()
     : null;
@@ -129,17 +132,17 @@ const ProviderStatusSection = ({ providerStatus }) => {
   return (
     <div className={styles.section}>
       <div className={styles.sectionTitle}>
-        PROVIDER STATUS
-        {fetchedAt && <span className={styles.providerFetchedAt}> — last fetch: {fetchedAt}</span>}
+        {t("debug.providerStatus")}
+        {fetchedAt && <span className={styles.providerFetchedAt}> — {t("debug.lastFetch")}: {fetchedAt}</span>}
       </div>
       {!providerStatus || providerStatus.providers.length === 0 ? (
-        <div className={styles.empty}>No provider status available</div>
+        <div className={styles.empty}>{t("debug.noProviderStatus")}</div>
       ) : (
         <div className={styles.providerTable}>
           <div className={styles.providerHeader}>
-            <span>PROVIDER</span>
-            <span>INDICATOR</span>
-            <span>DESCRIPTION</span>
+            <span>{t("debug.provider")}</span>
+            <span>{t("debug.indicator")}</span>
+            <span>{t("debug.description")}</span>
           </div>
           {providerStatus.providers.map(({ name, indicator, description }) => (
             <div className={styles.providerEntry} key={name}>
@@ -193,11 +196,12 @@ const fmtVal = (count, limit) =>
  * @returns {JSX.Element} Quota section
  */
 const QuotaSection = ({ counters }) => {
+  const { t } = useTranslation();
   if (!counters || Object.keys(counters).length === 0) {
     return (
       <div className={styles.section}>
-        <div className={styles.sectionTitle}>QUOTAS</div>
-        <div className={styles.empty}>No requests recorded yet</div>
+        <div className={styles.sectionTitle}>{t("debug.quotas")}</div>
+        <div className={styles.empty}>{t("debug.noRequestsYet")}</div>
       </div>
     );
   }
@@ -222,13 +226,13 @@ const QuotaSection = ({ counters }) => {
 
         return (
           <div className={styles.section} key={service}>
-            <div className={styles.sectionTitle}>QUOTA — {label.toUpperCase()}</div>
+            <div className={styles.sectionTitle}>{t("debug.quota")} — {label.toUpperCase()}</div>
             <div className={styles.quotaTable}>
               <div className={styles.quotaHeader}>
-                <span>ENDPOINT</span>
-                {showHour  && <span>THIS HOUR</span>}
-                {showDay   && <span>TODAY</span>}
-                {showMonth && <span>THIS MONTH</span>}
+                <span>{t("debug.endpoint")}</span>
+                {showHour  && <span>{t("debug.thisHour")}</span>}
+                {showDay   && <span>{t("debug.today")}</span>}
+                {showMonth && <span>{t("debug.thisMonth")}</span>}
               </div>
               {endpointList.map(([ep, c]) => (
                 <div className={styles.quotaEntry} key={ep}>
@@ -240,7 +244,7 @@ const QuotaSection = ({ counters }) => {
               ))}
               {endpointList.length > 1 && (
                 <div className={`${styles.quotaEntry} ${styles.quotaTotal}`}>
-                  <span>TOTAL</span>
+                  <span>{t("debug.total")}</span>
                   {showHour  && <span className={quotaClass(total.hour,  quotas.hour,  styles)}>{fmtVal(total.hour,  quotas.hour)}</span>}
                   {showDay   && <span className={quotaClass(total.day,   quotas.day,   styles)}>{fmtVal(total.day,   quotas.day)}</span>}
                   {showMonth && <span className={quotaClass(total.month, quotas.month, styles)}>{fmtVal(total.month, quotas.month)}</span>}
@@ -248,7 +252,7 @@ const QuotaSection = ({ counters }) => {
               )}
               {endpointList.length === 1 && (
                 <div className={`${styles.quotaEntry} ${styles.quotaTotal}`}>
-                  <span>TOTAL</span>
+                  <span>{t("debug.total")}</span>
                   {showHour  && <span className={quotaClass(total.hour,  quotas.hour,  styles)}>{fmtVal(total.hour,  quotas.hour)}</span>}
                   {showDay   && <span className={quotaClass(total.day,   quotas.day,   styles)}>{fmtVal(total.day,   quotas.day)}</span>}
                   {showMonth && <span className={quotaClass(total.month, quotas.month, styles)}>{fmtVal(total.month, quotas.month)}</span>}
@@ -287,6 +291,7 @@ const SERVICE_ORDER = [
 ];
 
 const ServicesSection = ({ services }) => {
+  const { t } = useTranslation();
   const entries = services
     ? SERVICE_ORDER
         .filter((k) => services[k])
@@ -295,16 +300,16 @@ const ServicesSection = ({ services }) => {
     : [];
   return (
     <div className={styles.section}>
-      <div className={styles.sectionTitle}>SERVICES</div>
+      <div className={styles.sectionTitle}>{t("debug.services")}</div>
       {entries.length === 0 ? (
-        <div className={styles.empty}>No service calls recorded yet</div>
+        <div className={styles.empty}>{t("debug.noServicesYet")}</div>
       ) : (
         <div className={styles.serviceTable}>
           <div className={styles.serviceHeader}>
-            <span>SERVICE</span>
-            <span>STATUS</span>
-            <span>LAST CALL</span>
-            <span>COMMENT</span>
+            <span>{t("debug.service")}</span>
+            <span>{t("debug.status")}</span>
+            <span>{t("debug.lastCall")}</span>
+            <span>{t("debug.comment")}</span>
           </div>
           {entries.map(([name, info]) => {
             const ok = info.status >= 200 && info.status < 300;
@@ -341,36 +346,39 @@ ServicesSection.propTypes = {
  * @param {Array} props.cache List of cache entries
  * @returns {JSX.Element} Cache section
  */
-const CacheSection = ({ cache }) => (
-  <div className={styles.section}>
-    <div className={styles.sectionTitle}>CACHE</div>
-    {!cache || cache.length === 0 ? (
-      <div className={styles.empty}>No entries in cache</div>
-    ) : (
-      <div className={styles.cacheTable}>
-        <div className={styles.cacheHeader}>
-          <span>TYPE</span>
-          <span>LAT</span>
-          <span>LON</span>
-          <span>TTL</span>
+const CacheSection = ({ cache }) => {
+  const { t } = useTranslation();
+  return (
+    <div className={styles.section}>
+      <div className={styles.sectionTitle}>{t("debug.cache")}</div>
+      {!cache || cache.length === 0 ? (
+        <div className={styles.empty}>{t("debug.noCache")}</div>
+      ) : (
+        <div className={styles.cacheTable}>
+          <div className={styles.cacheHeader}>
+            <span>{t("debug.type")}</span>
+            <span>{t("debug.lat")}</span>
+            <span>{t("debug.lon")}</span>
+            <span>{t("debug.ttl")}</span>
+          </div>
+          {cache.map((entry) => {
+            const [type, lat, lon] = entry.key.split(":");
+            return (
+              <div className={styles.cacheEntry} key={entry.key}>
+                <span className={styles.cacheType}>{type}</span>
+                <span className={styles.cacheCoord}>{lat}</span>
+                <span className={styles.cacheCoord}>{lon}</span>
+                <span className={`${styles.cacheTtl} ${entry.expired ? styles.expired : ""}`}>
+                  {entry.expired ? t("debug.expired") : `${entry.expiresIn}s`}
+                </span>
+              </div>
+            );
+          })}
         </div>
-        {cache.map((entry) => {
-          const [type, lat, lon] = entry.key.split(":");
-          return (
-            <div className={styles.cacheEntry} key={entry.key}>
-              <span className={styles.cacheType}>{type}</span>
-              <span className={styles.cacheCoord}>{lat}</span>
-              <span className={styles.cacheCoord}>{lon}</span>
-              <span className={`${styles.cacheTtl} ${entry.expired ? styles.expired : ""}`}>
-                {entry.expired ? "EXPIRED" : `${entry.expiresIn}s`}
-              </span>
-            </div>
-          );
-        })}
-      </div>
-    )}
-  </div>
-);
+      )}
+    </div>
+  );
+};
 
 CacheSection.propTypes = {
   cache: PropTypes.arrayOf(PropTypes.shape({
@@ -387,25 +395,28 @@ CacheSection.propTypes = {
  * @param {Array} props.logs List of log lines
  * @returns {JSX.Element} Logs section
  */
-const LogsSection = ({ logs }) => (
-  <div className={styles.section}>
-    <div className={styles.sectionTitle}>LOGS (last 100 lines)</div>
-    <div className={styles.logBlock}>
-      {!logs || logs.length === 0 ? (
-        <span className={styles.empty}>No logs available</span>
-      ) : (
-        logs.map((line, i) => {
-          let lineClass = styles.logLineDefault;
-          if (line.includes("[cache]")) lineClass = styles.logLineCache;
-          else if (line.includes("[security]")) lineClass = styles.logLineSecurity;
-          return (
-            <div key={i} className={lineClass}>{line}</div>
-          );
-        })
-      )}
+const LogsSection = ({ logs }) => {
+  const { t } = useTranslation();
+  return (
+    <div className={styles.section}>
+      <div className={styles.sectionTitle}>{t("debug.logs")}</div>
+      <div className={styles.logBlock}>
+        {!logs || logs.length === 0 ? (
+          <span className={styles.empty}>{t("debug.noLogs")}</span>
+        ) : (
+          logs.map((line, i) => {
+            let lineClass = styles.logLineDefault;
+            if (line.includes("[cache]")) lineClass = styles.logLineCache;
+            else if (line.includes("[security]")) lineClass = styles.logLineSecurity;
+            return (
+              <div key={i} className={lineClass}>{line}</div>
+            );
+          })
+        )}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 LogsSection.propTypes = {
   logs: PropTypes.arrayOf(PropTypes.string),
@@ -418,25 +429,28 @@ LogsSection.propTypes = {
  * @param {Array} props.events List of blocked request events
  * @returns {JSX.Element} Security events section
  */
-const SecuritySection = ({ events }) => (
-  <div className={styles.section}>
-    <div className={styles.sectionTitle}>SECURITY EVENTS</div>
-    {!events || events.length === 0 ? (
-      <div className={styles.empty}>No blocked requests</div>
-    ) : (
-      events.map((e, i) => (
-        <div className={styles.securityEvent} key={i}>
-          <span className={styles.securityEventHeader}>
-            {e.method} {e.url}
-          </span>
-          <span className={styles.securityEventDetail}>
-            {e.ip} — {e.time}
-          </span>
-        </div>
-      ))
-    )}
-  </div>
-);
+const SecuritySection = ({ events }) => {
+  const { t } = useTranslation();
+  return (
+    <div className={styles.section}>
+      <div className={styles.sectionTitle}>{t("debug.securityEvents")}</div>
+      {!events || events.length === 0 ? (
+        <div className={styles.empty}>{t("debug.noBlockedRequests")}</div>
+      ) : (
+        events.map((e, i) => (
+          <div className={styles.securityEvent} key={i}>
+            <span className={styles.securityEventHeader}>
+              {e.method} {e.url}
+            </span>
+            <span className={styles.securityEventDetail}>
+              {e.ip} — {e.time}
+            </span>
+          </div>
+        ))
+      )}
+    </div>
+  );
+};
 
 SecuritySection.propTypes = {
   events: PropTypes.arrayOf(PropTypes.shape({
@@ -454,14 +468,17 @@ SecuritySection.propTypes = {
  * @param {String} props.audit npm audit log content
  * @returns {JSX.Element} Audit section
  */
-const AuditSection = ({ audit }) => (
-  <div className={styles.section}>
-    <div className={styles.sectionTitle}>NPM AUDIT</div>
-    <div className={styles.auditBlock}>
-      {audit || <span className={styles.empty}>Not available</span>}
+const AuditSection = ({ audit }) => {
+  const { t } = useTranslation();
+  return (
+    <div className={styles.section}>
+      <div className={styles.sectionTitle}>{t("debug.npmAudit")}</div>
+      <div className={styles.auditBlock}>
+        {audit || <span className={styles.empty}>{t("debug.notAvailable")}</span>}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 AuditSection.propTypes = {
   audit: PropTypes.string,

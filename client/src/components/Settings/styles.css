@@ -108,20 +108,29 @@
 }
 
 .bottom-button-container {
-  width: 100%;
+  max-width: 900px;
   margin-top: 10px;
   display: flex;
   justify-content: space-between;
+  align-items: flex-end;
+}
+
+.bottom-button-group {
+  display: flex;
+  gap: 20px;
+  align-items: flex-end;
 }
 
 .save-button {
-  width: 80px;
+  width: auto;
+  padding: 0 12px;
   display: flex;
   align-items: center;
 }
 
 .save-button .label {
   margin-right: 5px;
+  white-space: nowrap;
 }
 
 .close-button {

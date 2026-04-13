@@ -1,4 +1,5 @@
 import React, { useContext, useState, useEffect, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import { AppContext } from "~/AppContext";
 import styles from "../styles.css";
 import { Line } from "react-chartjs-2";
@@ -9,6 +10,7 @@ import {
   convertSpeed,
 } from "~/services/conversions";
 import { fontColor } from "../common";
+import { getDateLocale } from "~/i18n/dateLocale";
 
 const createChartOptions = ({
   darkMode,
@@ -16,6 +18,7 @@ const createChartOptions = ({
   speedUnit,
   lengthUnit,
   altMode,
+  title,
 }) => {
   return {
     maintainAspectRatio: false,
@@ -27,11 +30,7 @@ const createChartOptions = ({
     stacked: false,
     title: {
       display: true,
-      text: `5 Day ${
-        altMode
-          ? `Wind Speed / Precipitation (${lengthUnit})`
-          : `Temp / Precipitation`
-      }`,
+      text: title,
       fontColor: fontColor(darkMode),
       fontFamily: "Rubik, sans-serif",
     },
@@ -95,6 +94,9 @@ const mapChartData = ({
   speedUnit,
   altMode,
   lengthUnit,
+  labelMain,
+  labelPrecip,
+  dateLocale,
 }) => {
   const data = weatherData?.data?.timelines?.[0]?.intervals;
   if (!data) {
@@ -105,12 +107,12 @@ const mapChartData = ({
       const date = new Date(e.startTime);
       const adjustedTimestamp =
         date.getTime() + date.getTimezoneOffset() * 60 * 1000;
-      return format(new Date(adjustedTimestamp), "EEEEE");
+      return format(new Date(adjustedTimestamp), "EEEEE", { locale: dateLocale });
     }),
     datasets: [
       {
         radius: 0,
-        label: altMode ? "Wind Speed" : "Temp",
+        label: labelMain,
         data: data.map((e) => {
           const {
             values: { windSpeed, temperature },
@@ -126,7 +128,7 @@ const mapChartData = ({
       },
       {
         radius: 0,
-        label: "Precipitation",
+        label: labelPrecip,
         data: data.map((e) => {
           const {
             values: { precipitationIntensity, precipitationProbability },
@@ -159,6 +161,7 @@ const DailyChart = () => {
     lengthUnit,
     speedUnit,
   } = useContext(AppContext);
+  const { t, i18n } = useTranslation();
 
   const [altMode, setAltMode] = useState(false);
   const [chartData, setChartData] = useState(null);
@@ -169,6 +172,12 @@ const DailyChart = () => {
 
   useEffect(() => {
     if (dailyWeatherData) {
+      const title = altMode
+        ? t("charts.5dayWind", { unit: lengthUnit })
+        : t("charts.5dayTemp");
+      const labelMain = altMode ? t("charts.windSpeed") : t("charts.temp");
+      const labelPrecip = t("charts.precipitation");
+
       setChartDataCallback(
         mapChartData({
           data: dailyWeatherData,
@@ -176,6 +185,9 @@ const DailyChart = () => {
           lengthUnit,
           speedUnit,
           altMode,
+          labelMain,
+          labelPrecip,
+          dateLocale: getDateLocale(i18n.language),
         })
       );
 
@@ -186,6 +198,7 @@ const DailyChart = () => {
           lengthUnit,
           speedUnit,
           altMode,
+          title,
         })
       );
     }
@@ -196,6 +209,8 @@ const DailyChart = () => {
     altMode,
     speedUnit,
     darkMode,
+    t,
+    i18n.language,
     setChartOptionsCallback,
     setChartDataCallback,
   ]);
@@ -218,7 +233,7 @@ const DailyChart = () => {
           styles.errContainer
         }`}
       >
-        <div>Cannot get 5 day weather forecast</div>
+        <div>{t("errors.dailyForecastFailed")}</div>
         <div className={styles.message}>{dailyWeatherDataErrMsg}</div>
       </div>
     );

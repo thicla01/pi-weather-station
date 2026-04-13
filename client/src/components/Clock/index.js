@@ -1,6 +1,8 @@
 import React, { useEffect, useState, useContext } from "react";
 import { AppContext } from "~/AppContext";
 import { format } from "date-fns";
+import { useTranslation } from "react-i18next";
+import { getDateLocale } from "~/i18n/dateLocale";
 import styles from "./styles.css";
 import SunRiseSet from "~/components/SunRiseSet";
 
@@ -11,7 +13,9 @@ import SunRiseSet from "~/components/SunRiseSet";
  */
 const Clock = () => {
   const { clockTime } = useContext(AppContext);
+  const { t, i18n } = useTranslation();
   const [date, setDate] = useState(new Date().getTime());
+  const locale = getDateLocale(i18n.language);
 
   useEffect(() => {
     const clockInterval = setInterval(() => {
@@ -25,8 +29,7 @@ const Clock = () => {
   return (
     <div>
       <div className={styles.date}>
-        {format(date, "cccc").toUpperCase()}{" "}
-        {format(date, "LLLL").toUpperCase()} {format(date, "d")}
+        {format(date, t("dateFormat"), { locale }).toUpperCase()}
       </div>
       <div className={styles.time}>{format(date, clockTime === "12" ? "p" : "HH:mm")}</div>
       <div className={styles.sunRiseSetContainer}>

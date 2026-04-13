@@ -1,4 +1,5 @@
 import React, { useContext } from "react";
+import { useTranslation } from "react-i18next";
 import { AppContext } from "~/AppContext";
 import styles from "./styles.css";
 import {
@@ -35,6 +36,7 @@ const CurrentWeather = () => {
   const { currentWeatherData, tempUnit, speedUnit, sunriseTime, sunsetTime } = useContext(
     AppContext
   );
+  const { t } = useTranslation();
   const weatherData =
     currentWeatherData?.data?.timelines?.[0]?.intervals[0]?.values;
   if (weatherData) {
@@ -48,7 +50,7 @@ const CurrentWeather = () => {
       windSpeed,
     } = weatherData;
     const daylight = sunriseTime && sunsetTime ? isDaylight(new Date(sunriseTime), new Date(sunsetTime)) : true;
-    const { icon: weatherIcon, desc: weatherDesc } =
+    const { icon: weatherIcon, descKey } =
       parseWeatherCode(weatherCode, daylight) || {};
 
     return (
@@ -97,7 +99,7 @@ const CurrentWeather = () => {
             </div>
           </div>
         </div>
-        <div className={styles.description}>{weatherDesc || ""}</div>
+        <div className={styles.description}>{descKey ? t(descKey) : ""}</div>
       </div>
     );
   } else {
@@ -117,60 +119,60 @@ const CurrentWeather = () => {
 const parseWeatherCode = (code, isDay) => {
   switch (code) {
     case 6201:
-      return { desc: "Heavy freezing rain", icon: isDay ? dayRain : nightRain };
+      return { descKey: "weather.heavyFreezingRain", icon: isDay ? dayRain : nightRain };
     case 6001:
-      return { desc: "Freezing rain", icon: isDay ? dayRain : nightRain };
+      return { descKey: "weather.freezingRain", icon: isDay ? dayRain : nightRain };
     case 6200:
-      return { desc: "Light freezing rain", icon: isDay ? dayRain : nightRain };
+      return { descKey: "weather.lightFreezingRain", icon: isDay ? dayRain : nightRain };
     case 6000:
-      return { desc: "Freezing drizzle", icon: rainMix };
+      return { descKey: "weather.freezingDrizzle", icon: rainMix };
     case 7101:
-      return { desc: "Heavy ice pellets", icon: rainMix };
+      return { descKey: "weather.heavyIcePellets", icon: rainMix };
     case 7000:
-      return { desc: "Ice pellets", icon: rainMix };
+      return { descKey: "weather.icePellets", icon: rainMix };
     case 7102:
-      return { desc: "Light ice pellets", icon: rainMix };
+      return { descKey: "weather.lightIcePellets", icon: rainMix };
     case 5101:
-      return { desc: "Heavy snow", icon: snowIcon };
+      return { descKey: "weather.heavySnow", icon: snowIcon };
     case 5000:
-      return { desc: "Show", icon: snowIcon };
+      return { descKey: "weather.snow", icon: snowIcon };
     case 5100:
-      return { desc: "Light snow", icon: snowIcon };
+      return { descKey: "weather.lightSnow", icon: snowIcon };
     case 5001:
-      return { desc: "Flurries", icon: snowIcon };
+      return { descKey: "weather.flurries", icon: snowIcon };
     case 8000:
-      return { desc: "Thunder storm", icon: thunderstormIcon };
+      return { descKey: "weather.thunderStorm", icon: thunderstormIcon };
     case 4201:
-      return { desc: "Heavy rain", icon: isDay ? dayRain : nightRain };
+      return { descKey: "weather.heavyRain", icon: isDay ? dayRain : nightRain };
     case 4001:
-      return { desc: "Rain", icon: isDay ? dayRain : nightRain };
+      return { descKey: "weather.rain", icon: isDay ? dayRain : nightRain };
     case 4200:
-      return { desc: "Light rain", icon: isDay ? dayRain : nightRain };
+      return { descKey: "weather.lightRain", icon: isDay ? dayRain : nightRain };
     case 4000:
-      return { desc: "Drizzle", icon: rainMix };
+      return { descKey: "weather.drizzle", icon: rainMix };
     case 2100:
-      return { desc: "Light fog", icon: fogIcon };
+      return { descKey: "weather.lightFog", icon: fogIcon };
     case 2000:
-      return { desc: "Fog", icon: fogIcon };
+      return { descKey: "weather.fog", icon: fogIcon };
     case 1001:
-      return { desc: "Cloudy", icon: cloudyIcon };
+      return { descKey: "weather.cloudy", icon: cloudyIcon };
     case 1102:
-      return { desc: "Mostly cloudy", icon: cloudyIcon };
+      return { descKey: "weather.mostlyCloudy", icon: cloudyIcon };
     case 1101:
       return {
-        desc: "Partly cloudy",
+        descKey: "weather.partlyCloudy",
         icon: isDay ? daySunnyOvercast : nightAltCloudy,
       };
     case 1100:
-      return { desc: "Mostly clear", icon: isDay ? dayCloudy : nightAltCloudy };
+      return { descKey: "weather.mostlyClear", icon: isDay ? dayCloudy : nightAltCloudy };
     case 1000:
-      return { desc: "Clear", icon: isDay ? daySunny : nightClear };
+      return { descKey: "weather.clear", icon: isDay ? daySunny : nightClear };
     case 3001:
-      return { desc: "Wind", icon: strongWind };
+      return { descKey: "weather.wind", icon: strongWind };
     case 3000:
-      return { desc: "Light wind", icon: strongWind };
+      return { descKey: "weather.lightWind", icon: strongWind };
     case 3002:
-      return { desc: "Strong wind", icon: strongWind };
+      return { descKey: "weather.strongWind", icon: strongWind };
   }
 };
 

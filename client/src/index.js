@@ -3,6 +3,7 @@ import ReactDOM from "react-dom";
 import App from "~/components/App";
 import { AppContextProvider } from "~/AppContext";
 import "~/styles";
+import "~/i18n";
 
 ReactDOM.render(
   <AppContextProvider>

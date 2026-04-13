@@ -1,4 +1,5 @@
 import React, { useContext, useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import styles from "./styles.css";
 import { AppContext } from "~/AppContext";
 import { CSSTransition } from "react-transition-group";
@@ -29,6 +30,7 @@ const Settings = () => {
     isLocal,
     remoteSecurityEnabled,
   } = useContext(AppContext);
+  const { t, i18n } = useTranslation();
 
   const [mapsKey, setMapsKey] = useState(null);
   const [weatherKey, setWeatherKey] = useState(null);
@@ -87,7 +89,7 @@ const Settings = () => {
       classNames="animate"
     >
       <div className={styles.container}>
-        <div className={styles.header}>SETTINGS</div>
+        <div className={styles.header}>{t("settings.title")}</div>
         <div
           className={styles.closeButton}
           onClick={() => {
@@ -101,33 +103,33 @@ const Settings = () => {
           {!isRemoteRestricted && (
             <>
               <Input
-                label={"MAPS API KEY"}
+                label={t("settings.mapsApiKey")}
                 val={mapsKey}
                 current={currentMapsKey}
                 cb={setMapsKey}
                 required={true}
               />
               <Input
-                label={"WEATHER API KEY"}
+                label={t("settings.weatherApiKey")}
                 val={weatherKey}
                 current={currentWeatherKey}
                 cb={setWeatherKey}
                 required={true}
               />
               <Input
-                label={"GEOLOCATION API KEY"}
+                label={t("settings.geoApiKey")}
                 val={geoKey}
                 current={currentGeoKey}
                 cb={setGeoKey}
               />
               <Input
-                label={"CUSTOM STARTING LATITUDE"}
+                label={t("settings.customLat")}
                 val={lat}
                 cb={setLat}
                 current={currentLat}
               />
               <Input
-                label={"CUSTOM STARTING LONGITUDE"}
+                label={t("settings.customLon")}
                 val={lon}
                 cb={setLon}
                 current={currentLon}
@@ -135,16 +137,30 @@ const Settings = () => {
             </>
           )}
           <div className={styles.bottomButtonContainer}>
-            <div>
-              <div className={styles.label}>HIDE MOUSE</div>
-              <ToggleButton
-                button1Label={"ON"}
-                button2Label={"OFF"}
-                val={mouseHide}
-                button1Val={true}
-                button2Val={false}
-                cb={saveMouseHide}
-              />
+            <div className={styles.bottomButtonGroup}>
+              <div>
+                <div className={styles.label}>{t("settings.hideMouse")}</div>
+                <ToggleButton
+                  button1Label={t("settings.on")}
+                  button2Label={t("settings.off")}
+                  val={mouseHide}
+                  button1Val={true}
+                  button2Val={false}
+                  cb={saveMouseHide}
+                />
+              </div>
+              <div>
+                <div className={styles.label}>{t("settings.language")}</div>
+                <ToggleButton
+                  options={[
+                    { label: "EN", value: "en" },
+                    { label: "FR", value: "fr" },
+                    { label: "ES", value: "es" },
+                  ]}
+                  val={["fr", "es"].find((l) => i18n.language.startsWith(l)) || "en"}
+                  cb={(lang) => i18n.changeLanguage(lang)}
+                />
+              </div>
             </div>
             {!isRemoteRestricted && (
               <div className={styles.saveButtonContainer}>
@@ -181,6 +197,7 @@ const SaveButton = ({ mapsKey, weatherKey, geoKey, lat, lon }) => {
   const { saveSettingsToJson, setSettingsMenuOpen, mouseHide } = useContext(
     AppContext
   );
+  const { t } = useTranslation();
   return (
     <div
       className={`${styles.button} ${styles.saveButton} ${
@@ -196,7 +213,7 @@ const SaveButton = ({ mapsKey, weatherKey, geoKey, lat, lon }) => {
           });
       }}
     >
-      <div className={styles.label}>SAVE</div>
+      <div className={styles.label}>{t("settings.save")}</div>
       <div>
         <InlineIcon icon={roundSaveAlt} />
       </div>
@@ -228,10 +245,12 @@ const ToggleButtons = () => {
     clockTime,
     saveClockTime,
   } = useContext(AppContext);
+  const { t } = useTranslation();
 
   return (
     <div>
-      <div className={styles.label}>UNITS</div>
+      <div className={styles.label}>{t("settings.units")}</div>
+
       <div className={styles.toggleButtons}>
         <div>
           <ToggleButton
@@ -279,18 +298,20 @@ const ToggleButtons = () => {
 };
 
 /**
- * Toggle buttons
+ * Toggle buttons — supports 2 buttons (button1/button2 props) or N buttons (options prop)
  *
  * @param {Object} props
- * @param {String} props.button1Label PropTypes.string.isRequired,
- * @param {String} props.button2Label PropTypes.string.isRequired,
- * @param {*} props.val PropTypes.string.isRequired,
- * @param {*} props.button1Val PropTypes.string.isRequired,
- * @param {*} props.button2Val PropTypes.string.isRequired,
- * @param {Function} props.cb PropTypes.func.isRequired,
+ * @param {Array} [props.options] Array of {label, value} for variable number of buttons
+ * @param {String} [props.button1Label]
+ * @param {String} [props.button2Label]
+ * @param {*} props.val Current selected value
+ * @param {*} [props.button1Val]
+ * @param {*} [props.button2Val]
+ * @param {Function} props.cb Callback when a button is clicked
  * @returns {JSX.Element} Toggle buttons
  */
 const ToggleButton = ({
+  options,
   button1Label,
   button2Label,
   val,
@@ -298,34 +319,35 @@ const ToggleButton = ({
   button2Val,
   cb,
 }) => {
+  const items = options || [
+    { label: button1Label, value: button1Val },
+    { label: button2Label, value: button2Val },
+  ];
   return (
     <div className={styles.toggleContainer}>
-      <div
-        className={` ${styles.button} ${button1Val === val ? styles.down : ""}`}
-        onClick={() => {
-          cb(button1Val);
-        }}
-      >
-        {button1Label}
-      </div>
-      <div
-        className={` ${styles.button} ${button2Val === val ? styles.down : ""}`}
-        onClick={() => {
-          cb(button2Val);
-        }}
-      >
-        {button2Label}
-      </div>
+      {items.map(({ label, value }) => (
+        <div
+          key={value}
+          className={`${styles.button} ${value === val ? styles.down : ""}`}
+          onClick={() => cb(value)}
+        >
+          {label}
+        </div>
+      ))}
     </div>
   );
 };
 
 ToggleButton.propTypes = {
-  button1Label: PropTypes.string.isRequired,
-  button2Label: PropTypes.string.isRequired,
+  options: PropTypes.arrayOf(PropTypes.shape({
+    label: PropTypes.string.isRequired,
+    value: PropTypes.any.isRequired,
+  })),
+  button1Label: PropTypes.string,
+  button2Label: PropTypes.string,
   val: PropTypes.any.isRequired,
-  button1Val: PropTypes.any.isRequired,
-  button2Val: PropTypes.any.isRequired,
+  button1Val: PropTypes.any,
+  button2Val: PropTypes.any,
   cb: PropTypes.func.isRequired,
 };
 
@@ -379,6 +401,7 @@ UndoButton.propTypes = {
  * @returns {JSX.Element} Input
  */
 const Input = ({ label, val, cb, required, current }) => {
+  const { t } = useTranslation();
   const [inputValue, setInputValue] = useState(val);
   const [defaultValue, setDefaultValue] = useState(null);
 
@@ -398,7 +421,7 @@ const Input = ({ label, val, cb, required, current }) => {
       >
         <input
           type="text"
-          placeholder={"None"}
+          placeholder={t("settings.none")}
           value={inputValue || ""}
           onChange={(e) => {
             const { value } = e.target;

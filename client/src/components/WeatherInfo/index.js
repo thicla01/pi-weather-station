@@ -1,4 +1,5 @@
 import React, { useEffect, useContext, useState, useCallback } from "react";
+import { useTranslation } from "react-i18next";
 import Spinner from "~/components/Spinner";
 import { AppContext } from "~/AppContext";
 import styles from "./styles.css";
@@ -63,6 +64,7 @@ const WeatherInfo = () => {
     currentWeatherData,
     updateSunriseSunset
   } = useContext(AppContext);
+  const { t } = useTranslation();
 
   const [
     currentWeatherUpdateInterval,
@@ -168,8 +170,8 @@ const WeatherInfo = () => {
           darkMode ? styles.dark : styles.light
         }`}
       >
-        <div>Could not retrieve weather data.</div>
-        <div>Is your weather API key valid?</div>
+        <div>{t("errors.weatherDataFailed")}</div>
+        <div>{t("errors.weatherApiKeyInvalid")}</div>
         {currentWeatherDataErr ? (
           <div className={styles.message}>{currentWeatherDataErrMsg}</div>
         ) : null}

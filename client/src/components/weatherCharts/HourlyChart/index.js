@@ -1,4 +1,5 @@
 import React, { useContext, useState, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { AppContext } from "~/AppContext";
 import styles from "../styles.css";
 import { Line } from "react-chartjs-2";
@@ -10,12 +11,13 @@ import {
 } from "~/services/conversions";
 import { fontColor } from "../common";
 
-const chartOptions = ({
+const buildChartOptions = ({
   darkMode,
   tempUnit,
   speedUnit,
   lengthUnit,
   altMode,
+  title,
 }) => {
   return {
     maintainAspectRatio: false,
@@ -27,11 +29,7 @@ const chartOptions = ({
     stacked: false,
     title: {
       display: true,
-      text: `24 Hour ${
-        altMode
-          ? `Wind Speed / Precipitation (${lengthUnit})`
-          : `Temp / Precipitation`
-      }`,
+      text: title,
       fontColor: fontColor(darkMode),
       fontFamily: "Rubik, sans-serif",
     },
@@ -96,6 +94,8 @@ const mapChartData = ({
   clockTime,
   altMode,
   lengthUnit,
+  labelMain,
+  labelPrecip,
 }) => {
   const data = weatherData?.data?.timelines?.[0]?.intervals;
   if (!data) {
@@ -115,7 +115,7 @@ const mapChartData = ({
     datasets: [
       {
         radius: 0,
-        label: altMode ? "Wind Speed" : "Temp",
+        label: labelMain,
         data: data.map((e) => {
           const {
             values: { windSpeed, temperature },
@@ -131,7 +131,7 @@ const mapChartData = ({
       },
       {
         radius: 0,
-        label: "Precipitation",
+        label: labelPrecip,
         data: data.map((e) => {
           const {
             values: { precipitationIntensity, precipitationProbability },
@@ -165,6 +165,7 @@ const HourlyChart = () => {
     hourlyWeatherDataErr,
     hourlyWeatherDataErrMsg,
   } = useContext(AppContext);
+  const { t } = useTranslation();
 
   const [altMode, setAltMode] = useState(false);
   const [chartData, setChartData] = useState(null);
@@ -178,10 +179,16 @@ const HourlyChart = () => {
           lengthUnit,
           speedUnit,
           altMode,
+          labelMain: altMode ? t("charts.windSpeed") : t("charts.temp"),
+          labelPrecip: t("charts.precipitation"),
         })
       );
     }
-  }, [hourlyWeatherData, tempUnit, clockTime, lengthUnit, altMode, speedUnit]);
+  }, [hourlyWeatherData, tempUnit, clockTime, lengthUnit, altMode, speedUnit, t]);
+
+  const title = altMode
+    ? t("charts.24hourWind", { unit: lengthUnit })
+    : t("charts.24hourTemp");
 
   if (chartData) {
     return (
@@ -193,12 +200,13 @@ const HourlyChart = () => {
       >
         <Line
           data={chartData}
-          options={chartOptions({
+          options={buildChartOptions({
             tempUnit,
             darkMode,
             lengthUnit,
             speedUnit,
             altMode,
+            title,
           })}
         />
       </div>
@@ -210,7 +218,7 @@ const HourlyChart = () => {
           styles.errContainer
         }`}
       >
-        <div>Cannot get 24 hour weather forecast</div>
+        <div>{t("errors.hourlyForecastFailed")}</div>
         <div className={styles.message}>{hourlyWeatherDataErrMsg}</div>
       </div>
     );
