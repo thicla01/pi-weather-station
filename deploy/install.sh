@@ -14,9 +14,19 @@ NODE_MIN=18
 OS_CODENAME=$(lsb_release -cs)
 NVM_INSTALL=false
 
-# Load nvm if already installed (so 'node' is available for version check)
-export NVM_DIR="$HOME/.nvm"
-[ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+# Load nvm if already installed — check common install locations
+# (traditional ~/.nvm or XDG ~/.config/nvm depending on nvm version/env)
+_load_nvm() {
+    for _d in "$HOME/.nvm" "${XDG_CONFIG_HOME:-$HOME/.config}/nvm" "$HOME/.config/nvm"; do
+        if [ -s "$_d/nvm.sh" ]; then
+            export NVM_DIR="$_d"
+            \. "$NVM_DIR/nvm.sh"
+            return 0
+        fi
+    done
+    return 1
+}
+_load_nvm
 
 NODE_VERSION=$(node --version 2>/dev/null | sed 's/v//' | cut -d. -f1)
 
@@ -38,9 +48,8 @@ if ! command -v node &>/dev/null || [ "${NODE_VERSION:-0}" -lt "$NODE_MIN" ]; th
                 echo ">> Installing nvm..."
                 unset NVM_DIR
                 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
-                # Source nvm immediately so the rest of this script can use node/npm
-                export NVM_DIR="$HOME/.nvm"
-                [ -s "$NVM_DIR/nvm.sh" ] && \. "$NVM_DIR/nvm.sh"
+                # Source nvm from wherever it was actually installed
+                _load_nvm
                 echo ">> Installing Node.js v22 LTS via nvm..."
                 nvm install 22
                 nvm use 22
@@ -71,7 +80,7 @@ else
 fi
 
 # Detect nvm usage regardless of whether node was just installed or already present
-if [ -s "$HOME/.nvm/nvm.sh" ] && [[ "$(which node 2>/dev/null)" == *"/.nvm/"* ]]; then
+if [ -n "$NVM_DIR" ] && [ -s "$NVM_DIR/nvm.sh" ] && [[ "$(which node 2>/dev/null)" == *"$NVM_DIR"* ]]; then
     NVM_INSTALL=true
     if command -v nodejs &>/dev/null; then
         echo ""
@@ -249,12 +258,13 @@ fi
 if [ "$NVM_INSTALL" = "true" ]; then
     # systemd does not source ~/.bashrc (guarded for interactive shells),
     # so nvm must be loaded explicitly via a drop-in override.
-    cat > ~/.config/systemd/user/pi-weather-server.service.d/nvm.conf << 'EOF'
+    # Use the actual NVM_DIR path (may be ~/.nvm or ~/.config/nvm depending on env).
+    cat > ~/.config/systemd/user/pi-weather-server.service.d/nvm.conf << EOF
 [Service]
 ExecStart=
-ExecStart=/bin/bash -c '. %h/.nvm/nvm.sh && exec npm start'
+ExecStart=/bin/bash -c '. ${NVM_DIR}/nvm.sh && exec npm start'
 EOF
-    echo ">> nvm sourcing configured for systemd service."
+    echo ">> nvm sourcing configured for systemd service (${NVM_DIR})."
 fi
 systemctl --user daemon-reload
 systemctl --user enable pi-weather-server

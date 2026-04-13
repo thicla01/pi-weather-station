@@ -106,8 +106,15 @@ fi
 
 # --- 7. nvm (optional, Bullseye only) ---
 NVM_DIR_EXISTS=false
+FOUND_NVM_DIR=""
 NVM_IN_PROFILES=false
-[ -s "$HOME/.nvm/nvm.sh" ] && NVM_DIR_EXISTS=true
+for _d in "$HOME/.nvm" "${XDG_CONFIG_HOME:-$HOME/.config}/nvm" "$HOME/.config/nvm"; do
+    if [ -s "$_d/nvm.sh" ]; then
+        NVM_DIR_EXISTS=true
+        FOUND_NVM_DIR="$_d"
+        break
+    fi
+done
 for _PROFILE in "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile"; do
     grep -q "NVM_DIR" "$_PROFILE" 2>/dev/null && NVM_IN_PROFILES=true && break
 done
@@ -131,8 +138,8 @@ if { [ "$NVM_DIR_EXISTS" = "true" ] || [ "$NVM_IN_PROFILES" = "true" ]; } \
             read -p "   Are you sure? This cannot be undone. (y/N) " -n 1 -r
             echo
             [[ ! $REPLY =~ ^[Yy]$ ]] && { echo "   nvm kept."; } || {
-                rm -rf "$HOME/.nvm"
-                echo "   ~/.nvm removed."
+                rm -rf "$FOUND_NVM_DIR"
+                echo "   $FOUND_NVM_DIR removed."
             }
         fi
         for _PROFILE in "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile"; do
