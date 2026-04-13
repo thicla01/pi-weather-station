@@ -1,9 +1,43 @@
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
+const axios = require("axios").default;
 const { weatherCache } = require("./proxyCtrl");
 const { getServiceStatus } = require("./serviceStatus");
 const { getCounters } = require("./requestCounter");
+
+const PROVIDER_STATUS_TTL = 30 * 60 * 1000;
+
+const PROVIDER_STATUS_APIS = [
+  { name: "Tomorrow.io", url: "https://status.tomorrow.io/api/v2/status.json" },
+  { name: "Mapbox",      url: "https://status.mapbox.com/api/v2/status.json"  },
+];
+
+let _providerStatusCache = null;
+let _providerStatusFetchedAt = null;
+
+async function fetchProviderStatus() {
+  const now = Date.now();
+  if (_providerStatusCache && _providerStatusFetchedAt && (now - _providerStatusFetchedAt) < PROVIDER_STATUS_TTL) {
+    return _providerStatusCache;
+  }
+
+  const results = await Promise.all(
+    PROVIDER_STATUS_APIS.map(async ({ name, url }) => {
+      try {
+        const res = await axios.get(url, { timeout: 5000 });
+        const { indicator, description } = res.data?.status ?? {};
+        return { name, indicator: indicator ?? "unknown", description: description ?? "" };
+      } catch {
+        return { name, indicator: "unknown", description: "Could not fetch status" };
+      }
+    })
+  );
+
+  _providerStatusCache = { fetchedAt: new Date().toISOString(), providers: results };
+  _providerStatusFetchedAt = now;
+  return _providerStatusCache;
+}
 
 let _serverPort = null;
 let _serverProtocol = null;
@@ -79,7 +113,7 @@ function logSecurityEvent(ip, method, url) {
  * @param {Object} req
  * @param {Object} res
  */
-function getDebugInfo(req, res) {
+async function getDebugInfo(req, res) {
   const now = Date.now();
 
   const cache = Object.entries(weatherCache).map(([key, entry]) => ({
@@ -103,7 +137,9 @@ function getDebugInfo(req, res) {
     // file not found — default message applies
   }
 
-  return res.status(200).json({ cache, logs, audit, securityEvents, services: getServiceStatus(), counters: getCounters(), system: getSystemInfo(), network: getNetworkInfo() });
+  const providerStatus = await fetchProviderStatus();
+
+  return res.status(200).json({ cache, logs, audit, securityEvents, services: getServiceStatus(), counters: getCounters(), system: getSystemInfo(), network: getNetworkInfo(), providerStatus });
 }
 
 module.exports = { getDebugInfo, logSecurityEvent, initServerInfo };

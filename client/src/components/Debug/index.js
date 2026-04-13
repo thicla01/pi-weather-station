@@ -80,6 +80,7 @@ const Debug = () => {
         </div>
 
         <div className={styles.content}>
+          <ProviderStatusSection providerStatus={data?.providerStatus} />
           <ServicesSection services={data?.services} />
           <QuotaSection counters={data?.counters} />
           <CacheSection cache={data?.cache} />
@@ -93,6 +94,70 @@ const Debug = () => {
 };
 
 export default Debug;
+
+const INDICATOR_CLASS = (indicator, styles) => {
+  switch (indicator) {
+    case "none":        return styles.indicatorNone;
+    case "minor":       return styles.indicatorMinor;
+    case "major":
+    case "critical":    return styles.indicatorMajor;
+    case "maintenance": return styles.indicatorMaintenance;
+    default:            return styles.indicatorUnknown;
+  }
+};
+
+/**
+ * Provider status section — Atlassian Statuspage results for external providers
+ *
+ * @param {Object} props
+ * @param {Object} props.providerStatus
+ * @returns {JSX.Element}
+ */
+const ProviderStatusSection = ({ providerStatus }) => {
+  const fetchedAt = providerStatus?.fetchedAt
+    ? new Date(providerStatus.fetchedAt).toLocaleTimeString()
+    : null;
+
+  return (
+    <div className={styles.section}>
+      <div className={styles.sectionTitle}>
+        PROVIDER STATUS
+        {fetchedAt && <span className={styles.providerFetchedAt}> — last fetch: {fetchedAt}</span>}
+      </div>
+      {!providerStatus || providerStatus.providers.length === 0 ? (
+        <div className={styles.empty}>No provider status available</div>
+      ) : (
+        <div className={styles.providerTable}>
+          <div className={styles.providerHeader}>
+            <span>PROVIDER</span>
+            <span>INDICATOR</span>
+            <span>DESCRIPTION</span>
+          </div>
+          {providerStatus.providers.map(({ name, indicator, description }) => (
+            <div className={styles.providerEntry} key={name}>
+              <span className={styles.providerName}>{name}</span>
+              <span className={INDICATOR_CLASS(indicator, styles)}>
+                {indicator.toUpperCase()}
+              </span>
+              <span className={styles.providerDescription}>{description}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+ProviderStatusSection.propTypes = {
+  providerStatus: PropTypes.shape({
+    fetchedAt: PropTypes.string,
+    providers: PropTypes.arrayOf(PropTypes.shape({
+      name: PropTypes.string,
+      indicator: PropTypes.string,
+      description: PropTypes.string,
+    })),
+  }),
+};
 
 const SERVICE_LABELS = {
   "tomorrow.io":        "Tomorrow.io",
