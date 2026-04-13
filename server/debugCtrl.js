@@ -9,9 +9,36 @@ const { getCounters } = require("./requestCounter");
 const PROVIDER_STATUS_TTL = 30 * 60 * 1000;
 
 const PROVIDER_STATUS_APIS = [
-  { name: "Tomorrow.io", url: "https://status.tomorrow.io/api/v2/status.json" },
-  { name: "Mapbox",      url: "https://status.mapbox.com/api/v2/status.json"  },
+  { name: "Tomorrow.io", type: "statuspage", url: "https://status.tomorrow.io/api/v2/status.json" },
+  { name: "Mapbox",      type: "statuspage", url: "https://status.mapbox.com/api/v2/status.json"  },
+  { name: "ipapi.co",    type: "html",       url: "https://ipapi.co/status/"                      },
+  { name: "LocationIQ",  type: "rss",        url: "https://status.locationiq.com/rss"             },
 ];
+
+function parseStatuspage(name, data) {
+  const { indicator, description } = data?.status ?? {};
+  return { name, indicator: indicator ?? "unknown", description: description ?? "" };
+}
+
+function parseIpapiHtml(name, html) {
+  const m = html.match(/<div class="incident-entry">\s*<span class="light light-(\d)"><\/span>\s*<span>([^<]+)<\/span>[^<]*<span>([^<]+)<\/span>/);
+  if (!m) return { name, indicator: "unknown", description: "Could not parse status" };
+  const lightMap = { "0": "none", "1": "minor", "2": "major" };
+  return {
+    name,
+    indicator:   lightMap[m[1]] ?? "unknown",
+    description: `${m[2].trim()} · ${m[3].trim()}`,
+  };
+}
+
+function parseLocationIQRss(name, xml) {
+  const m = xml.match(/<item>[\s\S]*?<title><!\[CDATA\[([^\]]+)\]\]><\/title>[\s\S]*?<pubDate>([^<]+)<\/pubDate>/);
+  if (!m) return { name, indicator: "—", description: "Could not parse feed" };
+  const title = m[1].trim();
+  const dateMatch = m[2].match(/(\d{2} \w{3} \d{4})/);
+  const date = dateMatch ? dateMatch[1] : m[2].trim();
+  return { name, indicator: "—", description: `Last incident: ${date} · ${title}` };
+}
 
 let _providerStatusCache = null;
 let _providerStatusFetchedAt = null;
@@ -23,11 +50,13 @@ async function fetchProviderStatus() {
   }
 
   const results = await Promise.all(
-    PROVIDER_STATUS_APIS.map(async ({ name, url }) => {
+    PROVIDER_STATUS_APIS.map(async ({ name, type, url }) => {
       try {
         const res = await axios.get(url, { timeout: 5000 });
-        const { indicator, description } = res.data?.status ?? {};
-        return { name, indicator: indicator ?? "unknown", description: description ?? "" };
+        if (type === "statuspage") return parseStatuspage(name, res.data);
+        if (type === "html")       return parseIpapiHtml(name, res.data);
+        if (type === "rss")        return parseLocationIQRss(name, res.data);
+        return { name, indicator: "unknown", description: "Unknown provider type" };
       } catch {
         return { name, indicator: "unknown", description: "Could not fetch status" };
       }
