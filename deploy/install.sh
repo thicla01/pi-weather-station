@@ -36,6 +36,7 @@ if ! command -v node &>/dev/null || [ "${NODE_VERSION:-0}" -lt "$NODE_MIN" ]; th
             echo
             if [[ -z "$REPLY" || $REPLY =~ ^[Yy]$ ]]; then
                 echo ">> Installing nvm..."
+                unset NVM_DIR
                 curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
                 # Source nvm immediately so the rest of this script can use node/npm
                 export NVM_DIR="$HOME/.nvm"
