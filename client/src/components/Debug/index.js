@@ -111,7 +111,7 @@ const INDICATOR_CLASS = (indicator, styles) => {
  *
  * @param {Object} props
  * @param {Object} props.providerStatus
- * @returns {JSX.Element}
+ * @returns {JSX.Element} Provider status section
  */
 const ProviderStatusSection = ({ providerStatus }) => {
   const fetchedAt = providerStatus?.fetchedAt
