@@ -12,6 +12,7 @@ echo ""
 # --- 0. Node.js ---
 NODE_MIN=18
 OS_CODENAME=$(lsb_release -cs)
+ARCH=$(uname -m)
 NVM_INSTALL=false
 
 # Load nvm if already installed — check common install locations
@@ -39,26 +40,40 @@ if ! command -v node &>/dev/null || [ "${NODE_VERSION:-0}" -lt "$NODE_MIN" ]; th
 
     case "$OS_CODENAME" in
         bullseye)
-            # On Bullseye (32-bit ARM), use nvm — NodeSource does not provide
-            # Node.js 22 packages for armv7l.
-            echo ""
-            read -p "   Install Node.js v22 LTS via nvm? (Y/n) " -n 1 -r
-            echo
-            if [[ -z "$REPLY" || $REPLY =~ ^[Yy]$ ]]; then
-                echo ">> Installing nvm..."
-                unset NVM_DIR
-                curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
-                # Source nvm from wherever it was actually installed
-                _load_nvm || true
-                echo ">> Installing Node.js v22 LTS via nvm..."
-                nvm install 22
-                nvm use 22
-                nvm alias default 22
-                NVM_INSTALL=true
-                echo ">> Node.js $(node --version) installed via nvm."
+            if [[ "$ARCH" == "armv7l" || "$ARCH" == "armv6l" ]]; then
+                # Bullseye 32-bit ARM: NodeSource does not provide Node.js 22
+                # packages for armv7l — use nvm instead.
+                echo ""
+                read -p "   Install Node.js v22 LTS via nvm? (Y/n) " -n 1 -r
+                echo
+                if [[ -z "$REPLY" || $REPLY =~ ^[Yy]$ ]]; then
+                    echo ">> Installing nvm..."
+                    unset NVM_DIR
+                    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+                    # Source nvm from wherever it was actually installed
+                    _load_nvm || true
+                    echo ">> Installing Node.js v22 LTS via nvm..."
+                    nvm install 22
+                    nvm use 22
+                    nvm alias default 22
+                    NVM_INSTALL=true
+                    echo ">> Node.js $(node --version) installed via nvm."
+                else
+                    echo ">> Installation cancelled. Node.js v${NODE_MIN} or later is required."
+                    exit 1
+                fi
             else
-                echo ">> Installation cancelled. Node.js v${NODE_MIN} or later is required."
-                exit 1
+                # Bullseye 64-bit (aarch64): NodeSource supports arm64 — use it.
+                read -p "   Install Node.js v22 LTS via NodeSource? (Y/n) " -n 1 -r
+                echo
+                if [[ -z "$REPLY" || $REPLY =~ ^[Yy]$ ]]; then
+                    echo ">> Installing Node.js v22 LTS via NodeSource for $OS_CODENAME ($ARCH)..."
+                    curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+                    sudo apt-get install -y nodejs
+                else
+                    echo ">> Installation cancelled. Node.js v${NODE_MIN} or later is required."
+                    exit 1
+                fi
             fi
             ;;
         *)
@@ -66,7 +81,7 @@ if ! command -v node &>/dev/null || [ "${NODE_VERSION:-0}" -lt "$NODE_MIN" ]; th
             read -p "   Install Node.js v22 LTS via NodeSource? (Y/n) " -n 1 -r
             echo
             if [[ -z "$REPLY" || $REPLY =~ ^[Yy]$ ]]; then
-                echo ">> Installing Node.js v22 LTS via NodeSource for $OS_CODENAME..."
+                echo ">> Installing Node.js v22 LTS via NodeSource for $OS_CODENAME ($ARCH)..."
                 curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
                 sudo apt-get install -y nodejs
             else
