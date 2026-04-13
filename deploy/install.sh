@@ -129,6 +129,13 @@ read -p "   Enable debug panel? (localhost only, shows cache/quota/logs) (y/N) "
 echo
 DEBUG_MODE=$([[ $REPLY =~ ^[Yy]$ ]] && echo "yes" || echo "no")
 
+# --- 2c. Kiosk mode ---
+echo ""
+echo ">> Kiosk mode..."
+read -p "   Launch Chromium automatically in fullscreen on startup? (Y/n) " -n 1 -r
+echo
+KIOSK_MODE=$([[ -z "$REPLY" || $REPLY =~ ^[Yy]$ ]] && echo "yes" || echo "no")
+
 # --- 3. Node.js dependencies ---
 AUDIT_LOG="$REPO_DIR/npm-audit.log"
 { echo "Pi Weather Station — npm audit report"; echo "Generated: $(date)"; } > "$AUDIT_LOG"
@@ -218,46 +225,53 @@ chmod +x ~/.local/bin/start-server
 echo ">> ~/.local/bin/start-server installed."
 
 # --- 6. Autostart based on display server ---
-echo ""
-echo ">> Detecting display server..."
-DISPLAY_SERVER=$(ps aux | grep -E 'labwc|wayfire|Xorg' | grep -v grep | awk '{print $11}' | xargs -I{} basename {} 2>/dev/null | head -1)
+if [ "$KIOSK_MODE" = "yes" ]; then
+    echo ""
+    echo ">> Detecting display server..."
+    DISPLAY_SERVER=$(ps aux | grep -E 'labwc|wayfire|Xorg' | grep -v grep | awk '{print $11}' | xargs -I{} basename {} 2>/dev/null | head -1)
 
-case "$DISPLAY_SERVER" in
-    labwc)
-        echo ">> Display server detected: labwc"
-        mkdir -p ~/.config/labwc
-        cp "$REPO_DIR/deploy/autostart" ~/.config/labwc/autostart
-        echo ">> ~/.config/labwc/autostart configured."
-        ;;
-    wayfire)
-        echo ">> Display server detected: wayfire"
-        WAYFIRE_INI="$HOME/.config/wayfire.ini"
-        if grep -q "start-server" "$WAYFIRE_INI" 2>/dev/null; then
-            echo ">> ~/.config/wayfire.ini already configured, no changes made."
-        elif grep -q "\[autostart\]" "$WAYFIRE_INI" 2>/dev/null; then
-            sed -i '/\[autostart\]/a start-server = start-server' "$WAYFIRE_INI"
-            echo ">> ~/.config/wayfire.ini updated."
-        else
-            echo -e "\n[autostart]\nstart-server = start-server" >> "$WAYFIRE_INI"
-            echo ">> [autostart] section added to ~/.config/wayfire.ini."
-        fi
-        ;;
-    Xorg)
-        echo ">> Display server detected: X11/LXDE"
-        LXDE_AUTOSTART="$HOME/.config/lxsession/LXDE-pi/autostart"
-        mkdir -p "$(dirname "$LXDE_AUTOSTART")"
-        if grep -q "start-server" "$LXDE_AUTOSTART" 2>/dev/null; then
-            echo ">> $LXDE_AUTOSTART already configured, no changes made."
-        else
-            echo "@start-server" >> "$LXDE_AUTOSTART"
-            echo ">> $LXDE_AUTOSTART updated."
-        fi
-        ;;
-    *)
-        echo ">> Display server not detected."
-        echo "   Configure autostart manually. See the README for instructions."
-        ;;
-esac
+    case "$DISPLAY_SERVER" in
+        labwc)
+            echo ">> Display server detected: labwc"
+            mkdir -p ~/.config/labwc
+            cp "$REPO_DIR/deploy/autostart" ~/.config/labwc/autostart
+            echo ">> ~/.config/labwc/autostart configured."
+            ;;
+        wayfire)
+            echo ">> Display server detected: wayfire"
+            WAYFIRE_INI="$HOME/.config/wayfire.ini"
+            if grep -q "start-server" "$WAYFIRE_INI" 2>/dev/null; then
+                echo ">> ~/.config/wayfire.ini already configured, no changes made."
+            elif grep -q "\[autostart\]" "$WAYFIRE_INI" 2>/dev/null; then
+                sed -i '/\[autostart\]/a start-server = start-server' "$WAYFIRE_INI"
+                echo ">> ~/.config/wayfire.ini updated."
+            else
+                echo -e "\n[autostart]\nstart-server = start-server" >> "$WAYFIRE_INI"
+                echo ">> [autostart] section added to ~/.config/wayfire.ini."
+            fi
+            ;;
+        Xorg)
+            echo ">> Display server detected: X11/LXDE"
+            LXDE_AUTOSTART="$HOME/.config/lxsession/LXDE-pi/autostart"
+            mkdir -p "$(dirname "$LXDE_AUTOSTART")"
+            if grep -q "start-server" "$LXDE_AUTOSTART" 2>/dev/null; then
+                echo ">> $LXDE_AUTOSTART already configured, no changes made."
+            else
+                echo "@start-server" >> "$LXDE_AUTOSTART"
+                echo ">> $LXDE_AUTOSTART updated."
+            fi
+            ;;
+        *)
+            echo ">> Display server not detected."
+            echo "   Configure autostart manually. See the README for instructions."
+            ;;
+    esac
+else
+    echo ""
+    echo ">> Kiosk mode skipped — Chromium will not launch automatically."
+    echo "   To open the app manually, run: start-server"
+    echo "   Or open a browser and navigate to https://localhost:8443"
+fi
 
 echo ""
 echo "=== Installation complete ==="
@@ -277,6 +291,12 @@ if [ "$DEBUG_MODE" = "yes" ]; then
     echo "   Debug panel enabled — accessible from the Pi only (bug icon in the control bar)."
     echo ""
 fi
+if [ "$KIOSK_MODE" = "yes" ]; then
+    echo "   Kiosk mode enabled — Chromium will launch automatically in fullscreen on startup."
+else
+    echo "   Kiosk mode disabled — open https://localhost:8443 manually in a browser."
+fi
+echo ""
 read -p ">> Reboot now to launch the application automatically? (Y/n) " -n 1 -r
 echo
 if [[ -z "$REPLY" || $REPLY =~ ^[Yy]$ ]]; then

@@ -17,6 +17,10 @@ See it in action [here](https://www.youtube.com/watch?v=dvM6cyqYSw8).
 
 > Be mindful of the plan limits for your API keys and understand the terms of each provider, as scrolling around the map and selecting different locations will incur API calls for every location. Additionally, the weather station will periodically make additional API calls to get weather updates throughout the day. All weather (Tomorrow.io), map tile (Mapbox), and reverse geocoding (LocationIQ) calls are proxied through the server — multiple browser clients share the same quota rather than each consuming it independently. Weather responses are cached server-side, further reducing API usage.
 
+# v2.1.7
+
+- **Kiosk mode is now optional** — `deploy/install.sh` now asks whether to launch Chromium automatically in fullscreen on startup. When declined, the server still starts via systemd but no autostart is configured — the app can be accessed manually at `https://localhost:8443` or from another machine on the network.
+
 # v2.1.6
 
 - **Debug panel — provider status** — A new PROVIDER STATUS section shows the live operational status of external providers (Tomorrow.io, Mapbox via Atlassian Statuspage JSON API; ipapi.co via HTML scraping; LocationIQ via RSS feed). Results are cached 30 minutes server-side.
@@ -122,7 +126,7 @@ It will:
 - Run `npm audit` after each install and automatically apply fixes if vulnerabilities are found — results are saved to `npm-audit.log`
 - Configure and start the systemd service with log redirection to `/tmp/weather-server.log`
 - Install log rotation (`/etc/logrotate.d/weather-server`) — daily rotation, 7 days history, max 10 MB, compressed
-- Deploy `~/.local/bin/start-server` and configure your display server's autostart automatically
+- Optionally enable kiosk mode — deploy `~/.local/bin/start-server` and configure your display server's autostart to launch Chromium in fullscreen automatically (default: yes). When declined, the server still starts via systemd but no autostart is configured
 - Offer to reboot to launch the application automatically (default: yes)
 
 Each prompt shows the default choice in uppercase — pressing Enter accepts the default.
