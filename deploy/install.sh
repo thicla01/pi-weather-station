@@ -335,6 +335,11 @@ if [ "$KIOSK_MODE" = "yes" ]; then
             if grep -q "start-server" "$LXDE_AUTOSTART" 2>/dev/null; then
                 echo ">> $LXDE_AUTOSTART already configured, no changes made."
             else
+                # If no user autostart exists yet, copy the system default first
+                # so lxpanel, pcmanfm and other desktop entries are preserved.
+                if [ ! -f "$LXDE_AUTOSTART" ] && [ -f "/etc/xdg/lxsession/LXDE-pi/autostart" ]; then
+                    cp "/etc/xdg/lxsession/LXDE-pi/autostart" "$LXDE_AUTOSTART"
+                fi
                 echo "@start-server" >> "$LXDE_AUTOSTART"
                 echo ">> $LXDE_AUTOSTART updated."
             fi
