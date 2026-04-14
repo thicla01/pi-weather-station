@@ -17,6 +17,10 @@ See it in action [here](https://www.youtube.com/watch?v=dvM6cyqYSw8).
 
 > Be mindful of the plan limits for your API keys and understand the terms of each provider, as scrolling around the map and selecting different locations will incur API calls for every location. Additionally, the weather station will periodically make additional API calls to get weather updates throughout the day. All weather (Tomorrow.io), map tile (Mapbox), and reverse geocoding (LocationIQ) calls are proxied through the server — multiple browser clients share the same quota rather than each consuming it independently. Weather responses are cached server-side, further reducing API usage.
 
+# v2.1.10
+
+- **LXDE autostart fix** — On Bullseye with X11/LXDE, `install.sh` previously created `~/.config/lxsession/LXDE-pi/autostart` with only `@start-server`, discarding the system default entries (`lxpanel`, `pcmanfm`, `xscreensaver`). Exiting kiosk mode would leave a black screen with no taskbar or desktop. The script now copies the system default first before appending `@start-server`.
+
 # v2.1.9
 
 - **Bullseye — Node.js 22 via nvm (32-bit only)** — On Raspberry Pi OS Bullseye **32-bit** (`armv7l`), `install.sh` now installs Node.js 22 via [nvm](https://github.com/nvm-sh/nvm) instead of NodeSource, which does not provide Node.js 22 packages for `armv7l`. nvm is installed to the user account and Node.js 22 is set as the default version. The systemd service is automatically configured to source nvm at startup via a drop-in override (`nvm.conf`). Bullseye **64-bit** (`aarch64`), Bookworm, and Trixie continue to use NodeSource.
@@ -92,7 +96,7 @@ Security improvements:
 
 # Setup
 
-> **Node.js requirement:** Node.js 18 or later is required. On **Bullseye 32-bit** (`armv7l`), `install.sh` installs Node.js 22 via [nvm](https://github.com/nvm-sh/nvm) — NodeSource does not provide Node.js 22 packages for `armv7l`. On **Bullseye 64-bit** (`aarch64`), **Bookworm (Debian 12)**, and **Trixie (Debian 13)**, Node.js 22 is installed via NodeSource.
+> **Node.js requirement:** Node.js 18 or later is required. `install.sh` installs Node.js 22 on all supported platforms — via [nvm](https://github.com/nvm-sh/nvm) on Bullseye 32-bit (`armv7l`, where NodeSource has no packages), and via NodeSource on Bullseye 64-bit (`aarch64`), Bookworm (Debian 12), and Trixie (Debian 13).
 
 > **API keys:** If you use the automated install (Option 1), the script will offer to configure your API keys automatically. For a manual setup, copy the example settings file and edit it:
 
@@ -131,7 +135,7 @@ bash deploy/install.sh
 ```
 
 It will:
-- Check for Node.js (v18 minimum) and offer to install it if missing or outdated — via nvm on Bullseye, via NodeSource on Bookworm/Trixie
+- Check for Node.js (v18 minimum) and offer to install Node.js 22 if missing or outdated — via nvm on Bullseye 32-bit, via NodeSource on all other platforms
 - Optionally configure your API keys and create `settings.json`
 - Optionally enable remote access from other machines on the network (see [Access from another machine](#access-from-another-machine))
 - Optionally enable the debug panel (see [Debug panel](#debug-panel))
