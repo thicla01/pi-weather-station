@@ -174,6 +174,16 @@ cp deploy/start-server ~/.local/bin/start-server
 chmod +x ~/.local/bin/start-server
 ```
 
+> **Bullseye 32-bit with nvm:** If you installed Node.js via nvm (see Node.js requirement above), systemd does not load the shell profile where nvm is initialized. Create an additional drop-in to source nvm explicitly — replace `~/.config/nvm` with `~/.nvm` if that is where nvm was installed:
+> ```bash
+> cat > ~/.config/systemd/user/pi-weather-server.service.d/nvm.conf << 'EOF'
+> [Service]
+> ExecStart=
+> ExecStart=/bin/bash -c '. $HOME/.config/nvm/nvm.sh && exec npm start'
+> EOF
+> systemctl --user daemon-reload
+> ```
+
 Then configure your display server's autostart to launch `start-server`. This script waits for the server to be ready, automatically detects whether it started on port 8443 (HTTPS) or 8080 (HTTP), and automatically detects the Chromium binary (`chromium` on Bookworm/Trixie, `chromium-browser` on Bullseye).
 
 **labwc** (default on Trixie/Debian 13):
@@ -189,17 +199,13 @@ cp deploy/autostart ~/.config/labwc/autostart
 start-server = start-server
 ```
 
-**X11/LXDE** (default on Bullseye/Debian 11) — add to `~/.config/lxsession/LXDE-pi/autostart`:
+**X11/LXDE** (default on Bullseye/Debian 11) — if `~/.config/lxsession/LXDE-pi/autostart` does not exist yet, copy the system default first to preserve the desktop entries, then append `start-server`:
 
 ```bash
-@start-server
+[ ! -f ~/.config/lxsession/LXDE-pi/autostart ] && \
+  cp /etc/xdg/lxsession/LXDE-pi/autostart ~/.config/lxsession/LXDE-pi/autostart
+echo "@start-server" >> ~/.config/lxsession/LXDE-pi/autostart
 ```
-
-> **Headless Bullseye (no physical screen):** If the desktop panel (taskbar) is missing after boot, also add these lines to the same autostart file:
-> ```
-> @lxpanel --profile LXDE-pi
-> @pcmanfm --desktop --profile LXDE-pi
-> ```
 
 View logs with:
 
@@ -239,17 +245,13 @@ start-weather &
 weather = start-weather
 ```
 
-**X11/LXDE** (default on Bullseye/Debian 11) — add to `~/.config/lxsession/LXDE-pi/autostart`:
+**X11/LXDE** (default on Bullseye/Debian 11) — if `~/.config/lxsession/LXDE-pi/autostart` does not exist yet, copy the system default first to preserve the desktop entries, then append `start-weather`:
 
 ```bash
-@start-weather
+[ ! -f ~/.config/lxsession/LXDE-pi/autostart ] && \
+  cp /etc/xdg/lxsession/LXDE-pi/autostart ~/.config/lxsession/LXDE-pi/autostart
+echo "@start-weather" >> ~/.config/lxsession/LXDE-pi/autostart
 ```
-
-> **Headless Bullseye (no physical screen):** If the desktop panel (taskbar) is missing after boot, also add these lines to the same autostart file:
-> ```
-> @lxpanel --profile LXDE-pi
-> @pcmanfm --desktop --profile LXDE-pi
-> ```
 
 View logs with:
 
