@@ -1,0 +1,47 @@
+.container {
+  margin-top: 10px;
+  padding-left: 10px;
+  border-left: 2px solid rgba(99, 179, 237, 0.6);
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.line {
+  flex: 1;
+  height: 1px;
+  background: rgba(128, 128, 128, 0.2);
+}
+
+.label {
+  font-family: "Rubik", sans-serif;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  opacity: 0.45;
+  white-space: nowrap;
+}
+
+.text {
+  font-family: "Rubik", sans-serif;
+  font-size: 13px;
+  line-height: 1.55;
+  margin: 0 0 6px 0;
+  font-style: italic;
+}
+
+.dark .text {
+  color: rgba(99, 179, 237, 0.85);
+}
+
+.light .text {
+  color: rgba(37, 99, 172, 0.85);
+}
+
+.text:last-child {
+  margin-bottom: 0;
+}

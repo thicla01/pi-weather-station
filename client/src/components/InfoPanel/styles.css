@@ -28,6 +28,8 @@
 
 .weather-info-container {
   grid-area: weather-info;
+  overflow-y: auto;
+  min-height: 0;
 }
 
 .controls {

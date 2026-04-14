@@ -5,6 +5,7 @@
     "mapsApiKey": "CLAVE API MAPAS",
     "weatherApiKey": "CLAVE API CLIMA",
     "geoApiKey": "CLAVE API GEOLOCALIZACIÓN",
+    "anthropicApiKey": "CLAVE API ANTHROPIC (RESUMEN IA)",
     "customLat": "LATITUD DE INICIO PERSONALIZADA",
     "customLon": "LONGITUD DE INICIO PERSONALIZADA",
     "units": "UNIDADES",

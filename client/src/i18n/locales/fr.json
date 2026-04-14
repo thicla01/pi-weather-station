@@ -5,6 +5,7 @@
     "mapsApiKey": "CLÉ API CARTES",
     "weatherApiKey": "CLÉ API MÉTÉO",
     "geoApiKey": "CLÉ API GÉOLOCALISATION",
+    "anthropicApiKey": "CLÉ API ANTHROPIC (RÉSUMÉ IA)",
     "customLat": "LATITUDE DE DÉPART PERSONNALISÉE",
     "customLon": "LONGITUDE DE DÉPART PERSONNALISÉE",
     "units": "UNITÉS",

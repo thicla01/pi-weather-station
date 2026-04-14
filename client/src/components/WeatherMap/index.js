@@ -153,7 +153,7 @@ const WeatherMap = ({ zoom, dark }) => {
         <TileLayer
           attribution='<a href="https://www.rainviewer.com/">RainViewer</a>'
           url={`https://tilecache.rainviewer.com${mapTimestamp.path}/512/{z}/{x}/{y}/6/1_1.png`}
-          opacity={0.3}
+          opacity={dark ? 0.3 : 0.6}
           maxNativeZoom={7}
         />
       ) : null}

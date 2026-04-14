@@ -1,5 +1,6 @@
 .container {
   padding: 0px 10px;
+  overflow-y: auto;
 }
 
 .location {
@@ -9,6 +10,37 @@
 .weather-chart {
   display: flex;
   justify-content: center;
+}
+
+.chart-legend {
+  display: flex;
+  gap: 14px;
+  margin-bottom: 2px;
+  padding: 0 2px;
+}
+
+.legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  font-family: "Rubik", sans-serif;
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+.legend-dot {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.legend-dot-gray {
+  background: rgba(127, 127, 127, 0.8);
+}
+
+.legend-dot-blue {
+  background: rgba(63, 127, 191, 0.8);
 }
 
 .loading-container {

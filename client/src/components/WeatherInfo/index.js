@@ -7,6 +7,7 @@ import LocationName from "~/components/LocationName";
 import CurrentWeather from "~/components/CurrentWeather";
 import DailyChart from "~/components/weatherCharts/DailyChart";
 import HourlyChart from "~/components/weatherCharts/HourlyChart";
+import AiSummary from "~/components/AiSummary";
 
 const CURRENT_WEATHER_DATA_UPDATE_INTERVAL = 10 * 60 * 1000; //every 10 minutes
 const HOURLY_WEATHER_DATA_UPDATE_INTERVAL = 60 * 60 * 1000; //every hour
@@ -155,12 +156,23 @@ const WeatherInfo = () => {
         <div>
           <CurrentWeather />
         </div>
+        <div className={styles.chartLegend}>
+          <span className={styles.legendItem}>
+            <span className={`${styles.legendDot} ${styles.legendDotGray}`} />
+            {t("charts.temp")} / {t("charts.windSpeed")}
+          </span>
+          <span className={styles.legendItem}>
+            <span className={`${styles.legendDot} ${styles.legendDotBlue}`} />
+            {t("charts.precipitation")}
+          </span>
+        </div>
         <div className={styles.weatherChart}>
           <HourlyChart />
         </div>
         <div className={styles.weatherChart}>
           <DailyChart />
         </div>
+        <AiSummary />
       </div>
     );
   } else if (currentWeatherData || currentWeatherDataErr || err) {

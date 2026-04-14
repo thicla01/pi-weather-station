@@ -23,6 +23,7 @@ export function AppContextProvider({ children }) {
   const [weatherApiKey, setWeatherApiKey] = useState(null);
   const [mapApiKey, setMapApiKey] = useState(null);
   const [reverseGeoApiKey, setReverseGeoApiKey] = useState(null);
+  const [anthropicApiKey, setAnthropicApiKey] = useState(null);
   const [browserGeo, setBrowserGeo] = useState(null);
   const [mapGeo, setMapGeo] = useState(null);
   const [darkMode, setDarkMode] = useState(true);
@@ -177,6 +178,9 @@ export function AppContextProvider({ children }) {
             }
             if (startingLon) {
               setCustomLon(startingLon);
+            }
+            if (res.anthropicApiKey) {
+              setAnthropicApiKey(res.anthropicApiKey);
             }
           }
           resolve(res);
@@ -515,13 +519,14 @@ export function AppContextProvider({ children }) {
    * @param {String} [settings.lon]
    * @returns {Promise} Resolves when complete
    */
-  function saveSettingsToJson({ mapsKey, weatherKey, geoKey, lat, lon }) {
+  function saveSettingsToJson({ mapsKey, weatherKey, geoKey, anthropicKey, lat, lon }) {
     return new Promise((resolve, reject) => {
       axios
         .put("/settings", {
           weatherApiKey: weatherKey,
           mapApiKey: mapsKey,
           reverseGeoApiKey: geoKey,
+          anthropicApiKey: anthropicKey,
           startingLat: lat,
           startingLon: lon,
         })
@@ -530,6 +535,7 @@ export function AppContextProvider({ children }) {
           setMapApiKey(mapsKey);
           setWeatherApiKey(weatherKey);
           setReverseGeoApiKey(geoKey);
+          setAnthropicApiKey(anthropicKey);
           setCustomLat(lat);
           setCustomLon(lon);
         })
@@ -544,6 +550,7 @@ export function AppContextProvider({ children }) {
     getWeatherApiKey,
     reverseGeoApiKey,
     getReverseGeoApiKey,
+    anthropicApiKey,
     mapApiKey,
     getMapApiKey,
     browserGeo,

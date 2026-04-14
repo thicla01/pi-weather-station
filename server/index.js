@@ -12,6 +12,7 @@ const settingsCtrl = require("./settingsCtrl");
 const geolocationCtrl = require("./geolocationCtrl");
 const proxyCtrl = require("./proxyCtrl");
 const debugCtrl = require("./debugCtrl");
+const aiSummaryCtrl = require("./aiSummaryCtrl");
 
 const {
   getSettings,
@@ -23,6 +24,7 @@ const {
 const { getCoords } = geolocationCtrl;
 const { reverseGeocode: proxyReverseGeocode, mapTile, weatherCurrent, weatherHourly, weatherDaily, sunriseSunset, saveCacheToDisk } = proxyCtrl;
 const { getDebugInfo, logSecurityEvent, initServerInfo } = debugCtrl;
+const { getWeatherSummary } = aiSummaryCtrl;
 
 const DIST_DIR = "/../client/dist";
 const PORT = 8080;
@@ -146,6 +148,8 @@ app.get("/api/weather/current", weatherCurrent);
 app.get("/api/weather/hourly", weatherHourly);
 app.get("/api/weather/daily", weatherDaily);
 app.get("/api/sunrise-sunset", sunriseSunset);
+
+app.get("/api/weather-summary", getWeatherSummary);
 
 app.get("/api/debug", debugLocalhostOnly, getDebugInfo);
 

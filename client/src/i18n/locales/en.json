@@ -5,6 +5,7 @@
     "mapsApiKey": "MAPS API KEY",
     "weatherApiKey": "WEATHER API KEY",
     "geoApiKey": "GEOLOCATION API KEY",
+    "anthropicApiKey": "ANTHROPIC API KEY (AI SUMMARY)",
     "customLat": "CUSTOM STARTING LATITUDE",
     "customLon": "CUSTOM STARTING LONGITUDE",
     "units": "UNITS",
