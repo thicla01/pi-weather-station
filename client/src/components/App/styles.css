@@ -27,6 +27,8 @@
 
 .info-container {
   grid-area: info;
+  height: 100vh;
+  overflow: hidden;
 }
 
 .dark .info-container {
