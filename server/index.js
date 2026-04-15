@@ -1,3 +1,10 @@
+// Prefix all console output with an ISO timestamp for log readability
+const _origLog = console.log.bind(console);
+const _origErr = console.error.bind(console);
+const _ts = () => new Date().toISOString().replace("T", " ").slice(0, 19);
+console.log   = (...args) => _origLog(`[${_ts()}]`, ...args);
+console.error = (...args) => _origErr(`[${_ts()}]`, ...args);
+
 const express = require("express");
 const bodyParser = require("body-parser");
 const path = require("path");
