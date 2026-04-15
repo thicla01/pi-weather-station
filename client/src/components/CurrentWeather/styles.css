@@ -64,3 +64,11 @@
   margin-left: 2px;
   font-size: 8px;
 }
+
+.temp-unit {
+  display: inline-flex;
+  align-items: flex-start;
+  font-size: 0.45em;
+  line-height: 1;
+  margin-top: 6px;
+}
