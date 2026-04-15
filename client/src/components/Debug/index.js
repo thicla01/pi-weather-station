@@ -108,7 +108,7 @@ const Debug = () => {
           </div>
           <div
             className={styles.exportButton}
-            onClick={() => exportKpiCsv(data?.serverKpis, clientMetrics, fps)}
+            onClick={() => exportDebugCsv(data, clientMetrics, fps)}
           >
             <span className={styles.refreshIcon}>
               <InlineIcon icon={downloadIcon} />
@@ -580,54 +580,158 @@ AuditSection.propTypes = {
   audit: PropTypes.string,
 };
 
-function exportKpiCsv(serverKpis, clientMetrics, fps) {
+function exportDebugCsv(data, clientMetrics, fps) {
   const q = (val) => `"${String(val ?? "").replace(/"/g, '""')}"`;
   const rows = [];
 
+  const section = (title) => {
+    rows.push([]);
+    rows.push([q(`=== ${title} ===`)]);
+  };
+
+  // Header
   rows.push([q("Generated at"), q(new Date().toLocaleString())]);
-  rows.push([]);
+  if (data?.appVersion) {
+    rows.push([q("App version"), q(`${data.appVersion.name} v${data.appVersion.version} · ${data.appVersion.commit}`)]);
+    if (data.appVersion.branch) {
+      rows.push([q("Branch"), q(data.appVersion.branch)]);
+    }
+  }
+  if (data?.system) {
+    rows.push([q("Hardware"), q(data.system.hardware)]);
+    rows.push([q("OS"),       q(data.system.os)]);
+  }
+  if (data?.network) {
+    const urls = data.network.urls?.length > 0
+      ? data.network.urls.join(" | ")
+      : `${data.network.protocol}://localhost:${data.network.port}`;
+    rows.push([q("Server URLs"), q(urls)]);
+  }
+  if (data?.connectivity) {
+    const status = data.connectivity.online
+      ? `Online${data.connectivity.latencyMs != null ? ` (${data.connectivity.latencyMs}ms)` : ""}`
+      : "Offline";
+    rows.push([q("Internet"), q(status)]);
+  }
 
   // Server KPIs
-  rows.push([q("SERVER KPIs"), q("VALUE")]);
-  if (serverKpis) {
-    rows.push([q("Uptime"),           q(formatUptime(serverKpis.uptimeSec))]);
-    rows.push([q("Heap Used (MB)"),   q(serverKpis.memory.heapUsedMb)]);
-    rows.push([q("Heap Total (MB)"),  q(serverKpis.memory.heapTotalMb)]);
-    rows.push([q("RSS (MB)"),         q(serverKpis.memory.rssMb)]);
-    const { rate } = serverKpis.cache;
+  section("SERVER KPIs");
+  rows.push([q("METRIC"), q("VALUE")]);
+  if (data?.serverKpis) {
+    const kpis = data.serverKpis;
+    const { rate } = kpis.cache;
+    rows.push([q("Uptime"),             q(formatUptime(kpis.uptimeSec))]);
+    rows.push([q("Heap Used (MB)"),     q(kpis.memory.heapUsedMb)]);
+    rows.push([q("Heap Total (MB)"),    q(kpis.memory.heapTotalMb)]);
+    rows.push([q("RSS (MB)"),           q(kpis.memory.rssMb)]);
     rows.push([q("Cache Hit Rate (%)"), q(rate !== null ? rate : "N/A")]);
-    rows.push([q("Cache Hits"),   q(serverKpis.cache.hits)]);
-    rows.push([q("Cache Misses"), q(serverKpis.cache.misses)]);
+    rows.push([q("Cache Hits"),         q(kpis.cache.hits)]);
+    rows.push([q("Cache Misses"),       q(kpis.cache.misses)]);
   } else {
     rows.push([q("(no data)")]);
   }
-  rows.push([]);
 
   // Server Response Times
-  if (serverKpis?.responseTimes?.length > 0) {
-    rows.push([q("SERVER RESPONSE TIMES"), q("Count"), q("Avg (ms)"), q("Min (ms)"), q("Max (ms)")]);
-    serverKpis.responseTimes.forEach((r) => {
+  if (data?.serverKpis?.responseTimes?.length > 0) {
+    section("SERVER RESPONSE TIMES");
+    rows.push([q("ENDPOINT"), q("COUNT"), q("AVG (ms)"), q("MIN (ms)"), q("MAX (ms)")]);
+    data.serverKpis.responseTimes.forEach((r) => {
       rows.push([q(r.endpoint), q(r.count), q(r.avgMs), q(r.minMs), q(r.maxMs)]);
     });
-    rows.push([]);
   }
 
   // Client KPIs
-  rows.push([q("CLIENT KPIs"), q("VALUE")]);
+  section("CLIENT KPIs");
+  rows.push([q("METRIC"), q("VALUE")]);
   rows.push([q("Page Load (ms)"), q(clientMetrics?.pageLoad ?? "N/A")]);
   rows.push([q("FPS"),            q(fps ?? "N/A")]);
   if (clientMetrics?.heap) {
     rows.push([q("JS Heap Used (MB)"),  q(clientMetrics.heap.used)]);
     rows.push([q("JS Heap Total (MB)"), q(clientMetrics.heap.total)]);
   }
-  rows.push([]);
 
   // Client API Calls
   if (clientMetrics?.apiCalls?.length > 0) {
-    rows.push([q("CLIENT API CALLS (SESSION)"), q("Count"), q("Avg (ms)"), q("Min (ms)"), q("Max (ms)")]);
+    section("CLIENT API CALLS (SESSION)");
+    rows.push([q("ENDPOINT"), q("COUNT"), q("AVG (ms)"), q("MIN (ms)"), q("MAX (ms)")]);
     clientMetrics.apiCalls.forEach((r) => {
       rows.push([q(r.endpoint), q(r.count), q(r.avgMs), q(r.minMs), q(r.maxMs)]);
     });
+  }
+
+  // Provider Status
+  if (data?.providerStatus?.providers?.length > 0) {
+    section("PROVIDER STATUS");
+    rows.push([q("PROVIDER"), q("INDICATOR"), q("DESCRIPTION")]);
+    data.providerStatus.providers.forEach(({ name, indicator, description }) => {
+      rows.push([q(name), q(indicator.toUpperCase()), q(description)]);
+    });
+  }
+
+  // Services
+  if (data?.services && Object.keys(data.services).length > 0) {
+    section("SERVICES");
+    rows.push([q("SERVICE"), q("STATUS"), q("LAST CALL"), q("COMMENT")]);
+    Object.entries(data.services).forEach(([name, info]) => {
+      rows.push([q(name), q(info.status), q(new Date(info.lastCall).toLocaleString()), q(info.comment)]);
+    });
+  }
+
+  // Quotas
+  if (data?.counters && Object.keys(data.counters).length > 0) {
+    Object.entries(data.counters).forEach(([service, { quotas, endpoints }]) => {
+      section(`QUOTAS — ${(SERVICE_LABELS[service] || service).toUpperCase()}`);
+      const showHour  = quotas.hour  != null;
+      const showDay   = quotas.day   != null;
+      const showMonth = quotas.month != null;
+      const headers = [q("ENDPOINT")];
+      if (showHour)  headers.push(q("THIS HOUR"));
+      if (showDay)   headers.push(q("TODAY"));
+      if (showMonth) headers.push(q("THIS MONTH"));
+      rows.push(headers);
+      Object.entries(endpoints).forEach(([ep, c]) => {
+        const row = [q(ep)];
+        if (showHour)  row.push(q(c.hour));
+        if (showDay)   row.push(q(c.day));
+        if (showMonth) row.push(q(c.month));
+        rows.push(row);
+      });
+    });
+  }
+
+  // Cache
+  if (data?.cache?.length > 0) {
+    section("CACHE");
+    rows.push([q("TYPE"), q("LAT"), q("LON"), q("TTL (s)")]);
+    data.cache.forEach((entry) => {
+      const [type, lat, lon] = entry.key.split(":");
+      rows.push([q(type), q(lat), q(lon), q(entry.expired ? "EXPIRED" : entry.expiresIn)]);
+    });
+  }
+
+  // Remote Clients
+  if (data?.remoteClients?.length > 0) {
+    section("REMOTE CLIENTS");
+    rows.push([q("IP ADDRESS"), q("FIRST SEEN"), q("LAST SEEN"), q("REQUESTS")]);
+    data.remoteClients.forEach((c) => {
+      rows.push([q(c.ip), q(new Date(c.firstSeen).toLocaleString()), q(new Date(c.lastSeen).toLocaleString()), q(c.requestCount)]);
+    });
+  }
+
+  // Security Events
+  if (data?.securityEvents?.length > 0) {
+    section("SECURITY EVENTS");
+    rows.push([q("METHOD"), q("URL"), q("IP"), q("TIME")]);
+    data.securityEvents.forEach((e) => {
+      rows.push([q(e.method), q(e.url), q(e.ip), q(e.time)]);
+    });
+  }
+
+  // Logs
+  if (data?.logs?.length > 0) {
+    section("LOGS");
+    rows.push([q("LINE")]);
+    data.logs.forEach((line) => rows.push([q(line)]));
   }
 
   // UTF-8 BOM for Excel compatibility
@@ -636,7 +740,7 @@ function exportKpiCsv(serverKpis, clientMetrics, fps) {
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
   a.href = url;
-  a.download = `weather-station-kpi-${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.csv`;
+  a.download = `weather-station-debug-${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.csv`;
   document.body.appendChild(a);
   a.click();
   document.body.removeChild(a);
