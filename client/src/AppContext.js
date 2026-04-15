@@ -517,6 +517,7 @@ export function AppContextProvider({ children }) {
    * @param {String} [settings.mapsKey]
    * @param {String} [settings.weatherKey]
    * @param {String} [settings.geoKey]
+   * @param {String} [settings.anthropicKey]
    * @param {String} [settings.lat]
    * @param {String} [settings.lon]
    * @returns {Promise} Resolves when complete

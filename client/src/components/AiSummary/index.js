@@ -12,7 +12,7 @@ const REFRESH_INTERVAL = 15 * 60 * 1000;
  * AI-generated weather summary powered by Claude.
  * Renders nothing if the Anthropic API key is not configured (feature is optional).
  *
- * @returns {JSX.Element|null}
+ * @returns {JSX.Element|null} AI summary block, or null if unavailable
  */
 const AiSummary = () => {
   const { mapGeo, darkMode } = useContext(AppContext);

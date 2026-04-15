@@ -517,7 +517,7 @@ function formatUptime(seconds) {
  *
  * @param {Object} props
  * @param {Object} props.serverKpis
- * @returns {JSX.Element}
+ * @returns {JSX.Element} Server KPI section
  */
 const ServerKpiSection = ({ serverKpis }) => {
   const { t } = useTranslation();
@@ -615,7 +615,7 @@ ServerKpiSection.propTypes = {
 /**
  * Client KPI section — page load, FPS, API call durations, JS heap
  *
- * @returns {JSX.Element}
+ * @returns {JSX.Element} Client KPI section
  */
 const ClientKpiSection = () => {
   const { t } = useTranslation();
@@ -625,7 +625,7 @@ const ClientKpiSection = () => {
 
   useEffect(() => {
     // Page load time
-    const navEntry = performance.getEntriesByType("navigation")[0];
+    const [navEntry] = performance.getEntriesByType("navigation");
     const pageLoad = navEntry ? Math.round(navEntry.loadEventEnd) : null;
 
     // JS heap (Chrome / Electron only)
@@ -641,8 +641,8 @@ const ClientKpiSection = () => {
     performance.getEntriesByType("resource")
       .filter((r) => r.name.includes("/api/"))
       .forEach((r) => {
-        const url = new URL(r.name);
-        const key = url.pathname.replace(/\/[0-9]+\/[0-9]+\/[0-9]+$/, "/:z/:x/:y").split("?")[0];
+        const { pathname } = new URL(r.name);
+        const [key] = pathname.replace(/\/[0-9]+\/[0-9]+\/[0-9]+$/, "/:z/:x/:y").split("?");
         const ms = Math.round(r.duration);
         if (!grouped[key]) grouped[key] = { count: 0, totalMs: 0, minMs: Infinity, maxMs: 0 };
         grouped[key].count++;

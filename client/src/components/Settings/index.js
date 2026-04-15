@@ -204,6 +204,7 @@ export default Settings;
  * @param {String} [props.mapsKey]
  * @param {String} [props.weatherKey]
  * @param {String} [props.geoKey]
+ * @param {String} [props.anthropicKey]
  * @param {String} [props.lat]
  * @param {String} [props.lon]
  * @returns {JSX.Element} Save button
