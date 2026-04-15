@@ -125,9 +125,10 @@ export function AppContextProvider({ children }) {
   }
 
   /**
-   * Toggles debug menu open/closed
+   * Toggles debug menu open/closed — closes settings panel if open
    */
   function toggleDebugMenuOpen() {
+    if (!debugMenuOpen) setSettingsMenuOpen(false);
     setDebugMenuOpen(!debugMenuOpen);
   }
 
@@ -502,9 +503,10 @@ export function AppContextProvider({ children }) {
   }
 
   /**
-   * Toggles settings menu open/closed
+   * Toggles settings menu open/closed — closes debug panel if open
    */
   function toggleSettingsMenuOpen() {
+    if (!settingsMenuOpen) setDebugMenuOpen(false);
     setSettingsMenuOpen(!settingsMenuOpen);
   }
 
