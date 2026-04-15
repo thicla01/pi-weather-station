@@ -8,7 +8,6 @@ import {
 } from "~/services/conversions";
 
 import { InlineIcon } from "@iconify/react";
-import degreesIcon from "@iconify/icons-wi/degrees";
 import nightClear from "@iconify/icons-wi/night-clear";
 import daySunny from "@iconify/icons-wi/day-sunny";
 import dayCloudy from "@iconify/icons-wi/day-cloudy";
@@ -56,7 +55,9 @@ const CurrentWeather = () => {
     return (
       <div className={styles.container}>
         <div className={styles.currentTemp}>
-          {convertTemp(temperature, tempUnit)}<span className={styles.tempUnit}><InlineIcon icon={degreesIcon} />{tempUnit.toUpperCase()}</span>
+          <div className={styles.tempDisplay}>
+            {convertTemp(temperature, tempUnit)}<span className={styles.tempUnit}>°{tempUnit.toUpperCase()}</span>
+          </div>
         </div>
         <div className={styles.iconContainer}>
           <div className={styles.weatherIcon}>

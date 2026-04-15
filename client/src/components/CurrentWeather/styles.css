@@ -65,10 +65,12 @@
   font-size: 8px;
 }
 
-.temp-unit {
-  display: inline-flex;
+.temp-display {
+  display: flex;
   align-items: flex-start;
-  font-size: 0.45em;
-  line-height: 1;
-  margin-top: 6px;
+}
+
+.temp-unit {
+  font-size: 0.6em;
+  padding-top: 8px;
 }
