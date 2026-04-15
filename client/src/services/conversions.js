@@ -10,10 +10,10 @@ const cToF = (c) => {
 };
 
 /**
- * Convert temperature to celsius if needed
+ * Convert temperature to the target unit
  *
  * @param {Number} c temperature in celsius
- * @param {String} units `f` for fahrenheit, `c` for celsius
+ * @param {String} units `f` for fahrenheit, `c` for celsius, `k` for kelvin
  * @returns {Number} converted temperature
  */
 export const convertTemp = (c, units) => {
@@ -26,6 +26,8 @@ export const convertTemp = (c, units) => {
     return parseInt(c);
   } else if (units && units.toLowerCase() === "f") {
     return parseInt(cToF(c));
+  } else if (units && units.toLowerCase() === "k") {
+    return Math.round(c + 273.15);
   } else {
     console.log("Missing / invalid target unit!", units);
     return null;

@@ -271,11 +271,12 @@ const ToggleButtons = () => {
       <div className={styles.toggleButtons}>
         <div>
           <ToggleButton
-            button1Label={"F"}
-            button2Label={"C"}
+            options={[
+              { label: "F", value: "f" },
+              { label: "C", value: "c" },
+              { label: "K", value: "k" },
+            ]}
             val={tempUnit}
-            button1Val={"f"}
-            button2Val={"c"}
             cb={saveTempUnit}
           />
         </div>

@@ -56,7 +56,7 @@ const CurrentWeather = () => {
       <div className={styles.container}>
         <div className={styles.currentTemp}>
           <div className={styles.tempDisplay}>
-            {convertTemp(temperature, tempUnit)}<span className={styles.tempUnit}>°{tempUnit.toUpperCase()}</span>
+            {convertTemp(temperature, tempUnit)}<span className={styles.tempUnit}>{tempUnit === "k" ? "K" : `°${tempUnit.toUpperCase()}`}</span>
           </div>
         </div>
         <div className={styles.iconContainer}>
