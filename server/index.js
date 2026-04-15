@@ -31,6 +31,7 @@ const {
 const { getCoords } = geolocationCtrl;
 const { reverseGeocode: proxyReverseGeocode, mapTile, weatherCurrent, weatherHourly, weatherDaily, sunriseSunset, saveCacheToDisk } = proxyCtrl;
 const { responseTimerMiddleware } = require("./responseTimer");
+const { recordClient } = require("./clientTracker");
 const { getDebugInfo, logSecurityEvent, initServerInfo } = debugCtrl;
 const { getWeatherSummary } = aiSummaryCtrl;
 
@@ -104,6 +105,12 @@ app.use(express.static(path.join(`${__dirname}/${DIST_DIR}`)));
 app.use(responseTimerMiddleware);
 
 const isLocalhostIp = (ip) => ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1";
+
+app.use((req, res, next) => {
+  const ip = req.socket.remoteAddress;
+  if (!isLocalhostIp(ip)) recordClient(ip);
+  next();
+});
 
 const localhostOnly = (req, res, next) => {
   const ip = req.socket.remoteAddress;

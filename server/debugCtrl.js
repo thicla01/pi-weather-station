@@ -7,6 +7,7 @@ const { weatherCache, getCacheStats } = require("./proxyCtrl");
 const { getServiceStatus } = require("./serviceStatus");
 const { getCounters } = require("./requestCounter");
 const { getResponseTimeStats } = require("./responseTimer");
+const { getRemoteClients } = require("./clientTracker");
 
 const PROVIDER_STATUS_TTL = 30 * 60 * 1000;
 
@@ -198,7 +199,8 @@ async function getDebugInfo(req, res) {
 
   let logs = [];
   try {
-    const content = fs.readFileSync("/tmp/weather-server.log", "utf8");
+    const logPath = path.join(__dirname, "../server.log");
+    const content = fs.readFileSync(logPath, "utf8");
     logs = content.trim().split("\n").filter(Boolean).slice(-LOG_LINES);
   } catch {
     logs = ["Log file not available"];
@@ -228,7 +230,7 @@ async function getDebugInfo(req, res) {
     responseTimes: getResponseTimeStats(),
   };
 
-  return res.status(200).json({ cache, logs, audit, securityEvents, services: getServiceStatus(), counters: getCounters(), system: getSystemInfo(), network: getNetworkInfo(), providerStatus, connectivity, appVersion: getAppVersion(), serverKpis });
+  return res.status(200).json({ cache, logs, audit, securityEvents, services: getServiceStatus(), counters: getCounters(), system: getSystemInfo(), network: getNetworkInfo(), providerStatus, connectivity, appVersion: getAppVersion(), serverKpis, remoteClients: getRemoteClients() });
 }
 
 module.exports = { getDebugInfo, logSecurityEvent, initServerInfo };

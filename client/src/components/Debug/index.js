@@ -130,6 +130,7 @@ const Debug = () => {
           <QuotaSection counters={data?.counters} />
           <CacheSection cache={data?.cache} />
           <LogsSection logs={data?.logs} />
+          <RemoteClientsSection clients={data?.remoteClients} />
           <SecuritySection events={data?.securityEvents} />
           <AuditSection audit={data?.audit} />
         </div>
@@ -455,6 +456,56 @@ const LogsSection = ({ logs }) => {
 
 LogsSection.propTypes = {
   logs: PropTypes.arrayOf(PropTypes.string),
+};
+
+/**
+ * Remote clients section — IP addresses that have connected since last restart
+ *
+ * @param {Object} props
+ * @param {Array} props.clients List of remote client entries
+ * @returns {JSX.Element} Remote clients section
+ */
+const RemoteClientsSection = ({ clients }) => {
+  const { t } = useTranslation();
+  return (
+    <div className={styles.section}>
+      <div className={styles.sectionTitle}>
+        {t("debug.remoteClients")}
+        {clients && clients.length > 0 && (
+          <span className={styles.providerFetchedAt}> — {clients.length}</span>
+        )}
+      </div>
+      {!clients || clients.length === 0 ? (
+        <div className={styles.empty}>{t("debug.noRemoteClients")}</div>
+      ) : (
+        <div className={styles.serviceTable}>
+          <div className={styles.serviceHeader}>
+            <span>{t("debug.clientIp")}</span>
+            <span>{t("debug.clientFirstSeen")}</span>
+            <span>{t("debug.clientLastSeen")}</span>
+            <span>{t("debug.clientRequests")}</span>
+          </div>
+          {clients.map((c) => (
+            <div className={styles.serviceEntry} key={c.ip}>
+              <span className={styles.serviceName}>{c.ip}</span>
+              <span className={styles.serviceTime}>{new Date(c.firstSeen).toLocaleTimeString()}</span>
+              <span className={styles.serviceTime}>{new Date(c.lastSeen).toLocaleTimeString()}</span>
+              <span className={styles.serviceComment}>{c.requestCount}</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+};
+
+RemoteClientsSection.propTypes = {
+  clients: PropTypes.arrayOf(PropTypes.shape({
+    ip: PropTypes.string,
+    firstSeen: PropTypes.number,
+    lastSeen: PropTypes.number,
+    requestCount: PropTypes.number,
+  })),
 };
 
 /**
