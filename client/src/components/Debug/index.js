@@ -458,6 +458,16 @@ LogsSection.propTypes = {
   logs: PropTypes.arrayOf(PropTypes.string),
 };
 
+function formatClientTime(ts) {
+  const d = new Date(ts);
+  const today = new Date();
+  const sameDay = d.getFullYear() === today.getFullYear()
+    && d.getMonth() === today.getMonth()
+    && d.getDate() === today.getDate();
+  if (sameDay) return d.toLocaleTimeString();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${d.toLocaleTimeString()}`;
+}
+
 /**
  * Remote clients section — IP addresses that have connected since last restart
  *
@@ -488,8 +498,8 @@ const RemoteClientsSection = ({ clients }) => {
           {clients.map((c) => (
             <div className={styles.serviceEntry} key={c.ip}>
               <span className={styles.serviceName}>{c.ip}</span>
-              <span className={styles.serviceTime}>{new Date(c.firstSeen).toLocaleTimeString()}</span>
-              <span className={styles.serviceTime}>{new Date(c.lastSeen).toLocaleTimeString()}</span>
+              <span className={styles.serviceTime}>{formatClientTime(c.firstSeen)}</span>
+              <span className={styles.serviceTime}>{formatClientTime(c.lastSeen)}</span>
               <span className={styles.serviceComment}>{c.requestCount}</span>
             </div>
           ))}
