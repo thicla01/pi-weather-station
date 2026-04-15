@@ -8,6 +8,9 @@
   font-family: "Rubik", sans-serif;
   border-right: 1px solid rgba(0, 0, 0, 0.15);
   position: relative;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
 
 .header {
@@ -17,6 +20,8 @@
 .settings-container {
   margin-top: 20px;
   font-size: 14px;
+  overflow-y: auto;
+  flex: 1;
 }
 
 .input-container {
