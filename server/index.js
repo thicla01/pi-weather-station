@@ -1,7 +1,10 @@
 // Prefix all console output with an ISO timestamp for log readability
 const _origLog = console.log.bind(console);
 const _origErr = console.error.bind(console);
-const _ts = () => new Date().toISOString().replace("T", " ").slice(0, 19);
+const _ts = () => {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
+};
 console.log   = (...args) => _origLog(`[${_ts()}]`, ...args);
 console.error = (...args) => _origErr(`[${_ts()}]`, ...args);
 
