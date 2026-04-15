@@ -63,6 +63,7 @@
     "title": "DÉBOGAGE",
     "loading": "CHARGEMENT...",
     "refresh": "ACTUALISER",
+    "exportCsv": "EXPORTER CSV",
     "providerStatus": "ÉTAT DES FOURNISSEURS",
     "lastFetch": "dernière récupération",
     "noProviderStatus": "Aucun état de fournisseur disponible",

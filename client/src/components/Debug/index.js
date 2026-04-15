@@ -6,6 +6,7 @@ import { CSSTransition } from "react-transition-group";
 import { InlineIcon } from "@iconify/react";
 import closeSharp from "@iconify/icons-ion/close-sharp";
 import refreshIcon from "@iconify/icons-carbon/renew";
+import downloadIcon from "@iconify/icons-carbon/download";
 import PropTypes from "prop-types";
 import axios from "axios";
 import "!style-loader!css-loader!./animations.css";
@@ -20,6 +21,8 @@ const Debug = () => {
   const { t } = useTranslation();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [fps, setFps] = useState(null);
+  const [clientMetrics, setClientMetrics] = useState(null);
 
   const fetchDebugInfo = useCallback(() => {
     setLoading(true);
@@ -93,19 +96,35 @@ const Debug = () => {
           <InlineIcon icon={closeSharp} />
         </div>
 
-        <div
-          className={styles.refreshButton}
-          onClick={fetchDebugInfo}
-        >
-          <span className={styles.refreshIcon}>
-            <InlineIcon icon={refreshIcon} />
-          </span>
-          {loading ? t("debug.loading") : t("debug.refresh")}
+        <div className={styles.buttonRow}>
+          <div
+            className={styles.refreshButton}
+            onClick={fetchDebugInfo}
+          >
+            <span className={styles.refreshIcon}>
+              <InlineIcon icon={refreshIcon} />
+            </span>
+            {loading ? t("debug.loading") : t("debug.refresh")}
+          </div>
+          <div
+            className={styles.exportButton}
+            onClick={() => exportKpiCsv(data?.serverKpis, clientMetrics, fps)}
+          >
+            <span className={styles.refreshIcon}>
+              <InlineIcon icon={downloadIcon} />
+            </span>
+            {t("debug.exportCsv")}
+          </div>
         </div>
 
         <div className={styles.content}>
           <ServerKpiSection serverKpis={data?.serverKpis} />
-          <ClientKpiSection />
+          <ClientKpiSection
+            fps={fps}
+            setFps={setFps}
+            clientMetrics={clientMetrics}
+            setClientMetrics={setClientMetrics}
+          />
           <ProviderStatusSection providerStatus={data?.providerStatus} />
           <ServicesSection services={data?.services} />
           <QuotaSection counters={data?.counters} />
@@ -500,6 +519,69 @@ AuditSection.propTypes = {
   audit: PropTypes.string,
 };
 
+function exportKpiCsv(serverKpis, clientMetrics, fps) {
+  const q = (val) => `"${String(val ?? "").replace(/"/g, '""')}"`;
+  const rows = [];
+
+  rows.push([q("Generated at"), q(new Date().toLocaleString())]);
+  rows.push([]);
+
+  // Server KPIs
+  rows.push([q("SERVER KPIs"), q("VALUE")]);
+  if (serverKpis) {
+    rows.push([q("Uptime"),           q(formatUptime(serverKpis.uptimeSec))]);
+    rows.push([q("Heap Used (MB)"),   q(serverKpis.memory.heapUsedMb)]);
+    rows.push([q("Heap Total (MB)"),  q(serverKpis.memory.heapTotalMb)]);
+    rows.push([q("RSS (MB)"),         q(serverKpis.memory.rssMb)]);
+    const { rate } = serverKpis.cache;
+    rows.push([q("Cache Hit Rate (%)"), q(rate !== null ? rate : "N/A")]);
+    rows.push([q("Cache Hits"),   q(serverKpis.cache.hits)]);
+    rows.push([q("Cache Misses"), q(serverKpis.cache.misses)]);
+  } else {
+    rows.push([q("(no data)")]);
+  }
+  rows.push([]);
+
+  // Server Response Times
+  if (serverKpis?.responseTimes?.length > 0) {
+    rows.push([q("SERVER RESPONSE TIMES"), q("Count"), q("Avg (ms)"), q("Min (ms)"), q("Max (ms)")]);
+    serverKpis.responseTimes.forEach((r) => {
+      rows.push([q(r.endpoint), q(r.count), q(r.avgMs), q(r.minMs), q(r.maxMs)]);
+    });
+    rows.push([]);
+  }
+
+  // Client KPIs
+  rows.push([q("CLIENT KPIs"), q("VALUE")]);
+  rows.push([q("Page Load (ms)"), q(clientMetrics?.pageLoad ?? "N/A")]);
+  rows.push([q("FPS"),            q(fps ?? "N/A")]);
+  if (clientMetrics?.heap) {
+    rows.push([q("JS Heap Used (MB)"),  q(clientMetrics.heap.used)]);
+    rows.push([q("JS Heap Total (MB)"), q(clientMetrics.heap.total)]);
+  }
+  rows.push([]);
+
+  // Client API Calls
+  if (clientMetrics?.apiCalls?.length > 0) {
+    rows.push([q("CLIENT API CALLS (SESSION)"), q("Count"), q("Avg (ms)"), q("Min (ms)"), q("Max (ms)")]);
+    clientMetrics.apiCalls.forEach((r) => {
+      rows.push([q(r.endpoint), q(r.count), q(r.avgMs), q(r.minMs), q(r.maxMs)]);
+    });
+  }
+
+  // UTF-8 BOM for Excel compatibility
+  const csv = "\uFEFF" + rows.map((r) => r.join(",")).join("\r\n");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `weather-station-kpi-${new Date().toISOString().slice(0, 19).replace(/:/g, "-")}.csv`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+}
+
 function formatUptime(seconds) {
   const d = Math.floor(seconds / 86400);
   const h = Math.floor((seconds % 86400) / 3600);
@@ -615,12 +697,15 @@ ServerKpiSection.propTypes = {
 /**
  * Client KPI section — page load, FPS, API call durations, JS heap
  *
+ * @param {Object} props
+ * @param {number|null} props.fps Measured FPS (null while measuring)
+ * @param {Function} props.setFps FPS state setter
+ * @param {Object|null} props.clientMetrics Collected client metrics
+ * @param {Function} props.setClientMetrics Client metrics state setter
  * @returns {JSX.Element} Client KPI section
  */
-const ClientKpiSection = () => {
+const ClientKpiSection = ({ fps, setFps, clientMetrics, setClientMetrics }) => {
   const { t } = useTranslation();
-  const [fps, setFps] = useState(null);
-  const [clientMetrics, setClientMetrics] = useState(null);
   const rafRef = useRef(null);
 
   useEffect(() => {
@@ -676,7 +761,7 @@ const ClientKpiSection = () => {
     };
     rafRef.current = requestAnimationFrame(tick);
     return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
-  }, []);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fpsClass = fps === null ? styles.kpiValue
     : fps >= 50 ? styles.kpiValueGood
@@ -730,4 +815,18 @@ const ClientKpiSection = () => {
       )}
     </div>
   );
+};
+
+ClientKpiSection.propTypes = {
+  fps: PropTypes.number,
+  setFps: PropTypes.func.isRequired,
+  clientMetrics: PropTypes.shape({
+    pageLoad: PropTypes.number,
+    heap: PropTypes.shape({
+      used: PropTypes.number,
+      total: PropTypes.number,
+    }),
+    apiCalls: PropTypes.array,
+  }),
+  setClientMetrics: PropTypes.func.isRequired,
 };

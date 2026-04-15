@@ -63,6 +63,7 @@
     "title": "DEBUG",
     "loading": "LOADING...",
     "refresh": "REFRESH",
+    "exportCsv": "EXPORT CSV",
     "providerStatus": "PROVIDER STATUS",
     "lastFetch": "last fetch",
     "noProviderStatus": "No provider status available",

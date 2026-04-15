@@ -63,6 +63,7 @@
     "title": "DEPURACIÓN",
     "loading": "CARGANDO...",
     "refresh": "ACTUALIZAR",
+    "exportCsv": "EXPORTAR CSV",
     "providerStatus": "ESTADO DE PROVEEDORES",
     "lastFetch": "última consulta",
     "noProviderStatus": "Sin estado de proveedor disponible",

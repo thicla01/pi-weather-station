@@ -7,6 +7,8 @@ const { increment } = require("./requestCounter");
 
 const ALLOWED_STYLES = ["dark-v10", "light-v10"];
 
+const API_TIMEOUT_MS = 10 * 1000;
+
 const WEATHER_CACHE_TTL = {
   current: 15 * 60 * 1000,
   hourly:  30 * 60 * 1000,
@@ -120,7 +122,8 @@ async function reverseGeocode(req, res) {
 
   try {
     const result = await axios.get(
-      `https://us1.locationiq.com/v1/reverse.php?key=${settings.reverseGeoApiKey}&lat=${lat}&lon=${lon}&format=json`
+      `https://us1.locationiq.com/v1/reverse.php?key=${settings.reverseGeoApiKey}&lat=${lat}&lon=${lon}&format=json`,
+      { timeout: API_TIMEOUT_MS }
     );
     increment("locationiq", "geocode");
     recordServiceCall("LocationIQ", 200, "OK");
@@ -174,7 +177,7 @@ async function mapTile(req, res) {
   try {
     const result = await axios.get(
       `https://api.mapbox.com/styles/v1/mapbox/${style}/tiles/${zNum}/${xNum}/${yNum}?access_token=${settings.mapApiKey}`,
-      { responseType: "arraybuffer" }
+      { responseType: "arraybuffer", timeout: API_TIMEOUT_MS }
     );
 
     const contentType = result.headers["content-type"];
@@ -231,7 +234,8 @@ async function weatherCurrent(req, res) {
 
   try {
     const result = await axios.get(
-      `https://api.tomorrow.io/v4/timelines?location=${lat}%2C${lon}&fields=${fields}&timesteps=current&apikey=${settings.weatherApiKey}`
+      `https://api.tomorrow.io/v4/timelines?location=${lat}%2C${lon}&fields=${fields}&timesteps=current&apikey=${settings.weatherApiKey}`,
+      { timeout: API_TIMEOUT_MS }
     );
     setInCache(cacheKey, result.data, WEATHER_CACHE_TTL.current);
     increment("tomorrow.io", "current");
@@ -283,7 +287,8 @@ async function weatherHourly(req, res) {
 
   try {
     const result = await axios.get(
-      `https://api.tomorrow.io/v4/timelines?location=${lat}%2C${lon}&fields=${fields}&timesteps=1h&apikey=${settings.weatherApiKey}&endTime=${endTime}`
+      `https://api.tomorrow.io/v4/timelines?location=${lat}%2C${lon}&fields=${fields}&timesteps=1h&apikey=${settings.weatherApiKey}&endTime=${endTime}`,
+      { timeout: API_TIMEOUT_MS }
     );
     setInCache(cacheKey, result.data, WEATHER_CACHE_TTL.hourly);
     increment("tomorrow.io", "hourly");
@@ -335,7 +340,8 @@ async function weatherDaily(req, res) {
 
   try {
     const result = await axios.get(
-      `https://api.tomorrow.io/v4/timelines?location=${lat}%2C${lon}&fields=${fields}&timesteps=1d&apikey=${settings.weatherApiKey}&endTime=${endTime}`
+      `https://api.tomorrow.io/v4/timelines?location=${lat}%2C${lon}&fields=${fields}&timesteps=1d&apikey=${settings.weatherApiKey}&endTime=${endTime}`,
+      { timeout: API_TIMEOUT_MS }
     );
     setInCache(cacheKey, result.data, WEATHER_CACHE_TTL.daily);
     increment("tomorrow.io", "daily");
@@ -369,7 +375,8 @@ async function sunriseSunset(req, res) {
 
   try {
     const result = await axios.get(
-      `https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lon}&formatted=0`
+      `https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lon}&formatted=0`,
+      { timeout: API_TIMEOUT_MS }
     );
     recordServiceCall("sunrise-sunset.org", 200, "OK");
     return res.status(200).json(result.data).end();

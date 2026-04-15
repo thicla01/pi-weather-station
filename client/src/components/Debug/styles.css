@@ -91,11 +91,18 @@
   color: #c7c7c7;
 }
 
-.refresh-button {
+.button-row {
+  display: flex;
+  gap: 8px;
+  margin-top: 6px;
+  flex-shrink: 0;
+}
+
+.refresh-button,
+.export-button {
   display: inline-flex;
   align-items: center;
   font-size: 12px;
-  margin-top: 6px;
   padding: 4px 10px;
   background: linear-gradient(#5d5c5c, #4e4e4e);
   border-top: 1px solid #757575;
@@ -104,10 +111,10 @@
   border-bottom: 1px solid #4c4c4c;
   color: #f6f6f4;
   cursor: pointer;
-  flex-shrink: 0;
 }
 
-.refresh-button:active {
+.refresh-button:active,
+.export-button:active {
   background: linear-gradient(#4e4e4e, #5d5c5c);
 }
 

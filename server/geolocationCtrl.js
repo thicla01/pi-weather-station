@@ -8,7 +8,7 @@ const { increment } = require("./requestCounter");
  */
 function getCoords(req, res) {
   axios
-    .get("https://ipapi.co/json/")
+    .get("https://ipapi.co/json/", { timeout: 10_000 })
     .then((result) => {
       const { latitude, longitude } = result.data;
       increment("ipapi.co", "geolocation");

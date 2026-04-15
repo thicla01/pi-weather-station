@@ -134,7 +134,8 @@ async function getWeatherSummary(req, res) {
       const fields = ["temperature", "humidity", "windSpeed",
         "precipitationProbability", "weatherCode", "cloudCover"].join("%2c");
       const result = await axios.get(
-        `https://api.tomorrow.io/v4/timelines?location=${lat}%2C${lon}&fields=${fields}&timesteps=current&apikey=${settings.weatherApiKey}`
+        `https://api.tomorrow.io/v4/timelines?location=${lat}%2C${lon}&fields=${fields}&timesteps=current&apikey=${settings.weatherApiKey}`,
+        { timeout: 10_000 }
       );
       weatherData = result.data;
     } catch {
