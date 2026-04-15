@@ -98,6 +98,25 @@
     "notAvailable": "No disponible",
     "internet": "Internet",
     "online": "EN LÍNEA",
-    "offline": "SIN CONEXIÓN"
+    "offline": "SIN CONEXIÓN",
+    "serverKpi": "KPIs SERVIDOR",
+    "clientKpi": "KPIs CLIENTE",
+    "uptime": "TIEMPO ACTIVO",
+    "heapUsed": "HEAP USADO",
+    "heapTotal": "HEAP TOTAL",
+    "rss": "RSS",
+    "cacheHitRate": "TASA DE CACHÉ",
+    "hits": "ACIERTOS",
+    "misses": "FALLOS",
+    "responseTimes": "TIEMPOS DE RESPUESTA",
+    "avgMs": "PROM",
+    "minMs": "MIN",
+    "maxMs": "MAX",
+    "pageLoad": "CARGA DE PÁGINA",
+    "fps": "FPS",
+    "apiCallsSession": "LLAMADAS API (sesión)",
+    "noApiCalls": "Sin llamadas API registradas",
+    "jsHeap": "HEAP JS",
+    "notSupported": "No compatible con el navegador"
   }
 }

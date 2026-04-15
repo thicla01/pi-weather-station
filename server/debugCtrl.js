@@ -3,9 +3,10 @@ const os = require("os");
 const path = require("path");
 const { execSync } = require("child_process");
 const axios = require("axios").default;
-const { weatherCache } = require("./proxyCtrl");
+const { weatherCache, getCacheStats } = require("./proxyCtrl");
 const { getServiceStatus } = require("./serviceStatus");
 const { getCounters } = require("./requestCounter");
+const { getResponseTimeStats } = require("./responseTimer");
 
 const PROVIDER_STATUS_TTL = 30 * 60 * 1000;
 
@@ -215,7 +216,19 @@ async function getDebugInfo(req, res) {
     checkConnectivity(),
   ]);
 
-  return res.status(200).json({ cache, logs, audit, securityEvents, services: getServiceStatus(), counters: getCounters(), system: getSystemInfo(), network: getNetworkInfo(), providerStatus, connectivity, appVersion: getAppVersion() });
+  const mem = process.memoryUsage();
+  const serverKpis = {
+    uptimeSec: Math.round(process.uptime()),
+    memory: {
+      heapUsedMb: Math.round(mem.heapUsed / 1024 / 1024),
+      heapTotalMb: Math.round(mem.heapTotal / 1024 / 1024),
+      rssMb: Math.round(mem.rss / 1024 / 1024),
+    },
+    cache: getCacheStats(),
+    responseTimes: getResponseTimeStats(),
+  };
+
+  return res.status(200).json({ cache, logs, audit, securityEvents, services: getServiceStatus(), counters: getCounters(), system: getSystemInfo(), network: getNetworkInfo(), providerStatus, connectivity, appVersion: getAppVersion(), serverKpis });
 }
 
 module.exports = { getDebugInfo, logSecurityEvent, initServerInfo };

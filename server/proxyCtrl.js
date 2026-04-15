@@ -16,6 +16,8 @@ const WEATHER_CACHE_TTL = {
 const CACHE_FILE = path.join(__dirname, "weather-cache.json");
 
 const weatherCache = {};
+let cacheHits = 0;
+let cacheMisses = 0;
 
 function loadCacheFromDisk() {
   try {
@@ -58,17 +60,29 @@ function getCacheKey(type, lat, lon) {
 function getFromCache(key) {
   const entry = weatherCache[key];
   if (!entry) {
+    cacheMisses++;
     console.log(`[cache] MISS  ${key}`);
     return null;
   }
   if (Date.now() > entry.expiresAt) {
     delete weatherCache[key];
+    cacheMisses++;
     console.log(`[cache] EXPIRED ${key}`);
     return null;
   }
+  cacheHits++;
   const remainingSec = Math.round((entry.expiresAt - Date.now()) / 1000);
   console.log(`[cache] HIT  ${key} (expires in ${remainingSec}s)`);
   return entry.data;
+}
+
+function getCacheStats() {
+  const total = cacheHits + cacheMisses;
+  return {
+    hits: cacheHits,
+    misses: cacheMisses,
+    rate: total > 0 ? Math.round((100 * cacheHits) / total) : null,
+  };
 }
 
 function setInCache(key, data, ttl) {
@@ -367,4 +381,4 @@ async function sunriseSunset(req, res) {
   }
 }
 
-module.exports = { reverseGeocode, mapTile, weatherCurrent, weatherHourly, weatherDaily, sunriseSunset, weatherCache, saveCacheToDisk };
+module.exports = { reverseGeocode, mapTile, weatherCurrent, weatherHourly, weatherDaily, sunriseSunset, weatherCache, saveCacheToDisk, getCacheStats };

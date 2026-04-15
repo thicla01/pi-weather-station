@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect, useCallback } from "react";
+import React, { useContext, useState, useEffect, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import styles from "./styles.css";
 import { AppContext } from "~/AppContext";
@@ -104,6 +104,8 @@ const Debug = () => {
         </div>
 
         <div className={styles.content}>
+          <ServerKpiSection serverKpis={data?.serverKpis} />
+          <ClientKpiSection />
           <ProviderStatusSection providerStatus={data?.providerStatus} />
           <ServicesSection services={data?.services} />
           <QuotaSection counters={data?.counters} />
@@ -496,4 +498,236 @@ const AuditSection = ({ audit }) => {
 
 AuditSection.propTypes = {
   audit: PropTypes.string,
+};
+
+function formatUptime(seconds) {
+  const d = Math.floor(seconds / 86400);
+  const h = Math.floor((seconds % 86400) / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Math.floor(seconds % 60);
+  const parts = [];
+  if (d > 0) parts.push(`${d}d`);
+  if (h > 0 || d > 0) parts.push(`${h}h`);
+  parts.push(`${m}m ${s}s`);
+  return parts.join(" ");
+}
+
+/**
+ * Server KPI section — uptime, memory, cache hit rate, response times
+ *
+ * @param {Object} props
+ * @param {Object} props.serverKpis
+ * @returns {JSX.Element}
+ */
+const ServerKpiSection = ({ serverKpis }) => {
+  const { t } = useTranslation();
+  const kpis = serverKpis;
+
+  const hitRate = kpis?.cache?.rate;
+  const hitRateClass = hitRate === null ? styles.kpiValue
+    : hitRate >= 70 ? styles.kpiValueGood
+    : hitRate >= 40 ? styles.kpiValueWarn
+    : styles.kpiValueErr;
+
+  return (
+    <div className={styles.section}>
+      <div className={styles.sectionTitle}>{t("debug.serverKpi")}</div>
+      {!kpis ? (
+        <div className={styles.empty}>{t("debug.loading")}</div>
+      ) : (
+        <>
+          <div className={styles.kpiGrid}>
+            <div className={styles.kpiItem}>
+              <span className={styles.kpiLabel}>{t("debug.uptime")}</span>
+              <span className={styles.kpiValue}>{formatUptime(kpis.uptimeSec)}</span>
+            </div>
+            <div className={styles.kpiItem}>
+              <span className={styles.kpiLabel}>{t("debug.heapUsed")}</span>
+              <span className={styles.kpiValue}>{kpis.memory.heapUsedMb} MB</span>
+            </div>
+            <div className={styles.kpiItem}>
+              <span className={styles.kpiLabel}>{t("debug.heapTotal")}</span>
+              <span className={styles.kpiValue}>{kpis.memory.heapTotalMb} MB</span>
+            </div>
+            <div className={styles.kpiItem}>
+              <span className={styles.kpiLabel}>{t("debug.rss")}</span>
+              <span className={styles.kpiValue}>{kpis.memory.rssMb} MB</span>
+            </div>
+            <div className={styles.kpiItem}>
+              <span className={styles.kpiLabel}>{t("debug.cacheHitRate")}</span>
+              <span className={hitRateClass}>
+                {hitRate !== null ? `${hitRate}%` : "—"}
+                {kpis.cache.hits + kpis.cache.misses > 0 && (
+                  <span className={styles.kpiLabel} style={{ marginLeft: 6 }}>
+                    ({kpis.cache.hits} {t("debug.hits")} / {kpis.cache.misses} {t("debug.misses")})
+                  </span>
+                )}
+              </span>
+            </div>
+          </div>
+
+          {kpis.responseTimes.length > 0 && (
+            <>
+              <div className={styles.kpiLabel} style={{ marginBottom: 4 }}>{t("debug.responseTimes")}</div>
+              <div className={styles.rtTable}>
+                <div className={styles.rtHeader}>
+                  <span>ENDPOINT</span>
+                  <span>{t("debug.count")}</span>
+                  <span>{t("debug.avgMs")}</span>
+                  <span>{t("debug.minMs")}</span>
+                  <span>{t("debug.maxMs")}</span>
+                </div>
+                {kpis.responseTimes.map((r) => (
+                  <div className={styles.rtEntry} key={r.endpoint}>
+                    <span className={styles.rtEndpoint}>{r.endpoint}</span>
+                    <span className={styles.rtCount}>{r.count}</span>
+                    <span className={styles.rtAvg}>{r.avgMs}ms</span>
+                    <span className={styles.rtMinmax}>{r.minMs}ms</span>
+                    <span className={styles.rtMinmax}>{r.maxMs}ms</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </>
+      )}
+    </div>
+  );
+};
+
+ServerKpiSection.propTypes = {
+  serverKpis: PropTypes.shape({
+    uptimeSec: PropTypes.number,
+    memory: PropTypes.shape({
+      heapUsedMb: PropTypes.number,
+      heapTotalMb: PropTypes.number,
+      rssMb: PropTypes.number,
+    }),
+    cache: PropTypes.shape({
+      hits: PropTypes.number,
+      misses: PropTypes.number,
+      rate: PropTypes.number,
+    }),
+    responseTimes: PropTypes.array,
+  }),
+};
+
+/**
+ * Client KPI section — page load, FPS, API call durations, JS heap
+ *
+ * @returns {JSX.Element}
+ */
+const ClientKpiSection = () => {
+  const { t } = useTranslation();
+  const [fps, setFps] = useState(null);
+  const [clientMetrics, setClientMetrics] = useState(null);
+  const rafRef = useRef(null);
+
+  useEffect(() => {
+    // Page load time
+    const navEntry = performance.getEntriesByType("navigation")[0];
+    const pageLoad = navEntry ? Math.round(navEntry.loadEventEnd) : null;
+
+    // JS heap (Chrome / Electron only)
+    const heap = performance.memory
+      ? {
+          used: Math.round(performance.memory.usedJSHeapSize / 1024 / 1024),
+          total: Math.round(performance.memory.totalJSHeapSize / 1024 / 1024),
+        }
+      : null;
+
+    // API calls from Resource Timing
+    const grouped = {};
+    performance.getEntriesByType("resource")
+      .filter((r) => r.name.includes("/api/"))
+      .forEach((r) => {
+        const url = new URL(r.name);
+        const key = url.pathname.replace(/\/[0-9]+\/[0-9]+\/[0-9]+$/, "/:z/:x/:y").split("?")[0];
+        const ms = Math.round(r.duration);
+        if (!grouped[key]) grouped[key] = { count: 0, totalMs: 0, minMs: Infinity, maxMs: 0 };
+        grouped[key].count++;
+        grouped[key].totalMs += ms;
+        if (ms < grouped[key].minMs) grouped[key].minMs = ms;
+        if (ms > grouped[key].maxMs) grouped[key].maxMs = ms;
+      });
+
+    const apiCalls = Object.entries(grouped)
+      .map(([endpoint, s]) => ({
+        endpoint,
+        count: s.count,
+        avgMs: Math.round(s.totalMs / s.count),
+        minMs: s.minMs === Infinity ? 0 : s.minMs,
+        maxMs: s.maxMs,
+      }))
+      .sort((a, b) => b.count - a.count);
+
+    setClientMetrics({ pageLoad, heap, apiCalls });
+
+    // FPS measurement over ~1 second
+    let frames = 0;
+    const startTime = performance.now();
+    const tick = (ts) => {
+      frames++;
+      if (ts - startTime >= 1000) {
+        setFps(Math.round((frames * 1000) / (ts - startTime)));
+        return;
+      }
+      rafRef.current = requestAnimationFrame(tick);
+    };
+    rafRef.current = requestAnimationFrame(tick);
+    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+  }, []);
+
+  const fpsClass = fps === null ? styles.kpiValue
+    : fps >= 50 ? styles.kpiValueGood
+    : fps >= 30 ? styles.kpiValueWarn
+    : styles.kpiValueErr;
+
+  return (
+    <div className={styles.section}>
+      <div className={styles.sectionTitle}>{t("debug.clientKpi")}</div>
+      <div className={styles.kpiGrid}>
+        <div className={styles.kpiItem}>
+          <span className={styles.kpiLabel}>{t("debug.pageLoad")}</span>
+          <span className={styles.kpiValue}>
+            {clientMetrics?.pageLoad != null ? `${clientMetrics.pageLoad}ms` : "—"}
+          </span>
+        </div>
+        <div className={styles.kpiItem}>
+          <span className={styles.kpiLabel}>{t("debug.fps")}</span>
+          <span className={fpsClass}>{fps !== null ? fps : "…"}</span>
+        </div>
+        {clientMetrics?.heap && (
+          <div className={styles.kpiItem}>
+            <span className={styles.kpiLabel}>{t("debug.jsHeap")}</span>
+            <span className={styles.kpiValue}>{clientMetrics.heap.used} / {clientMetrics.heap.total} MB</span>
+          </div>
+        )}
+      </div>
+
+      <div className={styles.kpiLabel} style={{ marginBottom: 4 }}>{t("debug.apiCallsSession")}</div>
+      {!clientMetrics || clientMetrics.apiCalls.length === 0 ? (
+        <div className={styles.empty}>{t("debug.noApiCalls")}</div>
+      ) : (
+        <div className={styles.rtTable}>
+          <div className={styles.rtHeader}>
+            <span>ENDPOINT</span>
+            <span>{t("debug.count")}</span>
+            <span>{t("debug.avgMs")}</span>
+            <span>{t("debug.minMs")}</span>
+            <span>{t("debug.maxMs")}</span>
+          </div>
+          {clientMetrics.apiCalls.map((r) => (
+            <div className={styles.rtEntry} key={r.endpoint}>
+              <span className={styles.rtEndpoint}>{r.endpoint}</span>
+              <span className={styles.rtCount}>{r.count}</span>
+              <span className={styles.rtAvg}>{r.avgMs}ms</span>
+              <span className={styles.rtMinmax}>{r.minMs}ms</span>
+              <span className={styles.rtMinmax}>{r.maxMs}ms</span>
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
 };

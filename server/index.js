@@ -23,6 +23,7 @@ const {
 } = settingsCtrl;
 const { getCoords } = geolocationCtrl;
 const { reverseGeocode: proxyReverseGeocode, mapTile, weatherCurrent, weatherHourly, weatherDaily, sunriseSunset, saveCacheToDisk } = proxyCtrl;
+const { responseTimerMiddleware } = require("./responseTimer");
 const { getDebugInfo, logSecurityEvent, initServerInfo } = debugCtrl;
 const { getWeatherSummary } = aiSummaryCtrl;
 
@@ -93,6 +94,7 @@ const sslOptions = (() => {
 
 app.use(bodyParser.json());
 app.use(express.static(path.join(`${__dirname}/${DIST_DIR}`)));
+app.use(responseTimerMiddleware);
 
 const isLocalhostIp = (ip) => ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1";
 

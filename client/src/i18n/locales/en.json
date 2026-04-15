@@ -98,6 +98,25 @@
     "notAvailable": "Not available",
     "internet": "Internet",
     "online": "ONLINE",
-    "offline": "OFFLINE"
+    "offline": "OFFLINE",
+    "serverKpi": "SERVER KPIs",
+    "clientKpi": "CLIENT KPIs",
+    "uptime": "UPTIME",
+    "heapUsed": "HEAP USED",
+    "heapTotal": "HEAP TOTAL",
+    "rss": "RSS",
+    "cacheHitRate": "CACHE HIT RATE",
+    "hits": "HITS",
+    "misses": "MISSES",
+    "responseTimes": "RESPONSE TIMES",
+    "avgMs": "AVG",
+    "minMs": "MIN",
+    "maxMs": "MAX",
+    "pageLoad": "PAGE LOAD",
+    "fps": "FPS",
+    "apiCallsSession": "API CALLS (session)",
+    "noApiCalls": "No API calls recorded",
+    "jsHeap": "JS HEAP",
+    "notSupported": "Not supported by browser"
   }
 }

@@ -98,6 +98,25 @@
     "notAvailable": "Non disponible",
     "internet": "Internet",
     "online": "EN LIGNE",
-    "offline": "HORS LIGNE"
+    "offline": "HORS LIGNE",
+    "serverKpi": "KPIs SERVEUR",
+    "clientKpi": "KPIs CLIENT",
+    "uptime": "DISPONIBILITÉ",
+    "heapUsed": "HEAP UTILISÉ",
+    "heapTotal": "HEAP TOTAL",
+    "rss": "RSS",
+    "cacheHitRate": "TAUX DE CACHE",
+    "hits": "SUCCÈS",
+    "misses": "MANQUÉS",
+    "responseTimes": "TEMPS DE RÉPONSE",
+    "avgMs": "MOY",
+    "minMs": "MIN",
+    "maxMs": "MAX",
+    "pageLoad": "CHARGEMENT PAGE",
+    "fps": "FPS",
+    "apiCallsSession": "APPELS API (session)",
+    "noApiCalls": "Aucun appel API enregistré",
+    "jsHeap": "HEAP JS",
+    "notSupported": "Non supporté par le navigateur"
   }
 }
