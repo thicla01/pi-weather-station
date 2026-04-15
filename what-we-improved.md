@@ -43,3 +43,26 @@ A debug panel (enabled via `DEBUG=true`) provides live visibility into provider 
 The interface is now fully localized in English, French, and Spanish using i18next. A language selector is available in the Settings panel, and the browser's language is detected automatically on first load. All UI strings are covered — weather labels, error messages, settings fields, and the entire debug panel.
 
 As part of the same phase, the debug panel header was reorganized into a two-column layout to reduce its vertical footprint: system information (hardware model, OS, version) on the left, network information (URLs, internet connectivity) on the right. The header now also displays the application name, version number, current Git commit hash, and active branch name when not on `master` — making it easy to confirm which build and branch is running directly from the Pi's screen.
+
+---
+
+**6. AI weather summary**
+
+An optional AI-generated weather summary was added to the main screen, powered by the Anthropic Claude Haiku model. When an Anthropic API key is configured in the settings, a short natural-language paragraph appears below the forecast charts describing current conditions. A second paragraph adapts to the time of day: during the morning or afternoon it previews the evening (18h–21h), during the evening it previews the overnight period (21h–5h), and at night it previews the next day's forecast. Summaries are generated in the interface language (English, French, or Spanish), cached 15 minutes server-side, and silently hidden when no API key is configured — the feature is entirely optional and the app functions fully without it.
+
+Weather data used to build the prompt is reused from the shared server-side cache, so enabling AI summaries does not trigger additional Tomorrow.io API calls beyond what the app already makes. The summary section is visually distinguished with a blue left border, a centered "AI SUMMARY / RÉSUMÉ IA / RESUMEN IA" header, and italic text styled differently in dark and light modes.
+
+A shared chart legend was also added above the forecast charts to label the temperature/wind and precipitation curves — replacing the per-chart legends that had been disabled because they compressed the chart area.
+
+---
+
+**7. Observability KPIs, license cleanup, and UX polish**
+
+The debug panel gained two new sections giving real-time visibility into both the server and the browser:
+
+- **Server KPIs** track Node.js process uptime, heap memory (used and total) and RSS, the weather cache hit rate with raw hit/miss counts, and a per-endpoint response time table (count, average, min, max) collected by a new Express middleware added to every route.
+- **Client KPIs** are collected live in the browser each time the panel opens: page load time from the Navigation Timing API, a live FPS reading measured over one second via `requestAnimationFrame`, JS heap size (available on Chromium-based browsers), and a grouped summary of every `/api/*` call recorded by the browser's Resource Timing API since the page was loaded.
+
+On the license front, a dependency audit revealed two GPL-licensed icon packages (`@iconify/icons-gridicons` and `@iconify/icons-dashicons`) had been included since the project's early versions. Both were replaced with visually equivalent icons from MIT-licensed sets already present in the project (`ion/location-sharp` and `carbon/undo`). The packages were removed from `package.json`. All dependencies are now MIT, ISC, BSD, Apache-2.0, or Creative Commons — no copyleft obligations.
+
+Finally, a small UX fix ensures that opening the Settings panel automatically closes the Debug panel, and vice versa, so both panels can never be visible simultaneously.

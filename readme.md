@@ -5,7 +5,7 @@ This is a weather station designed to be used with a Raspberry Pi on the officia
 
 ![pws-screenshot3](https://user-images.githubusercontent.com/15202038/91359998-4625bb80-e7bb-11ea-937e-c87eede41f35.JPG)
 
-The weather station will require you to have API keys from [Mapbox](https://www.mapbox.com/) and [Tomorrow.io](https://www.tomorrow.io/). Optionally, you can use an API key from [LocationIQ](https://locationiq.com/) to perform reverse geocoding. All three API keys are kept server-side and never exposed in client-side requests.
+The weather station will require you to have API keys from [Mapbox](https://www.mapbox.com/) and [Tomorrow.io](https://www.tomorrow.io/). Optionally, you can use an API key from [LocationIQ](https://locationiq.com/) to perform reverse geocoding, and an [Anthropic](https://console.anthropic.com/) API key for AI-generated weather summaries powered by Claude. All API keys are kept server-side and never exposed in client-side requests.
 
 Weather maps are provided by the [RainViewer](https://www.rainviewer.com/) API, which generously does not require an [API key](https://www.rainviewer.com/api.html).
 
@@ -16,6 +16,13 @@ Default geolocation (used when no custom coordinates are configured) is provided
 See it in action [here](https://www.youtube.com/watch?v=dvM6cyqYSw8).
 
 > Be mindful of the plan limits for your API keys and understand the terms of each provider, as scrolling around the map and selecting different locations will incur API calls for every location. Additionally, the weather station will periodically make additional API calls to get weather updates throughout the day. All weather (Tomorrow.io), map tile (Mapbox), and reverse geocoding (LocationIQ) calls are proxied through the server — multiple browser clients share the same quota rather than each consuming it independently. Weather responses are cached server-side, further reducing API usage.
+
+# v2.1.11
+
+- **Debug panel — Server KPIs** — A new SERVER KPIs section shows Node.js process uptime, heap memory usage (used/total), RSS, and weather cache hit rate (with raw hit/miss counts). A response time table tracks count, average, min, and max latency per server endpoint, measured by a new `responseTimerMiddleware`.
+- **Debug panel — Client KPIs** — A new CLIENT KPIs section collects browser-side metrics live when the panel opens: page load time (Navigation Timing API), live FPS measured via `requestAnimationFrame`, JS heap size (Chromium only), and a per-endpoint summary of all `/api/*` calls made since page load (Resource Timing API).
+- **Debug panel — mutual exclusion** — Opening the Settings panel now closes the Debug panel, and vice versa. Both panels can no longer be visible at the same time.
+- **License cleanup** — Replaced two GPL-licensed icon packages (`@iconify/icons-gridicons`, `@iconify/icons-dashicons`) with MIT-licensed equivalents already present in the project (`ion/location-sharp`, `carbon/undo`). All dependencies are now MIT, ISC, BSD, Apache-2.0, or CC — no copyleft obligations.
 
 # v2.1.10
 
@@ -348,8 +355,10 @@ The server will now serve the app across your network on port 8443 (HTTPS).
 A debug panel is available on the Pi when `DEBUG=true` is set server-side. It shows:
 
 - **Header** — application name, version, Git commit hash, and active branch (if not `master`); hardware model, OS version, network URL(s), and internet connectivity status (`ONLINE` / `OFFLINE` + latency)
+- **Server KPIs** — process uptime, heap memory (used/total) and RSS, weather cache hit rate, and a per-endpoint response time table (count, avg, min, max)
+- **Client KPIs** — page load time, live FPS, JS heap size (Chromium only), and a per-endpoint summary of all `/api/*` calls recorded by the browser since page load
 - **Provider status** — live operational status fetched from each provider's status page (Tomorrow.io, Mapbox, ipapi.co, LocationIQ), cached 30 minutes
-- **Services** — last HTTP status and timestamp for each external API call (Tomorrow.io, Mapbox, LocationIQ, ipapi.co, sunrise-sunset.org)
+- **Services** — last HTTP status and timestamp for each external API call (Tomorrow.io, Mapbox, LocationIQ, ipapi.co, sunrise-sunset.org, Claude)
 - **Quotas** — hourly, daily, and monthly request counters per service and endpoint, with colour-coded thresholds
 - **Cache** — current in-memory weather cache entries with remaining TTL
 - **Logs** — last 100 lines of the server log
@@ -397,6 +406,7 @@ DEBUG=true npm start
 - Your API keys are saved locally (in plain text) to `settings.json`.
 - The server will attempt to get your default location via [ipapi.co](https://ipapi.co/) (requires internet access), but if it cannot or you wish to choose a different default location, enter the latitude and longitude under `Custom Latitude` and `Custom Longitude` in settings, which can be accessed by tapping the gear button in the lower right hand corner.
 - To hide the mouse cursor when using a touch screen, set `Hide Mouse` to `On`.
+- To enable AI weather summaries, enter your [Anthropic API key](https://console.anthropic.com/) in the `Anthropic API Key` field. This feature is optional — the app works fully without it. Summaries are generated by Claude Haiku, cached 15 minutes server-side, and adapt to the time of day (morning, evening, or night forecast in the second paragraph). Supported languages: English, French, Spanish.
 
 # Contributors
 
@@ -405,10 +415,6 @@ DEBUG=true npm start
 - [@dagent23](https://github.com/dagent23)
 - [@klamer](https://github.com/klamer)
 - [Claude Code](https://claude.ai/code) (Anthropic) — AI pair programmer
-
-# Do you want to Host this Application in Docker?
-
-Pi Weather Station is available as a Docker Image for AMD64 and ARM infrastructures. see the *ReadME* here for more: https://github.com/SeanRiggs/pi-weather-station/blob/master/Docker%20Image/Docker-ReadMe.md
 
 # License
 
