@@ -16,8 +16,6 @@
     "@babel/preset-react": "^7.10.4",
     "@iconify/icons-bx": "^1.0.3",
     "@iconify/icons-carbon": "^1.0.4",
-    "@iconify/icons-dashicons": "^1.0.11",
-    "@iconify/icons-gridicons": "^1.0.6",
     "@iconify/icons-ic": "^1.0.15",
     "@iconify/icons-ion": "^1.0.13",
     "@iconify/icons-map": "^1.0.5",

@@ -6,7 +6,7 @@ import { CSSTransition } from "react-transition-group";
 import { InlineIcon } from "@iconify/react";
 import closeFilled from "@iconify/icons-carbon/close-filled";
 import roundSaveAlt from "@iconify/icons-ic/round-save-alt";
-import undoIcon from "@iconify/icons-dashicons/undo";
+import undoIcon from "@iconify/icons-carbon/undo";
 import closeSharp from "@iconify/icons-ion/close-sharp";
 import PropTypes from "prop-types";
 import "!style-loader!css-loader!./animations.css";

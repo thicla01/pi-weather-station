@@ -2,7 +2,7 @@ import React, { useEffect, useState, useContext } from "react";
 import { AppContext } from "~/AppContext";
 import { InlineIcon } from "@iconify/react";
 import reverseGeocode from "~/services/reverseGeocode";
-import locationIcon from "@iconify/icons-gridicons/location";
+import locationIcon from "@iconify/icons-ion/location-sharp";
 import styles from "./styles.css";
 
 /**
