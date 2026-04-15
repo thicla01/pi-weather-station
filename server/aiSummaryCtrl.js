@@ -34,6 +34,52 @@ function getDailyFromSharedCache(lat, lon) {
   return entry.data;
 }
 
+function getHourlyFromSharedCache(lat, lon) {
+  const key = `hourly:${lat.toFixed(4)}:${lon.toFixed(4)}`;
+  const entry = weatherCache[key];
+  if (!entry || Date.now() > entry.expiresAt) return null;
+  return entry.data;
+}
+
+/**
+ * Extract forecast from hourly data for a given time window
+ */
+function getHourlyForecast(hourlyData, fromTs, toTs) {
+  const intervals = hourlyData?.data?.timelines?.[0]?.intervals;
+  if (!intervals) return null;
+
+  const window = intervals.filter((i) => {
+    const t = new Date(i.startTime).getTime();
+    return t >= fromTs && t < toTs;
+  });
+
+  if (window.length === 0) return null;
+
+  const avgTemp = Math.round(
+    window.reduce((s, i) => s + i.values.temperature, 0) / window.length
+  );
+  const maxPrecip = Math.round(
+    Math.max(...window.map((i) => i.values.precipitationProbability || 0))
+  );
+  const avgWind = Math.round(
+    window.reduce((s, i) => s + i.values.windSpeed, 0) / window.length
+  );
+
+  return { avgTemp, maxPrecip, avgWind };
+}
+
+/**
+ * Determine period label and time window based on local hour
+ * - Morning/Afternoon (5h-18h) → "ce soir"   (18h–21h)
+ * - Evening (18h-21h)          → "cette nuit" (21h–5h)
+ * - Night (21h+/0h-5h)         → "demain"     (daily)
+ */
+function getPeriod(localHour) {
+  if (localHour >= 5 && localHour < 18) return "morning";
+  if (localHour >= 18 && localHour < 21) return "evening";
+  return "night";
+}
+
 /**
  * GET /api/weather-summary
  * Returns an AI-generated natural language weather summary.
@@ -49,7 +95,12 @@ function getDailyFromSharedCache(lat, lon) {
 async function getWeatherSummary(req, res) {
   const lat = parseFloat(req.query.lat);
   const lon = parseFloat(req.query.lon);
-  const lang = req.query.lang || "en";
+  const lang       = req.query.lang || "en";
+  const localHour  = parseInt(req.query.localHour, 10) || 0;
+  const ts18       = parseInt(req.query.ts18, 10) || null;
+  const ts21       = parseInt(req.query.ts21, 10) || null;
+  const ts05tomorrow = parseInt(req.query.ts05tomorrow, 10) || null;
+  const period     = getPeriod(localHour);
 
   if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
     return res.status(400).json("Invalid coordinates").end();
@@ -66,7 +117,7 @@ async function getWeatherSummary(req, res) {
     return res.status(503).json("Anthropic API key not configured").end();
   }
 
-  const cacheKey = `${lat.toFixed(4)}:${lon.toFixed(4)}:${lang}`;
+  const cacheKey = `${lat.toFixed(4)}:${lon.toFixed(4)}:${lang}:${period}`;
   const cached = summaryCache[cacheKey];
   if (cached && Date.now() < cached.expiresAt) {
     return res.status(200).json({ summary: cached.summary }).end();
@@ -108,24 +159,57 @@ async function getWeatherSummary(req, res) {
     cloud    && `- Cloud cover: ${cloud}`,
   ].filter(Boolean).join("\n");
 
-  // Tomorrow's forecast from daily cache (index 1 = tomorrow)
-  const dailyData = getDailyFromSharedCache(lat, lon);
-  const tomorrowValues = dailyData?.data?.timelines?.[0]?.intervals?.[1]?.values || null;
-  let tomorrowSection = "";
-  if (tomorrowValues) {
-    const tTemp   = tomorrowValues.temperature              !== undefined ? `${Math.round(tomorrowValues.temperature)}°C`              : null;
-    const tWind   = tomorrowValues.windSpeed                !== undefined ? `${Math.round(tomorrowValues.windSpeed)} km/h`             : null;
-    const tPrecip = tomorrowValues.precipitationProbability !== undefined ? `${Math.round(tomorrowValues.precipitationProbability)}%`  : null;
-    const tLines = [
-      tTemp   && `- Temperature: ${tTemp}`,
-      tWind   && `- Wind: ${tWind}`,
-      tPrecip && `- Precipitation probability: ${tPrecip}`,
-    ].filter(Boolean).join("\n");
-    tomorrowSection = `\n\nTomorrow's forecast:\n${tLines}`;
+  // Second paragraph — period determines what we show and which data we use
+  let secondSection = "";
+  let secondPeriodLabel = "";
+
+  const hourlyData = getHourlyFromSharedCache(lat, lon);
+
+  if (period === "morning" && ts18 && ts21) {
+    // Matin/après-midi → ce soir (18h–21h)
+    const forecast = hourlyData ? getHourlyForecast(hourlyData, ts18, ts21) : null;
+    if (forecast) {
+      secondSection = `\n\nTonight's evening forecast (18h-21h):\n` +
+        `- Average temperature: ${forecast.avgTemp}°C\n` +
+        `- Max precipitation probability: ${forecast.maxPrecip}%\n` +
+        `- Average wind: ${forecast.avgWind} km/h`;
+      secondPeriodLabel = "tonight's evening (18h–21h)";
+    }
+  } else if (period === "evening" && ts21 && ts05tomorrow) {
+    // Soir → cette nuit (21h–5h)
+    const forecast = hourlyData ? getHourlyForecast(hourlyData, ts21, ts05tomorrow) : null;
+    if (forecast) {
+      secondSection = `\n\nOvernight forecast (21h-5h):\n` +
+        `- Average temperature: ${forecast.avgTemp}°C\n` +
+        `- Max precipitation probability: ${forecast.maxPrecip}%\n` +
+        `- Average wind: ${forecast.avgWind} km/h`;
+      secondPeriodLabel = "tonight overnight (21h–5h)";
+    }
+  }
+
+  if (!secondSection) {
+    // Nuit ou données horaires absentes → demain (daily)
+    const dailyData = getDailyFromSharedCache(lat, lon);
+    const tomorrowValues = dailyData?.data?.timelines?.[0]?.intervals?.[1]?.values || null;
+    if (tomorrowValues) {
+      const tTemp   = tomorrowValues.temperature              !== undefined ? `${Math.round(tomorrowValues.temperature)}°C`             : null;
+      const tWind   = tomorrowValues.windSpeed                !== undefined ? `${Math.round(tomorrowValues.windSpeed)} km/h`            : null;
+      const tPrecip = tomorrowValues.precipitationProbability !== undefined ? `${Math.round(tomorrowValues.precipitationProbability)}%` : null;
+      const tLines = [
+        tTemp   && `- Temperature: ${tTemp}`,
+        tWind   && `- Wind: ${tWind}`,
+        tPrecip && `- Precipitation probability: ${tPrecip}`,
+      ].filter(Boolean).join("\n");
+      secondSection = `\n\nTomorrow's forecast:\n${tLines}`;
+      secondPeriodLabel = "tomorrow";
+    }
   }
 
   const language = LANG_NAMES[lang] || "English";
-  const prompt = `Write a weather summary in ${language} with two short paragraphs. The first paragraph covers current conditions (2-3 sentences). The second paragraph covers tomorrow's forecast (1-2 sentences). Be concise and conversational. Reply with plain text only — no title, no markdown, no labels before each paragraph.\n\nCurrent conditions:\n${currentLines}${tomorrowSection}`;
+  const secondInstruction = secondPeriodLabel
+    ? `The second paragraph covers ${secondPeriodLabel} (1-2 sentences).`
+    : "";
+  const prompt = `Write a weather summary in ${language} with ${secondInstruction ? "two short paragraphs" : "one short paragraph"}. The first paragraph covers current conditions (2-3 sentences). ${secondInstruction} Be concise and conversational. Reply with plain text only — no title, no markdown, no labels before each paragraph.\n\nCurrent conditions:\n${currentLines}${secondSection}`;
 
   try {
     const client = new Anthropic({ apiKey: settings.anthropicApiKey });

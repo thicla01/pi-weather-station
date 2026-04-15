@@ -29,8 +29,25 @@ const AiSummary = () => {
     const { latitude, longitude } = mapGeo;
 
     const fetchSummary = () => {
+      const now = new Date();
+      const localHour = now.getHours();
+
+      const ts18 = new Date(now); ts18.setHours(18, 0, 0, 0);
+      const ts21 = new Date(now); ts21.setHours(21, 0, 0, 0);
+      const ts05tomorrow = new Date(now); ts05tomorrow.setDate(ts05tomorrow.getDate() + 1); ts05tomorrow.setHours(5, 0, 0, 0);
+
+      const params = new URLSearchParams({
+        lat: latitude,
+        lon: longitude,
+        lang,
+        localHour,
+        ts18: ts18.getTime(),
+        ts21: ts21.getTime(),
+        ts05tomorrow: ts05tomorrow.getTime(),
+      });
+
       axios
-        .get(`/api/weather-summary?lat=${latitude}&lon=${longitude}&lang=${lang}`)
+        .get(`/api/weather-summary?${params}`)
         .then((res) => {
           setSummary(res.data.summary);
         })
