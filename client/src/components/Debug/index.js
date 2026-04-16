@@ -734,8 +734,8 @@ function exportDebugCsv(data, clientMetrics, fps) {
     data.logs.forEach((line) => rows.push([q(line)]));
   }
 
-  // UTF-8 BOM for Excel compatibility
-  const csv = "\uFEFF" + rows.map((r) => r.join(",")).join("\r\n");
+  // UTF-8 BOM + sep hint for Excel compatibility (auto-detects comma delimiter)
+  const csv = "\uFEFF" + "sep=,\r\n" + rows.map((r) => r.join(",")).join("\r\n");
   const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
   const url = URL.createObjectURL(blob);
   const a = document.createElement("a");
