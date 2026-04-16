@@ -2,6 +2,16 @@ import React, { useContext, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { AppContext } from "~/AppContext";
 import styles from "../styles.css";
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+} from "chart.js";
 import { Line } from "react-chartjs-2";
 import { format } from "date-fns";
 import {
@@ -10,6 +20,16 @@ import {
   convertSpeed,
 } from "~/services/conversions";
 import { fontColor } from "../common";
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend
+);
 
 const buildChartOptions = ({
   darkMode,
@@ -21,63 +41,60 @@ const buildChartOptions = ({
 }) => {
   return {
     maintainAspectRatio: false,
-    legend: {
-      display: false,
-    },
     responsive: true,
-    hoverMode: "index",
-    stacked: false,
-    title: {
-      display: true,
-      text: title,
-      fontColor: fontColor(darkMode),
-      fontFamily: "Rubik, sans-serif",
+    interaction: {
+      mode: "index",
+    },
+    plugins: {
+      legend: {
+        display: false,
+      },
+      title: {
+        display: true,
+        text: title,
+        color: fontColor(darkMode),
+        font: { family: "Rubik, sans-serif" },
+      },
     },
     scales: {
-      xAxes: [
-        {
-          ticks: {
-            fontColor: fontColor(darkMode),
-            fontFamily: "Rubik, sans-serif",
+      x: {
+        ticks: {
+          color: fontColor(darkMode),
+          font: { family: "Rubik, sans-serif" },
+        },
+      },
+      y: {
+        type: "linear",
+        display: true,
+        position: "left",
+        ticks: {
+          color: fontColor(darkMode),
+          font: { family: "Rubik, sans-serif" },
+          maxTicksLimit: 5,
+          callback: (val) => {
+            return altMode
+              ? `${val} ${speedUnit === "mph" ? "mph" : "m/s"}`
+              : `${val} ${tempUnit.toUpperCase()}`;
           },
         },
-      ],
-      yAxes: [
-        {
-          type: "linear",
-          display: true,
-          position: "left",
-          id: "y-axis-1",
-          ticks: {
-            fontColor: fontColor(darkMode),
-            fontFamily: "Rubik, sans-serif",
-            maxTicksLimit: 5,
-            callback: (val) => {
-              return altMode
-                ? `${val} ${speedUnit === "mph" ? "mph" : "m/s"}`
-                : `${val} ${tempUnit.toUpperCase()}`;
-            },
+      },
+      y1: {
+        type: "linear",
+        display: true,
+        position: "right",
+        ticks: {
+          color: fontColor(darkMode),
+          font: { family: "Rubik, sans-serif" },
+          maxTicksLimit: 5,
+          suggestedMin: 0,
+          callback: (val) => {
+            return `${val}${altMode ? ` ${lengthUnit}` : "%"}`;
           },
         },
-        {
-          type: "linear",
-          display: true,
-          position: "right",
-          id: "y-axis-2",
-          ticks: {
-            fontColor: fontColor(darkMode),
-            fontFamily: "Rubik, sans-serif",
-            maxTicksLimit: 5,
-            suggestedMin: 0,
-            callback: (val) => {
-              return `${val}${altMode ? ` ${lengthUnit}` : "%"}`;
-            },
-          },
-          gridLines: {
-            drawOnChartArea: false,
-          },
+        grid: {
+          drawOnChartArea: false,
         },
-      ],
+      },
     },
   };
 };
@@ -124,7 +141,7 @@ const mapChartData = ({
             ? convertSpeed(windSpeed, speedUnit)
             : convertTemp(temperature, tempUnit);
         }),
-        yAxisID: "y-axis-1",
+        yAxisID: "y",
         borderColor: chartColors.gray,
         backgroundColor: chartColors.gray,
         fill: false,
@@ -140,7 +157,7 @@ const mapChartData = ({
             ? convertLength(precipitationIntensity, lengthUnit)
             : precipitationProbability;
         }),
-        yAxisID: "y-axis-2",
+        yAxisID: "y1",
         borderColor: chartColors.blue,
         backgroundColor: chartColors.blue,
         fill: false,
