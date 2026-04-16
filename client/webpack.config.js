@@ -85,7 +85,10 @@ module.exports = (env) => {
         favicon: "./src/favicon.svg",
       }),
       definePlugin,
-      new ESLintPlugin({ extensions: ["js", "jsx"] }),
+      new ESLintPlugin({
+        extensions: ["js", "jsx"],
+        configType: "flat",
+      }),
     ],
     watchOptions: {
       ignored: /node_modules/
