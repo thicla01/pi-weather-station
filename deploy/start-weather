@@ -44,8 +44,4 @@ if [ -n "$WAYLAND_DISPLAY" ]; then
 fi
 
 "$CHROMIUM" --kiosk --noerrdialogs --disable-infobars --no-first-run \
-    --ignore-certificate-errors \
-    --ignore-gpu-blocklist \
-    --enable-gpu-rasterization \
-    --enable-zero-copy \
-    $FLAGS "$URL"
+    --ignore-certificate-errors $FLAGS "$URL"
