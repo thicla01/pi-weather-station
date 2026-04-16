@@ -132,6 +132,7 @@ const mapChartData = ({
     datasets: [
       {
         radius: 0,
+        tension: 0.4,
         label: labelMain,
         data: data.map((e) => {
           const {
@@ -148,6 +149,7 @@ const mapChartData = ({
       },
       {
         radius: 0,
+        tension: 0.4,
         label: labelPrecip,
         data: data.map((e) => {
           const {
