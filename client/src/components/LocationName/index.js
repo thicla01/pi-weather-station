@@ -45,7 +45,7 @@ const LocationName = () => {
 /**
  * Parses name data from results
  *
- * @param {Object} res
+ * @param {object} res
  * @returns {String} Display name
  */
 const getName = (res) => {

@@ -29,7 +29,7 @@ CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 /**
  * A spinner based off of https://github.com/tobiasahlin/SpinKit
  *
- * @param {Object} props
+ * @param {object} props
  * @param {String} props.color
  * @param {String} props.size
  * @returns {JSX.Element} Spinner

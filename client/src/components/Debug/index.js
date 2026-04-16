@@ -155,8 +155,8 @@ const INDICATOR_CLASS = (indicator, styles) => {
 /**
  * Provider status section — Atlassian Statuspage results for external providers
  *
- * @param {Object} props
- * @param {Object} props.providerStatus
+ * @param {object} props
+ * @param {object} props.providerStatus
  * @returns {JSX.Element} Provider status section
  */
 const ProviderStatusSection = ({ providerStatus }) => {
@@ -227,8 +227,8 @@ const fmtVal = (count, limit) =>
 /**
  * Quota section — one table per service
  *
- * @param {Object} props
- * @param {Object} props.counters Counters from server
+ * @param {object} props
+ * @param {object} props.counters Counters from server
  * @returns {JSX.Element} Quota section
  */
 const QuotaSection = ({ counters }) => {
@@ -312,8 +312,8 @@ QuotaSection.propTypes = {
 /**
  * Services section
  *
- * @param {Object} props
- * @param {Object} props.services Map of service name to status info
+ * @param {object} props
+ * @param {object} props.services Map of service name to status info
  * @returns {JSX.Element} Services section
  */
 const SERVICE_ORDER = [
@@ -378,7 +378,7 @@ ServicesSection.propTypes = {
 /**
  * Cache section
  *
- * @param {Object} props
+ * @param {object} props
  * @param {Array} props.cache List of cache entries
  * @returns {JSX.Element} Cache section
  */
@@ -427,7 +427,7 @@ CacheSection.propTypes = {
 /**
  * Logs section
  *
- * @param {Object} props
+ * @param {object} props
  * @param {Array} props.logs List of log lines
  * @returns {JSX.Element} Logs section
  */
@@ -471,7 +471,7 @@ function formatClientTime(ts) {
 /**
  * Remote clients section — IP addresses that have connected since last restart
  *
- * @param {Object} props
+ * @param {object} props
  * @param {Array} props.clients List of remote client entries
  * @returns {JSX.Element} Remote clients section
  */
@@ -521,7 +521,7 @@ RemoteClientsSection.propTypes = {
 /**
  * Security events section
  *
- * @param {Object} props
+ * @param {object} props
  * @param {Array} props.events List of blocked request events
  * @returns {JSX.Element} Security events section
  */
@@ -560,7 +560,7 @@ SecuritySection.propTypes = {
 /**
  * Audit section
  *
- * @param {Object} props
+ * @param {object} props
  * @param {String} props.audit npm audit log content
  * @returns {JSX.Element} Audit section
  */
@@ -762,8 +762,8 @@ function formatUptime(seconds) {
 /**
  * Server KPI section — uptime, memory, cache hit rate, response times
  *
- * @param {Object} props
- * @param {Object} props.serverKpis
+ * @param {object} props
+ * @param {object} props.serverKpis
  * @returns {JSX.Element} Server KPI section
  */
 const ServerKpiSection = ({ serverKpis }) => {
@@ -862,10 +862,10 @@ ServerKpiSection.propTypes = {
 /**
  * Client KPI section — page load, FPS, API call durations, JS heap
  *
- * @param {Object} props
+ * @param {object} props
  * @param {number|null} props.fps Measured FPS (null while measuring)
  * @param {Function} props.setFps FPS state setter
- * @param {Object|null} props.clientMetrics Collected client metrics
+ * @param {object|null} props.clientMetrics Collected client metrics
  * @param {Function} props.setClientMetrics Client metrics state setter
  * @returns {JSX.Element} Client KPI section
  */

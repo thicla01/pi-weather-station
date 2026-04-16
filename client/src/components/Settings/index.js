@@ -200,7 +200,7 @@ export default Settings;
 /**
  * Save button
  *
- * @param {Object} props
+ * @param {object} props
  * @param {String} [props.mapsKey]
  * @param {String} [props.weatherKey]
  * @param {String} [props.geoKey]
@@ -318,7 +318,7 @@ const ToggleButtons = () => {
 /**
  * Toggle buttons — supports 2 buttons (button1/button2 props) or N buttons (options prop)
  *
- * @param {Object} props
+ * @param {object} props
  * @param {Array} [props.options] Array of {label, value} for variable number of buttons
  * @param {String} [props.button1Label]
  * @param {String} [props.button2Label]
@@ -372,7 +372,7 @@ ToggleButton.propTypes = {
 /**
  * Delete button
  *
- * @param {Object} props
+ * @param {object} props
  * @param {Function} props.cb callback
  * @returns {JSX.Element} Delete button
  */
@@ -391,7 +391,7 @@ DeleteButton.propTypes = {
 /**
  * Undo button, restores input to default value
  *
- * @param {Object} props
+ * @param {object} props
  * @param {Function} props.cb callback
  * @returns {JSX.Element} Undo button
  */
@@ -410,7 +410,7 @@ UndoButton.propTypes = {
 /**
  * Settings input
  *
- * @param {Object} props
+ * @param {object} props
  * @param {String} props.label Label
  * @param {String} props.val value
  * @param {Function} props.cb change callback

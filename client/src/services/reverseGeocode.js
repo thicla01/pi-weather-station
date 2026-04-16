@@ -6,7 +6,7 @@ let prevResult = null;
 /**
  * Reverse geocode lookup (proxied via local server to keep API key server-side)
  *
- * @param {Object} params
+ * @param {object} params
  * @param {Number} params.lat latitude
  * @param {Number} params.lon longitude
  * @returns {Promise} API result

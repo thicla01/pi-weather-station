@@ -114,7 +114,7 @@ const CurrentWeather = () => {
  *
  * @param {String} code
  * @param {Boolean} [isDay] if it is currently day
- * @returns {Object} weather description and icon
+ * @returns {object} weather description and icon
  */
 const parseWeatherCode = (code, isDay) => {
   switch (code) {

@@ -15,7 +15,7 @@ const MOUSE_HIDE_STORAGE_KEY = "mouseHide";
 /**
  * App context provider
  *
- * @param {Object} props
+ * @param {object} props
  * @param {Node} props.children
  * @returns {JSX.Element} Context provider
  */
@@ -196,7 +196,7 @@ export function AppContextProvider({ children }) {
   /**
    * Set the map to a given position
    *
-   * @param {Object} coords coordinates
+   * @param {object} coords coordinates
    * @param {String} coords.latitude
    * @param {String} coords.longitude
    */
@@ -218,7 +218,7 @@ export function AppContextProvider({ children }) {
   /**
    * Gets geolocation and sets it, unless custom starting coordinates are provided.
    *
-   * @returns {Object} coords
+   * @returns {object} coords
    */
   function getBrowserGeo() {
     return new Promise((resolve, reject) => {
@@ -325,7 +325,7 @@ export function AppContextProvider({ children }) {
   /**
    * Updates hourly weather data
    *
-   * @param {Object} coords
+   * @param {object} coords
    * @param {Number} coords.latitude latitude
    * @param {Number} coords.longitude longitude
    *
@@ -371,7 +371,7 @@ export function AppContextProvider({ children }) {
   /**
    * Updates daily  weather data
    *
-   * @param {Object} coords
+   * @param {object} coords
    * @param {Number} coords.latitude latitude
    * @param {Number} coords.longitude longitude
    *
@@ -446,7 +446,7 @@ export function AppContextProvider({ children }) {
   /**
    * Updates current weather data
    *
-   * @param {Object} coords
+   * @param {object} coords
    * @param {Number} coords.latitude latitude
    * @param {Number} coords.longitude longitude
    *
@@ -513,7 +513,7 @@ export function AppContextProvider({ children }) {
   /**
    * Saves settings to `settings.json`
    *
-   * @param {Object} settings
+   * @param {object} settings
    * @param {String} [settings.mapsKey]
    * @param {String} [settings.weatherKey]
    * @param {String} [settings.geoKey]

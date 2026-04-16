@@ -115,7 +115,7 @@ const CurrentWeather = () => {
 /**
  * Precipitation, if any
  *
- * @param {Object} props
+ * @param {object} props
  * @param {Number} props.rainFall
  * @param {Number} props.snowFall
  * @param {String} props.lengthUnit
@@ -150,7 +150,7 @@ Precipitation.propTypes = {
  * see https://openweathermap.org/weather-conditions#Weather-Condition-Codes-2
  *
  * @param {String} iconCode
- * @returns {Object} Icon
+ * @returns {object} Icon
  */
 function getWeatherIcon(iconCode) {
   switch (iconCode) {

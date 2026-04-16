@@ -22,7 +22,7 @@ import styles from "./styles.css";
 /**
  * Handles map click events from inside the MapContainer context
  *
- * @param {Object} props
+ * @param {object} props
  * @param {Function} props.onClick click handler
  * @returns {null} renders nothing
  */
@@ -38,8 +38,8 @@ MapClickHandler.propTypes = {
 /**
  * Pans the map when panToCoords changes
  *
- * @param {Object} props
- * @param {Object} props.panToCoords target coordinates
+ * @param {object} props
+ * @param {object} props.panToCoords target coordinates
  * @param {Function} props.setPanToCoords resets panToCoords to null
  * @returns {null} renders nothing
  */
@@ -62,7 +62,7 @@ PanHandler.propTypes = {
 /**
  * Weather map
  *
- * @param {Object} props
+ * @param {object} props
  * @param {Number} props.zoom zoom level
  * @param {Boolean} [props.dark] dark mode
  * @returns {JSX.Element} Weather map
@@ -208,7 +208,7 @@ WeatherMap.propTypes = {
 /**
  * Weather layer
  *
- * @param {Object} props
+ * @param {object} props
  * @param {String} props.layer
  * @param {String} props.weatherApiKey
  * @returns {JSX.Element} Weather layer

@@ -16,13 +16,13 @@ const DAILY_WEATHER_DATA_UPDATE_INTERVAL = 24 * 60 * 60 * 1000; //every day
 /**
  * Creates an interval to call a weather update callback
  *
- * @param {Object} params
- * @param {Object} params.stateInterval Interval in state
+ * @param {object} params
+ * @param {object} params.stateInterval Interval in state
  * @param {Function} params.stateIntervalSetter state interval setter
  * @param {Function} params.cb callback to invoke on each interval
  * @param {Number} params.intervalTime interval frequency, ms
  * @param {String} params.weatherApiKey weather API key
- * @param {Object} params.mapGeo coordinates to get weather for
+ * @param {object} params.mapGeo coordinates to get weather for
  */
 function createWeatherUpdateInterval({
   stateInterval,
