@@ -1,5 +1,5 @@
 {
-  "parser": "babel-eslint",
+  "parser": "@babel/eslint-parser",
   "parserOptions": {
     "ecmaVersion": 9,
     "sourceType": "module",
@@ -13,8 +13,8 @@
   },
   "rules": {    
     "react/jsx-uses-react": 1,
-    "babel/semi": 1,
-    "babel/camelcase": 1,
+    "@babel/semi": 1,
+    "camelcase": 1,
     "no-useless-return": 2,   
     "no-self-compare": 2,      
     "no-implicit-globals" : 2,
@@ -23,7 +23,7 @@
     "no-multiple-empty-lines" : 1,
     "no-empty-function": 2,
     "guard-for-in": 2,       
-    "babel/no-unused-expressions": 2,
+    "@babel/no-unused-expressions": 2,
     "jsx-quotes" : ["warn", "prefer-double"],
     "comma-spacing" : 1,       
     "arrow-spacing": 1,    
@@ -62,7 +62,7 @@
     "plugin:jsdoc/recommended"
   ],
   "plugins": [
-    "babel",
+    "@babel",
     "react-hooks",
     "react",
     "jsdoc"
