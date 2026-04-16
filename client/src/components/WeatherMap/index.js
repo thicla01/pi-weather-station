@@ -4,14 +4,60 @@ import React, {
   useState,
   useCallback,
   useMemo,
-  useRef,
 } from "react";
-import { Map, TileLayer, AttributionControl, Marker } from "react-leaflet";
+import {
+  MapContainer,
+  TileLayer,
+  AttributionControl,
+  Marker,
+  useMap,
+  useMapEvents,
+} from "react-leaflet";
 import PropTypes from "prop-types";
 import { AppContext } from "~/AppContext";
 import debounce from "debounce";
 import axios from "axios";
 import styles from "./styles.css";
+
+/**
+ * Handles map click events from inside the MapContainer context
+ *
+ * @param {Object} props
+ * @param {Function} props.onClick click handler
+ * @returns {null} renders nothing
+ */
+const MapClickHandler = ({ onClick }) => {
+  useMapEvents({ click: onClick });
+  return null;
+};
+
+MapClickHandler.propTypes = {
+  onClick: PropTypes.func.isRequired,
+};
+
+/**
+ * Pans the map when panToCoords changes
+ *
+ * @param {Object} props
+ * @param {Object} props.panToCoords target coordinates
+ * @param {Function} props.setPanToCoords resets panToCoords to null
+ * @returns {null} renders nothing
+ */
+const PanHandler = ({ panToCoords, setPanToCoords }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (panToCoords) {
+      map.panTo([panToCoords.latitude, panToCoords.longitude]);
+      setPanToCoords(null);
+    }
+  }, [panToCoords, map, setPanToCoords]);
+  return null;
+};
+
+PanHandler.propTypes = {
+  panToCoords: PropTypes.object,
+  setPanToCoords: PropTypes.func.isRequired,
+};
 
 /**
  * Weather map
@@ -34,7 +80,6 @@ const WeatherMap = ({ zoom, dark }) => {
     markerIsVisible,
     animateWeatherMap,
   } = useContext(AppContext);
-  const mapRef = useRef();
 
   const handleMapClick = useCallback((e) => {
     const { lat: latitude, lng: longitude } = e.latlng;
@@ -83,15 +128,6 @@ const WeatherMap = ({ zoom, dark }) => {
     };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Pan the screen to a a specific location when `panToCoords` is updated with grid coordinates
-  useEffect(() => {
-    if (panToCoords && mapRef.current) {
-      const { leafletElement } = mapRef.current;
-      leafletElement.panTo([panToCoords.latitude, panToCoords.longitude]);
-      setPanToCoords(null); //reset back to null so we can observe a change next time its fired for the same coords
-    }
-  }, [panToCoords, mapRef]); // eslint-disable-line react-hooks/exhaustive-deps
-
   const { latitude, longitude } = browserGeo || {};
 
   useEffect(() => {
@@ -133,8 +169,7 @@ const WeatherMap = ({ zoom, dark }) => {
   const markerPosition = mapGeo ? [mapGeo.latitude, mapGeo.longitude] : null;
 
   return (
-    <Map
-      ref={mapRef}
+    <MapContainer
       center={[latitude, longitude]}
       zoom={zoom}
       style={{ width: "100%", height: "100%" }}
@@ -142,8 +177,9 @@ const WeatherMap = ({ zoom, dark }) => {
       touchZoom={true}
       dragging={true}
       fadeAnimation={false}
-      onClick={mapClickHandler}
     >
+      <MapClickHandler onClick={mapClickHandler} />
+      <PanHandler panToCoords={panToCoords} setPanToCoords={setPanToCoords} />
       <AttributionControl position={"bottomleft"} />
       <TileLayer
         attribution='© <a href="https://www.mapbox.com/feedback/">Mapbox</a>'
@@ -160,7 +196,7 @@ const WeatherMap = ({ zoom, dark }) => {
       {markerIsVisible && markerPosition ? (
         <Marker position={markerPosition} opacity={0.65}></Marker>
       ) : null}
-    </Map>
+    </MapContainer>
   );
 };
 
