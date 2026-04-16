@@ -49,9 +49,9 @@ const LocationName = () => {
  * @returns {String} Display name
  */
 const getName = (res) => {
-  // eslint-disable-next-line babel/camelcase
+  // eslint-disable-next-line camelcase
   const { city, country, state, country_code, county, region } = res.address;
-  // eslint-disable-next-line babel/camelcase
+  // eslint-disable-next-line camelcase
   if (country_code === "us") {
     if (city) {
       return `${city}, ${state}`;

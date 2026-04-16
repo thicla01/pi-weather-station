@@ -48,7 +48,7 @@ const CurrentWeather = () => {
         temp,
         humidity,
         clouds,
-        wind_speed, // eslint-disable-line babel/camelcase
+        wind_speed, // eslint-disable-line camelcase
         rain,
         snow,
         weather: currentWeather,
