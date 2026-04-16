@@ -148,7 +148,7 @@ function getAppVersion() {
 
 function getSystemInfo() {
   let hardware = "Unknown";
-  let os = "Unknown";
+  let osName = "Unknown";
 
   try {
     hardware = fs.readFileSync("/proc/device-tree/model", "utf8").replace(/\0/g, "").trim();
@@ -157,10 +157,22 @@ function getSystemInfo() {
   try {
     const osRelease = fs.readFileSync("/etc/os-release", "utf8");
     const match = osRelease.match(/^PRETTY_NAME="(.+)"$/m);
-    if (match) os = match[1];
-  } catch { /* file not available */ }
+    if (match) osName = match[1];
+  } catch { /* not Linux — try macOS */ }
 
-  return { hardware, os };
+  if (osName === "Unknown" && process.platform === "darwin") {
+    try {
+      const productName = execSync("sw_vers -productName", { encoding: "utf8", timeout: 3000 }).trim();
+      const productVersion = execSync("sw_vers -productVersion", { encoding: "utf8", timeout: 3000 }).trim();
+      osName = `${productName} ${productVersion}`;
+    } catch { /* sw_vers not available */ }
+
+    try {
+      hardware = execSync("sysctl -n hw.model", { encoding: "utf8", timeout: 3000 }).trim();
+    } catch { /* sysctl not available */ }
+  }
+
+  return { hardware, os: osName };
 }
 
 const securityEvents = [];
