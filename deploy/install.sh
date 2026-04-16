@@ -126,6 +126,7 @@ if [ "$CONFIGURE_SETTINGS" = "yes" ]; then
     read -p "   Tomorrow.io API key (weatherApiKey) : " WEATHER_KEY
     read -p "   Mapbox API key (mapApiKey)           : " MAP_KEY
     read -p "   LocationIQ API key (optional)        : " GEO_KEY
+    read -p "   Anthropic API key (optional)         : " ANTHROPIC_KEY
     read -p "   Starting latitude                    : " LAT
     read -p "   Starting longitude                   : " LON
 
@@ -139,11 +140,13 @@ data = {
     'weatherApiKey': sys.argv[1],
     'mapApiKey':     sys.argv[2],
     'reverseGeoApiKey': sys.argv[3],
-    'startingLat':   sys.argv[4] if sys.argv[4] else None,
-    'startingLon':   sys.argv[5] if sys.argv[5] else None,
+    'anthropicApiKey': sys.argv[4] if sys.argv[4] else None,
+    'startingLat':   sys.argv[5] if sys.argv[5] else None,
+    'startingLon':   sys.argv[6] if sys.argv[6] else None,
 }
+data = {k: v for k, v in data.items() if v is not None}
 print(json.dumps(data, indent=2))
-" "$WEATHER_KEY" "$MAP_KEY" "$GEO_KEY" "$LAT" "$LON" > "$REPO_DIR/settings.json"
+" "$WEATHER_KEY" "$MAP_KEY" "$GEO_KEY" "$ANTHROPIC_KEY" "$LAT" "$LON" > "$REPO_DIR/settings.json"
     echo ">> settings.json created."
 else
     if [ ! -f "$REPO_DIR/settings.json" ]; then
