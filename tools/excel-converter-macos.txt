@@ -4,7 +4,7 @@
 # --- Installation (une seule fois) ---
 
 # 1. Copier le script depuis le Pi vers le Mac
-scp pi@192.168.6.49:~/pi-weather-station/tools/debug_csv_to_excel.py ~/Desktop/
+scp pi@<pi-ip-address>:~/pi-weather-station/tools/debug_csv_to_excel.py ~/Desktop/
 
 # 2. Créer un environnement virtuel Python
 python3 -m venv ~/venv-excel
