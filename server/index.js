@@ -11,7 +11,6 @@ console.error = (...args) => _origErr(`[${_ts()}]`, ...args);
 const express = require("express");
 const bodyParser = require("body-parser");
 const path = require("path");
-const open = require("open");
 const https = require("https");
 const fs = require("fs");
 const { execSync } = require("child_process");
@@ -135,12 +134,14 @@ const debugLocalhostOnly = (req, res, next) => {
 if (sslOptions) {
   https.createServer(sslOptions, app).listen(HTTPS_PORT, HOST, async () => {
     initServerInfo(HTTPS_PORT, "https");
+    const { default: open } = await import("open");
     await open(`https://localhost:${HTTPS_PORT}`);
     console.log(`${appName} v${ver} has started on port ${HTTPS_PORT} (HTTPS, bound to ${HOST})`);
   });
 } else {
   app.listen(PORT, HOST, async () => {
     initServerInfo(PORT, "http");
+    const { default: open } = await import("open");
     await open(`http://localhost:${PORT}`);
     console.log(`${appName} v${ver} has started on port ${PORT} (HTTP, bound to ${HOST})`);
   });
