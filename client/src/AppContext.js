@@ -424,7 +424,7 @@ export function AppContextProvider({ children }) {
       axios
         .get(`/api/sunrise-sunset?lat=${latitude}&lon=${longitude}`)
         .then((res) => {
-          const { results } = res?.data;
+          const { results } = res.data;
           if (results) {
             const { sunrise, sunset } = results;
             setSunriseTime(sunrise);
