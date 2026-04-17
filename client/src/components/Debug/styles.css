@@ -339,7 +339,7 @@
   padding: 6px;
   font-family: monospace;
   font-size: clamp(11px, 1.0vw, 13px);
-  max-height: 200px;
+  max-height: clamp(200px, 25vh, 400px);
   overflow-y: auto;
   white-space: pre-wrap;
   word-break: break-all;
@@ -355,7 +355,7 @@
   font-family: monospace;
   font-size: clamp(11px, 1.0vw, 13px);
   color: #ccc;
-  max-height: 120px;
+  max-height: clamp(200px, 25vh, 400px);
   overflow-y: auto;
   white-space: pre-wrap;
   word-break: break-all;
