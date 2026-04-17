@@ -447,7 +447,7 @@ CacheSection.propTypes = {
 const LogsSection = ({ logs }) => {
   const { t } = useTranslation();
   return (
-    <div className={styles.section}>
+    <div className={`${styles.section} ${styles.sectionFull}`}>
       <div className={styles.sectionTitle}>{t("debug.logs")}</div>
       <div className={styles.logBlock}>
         {!logs || logs.length === 0 ? (
@@ -580,7 +580,7 @@ SecuritySection.propTypes = {
 const AuditSection = ({ audit }) => {
   const { t } = useTranslation();
   return (
-    <div className={styles.section}>
+    <div className={`${styles.section} ${styles.sectionFull}`}>
       <div className={styles.sectionTitle}>{t("debug.npmAudit")}</div>
       <div className={styles.auditBlock}>
         {audit || <span className={styles.empty}>{t("debug.notAvailable")}</span>}
