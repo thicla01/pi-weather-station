@@ -36,12 +36,14 @@ const { responseTimerMiddleware } = require("./responseTimer");
 const { recordClient } = require("./clientTracker");
 const { getDebugInfo, logSecurityEvent, initServerInfo } = debugCtrl;
 const { getWeatherSummary } = aiSummaryCtrl;
+const rateLimit = require("express-rate-limit");
 
 const DIST_DIR = "/../client/dist";
 const PORT = 8080;
 const HTTPS_PORT = 8443;
-const HOST = process.env.ALLOW_REMOTE === "true" ? "0.0.0.0" : "127.0.0.1";
-const REMOTE_SECURITY = process.env.REMOTE_SECURITY === "true";
+const ALLOW_REMOTE = process.env.ALLOW_REMOTE === "true";
+const REMOTE_SECURITY = process.env.REMOTE_SECURITY !== "false";
+const HOST = ALLOW_REMOTE ? "0.0.0.0" : "127.0.0.1";
 const DEBUG = process.env.DEBUG === "true";
 const app = express();
 
@@ -106,11 +108,20 @@ app.use(bodyParser.json());
 app.use(express.static(path.join(`${__dirname}/${DIST_DIR}`)));
 app.use(responseTimerMiddleware);
 
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: "Too many requests",
+});
+
 const isLocalhostIp = (ip) => ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1";
 
 app.use((req, res, next) => {
   const ip = req.socket.remoteAddress;
-  if (!isLocalhostIp(ip)) recordClient(ip);
+  req.isLocal = isLocalhostIp(ip);
+  if (!req.isLocal) recordClient(ip);
   next();
 });
 
@@ -158,18 +169,23 @@ app.get("/geolocation", getCoords);
 app.get("/api/is-local", (req, res) => {
   const ip = req.socket.remoteAddress;
   const isLocal = isLocalhostIp(ip);
-  return res.status(200).json({ isLocal, securityEnabled: REMOTE_SECURITY, debugEnabled: DEBUG });
+  const response = { isLocal };
+  if (isLocal) {
+    response.securityEnabled = REMOTE_SECURITY;
+    response.debugEnabled = DEBUG;
+  }
+  return res.status(200).json(response);
 });
 
-app.get("/api/reverse-geocode", proxyReverseGeocode);
-app.get("/api/tiles/:style/:z/:x/:y", mapTile);
+app.get("/api/reverse-geocode", apiLimiter, proxyReverseGeocode);
+app.get("/api/tiles/:style/:z/:x/:y", apiLimiter, mapTile);
 
-app.get("/api/weather/current", weatherCurrent);
-app.get("/api/weather/hourly", weatherHourly);
-app.get("/api/weather/daily", weatherDaily);
-app.get("/api/sunrise-sunset", sunriseSunset);
+app.get("/api/weather/current", apiLimiter, weatherCurrent);
+app.get("/api/weather/hourly", apiLimiter, weatherHourly);
+app.get("/api/weather/daily", apiLimiter, weatherDaily);
+app.get("/api/sunrise-sunset", apiLimiter, sunriseSunset);
 
-app.get("/api/weather-summary", getWeatherSummary);
+app.get("/api/weather-summary", apiLimiter, getWeatherSummary);
 
 app.get("/api/debug", debugLocalhostOnly, getDebugInfo);
 

@@ -5,6 +5,28 @@ const SETTINGS_FILE = "../settings.json";
 const FILE_PATH = path.join(`${__dirname}/${SETTINGS_FILE}`);
 const ENCODING = "utf8";
 
+const ALLOWED_KEYS = new Set([
+  "weatherApiKey", "mapApiKey", "reverseGeoApiKey", "anthropicApiKey",
+  "startingLat", "startingLon",
+]);
+
+const API_KEY_FIELDS = new Set([
+  "weatherApiKey", "mapApiKey", "reverseGeoApiKey", "anthropicApiKey",
+]);
+
+/**
+ * Returns a sanitized copy of obj containing only allowed setting keys.
+ *
+ * @param {Object} obj
+ * @returns {Object}
+ */
+function sanitizeSettings(obj) {
+  if (!obj || typeof obj !== "object" || Array.isArray(obj)) return {};
+  return Object.fromEntries(
+    Object.entries(obj).filter(([k]) => ALLOWED_KEYS.has(k))
+  );
+}
+
 /**
  * Read the settings.json file
  *
@@ -34,7 +56,7 @@ function readSettingsFile({ successCb, errorCb }) {
  * @param {Object} res
  */
 function createSettingsFile(req, res) {
-  const contents = req.body || {};
+  const contents = sanitizeSettings(req.body);
 
   if (fs.existsSync(FILE_PATH)) {
     return res.status(409).json("settings file already exists").end();
@@ -50,7 +72,11 @@ function createSettingsFile(req, res) {
 }
 
 /**
- * Return the settings.json file
+ * Return the settings.json file. For remote clients, API key values are
+ * replaced with a boolean so keys are never exposed over the network.
+ *
+ * @param {Object} req
+ * @param {Object} res
  */
 function getSettings(req, res) {
   if (!fs.existsSync(FILE_PATH)) {
@@ -59,9 +85,15 @@ function getSettings(req, res) {
 
   readSettingsFile({
     successCb: (data) => {
-      return res.status(200).json(data).end();
+      if (req.isLocal) {
+        return res.status(200).json(data).end();
+      }
+      const masked = Object.fromEntries(
+        Object.entries(data).map(([k, v]) => [k, API_KEY_FIELDS.has(k) ? Boolean(v) : v])
+      );
+      return res.status(200).json(masked).end();
     },
-    errorCb: (err) => {
+    errorCb: () => {
       return res.status(500).end();
     },
   });
@@ -77,6 +109,9 @@ function setSetting(req, res) {
   const { key, val } = req.body;
   if (!key || !val) {
     return res.status(400).json("You must supply a key and val").end();
+  }
+  if (!ALLOWED_KEYS.has(key)) {
+    return res.status(400).json("Unknown setting key").end();
   }
 
   /**
@@ -136,14 +171,15 @@ function replaceSettings(req, res) {
     return res.status(400).json("You must provide settings contents").end();
   }
   const fileExists = fs.existsSync(FILE_PATH);
+  const sanitized = sanitizeSettings(body);
 
-  fs.writeFile(FILE_PATH, JSON.stringify(body), ENCODING, (err) => {
+  fs.writeFile(FILE_PATH, JSON.stringify(sanitized), ENCODING, (err) => {
     if (err) {
       return res.status(500).json(err).end();
     } else {
       return res
         .status(fileExists ? 200 : 201)
-        .json(body)
+        .json(sanitized)
         .end();
     }
   });
