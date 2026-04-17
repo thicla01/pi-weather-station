@@ -108,8 +108,11 @@ app.use(bodyParser.json());
 app.use(express.static(path.join(`${__dirname}/${DIST_DIR}`)));
 app.use(responseTimerMiddleware);
 
-// Trust the first proxy hop so rate limiting tracks real client IPs
-app.set("trust proxy", 1);
+// When remote access is enabled, trust the first proxy hop so req.ip
+// reflects the real client IP from X-Forwarded-For rather than the
+// proxy's socket address. Disabled for local-only mode to prevent
+// header spoofing on direct connections.
+if (ALLOW_REMOTE) app.set("trust proxy", 1);
 
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
@@ -129,25 +132,24 @@ const tileLimiter = rateLimit({
 
 const isLocalhostIp = (ip) => ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1";
 
+// req.ip respects trust proxy: when ALLOW_REMOTE is true it reads
+// X-Forwarded-For (set by the proxy), otherwise it falls back to socket IP.
 app.use((req, res, next) => {
-  const ip = req.socket.remoteAddress;
-  req.isLocal = isLocalhostIp(ip);
-  if (!req.isLocal) recordClient(ip);
+  req.isLocal = isLocalhostIp(req.ip);
+  if (!req.isLocal) recordClient(req.ip);
   next();
 });
 
 const localhostOnly = (req, res, next) => {
-  const ip = req.socket.remoteAddress;
-  if (!isLocalhostIp(ip)) {
-    logSecurityEvent(ip, req.method, req.originalUrl);
+  if (!isLocalhostIp(req.ip)) {
+    logSecurityEvent(req.ip, req.method, req.originalUrl);
     return res.status(403).json("Settings can only be modified from the Pi itself.").end();
   }
   next();
 };
 
 const debugLocalhostOnly = (req, res, next) => {
-  const ip = req.socket.remoteAddress;
-  if (!isLocalhostIp(ip)) {
+  if (!isLocalhostIp(req.ip)) {
     return res.status(403).json("Debug endpoint is only accessible from the Pi itself.").end();
   }
   next();
@@ -178,8 +180,7 @@ app.delete("/setting", ...(REMOTE_SECURITY ? [localhostOnly] : []), deleteSettin
 app.get("/geolocation", getCoords);
 
 app.get("/api/is-local", (req, res) => {
-  const ip = req.socket.remoteAddress;
-  const isLocal = isLocalhostIp(ip);
+  const { isLocal } = req;
   const response = { isLocal, securityEnabled: REMOTE_SECURITY };
   if (isLocal) response.debugEnabled = DEBUG;
   return res.status(200).json(response);
