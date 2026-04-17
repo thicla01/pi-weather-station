@@ -54,7 +54,7 @@ const useDragScroll = () => {
       isDragging = true;
       startY = e.clientY;
       startScrollTop = el.scrollTop;
-      try { el.setPointerCapture(e.pointerId); } catch (err) { /* ignore */ }
+      try { el.setPointerCapture(e.pointerId); } catch { /* ignore */ }
     };
 
     const onPointerMove = (e) => {
