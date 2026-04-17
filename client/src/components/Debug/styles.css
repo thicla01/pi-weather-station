@@ -130,6 +130,7 @@
   font-size: clamp(12px, 1.1vw, 15px);
   overflow-y: auto;
   flex: 1;
+  min-height: 0;
 }
 
 .columns {

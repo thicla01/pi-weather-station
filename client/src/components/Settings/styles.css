@@ -22,6 +22,7 @@
   font-size: clamp(14px, 1.3vw, 18px);
   overflow-y: auto;
   flex: 1;
+  min-height: 0;
 }
 
 .input-container {
