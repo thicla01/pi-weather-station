@@ -7,6 +7,7 @@
 #   loginctl enable-linger $USER
 #
 # To allow access from the local network, uncomment the ALLOW_REMOTE line.
+# Settings writes are always restricted to the Pi itself (no REMOTE_SECURITY option).
 #
 # Logs:
 #   journalctl --user -u pi-weather-server -f
@@ -22,7 +23,6 @@ ExecStart=/bin/bash -lc "npm start"
 Restart=on-failure
 RestartSec=5
 # Environment=ALLOW_REMOTE=true
-# Environment=REMOTE_SECURITY=true
 # Environment=DEBUG=true
 
 [Install]

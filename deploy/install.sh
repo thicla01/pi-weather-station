@@ -184,12 +184,8 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     echo "       Re-run install.sh to regenerate it with the new address."
     echo "       To avoid this, consider assigning a static IP to your Pi."
     echo ""
-    read -p "   Restrict remote users to read-only? (API keys and settings cannot be modified remotely) (Y/n) " -n 1 -r
-    echo
-    REMOTE_SECURITY=$([[ -z "$REPLY" || $REPLY =~ ^[Yy]$ ]] && echo "yes" || echo "no")
 else
     ALLOW_REMOTE="no"
-    REMOTE_SECURITY="no"
 fi
 
 # --- 2b. Debug mode ---
@@ -258,10 +254,7 @@ if [ "$ALLOW_REMOTE" = "yes" ]; then
     sed -i 's/# Environment=ALLOW_REMOTE=true/Environment=ALLOW_REMOTE=true/' \
         ~/.config/systemd/user/pi-weather-server.service
 fi
-if [ "$REMOTE_SECURITY" = "yes" ]; then
-    sed -i 's/# Environment=REMOTE_SECURITY=true/Environment=REMOTE_SECURITY=true/' \
-        ~/.config/systemd/user/pi-weather-server.service
-fi
+
 mkdir -p ~/.config/systemd/user/pi-weather-server.service.d
 cat > ~/.config/systemd/user/pi-weather-server.service.d/override.conf << 'EOF'
 [Service]
@@ -364,11 +357,7 @@ echo "=== Installation complete ==="
 echo ""
 if [ "$ALLOW_REMOTE" = "yes" ]; then
     echo "   Remote access enabled — https://$REMOTE_IP:8443"
-    if [ "$REMOTE_SECURITY" = "yes" ]; then
-        echo "   Remote security enabled — remote users have read-only access."
-    else
-        echo "   Remote security disabled — remote users can modify settings."
-    fi
+    echo "   Remote users have read-only access (settings writes always restricted to the Pi)."
     echo "   NOTE: If your Pi's IP address changes, re-run install.sh to"
     echo "         regenerate the SSL certificate with the new address."
     echo ""
