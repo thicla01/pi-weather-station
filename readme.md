@@ -5,7 +5,7 @@ This is a weather station designed to be used with a Raspberry Pi on the officia
 
 ![pws-screenshot3](https://user-images.githubusercontent.com/15202038/91359998-4625bb80-e7bb-11ea-937e-c87eede41f35.JPG)
 
-The weather station will require you to have API keys from [Mapbox](https://www.mapbox.com/) and [Tomorrow.io](https://www.tomorrow.io/). Optionally, you can use an API key from [LocationIQ](https://locationiq.com/) to perform reverse geocoding, and an [Anthropic](https://console.anthropic.com/) API key for AI-generated weather summaries powered by Claude. All API keys are kept server-side and never exposed in client-side requests.
+The weather station will require you to have API keys from [Mapbox](https://www.mapbox.com/) and [Tomorrow.io](https://www.tomorrow.io/). Optionally, you can use an API key from [LocationIQ](https://locationiq.com/) to perform reverse geocoding, and an [Anthropic](https://console.anthropic.com/) API key for AI-generated weather summaries powered by Claude. All API keys are kept server-side: they never appear in client-side request URLs, and remote clients only receive a masked response (boolean) from `GET /settings` — the actual key values are only accessible from the Pi itself.
 
 Weather maps are provided by the [RainViewer](https://www.rainviewer.com/) API, which generously does not require an [API key](https://www.rainviewer.com/api.html).
 
@@ -16,6 +16,17 @@ Default geolocation (used when no custom coordinates are configured) is provided
 See it in action [here](https://www.youtube.com/watch?v=dvM6cyqYSw8).
 
 > Be mindful of the plan limits for your API keys and understand the terms of each provider, as scrolling around the map and selecting different locations will incur API calls for every location. Additionally, the weather station will periodically make additional API calls to get weather updates throughout the day. All weather (Tomorrow.io), map tile (Mapbox), and reverse geocoding (LocationIQ) calls are proxied through the server — multiple browser clients share the same quota rather than each consuming it independently. Weather responses are cached server-side, further reducing API usage.
+
+# v2.2.0
+
+Security hardening:
+
+- **API key masking** — `GET /settings` now returns boolean values (`true`/`false`) for API key fields when called by remote clients. Key values are only returned when the request originates from the Pi itself (localhost). This prevents key exposure even when `ALLOW_REMOTE=true`.
+- **`REMOTE_SECURITY` defaults to `true`** — Settings write endpoints (`POST`, `PUT`, `PATCH`, `DELETE`) are now protected by default. Previously this required explicitly setting `REMOTE_SECURITY=true`. To allow remote settings writes, set `REMOTE_SECURITY=false` explicitly (not recommended).
+- **Rate limiting** — All `/api/*` endpoints are now rate-limited per client IP. Weather and geocoding endpoints: 120 req/min. Map tile endpoints: 600 req/min (tile bursts require a higher limit). Protects external API quotas from exhaustion.
+- **Proxy-aware IP detection** — All locality checks (`localhostOnly`, `req.isLocal`) now use `req.ip` instead of `req.socket.remoteAddress`. When `ALLOW_REMOTE=true`, Express trusts the first `X-Forwarded-For` hop so that a local reverse proxy does not mask real client IPs. This ensures `localhostOnly` correctly blocks remote clients even when the proxy runs on the Pi itself.
+- **Settings key whitelist** — `POST`, `PUT`, and `PATCH` to `/settings` now accept only known keys (`weatherApiKey`, `mapApiKey`, `reverseGeoApiKey`, `anthropicApiKey`, `startingLat`, `startingLon`). Unknown keys are stripped silently (PUT/POST) or rejected with 400 (PATCH).
+- **`/api/is-local` scoped response** — `debugEnabled` is now only included in the response when the request comes from localhost. `securityEnabled` remains visible to all clients (needed by the UI).
 
 # v2.1.11
 
@@ -75,9 +86,9 @@ See it in action [here](https://www.youtube.com/watch?v=dvM6cyqYSw8).
 
 Security improvements:
 
-- **API key proxying** — Mapbox (map tiles) and LocationIQ (reverse geocoding) API calls are now proxied through the Express server. Keys are no longer included in client-side request URLs, keeping them out of browser network logs and third-party server logs. Note: keys are still transmitted to the browser via `GET /settings` for display in the settings panel.
-- **Settings write protection** — `POST`, `PUT`, `PATCH`, and `DELETE` requests to `/settings` can be restricted to `localhost` by enabling `REMOTE_SECURITY=true`. When active, remote users can view the app but cannot modify API keys or coordinates.
-- **Remote access UX** — When `REMOTE_SECURITY=true`, the settings panel hides API key and coordinate fields for remote users. Unit and display preferences (temperature, speed, clock format, mouse) remain accessible as they are stored locally in the browser. Without `REMOTE_SECURITY`, remote users have full access to settings.
+- **API key proxying** — Mapbox (map tiles) and LocationIQ (reverse geocoding) API calls are now proxied through the Express server. Keys are no longer included in client-side request URLs, keeping them out of browser network logs and third-party server logs.
+- **Settings write protection** — `POST`, `PUT`, `PATCH`, and `DELETE` requests to `/settings` are restricted to `localhost` (see `REMOTE_SECURITY` in v2.2.0 for the updated default behaviour).
+- **Remote access UX** — When `REMOTE_SECURITY=true` (default since v2.2.0), the settings panel hides API key and coordinate fields for remote users. Unit and display preferences (temperature, speed, clock format, mouse) remain accessible as they are stored locally in the browser.
 - **CORS removed** — The `cors` middleware (which allowed any origin to call the API) has been removed. All legitimate requests are same-origin and do not require it.
 - **Shell injection fix** — `deploy/install.sh` now uses `python3 + json.dumps` to write `settings.json`, preventing potential shell injection via API key input.
 - **JSON parse hardening** — `settings.json` parsing is now wrapped in a try/catch; a corrupted file returns a clean 500 error instead of crashing the server.
@@ -292,9 +303,15 @@ The script will automatically remove the systemd service, `~/.local/bin/start-se
 By default the server only accepts connections from `localhost` (127.0.0.1).
 
 When remote access is enabled (`ALLOW_REMOTE=true`), the following applies:
-- All API calls (Tomorrow.io, Mapbox, LocationIQ, sunrise-sunset.org) are **proxied through the server** — keys are never visible in client-side request URLs or third-party server logs. Keys are still transmitted to the browser via `GET /settings` for display in the settings panel.
+- All API calls (Tomorrow.io, Mapbox, LocationIQ, sunrise-sunset.org) are **proxied through the server** — keys are never visible in client-side request URLs or third-party server logs. Remote clients receive only a boolean (configured/not configured) from `GET /settings` — actual key values are never sent over the network.
 - Unit and display preferences (temperature, speed, clock format, etc.) work from any device.
-- Optionally, enable **`REMOTE_SECURITY=true`** to restrict remote users: API key and coordinate fields are hidden in the settings panel, and write operations are blocked server-side. Unit and display preferences remain accessible. Without this, remote users have full access to settings.
+- Settings writes (API keys, coordinates) are **restricted to the Pi itself by default** (`REMOTE_SECURITY=true`). To change settings remotely, use an SSH tunnel instead (see below).
+
+> **Changing settings remotely:** open an SSH tunnel and access the app as if you were local:
+> ```bash
+> ssh -L 8443:localhost:8443 pi@<pi-ip>
+> # then open https://localhost:8443 in your browser
+> ```
 
 ### Option 1 — Automated (recommended)
 
@@ -310,11 +327,10 @@ If you used `deploy/install.sh`, remote access can be configured automatically d
 
 To allow access from other devices, set the `ALLOW_REMOTE=true` environment variable when starting the server.
 
-**With systemd** — edit `~/.config/systemd/user/pi-weather-server.service` and uncomment the relevant lines:
+**With systemd** — edit `~/.config/systemd/user/pi-weather-server.service` and uncomment:
 
 ```ini
 Environment=ALLOW_REMOTE=true
-# Environment=REMOTE_SECURITY=true  ← also uncomment this to make settings read-only for remote users
 ```
 
 Then reload and restart:
@@ -323,6 +339,8 @@ Then reload and restart:
 systemctl --user daemon-reload
 systemctl --user restart pi-weather-server
 ```
+
+> `REMOTE_SECURITY` defaults to `true` — no need to set it explicitly. Settings writes are restricted to the Pi itself. To allow remote settings writes (not recommended), add `Environment=REMOTE_SECURITY=false`.
 
 **With the autostart script** — edit `~/.local/bin/start-weather` and uncomment:
 
@@ -334,8 +352,6 @@ ALLOW_REMOTE=true /usr/bin/npm start &
 
 ```bash
 ALLOW_REMOTE=true npm start
-# or with read-only remote access:
-ALLOW_REMOTE=true REMOTE_SECURITY=true npm start
 ```
 
 The server will now serve the app across your network on port 8443 (HTTPS).
