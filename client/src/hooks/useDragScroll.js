@@ -1,16 +1,22 @@
 import { useRef, useEffect } from "react";
 
 /**
- * Adds pointer-based drag scroll to a container element.
+ * Adds drag-to-scroll to a container element.
  *
- * CSS native scroll only triggers when Chromium classifies input as
- * pointerType 'touch'. On some Pi touchscreen revisions the driver
- * reports a different type, so we handle all pointer types explicitly.
+ * Two parallel paths handle different Pi touchscreen behaviours:
  *
- * Uses getBoundingClientRect instead of el.contains(e.target) to check
- * whether the gesture started inside the scroll container, avoiding
- * failures caused by SVG children, deeply nested elements, or other
- * edge cases where DOM containment checks can return false.
+ * 1. Touch events  — primary path. touchmove always fires on the element
+ *    where touchstart occurred, so no capture or bounds check is needed.
+ *    Used when the driver reports real touch input.
+ *
+ * 2. Pointer events — fallback for touchscreens that report as
+ *    pointerType 'mouse' (revised hardware / different driver). CSS native
+ *    scroll does not activate for mouse-type input, so we handle it here
+ *    with setPointerCapture to keep pointermove routed to the element
+ *    even when the finger drifts outside its bounds.
+ *
+ * Both paths listen on the element itself so events from children bubble
+ * up naturally — no document-level listeners or bounds checks required.
  *
  * @returns {React.RefObject} Ref to attach to the scrollable element
  */
@@ -25,41 +31,66 @@ const useDragScroll = () => {
     let startScrollTop = 0;
     let isDragging = false;
 
-    const isInBounds = (clientX, clientY) => {
-      const rect = el.getBoundingClientRect();
-      return (
-        clientX >= rect.left &&
-        clientX <= rect.right &&
-        clientY >= rect.top &&
-        clientY <= rect.bottom
-      );
-    };
+    // ── Touch events (primary path) ────────────────────────────────────────
 
-    const onPointerDown = (e) => {
-      if (!isInBounds(e.clientX, e.clientY)) return;
+    const onTouchStart = (e) => {
       isDragging = true;
-      startY = e.clientY;
+      startY = e.touches[0].clientY;
       startScrollTop = el.scrollTop;
     };
 
-    const onPointerMove = (e) => {
+    const onTouchMove = (e) => {
       if (!isDragging) return;
+      e.preventDefault();
+      el.scrollTop = startScrollTop + (startY - e.touches[0].clientY);
+    };
+
+    const onTouchEnd = () => { isDragging = false; };
+
+    // ── Pointer events (fallback for mouse-type touchscreens) ───────────────
+
+    const onPointerDown = (e) => {
+      if (e.pointerType === "touch") return; // handled by touch path above
+      isDragging = true;
+      startY = e.clientY;
+      startScrollTop = el.scrollTop;
+      try { el.setPointerCapture(e.pointerId); } catch (_) { /* ignore */ }
+    };
+
+    const onPointerMove = (e) => {
+      if (e.pointerType === "touch" || !isDragging) return;
       e.preventDefault();
       el.scrollTop = startScrollTop + (startY - e.clientY);
     };
 
-    const onPointerUp = () => { isDragging = false; };
+    const onPointerUp = (e) => {
+      if (e.pointerType === "touch") return;
+      isDragging = false;
+    };
 
-    document.addEventListener("pointerdown", onPointerDown);
-    document.addEventListener("pointermove", onPointerMove, { passive: false });
-    document.addEventListener("pointerup", onPointerUp);
-    document.addEventListener("pointercancel", onPointerUp);
+    const onPointerCancel = (e) => {
+      if (e.pointerType === "touch") return;
+      isDragging = false;
+    };
+
+    el.addEventListener("touchstart",    onTouchStart,    { passive: true  });
+    el.addEventListener("touchmove",     onTouchMove,     { passive: false });
+    el.addEventListener("touchend",      onTouchEnd,      { passive: true  });
+    el.addEventListener("touchcancel",   onTouchEnd,      { passive: true  });
+    el.addEventListener("pointerdown",   onPointerDown);
+    el.addEventListener("pointermove",   onPointerMove,   { passive: false });
+    el.addEventListener("pointerup",     onPointerUp);
+    el.addEventListener("pointercancel", onPointerCancel);
 
     return () => {
-      document.removeEventListener("pointerdown", onPointerDown);
-      document.removeEventListener("pointermove", onPointerMove);
-      document.removeEventListener("pointerup", onPointerUp);
-      document.removeEventListener("pointercancel", onPointerUp);
+      el.removeEventListener("touchstart",    onTouchStart);
+      el.removeEventListener("touchmove",     onTouchMove);
+      el.removeEventListener("touchend",      onTouchEnd);
+      el.removeEventListener("touchcancel",   onTouchEnd);
+      el.removeEventListener("pointerdown",   onPointerDown);
+      el.removeEventListener("pointermove",   onPointerMove);
+      el.removeEventListener("pointerup",     onPointerUp);
+      el.removeEventListener("pointercancel", onPointerCancel);
     };
   }, []);
 
