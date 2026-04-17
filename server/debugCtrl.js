@@ -107,6 +107,15 @@ function initServerInfo(port, protocol) {
   _serverProtocol = protocol;
 }
 
+function getServerConfig() {
+  return {
+    allowRemote: process.env.ALLOW_REMOTE === "true",
+    debug: process.env.DEBUG === "true",
+    nodeEnv: process.env.NODE_ENV || "development",
+    nodeVersion: process.version,
+  };
+}
+
 function getNetworkInfo() {
   const ifaces = os.networkInterfaces();
   const ips = [];
@@ -244,7 +253,7 @@ async function getDebugInfo(req, res) {
     responseTimes: getResponseTimeStats(),
   };
 
-  return res.status(200).json({ cache, logs, audit, securityEvents, services: getServiceStatus(), counters: getCounters(), system: getSystemInfo(), network: getNetworkInfo(), providerStatus, connectivity, appVersion: getAppVersion(), serverKpis, remoteClients: getRemoteClients(), updateInfo });
+  return res.status(200).json({ cache, logs, audit, securityEvents, services: getServiceStatus(), counters: getCounters(), system: getSystemInfo(), network: getNetworkInfo(), providerStatus, connectivity, appVersion: getAppVersion(), serverKpis, remoteClients: getRemoteClients(), updateInfo, serverConfig: getServerConfig() });
 }
 
 module.exports = { getDebugInfo, logSecurityEvent, initServerInfo };

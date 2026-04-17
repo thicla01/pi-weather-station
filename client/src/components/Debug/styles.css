@@ -36,12 +36,12 @@
 }
 
 .headerTitle {
-  font-size: 14px;
+  font-size: clamp(14px, 1.3vw, 18px);
   color: #7ecfff;
 }
 
 .appVersion {
-  font-size: 10px;
+  font-size: clamp(10px, 0.9vw, 13px);
   color: #7ecfff;
   font-family: monospace;
   opacity: 0.55;
@@ -57,7 +57,7 @@
 .systemInfo {
   display: flex;
   flex-direction: column;
-  font-size: 11px;
+  font-size: clamp(11px, 1.0vw, 13px);
   color: #999;
   margin-top: 4px;
   font-family: monospace;
@@ -66,7 +66,7 @@
 .networkInfo {
   display: flex;
   flex-direction: column;
-  font-size: 11px;
+  font-size: clamp(11px, 1.0vw, 13px);
   font-family: monospace;
 }
 
@@ -79,11 +79,11 @@
 .connectivityOffline { color: #ff6b6b; margin-top: 2px; }
 .connectivityLatency { color: #999; }
 
-.update-current   { color: #6dcc6d; margin-top: 4px; font-size: 10px; letter-spacing: 0.3px; }
-.update-available { color: #f97316; margin-top: 4px; font-size: 10px; letter-spacing: 0.3px; font-weight: 600; }
+.update-current   { color: #6dcc6d; margin-top: 4px; font-size: clamp(10px, 0.9vw, 12px); letter-spacing: 0.3px; }
+.update-available { color: #f97316; margin-top: 4px; font-size: clamp(10px, 0.9vw, 12px); letter-spacing: 0.3px; font-weight: 600; }
 
 .close-button {
-  font-size: 20px;
+  font-size: clamp(18px, 1.5vw, 24px);
   position: absolute;
   top: 10px;
   right: 10px;
@@ -105,7 +105,7 @@
 .export-button {
   display: inline-flex;
   align-items: center;
-  font-size: 12px;
+  font-size: clamp(12px, 1.0vw, 14px);
   padding: 4px 10px;
   background: linear-gradient(#5d5c5c, #4e4e4e);
   border-top: 1px solid #757575;
@@ -127,7 +127,7 @@
 
 .content {
   margin-top: 12px;
-  font-size: 12px;
+  font-size: clamp(12px, 1.1vw, 15px);
   overflow-y: auto;
   flex: 1;
 }
@@ -137,7 +137,7 @@
 }
 
 .section-title {
-  font-size: 11px;
+  font-size: clamp(11px, 1.0vw, 14px);
   color: #7ecfff;
   letter-spacing: 1px;
   margin-bottom: 6px;
@@ -155,14 +155,14 @@
   width: 100%;
   max-width: 580px;
   font-family: monospace;
-  font-size: 11px;
+  font-size: inherit;
   border-collapse: collapse;
 }
 
 .provider-header {
   display: table-row;
   color: #888;
-  font-size: 10px;
+  font-size: clamp(10px, 0.9vw, 12px);
   letter-spacing: 1px;
 }
 
@@ -187,7 +187,7 @@
 
 .provider-name        { color: #ccc; }
 .provider-description { color: #999; }
-.provider-fetched-at  { color: #555; font-size: 10px; font-weight: normal; letter-spacing: 0; }
+.provider-fetched-at  { color: #555; font-size: clamp(10px, 0.85vw, 12px); font-weight: normal; letter-spacing: 0; }
 
 .indicator-none        { color: #6dcc6d; font-weight: bold; }
 .indicator-minor       { color: #f0a500; font-weight: bold; }
@@ -200,14 +200,14 @@
   width: 100%;
   max-width: 480px;
   font-family: monospace;
-  font-size: 11px;
+  font-size: inherit;
   border-collapse: collapse;
 }
 
 .quota-header {
   display: table-row;
   color: #888;
-  font-size: 10px;
+  font-size: clamp(10px, 0.9vw, 12px);
   letter-spacing: 1px;
 }
 
@@ -244,14 +244,14 @@
   width: 100%;
   max-width: 680px;
   font-family: monospace;
-  font-size: 11px;
+  font-size: inherit;
   border-collapse: collapse;
 }
 
 .service-header {
   display: table-row;
   color: #888;
-  font-size: 10px;
+  font-size: clamp(10px, 0.9vw, 12px);
   letter-spacing: 1px;
 }
 
@@ -287,14 +287,14 @@
   width: 100%;
   max-width: 480px;
   font-family: monospace;
-  font-size: 11px;
+  font-size: inherit;
   border-collapse: collapse;
 }
 
 .cache-header {
   display: table-row;
   color: #888;
-  font-size: 10px;
+  font-size: clamp(10px, 0.9vw, 12px);
   letter-spacing: 1px;
 }
 
@@ -338,7 +338,7 @@
   background: rgba(0, 0, 0, 0.3);
   padding: 6px;
   font-family: monospace;
-  font-size: 11px;
+  font-size: clamp(11px, 1.0vw, 13px);
   max-height: 200px;
   overflow-y: auto;
   white-space: pre-wrap;
@@ -353,7 +353,7 @@
   background: rgba(0, 0, 0, 0.3);
   padding: 6px;
   font-family: monospace;
-  font-size: 11px;
+  font-size: clamp(11px, 1.0vw, 13px);
   color: #ccc;
   max-height: 120px;
   overflow-y: auto;
@@ -367,7 +367,7 @@
   padding: 4px 0;
   border-bottom: 1px solid #2a2a2a;
   font-family: monospace;
-  font-size: 11px;
+  font-size: inherit;
 }
 
 .security-event-header {
@@ -384,7 +384,7 @@
   flex-wrap: wrap;
   gap: 12px 24px;
   font-family: monospace;
-  font-size: 11px;
+  font-size: inherit;
   margin-bottom: 10px;
 }
 
@@ -395,7 +395,7 @@
 
 .kpi-label {
   color: #888;
-  font-size: 10px;
+  font-size: clamp(10px, 0.9vw, 12px);
   letter-spacing: 0.5px;
   margin-bottom: 2px;
 }
@@ -413,14 +413,14 @@
   width: 100%;
   max-width: 680px;
   font-family: monospace;
-  font-size: 11px;
+  font-size: inherit;
   border-collapse: collapse;
 }
 
 .rt-header {
   display: table-row;
   color: #888;
-  font-size: 10px;
+  font-size: clamp(10px, 0.9vw, 12px);
   letter-spacing: 1px;
 }
 
@@ -447,3 +447,21 @@
 .rt-count    { color: #888; }
 .rt-avg      { color: #7ecfff; }
 .rt-minmax   { color: #666; }
+
+/* Server config section */
+.config-grid {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px 28px;
+  font-family: monospace;
+  font-size: inherit;
+}
+
+.config-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.config-enabled  { color: #6dcc6d; font-weight: bold; }
+.config-disabled { color: #888; }
+.config-value    { color: #f6f6f4; }

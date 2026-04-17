@@ -131,6 +131,14 @@
     "apiCallsSession": "APPELS API (session)",
     "noApiCalls": "Aucun appel API enregistré",
     "jsHeap": "HEAP JS",
-    "notSupported": "Non supporté par le navigateur"
+    "notSupported": "Non supporté par le navigateur",
+    "serverConfig": "CONFIG SERVEUR",
+    "allowRemote": "ACCÈS DISTANT",
+    "debugMode": "MODE DÉBOGAGE",
+    "nodeEnv": "ENV NODE",
+    "nodeVersion": "VERSION NODE",
+    "enabled": "ACTIVÉ",
+    "disabled": "DÉSACTIVÉ",
+    "count": "NOMBRE"
   }
 }

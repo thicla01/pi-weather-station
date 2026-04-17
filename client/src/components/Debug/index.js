@@ -130,6 +130,7 @@ const Debug = () => {
         </div>
 
         <div className={styles.content}>
+          <ServerConfigSection serverConfig={data?.serverConfig} network={data?.network} />
           <ServerKpiSection serverKpis={data?.serverKpis} />
           <ClientKpiSection
             fps={fps}
@@ -770,6 +771,60 @@ function formatUptime(seconds) {
   parts.push(`${m}m ${s}s`);
   return parts.join(" ");
 }
+
+/**
+ * Server config section — environment variables and runtime configuration
+ *
+ * @param {object} props
+ * @param {object} props.serverConfig Server environment config
+ * @param {object} props.network Network info (for port)
+ * @returns {JSX.Element} Server config section
+ */
+const ServerConfigSection = ({ serverConfig, network }) => {
+  const { t } = useTranslation();
+  if (!serverConfig) return null;
+
+  const items = [
+    { label: t("debug.allowRemote"), value: serverConfig.allowRemote, type: "bool" },
+    { label: t("debug.debugMode"),   value: serverConfig.debug,        type: "bool" },
+    { label: t("debug.nodeEnv"),     value: serverConfig.nodeEnv,      type: "str"  },
+    { label: t("debug.nodeVersion"), value: serverConfig.nodeVersion,  type: "str"  },
+    ...(network ? [{ label: "PORT", value: `${network.protocol?.toUpperCase()}:${network.port}`, type: "str" }] : []),
+  ];
+
+  return (
+    <div className={styles.section}>
+      <div className={styles.sectionTitle}>{t("debug.serverConfig")}</div>
+      <div className={styles.configGrid}>
+        {items.map(({ label, value, type }) => (
+          <div className={styles.configItem} key={label}>
+            <span className={styles.kpiLabel}>{label}</span>
+            {type === "bool" ? (
+              <span className={value ? styles.configEnabled : styles.configDisabled}>
+                {value ? t("debug.enabled") : t("debug.disabled")}
+              </span>
+            ) : (
+              <span className={styles.configValue}>{value ?? "—"}</span>
+            )}
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+};
+
+ServerConfigSection.propTypes = {
+  serverConfig: PropTypes.shape({
+    allowRemote: PropTypes.bool,
+    debug: PropTypes.bool,
+    nodeEnv: PropTypes.string,
+    nodeVersion: PropTypes.string,
+  }),
+  network: PropTypes.shape({
+    protocol: PropTypes.string,
+    port: PropTypes.number,
+  }),
+};
 
 /**
  * Server KPI section — uptime, memory, cache hit rate, response times
