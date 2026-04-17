@@ -7,6 +7,10 @@ import { useRef, useEffect } from "react";
  * pointerType 'touch'. On some Pi touchscreen revisions the driver
  * reports a different type, so we handle all pointer types explicitly.
  *
+ * Uses document-level listeners rather than setPointerCapture to avoid
+ * pointercancel events triggered by interactive child elements (inputs,
+ * buttons) releasing the capture prematurely.
+ *
  * @returns {React.RefObject} Ref to attach to the scrollable element
  */
 const useDragScroll = () => {
@@ -21,10 +25,10 @@ const useDragScroll = () => {
     let isDragging = false;
 
     const onPointerDown = (e) => {
+      if (!el.contains(e.target)) return;
       isDragging = true;
       startY = e.clientY;
       startScrollTop = el.scrollTop;
-      el.setPointerCapture(e.pointerId);
     };
 
     const onPointerMove = (e) => {
@@ -35,16 +39,16 @@ const useDragScroll = () => {
 
     const onPointerUp = () => { isDragging = false; };
 
-    el.addEventListener("pointerdown", onPointerDown);
-    el.addEventListener("pointermove", onPointerMove, { passive: false });
-    el.addEventListener("pointerup", onPointerUp);
-    el.addEventListener("pointercancel", onPointerUp);
+    document.addEventListener("pointerdown", onPointerDown);
+    document.addEventListener("pointermove", onPointerMove, { passive: false });
+    document.addEventListener("pointerup", onPointerUp);
+    document.addEventListener("pointercancel", onPointerUp);
 
     return () => {
-      el.removeEventListener("pointerdown", onPointerDown);
-      el.removeEventListener("pointermove", onPointerMove);
-      el.removeEventListener("pointerup", onPointerUp);
-      el.removeEventListener("pointercancel", onPointerUp);
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("pointermove", onPointerMove);
+      document.removeEventListener("pointerup", onPointerUp);
+      document.removeEventListener("pointercancel", onPointerUp);
     };
   }, []);
 
