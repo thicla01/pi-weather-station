@@ -108,9 +108,20 @@ app.use(bodyParser.json());
 app.use(express.static(path.join(`${__dirname}/${DIST_DIR}`)));
 app.use(responseTimerMiddleware);
 
+// Trust the first proxy hop so rate limiting tracks real client IPs
+app.set("trust proxy", 1);
+
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
-  max: 60,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: "Too many requests",
+});
+
+const tileLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 600,
   standardHeaders: true,
   legacyHeaders: false,
   message: "Too many requests",
@@ -169,16 +180,13 @@ app.get("/geolocation", getCoords);
 app.get("/api/is-local", (req, res) => {
   const ip = req.socket.remoteAddress;
   const isLocal = isLocalhostIp(ip);
-  const response = { isLocal };
-  if (isLocal) {
-    response.securityEnabled = REMOTE_SECURITY;
-    response.debugEnabled = DEBUG;
-  }
+  const response = { isLocal, securityEnabled: REMOTE_SECURITY };
+  if (isLocal) response.debugEnabled = DEBUG;
   return res.status(200).json(response);
 });
 
 app.get("/api/reverse-geocode", apiLimiter, proxyReverseGeocode);
-app.get("/api/tiles/:style/:z/:x/:y", apiLimiter, mapTile);
+app.get("/api/tiles/:style/:z/:x/:y", tileLimiter, mapTile);
 
 app.get("/api/weather/current", apiLimiter, weatherCurrent);
 app.get("/api/weather/hourly", apiLimiter, weatherHourly);
