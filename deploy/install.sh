@@ -9,6 +9,16 @@ REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 echo "=== Pi Weather Station — Installation ==="
 echo ""
 
+# --- Ensure master branch ---
+cd "$REPO_DIR"
+CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
+if [ "$CURRENT_BRANCH" != "master" ]; then
+    echo ">> Switching from '$CURRENT_BRANCH' to 'master'..."
+    git checkout master
+    git pull
+    echo ""
+fi
+
 # --- 0. Node.js ---
 NODE_MIN=18
 OS_CODENAME=$(lsb_release -cs)
