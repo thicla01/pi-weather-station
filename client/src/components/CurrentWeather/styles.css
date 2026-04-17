@@ -12,7 +12,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  font-size: 55px;
+  font-size: clamp(55px, 5.0vw, 72px);
 }
 
 .icon-container {
@@ -23,17 +23,17 @@
 }
 
 .weather-icon {
-  font-size: 45px;
+  font-size: clamp(45px, 4.2vw, 60px);
 }
 
 .description {
   grid-area: description;
-  font-size: 14px;
+  font-size: clamp(14px, 1.3vw, 18px);
 }
 
 .stats {
   grid-area: stats;
-  font-size: 14px;
+  font-size: clamp(14px, 1.3vw, 18px);
   display: flex;
   align-items: center;
   justify-content: flex-end;
@@ -52,7 +52,7 @@
 }
 
 .uvi-label {
-  font-size: 12px;
+  font-size: clamp(12px, 1.1vw, 15px);
 }
 
 .text-unit {
@@ -62,7 +62,7 @@
 
 .text-unit > div:last-child {
   margin-left: 2px;
-  font-size: 8px;
+  font-size: clamp(8px, 0.7vw, 11px);
 }
 
 .temp-display {

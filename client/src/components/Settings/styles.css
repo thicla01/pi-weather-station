@@ -14,12 +14,12 @@
 }
 
 .header {
-  font-size: 14px;
+  font-size: clamp(14px, 1.3vw, 18px);
 }
 
 .settings-container {
   margin-top: 20px;
-  font-size: 14px;
+  font-size: clamp(14px, 1.3vw, 18px);
   overflow-y: auto;
   flex: 1;
 }
@@ -55,13 +55,13 @@
 }
 
 .label {
-  font-size: 13px;
+  font-size: clamp(13px, 1.2vw, 16px);
 }
 
 .button {
   height: 34px;
   width: 34px;
-  font-size: 20px;
+  font-size: clamp(20px, 1.8vw, 26px);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -139,7 +139,7 @@
 }
 
 .close-button {
-  font-size: 20px;
+  font-size: clamp(20px, 1.8vw, 26px);
   position: absolute;
   top: 10px;
   right: 10px;

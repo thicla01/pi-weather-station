@@ -24,7 +24,7 @@
   align-items: center;
   gap: 5px;
   font-family: "Rubik", sans-serif;
-  font-size: 10px;
+  font-size: clamp(10px, 0.9vw, 13px);
   opacity: 0.6;
 }
 
@@ -54,7 +54,7 @@
   justify-content: center;
   align-items: center;
   margin-top: 60px;
-  font-size: 12px;
+  font-size: clamp(12px, 1.1vw, 15px);
   flex-direction: column;
 }
 

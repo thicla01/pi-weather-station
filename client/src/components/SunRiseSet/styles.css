@@ -1,6 +1,6 @@
 .container {
   display: flex;
-  font-size: 14px;
+  font-size: clamp(14px, 1.3vw, 18px);
   /* padding-top: 5px; */
 }
 

@@ -5,6 +5,6 @@
 }
 
 .err {
-  font-size: 11px;
+  font-size: clamp(11px, 1.0vw, 14px);
   color: rgba(128, 128, 128, 0.6);
 }
