@@ -30,6 +30,7 @@
   grid-area: weather-info;
   overflow-y: auto;
   min-height: 0;
+  touch-action: pan-y;
 }
 
 .controls {
