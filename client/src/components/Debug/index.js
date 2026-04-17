@@ -130,21 +130,23 @@ const Debug = () => {
         </div>
 
         <div className={styles.content}>
-          <ServerConfigSection serverConfig={data?.serverConfig} network={data?.network} />
-          <ServerKpiSection serverKpis={data?.serverKpis} />
-          <ClientKpiSection
-            fps={fps}
-            setFps={setFps}
-            clientMetrics={clientMetrics}
-            setClientMetrics={setClientMetrics}
-          />
-          <ProviderStatusSection providerStatus={data?.providerStatus} />
-          <ServicesSection services={data?.services} />
-          <QuotaSection counters={data?.counters} />
-          <CacheSection cache={data?.cache} />
+          <div className={styles.columns}>
+            <ServerConfigSection serverConfig={data?.serverConfig} network={data?.network} />
+            <ServerKpiSection serverKpis={data?.serverKpis} />
+            <ClientKpiSection
+              fps={fps}
+              setFps={setFps}
+              clientMetrics={clientMetrics}
+              setClientMetrics={setClientMetrics}
+            />
+            <ProviderStatusSection providerStatus={data?.providerStatus} />
+            <ServicesSection services={data?.services} />
+            <QuotaSection counters={data?.counters} />
+            <CacheSection cache={data?.cache} />
+            <RemoteClientsSection clients={data?.remoteClients} />
+            <SecuritySection events={data?.securityEvents} />
+          </div>
           <LogsSection logs={data?.logs} />
-          <RemoteClientsSection clients={data?.remoteClients} />
-          <SecuritySection events={data?.securityEvents} />
           <AuditSection audit={data?.audit} />
         </div>
       </div>
@@ -447,7 +449,7 @@ CacheSection.propTypes = {
 const LogsSection = ({ logs }) => {
   const { t } = useTranslation();
   return (
-    <div className={`${styles.section} ${styles.sectionFull}`}>
+    <div className={styles.section}>
       <div className={styles.sectionTitle}>{t("debug.logs")}</div>
       <div className={styles.logBlock}>
         {!logs || logs.length === 0 ? (
@@ -580,7 +582,7 @@ SecuritySection.propTypes = {
 const AuditSection = ({ audit }) => {
   const { t } = useTranslation();
   return (
-    <div className={`${styles.section} ${styles.sectionFull}`}>
+    <div className={styles.section}>
       <div className={styles.sectionTitle}>{t("debug.npmAudit")}</div>
       <div className={styles.auditBlock}>
         {audit || <span className={styles.empty}>{t("debug.notAvailable")}</span>}

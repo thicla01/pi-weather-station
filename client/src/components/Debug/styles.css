@@ -130,25 +130,24 @@
   font-size: clamp(12px, 1.1vw, 15px);
   overflow-y: auto;
   flex: 1;
+}
+
+.columns {
   columns: 1;
   column-gap: 24px;
 }
 
 @media (min-width: 900px) {
-  .content { columns: 2; }
+  .columns { columns: 2; }
 }
 
 @media (min-width: 1400px) {
-  .content { columns: 3; }
+  .columns { columns: 3; }
 }
 
 .section {
   margin-bottom: 16px;
   break-inside: avoid;
-}
-
-.section-full {
-  column-span: all;
 }
 
 .section-title {
