@@ -2,6 +2,7 @@
   height: 100%;
   display: flex;
   justify-content: space-evenly;
+  position: relative;
 }
 
 .container > div {
@@ -9,7 +10,7 @@
   width: 100%;
   height: 100%;
   justify-content: center;
-  align-items: center;  
+  align-items: center;
 }
 
 .show-mouse.container > div{
@@ -46,4 +47,81 @@
 
 .dark .button-down {
   background: linear-gradient(#686868, #777676) !important;
+}
+
+/* Update button */
+.update-button {
+  position: relative;
+}
+
+.update-badge {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: #f97316;
+  animation: update-pulse 2s ease-in-out infinite;
+}
+
+@keyframes update-pulse {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50%       { opacity: 0.5; transform: scale(0.75); }
+}
+
+/* Update tooltip */
+.update-tooltip {
+  position: absolute;
+  bottom: 100%;
+  right: 0;
+  width: 420px;
+  max-width: 90vw;
+  padding: 10px 14px;
+  border-radius: 6px 6px 0 0;
+  z-index: 100;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.update-tooltip-dark {
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-bottom: none;
+  color: #e2e8f0;
+}
+
+.update-tooltip-light {
+  background: #f0f4f8;
+  border: 1px solid #ccc;
+  border-bottom: none;
+  color: #1a2a3a;
+}
+
+.update-tooltip-title {
+  font-family: "Rubik", sans-serif;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 0.04em;
+}
+
+.update-tooltip-cmd {
+  font-family: monospace;
+  font-size: 10px;
+  padding: 5px 8px;
+  border-radius: 4px;
+  white-space: nowrap;
+  overflow-x: auto;
+  display: block;
+}
+
+.update-tooltip-dark .update-tooltip-cmd {
+  background: #111;
+  color: #7dd3a8;
+}
+
+.update-tooltip-light .update-tooltip-cmd {
+  background: #dde3ea;
+  color: #1a5c3a;
 }

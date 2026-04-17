@@ -79,6 +79,9 @@
 .connectivityOffline { color: #ff6b6b; margin-top: 2px; }
 .connectivityLatency { color: #999; }
 
+.update-current   { color: #6dcc6d; margin-top: 4px; font-size: 10px; letter-spacing: 0.3px; }
+.update-available { color: #f97316; margin-top: 4px; font-size: 10px; letter-spacing: 0.3px; font-weight: 600; }
+
 .close-button {
   font-size: 20px;
   position: absolute;

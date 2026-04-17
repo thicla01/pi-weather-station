@@ -59,6 +59,13 @@
     "temp": "Temp.",
     "precipitation": "Précipitations"
   },
+  "update": {
+    "available": "Mise à jour disponible : v{{version}}",
+    "availableNoVersion": "Mise à jour disponible",
+    "upToDate": "À jour",
+    "local": "local",
+    "latest": "dernier"
+  },
   "debug": {
     "title": "DÉBOGAGE",
     "loading": "CHARGEMENT...",

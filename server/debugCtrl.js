@@ -3,6 +3,7 @@ const os = require("os");
 const path = require("path");
 const { execSync } = require("child_process");
 const axios = require("axios").default;
+const { checkForUpdate } = require("./updateChecker");
 const { weatherCache, getCacheStats } = require("./proxyCtrl");
 const { getServiceStatus } = require("./serviceStatus");
 const { getCounters } = require("./requestCounter");
@@ -225,9 +226,10 @@ async function getDebugInfo(req, res) {
     // file not found — default message applies
   }
 
-  const [providerStatus, connectivity] = await Promise.all([
+  const [providerStatus, connectivity, updateInfo] = await Promise.all([
     fetchProviderStatus(),
     checkConnectivity(),
+    checkForUpdate(),
   ]);
 
   const mem = process.memoryUsage();
@@ -242,7 +244,7 @@ async function getDebugInfo(req, res) {
     responseTimes: getResponseTimeStats(),
   };
 
-  return res.status(200).json({ cache, logs, audit, securityEvents, services: getServiceStatus(), counters: getCounters(), system: getSystemInfo(), network: getNetworkInfo(), providerStatus, connectivity, appVersion: getAppVersion(), serverKpis, remoteClients: getRemoteClients() });
+  return res.status(200).json({ cache, logs, audit, securityEvents, services: getServiceStatus(), counters: getCounters(), system: getSystemInfo(), network: getNetworkInfo(), providerStatus, connectivity, appVersion: getAppVersion(), serverKpis, remoteClients: getRemoteClients(), updateInfo });
 }
 
 module.exports = { getDebugInfo, logSecurityEvent, initServerInfo };

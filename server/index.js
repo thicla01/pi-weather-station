@@ -36,6 +36,7 @@ const { responseTimerMiddleware } = require("./responseTimer");
 const { recordClient } = require("./clientTracker");
 const { getDebugInfo, logSecurityEvent, initServerInfo } = debugCtrl;
 const { getWeatherSummary } = aiSummaryCtrl;
+const { checkForUpdate } = require("./updateChecker");
 const rateLimit = require("express-rate-limit");
 
 const DIST_DIR = "/../client/dist";
@@ -194,6 +195,15 @@ app.get("/api/weather/daily", apiLimiter, weatherDaily);
 app.get("/api/sunrise-sunset", apiLimiter, sunriseSunset);
 
 app.get("/api/weather-summary", apiLimiter, getWeatherSummary);
+
+app.get("/api/update-check", apiLimiter, async (req, res) => {
+  try {
+    const result = await checkForUpdate();
+    res.json(result);
+  } catch {
+    res.status(500).json({ error: true });
+  }
+});
 
 app.get("/api/debug", debugLocalhostOnly, getDebugInfo);
 

@@ -63,6 +63,18 @@ const Debug = () => {
                   <span>{data.system.os}</span>
                 </div>
               )}
+              {data?.updateInfo && (
+                <div className={data.updateInfo.updateAvailable ? styles.updateAvailable : styles.updateCurrent}>
+                  {data.updateInfo.updateAvailable
+                    ? t("update.available", { version: data.updateInfo.latestVersion ?? "?" })
+                    : t("update.upToDate")}
+                  {" · "}
+                  {t("update.local")}: {data.updateInfo.localSha ?? "—"}
+                  {data.updateInfo.updateAvailable && (
+                    <> · {t("update.latest")}: {data.updateInfo.latestSha ?? "—"}</>
+                  )}
+                </div>
+              )}
             </div>
             <div className={styles.headerRight}>
               {data?.network && (

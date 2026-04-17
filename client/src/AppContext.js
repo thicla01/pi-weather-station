@@ -1,4 +1,4 @@
-import React, { createContext, useState } from "react";
+import React, { createContext, useState, useEffect } from "react";
 import { getSettings } from "~/settings";
 import PropTypes from "prop-types";
 import { getCoordsFromApi } from "~/services/geolocation";
@@ -55,6 +55,8 @@ export function AppContextProvider({ children }) {
   const [remoteSecurityEnabled, setRemoteSecurityEnabled] = useState(false);
   const [debugEnabled, setDebugEnabled] = useState(false);
   const [debugMenuOpen, setDebugMenuOpen] = useState(false);
+  const [updateAvailable, setUpdateAvailable] = useState(false);
+  const [latestVersion, setLatestVersion] = useState(null);
 
   /**
    * Save mouse hide state
@@ -131,6 +133,23 @@ export function AppContextProvider({ children }) {
     if (!debugMenuOpen) setSettingsMenuOpen(false);
     setDebugMenuOpen(!debugMenuOpen);
   }
+
+  const UPDATE_CHECK_INTERVAL = 6 * 60 * 60 * 1000; // 6 hours
+
+  useEffect(() => {
+    const fetchUpdateStatus = () => {
+      axios.get("/api/update-check").then((res) => {
+        setUpdateAvailable(res.data.updateAvailable ?? false);
+        setLatestVersion(res.data.latestVersion ?? null);
+      }).catch(() => {
+        // non-critical — silently ignore errors
+      });
+    };
+
+    fetchUpdateStatus();
+    const interval = setInterval(fetchUpdateStatus, UPDATE_CHECK_INTERVAL);
+    return () => clearInterval(interval);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function loadStoredData() {
     const temp = window.localStorage.getItem(TEMP_UNIT_STORAGE_KEY);
@@ -610,6 +629,8 @@ export function AppContextProvider({ children }) {
     debugMenuOpen,
     setDebugMenuOpen,
     toggleDebugMenuOpen,
+    updateAvailable,
+    latestVersion,
   };
 
   return (

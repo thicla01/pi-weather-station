@@ -1,4 +1,5 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { AppContext } from "~/AppContext";
 import styles from "./styles.css";
 import { InlineIcon } from "@iconify/react";
@@ -10,6 +11,7 @@ import roundLocationOff from "@iconify/icons-ic/round-location-off";
 import playFilledAlt from "@iconify/icons-carbon/play-filled-alt";
 import stopFilledAlt from "@iconify/icons-carbon/stop-filled-alt";
 import bugIcon from "@iconify/icons-carbon/debug";
+import upgradeIcon from "@iconify/icons-carbon/upgrade";
 
 /**
  * Buttons group component
@@ -32,7 +34,12 @@ const ControlButtons = () => {
     debugEnabled,
     toggleDebugMenuOpen,
     debugMenuOpen,
+    updateAvailable,
+    latestVersion,
   } = useContext(AppContext);
+
+  const { t } = useTranslation();
+  const [updateTooltipOpen, setUpdateTooltipOpen] = useState(false);
 
   return (
     <div
@@ -40,6 +47,18 @@ const ControlButtons = () => {
         darkMode ? styles.dark : styles.light
       } ${!mouseHide ? styles.showMouse : ""}`}
     >
+      {isLocal && updateAvailable && updateTooltipOpen && (
+        <div className={`${styles.updateTooltip} ${darkMode ? styles.updateTooltipDark : styles.updateTooltipLight}`}>
+          <div className={styles.updateTooltipTitle}>
+            {latestVersion
+              ? t("update.available", { version: latestVersion })
+              : t("update.availableNoVersion")}
+          </div>
+          <code className={styles.updateTooltipCmd}>
+            cd ~/pi-weather-station &amp;&amp; git pull &amp;&amp; systemctl --user restart pi-weather-server
+          </code>
+        </div>
+      )}
       <div onClick={resetMapPosition}>
         <InlineIcon icon={locationArrow} />
       </div>
@@ -69,6 +88,15 @@ const ControlButtons = () => {
           className={`${debugMenuOpen ? styles.buttonDown : ""}`}
         >
           <InlineIcon icon={bugIcon} />
+        </div>
+      )}
+      {isLocal && updateAvailable && (
+        <div
+          onClick={() => setUpdateTooltipOpen(!updateTooltipOpen)}
+          className={`${styles.updateButton} ${updateTooltipOpen ? styles.buttonDown : ""}`}
+        >
+          <InlineIcon icon={upgradeIcon} />
+          <span className={styles.updateBadge} />
         </div>
       )}
     </div>
