@@ -19,7 +19,7 @@ See it in action [here](https://www.youtube.com/watch?v=dvM6cyqYSw8).
 
 # v2.2.0 — 2026-04-16
 
-Security hardening:
+Security hardening: API key masking, rate limiting, proxy-aware IP detection, and settings key whitelist.
 
 - **API key masking** — `GET /settings` now returns boolean values (`true`/`false`) for API key fields when called by remote clients. Key values are only returned when the request originates from the Pi itself (localhost). This prevents key exposure even when `ALLOW_REMOTE=true`.
 - **`REMOTE_SECURITY` removed** — Settings write endpoints (`POST`, `PUT`, `PATCH`, `DELETE`) are now always restricted to localhost. The `REMOTE_SECURITY` environment variable has been removed. Use an SSH tunnel to change settings remotely.
@@ -30,6 +30,8 @@ Security hardening:
 
 # v2.1.11 — 2026-04-14
 
+Observability: server and client KPIs in debug panel, license cleanup.
+
 - **Debug panel — Server KPIs** — A new SERVER KPIs section shows Node.js process uptime, heap memory usage (used/total), RSS, and weather cache hit rate (with raw hit/miss counts). A response time table tracks count, average, min, and max latency per server endpoint, measured by a new `responseTimerMiddleware`.
 - **Debug panel — Client KPIs** — A new CLIENT KPIs section collects browser-side metrics live when the panel opens: page load time (Navigation Timing API), live FPS measured via `requestAnimationFrame`, JS heap size (Chromium only), and a per-endpoint summary of all `/api/*` calls made since page load (Resource Timing API).
 - **Debug panel — mutual exclusion** — Opening the Settings panel now closes the Debug panel, and vice versa. Both panels can no longer be visible at the same time.
@@ -37,9 +39,13 @@ Security hardening:
 
 # v2.1.10 — 2026-04-13
 
+Bug fix: LXDE autostart no longer discards system default entries on Bullseye.
+
 - **LXDE autostart fix** — On Bullseye with X11/LXDE, `install.sh` previously created `~/.config/lxsession/LXDE-pi/autostart` with only `@start-server`, discarding the system default entries (`lxpanel`, `pcmanfm`, `xscreensaver`). Exiting kiosk mode would leave a black screen with no taskbar or desktop. The script now copies the system default first before appending `@start-server`.
 
 # v2.1.9 — 2026-04-13
+
+Compatibility: Node.js 22 via nvm on Bullseye 32-bit, plus debug and install improvements.
 
 - **Bullseye — Node.js 22 via nvm (32-bit only)** — On Raspberry Pi OS Bullseye **32-bit** (`armv7l`), `install.sh` now installs Node.js 22 via [nvm](https://github.com/nvm-sh/nvm) instead of NodeSource, which does not provide Node.js 22 packages for `armv7l`. nvm is installed to the user account and Node.js 22 is set as the default version. The systemd service is automatically configured to source nvm at startup via a drop-in override (`nvm.conf`). Bullseye **64-bit** (`aarch64`), Bookworm, and Trixie continue to use NodeSource.
 - **Debug panel — git branch** — The debug panel header now shows the active git branch when it differs from `master` (e.g. `pi-weather-station v2.1.9 · abc1234 [feature/my-branch]`). Useful when testing feature branches directly on the Pi.
@@ -48,25 +54,35 @@ Security hardening:
 
 # v2.1.8 — 2026-04-13
 
+Internationalization: full EN/FR/ES localization and debug panel improvements.
+
 - **Internationalization (i18n)** — The interface is now fully localized in English, French, and Spanish. A language selector is available in the Settings panel. The browser's language is detected automatically on first load, falling back to English if the detected language is not supported. All UI labels, error messages, and debug panel strings are covered.
 - **Debug panel — two-column header** — The debug panel header is now split into two columns (system info on the left, network info on the right) to reduce vertical height and improve readability.
 - **Debug panel — version display** — The debug panel header now shows the application name, version, and current Git commit hash (e.g. `pi-weather-station v2.1.8 · 9aa3702`).
 
 # v2.1.7 — 2026-04-12
 
+UX: kiosk mode is now optional during installation.
+
 - **Kiosk mode is now optional** — `deploy/install.sh` now asks whether to launch Chromium automatically in fullscreen on startup. When declined, the server still starts via systemd but no autostart is configured — the app can be accessed manually at `https://localhost:8443` or from another machine on the network.
 
 # v2.1.6 — 2026-04-12
+
+Observability: external provider status and internet connectivity in debug panel.
 
 - **Debug panel — provider status** — A new PROVIDER STATUS section shows the live operational status of external providers (Tomorrow.io, Mapbox via Atlassian Statuspage JSON API; ipapi.co via HTML scraping; LocationIQ via RSS feed). Results are cached 30 minutes server-side.
 - **Debug panel — internet connectivity** — The debug panel header now shows whether the Pi has internet access (`ONLINE` / `OFFLINE`) and the measured latency to `1.1.1.1`. Cached 60 seconds, fetched in parallel with provider status.
 
 # v2.1.5 — 2026-04-12
 
+Observability: network info in debug panel and sunrise-sunset.org proxied server-side.
+
 - **Debug panel — network info** — The debug panel header now shows the Pi's IP address(es), server port, protocol, and the full URL(s) to access the app from the network (e.g. `https://192.168.1.42:8443`).
 - **sunrise-sunset.org proxy** — Sunrise/sunset API calls are now proxied through the Express server, consistent with all other external services. This enables service status tracking in the debug panel and avoids mixed-content issues when the server runs over HTTPS.
 
 # v2.1.4 — 2026-04-11
+
+Reliability: weather cache persistence across restarts, debug panel improvements.
 
 - **Weather cache persistence** — The server-side weather cache is now saved to `server/weather-cache.json` on shutdown and every 5 minutes. On restart, non-expired entries are reloaded automatically, avoiding unnecessary API calls to Tomorrow.io when the server is restarted during development or after a crash.
 - **Debug panel — system info** — The debug panel header now shows the detected hardware model (e.g. `Raspberry Pi 4 Model B`) and OS version (e.g. `Debian GNU/Linux 12 (bookworm)`).
@@ -75,10 +91,14 @@ Security hardening:
 
 # v2.1.3 — 2026-04-11
 
+Performance: server-side weather cache and new debug panel.
+
 - **Server-side weather cache** — Tomorrow.io responses are now cached in memory on the server, reducing API quota consumption when multiple clients are connected or when the page is reloaded frequently. Cache TTLs match the natural update cadence of each data type: 15 minutes for current conditions, 30 minutes for hourly forecasts, and 6 hours for daily forecasts. The cache is shared across all clients and is cleared on server restart.
 - **Debug panel** — A debug panel is available when `DEBUG=true` is set server-side. The panel is accessible only from the Pi itself (localhost) and shows API service status, quota counters, cache state, server logs, security events, and npm audit results. See [Debug panel](#debug-panel) for details.
 
 # v2.1.2 — 2026-04-11
+
+API key security: Tomorrow.io weather calls are now proxied server-side.
 
 - **Tomorrow.io proxy** — Weather API calls (current, hourly, daily) are now proxied through the Express server, consistent with Mapbox and LocationIQ. The API key is no longer included in client-side request URLs. Multiple browser clients now share the same quota rather than each consuming it independently.
 
@@ -96,6 +116,8 @@ Security improvements:
 - **SSH keys excluded** — `ssh.key` and `ssh.key.pub` added to `.gitignore`.
 
 # v2.1.0 — 2026-04-03
+
+Build system modernization: webpack 5, updated dependencies, and RainViewer API v2.
 
 - Upgraded build system from webpack 4 to webpack 5
 - Updated all build dependencies (css-loader v7, style-loader v3, postcss v8, html-webpack-plugin v5)
