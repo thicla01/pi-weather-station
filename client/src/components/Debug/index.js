@@ -2,6 +2,7 @@ import React, { useContext, useState, useEffect, useCallback, useRef } from "rea
 import { useTranslation } from "react-i18next";
 import styles from "./styles.css";
 import { AppContext } from "~/AppContext";
+import useDragScroll from "~/hooks/useDragScroll";
 import { CSSTransition } from "react-transition-group";
 import { InlineIcon } from "@iconify/react";
 import closeSharp from "@iconify/icons-ion/close-sharp";
@@ -23,6 +24,7 @@ const Debug = () => {
   const [loading, setLoading] = useState(false);
   const [fps, setFps] = useState(null);
   const [clientMetrics, setClientMetrics] = useState(null);
+  const contentScrollRef = useDragScroll();
 
   const fetchDebugInfo = useCallback(() => {
     setLoading(true);
@@ -129,7 +131,7 @@ const Debug = () => {
           </div>
         </div>
 
-        <div className={styles.content}>
+        <div className={styles.content} ref={contentScrollRef}>
           <div className={styles.columns}>
             <ServerConfigSection serverConfig={data?.serverConfig} network={data?.network} />
             <ServerKpiSection serverKpis={data?.serverKpis} />
