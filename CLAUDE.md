@@ -107,8 +107,7 @@ No client rebuild needed — dist files are committed.
 ## Security
 
 - Remote access requires `ALLOW_REMOTE=true` in the systemd service
-- `REMOTE_SECURITY` defaults to `true` (opt-out: set `REMOTE_SECURITY=false` to allow remote writes — not recommended)
-- Settings write endpoints (`POST`, `PUT`, `PATCH`, `DELETE`) are protected by `localhostOnly` middleware when `REMOTE_SECURITY=true`
+- Settings write endpoints (`POST`, `PUT`, `PATCH`, `DELETE`) are always protected by `localhostOnly` middleware — `REMOTE_SECURITY` has been removed
 - `GET /settings` returns masked boolean values for API key fields to remote clients; actual key values are only returned to localhost
 - All locality checks use `req.ip` (not `req.socket.remoteAddress`); when `ALLOW_REMOTE=true`, Express trusts one proxy hop so `req.ip` reflects the real client IP even behind a local reverse proxy
 - Rate limiting: 120 req/min on weather/geocoding endpoints, 600 req/min on map tiles (per client IP)

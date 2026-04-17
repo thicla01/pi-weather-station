@@ -22,7 +22,7 @@ See it in action [here](https://www.youtube.com/watch?v=dvM6cyqYSw8).
 Security hardening:
 
 - **API key masking** — `GET /settings` now returns boolean values (`true`/`false`) for API key fields when called by remote clients. Key values are only returned when the request originates from the Pi itself (localhost). This prevents key exposure even when `ALLOW_REMOTE=true`.
-- **`REMOTE_SECURITY` defaults to `true`** — Settings write endpoints (`POST`, `PUT`, `PATCH`, `DELETE`) are now protected by default. Previously this required explicitly setting `REMOTE_SECURITY=true`. To allow remote settings writes, set `REMOTE_SECURITY=false` explicitly (not recommended).
+- **`REMOTE_SECURITY` removed** — Settings write endpoints (`POST`, `PUT`, `PATCH`, `DELETE`) are now always restricted to localhost. The `REMOTE_SECURITY` environment variable has been removed. Use an SSH tunnel to change settings remotely.
 - **Rate limiting** — All `/api/*` endpoints are now rate-limited per client IP. Weather and geocoding endpoints: 120 req/min. Map tile endpoints: 600 req/min (tile bursts require a higher limit). Protects external API quotas from exhaustion.
 - **Proxy-aware IP detection** — All locality checks (`localhostOnly`, `req.isLocal`) now use `req.ip` instead of `req.socket.remoteAddress`. When `ALLOW_REMOTE=true`, Express trusts the first `X-Forwarded-For` hop so that a local reverse proxy does not mask real client IPs. This ensures `localhostOnly` correctly blocks remote clients even when the proxy runs on the Pi itself.
 - **Settings key whitelist** — `POST`, `PUT`, and `PATCH` to `/settings` now accept only known keys (`weatherApiKey`, `mapApiKey`, `reverseGeoApiKey`, `anthropicApiKey`, `startingLat`, `startingLon`). Unknown keys are stripped silently (PUT/POST) or rejected with 400 (PATCH).
@@ -75,7 +75,7 @@ Security hardening:
 
 # v2.1.3
 
-- **Server-side weather cache** — Tomorrow.io responses are now cached in memory on the server, reducing API quota consumption when multiple clients are connected or when the page is reloaded frequently. Cache TTLs match the natural update cadence of each data type: 15 minutes for current conditions, 30 minutes for hourly forecasts, and 6 hours for daily forecasts. The cache is shared across all clients regardless of `REMOTE_SECURITY` setting and is cleared on server restart.
+- **Server-side weather cache** — Tomorrow.io responses are now cached in memory on the server, reducing API quota consumption when multiple clients are connected or when the page is reloaded frequently. Cache TTLs match the natural update cadence of each data type: 15 minutes for current conditions, 30 minutes for hourly forecasts, and 6 hours for daily forecasts. The cache is shared across all clients and is cleared on server restart.
 - **Debug panel** — A debug panel is available when `DEBUG=true` is set server-side. The panel is accessible only from the Pi itself (localhost) and shows API service status, quota counters, cache state, server logs, security events, and npm audit results. See [Debug panel](#debug-panel) for details.
 
 # v2.1.2
@@ -87,8 +87,8 @@ Security hardening:
 Security improvements:
 
 - **API key proxying** — Mapbox (map tiles) and LocationIQ (reverse geocoding) API calls are now proxied through the Express server. Keys are no longer included in client-side request URLs, keeping them out of browser network logs and third-party server logs.
-- **Settings write protection** — `POST`, `PUT`, `PATCH`, and `DELETE` requests to `/settings` are restricted to `localhost` (see `REMOTE_SECURITY` in v2.2.0 for the updated default behaviour).
-- **Remote access UX** — When `REMOTE_SECURITY=true` (default since v2.2.0), the settings panel hides API key and coordinate fields for remote users. Unit and display preferences (temperature, speed, clock format, mouse) remain accessible as they are stored locally in the browser.
+- **Settings write protection** — `POST`, `PUT`, `PATCH`, and `DELETE` requests to `/settings` are always restricted to `localhost` (see v2.2.0).
+- **Remote access UX** — The settings panel always hides API key and coordinate fields for remote users. Unit and display preferences (temperature, speed, clock format, mouse) remain accessible as they are stored locally in the browser.
 - **CORS removed** — The `cors` middleware (which allowed any origin to call the API) has been removed. All legitimate requests are same-origin and do not require it.
 - **Shell injection fix** — `deploy/install.sh` now uses `python3 + json.dumps` to write `settings.json`, preventing potential shell injection via API key input.
 - **JSON parse hardening** — `settings.json` parsing is now wrapped in a try/catch; a corrupted file returns a clean 500 error instead of crashing the server.
@@ -305,7 +305,7 @@ By default the server only accepts connections from `localhost` (127.0.0.1).
 When remote access is enabled (`ALLOW_REMOTE=true`), the following applies:
 - All API calls (Tomorrow.io, Mapbox, LocationIQ, sunrise-sunset.org) are **proxied through the server** — keys are never visible in client-side request URLs or third-party server logs. Remote clients receive only a boolean (configured/not configured) from `GET /settings` — actual key values are never sent over the network.
 - Unit and display preferences (temperature, speed, clock format, etc.) work from any device.
-- Settings writes (API keys, coordinates) are **restricted to the Pi itself by default** (`REMOTE_SECURITY=true`). To change settings remotely, use an SSH tunnel instead (see below).
+- Settings writes (API keys, coordinates) are **always restricted to the Pi itself**. To change settings remotely, use an SSH tunnel instead (see below).
 
 > **Changing settings remotely:** open an SSH tunnel and access the app as if you were local:
 > ```bash
@@ -319,7 +319,7 @@ If you used `deploy/install.sh`, remote access can be configured automatically d
 - Ask for your Pi's IP address (auto-detected)
 - Generate an SSL certificate that includes the Pi's IP as a Subject Alternative Name (SAN) — browsers will show a one-time security warning on first visit, which you can safely accept
 - Enable `ALLOW_REMOTE=true` in the systemd service
-- Ask whether to restrict remote users to read-only access — if yes, enables `REMOTE_SECURITY=true` in the systemd service
+- Remote users are always restricted to read-only access (settings writes are always localhost-only)
 
 > **Note:** If your Pi's IP address changes, the SSL certificate will no longer be valid for remote connections. Re-run `bash deploy/install.sh` to regenerate it. To avoid this, assign a static IP to your Pi.
 
@@ -340,7 +340,7 @@ systemctl --user daemon-reload
 systemctl --user restart pi-weather-server
 ```
 
-> `REMOTE_SECURITY` defaults to `true` — no need to set it explicitly. Settings writes are restricted to the Pi itself. To allow remote settings writes (not recommended), add `Environment=REMOTE_SECURITY=false`.
+> Settings writes are always restricted to the Pi itself. To change settings remotely, use an SSH tunnel.
 
 **With the autostart script** — edit `~/.local/bin/start-weather` and uncomment:
 
@@ -378,7 +378,7 @@ A debug panel is available on the Pi when `DEBUG=true` is set server-side. It sh
 - **Quotas** — hourly, daily, and monthly request counters per service and endpoint, with colour-coded thresholds
 - **Cache** — current in-memory weather cache entries with remaining TTL
 - **Logs** — last 100 lines of the server log
-- **Security events** — blocked requests (when `REMOTE_SECURITY=true` is active)
+- **Security events** — blocked requests (write attempts from remote clients)
 - **npm audit** — output of the last `npm audit` run
 
 The debug button (bug icon) appears in the control bar only when `DEBUG=true` and only when the app is accessed from the Pi itself.

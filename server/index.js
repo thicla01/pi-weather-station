@@ -42,7 +42,6 @@ const DIST_DIR = "/../client/dist";
 const PORT = 8080;
 const HTTPS_PORT = 8443;
 const ALLOW_REMOTE = process.env.ALLOW_REMOTE === "true";
-const REMOTE_SECURITY = process.env.REMOTE_SECURITY !== "false";
 const HOST = ALLOW_REMOTE ? "0.0.0.0" : "127.0.0.1";
 const DEBUG = process.env.DEBUG === "true";
 const app = express();
@@ -172,16 +171,16 @@ if (sslOptions) {
 }
 
 app.get("/settings", getSettings);
-app.post("/settings", ...(REMOTE_SECURITY ? [localhostOnly] : []), createSettingsFile);
-app.put("/settings", ...(REMOTE_SECURITY ? [localhostOnly] : []), replaceSettings);
-app.patch("/setting", ...(REMOTE_SECURITY ? [localhostOnly] : []), setSetting);
-app.delete("/setting", ...(REMOTE_SECURITY ? [localhostOnly] : []), deleteSetting);
+app.post("/settings", localhostOnly, createSettingsFile);
+app.put("/settings", localhostOnly, replaceSettings);
+app.patch("/setting", localhostOnly, setSetting);
+app.delete("/setting", localhostOnly, deleteSetting);
 
 app.get("/geolocation", getCoords);
 
 app.get("/api/is-local", (req, res) => {
   const { isLocal } = req;
-  const response = { isLocal, securityEnabled: REMOTE_SECURITY };
+  const response = { isLocal, securityEnabled: true };
   if (isLocal) response.debugEnabled = DEBUG;
   return res.status(200).json(response);
 });
