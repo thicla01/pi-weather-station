@@ -36,12 +36,13 @@ const { responseTimerMiddleware } = require("./responseTimer");
 const { recordClient } = require("./clientTracker");
 const { getDebugInfo, logSecurityEvent, initServerInfo } = debugCtrl;
 const { getWeatherSummary } = aiSummaryCtrl;
+const rateLimit = require("express-rate-limit");
 
 const DIST_DIR = "/../client/dist";
 const PORT = 8080;
 const HTTPS_PORT = 8443;
-const HOST = process.env.ALLOW_REMOTE === "true" ? "0.0.0.0" : "127.0.0.1";
-const REMOTE_SECURITY = process.env.REMOTE_SECURITY === "true";
+const ALLOW_REMOTE = process.env.ALLOW_REMOTE === "true";
+const HOST = ALLOW_REMOTE ? "0.0.0.0" : "127.0.0.1";
 const DEBUG = process.env.DEBUG === "true";
 const app = express();
 
@@ -106,26 +107,48 @@ app.use(bodyParser.json());
 app.use(express.static(path.join(`${__dirname}/${DIST_DIR}`)));
 app.use(responseTimerMiddleware);
 
+// When remote access is enabled, trust the first proxy hop so req.ip
+// reflects the real client IP from X-Forwarded-For rather than the
+// proxy's socket address. Disabled for local-only mode to prevent
+// header spoofing on direct connections.
+if (ALLOW_REMOTE) app.set("trust proxy", 1);
+
+const apiLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 120,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: "Too many requests",
+});
+
+const tileLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  max: 600,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: "Too many requests",
+});
+
 const isLocalhostIp = (ip) => ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1";
 
+// req.ip respects trust proxy: when ALLOW_REMOTE is true it reads
+// X-Forwarded-For (set by the proxy), otherwise it falls back to socket IP.
 app.use((req, res, next) => {
-  const ip = req.socket.remoteAddress;
-  if (!isLocalhostIp(ip)) recordClient(ip);
+  req.isLocal = isLocalhostIp(req.ip);
+  if (!req.isLocal) recordClient(req.ip);
   next();
 });
 
 const localhostOnly = (req, res, next) => {
-  const ip = req.socket.remoteAddress;
-  if (!isLocalhostIp(ip)) {
-    logSecurityEvent(ip, req.method, req.originalUrl);
+  if (!isLocalhostIp(req.ip)) {
+    logSecurityEvent(req.ip, req.method, req.originalUrl);
     return res.status(403).json("Settings can only be modified from the Pi itself.").end();
   }
   next();
 };
 
 const debugLocalhostOnly = (req, res, next) => {
-  const ip = req.socket.remoteAddress;
-  if (!isLocalhostIp(ip)) {
+  if (!isLocalhostIp(req.ip)) {
     return res.status(403).json("Debug endpoint is only accessible from the Pi itself.").end();
   }
   next();
@@ -148,28 +171,29 @@ if (sslOptions) {
 }
 
 app.get("/settings", getSettings);
-app.post("/settings", ...(REMOTE_SECURITY ? [localhostOnly] : []), createSettingsFile);
-app.put("/settings", ...(REMOTE_SECURITY ? [localhostOnly] : []), replaceSettings);
-app.patch("/setting", ...(REMOTE_SECURITY ? [localhostOnly] : []), setSetting);
-app.delete("/setting", ...(REMOTE_SECURITY ? [localhostOnly] : []), deleteSetting);
+app.post("/settings", localhostOnly, createSettingsFile);
+app.put("/settings", localhostOnly, replaceSettings);
+app.patch("/setting", localhostOnly, setSetting);
+app.delete("/setting", localhostOnly, deleteSetting);
 
 app.get("/geolocation", getCoords);
 
 app.get("/api/is-local", (req, res) => {
-  const ip = req.socket.remoteAddress;
-  const isLocal = isLocalhostIp(ip);
-  return res.status(200).json({ isLocal, securityEnabled: REMOTE_SECURITY, debugEnabled: DEBUG });
+  const { isLocal } = req;
+  const response = { isLocal, securityEnabled: true };
+  if (isLocal) response.debugEnabled = DEBUG;
+  return res.status(200).json(response);
 });
 
-app.get("/api/reverse-geocode", proxyReverseGeocode);
-app.get("/api/tiles/:style/:z/:x/:y", mapTile);
+app.get("/api/reverse-geocode", apiLimiter, proxyReverseGeocode);
+app.get("/api/tiles/:style/:z/:x/:y", tileLimiter, mapTile);
 
-app.get("/api/weather/current", weatherCurrent);
-app.get("/api/weather/hourly", weatherHourly);
-app.get("/api/weather/daily", weatherDaily);
-app.get("/api/sunrise-sunset", sunriseSunset);
+app.get("/api/weather/current", apiLimiter, weatherCurrent);
+app.get("/api/weather/hourly", apiLimiter, weatherHourly);
+app.get("/api/weather/daily", apiLimiter, weatherDaily);
+app.get("/api/sunrise-sunset", apiLimiter, sunriseSunset);
 
-app.get("/api/weather-summary", getWeatherSummary);
+app.get("/api/weather-summary", apiLimiter, getWeatherSummary);
 
 app.get("/api/debug", debugLocalhostOnly, getDebugInfo);
 
