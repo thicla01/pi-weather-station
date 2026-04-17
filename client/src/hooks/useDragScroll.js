@@ -7,9 +7,10 @@ import { useRef, useEffect } from "react";
  * pointerType 'touch'. On some Pi touchscreen revisions the driver
  * reports a different type, so we handle all pointer types explicitly.
  *
- * Uses document-level listeners rather than setPointerCapture to avoid
- * pointercancel events triggered by interactive child elements (inputs,
- * buttons) releasing the capture prematurely.
+ * Uses getBoundingClientRect instead of el.contains(e.target) to check
+ * whether the gesture started inside the scroll container, avoiding
+ * failures caused by SVG children, deeply nested elements, or other
+ * edge cases where DOM containment checks can return false.
  *
  * @returns {React.RefObject} Ref to attach to the scrollable element
  */
@@ -24,8 +25,18 @@ const useDragScroll = () => {
     let startScrollTop = 0;
     let isDragging = false;
 
+    const isInBounds = (clientX, clientY) => {
+      const rect = el.getBoundingClientRect();
+      return (
+        clientX >= rect.left &&
+        clientX <= rect.right &&
+        clientY >= rect.top &&
+        clientY <= rect.bottom
+      );
+    };
+
     const onPointerDown = (e) => {
-      if (!el.contains(e.target)) return;
+      if (!isInBounds(e.clientX, e.clientY)) return;
       isDragging = true;
       startY = e.clientY;
       startScrollTop = el.scrollTop;
