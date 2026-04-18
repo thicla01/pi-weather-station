@@ -108,3 +108,22 @@ el.addEventListener("pointerleave", onPointerLeave);
 | Hash | Description |
 |------|-------------|
 | `b1cc014` | fix: repair drag-scroll in Settings and Debug panels |
+
+---
+
+## Suivi — Compatibilité iPad / navigateur mobile (2026-04-18)
+
+Deux problèmes découverts lors de tests sur iPad en accès distant.
+
+**Problème A — Contrôles masqués sur iOS Safari**
+
+`height: 100vh` inclut la zone derrière la barre d'adresse sur iOS Safari. Les boutons de contrôle (40 px en bas) étaient cachés derrière l'interface du navigateur. Corrigé en ajoutant `height: 100dvh` (dynamic viewport height) aux deux règles `.container` et `.info-container` dans `App/styles.css`. La valeur `100vh` reste en place comme fallback pour les navigateurs anciens.
+
+**Problème B — Défilement bloqué sur iOS Safari**
+
+Le listener `touchmove` non-passif appelait `preventDefault()`, ce qui bloquait le scroll natif d'iOS Safari même avec `touch-action: pan-y` — comportement différent de Chromium (qui ignore `preventDefault()` quand `touch-action` a réclamé le geste). Solution : suppression complète des handlers touch (`touchstart`, `touchmove`, `touchend`, `touchcancel`) de `useDragScroll`. iOS utilise désormais son scroll natif via `overflow-y: auto` + `touch-action: pan-y`. Le Pi continue via les pointer events (Chromium envoie des pointer events pour les entrées tactiles).
+
+| Hash | Description |
+|------|-------------|
+| `2ece465` | fix: restore iPad scroll and fix controls visibility on mobile browsers |
+
