@@ -40,7 +40,7 @@
 }
 
 .settings-container {
-  position: fixed;
+  position: absolute;
   z-index: 5000;
 }
 

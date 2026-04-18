@@ -1,4 +1,4 @@
-import { useRef, useEffect } from "react";
+import { useRef, useCallback } from "react";
 
 /**
  * Adds drag-to-scroll to a container element.
@@ -7,6 +7,11 @@ import { useRef, useEffect } from "react";
  * cancellation on one path does not affect the other.
  *
  * Key design decisions vs previous iterations:
+ * - Callback ref instead of useRef+useEffect: the scroll container inside
+ *   CSSTransition (unmountOnExit) is not in the DOM when the component first
+ *   mounts, so a useEffect with [] fires with ref.current===null and never
+ *   re-runs. A callback ref fires exactly when the element enters/leaves the
+ *   DOM, regardless of transition timing.
  * - No setPointerCapture: calling it on a parent while a child <input>
  *   already holds capture triggers pointercancel, killing the handler.
  * - pointercancel is intentionally ignored: the browser fires it when it
@@ -15,17 +20,18 @@ import { useRef, useEffect } from "react";
  *   true and handle the movement.
  * - Direction check: only scrolls when the gesture is predominantly
  *   vertical (dy > dx), leaving horizontal input-field panning intact.
- * - touch-action: pan-y must be set on the element in CSS so that the
- *   Wayland/browser compositor enables native touch scroll (this JS handler
- *   acts as a supplemental fallback for pointer/mouse-type devices).
  *
- * @returns {React.RefObject} Ref to attach to the scrollable element
+ * @returns {Function} Callback ref to attach to the scrollable element
  */
 const useDragScroll = () => {
-  const ref = useRef(null);
+  const cleanupRef = useRef(null);
 
-  useEffect(() => {
-    const el = ref.current;
+  const ref = useCallback((el) => {
+    // Called with null when element unmounts — clean up previous listeners.
+    if (cleanupRef.current) {
+      cleanupRef.current();
+      cleanupRef.current = null;
+    }
     if (!el) return;
 
     // ── Touch path ─────────────────────────────────────────────────────────
@@ -65,10 +71,13 @@ const useDragScroll = () => {
       ptrStartX    = e.clientX;
       ptrStartY    = e.clientY;
       ptrScrollTop = el.scrollTop;
-      // No setPointerCapture — conflicts with <input> internal capture
     };
 
     const onPointerMove = (e) => {
+      // e.buttons === 0 means the finger was lifted but the browser still
+      // fired a stray pointermove (e.g. during repositioning or after a
+      // missed pointerup). Treat it as a button-up to reset state.
+      if (e.buttons === 0) { ptrActive = false; return; }
       if (!ptrActive || touchActive) return;
       const dx = Math.abs(e.clientX - ptrStartX);
       const dy = Math.abs(e.clientY - ptrStartY);
@@ -77,25 +86,27 @@ const useDragScroll = () => {
       el.scrollTop = ptrScrollTop + (ptrStartY - e.clientY);
     };
 
-    const onPointerUp = () => { ptrActive = false; };
+    const onPointerUp    = () => { ptrActive = false; };
+    const onPointerLeave = () => { ptrActive = false; };
 
-    el.addEventListener("touchstart",  onTouchStart,  { passive: true  });
-    el.addEventListener("touchmove",   onTouchMove,   { passive: false });
-    el.addEventListener("touchend",    onTouchEnd,    { passive: true  });
-    el.addEventListener("touchcancel", onTouchEnd,    { passive: true  });
-    el.addEventListener("pointerdown", onPointerDown);
-    el.addEventListener("pointermove", onPointerMove, { passive: false });
-    el.addEventListener("pointerup",   onPointerUp);
-    // pointercancel: intentionally omitted
+    el.addEventListener("touchstart",   onTouchStart,   { passive: true  });
+    el.addEventListener("touchmove",    onTouchMove,    { passive: false });
+    el.addEventListener("touchend",     onTouchEnd,     { passive: true  });
+    el.addEventListener("touchcancel",  onTouchEnd,     { passive: true  });
+    el.addEventListener("pointerdown",  onPointerDown);
+    el.addEventListener("pointermove",  onPointerMove,  { passive: false });
+    el.addEventListener("pointerup",    onPointerUp);
+    el.addEventListener("pointerleave", onPointerLeave);
 
-    return () => {
-      el.removeEventListener("touchstart",  onTouchStart);
-      el.removeEventListener("touchmove",   onTouchMove);
-      el.removeEventListener("touchend",    onTouchEnd);
-      el.removeEventListener("touchcancel", onTouchEnd);
-      el.removeEventListener("pointerdown", onPointerDown);
-      el.removeEventListener("pointermove", onPointerMove);
-      el.removeEventListener("pointerup",   onPointerUp);
+    cleanupRef.current = () => {
+      el.removeEventListener("touchstart",   onTouchStart);
+      el.removeEventListener("touchmove",    onTouchMove);
+      el.removeEventListener("touchend",     onTouchEnd);
+      el.removeEventListener("touchcancel",  onTouchEnd);
+      el.removeEventListener("pointerdown",  onPointerDown);
+      el.removeEventListener("pointermove",  onPointerMove);
+      el.removeEventListener("pointerup",    onPointerUp);
+      el.removeEventListener("pointerleave", onPointerLeave);
     };
   }, []);
 

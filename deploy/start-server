@@ -24,4 +24,5 @@ if [ -n "$WAYLAND_DISPLAY" ]; then
 fi
 
 "$CHROMIUM" --kiosk --noerrdialogs --disable-infobars --no-first-run \
-    --ignore-certificate-errors --touch-events=enabled $FLAGS "$URL"
+    --ignore-certificate-errors --touch-events=enabled \
+    --remote-debugging-port=9222 $FLAGS "$URL"
