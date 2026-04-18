@@ -21,10 +21,12 @@ pi-weather-station/
 │   ├── aiSummaryCtrl.js  # Claude AI weather summary endpoint
 │   ├── debugCtrl.js      # Debug panel data endpoint
 │   ├── clientTracker.js  # Tracks remote client IP addresses
+│   ├── geolocationCtrl.js # Default location lookup via ipapi.co
 │   ├── responseTimer.js  # Per-endpoint response time tracking middleware
 │   ├── settingsCtrl.js   # Reads/writes settings.json
 │   ├── serviceStatus.js  # Tracks last status of each external service
-│   └── requestCounter.js # API quota counters (persisted to request-counts.json)
+│   ├── requestCounter.js # API quota counters (persisted to request-counts.json)
+│   └── updateChecker.js  # Checks GitHub for new releases (cached 1 hour)
 ├── client/               # React frontend
 │   ├── src/
 │   │   ├── AppContext.js             # Global state (settings, units, dark mode, etc.)
@@ -35,9 +37,16 @@ pi-weather-station/
 │   │   │   ├── Settings/             # Settings overlay (API keys, units, language)
 │   │   │   ├── Debug/                # Debug panel (localhost only)
 │   │   │   ├── AiSummary/            # AI-generated weather summary
-│   │   │   ├── MapBox/               # Radar map (Mapbox GL)
+│   │   │   ├── Clock/                # Digital clock display
+│   │   │   ├── LocationName/         # Current location name display
+│   │   │   ├── Spinner/              # Loading spinner
+│   │   │   ├── SunRiseSet/           # Sunrise/sunset times display
+│   │   │   ├── WeatherInfo/          # Weather information container
+│   │   │   ├── WeatherMap/           # Radar map (Leaflet + Mapbox tiles)
 │   │   │   ├── weatherCharts/        # Hourly and daily forecast charts
 │   │   │   └── ControlButtons/       # Bottom control bar (settings, debug, dark mode)
+│   │   ├── hooks/
+│   │   │   └── useDragScroll.js      # Drag-to-scroll via pointer events (callback ref pattern)
 │   │   ├── i18n/locales/             # EN / FR / ES translations
 │   │   └── services/conversions.js   # Unit conversions (temp, speed, length)
 │   └── dist/             # Compiled bundle (committed to git)
