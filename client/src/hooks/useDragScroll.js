@@ -1,10 +1,12 @@
 import { useRef, useCallback } from "react";
 
 /**
- * Adds drag-to-scroll to a container element.
+ * Adds drag-to-scroll to a container element via pointer events.
  *
- * Two independent paths run in parallel (touch and pointer) so that a
- * cancellation on one path does not affect the other.
+ * Pointer events handle all input types (mouse and touchscreen via Chromium).
+ * Touch scroll on iOS/Safari is handled natively by the browser through
+ * `overflow-y: auto` + `touch-action: pan-y` — touch event handlers are
+ * intentionally omitted to avoid blocking iOS Safari's native scroll.
  *
  * Key design decisions vs previous iterations:
  * - Callback ref instead of useRef+useEffect: the scroll container inside
@@ -34,31 +36,7 @@ const useDragScroll = () => {
     }
     if (!el) return;
 
-    // ── Touch path ─────────────────────────────────────────────────────────
-    let touchActive    = false;
-    let touchStartX    = 0;
-    let touchStartY    = 0;
-    let touchScrollTop = 0;
-
-    const onTouchStart = (e) => {
-      touchActive    = true;
-      touchStartX    = e.touches[0].clientX;
-      touchStartY    = e.touches[0].clientY;
-      touchScrollTop = el.scrollTop;
-    };
-
-    const onTouchMove = (e) => {
-      if (!touchActive) return;
-      const dx = Math.abs(e.touches[0].clientX - touchStartX);
-      const dy = Math.abs(e.touches[0].clientY - touchStartY);
-      if (dy <= dx) return; // horizontal gesture — leave input panning intact
-      e.preventDefault();
-      el.scrollTop = touchScrollTop + (touchStartY - e.touches[0].clientY);
-    };
-
-    const onTouchEnd = () => { touchActive = false; };
-
-    // ── Pointer path (mouse-type touchscreens) ─────────────────────────────
+    // ── Pointer path (mouse and touchscreen via Chromium pointer events) ───
     // pointercancel is intentionally not handled so that ptrActive stays
     // true even when the browser fires cancel for internal input handling.
     let ptrActive    = false;
@@ -78,7 +56,7 @@ const useDragScroll = () => {
       // fired a stray pointermove (e.g. during repositioning or after a
       // missed pointerup). Treat it as a button-up to reset state.
       if (e.buttons === 0) { ptrActive = false; return; }
-      if (!ptrActive || touchActive) return;
+      if (!ptrActive) return;
       const dx = Math.abs(e.clientX - ptrStartX);
       const dy = Math.abs(e.clientY - ptrStartY);
       if (dy <= dx) return; // horizontal gesture — leave input panning intact
@@ -89,20 +67,12 @@ const useDragScroll = () => {
     const onPointerUp    = () => { ptrActive = false; };
     const onPointerLeave = () => { ptrActive = false; };
 
-    el.addEventListener("touchstart",   onTouchStart,   { passive: true  });
-    el.addEventListener("touchmove",    onTouchMove,    { passive: false });
-    el.addEventListener("touchend",     onTouchEnd,     { passive: true  });
-    el.addEventListener("touchcancel",  onTouchEnd,     { passive: true  });
     el.addEventListener("pointerdown",  onPointerDown);
     el.addEventListener("pointermove",  onPointerMove,  { passive: false });
     el.addEventListener("pointerup",    onPointerUp);
     el.addEventListener("pointerleave", onPointerLeave);
 
     cleanupRef.current = () => {
-      el.removeEventListener("touchstart",   onTouchStart);
-      el.removeEventListener("touchmove",    onTouchMove);
-      el.removeEventListener("touchend",     onTouchEnd);
-      el.removeEventListener("touchcancel",  onTouchEnd);
       el.removeEventListener("pointerdown",  onPointerDown);
       el.removeEventListener("pointermove",  onPointerMove);
       el.removeEventListener("pointerup",    onPointerUp);
