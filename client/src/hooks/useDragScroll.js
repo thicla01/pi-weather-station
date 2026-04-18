@@ -15,6 +15,9 @@ import { useRef, useEffect } from "react";
  *   true and handle the movement.
  * - Direction check: only scrolls when the gesture is predominantly
  *   vertical (dy > dx), leaving horizontal input-field panning intact.
+ * - touch-action: pan-y must be set on the element in CSS so that the
+ *   Wayland/browser compositor enables native touch scroll (this JS handler
+ *   acts as a supplemental fallback for pointer/mouse-type devices).
  *
  * @returns {React.RefObject} Ref to attach to the scrollable element
  */
