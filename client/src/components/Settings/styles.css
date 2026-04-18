@@ -10,7 +10,8 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: clip; /* clip (not hidden) — avoids creating a spurious scroll container
+                     that Chromium/Wayland targets instead of the inner scrollable div */
 }
 
 .header {
