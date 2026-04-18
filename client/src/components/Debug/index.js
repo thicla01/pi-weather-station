@@ -18,7 +18,7 @@ import "!style-loader!css-loader!./animations.css";
  * @returns {JSX.Element} Debug panel
  */
 const Debug = () => {
-  const { debugMenuOpen, setDebugMenuOpen } = useContext(AppContext);
+  const { debugMenuOpen, setDebugMenuOpen, setUpdateAvailable, setLatestVersion } = useContext(AppContext);
   const { t } = useTranslation();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -30,10 +30,17 @@ const Debug = () => {
     setLoading(true);
     axios
       .get("/api/debug")
-      .then((res) => setData(res.data))
+      .then((res) => {
+        setData(res.data);
+        const { updateInfo } = res.data;
+        if (updateInfo) {
+          setUpdateAvailable(updateInfo.updateAvailable ?? false);
+          setLatestVersion(updateInfo.latestVersion ?? null);
+        }
+      })
       .catch(() => setData(null))
       .finally(() => setLoading(false));
-  }, []);
+  }, [setUpdateAvailable, setLatestVersion]);
 
   useEffect(() => {
     if (debugMenuOpen) fetchDebugInfo();
