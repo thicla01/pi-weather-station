@@ -1,6 +1,7 @@
 .container {
   width: 100vw;
   height: 100vh;
+  height: 100dvh;
   min-width: 800px;
   min-height: 480px;
   display: grid;
@@ -28,6 +29,7 @@
 .info-container {
   grid-area: info;
   height: 100vh;
+  height: 100dvh;
   overflow: hidden;
 }
 
