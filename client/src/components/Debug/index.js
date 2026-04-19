@@ -982,19 +982,36 @@ const ClientKpiSection = ({ fps, setFps, clientMetrics, setClientMetrics }) => {
 
     setClientMetrics({ pageLoad, heap, apiCalls });
 
-    // FPS measurement over ~1 second
-    let frames = 0;
-    const startTime = performance.now();
+    // Rolling FPS: average over a 2-second sliding window, updated every second.
+    // Delayed 500ms so React has finished its initial render burst.
+    const timestamps = [];
+    const WINDOW_MS = 2000;
+    let timeoutId = null;
+
     const tick = (ts) => {
-      frames++;
-      if (ts - startTime >= 1000) {
-        setFps(Math.round((frames * 1000) / (ts - startTime)));
-        return;
-      }
+      timestamps.push(ts);
+      const cutoff = ts - WINDOW_MS;
+      while (timestamps.length > 0 && timestamps[0] < cutoff) timestamps.shift();
       rafRef.current = requestAnimationFrame(tick);
     };
-    rafRef.current = requestAnimationFrame(tick);
-    return () => { if (rafRef.current) cancelAnimationFrame(rafRef.current); };
+
+    const updateFps = () => {
+      if (timestamps.length > 1) {
+        const elapsed = timestamps[timestamps.length - 1] - timestamps[0];
+        setFps(Math.round((timestamps.length - 1) * 1000 / elapsed));
+      }
+      timeoutId = setTimeout(updateFps, 1000);
+    };
+
+    timeoutId = setTimeout(() => {
+      rafRef.current = requestAnimationFrame(tick);
+      updateFps();
+    }, 500);
+
+    return () => {
+      clearTimeout(timeoutId);
+      if (rafRef.current) cancelAnimationFrame(rafRef.current);
+    };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const fpsClass = fps === null ? styles.kpiValue
