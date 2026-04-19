@@ -66,7 +66,12 @@
     "local": "local",
     "latest": "dernier",
     "copy": "Copier",
-    "copied": "Copié !"
+    "copied": "Copié !",
+    "update": "Mettre à jour",
+    "updating": "Mise à jour...",
+    "restarting": "Redémarrage...",
+    "failed": "Échec",
+    "noSystemd": "Redémarrez le serveur manuellement :"
   },
   "debug": {
     "title": "DÉBOGAGE",

@@ -57,6 +57,8 @@ export function AppContextProvider({ children }) {
   const [debugMenuOpen, setDebugMenuOpen] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [latestVersion, setLatestVersion] = useState(null);
+  const [serverPlatform, setServerPlatform] = useState(null);
+  const [isSystemd, setIsSystemd] = useState(false);
 
   /**
    * Save mouse hide state
@@ -141,6 +143,8 @@ export function AppContextProvider({ children }) {
       axios.get("/api/update-check").then((res) => {
         setUpdateAvailable(res.data.updateAvailable ?? false);
         setLatestVersion(res.data.latestVersion ?? null);
+        setServerPlatform(res.data.platform ?? null);
+        setIsSystemd(res.data.isSystemd ?? false);
       }).catch(() => {
         // non-critical — silently ignore errors
       });
@@ -633,6 +637,8 @@ export function AppContextProvider({ children }) {
     setUpdateAvailable,
     latestVersion,
     setLatestVersion,
+    serverPlatform,
+    isSystemd,
   };
 
   return (

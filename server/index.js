@@ -13,7 +13,7 @@ const bodyParser = require("body-parser");
 const path = require("path");
 const https = require("https");
 const fs = require("fs");
-const { execSync } = require("child_process");
+const { execSync, exec } = require("child_process");
 const ver = require("../package.json").version;
 const appName = require("../package.json").name;
 
@@ -199,10 +199,42 @@ app.get("/api/weather-summary", apiLimiter, getWeatherSummary);
 app.get("/api/update-check", apiLimiter, async (req, res) => {
   try {
     const result = await checkForUpdate();
-    res.json(result);
+    res.json({
+      ...result,
+      platform: process.platform,
+      isSystemd: !!process.env.INVOCATION_ID,
+    });
   } catch {
     res.status(500).json({ error: true });
   }
+});
+
+app.post("/api/update", localhostOnly, (req, res) => {
+  const projectRoot = path.join(__dirname, "..");
+  console.log("[update] Starting git pull…");
+
+  exec("git pull --ff-only", { cwd: projectRoot, timeout: 30_000 }, (err, stdout, stderr) => {
+    if (err) {
+      console.error("[update] git pull failed:", stderr);
+      return res.status(500).json({ error: true, message: stderr });
+    }
+    console.log("[update] git pull succeeded:", stdout.trim());
+    res.json({ ok: true, isSystemd: !!process.env.INVOCATION_ID });
+
+    setTimeout(() => {
+      if (process.env.INVOCATION_ID) {
+        exec("systemctl --user restart pi-weather-server", (restartErr) => {
+          if (restartErr) {
+            console.error("[update] systemctl restart failed, falling back to process.exit:", restartErr.message);
+            process.exit(0);
+          }
+        });
+      } else {
+        // No systemd (dev / macOS) — exit and let the developer restart manually.
+        process.exit(0);
+      }
+    }, 500);
+  });
 });
 
 app.get("/api/debug", debugLocalhostOnly, getDebugInfo);

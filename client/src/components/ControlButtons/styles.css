@@ -116,8 +116,43 @@
   line-height: 1.6;
 }
 
-.update-tooltip-copy {
-  align-self: flex-end;
+.update-tooltip-note {
+  font-family: "Rubik", sans-serif;
+  font-size: 10px;
+  opacity: 0.65;
+  font-style: italic;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.update-tooltip-restart-cmd {
+  font-family: monospace;
+  font-size: 10px;
+  font-style: normal;
+  padding: 1px 5px;
+  border-radius: 3px;
+}
+
+.update-tooltip-dark .update-tooltip-restart-cmd {
+  background: #111;
+  color: #7dd3a8;
+}
+
+.update-tooltip-light .update-tooltip-restart-cmd {
+  background: #dde3ea;
+  color: #1a5c3a;
+}
+
+.update-tooltip-actions {
+  display: flex;
+  gap: 6px;
+  justify-content: flex-end;
+}
+
+.update-tooltip-copy,
+.update-tooltip-run {
   font-family: "Rubik", sans-serif;
   font-size: 10px;
   font-weight: 500;
@@ -133,6 +168,11 @@
   opacity: 0.7;
 }
 
+.update-tooltip-run-busy {
+  opacity: 0.6;
+  cursor: default;
+}
+
 .update-tooltip-dark .update-tooltip-copy {
   background: #444;
   color: #e2e8f0;
@@ -141,6 +181,20 @@
 .update-tooltip-light .update-tooltip-copy {
   background: #ccd3da;
   color: #1a2a3a;
+}
+
+.update-tooltip-dark .update-tooltip-run {
+  background: #2563eb;
+  color: #fff;
+}
+
+.update-tooltip-light .update-tooltip-run {
+  background: #2563eb;
+  color: #fff;
+}
+
+.update-tooltip-run-failed.update-tooltip-run {
+  background: #dc2626;
 }
 
 .update-tooltip-dark .update-tooltip-cmd {
