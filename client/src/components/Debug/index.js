@@ -2,6 +2,7 @@ import React, { useContext, useState, useEffect, useCallback, useRef } from "rea
 import { useTranslation } from "react-i18next";
 import styles from "./styles.css";
 import { AppContext } from "~/AppContext";
+import useDragScroll from "~/hooks/useDragScroll";
 import { CSSTransition } from "react-transition-group";
 import { InlineIcon } from "@iconify/react";
 import closeSharp from "@iconify/icons-ion/close-sharp";
@@ -17,21 +18,29 @@ import "!style-loader!css-loader!./animations.css";
  * @returns {JSX.Element} Debug panel
  */
 const Debug = () => {
-  const { debugMenuOpen, setDebugMenuOpen } = useContext(AppContext);
+  const { debugMenuOpen, setDebugMenuOpen, setUpdateAvailable, setLatestVersion } = useContext(AppContext);
   const { t } = useTranslation();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [fps, setFps] = useState(null);
   const [clientMetrics, setClientMetrics] = useState(null);
+  const contentScrollRef = useDragScroll();
 
   const fetchDebugInfo = useCallback(() => {
     setLoading(true);
     axios
       .get("/api/debug")
-      .then((res) => setData(res.data))
+      .then((res) => {
+        setData(res.data);
+        const { updateInfo } = res.data;
+        if (updateInfo) {
+          setUpdateAvailable(updateInfo.updateAvailable ?? false);
+          setLatestVersion(updateInfo.latestVersion ?? null);
+        }
+      })
       .catch(() => setData(null))
       .finally(() => setLoading(false));
-  }, []);
+  }, [setUpdateAvailable, setLatestVersion]);
 
   useEffect(() => {
     if (debugMenuOpen) fetchDebugInfo();
@@ -129,7 +138,7 @@ const Debug = () => {
           </div>
         </div>
 
-        <div className={styles.content}>
+        <div className={styles.content} ref={contentScrollRef}>
           <div className={styles.columns}>
             <ServerConfigSection serverConfig={data?.serverConfig} network={data?.network} />
             <ServerKpiSection serverKpis={data?.serverKpis} />

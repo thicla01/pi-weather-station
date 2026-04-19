@@ -1,8 +1,9 @@
-import React, { useContext, useRef, useEffect } from "react";
+import React, { useContext } from "react";
 import { AppContext } from "~/AppContext";
 import Clock from "~/components/Clock";
 import WeatherInfo from "~/components/WeatherInfo";
 import ControlButtons from "~/components/ControlButtons";
+import useDragScroll from "~/hooks/useDragScroll";
 import styles from "./styles.css";
 
 /**
@@ -12,43 +13,7 @@ import styles from "./styles.css";
  */
 const InfoPanel = () => {
   const { darkMode } = useContext(AppContext);
-  const weatherInfoRef = useRef(null);
-
-  useEffect(() => {
-    const el = weatherInfoRef.current;
-    if (!el) return;
-
-    let startY = 0;
-    let startScrollTop = 0;
-    let isDragging = false;
-
-    const onPointerDown = (e) => {
-      isDragging = true;
-      startY = e.clientY;
-      startScrollTop = el.scrollTop;
-      el.setPointerCapture(e.pointerId);
-    };
-
-    const onPointerMove = (e) => {
-      if (!isDragging) return;
-      e.preventDefault();
-      el.scrollTop = startScrollTop + (startY - e.clientY);
-    };
-
-    const onPointerUp = () => { isDragging = false; };
-
-    el.addEventListener("pointerdown", onPointerDown);
-    el.addEventListener("pointermove", onPointerMove, { passive: false });
-    el.addEventListener("pointerup", onPointerUp);
-    el.addEventListener("pointercancel", onPointerUp);
-
-    return () => {
-      el.removeEventListener("pointerdown", onPointerDown);
-      el.removeEventListener("pointermove", onPointerMove);
-      el.removeEventListener("pointerup", onPointerUp);
-      el.removeEventListener("pointercancel", onPointerUp);
-    };
-  }, []);
+  const weatherInfoRef = useDragScroll();
 
   return (
     <div className={`${darkMode ? styles.dark : styles.light} ${styles.panel}`}>

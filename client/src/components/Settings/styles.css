@@ -10,7 +10,8 @@
   position: relative;
   display: flex;
   flex-direction: column;
-  overflow: hidden;
+  overflow: clip; /* clip (not hidden) — avoids creating a spurious scroll container
+                     that Chromium/Wayland targets instead of the inner scrollable div */
 }
 
 .header {
@@ -22,6 +23,8 @@
   font-size: clamp(14px, 1.3vw, 18px);
   overflow-y: auto;
   flex: 1;
+  min-height: 0;
+  touch-action: pan-y;
 }
 
 .input-container {

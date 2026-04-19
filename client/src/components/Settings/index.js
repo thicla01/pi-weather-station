@@ -2,6 +2,7 @@ import React, { useContext, useState, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import styles from "./styles.css";
 import { AppContext } from "~/AppContext";
+import useDragScroll from "~/hooks/useDragScroll";
 import { CSSTransition } from "react-transition-group";
 import { InlineIcon } from "@iconify/react";
 import closeFilled from "@iconify/icons-carbon/close-filled";
@@ -88,6 +89,7 @@ const Settings = () => {
   }, [mapApiKey, weatherApiKey, reverseGeoApiKey, anthropicApiKey, customLon, customLat]);
 
   const isRemoteRestricted = !isLocal && remoteSecurityEnabled;
+  const settingsScrollRef = useDragScroll();
 
   return (
     <CSSTransition
@@ -106,7 +108,7 @@ const Settings = () => {
         >
           <InlineIcon icon={closeSharp} />
         </div>
-        <div className={styles.settingsContainer}>
+        <div className={styles.settingsContainer} ref={settingsScrollRef}>
           <ToggleButtons />
           {!isRemoteRestricted && (
             <>

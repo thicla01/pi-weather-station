@@ -17,6 +17,14 @@ See it in action [here](https://www.youtube.com/watch?v=dvM6cyqYSw8).
 
 > Be mindful of the plan limits for your API keys and understand the terms of each provider, as scrolling around the map and selecting different locations will incur API calls for every location. Additionally, the weather station will periodically make additional API calls to get weather updates throughout the day. All weather (Tomorrow.io), map tile (Mapbox), and reverse geocoding (LocationIQ) calls are proxied through the server — multiple browser clients share the same quota rather than each consuming it independently. Weather responses are cached server-side, further reducing API usage.
 
+# v2.2.1 — 2026-04-18
+
+Bug fixes: drag-scroll compatibility and update indicator refresh.
+
+- **iPad / mobile browser scroll** — The drag-scroll hook previously registered a non-passive `touchmove` listener that called `preventDefault()`, which blocked iOS Safari's native scroll even when `touch-action: pan-y` was set. Touch event handlers have been removed from `useDragScroll`; iOS now uses native scroll unobstructed. The Pi's Chromium touchscreen is unaffected — it continues to use pointer events.
+- **Controls hidden on mobile browsers** — The app container used `height: 100vh`, which on iOS Safari includes the area behind the address bar and toolbar. The bottom control bar was hidden behind the browser UI. Fixed by adding `height: 100dvh` (dynamic viewport height, iOS 15.4+ / Chrome 108+) alongside the existing `100vh` fallback.
+- **Update indicator after `git pull`** — The update badge remained visible after a `git pull` and service restart until the next 6-hour client-side check. The Debug panel refresh now reads `updateInfo` from the `/api/debug` response (already fetched server-side) and updates the indicator immediately — no extra API call needed.
+
 # v2.2.0 — 2026-04-16
 
 Security hardening: API key masking, rate limiting, proxy-aware IP detection, and settings key whitelist.

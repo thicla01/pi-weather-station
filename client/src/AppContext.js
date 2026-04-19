@@ -630,7 +630,9 @@ export function AppContextProvider({ children }) {
     setDebugMenuOpen,
     toggleDebugMenuOpen,
     updateAvailable,
+    setUpdateAvailable,
     latestVersion,
+    setLatestVersion,
   };
 
   return (

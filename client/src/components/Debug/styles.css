@@ -1,14 +1,15 @@
 .container {
   height: calc(100vh - 20px);
   width: calc(100vw - 320px);
-  background-color: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(3px);
+  background-color: rgba(0, 0, 0, 0.82);
   padding: 10px;
   color: #f6f6f4;
   font-family: "Rubik", sans-serif;
   border-right: 1px solid rgba(0, 0, 0, 0.15);
   position: relative;
-  overflow: hidden;
+  overflow: clip; /* clip (not hidden) — avoids creating a spurious scroll container
+                     that Chromium/Wayland targets instead of the inner scrollable div */
+  touch-action: none; /* prevent browser from intercepting touch on this wrapper */
   display: flex;
   flex-direction: column;
 }
@@ -130,10 +131,11 @@
   font-size: clamp(12px, 1.1vw, 15px);
   overflow-y: auto;
   flex: 1;
+  min-height: 0;
+  touch-action: none;
 }
 
 .columns {
-  columns: 1;
   column-gap: 24px;
 }
 
