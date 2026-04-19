@@ -64,7 +64,9 @@
     "availableNoVersion": "Update available",
     "upToDate": "Up to date",
     "local": "local",
-    "latest": "latest"
+    "latest": "latest",
+    "copy": "Copy",
+    "copied": "Copied!"
   },
   "debug": {
     "title": "DEBUG",

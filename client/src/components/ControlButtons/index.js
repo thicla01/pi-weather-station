@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { AppContext } from "~/AppContext";
 import styles from "./styles.css";
@@ -40,6 +40,16 @@ const ControlButtons = () => {
 
   const { t } = useTranslation();
   const [updateTooltipOpen, setUpdateTooltipOpen] = useState(false);
+  const [copied, setCopied] = useState(false);
+
+  const UPDATE_CMD = "cd ~/pi-weather-station && git pull && systemctl --user restart pi-weather-server";
+
+  const handleCopy = useCallback(() => {
+    navigator.clipboard.writeText(UPDATE_CMD).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000);
+    });
+  }, [UPDATE_CMD]);
 
   return (
     <div
@@ -55,8 +65,11 @@ const ControlButtons = () => {
               : t("update.availableNoVersion")}
           </div>
           <code className={styles.updateTooltipCmd}>
-            cd ~/pi-weather-station &amp;&amp; git pull &amp;&amp; systemctl --user restart pi-weather-server
+            {`cd ~/pi-weather-station\ngit pull\nsystemctl --user restart pi-weather-server`}
           </code>
+          <button className={`${styles.updateTooltipCopy} ${copied ? styles.updateTooltipCopied : ""}`} onClick={handleCopy}>
+            {copied ? t("update.copied") : t("update.copy")}
+          </button>
         </div>
       )}
       <div onClick={resetMapPosition}>

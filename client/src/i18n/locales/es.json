@@ -64,7 +64,9 @@
     "availableNoVersion": "Actualización disponible",
     "upToDate": "Al día",
     "local": "local",
-    "latest": "último"
+    "latest": "último",
+    "copy": "Copiar",
+    "copied": "¡Copiado!"
   },
   "debug": {
     "title": "DEPURACIÓN",

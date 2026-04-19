@@ -64,7 +64,9 @@
     "availableNoVersion": "Mise à jour disponible",
     "upToDate": "À jour",
     "local": "local",
-    "latest": "dernier"
+    "latest": "dernier",
+    "copy": "Copier",
+    "copied": "Copié !"
   },
   "debug": {
     "title": "DÉBOGAGE",
