@@ -17,6 +17,16 @@ See it in action [here](https://www.youtube.com/watch?v=dvM6cyqYSw8).
 
 > Be mindful of the plan limits for your API keys and understand the terms of each provider, as scrolling around the map and selecting different locations will incur API calls for every location. Additionally, the weather station will periodically make additional API calls to get weather updates throughout the day. All weather (Tomorrow.io), map tile (Mapbox), and reverse geocoding (LocationIQ) calls are proxied through the server — multiple browser clients share the same quota rather than each consuming it independently. Weather responses are cached server-side, further reducing API usage.
 
+# v2.2.2 — 2026-04-19
+
+UX: one-click update from the UI, platform-aware update commands, and FPS measurement improvements.
+
+- **One-click update (kiosk-friendly)** — The update tooltip now includes a **Update** button that triggers `git pull --ff-only` and restarts the service directly from the browser — no terminal needed. Ideal for kiosk mode where opening a terminal is impractical. The page reloads automatically once the server is back up. Only available from the Pi itself (localhost).
+- **Platform-aware update commands** — The update tooltip detects whether the server is running under systemd and adapts the displayed commands accordingly. On non-systemd hosts (e.g. macOS), the `systemctl` line is replaced by a `npm start` restart note.
+- **Copy to clipboard** — A **Copy** button copies the full update command to the clipboard for easy pasting into a terminal.
+- **Update indicator synced on debug refresh** — Clicking Refresh in the debug panel now immediately updates the badge in the control bar — no need to wait for the 6-hour client-side check cycle.
+- **FPS measurement** — The debug panel now uses a sliding window of 60 frames for a more stable FPS reading, instead of a single-frame delta which produced noisy values.
+
 # v2.2.1 — 2026-04-18
 
 Bug fixes: drag-scroll compatibility and update indicator refresh.
