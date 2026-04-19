@@ -64,7 +64,14 @@
     "availableNoVersion": "Mise à jour disponible",
     "upToDate": "À jour",
     "local": "local",
-    "latest": "dernier"
+    "latest": "dernier",
+    "copy": "Copier",
+    "copied": "Copié !",
+    "update": "Mettre à jour",
+    "updating": "Mise à jour...",
+    "restarting": "Redémarrage...",
+    "failed": "Échec",
+    "noSystemd": "Redémarrez le serveur manuellement :"
   },
   "debug": {
     "title": "DÉBOGAGE",

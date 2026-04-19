@@ -64,7 +64,14 @@
     "availableNoVersion": "Actualización disponible",
     "upToDate": "Al día",
     "local": "local",
-    "latest": "último"
+    "latest": "último",
+    "copy": "Copiar",
+    "copied": "¡Copiado!",
+    "update": "Actualizar",
+    "updating": "Actualizando...",
+    "restarting": "Reiniciando...",
+    "failed": "Error",
+    "noSystemd": "Reinicie el servidor manualmente:"
   },
   "debug": {
     "title": "DEPURACIÓN",
