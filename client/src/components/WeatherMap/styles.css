@@ -10,35 +10,39 @@
   bottom: 24px;
   right: 10px;
   z-index: 1000;
-  padding: 5px 8px;
+  padding: 6px 9px;
   border-radius: 4px;
   font-family: "Rubik", sans-serif;
   font-size: clamp(9px, 0.75vw, 11px);
   pointer-events: none;
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 
 .radar-legend-dark {
-  background: rgba(0, 0, 0, 0.55);
-  color: #ddd;
+  background: rgba(58, 57, 56, 0.88);
+  border: 1px solid rgba(117, 117, 117, 0.45);
+  color: #f6f6f4;
 }
 
 .radar-legend-light {
-  background: rgba(255, 255, 255, 0.72);
-  color: #222;
+  background: rgba(247, 247, 247, 0.90);
+  border: 1px solid rgba(218, 218, 218, 0.85);
+  color: #3a3938;
 }
 
 .radar-legend-title {
   font-size: clamp(8px, 0.65vw, 10px);
   letter-spacing: 0.08em;
-  opacity: 0.65;
-  margin-bottom: 4px;
+  opacity: 0.55;
+  margin-bottom: 5px;
 }
 
 .radar-legend-item {
   display: flex;
   align-items: center;
-  gap: 5px;
-  margin-bottom: 2px;
+  gap: 6px;
+  margin-bottom: 3px;
 }
 
 .radar-legend-item:last-child {
@@ -46,8 +50,8 @@
 }
 
 .radar-legend-swatch {
-  width: 14px;
-  height: 7px;
+  width: 16px;
+  height: 8px;
   border-radius: 2px;
   flex-shrink: 0;
 }
