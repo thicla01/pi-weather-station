@@ -102,12 +102,15 @@ const WeatherInfo = () => {
     }
 
     if (!aiExpanded && wasExpanded && aiRef.current) {
-      // Collapsing: scroll the info panel back to top after charts re-expand
+      // Collapsing: scroll the info panel back to top after charts re-expand.
+      // Find the ancestor that is actually scrolled (scrollTop > 0) rather than
+      // the first one with overflow-y: auto, since WeatherInfo's own container
+      // also carries that property without ever scrolling.
       const timer = setTimeout(() => {
         let el = aiRef.current.parentElement;
         while (el) {
           const { overflowY } = window.getComputedStyle(el);
-          if (overflowY === "auto" || overflowY === "scroll") {
+          if ((overflowY === "auto" || overflowY === "scroll") && el.scrollTop > 0) {
             el.scrollTo({ top: 0, behavior: "smooth" });
             break;
           }
