@@ -6,6 +6,7 @@ import {
   convertTemp,
   convertSpeed,
   convertLength,
+  speedUnitLabel,
 } from "~/services/conversions";
 import { capitalizeFirstLetter } from "~/services/formatting";
 import { InlineIcon } from "@iconify/react";
@@ -85,7 +86,7 @@ const CurrentWeather = () => {
               <div className={styles.textUnit}>
                 <div>{convertSpeed(wind_speed, speedUnit)}</div>
                 <div className={styles.statUnit}>
-                  {speedUnit === "mph" ? " mph" : " m/s"}
+                  {" "}{speedUnitLabel(speedUnit)}
                 </div>
               </div>
             </div>
