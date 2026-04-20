@@ -98,17 +98,9 @@
 
 .toggle-buttons {
   display: flex;
+  flex-wrap: wrap;
   max-width: 900px;
-
-  justify-content: space-between;
-}
-
-.toggle-buttons > div {
-  margin-right: 10px;
-}
-
-.toggle-buttons > div:last-child {
-  margin-right: 0px;
+  gap: 8px 12px;
 }
 
 .toggle-container > .button {
