@@ -81,7 +81,7 @@ const App = () => {
         </div>
         <div
           className={styles.infoContainer}
-          style={{ zoom: fontSizeZoom, height: `calc(100dvh / ${fontSizeZoom})` }}
+          style={{ zoom: fontSizeZoom, height: `calc(100dvh / ${fontSizeZoom})`, "--zoom-factor": fontSizeZoom }}
         >
           <InfoPanel />
         </div>
