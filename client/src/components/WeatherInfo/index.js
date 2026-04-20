@@ -63,8 +63,12 @@ const WeatherInfo = () => {
     darkMode,
     setSettingsMenuOpen,
     currentWeatherData,
-    updateSunriseSunset
+    updateSunriseSunset,
+    fontSize,
   } = useContext(AppContext);
+
+  const fontSizeZoom = { s: 0.85, m: 1.0, l: 1.15 }[fontSize] || 1.0;
+  const chartWidthStyle = { width: `${(100 / fontSizeZoom).toFixed(2)}%` };
 
   const [activeChart, setActiveChart] = useState("hourly");
   const [isSmallScreen, setIsSmallScreen] = useState(
@@ -194,16 +198,16 @@ const WeatherInfo = () => {
                 {t("charts.tab5d")}
               </button>
             </div>
-            <div className={styles.weatherChart}>
+            <div className={styles.weatherChart} style={chartWidthStyle}>
               {activeChart === "hourly" ? <HourlyChart /> : <DailyChart />}
             </div>
           </>
         ) : (
           <>
-            <div className={styles.weatherChart}>
+            <div className={styles.weatherChart} style={chartWidthStyle}>
               <HourlyChart />
             </div>
-            <div className={styles.weatherChart}>
+            <div className={styles.weatherChart} style={chartWidthStyle}>
               <DailyChart />
             </div>
           </>
