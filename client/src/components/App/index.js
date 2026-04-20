@@ -27,14 +27,14 @@ const App = () => {
     fontSize,
   } = useContext(AppContext);
 
+  const [isSmallScreen, setIsSmallScreen] = useState(
+    () => window.matchMedia("(max-height: 520px)").matches
+  );
+
   const fontSizeZoom = { s: 0.85, m: 1.0, l: 1.15 }[fontSize] || 1.0;
   const gridTemplateColumns = isSmallScreen && infoPanelCollapsed
     ? "1fr 0"
     : "auto 300px";
-
-  const [isSmallScreen, setIsSmallScreen] = useState(
-    () => window.matchMedia("(max-height: 520px)").matches
-  );
 
   useEffect(() => {
     const mq = window.matchMedia("(max-height: 520px)");
