@@ -1,4 +1,4 @@
-import React, { useEffect, useContext, useState, useCallback } from "react";
+import React, { useEffect, useContext, useState, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import Spinner from "~/components/Spinner";
 import { AppContext } from "~/AppContext";
@@ -71,6 +71,8 @@ const WeatherInfo = () => {
   const chartWrapperStyle = { zoom: +(1 / fontSizeZoom).toFixed(4) };
 
   const [activeChart, setActiveChart] = useState("hourly");
+  const [aiExpanded, setAiExpanded] = useState(false);
+  const aiRef = useRef(null);
   const [isSmallScreen, setIsSmallScreen] = useState(
     () => window.matchMedia("(max-height: 520px)").matches
   );
@@ -81,6 +83,20 @@ const WeatherInfo = () => {
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
   }, []);
+
+  const handleAiToggle = useCallback(() => {
+    setAiExpanded((prev) => !prev);
+  }, []);
+
+  useEffect(() => {
+    if (aiExpanded && aiRef.current) {
+      const timer = setTimeout(() => {
+        aiRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 380); // after CSS transition (350ms)
+      return () => clearTimeout(timer);
+    }
+  }, [aiExpanded]);
+
   const { t } = useTranslation();
 
   const [
@@ -172,47 +188,56 @@ const WeatherInfo = () => {
         <div>
           <CurrentWeather />
         </div>
-        <div className={styles.chartLegend}>
-          <span className={styles.legendItem}>
-            <span className={`${styles.legendDot} ${styles.legendDotGray}`} />
-            {t("charts.temp")} / {t("charts.windSpeed")}
-          </span>
-          <span className={styles.legendItem}>
-            <span className={`${styles.legendDot} ${styles.legendDotBlue}`} />
-            {t("charts.precipitation")}
-          </span>
+        <div
+          className={styles.chartsCollapsible}
+          style={{ maxHeight: aiExpanded ? 0 : "1200px" }}
+        >
+          <div className={styles.chartLegend}>
+            <span className={styles.legendItem}>
+              <span className={`${styles.legendDot} ${styles.legendDotGray}`} />
+              {t("charts.temp")} / {t("charts.windSpeed")}
+            </span>
+            <span className={styles.legendItem}>
+              <span className={`${styles.legendDot} ${styles.legendDotBlue}`} />
+              {t("charts.precipitation")}
+            </span>
+          </div>
+          {isSmallScreen ? (
+            <>
+              <div className={styles.chartTabs}>
+                <button
+                  className={`${styles.chartTab} ${darkMode ? styles.chartTabDark : styles.chartTabLight} ${activeChart === "hourly" ? styles.chartTabActive : ""}`}
+                  onClick={() => setActiveChart("hourly")}
+                >
+                  {t("charts.tab24h")}
+                </button>
+                <button
+                  className={`${styles.chartTab} ${darkMode ? styles.chartTabDark : styles.chartTabLight} ${activeChart === "daily" ? styles.chartTabActive : ""}`}
+                  onClick={() => setActiveChart("daily")}
+                >
+                  {t("charts.tab5d")}
+                </button>
+              </div>
+              <div className={styles.weatherChart} style={chartWrapperStyle}>
+                {activeChart === "hourly" ? <HourlyChart /> : <DailyChart />}
+              </div>
+            </>
+          ) : (
+            <>
+              <div className={styles.weatherChart} style={chartWrapperStyle}>
+                <HourlyChart />
+              </div>
+              <div className={styles.weatherChart} style={chartWrapperStyle}>
+                <DailyChart />
+              </div>
+            </>
+          )}
         </div>
-        {isSmallScreen ? (
-          <>
-            <div className={styles.chartTabs}>
-              <button
-                className={`${styles.chartTab} ${darkMode ? styles.chartTabDark : styles.chartTabLight} ${activeChart === "hourly" ? styles.chartTabActive : ""}`}
-                onClick={() => setActiveChart("hourly")}
-              >
-                {t("charts.tab24h")}
-              </button>
-              <button
-                className={`${styles.chartTab} ${darkMode ? styles.chartTabDark : styles.chartTabLight} ${activeChart === "daily" ? styles.chartTabActive : ""}`}
-                onClick={() => setActiveChart("daily")}
-              >
-                {t("charts.tab5d")}
-              </button>
-            </div>
-            <div className={styles.weatherChart} style={chartWrapperStyle}>
-              {activeChart === "hourly" ? <HourlyChart /> : <DailyChart />}
-            </div>
-          </>
-        ) : (
-          <>
-            <div className={styles.weatherChart} style={chartWrapperStyle}>
-              <HourlyChart />
-            </div>
-            <div className={styles.weatherChart} style={chartWrapperStyle}>
-              <DailyChart />
-            </div>
-          </>
-        )}
-        <AiSummary />
+        <AiSummary
+          expanded={aiExpanded}
+          onToggle={handleAiToggle}
+          containerRef={aiRef}
+        />
       </div>
     );
   } else if (currentWeatherData || currentWeatherDataErr || err) {

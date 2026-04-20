@@ -111,6 +111,11 @@
   color: #3a393888;
 }
 
+.charts-collapsible {
+  overflow: hidden;
+  transition: max-height 0.35s ease;
+}
+
 .err-container .message{
   margin-top: 10px;
   word-break: break-word;

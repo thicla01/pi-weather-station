@@ -17,13 +17,42 @@
   background: rgba(128, 128, 128, 0.2);
 }
 
+.toggle-button {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  background: none;
+  border: none;
+  padding: 2px 4px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  white-space: nowrap;
+}
+
+.toggle-button:active {
+  opacity: 0.5;
+}
+
+.toggle-button-dark {
+  color: inherit;
+}
+
+.toggle-button-light {
+  color: inherit;
+}
+
 .label {
   font-family: "Rubik", sans-serif;
   font-size: clamp(11px, 1.0vw, 14px);
   font-weight: 500;
   letter-spacing: 0.08em;
   opacity: 0.65;
-  white-space: nowrap;
+}
+
+.chevron {
+  font-size: clamp(13px, 1.1vw, 16px);
+  opacity: 0.55;
 }
 
 .text {

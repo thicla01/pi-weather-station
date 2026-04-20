@@ -1,5 +1,9 @@
 import React, { useEffect, useState, useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
+import { InlineIcon } from "@iconify/react";
+import chevronUp from "@iconify/icons-carbon/chevron-up";
+import chevronDown from "@iconify/icons-carbon/chevron-down";
+import PropTypes from "prop-types";
 import { AppContext } from "~/AppContext";
 import styles from "./styles.css";
 import axios from "axios";
@@ -12,9 +16,13 @@ const REFRESH_INTERVAL = 15 * 60 * 1000;
  * AI-generated weather summary powered by Claude.
  * Renders nothing if the Anthropic API key is not configured (feature is optional).
  *
+ * @param {object} props
+ * @param {boolean} props.expanded Whether the summary is in expanded mode (charts hidden)
+ * @param {Function} props.onToggle Callback to toggle expanded state
+ * @param {object} props.containerRef Ref forwarded to the root container div
  * @returns {JSX.Element|null} AI summary block, or null if unavailable
  */
-const AiSummary = () => {
+const AiSummary = ({ expanded, onToggle, containerRef }) => {
   const { mapGeo, darkMode } = useContext(AppContext);
   const { i18n } = useTranslation();
   const [summary, setSummary] = useState(null);
@@ -71,10 +79,22 @@ const AiSummary = () => {
   if (!available || !summary) return null;
 
   return (
-    <div className={`${styles.container} ${darkMode ? styles.dark : styles.light}`}>
+    <div
+      ref={containerRef}
+      className={`${styles.container} ${darkMode ? styles.dark : styles.light}`}
+    >
       <div className={styles.header}>
         <div className={styles.line} />
-        <span className={styles.label}>{LABEL[lang] || LABEL.en}</span>
+        <button
+          className={`${styles.toggleButton} ${darkMode ? styles.toggleButtonDark : styles.toggleButtonLight}`}
+          onClick={onToggle}
+        >
+          <span className={styles.label}>{LABEL[lang] || LABEL.en}</span>
+          <InlineIcon
+            icon={expanded ? chevronDown : chevronUp}
+            className={styles.chevron}
+          />
+        </button>
         <div className={styles.line} />
       </div>
       {summary.split("\n\n").map((paragraph, i) => (
@@ -82,6 +102,21 @@ const AiSummary = () => {
       ))}
     </div>
   );
+};
+
+AiSummary.propTypes = {
+  expanded: PropTypes.bool,
+  onToggle: PropTypes.func,
+  containerRef: PropTypes.object,
+};
+
+/* eslint-disable-next-line no-empty-function */
+const noop = () => {};
+
+AiSummary.defaultProps = {
+  expanded: false,
+  onToggle: noop,
+  containerRef: null,
 };
 
 export default AiSummary;
