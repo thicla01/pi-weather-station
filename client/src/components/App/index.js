@@ -24,7 +24,10 @@ const App = () => {
     checkIsLocal,
     infoPanelCollapsed,
     setInfoPanelCollapsed,
+    fontSize,
   } = useContext(AppContext);
+
+  const fontSizeZoom = { s: 0.85, m: 1.0, l: 1.15 }[fontSize] || 1.0;
 
   const [isSmallScreen, setIsSmallScreen] = useState(
     () => window.matchMedia("(max-height: 520px)").matches
@@ -70,7 +73,10 @@ const App = () => {
             </button>
           )}
         </div>
-        <div className={`${styles.infoContainer} ${isSmallScreen && infoPanelCollapsed ? styles.infoContainerCollapsed : ""}`}>
+        <div
+          className={`${styles.infoContainer} ${isSmallScreen && infoPanelCollapsed ? styles.infoContainerCollapsed : ""}`}
+          style={{ zoom: fontSizeZoom }}
+        >
           <InfoPanel />
         </div>
       </div>

@@ -14,7 +14,11 @@
     "save": "ENREGISTRER",
     "on": "ON",
     "off": "OFF",
-    "none": "Aucune"
+    "none": "Aucune",
+    "fontSize": "TAILLE POLICE",
+    "fontS": "P",
+    "fontM": "M",
+    "fontL": "G"
   },
   "weather": {
     "heavyFreezingRain": "Pluie verglaçante forte",

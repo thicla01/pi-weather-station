@@ -14,7 +14,11 @@
     "save": "SAVE",
     "on": "ON",
     "off": "OFF",
-    "none": "None"
+    "none": "None",
+    "fontSize": "FONT SIZE",
+    "fontS": "S",
+    "fontM": "M",
+    "fontL": "L"
   },
   "weather": {
     "heavyFreezingRain": "Heavy freezing rain",

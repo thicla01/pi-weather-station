@@ -11,6 +11,7 @@ const SPEED_UNIT_STORAGE_KEY = "speedUnit";
 const LENGTH_UNIT_STORAGE_KEY = "lengthUnit";
 const CLOCK_UNIT_STORAGE_KEY = "clockTime";
 const MOUSE_HIDE_STORAGE_KEY = "mouseHide";
+const FONT_SIZE_STORAGE_KEY = "fontSize";
 
 /**
  * App context provider
@@ -50,6 +51,7 @@ export function AppContextProvider({ children }) {
   const [customLon, setCustomLon] = useState(null);
   const [mouseHide, setMouseHide] = useState(false);
   const [infoPanelCollapsed, setInfoPanelCollapsed] = useState(false);
+  const [fontSize, setFontSize] = useState("m"); // s, m, l
   const [sunriseTime, setSunriseTime] = useState(null);
   const [sunsetTime, setSunsetTime] = useState(null);
   const [isLocal, setIsLocal] = useState(true);
@@ -118,6 +120,16 @@ export function AppContextProvider({ children }) {
     window.localStorage.setItem(LENGTH_UNIT_STORAGE_KEY, newVal);
   }
 
+  /**
+   * Save font size preference
+   *
+   * @param {String} newVal `s`, `m`, or `l`
+   */
+  function saveFontSize(newVal) {
+    setFontSize(newVal);
+    window.localStorage.setItem(FONT_SIZE_STORAGE_KEY, newVal);
+  }
+
   function checkIsLocal() {
     axios.get("/api/is-local").then((res) => {
       setIsLocal(res.data.isLocal);
@@ -183,6 +195,10 @@ export function AppContextProvider({ children }) {
     }
     if (clock) {
       setClockTime(clock);
+    }
+    const fs = window.localStorage.getItem(FONT_SIZE_STORAGE_KEY);
+    if (fs) {
+      setFontSize(fs);
     }
   }
 
@@ -626,6 +642,8 @@ export function AppContextProvider({ children }) {
     saveMouseHide,
     infoPanelCollapsed,
     setInfoPanelCollapsed,
+    fontSize,
+    saveFontSize,
     updateSunriseSunset,
     sunriseTime,
     sunsetTime,

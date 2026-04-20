@@ -263,6 +263,8 @@ const ToggleButtons = () => {
     saveLengthUnit,
     clockTime,
     saveClockTime,
+    fontSize,
+    saveFontSize,
   } = useContext(AppContext);
   const { t } = useTranslation();
 
@@ -311,6 +313,21 @@ const ToggleButtons = () => {
             button1Val={"12"}
             button2Val={"24"}
             cb={saveClockTime}
+          />
+        </div>
+      </div>
+
+      <div className={styles.label}>{t("settings.fontSize")}</div>
+      <div className={styles.toggleButtons}>
+        <div>
+          <ToggleButton
+            options={[
+              { label: t("settings.fontS"), value: "s" },
+              { label: t("settings.fontM"), value: "m" },
+              { label: t("settings.fontL"), value: "l" },
+            ]}
+            val={fontSize}
+            cb={saveFontSize}
           />
         </div>
       </div>

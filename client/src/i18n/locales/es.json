@@ -14,7 +14,11 @@
     "save": "GUARDAR",
     "on": "ON",
     "off": "OFF",
-    "none": "Ninguna"
+    "none": "Ninguna",
+    "fontSize": "TAMAÑO FUENTE",
+    "fontS": "P",
+    "fontM": "M",
+    "fontL": "G"
   },
   "weather": {
     "heavyFreezingRain": "Lluvia helada intensa",
