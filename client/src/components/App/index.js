@@ -1,4 +1,4 @@
-import React, { useEffect, useContext } from "react";
+import React, { useEffect, useContext, useState } from "react";
 import styles from "./styles.css";
 import { AppContext } from "~/AppContext";
 
@@ -22,7 +22,20 @@ const App = () => {
     darkMode,
     mouseHide,
     checkIsLocal,
+    infoPanelCollapsed,
+    setInfoPanelCollapsed,
   } = useContext(AppContext);
+
+  const [isSmallScreen, setIsSmallScreen] = useState(
+    () => window.matchMedia("(max-height: 520px)").matches
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-height: 520px)");
+    const handler = (e) => setIsSmallScreen(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
   useEffect(() => {
     getCustomLatLon();
@@ -37,7 +50,7 @@ const App = () => {
         mouseHide ? styles.hideMouse : ""
       }`}
     >
-      <div className={styles.container}>
+      <div className={`${styles.container} ${isSmallScreen && infoPanelCollapsed ? styles.panelCollapsed : ""}`}>
         <div className={styles.settingsContainer}>
           <Settings />
           <Debug />
@@ -48,8 +61,16 @@ const App = () => {
           } ${darkMode ? "map-dark-mode" : ""}`}
         >
           <WeatherMap zoom={7} dark={darkMode} />
+          {isSmallScreen && (
+            <button
+              className={`${styles.panelToggle} ${darkMode ? styles.panelToggleDark : styles.panelToggleLight}`}
+              onClick={() => setInfoPanelCollapsed(!infoPanelCollapsed)}
+            >
+              {infoPanelCollapsed ? "‹" : "›"}
+            </button>
+          )}
         </div>
-        <div className={styles.infoContainer}>
+        <div className={`${styles.infoContainer} ${isSmallScreen && infoPanelCollapsed ? styles.infoContainerCollapsed : ""}`}>
           <InfoPanel />
         </div>
       </div>

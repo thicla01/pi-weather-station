@@ -49,6 +49,7 @@ export function AppContextProvider({ children }) {
   const [customLat, setCustomLat] = useState(null);
   const [customLon, setCustomLon] = useState(null);
   const [mouseHide, setMouseHide] = useState(false);
+  const [infoPanelCollapsed, setInfoPanelCollapsed] = useState(false);
   const [sunriseTime, setSunriseTime] = useState(null);
   const [sunsetTime, setSunsetTime] = useState(null);
   const [isLocal, setIsLocal] = useState(true);
@@ -623,6 +624,8 @@ export function AppContextProvider({ children }) {
     dailyWeatherDataErrMsg,
     mouseHide,
     saveMouseHide,
+    infoPanelCollapsed,
+    setInfoPanelCollapsed,
     updateSunriseSunset,
     sunriseTime,
     sunsetTime,
