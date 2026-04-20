@@ -66,3 +66,17 @@ The debug panel gained two new sections giving real-time visibility into both th
 On the license front, a dependency audit revealed two GPL-licensed icon packages (`@iconify/icons-gridicons` and `@iconify/icons-dashicons`) had been included since the project's early versions. Both were replaced with visually equivalent icons from MIT-licensed sets already present in the project (`ion/location-sharp` and `carbon/undo`). The packages were removed from `package.json`. All dependencies are now MIT, ISC, BSD, Apache-2.0, or Creative Commons — no copyleft obligations.
 
 Finally, a small UX fix ensures that opening the Settings panel automatically closes the Debug panel, and vice versa, so both panels can never be visible simultaneously.
+
+---
+
+**8. Small screen UX and display polish**
+
+The 7" official Raspberry Pi touchscreen (800×480) leaves limited vertical room once the info panel, current weather, and two stacked forecast charts are all visible. Three complementary improvements address this:
+
+First, on screens ≤ 520 px tall, the hourly and daily charts are now shown as tabs ("24 hours" / "5 days") rather than stacked. Only one chart is visible at a time, and switching is instant — each tab keeps its own chart instance without re-fetching data.
+
+Second, a floating toggle button appears on the right edge of the radar map (small screens only) and collapses the info panel entirely, expanding the map to full width. This is particularly useful when monitoring approaching rain. Because Leaflet does not automatically adapt to container size changes, a `MapResizer` component calls `map.invalidateSize()` after a short delay whenever the panel is toggled — without this, the right portion of the map stays white until the user pans or zooms.
+
+Third, a Font Size setting (S / M / L — 85%, 100%, 115% zoom) lets users adapt the info panel to their preference and viewing distance. Applying `zoom` to a container also scales its visual height, which would otherwise push controls off screen or leave a blank area. This is corrected by setting `height: calc(100dvh / zoom)` — restoring the logical height without affecting other layout elements. The forecast charts use a counter-zoom (`zoom: 1 / parentZoom`) so that chart.js measures the container in its natural coordinate space and draws at the right size regardless of the selected font size.
+
+On the visual side, the radar legend overlay was restyled to match the app's panel palette: a frosted-glass background (backdrop blur + semi-transparent fill) with a subtle border that switches between dark and light variants, consistent with every other overlay in the UI. The color swatches were also slightly enlarged for better readability at arm's length. The km/h speed unit label was shortened to "kph" to fit more cleanly in the narrow chart axis area.

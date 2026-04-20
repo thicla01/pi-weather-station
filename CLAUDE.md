@@ -84,9 +84,15 @@ The compiled `dist/` files are committed to git so Pis can `git pull` without re
 ### Settings
 - API keys and user preferences are stored in `settings.json` (excluded from git)
 - Temperature units: `f` (Fahrenheit), `c` (Celsius), `k` (Kelvin)
-- Speed units: `mph`, `ms` (m/s)
+- Speed units: `mph`, `ms` (m/s), `kmh` (km/h — displayed as "kph" in charts)
 - Length units: `in`, `mm`
 - Clock: `12`, `24`
+- Font size: `s` (85% zoom), `m` (100%, default), `l` (115% zoom) — persisted in `localStorage`
+
+### Small screen adaptations (≤ 520 px height)
+- **Chart tabs** — Hourly and daily charts are shown as tabs ("24 hours" / "5 days") rather than stacked, to save vertical space
+- **Collapsible info panel** — A floating toggle button on the right edge of the radar map collapses/expands the info panel; Leaflet calls `map.invalidateSize()` after each toggle via the `MapResizer` component
+- Both features activate via `window.matchMedia("(max-height: 520px)")` with a `change` listener for live detection
 
 ### Debug panel
 - Accessible from localhost only (both server-side middleware and client-side button)
