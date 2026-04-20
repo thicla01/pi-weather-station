@@ -481,3 +481,54 @@
 .config-enabled  { color: #6dcc6d; font-weight: bold; }
 .config-disabled { color: #888; }
 .config-value    { color: #f6f6f4; }
+
+
+/* Client hostname (below IP in remote clients table) */
+.client-hostname {
+  display: block;
+  font-size: clamp(9px, 0.75vw, 11px);
+  color: #888;
+  font-style: italic;
+  margin-top: 1px;
+}
+
+/* Power status */
+.power-row {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+}
+
+.power-badge-ok {
+  font-size: clamp(9px, 0.8vw, 11px);
+  font-weight: bold;
+  letter-spacing: 0.06em;
+  color: #6dcc6d;
+}
+
+.power-badge-err {
+  font-size: clamp(9px, 0.8vw, 11px);
+  font-weight: bold;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: rgba(220, 38, 38, 0.25);
+  color: #f87171;
+}
+
+.power-badge-warn {
+  font-size: clamp(9px, 0.8vw, 11px);
+  font-weight: bold;
+  letter-spacing: 0.04em;
+  padding: 1px 6px;
+  border-radius: 3px;
+  background: rgba(234, 179, 8, 0.2);
+  color: #fbbf24;
+}
+
+.power-since-boot {
+  font-size: clamp(9px, 0.75vw, 11px);
+  color: #888;
+  font-style: italic;
+}

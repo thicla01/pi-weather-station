@@ -2,6 +2,7 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const { execSync } = require("child_process");
+const dns = require("dns").promises;
 const axios = require("axios").default;
 const { checkForUpdate } = require("./updateChecker");
 const { weatherCache, getCacheStats } = require("./proxyCtrl");
@@ -111,6 +112,7 @@ function getServerConfig() {
   return {
     allowRemote: process.env.ALLOW_REMOTE === "true",
     debug: process.env.DEBUG === "true",
+    isSystemd: !!process.env.INVOCATION_ID,
     nodeEnv: process.env.NODE_ENV || "development",
     nodeVersion: process.version,
   };
@@ -185,6 +187,73 @@ function getSystemInfo() {
   return { hardware, os: osName };
 }
 
+// Hostname reverse-DNS cache (5 min TTL)
+const _hostnameCache = new Map();
+const HOSTNAME_CACHE_TTL = 5 * 60 * 1000;
+
+/**
+ * Resolves the hostname for an IP via reverse DNS. Returns null on failure.
+ *
+ * @param {string} ip
+ * @returns {Promise<string|null>}
+ */
+async function resolveHostname(ip) {
+  const now = Date.now();
+  const cached = _hostnameCache.get(ip);
+  if (cached && now - cached.fetchedAt < HOSTNAME_CACHE_TTL) return cached.hostname;
+  try {
+    const hostnames = await dns.reverse(ip);
+    const hostname = hostnames[0] || null;
+    _hostnameCache.set(ip, { hostname, fetchedAt: now });
+    return hostname;
+  } catch {
+    _hostnameCache.set(ip, { hostname: null, fetchedAt: now });
+    return null;
+  }
+}
+
+/**
+ * Reads the Pi throttle register via vcgencmd. Returns null on non-Pi or unavailable.
+ *
+ * Bit layout:
+ *   0x00001 Under-voltage (current)   0x10000 Under-voltage (since boot)
+ *   0x00002 Freq. capped (current)    0x20000 Freq. capped (since boot)
+ *   0x00004 Throttled (current)       0x40000 Throttled (since boot)
+ *   0x00008 Temp. limit (current)     0x80000 Temp. limit (since boot)
+ *
+ * @returns {{available:boolean, raw:string, current:object, occurred:object}|null}
+ */
+function getPowerStatus() {
+  if (process.platform !== "linux") return null;
+  try {
+    const output = execSync("vcgencmd get_throttled", {
+      encoding: "utf8",
+      timeout: 2000,
+    }).trim();
+    const match = output.match(/throttled=(0x[0-9a-fA-F]+)/);
+    if (!match) return { available: false };
+    const val = parseInt(match[1], 16);
+    return {
+      available: true,
+      raw: match[1],
+      current: {
+        underVoltage: !!(val & 0x1),
+        freqCapped:   !!(val & 0x2),
+        throttled:    !!(val & 0x4),
+        tempLimit:    !!(val & 0x8),
+      },
+      occurred: {
+        underVoltage: !!(val & 0x10000),
+        freqCapped:   !!(val & 0x20000),
+        throttled:    !!(val & 0x40000),
+        tempLimit:    !!(val & 0x80000),
+      },
+    };
+  } catch {
+    return null; // vcgencmd not available
+  }
+}
+
 const securityEvents = [];
 const MAX_SECURITY_EVENTS = 50;
 const LOG_LINES = 100;
@@ -251,9 +320,18 @@ async function getDebugInfo(req, res) {
     },
     cache: getCacheStats(),
     responseTimes: getResponseTimeStats(),
+    powerStatus: getPowerStatus(),
   };
 
-  return res.status(200).json({ cache, logs, audit, securityEvents, services: getServiceStatus(), counters: getCounters(), system: getSystemInfo(), network: getNetworkInfo(), providerStatus, connectivity, appVersion: getAppVersion(), serverKpis, remoteClients: getRemoteClients(), updateInfo, serverConfig: getServerConfig() });
+  // Resolve hostnames for remote clients (cached, best-effort)
+  const remoteClients = await Promise.all(
+    getRemoteClients().map(async (c) => ({
+      ...c,
+      hostname: await resolveHostname(c.ip),
+    }))
+  );
+
+  return res.status(200).json({ cache, logs, audit, securityEvents, services: getServiceStatus(), counters: getCounters(), system: getSystemInfo(), network: getNetworkInfo(), providerStatus, connectivity, appVersion: getAppVersion(), serverKpis, remoteClients, updateInfo, serverConfig: getServerConfig() });
 }
 
 module.exports = { getDebugInfo, logSecurityEvent, initServerInfo };

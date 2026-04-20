@@ -521,7 +521,12 @@ const RemoteClientsSection = ({ clients }) => {
           </div>
           {clients.map((c) => (
             <div className={styles.serviceEntry} key={c.ip}>
-              <span className={styles.serviceName}>{c.ip}</span>
+              <span className={styles.serviceName}>
+                {c.ip}
+                {c.hostname && c.hostname !== c.ip && (
+                  <span className={styles.clientHostname}>{c.hostname}</span>
+                )}
+              </span>
               <span className={styles.serviceTime}>{formatClientTime(c.firstSeen)}</span>
               <span className={styles.serviceTime}>{formatClientTime(c.lastSeen)}</span>
               <span className={styles.serviceComment}>{c.requestCount}</span>
@@ -798,6 +803,7 @@ const ServerConfigSection = ({ serverConfig, network }) => {
   const items = [
     { label: t("debug.allowRemote"), value: serverConfig.allowRemote, type: "bool" },
     { label: t("debug.debugMode"),   value: serverConfig.debug,        type: "bool" },
+    { label: t("debug.systemd"),     value: serverConfig.isSystemd,    type: "bool" },
     { label: t("debug.nodeEnv"),     value: serverConfig.nodeEnv,      type: "str"  },
     { label: t("debug.nodeVersion"), value: serverConfig.nodeVersion,  type: "str"  },
     ...(network ? [{ label: "PORT", value: `${network.protocol?.toUpperCase()}:${network.port}`, type: "str" }] : []),
@@ -828,6 +834,7 @@ ServerConfigSection.propTypes = {
   serverConfig: PropTypes.shape({
     allowRemote: PropTypes.bool,
     debug: PropTypes.bool,
+    isSystemd: PropTypes.bool,
     nodeEnv: PropTypes.string,
     nodeVersion: PropTypes.string,
   }),
@@ -891,6 +898,10 @@ const ServerKpiSection = ({ serverKpis }) => {
             </div>
           </div>
 
+          {kpis.powerStatus?.available && (
+            <PowerStatusRow powerStatus={kpis.powerStatus} />
+          )}
+
           {kpis.responseTimes.length > 0 && (
             <>
               <div className={styles.kpiLabel} style={{ marginBottom: 4 }}>{t("debug.responseTimes")}</div>
@@ -934,7 +945,60 @@ ServerKpiSection.propTypes = {
       rate: PropTypes.number,
     }),
     responseTimes: PropTypes.array,
+    powerStatus: PropTypes.object,
   }),
+};
+
+const POWER_FLAGS = ["underVoltage", "freqCapped", "throttled", "tempLimit"];
+const POWER_CRITICAL = ["underVoltage", "throttled"];
+
+/**
+ * Power status row — Pi-only, shows current and since-boot throttle flags.
+ *
+ * @param {object} props
+ * @param {object} props.powerStatus Power status from vcgencmd get_throttled
+ * @returns {JSX.Element} Power status row
+ */
+const PowerStatusRow = ({ powerStatus }) => {
+  const { t } = useTranslation();
+
+  const anyCurrentIssue  = POWER_FLAGS.some((f) => powerStatus.current[f]);
+  const anyOccurredIssue = POWER_FLAGS.some((f) => powerStatus.occurred[f]);
+
+  const flagLabel = (flag) => {
+    const key = flag === "throttled" ? "debug.throttledStatus" : `debug.${flag}`;
+    return t(key);
+  };
+
+  return (
+    <div className={styles.kpiItem} style={{ gridColumn: "1 / -1" }}>
+      <span className={styles.kpiLabel}>{t("debug.powerStatus")}</span>
+      <span className={styles.powerRow}>
+        {!anyCurrentIssue ? (
+          <span className={styles.powerBadgeOk}>{t("debug.powerOk")}</span>
+        ) : (
+          POWER_FLAGS.filter((f) => powerStatus.current[f]).map((f) => (
+            <span key={f} className={POWER_CRITICAL.includes(f) ? styles.powerBadgeErr : styles.powerBadgeWarn}>
+              {flagLabel(f)}
+            </span>
+          ))
+        )}
+        {anyOccurredIssue && (
+          <span className={styles.powerSinceBoot}>
+            {t("debug.sinceReboot")}: {POWER_FLAGS.filter((f) => powerStatus.occurred[f]).map(flagLabel).join(", ")}
+          </span>
+        )}
+      </span>
+    </div>
+  );
+};
+
+PowerStatusRow.propTypes = {
+  powerStatus: PropTypes.shape({
+    raw: PropTypes.string,
+    current: PropTypes.object,
+    occurred: PropTypes.object,
+  }).isRequired,
 };
 
 /**
@@ -989,7 +1053,13 @@ const ClientKpiSection = ({ fps, setFps, clientMetrics, setClientMetrics }) => {
       }))
       .sort((a, b) => b.count - a.count);
 
-    setClientMetrics({ pageLoad, heap, apiCalls });
+    const screen = {
+      width: window.screen.width,
+      height: window.screen.height,
+      dpr: window.devicePixelRatio || 1,
+    };
+
+    setClientMetrics({ pageLoad, heap, apiCalls, screen });
 
     // Rolling FPS: average over a 2-second sliding window, updated every second.
     // Delayed 500ms so React has finished its initial render burst.
@@ -1042,6 +1112,19 @@ const ClientKpiSection = ({ fps, setFps, clientMetrics, setClientMetrics }) => {
           <span className={styles.kpiLabel}>{t("debug.fps")}</span>
           <span className={fpsClass}>{fps !== null ? fps : "…"}</span>
         </div>
+        {clientMetrics?.screen && (
+          <div className={styles.kpiItem}>
+            <span className={styles.kpiLabel}>{t("debug.screenResolution")}</span>
+            <span className={styles.kpiValue}>
+              {clientMetrics.screen.width}×{clientMetrics.screen.height}
+              {clientMetrics.screen.dpr !== 1 && (
+                <span className={styles.kpiLabel} style={{ marginLeft: 6 }}>
+                  @{clientMetrics.screen.dpr}×
+                </span>
+              )}
+            </span>
+          </div>
+        )}
         {clientMetrics?.heap && (
           <div className={styles.kpiItem}>
             <span className={styles.kpiLabel}>{t("debug.jsHeap")}</span>
@@ -1082,6 +1165,11 @@ ClientKpiSection.propTypes = {
   setFps: PropTypes.func.isRequired,
   clientMetrics: PropTypes.shape({
     pageLoad: PropTypes.number,
+    screen: PropTypes.shape({
+      width: PropTypes.number,
+      height: PropTypes.number,
+      dpr: PropTypes.number,
+    }),
     heap: PropTypes.shape({
       used: PropTypes.number,
       total: PropTypes.number,

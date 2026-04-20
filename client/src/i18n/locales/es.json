@@ -147,6 +147,17 @@
     "nodeVersion": "VERSIÓN NODE",
     "enabled": "ACTIVADO",
     "disabled": "DESACTIVADO",
-    "count": "CANTIDAD"
+    "count": "CANTIDAD",
+    "hostname": "HOSTNAME",
+    "systemd": "SYSTEMD",
+    "screenResolution": "PANTALLA",
+    "pixelRatio": "RATIO DPI",
+    "powerStatus": "ALIMENTACIÓN",
+    "powerOk": "OK",
+    "underVoltage": "Bajo voltaje",
+    "freqCapped": "Frec. limitada",
+    "throttledStatus": "Limitado",
+    "tempLimit": "Límite temp.",
+    "sinceReboot": "desde reinicio"
   }
 }
