@@ -15,6 +15,7 @@
 .chart-legend {
   display: flex;
   gap: 14px;
+  margin-top: 6px;
   margin-bottom: 2px;
   padding: 0 2px;
 }
