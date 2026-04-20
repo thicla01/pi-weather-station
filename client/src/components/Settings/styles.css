@@ -104,7 +104,10 @@
 }
 
 .toggle-container > .button {
-  width: 50px;
+  width: auto;
+  min-width: 44px;
+  padding: 0 8px;
+  white-space: nowrap;
 }
 
 .bottom-button-container {
