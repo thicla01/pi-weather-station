@@ -1,6 +1,6 @@
 .container {
   height: calc(100vh - 20px); /* subtract padding */
-  width: calc(100vw - 320px); /* subtract info panel and padding */
+  width: calc(100vw - var(--info-col-width, 300px) - 20px); /* subtract info panel and padding */
   background-color: rgba(0, 0, 0, 0.65);
   backdrop-filter: blur(3px);
   padding: 10px;
