@@ -5,7 +5,7 @@ const { getSettingsData } = require("./settingsCtrl");
 const { recordServiceCall } = require("./serviceStatus");
 const { increment } = require("./requestCounter");
 
-const ALLOWED_STYLES = ["dark-v10", "light-v10", "light-v11"];
+const ALLOWED_STYLES = ["dark-v10", "light-v10", "light-v11", "navigation-day-v1"];
 
 const API_TIMEOUT_MS = 10 * 1000;
 
