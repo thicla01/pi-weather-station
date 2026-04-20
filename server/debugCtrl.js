@@ -289,13 +289,22 @@ async function getDebugInfo(req, res) {
   }));
 
   let logs = [];
-  try {
-    const logPath = path.join(__dirname, "../server.log");
-    const content = fs.readFileSync(logPath, "utf8");
-    logs = content.trim().split("\n").filter(Boolean).slice(-LOG_LINES);
-  } catch {
-    logs = ["Log file not available"];
+  const LOG_PATHS = [
+    "/tmp/weather-server.log",          // systemd via install.sh override.conf
+    path.join(__dirname, "../server.log"), // manual redirect (npm start > server.log)
+  ];
+  let logFound = false;
+  for (const logPath of LOG_PATHS) {
+    try {
+      const content = fs.readFileSync(logPath, "utf8");
+      logs = content.trim().split("\n").filter(Boolean).slice(-LOG_LINES);
+      logFound = true;
+      break;
+    } catch {
+      // try next path
+    }
   }
+  if (!logFound) logs = ["Log file not available"];
 
   let audit = "npm-audit.log not found";
   try {
