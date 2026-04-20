@@ -73,6 +73,7 @@ const WeatherInfo = () => {
   const [activeChart, setActiveChart] = useState("hourly");
   const [aiExpanded, setAiExpanded] = useState(false);
   const aiRef = useRef(null);
+  const prevAiExpandedRef = useRef(false);
   const [isSmallScreen, setIsSmallScreen] = useState(
     () => window.matchMedia("(max-height: 520px)").matches
   );
@@ -89,10 +90,30 @@ const WeatherInfo = () => {
   }, []);
 
   useEffect(() => {
+    const wasExpanded = prevAiExpandedRef.current;
+    prevAiExpandedRef.current = aiExpanded;
+
     if (aiExpanded && aiRef.current) {
+      // Expanding: scroll AI summary into view after charts collapse
       const timer = setTimeout(() => {
         aiRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
       }, 380); // after CSS transition (350ms)
+      return () => clearTimeout(timer);
+    }
+
+    if (!aiExpanded && wasExpanded && aiRef.current) {
+      // Collapsing: scroll the info panel back to top after charts re-expand
+      const timer = setTimeout(() => {
+        let el = aiRef.current.parentElement;
+        while (el) {
+          const { overflowY } = window.getComputedStyle(el);
+          if (overflowY === "auto" || overflowY === "scroll") {
+            el.scrollTo({ top: 0, behavior: "smooth" });
+            break;
+          }
+          el = el.parentElement;
+        }
+      }, 380);
       return () => clearTimeout(timer);
     }
   }, [aiExpanded]);
