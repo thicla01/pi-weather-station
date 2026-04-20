@@ -74,6 +74,15 @@
     "failed": "Error",
     "noSystemd": "Reinicie el servidor manualmente:"
   },
+  "radar": {
+    "legend": "RADAR",
+    "veryLight": "Muy ligero",
+    "light": "Ligero",
+    "moderate": "Moderado",
+    "heavy": "Fuerte",
+    "veryHeavy": "Muy fuerte",
+    "extreme": "Extremo"
+  },
   "debug": {
     "title": "DEPURACIÓN",
     "loading": "CARGANDO...",

@@ -74,6 +74,15 @@
     "failed": "Échec",
     "noSystemd": "Redémarrez le serveur manuellement :"
   },
+  "radar": {
+    "legend": "RADAR",
+    "veryLight": "Très léger",
+    "light": "Léger",
+    "moderate": "Modéré",
+    "heavy": "Fort",
+    "veryHeavy": "Très fort",
+    "extreme": "Extrême"
+  },
   "debug": {
     "title": "DÉBOGAGE",
     "loading": "CHARGEMENT...",

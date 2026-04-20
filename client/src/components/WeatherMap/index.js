@@ -15,9 +15,45 @@ import {
 } from "react-leaflet";
 import PropTypes from "prop-types";
 import { AppContext } from "~/AppContext";
+import { useTranslation } from "react-i18next";
 import debounce from "debounce";
 import axios from "axios";
 import styles from "./styles.css";
+
+const RADAR_LEGEND_ITEMS = [
+  { color: "#00d0d0", key: "veryLight" },
+  { color: "#00c800", key: "light"     },
+  { color: "#f0e600", key: "moderate"  },
+  { color: "#f08200", key: "heavy"     },
+  { color: "#e60000", key: "veryHeavy" },
+  { color: "#7800b4", key: "extreme"   },
+];
+
+/**
+ * Radar precipitation legend overlay
+ *
+ * @param {object} props
+ * @param {boolean} props.dark Dark mode
+ * @returns {JSX.Element} Legend overlay
+ */
+const RadarLegend = ({ dark }) => {
+  const { t } = useTranslation();
+  return (
+    <div className={`${styles.radarLegend} ${dark ? styles.radarLegendDark : styles.radarLegendLight}`}>
+      <div className={styles.radarLegendTitle}>{t("radar.legend")}</div>
+      {RADAR_LEGEND_ITEMS.map(({ color, key }) => (
+        <div key={key} className={styles.radarLegendItem}>
+          <span className={styles.radarLegendSwatch} style={{ background: color }} />
+          <span className={styles.radarLegendLabel}>{t(`radar.${key}`)}</span>
+        </div>
+      ))}
+    </div>
+  );
+};
+
+RadarLegend.propTypes = {
+  dark: PropTypes.bool,
+};
 
 /**
  * Handles map click events from inside the MapContainer context
@@ -169,34 +205,37 @@ const WeatherMap = ({ zoom, dark }) => {
   const markerPosition = mapGeo ? [mapGeo.latitude, mapGeo.longitude] : null;
 
   return (
-    <MapContainer
-      center={[latitude, longitude]}
-      zoom={zoom}
-      style={{ width: "100%", height: "100%" }}
-      attributionControl={false}
-      touchZoom={true}
-      dragging={true}
-      fadeAnimation={false}
-    >
-      <MapClickHandler onClick={mapClickHandler} />
-      <PanHandler panToCoords={panToCoords} setPanToCoords={setPanToCoords} />
-      <AttributionControl position={"bottomleft"} />
-      <TileLayer
-        attribution='© <a href="https://www.mapbox.com/feedback/">Mapbox</a>'
-        url={`/api/tiles/${dark ? "dark-v10" : "light-v10"}/{z}/{x}/{y}`}
-      />
-      {mapTimestamp ? (
+    <div className={styles.mapWrapper}>
+      <MapContainer
+        center={[latitude, longitude]}
+        zoom={zoom}
+        style={{ width: "100%", height: "100%" }}
+        attributionControl={false}
+        touchZoom={true}
+        dragging={true}
+        fadeAnimation={false}
+      >
+        <MapClickHandler onClick={mapClickHandler} />
+        <PanHandler panToCoords={panToCoords} setPanToCoords={setPanToCoords} />
+        <AttributionControl position={"bottomleft"} />
         <TileLayer
-          attribution='<a href="https://www.rainviewer.com/">RainViewer</a>'
-          url={`https://tilecache.rainviewer.com${mapTimestamp.path}/512/{z}/{x}/{y}/6/1_1.png`}
-          opacity={dark ? 0.3 : 0.6}
-          maxNativeZoom={7}
+          attribution='© <a href="https://www.mapbox.com/feedback/">Mapbox</a>'
+          url={`/api/tiles/${dark ? "dark-v10" : "light-v10"}/{z}/{x}/{y}`}
         />
-      ) : null}
-      {markerIsVisible && markerPosition ? (
-        <Marker position={markerPosition} opacity={0.65}></Marker>
-      ) : null}
-    </MapContainer>
+        {mapTimestamp ? (
+          <TileLayer
+            attribution='<a href="https://www.rainviewer.com/">RainViewer</a>'
+            url={`https://tilecache.rainviewer.com${mapTimestamp.path}/512/{z}/{x}/{y}/6/1_1.png`}
+            opacity={dark ? 0.3 : 0.6}
+            maxNativeZoom={7}
+          />
+        ) : null}
+        {markerIsVisible && markerPosition ? (
+          <Marker position={markerPosition} opacity={0.65}></Marker>
+        ) : null}
+      </MapContainer>
+      {mapTimestamp && <RadarLegend dark={dark} />}
+    </div>
   );
 };
 

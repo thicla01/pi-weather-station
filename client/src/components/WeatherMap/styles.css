@@ -1,3 +1,61 @@
+.map-wrapper {
+  width: 100%;
+  height: 100%;
+  position: relative;
+}
+
+/* Radar precipitation legend */
+.radar-legend {
+  position: absolute;
+  bottom: 24px;
+  right: 10px;
+  z-index: 1000;
+  padding: 5px 8px;
+  border-radius: 4px;
+  font-family: "Rubik", sans-serif;
+  font-size: clamp(9px, 0.75vw, 11px);
+  pointer-events: none;
+}
+
+.radar-legend-dark {
+  background: rgba(0, 0, 0, 0.55);
+  color: #ddd;
+}
+
+.radar-legend-light {
+  background: rgba(255, 255, 255, 0.72);
+  color: #222;
+}
+
+.radar-legend-title {
+  font-size: clamp(8px, 0.65vw, 10px);
+  letter-spacing: 0.08em;
+  opacity: 0.65;
+  margin-bottom: 4px;
+}
+
+.radar-legend-item {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 2px;
+}
+
+.radar-legend-item:last-child {
+  margin-bottom: 0;
+}
+
+.radar-legend-swatch {
+  width: 14px;
+  height: 7px;
+  border-radius: 2px;
+  flex-shrink: 0;
+}
+
+.radar-legend-label {
+  white-space: nowrap;
+}
+
 .no-map {
   height: 100%;
   width: 100%;

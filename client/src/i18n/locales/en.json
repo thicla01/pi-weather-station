@@ -74,6 +74,15 @@
     "failed": "Failed",
     "noSystemd": "Then restart the server manually:"
   },
+  "radar": {
+    "legend": "RADAR",
+    "veryLight": "Very light",
+    "light": "Light",
+    "moderate": "Moderate",
+    "heavy": "Heavy",
+    "veryHeavy": "Very heavy",
+    "extreme": "Extreme"
+  },
   "debug": {
     "title": "DEBUG",
     "loading": "LOADING...",
