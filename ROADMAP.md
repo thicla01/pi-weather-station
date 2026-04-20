@@ -57,6 +57,32 @@ A service worker caching the last known weather data and the compiled bundle wou
 
 ---
 
+## Technical debt
+
+These are known weaknesses in the current codebase that do not affect functionality today but will slow down development or increase the risk of regressions if left unaddressed as the project grows.
+
+### 📋 JSDoc and PropTypes coverage
+Most React components have a JSDoc block, but parameter descriptions and `PropTypes` declarations are incomplete on several components. ESLint rules `jsdoc/require-param` and `jsdoc/require-returns-description` surface the gaps at build time. A full audit and fill-in pass would make the codebase self-documenting and catch prop misuse earlier.
+
+### 🔕 `eslint-disable-line` comments
+Several `useEffect` hooks carry `// eslint-disable-line react-hooks/exhaustive-deps` comments to silence dependency warnings rather than restructure the logic. Each suppression is a hidden assumption about which dependencies are safe to omit. These should be reviewed one by one: either the dependency array should be corrected, or the suppression should be replaced with a documented `useRef`-based workaround that makes the intent explicit.
+
+### 📄 Version history duplicated between `readme.md` and `CHANGELOG.md`
+The full version history exists in both files. `readme.md` should keep only the last two or three releases for quick reference, with a link to `CHANGELOG.md` for the full history. Keeping both in sync manually is error-prone.
+
+### 🧪 No automated tests
+There are no unit or integration tests. The highest-value starting points would be:
+- Unit tests for `services/conversions.js` (pure functions, easy to cover)
+- Integration tests for the Express endpoints most likely to break silently (`/settings`, `/api/weather/*`, `/api/update`)
+- A GitHub Actions workflow running ESLint and the test suite on every push
+
+Without tests, every change to shared utilities or server middleware carries an invisible regression risk.
+
+### 🗂️ `AppContext.js` size and responsibility
+`AppContext.js` currently holds all global state: settings, units, geolocation, dark mode, font size, panel state, and all update functions. As the project grows, this single file becomes harder to navigate and reason about. Splitting it into focused context providers (e.g. `SettingsContext`, `WeatherContext`, `UIContext`) would improve maintainability without changing any observable behaviour.
+
+---
+
 ## Perspective
 
 The three items I would prioritize above all others if returning to this project:
@@ -69,4 +95,4 @@ The three items I would prioritize above all others if returning to this project
 
 ---
 
-*Last updated: 2026-04-20*
+*Last updated: 2026-04-21*
