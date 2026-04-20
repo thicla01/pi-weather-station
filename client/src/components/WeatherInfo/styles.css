@@ -44,6 +44,50 @@
   background: rgba(63, 127, 191, 0.8);
 }
 
+/* Chart tabs (small screens only) */
+.chart-tabs {
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+  margin-bottom: 2px;
+  padding: 0 2px;
+}
+
+.chart-tab {
+  font-family: "Rubik", sans-serif;
+  font-size: clamp(9px, 0.8vw, 11px);
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: 3px;
+  border: 1px solid transparent;
+  background: none;
+  cursor: pointer;
+  opacity: 0.45;
+  transition: opacity 0.15s;
+}
+
+.chart-tab-dark {
+  color: #f6f6f4;
+}
+
+.chart-tab-light {
+  color: #3a3938;
+}
+
+.chart-tab-active {
+  opacity: 1;
+}
+
+.chart-tab-dark.chart-tab-active {
+  border-color: rgba(117, 117, 117, 0.55);
+  background: rgba(255, 255, 255, 0.07);
+}
+
+.chart-tab-light.chart-tab-active {
+  border-color: rgba(180, 180, 180, 0.8);
+  background: rgba(0, 0, 0, 0.04);
+}
+
 .loading-container {
   display: flex;
   justify-content: center;

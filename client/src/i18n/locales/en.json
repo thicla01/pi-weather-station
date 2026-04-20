@@ -57,7 +57,9 @@
     "24hourWind": "24 Hour Wind Speed / Precipitation ({{unit}})",
     "windSpeed": "Wind Speed",
     "temp": "Temp",
-    "precipitation": "Precipitation"
+    "precipitation": "Precipitation",
+    "tab24h": "24h",
+    "tab5d": "5 days"
   },
   "update": {
     "available": "Update available: v{{version}}",

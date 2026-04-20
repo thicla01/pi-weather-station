@@ -65,6 +65,18 @@ const WeatherInfo = () => {
     currentWeatherData,
     updateSunriseSunset
   } = useContext(AppContext);
+
+  const [activeChart, setActiveChart] = useState("hourly");
+  const [isSmallScreen, setIsSmallScreen] = useState(
+    () => window.matchMedia("(max-height: 520px)").matches
+  );
+
+  useEffect(() => {
+    const mq = window.matchMedia("(max-height: 520px)");
+    const handler = (e) => setIsSmallScreen(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
   const { t } = useTranslation();
 
   const [
@@ -166,12 +178,36 @@ const WeatherInfo = () => {
             {t("charts.precipitation")}
           </span>
         </div>
-        <div className={styles.weatherChart}>
-          <HourlyChart />
-        </div>
-        <div className={styles.weatherChart}>
-          <DailyChart />
-        </div>
+        {isSmallScreen ? (
+          <>
+            <div className={styles.chartTabs}>
+              <button
+                className={`${styles.chartTab} ${darkMode ? styles.chartTabDark : styles.chartTabLight} ${activeChart === "hourly" ? styles.chartTabActive : ""}`}
+                onClick={() => setActiveChart("hourly")}
+              >
+                {t("charts.tab24h")}
+              </button>
+              <button
+                className={`${styles.chartTab} ${darkMode ? styles.chartTabDark : styles.chartTabLight} ${activeChart === "daily" ? styles.chartTabActive : ""}`}
+                onClick={() => setActiveChart("daily")}
+              >
+                {t("charts.tab5d")}
+              </button>
+            </div>
+            <div className={styles.weatherChart}>
+              {activeChart === "hourly" ? <HourlyChart /> : <DailyChart />}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className={styles.weatherChart}>
+              <HourlyChart />
+            </div>
+            <div className={styles.weatherChart}>
+              <DailyChart />
+            </div>
+          </>
+        )}
         <AiSummary />
       </div>
     );
