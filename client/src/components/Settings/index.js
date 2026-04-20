@@ -287,7 +287,7 @@ const ToggleButtons = () => {
             options={[
               { label: "mph",  value: "mph" },
               { label: "m/s",  value: "ms"  },
-              { label: "km/h", value: "kmh" },
+              { label: "kph",  value: "kmh" },
             ]}
             val={speedUnit}
             cb={saveSpeedUnit}

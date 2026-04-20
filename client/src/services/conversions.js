@@ -90,7 +90,7 @@ export const speedUnitLabel = (unit) => {
   if (!unit) return "m/s";
   switch (unit.toLowerCase()) {
     case "mph": return "mph";
-    case "kmh": return "km/h";
+    case "kmh": return "kph";
     default:    return "m/s";
   }
 };
