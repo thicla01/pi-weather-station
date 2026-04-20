@@ -64,6 +64,12 @@
   font-family: monospace;
 }
 
+.system-hostname {
+  color: #7ecfff;
+  opacity: 0.7;
+  font-size: clamp(10px, 0.85vw, 12px);
+}
+
 .networkInfo {
   display: flex;
   flex-direction: column;

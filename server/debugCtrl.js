@@ -184,7 +184,7 @@ function getSystemInfo() {
     } catch { /* sysctl not available */ }
   }
 
-  return { hardware, os: osName };
+  return { hardware, os: osName, hostname: os.hostname() };
 }
 
 // Hostname reverse-DNS cache (5 min TTL)

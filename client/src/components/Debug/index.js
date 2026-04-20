@@ -70,6 +70,9 @@ const Debug = () => {
                 <div className={styles.systemInfo}>
                   <span>{data.system.hardware}</span>
                   <span>{data.system.os}</span>
+                  {data.system.hostname && (
+                    <span className={styles.systemHostname}>{data.system.hostname}</span>
+                  )}
                 </div>
               )}
               {data?.updateInfo && (
