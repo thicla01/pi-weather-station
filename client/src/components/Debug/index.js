@@ -974,7 +974,7 @@ const PowerStatusRow = ({ powerStatus }) => {
   };
 
   return (
-    <div className={styles.kpiItem} style={{ gridColumn: "1 / -1" }}>
+    <div className={styles.kpiItem} style={{ gridColumn: "1 / -1", marginBottom: "10px" }}>
       <span className={styles.kpiLabel}>{t("debug.powerStatus")}</span>
       <span className={styles.powerRow}>
         {!anyCurrentIssue ? (
