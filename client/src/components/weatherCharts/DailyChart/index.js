@@ -18,6 +18,7 @@ import {
   convertTemp,
   convertLength,
   convertSpeed,
+  speedUnitLabel,
 } from "~/services/conversions";
 import { fontColor } from "../common";
 import { getDateLocale } from "~/i18n/dateLocale";
@@ -74,7 +75,7 @@ const createChartOptions = ({
           maxTicksLimit: 5,
           callback: (val) => {
             return altMode
-              ? `${val} ${speedUnit === "mph" ? "mph" : "m/s"}`
+              ? `${val} ${speedUnitLabel(speedUnit)}`
               : `${val} ${tempUnit.toUpperCase()}`;
           },
         },

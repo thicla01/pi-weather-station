@@ -46,10 +46,21 @@ const msToMph = (ms) => {
 };
 
 /**
+ * Convert m/s to km/h
+ *
+ * @param {Number} ms
+ * @returns {Number} km/h
+ * @private
+ */
+const msToKmh = (ms) => {
+  return ms * 3.6;
+};
+
+/**
  * Converts speed
  *
  * @param {Number} speed
- * @param {String} units mph or ms for m/s
+ * @param {String} units `mph`, `ms` for m/s, or `kmh` for km/h
  * @returns {Number} converted speed
  */
 export const convertSpeed = (speed, units) => {
@@ -61,9 +72,26 @@ export const convertSpeed = (speed, units) => {
     return parseInt(msToMph(speed));
   } else if (units && units.toLowerCase() === "ms") {
     return parseInt(speed);
+  } else if (units && units.toLowerCase() === "kmh") {
+    return Math.round(msToKmh(speed));
   } else {
     console.log("Missing / invalid target unit!", units);
     return null;
+  }
+};
+
+/**
+ * Returns the display label for a speed unit.
+ *
+ * @param {String} unit `mph`, `ms`, or `kmh`
+ * @returns {String} display label
+ */
+export const speedUnitLabel = (unit) => {
+  if (!unit) return "m/s";
+  switch (unit.toLowerCase()) {
+    case "mph": return "mph";
+    case "kmh": return "km/h";
+    default:    return "m/s";
   }
 };
 

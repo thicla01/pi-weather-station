@@ -284,11 +284,12 @@ const ToggleButtons = () => {
         </div>
         <div>
           <ToggleButton
-            button1Label={"mph"}
-            button2Label={"m/s"}
+            options={[
+              { label: "mph",  value: "mph" },
+              { label: "m/s",  value: "ms"  },
+              { label: "km/h", value: "kmh" },
+            ]}
             val={speedUnit}
-            button1Val={"mph"}
-            button2Val={"ms"}
             cb={saveSpeedUnit}
           />
         </div>

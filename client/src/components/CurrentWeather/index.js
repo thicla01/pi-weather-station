@@ -5,6 +5,7 @@ import styles from "./styles.css";
 import {
   convertTemp,
   convertSpeed,
+  speedUnitLabel,
 } from "~/services/conversions";
 
 import { InlineIcon } from "@iconify/react";
@@ -87,7 +88,7 @@ const CurrentWeather = () => {
               <div className={styles.textUnit}>
                 <div>{convertSpeed(windSpeed, speedUnit)}</div>
                 <div className={styles.statUnit}>
-                  {speedUnit === "mph" ? " mph" : " m/s"}
+                  {" "}{speedUnitLabel(speedUnit)}
                 </div>
               </div>
             </div>
