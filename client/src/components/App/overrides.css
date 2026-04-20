@@ -10,3 +10,8 @@
   background-color: #3a3938;
   color: #f6f6f4;
 }
+
+/* Boost contrast on light mode map tiles to improve city name readability */
+.map-container:not(.map-dark-mode) .leaflet-tile-pane {
+  filter: contrast(1.25);
+}
