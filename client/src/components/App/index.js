@@ -53,7 +53,10 @@ const App = () => {
         mouseHide ? styles.hideMouse : ""
       }`}
     >
-      <div className={`${styles.container} ${isSmallScreen && infoPanelCollapsed ? styles.panelCollapsed : ""}`}>
+      <div
+        className={`${styles.container} ${isSmallScreen && infoPanelCollapsed ? styles.panelCollapsed : ""}`}
+        style={{ gridTemplateColumns: `auto calc(300px / ${fontSizeZoom})` }}
+      >
         <div className={styles.settingsContainer}>
           <Settings />
           <Debug />
