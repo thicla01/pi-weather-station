@@ -61,6 +61,11 @@
   font-size: clamp(13px, 1.2vw, 16px);
 }
 
+.label-section {
+  font-size: clamp(13px, 1.2vw, 16px);
+  margin-top: 16px;
+}
+
 .button {
   height: 34px;
   width: 34px;

@@ -75,7 +75,7 @@ const App = () => {
         </div>
         <div
           className={`${styles.infoContainer} ${isSmallScreen && infoPanelCollapsed ? styles.infoContainerCollapsed : ""}`}
-          style={{ zoom: fontSizeZoom }}
+          style={{ zoom: fontSizeZoom, height: `calc(100dvh / ${fontSizeZoom})` }}
         >
           <InfoPanel />
         </div>

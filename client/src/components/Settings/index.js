@@ -317,7 +317,7 @@ const ToggleButtons = () => {
         </div>
       </div>
 
-      <div className={styles.label}>{t("settings.fontSize")}</div>
+      <div className={styles.labelSection}>{t("settings.fontSize")}</div>
       <div className={styles.toggleButtons}>
         <div>
           <ToggleButton
