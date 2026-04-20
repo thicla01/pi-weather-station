@@ -28,10 +28,9 @@ const App = () => {
   } = useContext(AppContext);
 
   const fontSizeZoom = { s: 0.85, m: 1.0, l: 1.15 }[fontSize] || 1.0;
-  const infoPanelColWidth = `calc(300px / ${fontSizeZoom})`;
   const gridTemplateColumns = isSmallScreen && infoPanelCollapsed
     ? "1fr 0"
-    : `auto ${infoPanelColWidth}`;
+    : "auto 300px";
 
   const [isSmallScreen, setIsSmallScreen] = useState(
     () => window.matchMedia("(max-height: 520px)").matches
@@ -59,7 +58,7 @@ const App = () => {
     >
       <div
         className={styles.container}
-        style={{ gridTemplateColumns, "--info-col-width": infoPanelColWidth }}
+        style={{ gridTemplateColumns, "--info-col-width": "300px" }}
       >
         <div className={styles.settingsContainer}>
           <Settings />
