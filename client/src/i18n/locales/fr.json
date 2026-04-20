@@ -70,6 +70,7 @@
     "update": "Mettre à jour",
     "updating": "Mise à jour...",
     "restarting": "Redémarrage...",
+    "done": "Fait !",
     "failed": "Échec",
     "noSystemd": "Redémarrez le serveur manuellement :"
   },

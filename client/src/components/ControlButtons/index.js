@@ -18,6 +18,7 @@ import axios from "axios";
 const UPDATE_IDLE        = "idle";
 const UPDATE_UPDATING    = "updating";   // git pull in progress
 const UPDATE_RESTARTING  = "restarting"; // waiting for server to come back
+const UPDATE_STOPPED     = "stopped";    // non-systemd: server exited, manual restart needed
 const UPDATE_FAILED      = "failed";
 
 const POLL_INTERVAL_MS  = 2000;
@@ -91,13 +92,19 @@ const ControlButtons = () => {
     setUpdateState(UPDATE_UPDATING);
     axios.post("/api/update")
       .then(() => {
-        setUpdateState(UPDATE_RESTARTING);
-        pollUntilReady();
+        if (isSystemd) {
+          setUpdateState(UPDATE_RESTARTING);
+          pollUntilReady();
+        } else {
+          // Non-systemd (e.g. macOS): server exits, user must restart manually.
+          setUpdateState(UPDATE_STOPPED);
+        }
       })
       .catch(() => setUpdateState(UPDATE_FAILED));
-  }, [pollUntilReady]);
+  }, [pollUntilReady, isSystemd]);
 
   const isBusy = updateState === UPDATE_UPDATING || updateState === UPDATE_RESTARTING;
+  const isReset = updateState === UPDATE_FAILED || updateState === UPDATE_STOPPED;
 
   return (
     <div
@@ -129,14 +136,15 @@ const ControlButtons = () => {
               {copied ? t("update.copied") : t("update.copy")}
             </button>
             <button
-              className={`${styles.updateTooltipRun} ${isBusy ? styles.updateTooltipRunBusy : ""} ${updateState === UPDATE_FAILED ? styles.updateTooltipRunFailed : ""}`}
-              onClick={updateState === UPDATE_FAILED ? () => setUpdateState(UPDATE_IDLE) : handleUpdate}
+              className={`${styles.updateTooltipRun} ${isBusy ? styles.updateTooltipRunBusy : ""} ${updateState === UPDATE_FAILED ? styles.updateTooltipRunFailed : ""} ${updateState === UPDATE_STOPPED ? styles.updateTooltipRunStopped : ""}`}
+              onClick={isReset ? () => setUpdateState(UPDATE_IDLE) : handleUpdate}
               disabled={isBusy}
             >
-              {updateState === UPDATE_IDLE      && t("update.update")}
-              {updateState === UPDATE_UPDATING  && t("update.updating")}
+              {updateState === UPDATE_IDLE       && t("update.update")}
+              {updateState === UPDATE_UPDATING   && t("update.updating")}
               {updateState === UPDATE_RESTARTING && t("update.restarting")}
-              {updateState === UPDATE_FAILED    && t("update.failed")}
+              {updateState === UPDATE_STOPPED    && t("update.done")}
+              {updateState === UPDATE_FAILED     && t("update.failed")}
             </button>
           </div>
         </div>

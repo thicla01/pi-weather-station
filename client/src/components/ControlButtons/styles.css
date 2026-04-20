@@ -197,6 +197,10 @@
   background: #dc2626;
 }
 
+.update-tooltip-run-stopped.update-tooltip-run {
+  background: #16a34a;
+}
+
 .update-tooltip-dark .update-tooltip-cmd {
   background: #111;
   color: #7dd3a8;

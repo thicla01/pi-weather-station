@@ -70,6 +70,7 @@
     "update": "Update",
     "updating": "Updating...",
     "restarting": "Restarting...",
+    "done": "Done!",
     "failed": "Failed",
     "noSystemd": "Then restart the server manually:"
   },
