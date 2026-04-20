@@ -467,6 +467,17 @@ DEBUG=true npm start
 
 > `DEBUG=true` is disabled by default. The `/api/debug` endpoint is always restricted to `localhost` regardless of this setting — it cannot be accessed from remote machines even when `ALLOW_REMOTE=true`.
 
+# Environment variables
+
+These variables are set in the systemd service drop-in (`~/.config/systemd/user/pi-weather-server.service.d/override.conf`) or exported before `npm start`.
+
+| Variable | Values | Default | Description |
+|---|---|:---:|---|
+| `ALLOW_REMOTE` | `true` / `false` | `false` | Allow connections from other devices on the network. When `false`, the server only accepts connections from `localhost`. |
+| `DEBUG` | `true` / `false` | `false` | Enable the debug panel and the `/api/debug` endpoint. Both remain restricted to localhost regardless of this flag. |
+
+No other environment variables are used by the server. API keys and user preferences are stored in `settings.json`, not in the environment.
+
 # Settings
 
 - Your API keys are saved locally (in plain text) to `settings.json`.
