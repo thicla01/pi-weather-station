@@ -72,6 +72,27 @@ MapClickHandler.propTypes = {
 };
 
 /**
+ * Invalidates the Leaflet map size when the info panel collapses or expands
+ *
+ * @param {object} props
+ * @param {boolean} props.infoPanelCollapsed whether the info panel is collapsed
+ * @returns {null} renders nothing
+ */
+const MapResizer = ({ infoPanelCollapsed }) => {
+  const map = useMap();
+  useEffect(() => {
+    // Small delay lets the CSS transition finish before recalculating
+    const timer = setTimeout(() => map.invalidateSize(), 50);
+    return () => clearTimeout(timer);
+  }, [infoPanelCollapsed, map]);
+  return null;
+};
+
+MapResizer.propTypes = {
+  infoPanelCollapsed: PropTypes.bool,
+};
+
+/**
  * Pans the map when panToCoords changes
  *
  * @param {object} props
@@ -115,6 +136,7 @@ const WeatherMap = ({ zoom, dark }) => {
     getMapApiKey,
     markerIsVisible,
     animateWeatherMap,
+    infoPanelCollapsed,
   } = useContext(AppContext);
 
   const handleMapClick = useCallback((e) => {
@@ -217,6 +239,7 @@ const WeatherMap = ({ zoom, dark }) => {
       >
         <MapClickHandler onClick={mapClickHandler} />
         <PanHandler panToCoords={panToCoords} setPanToCoords={setPanToCoords} />
+        <MapResizer infoPanelCollapsed={infoPanelCollapsed} />
         <AttributionControl position={"bottomleft"} />
         <TileLayer
           attribution='© <a href="https://www.mapbox.com/feedback/">Mapbox</a>'
