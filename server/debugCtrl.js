@@ -14,10 +14,11 @@ const { getRemoteClients } = require("./clientTracker");
 const PROVIDER_STATUS_TTL = 30 * 60 * 1000;
 
 const PROVIDER_STATUS_APIS = [
-  { name: "Tomorrow.io", type: "statuspage", url: "https://status.tomorrow.io/api/v2/status.json" },
-  { name: "Mapbox",      type: "statuspage", url: "https://status.mapbox.com/api/v2/status.json"  },
-  { name: "ipapi.co",    type: "html",       url: "https://ipapi.co/status/"                      },
-  { name: "LocationIQ",  type: "rss",        url: "https://status.locationiq.com/rss"             },
+  { name: "Tomorrow.io",     type: "statuspage",           url: "https://status.tomorrow.io/api/v2/status.json"      },
+  { name: "Mapbox",          type: "statuspage",           url: "https://status.mapbox.com/api/v2/status.json"       },
+  { name: "ipapi.co",        type: "html",                 url: "https://ipapi.co/status/"                           },
+  { name: "LocationIQ",      type: "rss",                  url: "https://status.locationiq.com/rss"                  },
+  { name: "Anthropic Claude", type: "statuspage-component", url: "https://status.claude.com/api/v2/components.json", componentName: "Claude API" },
 ];
 
 function parseStatuspage(name, data) {
@@ -33,6 +34,24 @@ function parseIpapiHtml(name, html) {
     name,
     indicator:   lightMap[m[1]] ?? "unknown",
     description: `${m[2].trim()} · ${m[3].trim()}`,
+  };
+}
+
+function parseStatuspageComponent(name, data, componentName) {
+  // Use startsWith to be resilient to appended labels like "(formerly ...)"
+  const component = data?.components?.find((c) => c.name.startsWith(componentName));
+  if (!component) return { name, indicator: "unknown", description: `Component "${componentName}" not found` };
+  const statusMap = {
+    "operational":           "none",
+    "degraded_performance":  "minor",
+    "partial_outage":        "major",
+    "major_outage":          "critical",
+    "under_maintenance":     "maintenance",
+  };
+  return {
+    name,
+    indicator:   statusMap[component.status] ?? "unknown",
+    description: component.status?.replace(/_/g, " ") ?? "",
   };
 }
 
@@ -76,12 +95,13 @@ async function fetchProviderStatus() {
   }
 
   const results = await Promise.all(
-    PROVIDER_STATUS_APIS.map(async ({ name, type, url }) => {
+    PROVIDER_STATUS_APIS.map(async ({ name, type, url, componentName }) => {
       try {
         const res = await axios.get(url, { timeout: 5000 });
-        if (type === "statuspage") return parseStatuspage(name, res.data);
-        if (type === "html")       return parseIpapiHtml(name, res.data);
-        if (type === "rss")        return parseLocationIQRss(name, res.data);
+        if (type === "statuspage")           return parseStatuspage(name, res.data);
+        if (type === "statuspage-component") return parseStatuspageComponent(name, res.data, componentName);
+        if (type === "html")                 return parseIpapiHtml(name, res.data);
+        if (type === "rss")                  return parseLocationIQRss(name, res.data);
         return { name, indicator: "unknown", description: "Unknown provider type" };
       } catch {
         return { name, indicator: "unknown", description: "Could not fetch status" };
