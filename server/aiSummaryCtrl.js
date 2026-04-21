@@ -3,6 +3,7 @@ const axios = require("axios").default;
 const { getSettingsData } = require("./settingsCtrl");
 const { weatherCache } = require("./proxyCtrl");
 const { recordServiceCall } = require("./serviceStatus");
+const { increment } = require("./requestCounter");
 
 const SUMMARY_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 const summaryCache = {};
@@ -223,6 +224,7 @@ async function getWeatherSummary(req, res) {
     const summary = message.content[0].text.trim();
     summaryCache[cacheKey] = { summary, expiresAt: Date.now() + SUMMARY_CACHE_TTL };
     recordServiceCall("Claude (AI summary)", 200, "OK");
+    increment("anthropic", "summary");
     return res.status(200).json({ summary }).end();
   } catch (err) {
     const status = err?.status || 500;
@@ -231,4 +233,4 @@ async function getWeatherSummary(req, res) {
   }
 }
 
-module.exports = { getWeatherSummary };
+module.exports = { getWeatherSummary, summaryCache };

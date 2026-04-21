@@ -6,6 +6,7 @@ const dns = require("dns").promises;
 const axios = require("axios").default;
 const { checkForUpdate } = require("./updateChecker");
 const { weatherCache, getCacheStats } = require("./proxyCtrl");
+const { summaryCache } = require("./aiSummaryCtrl");
 const { getServiceStatus } = require("./serviceStatus");
 const { getCounters } = require("./requestCounter");
 const { getResponseTimeStats } = require("./responseTimer");
@@ -302,11 +303,18 @@ function logSecurityEvent(ip, method, url) {
 async function getDebugInfo(req, res) {
   const now = Date.now();
 
-  const cache = Object.entries(weatherCache).map(([key, entry]) => ({
-    key,
-    expiresIn: Math.max(0, Math.round((entry.expiresAt - now) / 1000)),
-    expired: now > entry.expiresAt,
-  }));
+  const cache = [
+    ...Object.entries(weatherCache).map(([key, entry]) => ({
+      key,
+      expiresIn: Math.max(0, Math.round((entry.expiresAt - now) / 1000)),
+      expired: now > entry.expiresAt,
+    })),
+    ...Object.entries(summaryCache).map(([key, entry]) => ({
+      key: `ai-summary:${key}`,
+      expiresIn: Math.max(0, Math.round((entry.expiresAt - now) / 1000)),
+      expired: now > entry.expiresAt,
+    })),
+  ];
 
   let logs = [];
   const LOG_PATHS = [

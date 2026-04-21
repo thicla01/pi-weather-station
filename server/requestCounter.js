@@ -9,6 +9,7 @@ const QUOTAS = {
   "mapbox":      { hour: null, day: null, month: 50000 },
   "locationiq":  { hour: null, day: 5000, month: null  },
   "ipapi.co":    { hour: null, day: 1000, month: null  },
+  "anthropic":   { hour: null, day: null, month: null  },
 };
 
 // In-memory counters: { service: { endpoint: { hourKey, hour, dayKey, day, monthKey, month } } }
