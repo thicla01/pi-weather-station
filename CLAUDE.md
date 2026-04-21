@@ -108,6 +108,41 @@ systemctl --user restart pi-weather-server
 ```
 No client rebuild needed — dist files are committed.
 
+## Maintainability Guidelines
+
+These rules apply to every change, regardless of size. They exist to keep the codebase readable, consistent, and safe to modify months after the original work was done.
+
+### Before committing
+- Run `cd client && npm run prod` — the build must pass with **zero errors** (warnings on bundle size are acceptable)
+- Every new or modified React component must have a complete **JSDoc block** (`@param`, `@returns`) and declared **PropTypes**
+- Every new UI string must have a translation key in all three locale files (`en.json`, `fr.json`, `es.json`)
+- New or modified Express endpoints must be reflected in **`docs/api.md`**
+- Notable changes must be added to **`CHANGELOG.md`** under the appropriate version
+
+### React components
+- **One responsibility per component** — if a component renders more than one distinct concept, split it
+- **Local state first** — only promote state to `AppContext` if two or more unrelated components need it; `AppContext.js` is already large and should not grow without deliberate justification
+- **No inline styles for static values** — use CSS Modules; inline styles are reserved for values that are computed at runtime (e.g. `zoom`, `gridTemplateColumns`, CSS custom properties)
+- **Always clean up side effects** — every `setInterval`, `setTimeout`, or event listener registered in a `useEffect` must have a corresponding cleanup in the return function
+
+### ESLint suppressions
+- **Avoid `// eslint-disable-line` and `// eslint-disable-next-line`** — if a suppression is truly necessary, add an inline comment on the same line explaining *why* the rule is being bypassed
+- The only accepted standing exception is `react-hooks/exhaustive-deps` on initialization effects that run once on mount — these must carry the comment `// eslint-disable-line react-hooks/exhaustive-deps -- initialization, runs once on mount`
+
+### Constants and magic values
+- Named constants for all intervals, thresholds, and repeated literals — define them at the top of the file (e.g. `const REFRESH_INTERVAL = 15 * 60 * 1000`)
+- No hardcoded pixel values shared between components — use CSS custom properties (e.g. `--info-col-width`) so a single change propagates everywhere
+
+### Server
+- All outbound HTTP calls must include `{ timeout: 10_000 }` — no exceptions
+- New endpoints must be protected by the appropriate middleware (`localhostOnly`, `apiLimiter`, or `tileLimiter`) before being shipped
+- Never read `settings.json` directly from a controller — always go through `settingsCtrl.getSettings()`
+
+### Documentation hygiene
+- `CHANGELOG.md` is the single source of truth for version history — do not add new version entries to `readme.md` (the existing ones will be trimmed over time)
+- `ROADMAP.md` technical debt section must be updated when a debt item is resolved or a new one is identified
+- `docs/ui-layout_fr.md` and `docs/ui-layout_en.md` must be kept in sync when the screen layout changes
+
 ## External Services
 
 | Service | Purpose | Environment |
