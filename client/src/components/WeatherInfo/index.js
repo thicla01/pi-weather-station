@@ -74,6 +74,7 @@ const WeatherInfo = () => {
   const [activeChart, setActiveChart] = useState("hourly");
   const [aiExpanded, setAiExpanded] = useState(false);
   const aiRef = useRef(null);
+  const panelRef = useRef(null); // ref on the WeatherInfo root div
   const prevAiExpandedRef = useRef(false);
   const [isSmallScreen, setIsSmallScreen] = useState(
     () => window.matchMedia("(max-height: 520px)").matches
@@ -116,15 +117,17 @@ const WeatherInfo = () => {
     const wasExpanded = prevAiExpandedRef.current;
     prevAiExpandedRef.current = aiExpanded;
 
-    if (aiExpanded && aiRef.current) {
-      // Expanding: scroll to the very top so LocationName is visible
+    if (aiExpanded && panelRef.current) {
+      // Expanding: scroll ALL scrollable ancestors to top so LocationName is visible.
+      // We start from panelRef (the WeatherInfo root) and walk up without break,
+      // because the first overflow-y:auto ancestor (WeatherInfo itself) never scrolls
+      // and must not stop the search.
       const timer = setTimeout(() => {
-        let el = aiRef.current.parentElement;
+        let el = panelRef.current;
         while (el) {
           const { overflowY } = window.getComputedStyle(el);
           if (overflowY === "auto" || overflowY === "scroll") {
             el.scrollTo({ top: 0, behavior: "smooth" });
-            break;
           }
           el = el.parentElement;
         }
@@ -236,7 +239,7 @@ const WeatherInfo = () => {
 
   if (currentWeatherData) {
     return (
-      <div className={styles.container}>
+      <div className={styles.container} ref={panelRef}>
         <div className={styles.location}>
           <LocationName />
         </div>
