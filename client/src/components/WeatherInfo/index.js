@@ -109,7 +109,9 @@ const WeatherInfo = () => {
     return () => mq.removeEventListener("change", handler);
   }, []);
 
-  const handleAiToggle = useCallback(() => {
+  const handleAiToggle = useCallback((e) => {
+    // Blur the button so the browser does not auto-scroll to keep it in focus
+    e?.currentTarget?.blur();
     setAiExpanded((prev) => !prev);
   }, []);
 
@@ -118,19 +120,14 @@ const WeatherInfo = () => {
     prevAiExpandedRef.current = aiExpanded;
 
     if (aiExpanded && panelRef.current) {
-      // Expanding: scroll ALL scrollable ancestors to top so LocationName is visible.
-      // We start from panelRef (the WeatherInfo root) and walk up without break,
-      // because the first overflow-y:auto ancestor (WeatherInfo itself) never scrolls
-      // and must not stop the search.
+      // Expanding: jump to the very top so LocationName is visible.
+      // panelRef is the WeatherInfo root div; its parent is InfoPanel's
+      // weatherInfoContainer — the actual overflow-y:auto scroll container.
+      // We use instant scrollTop (not smooth) so no browser focus-scroll
+      // can interrupt the animation mid-flight.
       const timer = setTimeout(() => {
-        let el = panelRef.current;
-        while (el) {
-          const { overflowY } = window.getComputedStyle(el);
-          if (overflowY === "auto" || overflowY === "scroll") {
-            el.scrollTo({ top: 0, behavior: "smooth" });
-          }
-          el = el.parentElement;
-        }
+        const scrollEl = panelRef.current?.parentElement;
+        if (scrollEl) scrollEl.scrollTop = 0;
       }, 380); // after CSS transition (350ms)
       return () => clearTimeout(timer);
     }
