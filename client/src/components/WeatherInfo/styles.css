@@ -47,6 +47,7 @@
 /* Chart tabs (small screens only) */
 .chart-tabs {
   display: flex;
+  align-items: center;
   gap: 4px;
   margin-top: 4px;
   margin-bottom: 2px;
@@ -88,26 +89,46 @@
   background: rgba(0, 0, 0, 0.04);
 }
 
-/* Auto-cycle progress bar (small screens only) */
+/* Auto-cycle progress circle (small screens only) */
 .chart-tab-timer {
-  height: 2px;
-  border-radius: 1px;
-  margin-bottom: 3px;
-  transform-origin: left;
+  flex-shrink: 0;
+  margin-left: 2px;
+  overflow: visible;
+}
+
+.chart-tab-timer-track {
+  fill: none;
+  stroke-width: 1.5;
+}
+
+.chart-tab-timer-track-dark {
+  stroke: rgba(255, 255, 255, 0.15);
+}
+
+.chart-tab-timer-track-light {
+  stroke: rgba(0, 0, 0, 0.1);
+}
+
+.chart-tab-timer-progress {
+  fill: none;
+  stroke-width: 1.5;
+  stroke-linecap: round;
+  stroke-dasharray: 25.13; /* 2π × r4 */
+  stroke-dashoffset: 0;
   animation: chart-tab-timer-drain linear forwards;
 }
 
-.chart-tab-timer-dark {
-  background: rgba(255, 255, 255, 0.22);
+.chart-tab-timer-progress-dark {
+  stroke: rgba(255, 255, 255, 0.5);
 }
 
-.chart-tab-timer-light {
-  background: rgba(0, 0, 0, 0.13);
+.chart-tab-timer-progress-light {
+  stroke: rgba(0, 0, 0, 0.3);
 }
 
 @keyframes chart-tab-timer-drain {
-  from { transform: scaleX(1); }
-  to   { transform: scaleX(0); }
+  from { stroke-dashoffset: 0; }
+  to   { stroke-dashoffset: 25.13; }
 }
 
 .loading-container {

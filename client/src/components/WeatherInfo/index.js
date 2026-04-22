@@ -264,12 +264,20 @@ const WeatherInfo = () => {
                 >
                   {t("charts.tab5d")}
                 </button>
+                <svg width="12" height="12" viewBox="0 0 12 12" className={styles.chartTabTimer}>
+                  <circle
+                    cx="6" cy="6" r="4"
+                    className={`${styles.chartTabTimerTrack} ${darkMode ? styles.chartTabTimerTrackDark : styles.chartTabTimerTrackLight}`}
+                  />
+                  <circle
+                    key={cycleKey}
+                    cx="6" cy="6" r="4"
+                    transform="rotate(-90 6 6)"
+                    className={`${styles.chartTabTimerProgress} ${darkMode ? styles.chartTabTimerProgressDark : styles.chartTabTimerProgressLight}`}
+                    style={{ animationDuration: `${CHART_CYCLE_DURATION / 1000}s` }}
+                  />
+                </svg>
               </div>
-              <div
-                key={cycleKey}
-                className={`${styles.chartTabTimer} ${darkMode ? styles.chartTabTimerDark : styles.chartTabTimerLight}`}
-                style={{ animationDuration: `${CHART_CYCLE_DURATION / 1000}s` }}
-              />
               <div className={styles.weatherChart} style={chartWrapperStyle}>
                 {activeChart === "hourly" ? <HourlyChart /> : <DailyChart />}
               </div>
