@@ -117,9 +117,17 @@ const WeatherInfo = () => {
     prevAiExpandedRef.current = aiExpanded;
 
     if (aiExpanded && aiRef.current) {
-      // Expanding: scroll AI summary into view after charts collapse
+      // Expanding: scroll to the very top so LocationName is visible
       const timer = setTimeout(() => {
-        aiRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+        let el = aiRef.current.parentElement;
+        while (el) {
+          const { overflowY } = window.getComputedStyle(el);
+          if (overflowY === "auto" || overflowY === "scroll") {
+            el.scrollTo({ top: 0, behavior: "smooth" });
+            break;
+          }
+          el = el.parentElement;
+        }
       }, 380); // after CSS transition (350ms)
       return () => clearTimeout(timer);
     }
