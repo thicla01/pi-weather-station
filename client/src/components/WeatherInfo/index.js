@@ -12,6 +12,7 @@ import AiSummary from "~/components/AiSummary";
 const CURRENT_WEATHER_DATA_UPDATE_INTERVAL = 10 * 60 * 1000; //every 10 minutes
 const HOURLY_WEATHER_DATA_UPDATE_INTERVAL = 60 * 60 * 1000; //every hour
 const DAILY_WEATHER_DATA_UPDATE_INTERVAL = 24 * 60 * 60 * 1000; //every day
+const CHART_CYCLE_DURATION = 150_000; // 2.5 minutes — auto-cycle on small screens
 
 /**
  * Creates an interval to call a weather update callback
@@ -77,6 +78,28 @@ const WeatherInfo = () => {
   const [isSmallScreen, setIsSmallScreen] = useState(
     () => window.matchMedia("(max-height: 520px)").matches
   );
+
+  // Auto-cycle between charts on small screens
+  const [cycleKey, setCycleKey] = useState(0);
+  const cycleTimerRef = useRef(null);
+
+  const restartCycle = useCallback(() => {
+    clearTimeout(cycleTimerRef.current);
+    cycleTimerRef.current = setTimeout(() => {
+      setActiveChart((prev) => (prev === "hourly" ? "daily" : "hourly"));
+      setCycleKey((k) => k + 1);
+      restartCycle();
+    }, CHART_CYCLE_DURATION);
+  }, []);
+
+  useEffect(() => {
+    if (isSmallScreen) {
+      restartCycle();
+    } else {
+      clearTimeout(cycleTimerRef.current);
+    }
+    return () => clearTimeout(cycleTimerRef.current);
+  }, [isSmallScreen, restartCycle]);
 
   useEffect(() => {
     const mq = window.matchMedia("(max-height: 520px)");
@@ -231,17 +254,22 @@ const WeatherInfo = () => {
               <div className={styles.chartTabs}>
                 <button
                   className={`${styles.chartTab} ${darkMode ? styles.chartTabDark : styles.chartTabLight} ${activeChart === "hourly" ? styles.chartTabActive : ""}`}
-                  onClick={() => setActiveChart("hourly")}
+                  onClick={() => { setActiveChart("hourly"); setCycleKey((k) => k + 1); restartCycle(); }}
                 >
                   {t("charts.tab24h")}
                 </button>
                 <button
                   className={`${styles.chartTab} ${darkMode ? styles.chartTabDark : styles.chartTabLight} ${activeChart === "daily" ? styles.chartTabActive : ""}`}
-                  onClick={() => setActiveChart("daily")}
+                  onClick={() => { setActiveChart("daily"); setCycleKey((k) => k + 1); restartCycle(); }}
                 >
                   {t("charts.tab5d")}
                 </button>
               </div>
+              <div
+                key={cycleKey}
+                className={`${styles.chartTabTimer} ${darkMode ? styles.chartTabTimerDark : styles.chartTabTimerLight}`}
+                style={{ animationDuration: `${CHART_CYCLE_DURATION / 1000}s` }}
+              />
               <div className={styles.weatherChart} style={chartWrapperStyle}>
                 {activeChart === "hourly" ? <HourlyChart /> : <DailyChart />}
               </div>

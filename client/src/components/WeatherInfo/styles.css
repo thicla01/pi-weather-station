@@ -88,6 +88,28 @@
   background: rgba(0, 0, 0, 0.04);
 }
 
+/* Auto-cycle progress bar (small screens only) */
+.chart-tab-timer {
+  height: 2px;
+  border-radius: 1px;
+  margin-bottom: 3px;
+  transform-origin: left;
+  animation: chart-tab-timer-drain linear forwards;
+}
+
+.chart-tab-timer-dark {
+  background: rgba(255, 255, 255, 0.22);
+}
+
+.chart-tab-timer-light {
+  background: rgba(0, 0, 0, 0.13);
+}
+
+@keyframes chart-tab-timer-drain {
+  from { transform: scaleX(1); }
+  to   { transform: scaleX(0); }
+}
+
 .loading-container {
   display: flex;
   justify-content: center;
