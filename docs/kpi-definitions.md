@@ -77,9 +77,78 @@ Collected from the browser's Resource Timing API (`performance.getEntriesByType(
 
 ---
 
+## Provider Status
+
+Real-time operational status fetched from each external service's public status API. Results are cached for **30 minutes** to avoid hammering status endpoints.
+
+| Provider | Source type | URL |
+|---|---|---|
+| **Tomorrow.io** | Statuspage (overall) | `https://status.tomorrow.io/api/v2/status.json` |
+| **Mapbox** | Statuspage (overall) | `https://status.mapbox.com/api/v2/status.json` |
+| **ipapi.co** | HTML scraping | `https://ipapi.co/status/` |
+| **LocationIQ** | RSS feed | `https://status.locationiq.com/rss` |
+| **Anthropic Claude** | Statuspage (component) | `https://status.claude.com/api/v2/components.json` — component: `"Claude API (api.anthropic.com)"` |
+
+### Indicator values
+
+| Indicator | Meaning |
+|---|---|
+| `none` | Fully operational |
+| `minor` | Degraded performance |
+| `major` | Partial outage |
+| `critical` | Major outage |
+| `maintenance` | Scheduled maintenance |
+| `unknown` | Status could not be fetched or parsed |
+| `—` | Not applicable (e.g. RSS-based providers report last incident date instead) |
+
+> **Anthropic Claude** is matched using `startsWith("Claude API")` to remain resilient to parenthetical label changes (e.g. `"Claude API (api.anthropic.com)"`).
+
+---
+
+## API Quota Counters
+
+Tracks outbound calls to paid/rate-limited external services. Counters are persisted to `server/request-counts.json` and survive server restarts. Period keys reset automatically at the start of each hour, day, and month.
+
+| Service | Endpoint | Hour limit | Day limit | Month limit | Notes |
+|---|---|---|---|---|---|
+| **tomorrow.io** | `current` | 25 | 500 | — | Realtime weather |
+| **tomorrow.io** | `hourly` | 25 | 500 | — | Hourly forecast |
+| **tomorrow.io** | `daily` | 25 | 500 | — | Daily forecast |
+| **mapbox** | `tiles` | — | — | 50 000 | Map tile requests |
+| **locationiq** | `reverse` | — | 5 000 | — | Reverse geocoding |
+| **ipapi.co** | `geolocate` | — | 1 000 | — | IP geolocation |
+| **anthropic** | `summary` | — | — | — | AI weather summary (no published quota) |
+
+> Counters with `—` for a period mean no limit is tracked for that period; the counter still increments and is displayed in the debug panel.
+
+---
+
+## Cache Entries
+
+The server maintains an in-memory cache for weather API responses and AI summaries. The debug panel lists all active cache entries with their time-to-live (TTL).
+
+| Key pattern | TTL | Source | Description |
+|---|---|---|---|
+| `current:<lat>:<lon>` | 10 min | Tomorrow.io | Current weather conditions |
+| `hourly:<lat>:<lon>` | 30 min | Tomorrow.io | Hourly forecast (next 24 h) |
+| `daily:<lat>:<lon>` | 30 min | Tomorrow.io | Daily forecast (next 5 days) |
+| `ai-summary:<lat>:<lon>:<lang>:<period>` | 15 min | Anthropic Claude | AI-generated weather summary |
+
+### Cache entry fields
+
+| Field | Unit | Definition |
+|---|---|---|
+| **key** | — | Cache key identifying the entry. AI summary keys include language (`en`/`fr`/`es`) and period (`morning`/`evening`/`night`). |
+| **expiresIn** | s | Seconds until the entry expires. 0 means it has already expired and will be refreshed on next request. |
+| **expired** | boolean | `true` if the entry is stale. Stale entries are kept in memory but are not served; the next request triggers a fresh API call. |
+
+---
+
 ## Notes
 
 - **Server vs. Client response times**: Server times measure only the Express handler duration (no network). Client times include the full round-trip (network + server). The difference approximates network latency.
 - **Cache interaction**: A client "Min" close to zero usually indicates a browser-level cache hit (HTTP cache), not the server-side weather cache.
 - **Heap metrics availability**: JS Heap (Used / Total) are Chromium-only. They will not appear in Firefox or Safari.
 - **FPS measurement**: FPS is sampled once when the Debug panel opens and is not updated in real time.
+- **Provider status cache**: The 30-minute TTL means status changes may take up to 30 minutes to appear in the debug panel. Force a refresh by restarting the server.
+- **AI summary cache key**: The `period` segment (`morning`/`evening`/`night`) is derived from the local hour sent by the client (`localHour` query parameter), ensuring the right forecast window is included in the summary prompt.
