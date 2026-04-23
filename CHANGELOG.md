@@ -5,6 +5,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.2.6] - 2026-04-23
+
+### Added
+- macOS launchd user agent (`deploy/com.pi-weather-station.plist`) — equivalent of the systemd service file for Linux/Pi. Supports `NODE_ENV=production`, `KeepAlive`, `RunAtLoad`, and optional `ALLOW_REMOTE`/`DEBUG` variables. Documents `launchctl bootstrap`/`bootout` (macOS 10.10+) to avoid the deprecated `load`/`unload` commands.
+
+### Changed
+- README platform table updated: macOS now listed with launchd auto-start support.
+- `CLAUDE.md` updated to reflect multi-platform deployment (systemd on Linux, launchd on macOS).
+
+---
+
 ## [2.2.5] - 2026-04-23
 
 ### Changed

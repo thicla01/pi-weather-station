@@ -23,6 +23,12 @@ See it in action [here](https://www.youtube.com/watch?v=dvM6cyqYSw8).
 
 > Be mindful of the plan limits for your API keys and understand the terms of each provider, as scrolling around the map and selecting different locations will incur API calls for every location. Additionally, the weather station will periodically make additional API calls to get weather updates throughout the day. All weather (Tomorrow.io), map tile (Mapbox), and reverse geocoding (LocationIQ) calls are proxied through the server — multiple browser clients share the same quota rather than each consuming it independently. Weather responses are cached server-side, further reducing API usage.
 
+# v2.2.6 — 2026-04-23
+
+Deployment: macOS launchd support.
+
+- **macOS launchd agent** — `deploy/com.pi-weather-station.plist` is the macOS equivalent of the systemd service file. Copy it to `~/Library/LaunchAgents/`, replace `INSTALL_DIR` with your absolute install path, then load it with `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.pi-weather-station.plist`. The server starts automatically at login and restarts on crash. Optional `ALLOW_REMOTE` and `DEBUG` variables are documented as comments inside the file.
+
 # v2.2.5 — 2026-04-23
 
 UX: AI Summary now fills the entire panel when expanded.
