@@ -65,6 +65,10 @@ BRIGHTNESS_NIGHT = 0.35  # dimmer at night (avoids glare in the dark)
 # Time window before sunset during which the sunset frame is shown (seconds).
 SUNSET_WINDOW_SEC = 30 * 60  # 30 minutes
 
+# Sun travels from east (left) to west (right) across the display.
+# Set to False if east is on the right side for your physical mount.
+SUN_EAST_LEFT = True
+
 # Duration of each state in test mode (seconds).
 TEST_STATE_DURATION = 15
 
@@ -184,25 +188,31 @@ LIGHTNING_BOLT = [
 
 # ── DYNAMIC SUN FRAMES ───────────────────────────────────────────────────────
 
-def _compute_sun_row(sunrise_ts, sunset_ts):
+def _compute_sun_pos(sunrise_ts, sunset_ts):
     """
-    Return the top row (0–6) of the 2×2 sun block based on the current time.
-    The sun follows a sine arc: row 6 at sunrise/sunset, row 0 at solar noon.
+    Return (sun_row, sun_col) of the top-left corner of the 2×2 sun block.
+
+    Vertical arc (sine):
+      row 6 at sunrise/sunset (horizon) → row 0 at solar noon (zenith).
+    Horizontal drift (linear):
+      col 0 at sunrise (east) → col 3 at noon (centre) → col 6 at sunset (west).
+      Reversed when SUN_EAST_LEFT is False.
 
     @param sunrise_ts: int|None — Unix timestamp in milliseconds
     @param sunset_ts:  int|None — Unix timestamp in milliseconds
-    @returns: int  row index 0–6
+    @returns: tuple (row int 0–6, col int 0–6)
     """
     if sunrise_ts is None or sunset_ts is None:
-        return 1  # default: sun near top when no data
-    now_ms    = time.time() * 1000
-    total_ms  = sunset_ts - sunrise_ts
+        return 1, 3  # default: near top-centre
+    now_ms   = time.time() * 1000
+    total_ms = sunset_ts - sunrise_ts
     if total_ms <= 0:
-        return 1
-    # progress: 0.0 at sunrise, 0.5 at solar noon, 1.0 at sunset
+        return 1, 3
+    # progress: 0.0 = sunrise, 0.5 = solar noon, 1.0 = sunset
     progress = max(0.0, min(1.0, (now_ms - sunrise_ts) / total_ms))
-    # sin arc: 0 at progress=0/1 (horizon), 1 at progress=0.5 (zenith)
-    return round(6.0 * (1.0 - math.sin(progress * math.pi)))
+    sun_row = round(6.0 * (1.0 - math.sin(progress * math.pi)))
+    sun_col = round(6.0 * progress) if SUN_EAST_LEFT else round(6.0 * (1.0 - progress))
+    return sun_row, sun_col
 
 
 def _sun_color(sun_row):
@@ -223,13 +233,13 @@ def _sun_color(sun_row):
     return (r, g, b)
 
 
-def _clear_day_frame(sun_row):
+def _clear_day_frame(sun_row, sun_col):
     """
-    Blue sky with a 2×2 sun block at (sun_row, col 6–7).
+    Blue sky with a 2×2 sun block at (sun_row, sun_col).
     Sun colour shifts from yellow at noon to orange/red near the horizon.
-    sun_row 0 = top of display (noon), sun_row 6 = near bottom (sunrise/sunset).
 
-    @param sun_row: int  top row of the sun (0–6)
+    @param sun_row: int  top row of the sun (0–6); 0=zenith, 6=horizon
+    @param sun_col: int  left col of the sun (0–6); 0=east, 6=west
     @returns: list  64-element flat list of RGB tuples
     """
     frame = [B] * 64
@@ -237,23 +247,26 @@ def _clear_day_frame(sun_row):
     for dr in range(2):
         r = sun_row + dr
         if r < 8:
-            frame[r * 8 + 6] = color
-            frame[r * 8 + 7] = color
+            for dc in range(2):
+                c = sun_col + dc
+                if c < 8:
+                    frame[r * 8 + c] = color
     return frame
 
 
-def _sunset_frame(sun_row):
+def _sunset_frame(sun_row, sun_col):
     """
-    Clear day sky with sun near the horizon + optional red horizon glow.
-    The 4 red pixels at the bottom row appear only when the sun is low
-    (sun_row >= 4), so the glow fades away as the sun climbs higher.
+    Clear day sky + red horizon glow when the sun is low (sun_row >= 4).
+    The glow follows the sun's horizontal position.
 
     @param sun_row: int  top row of the sun (0–6)
+    @param sun_col: int  left col of the sun (0–6)
     @returns: list  64-element flat list of RGB tuples
     """
-    frame = _clear_day_frame(sun_row)
+    frame = _clear_day_frame(sun_row, sun_col)
     if sun_row >= 4:
-        for c in range(2, 6):
+        # 4-pixel glow centred just below the sun, clamped to display edges
+        for c in range(max(0, sun_col - 1), min(8, sun_col + 3)):
             frame[7 * 8 + c] = R
     return frame
 
@@ -374,14 +387,15 @@ def classify(weather_code, cloud_cover):
     return "clear"
 
 
-def get_frame(state, is_day, tick, sun_row=0):
+def get_frame(state, is_day, tick, sun_row=0, sun_col=3):
     """
     Return the 64-element RGB pixel list for the current animation frame.
 
     @param state:   str  display state (e.g. 'clear', 'rain', 'storm')
     @param is_day:  bool true between sunrise and sunset
     @param tick:    int  animation frame counter
-    @param sun_row: int  top row of the sun (0=top/noon … 6=bottom/horizon)
+    @param sun_row: int  top row of the sun (0=zenith … 6=horizon)
+    @param sun_col: int  left col of the sun (0=east … 6=west)
     @returns: list  64-element flat list of RGB tuples
     """
     if state == "storm":
@@ -399,10 +413,10 @@ def get_frame(state, is_day, tick, sun_row=0):
     if state == "partly_cloudy":
         return list(FRAME_PARTLY_CLOUDY_DAY if is_day else FRAME_PARTLY_CLOUDY_NIGHT)
     if state == "sunset":
-        return _sunset_frame(sun_row)
+        return _sunset_frame(sun_row, sun_col)
     # "clear"
     if is_day:
-        return _clear_day_frame(sun_row)
+        return _clear_day_frame(sun_row, sun_col)
     return list(FRAME_CLEAR_NIGHT)
 
 
@@ -495,7 +509,7 @@ def _find_sensehat_fb():
 _FB_PATH = None  # resolved once at first render
 
 
-def _render(sense, state, is_day, tick, sun_row=0):
+def _render(sense, state, is_day, tick, sun_row=0, sun_col=3):
     """
     Build and push one frame to the Sense HAT.
 
@@ -507,12 +521,13 @@ def _render(sense, state, is_day, tick, sun_row=0):
     @param state:   str  display state
     @param is_day:  bool true between sunrise and sunset
     @param tick:    int  animation frame counter
-    @param sun_row: int  top row of the sun block (0=noon … 6=horizon)
+    @param sun_row: int  top row of the sun block (0=zenith … 6=horizon)
+    @param sun_col: int  left col of the sun block (0=east … 6=west)
     """
     global _FB_PATH
 
     brightness = BRIGHTNESS_DAY if is_day else BRIGHTNESS_NIGHT
-    frame = get_frame(state, is_day, tick, sun_row)
+    frame = get_frame(state, is_day, tick, sun_row, sun_col)
     frame = apply_brightness(frame, brightness)
 
     # ── Build rotated 8×8 grid ────────────────────────────────────────────
@@ -594,21 +609,23 @@ def run():
         state = "sunset" if (base_state == "clear" and is_day and is_sunset_soon(sunset_ts)) \
                 else base_state
 
-        # ── Sun position (arc from horizon at sunrise → zenith at noon → horizon) ──
-        sun_row = _compute_sun_row(sunrise_ts, sunset_ts) if is_day else 0
+        # ── Sun position: arc east→zenith→west, horizon→top→horizon ─────────
+        if is_day:
+            sun_row, sun_col = _compute_sun_pos(sunrise_ts, sunset_ts)
+        else:
+            sun_row, sun_col = 0, 3
 
         # ── Render ────────────────────────────────────────────────────────────
         if state in _ANIMATED_STATES:
             # Animated: redraw every frame to advance the animation.
-            _render(sense, state, is_day, tick, sun_row)
+            _render(sense, state, is_day, tick, sun_row, sun_col)
             time.sleep(FRAME_DELAY)
             tick += 1
         else:
             # Static: redraw when state, day/night, or sun position changes.
-            # sun_row is included so the display updates as the sun moves.
-            render_key = (state, is_day, sun_row)
+            render_key = (state, is_day, sun_row, sun_col)
             if render_key != last_render:
-                _render(sense, state, is_day, tick, sun_row)
+                _render(sense, state, is_day, tick, sun_row, sun_col)
                 last_render = render_key
             time.sleep(FRAME_DELAY)
 
@@ -654,20 +671,23 @@ def run_test():
                 # For clear/sunset states: animate the sun arc over the test duration
                 # so the viewer can see the sun move up and down.
                 if state in ("clear", "sunset") and is_day:
+                    # Animate full east→west arc over the test duration.
                     while time.time() < deadline:
                         elapsed  = time.time() - state_start
                         progress = min(1.0, elapsed / TEST_STATE_DURATION)
                         sun_row  = round(6.0 * (1.0 - math.sin(progress * math.pi)))
-                        _render(sense, state, is_day, tick, sun_row)
+                        sun_col  = round(6.0 * progress) if SUN_EAST_LEFT \
+                                   else round(6.0 * (1.0 - progress))
+                        _render(sense, state, is_day, tick, sun_row, sun_col)
                         time.sleep(FRAME_DELAY)
                         tick += 1
                 elif state not in _ANIMATED_STATES:
-                    _render(sense, state, is_day, tick, 0)
+                    _render(sense, state, is_day, tick, 0, 3)
                     while time.time() < deadline:
                         time.sleep(FRAME_DELAY)
                 else:
                     while time.time() < deadline:
-                        _render(sense, state, is_day, tick, 0)
+                        _render(sense, state, is_day, tick, 0, 3)
                         time.sleep(FRAME_DELAY)
                         tick += 1
     except KeyboardInterrupt:
