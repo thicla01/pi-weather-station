@@ -123,26 +123,42 @@ const WeatherInfo = () => {
     prevAiExpandedRef.current = aiExpanded;
 
     if (aiExpanded) {
-      // Scroll the info panel to top so LocationName is visible after charts collapse.
-      // We trigger on transitionend of the charts div so timing is exact regardless
-      // of hardware speed. A fallback timeout fires if transitionend never arrives.
-      const scrollEl = infoPanelScrollRef?.current;
       const chartsEl = chartsRef?.current;
 
-      const scrollToTop = () => { if (scrollEl) scrollEl.scrollTop = 0; };
+      // Brute-force: walk up the DOM from locationRef and reset scrollTop on every
+      // ancestor that is currently scrolled. Also resets known containers directly.
+      // Writes a debug snapshot to document.title so the Pi state is visible via SSH
+      // (document.title persists in window.document even in kiosk mode).
+      const scrollToTop = (label) => {
+        const info = [];
+        // Walk up from the LocationName wrapper
+        let el = locationRef.current;
+        while (el && el !== document.documentElement) {
+          if (el.scrollTop > 0) {
+            info.push(`${el.className.split(" ")[0] || el.tagName}:${el.scrollTop}→0`);
+            el.scrollTop = 0;
+          }
+          el = el.parentElement;
+        }
+        // Also force the two known containers regardless of current scrollTop
+        if (infoPanelScrollRef?.current) infoPanelScrollRef.current.scrollTop = 0;
+        if (panelRef.current) panelRef.current.scrollTop = 0;
+        document.title = `[AI-${label}] ${info.length ? info.join(" ") : "no scroll found"} outer=${infoPanelScrollRef?.current?.scrollTop ?? "?"} inner=${panelRef.current?.scrollTop ?? "?"}`;
+      };
 
       // Immediate scroll (handles case where panel is already idle)
-      scrollToTop();
+      scrollToTop("imm");
 
       // Fire again exactly when the collapse transition ends
+      const onTransitionEnd = () => scrollToTop("end");
       if (chartsEl) {
-        chartsEl.addEventListener("transitionend", scrollToTop, { once: true });
+        chartsEl.addEventListener("transitionend", onTransitionEnd, { once: true });
       }
-      // Fallback: in case transitionend doesn't fire (e.g. no overflow on this screen)
-      const fallback = setTimeout(scrollToTop, 600);
+      // Fallback: in case transitionend never fires
+      const fallback = setTimeout(() => scrollToTop("600"), 600);
 
       return () => {
-        if (chartsEl) chartsEl.removeEventListener("transitionend", scrollToTop);
+        if (chartsEl) chartsEl.removeEventListener("transitionend", onTransitionEnd);
         clearTimeout(fallback);
       };
     }
