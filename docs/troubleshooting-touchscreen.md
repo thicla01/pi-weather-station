@@ -1,4 +1,4 @@
-# Troubleshooting — Raspberry Pi 7" Touchscreen
+# Troubleshooting — Raspberry Pi Official 7" Touchscreen
 
 ## Imprecise tapping / small buttons hard to hit / scroll not working
 
@@ -10,7 +10,7 @@
 
 **Cause**
 
-Raspberry Pi OS Trixie (and some Bookworm builds) enables **Mouse Emulation** mode for the DSI touchscreen by default. In this mode the OS translates raw touch events into mouse cursor events (left-click, right-click, drag). This introduces positioning lag and suppresses native multitouch/scroll gestures that the app relies on.
+Raspberry Pi OS Trixie (and some Bookworm builds) enables **Mouse Emulation** mode for the official Raspberry Pi 7" touchscreen by default. In this mode the OS translates raw touch events into mouse cursor events (left-click, right-click, drag). This introduces positioning lag and suppresses native multitouch/scroll gestures that the app relies on.
 
 **Fix — GUI (recommended)**
 
