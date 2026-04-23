@@ -3,11 +3,11 @@
 
 A full-stack weather display application originally designed for the Raspberry Pi 7" touchscreen, and confirmed to run on any modern Linux system (Debian, Ubuntu) or macOS.
 
-| Platform | Systemd service | Kiosk mode |
+| Platform | Auto-start | Kiosk mode |
 |---|---|---|
-| Raspberry Pi OS (Bullseye / Bookworm / Trixie) | ✅ | ✅ Chromium |
-| Debian / Ubuntu | ✅ | optional |
-| macOS | ❌ (`npm start`) | — |
+| Raspberry Pi OS (Bullseye / Bookworm / Trixie) | ✅ systemd | ✅ Chromium |
+| Debian / Ubuntu | ✅ systemd | optional |
+| macOS | ✅ launchd | — |
 
 ![pws-screenshot3](https://user-images.githubusercontent.com/15202038/91359998-4625bb80-e7bb-11ea-937e-c87eede41f35.JPG)
 

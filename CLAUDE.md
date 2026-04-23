@@ -8,8 +8,8 @@ Pi Weather Station is a full-stack weather display application designed to run o
 
 - **Frontend**: React (webpack, CSS Modules, i18next for EN/FR/ES)
 - **Backend**: Node.js / Express
-- **Target hardware**: Raspberry Pi (Bullseye, Bookworm, Trixie) with 7" touchscreen running Chromium in kiosk mode
-- **Deployment**: systemd user service (`pi-weather-server.service`)
+- **Target hardware**: Raspberry Pi (Bullseye, Bookworm, Trixie) with 7" touchscreen running Chromium in kiosk mode; also runs on Debian/Ubuntu and macOS
+- **Deployment**: systemd user service (`pi-weather-server.service`) on Linux; launchd agent (`com.pi-weather-station.plist`) on macOS
 
 ## Architecture
 
