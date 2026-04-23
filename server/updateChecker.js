@@ -123,4 +123,12 @@ async function checkForUpdate() {
   return _cache;
 }
 
-module.exports = { checkForUpdate };
+/**
+ * Clears the update cache, forcing the next checkForUpdate() call to hit GitHub.
+ */
+function clearCache() {
+  _cache = null;
+  _cacheTime = 0;
+}
+
+module.exports = { checkForUpdate, clearCache };

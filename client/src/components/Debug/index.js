@@ -8,6 +8,7 @@ import { InlineIcon } from "@iconify/react";
 import closeSharp from "@iconify/icons-ion/close-sharp";
 import refreshIcon from "@iconify/icons-carbon/renew";
 import downloadIcon from "@iconify/icons-carbon/download";
+import upgradeIcon from "@iconify/icons-carbon/upgrade";
 import PropTypes from "prop-types";
 import axios from "axios";
 import "!style-loader!css-loader!./animations.css";
@@ -18,10 +19,11 @@ import "!style-loader!css-loader!./animations.css";
  * @returns {JSX.Element} Debug panel
  */
 const Debug = () => {
-  const { debugMenuOpen, setDebugMenuOpen, setUpdateAvailable, setLatestVersion } = useContext(AppContext);
+  const { debugMenuOpen, setDebugMenuOpen, setUpdateAvailable, setLatestVersion, setLatestSha, setUpdateCommits } = useContext(AppContext);
   const { t } = useTranslation();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [fps, setFps] = useState(null);
   const [clientMetrics, setClientMetrics] = useState(null);
   const contentScrollRef = useDragScroll();
@@ -41,6 +43,23 @@ const Debug = () => {
       .catch(() => setData(null))
       .finally(() => setLoading(false));
   }, [setUpdateAvailable, setLatestVersion]);
+
+  const forceUpdateCheck = useCallback(() => {
+    setCheckingUpdate(true);
+    axios
+      .post("/api/update-check/force")
+      .then((res) => {
+        setUpdateAvailable(res.data.updateAvailable ?? false);
+        setLatestVersion(res.data.latestVersion ?? null);
+        setLatestSha(res.data.latestSha ?? null);
+        setUpdateCommits(res.data.commits ?? []);
+        // Also refresh the full debug panel to reflect the new updateInfo
+        return axios.get("/api/debug");
+      })
+      .then((res) => setData(res.data))
+      .catch((_err) => _err)
+      .finally(() => setCheckingUpdate(false));
+  }, [setUpdateAvailable, setLatestVersion, setLatestSha, setUpdateCommits]);
 
   useEffect(() => {
     if (debugMenuOpen) fetchDebugInfo();
@@ -138,6 +157,15 @@ const Debug = () => {
               <InlineIcon icon={downloadIcon} />
             </span>
             {t("debug.exportCsv")}
+          </div>
+          <div
+            className={styles.checkUpdateButton}
+            onClick={forceUpdateCheck}
+          >
+            <span className={styles.refreshIcon}>
+              <InlineIcon icon={upgradeIcon} />
+            </span>
+            {checkingUpdate ? t("debug.checking") : t("debug.checkUpdate")}
           </div>
         </div>
 

@@ -109,7 +109,8 @@
 }
 
 .refresh-button,
-.export-button {
+.export-button,
+.check-update-button {
   display: inline-flex;
   align-items: center;
   font-size: clamp(12px, 1.0vw, 14px);
@@ -124,7 +125,8 @@
 }
 
 .refresh-button:active,
-.export-button:active {
+.export-button:active,
+.check-update-button:active {
   background: linear-gradient(#4e4e4e, #5d5c5c);
 }
 

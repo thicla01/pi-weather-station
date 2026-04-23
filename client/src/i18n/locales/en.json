@@ -100,6 +100,8 @@
     "loading": "LOADING...",
     "refresh": "REFRESH",
     "exportCsv": "EXPORT CSV",
+    "checkUpdate": "CHECK FOR UPDATE",
+    "checking": "CHECKING...",
     "providerStatus": "PROVIDER STATUS",
     "lastFetch": "last fetch",
     "noProviderStatus": "No provider status available",

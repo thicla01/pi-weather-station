@@ -100,6 +100,8 @@
     "loading": "CARGANDO...",
     "refresh": "ACTUALIZAR",
     "exportCsv": "EXPORTAR CSV",
+    "checkUpdate": "BUSCAR ACTUALIZACIÓN",
+    "checking": "VERIFICANDO...",
     "providerStatus": "ESTADO DE PROVEEDORES",
     "lastFetch": "última consulta",
     "noProviderStatus": "Sin estado de proveedor disponible",
