@@ -130,35 +130,26 @@ const WeatherInfo = () => {
       // ancestor that is currently scrolled. Also resets known containers directly.
       // Writes a debug snapshot to document.title so the Pi state is visible via SSH
       // (document.title persists in window.document even in kiosk mode).
-      const scrollToTop = (label) => {
-        const info = [];
-        // Walk up from the LocationName wrapper and reset every scrolled ancestor
-        let el = locationRef.current;
-        while (el && el !== document.documentElement) {
-          if (el.scrollTop > 0) {
-            info.push(`${el.className.split(" ")[0] || el.tagName}:${el.scrollTop}→0`);
-            el.scrollTop = 0;
-          }
-          el = el.parentElement;
-        }
-        // Also force the two known containers regardless of current scrollTop
-        if (infoPanelScrollRef?.current) infoPanelScrollRef.current.scrollTop = 0;
-        if (panelRef.current) panelRef.current.scrollTop = 0;
-        const msg = `[${label}] ${info.length ? info.join(" ") : "no-scroll"} out=${infoPanelScrollRef?.current?.scrollTop ?? "?"} in=${panelRef.current?.scrollTop ?? "?"}`;
+      const scrollToTop = (step) => {
+        const chartsH = chartsEl ? Math.round(chartsEl.getBoundingClientRect().height) : "?";
+        const aiH = aiRef.current ? Math.round(aiRef.current.getBoundingClientRect().height) : "?";
+        const outerST = infoPanelScrollRef?.current?.scrollTop ?? "?";
+        const innerST = panelRef.current?.scrollTop ?? "?";
+        const msg = `step${step}: charts=${chartsH}px ai=${aiH}px out=${outerST} in=${innerST}`;
         document.title = msg;
         setDbgMsg(msg);
       };
 
-      // Immediate scroll (handles case where panel is already idle)
-      scrollToTop("imm");
+      // Immediate snapshot (transition just started)
+      scrollToTop(1);
 
-      // Fire again exactly when the collapse transition ends
-      const onTransitionEnd = () => scrollToTop("end");
+      // Snapshot exactly when the collapse transition ends
+      const onTransitionEnd = () => scrollToTop(2);
       if (chartsEl) {
         chartsEl.addEventListener("transitionend", onTransitionEnd, { once: true });
       }
-      // Fallback: in case transitionend never fires
-      const fallback = setTimeout(() => scrollToTop("600"), 600);
+      // Fallback snapshot after 600ms
+      const fallback = setTimeout(() => scrollToTop(3), 600);
 
       return () => {
         if (chartsEl) chartsEl.removeEventListener("transitionend", onTransitionEnd);
