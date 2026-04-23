@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.2.7] - 2026-04-23
+
+### Changed
+- Debug panel "SYSTEMD" row now shows **LAUNCHD** on macOS: the server detects the init manager at runtime (`INVOCATION_ID` → systemd, `darwin` platform → launchd, otherwise null for manual `npm start`) and displays the label and enabled/disabled state accordingly.
+- `install.sh` updated with full macOS support: platform detection via `uname`, Node.js via Homebrew, launchd agent configured automatically via Python `plistlib` (sets `WorkingDirectory`, log paths, `NODE_ENV`, `ALLOW_REMOTE`, `DEBUG`), remote IP via `ipconfig getifaddr`, kiosk/logrotate/start-server steps skipped on macOS.
+
+---
+
 ## [2.2.6] - 2026-04-23
 
 ### Added
