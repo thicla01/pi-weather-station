@@ -17,6 +17,23 @@ See it in action [here](https://www.youtube.com/watch?v=dvM6cyqYSw8).
 
 > Be mindful of the plan limits for your API keys and understand the terms of each provider, as scrolling around the map and selecting different locations will incur API calls for every location. Additionally, the weather station will periodically make additional API calls to get weather updates throughout the day. All weather (Tomorrow.io), map tile (Mapbox), and reverse geocoding (LocationIQ) calls are proxied through the server — multiple browser clients share the same quota rather than each consuming it independently. Weather responses are cached server-side, further reducing API usage.
 
+# v2.2.5 — 2026-04-23
+
+UX: AI Summary now fills the entire panel when expanded.
+
+- **AI Summary full-panel view** — When the AI Summary is expanded, the forecast charts collapse and the panel scrolls down so the AI text fills the entire viewport. `CurrentWeather` is hidden during expansion to avoid a partial fragment appearing at the top. Closing the summary smooth-scrolls back to the top of the panel.
+
+# v2.2.4 — 2026-04-22
+
+UX: update modal, force update check, temperature unit labels, and small-screen layout fixes.
+
+- **UpdateModal** — Clicking the update badge in the control bar now opens a modal displaying the release notes, the list of new commits, and a skip-version option. Replaces the previous tooltip.
+- **Force update check** — A new button in the debug panel clears the 1-hour GitHub release cache and triggers an immediate check. The endpoint `GET /api/update-check/force` is also accessible directly from a browser on localhost.
+- **Temperature unit labels** — The current temperature now displays its unit symbol (°F / °C / °K) next to the value in the `CurrentWeather` section.
+- **Hide radar legend toggle** — A new toggle in Settings allows hiding the radar legend overlay on the map.
+- **Small-screen overflow fixes** — The debug panel button row and the Settings bottom button group now wrap correctly on the Pi 7" touchscreen. The Save button no longer appears alone on a third row.
+- **Debug panel fix** — The debug panel was silently empty after a fresh install because `setUpdateAvailable` and `setLatestVersion` were not exported from `AppContext`; this caused the data fetch to fail silently.
+
 # v2.2.3 — 2026-04-20
 
 UX: font size setting, chart tabs for small screens, collapsible info panel, and radar legend style.

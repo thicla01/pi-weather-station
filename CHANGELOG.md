@@ -5,6 +5,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.2.5] - 2026-04-23
+
+### Changed
+- AI Summary expansion now fills the entire panel: after the forecast charts collapse, the panel scrolls down so the AI text occupies the full viewport. Closing the summary smooth-scrolls back to the top.
+
+### Fixed
+- Partial `CurrentWeather` fragment (condition label + humidity icon) was visible at the top of the panel during AI Summary expansion; `CurrentWeather` is now hidden with `display: none` while the summary is expanded.
+- Scroll direction corrected: the panel now scrolls **down** (not up) to bring the AI text to the top of the viewport after charts collapse. The previous approach of resetting `scrollTop` to 0 left `LocationName` and `CurrentWeather` visible above the AI text.
+
+---
+
+## [2.2.4] - 2026-04-22
+
+### Added
+- **UpdateModal** — clicking the update badge in the control bar now opens a modal with release notes, commit list, and a skip-version option; replaces the previous tooltip.
+- **Force update check** in the debug panel — clears the 1-hour GitHub cache and fetches the latest release immediately; also accessible via `GET /api/update-check/force` from a browser on localhost.
+- **Temperature unit labels** (°F / °C / °K) displayed alongside the current temperature in `CurrentWeather`.
+- **Hide radar legend** toggle in Settings.
+
+### Fixed
+- Debug panel was silently empty: `setUpdateAvailable` and `setLatestVersion` were not exported from `AppContext`, causing the debug data fetch to fail silently on state update.
+- Debug panel button row overflowed on the Pi touchscreen; now wraps with `flex-wrap`.
+- Settings bottom buttons overflowed on small screens; Save button is now part of the same `flex-wrap` row as the other toggles, preventing it from appearing alone on a third row.
+- AI Summary expansion scrolls the info panel so `LocationName` is in view (initial fix, refined in 2.2.5).
+
+---
+
 ## [2.2.3] - 2026-04-20
 
 ### Added
