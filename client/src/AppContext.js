@@ -12,6 +12,7 @@ const LENGTH_UNIT_STORAGE_KEY = "lengthUnit";
 const CLOCK_UNIT_STORAGE_KEY = "clockTime";
 const MOUSE_HIDE_STORAGE_KEY = "mouseHide";
 const FONT_SIZE_STORAGE_KEY = "fontSize";
+const HIDE_RADAR_LEGEND_STORAGE_KEY = "hideRadarLegend";
 
 /**
  * App context provider
@@ -50,6 +51,7 @@ export function AppContextProvider({ children }) {
   const [customLat, setCustomLat] = useState(null);
   const [customLon, setCustomLon] = useState(null);
   const [mouseHide, setMouseHide] = useState(false);
+  const [hideRadarLegend, setHideRadarLegend] = useState(false);
   const [infoPanelCollapsed, setInfoPanelCollapsed] = useState(false);
   const [fontSize, setFontSize] = useState("m"); // s, m, l
   const [sunriseTime, setSunriseTime] = useState(null);
@@ -78,6 +80,23 @@ export function AppContextProvider({ children }) {
     }
     setMouseHide(newState);
     window.localStorage.setItem(MOUSE_HIDE_STORAGE_KEY, newState);
+  }
+
+  /**
+   * Save hide radar legend state
+   *
+   * @param {Boolean} newVal
+   */
+  function saveHideRadarLegend(newVal) {
+    let newState;
+    try {
+      newState = JSON.parse(newVal);
+    } catch (e) {
+      console.log("saveHideRadarLegend", e);
+      return;
+    }
+    setHideRadarLegend(newState);
+    window.localStorage.setItem(HIDE_RADAR_LEGEND_STORAGE_KEY, newState);
   }
 
   /**
@@ -184,6 +203,17 @@ export function AppContextProvider({ children }) {
     }
 
     setMouseHide(!!mouseHide);
+
+    let hideRadarLegend;
+    try {
+      hideRadarLegend = JSON.parse(
+        window.localStorage.getItem(HIDE_RADAR_LEGEND_STORAGE_KEY)
+      );
+    } catch (e) {
+      console.log("hideRadarLegend", e);
+    }
+    setHideRadarLegend(!!hideRadarLegend);
+
     if (temp) {
       setTempUnit(temp);
     }
@@ -640,6 +670,8 @@ export function AppContextProvider({ children }) {
     dailyWeatherDataErrMsg,
     mouseHide,
     saveMouseHide,
+    hideRadarLegend,
+    saveHideRadarLegend,
     infoPanelCollapsed,
     setInfoPanelCollapsed,
     fontSize,

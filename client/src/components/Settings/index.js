@@ -29,6 +29,8 @@ const Settings = () => {
     setSettingsMenuOpen,
     mouseHide,
     saveMouseHide,
+    hideRadarLegend,
+    saveHideRadarLegend,
     isLocal,
     remoteSecurityEnabled,
   } = useContext(AppContext);
@@ -166,6 +168,17 @@ const Settings = () => {
                 />
               </div>
               <div>
+                <div className={styles.label}>{t("settings.hideRadarLegend")}</div>
+                <ToggleButton
+                  button1Label={t("settings.on")}
+                  button2Label={t("settings.off")}
+                  val={hideRadarLegend}
+                  button1Val={true}
+                  button2Val={false}
+                  cb={saveHideRadarLegend}
+                />
+              </div>
+              <div>
                 <div className={styles.label}>{t("settings.language")}</div>
                 <ToggleButton
                   options={[
@@ -276,9 +289,9 @@ const ToggleButtons = () => {
         <div>
           <ToggleButton
             options={[
-              { label: "F", value: "f" },
-              { label: "C", value: "c" },
-              { label: "K", value: "k" },
+              { label: "°F", value: "f" },
+              { label: "°C", value: "c" },
+              { label: "°K", value: "k" },
             ]}
             val={tempUnit}
             cb={saveTempUnit}

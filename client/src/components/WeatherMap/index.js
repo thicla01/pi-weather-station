@@ -137,6 +137,7 @@ const WeatherMap = ({ zoom, dark }) => {
     markerIsVisible,
     animateWeatherMap,
     infoPanelCollapsed,
+    hideRadarLegend,
   } = useContext(AppContext);
 
   const handleMapClick = useCallback((e) => {
@@ -257,7 +258,7 @@ const WeatherMap = ({ zoom, dark }) => {
           <Marker position={markerPosition} opacity={0.65}></Marker>
         ) : null}
       </MapContainer>
-      {mapTimestamp && <RadarLegend dark={dark} />}
+      {mapTimestamp && !hideRadarLegend && <RadarLegend dark={dark} />}
     </div>
   );
 };
