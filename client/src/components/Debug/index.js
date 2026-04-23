@@ -834,7 +834,7 @@ const ServerConfigSection = ({ serverConfig, network }) => {
   const items = [
     { label: t("debug.allowRemote"), value: serverConfig.allowRemote, type: "bool" },
     { label: t("debug.debugMode"),   value: serverConfig.debug,        type: "bool" },
-    { label: t("debug.systemd"),     value: serverConfig.isSystemd,    type: "bool" },
+    { label: serverConfig.initManager?.toUpperCase() ?? t("debug.systemd"), value: !!serverConfig.initManager, type: "bool" },
     { label: t("debug.nodeEnv"),     value: serverConfig.nodeEnv,      type: "str"  },
     { label: t("debug.nodeVersion"), value: serverConfig.nodeVersion,  type: "str"  },
     ...(network ? [{ label: "PORT", value: `${network.protocol?.toUpperCase()}:${network.port}`, type: "str" }] : []),
@@ -865,7 +865,7 @@ ServerConfigSection.propTypes = {
   serverConfig: PropTypes.shape({
     allowRemote: PropTypes.bool,
     debug: PropTypes.bool,
-    isSystemd: PropTypes.bool,
+    initManager: PropTypes.oneOf(["systemd", "launchd", null]),
     nodeEnv: PropTypes.string,
     nodeVersion: PropTypes.string,
   }),

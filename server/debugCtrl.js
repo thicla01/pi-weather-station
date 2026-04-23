@@ -129,11 +129,25 @@ function initServerInfo(port, protocol) {
   _serverProtocol = protocol;
 }
 
+/**
+ * Detect the init manager that launched this process.
+ * - systemd sets INVOCATION_ID on every unit
+ * - launchd is the only service manager on macOS (darwin)
+ * - null means the server was started manually (npm start)
+ *
+ * @returns {"systemd"|"launchd"|null}
+ */
+function getInitManager() {
+  if (process.env.INVOCATION_ID) return "systemd";
+  if (process.platform === "darwin") return "launchd";
+  return null;
+}
+
 function getServerConfig() {
   return {
     allowRemote: process.env.ALLOW_REMOTE === "true",
     debug: process.env.DEBUG === "true",
-    isSystemd: !!process.env.INVOCATION_ID,
+    initManager: getInitManager(),
     nodeEnv: process.env.NODE_ENV || "development",
     nodeVersion: process.version,
   };
