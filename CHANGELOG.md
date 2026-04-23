@@ -5,6 +5,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.3.0] - 2026-04-23
+
+### Added
+- **Animated sun arc** — the 2×2 sun block on the Sense HAT now follows a realistic path throughout the day: rises from the east (bottom-left), climbs to the zenith at solar noon (top-centre), and sets in the west (bottom-right). Vertical position follows a sine arc; horizontal position drifts linearly east→west. East/west direction is configurable via `SUN_EAST_LEFT` in the script.
+- **Sun colour shift** — sun pixels interpolate from yellow (255, 200, 0) at noon to orange (~237, 130, 0) at mid-morning/afternoon to red (220, 60, 0) near the horizon, and reverse symmetrically at sunrise.
+- **Dynamic horizon glow** — the 4 red sunset pixels appear only when the sun is in the lower third of the display (`sun_row ≥ 4`) and follow the sun's horizontal position; they fade away as the sun climbs higher so the glow is never visible at midday.
+- **Direct framebuffer write** — `_render()` now writes raw RGB565 bytes directly to `/dev/fb0` or `/dev/fb1`, bypassing the `sense_hat` library's differential pixel cache which caused colour bleed-through between states. Falls back to `set_pixels()` if the framebuffer cannot be opened.
+- **Framebuffer device detection** — `_find_sensehat_fb()` locates the Sense HAT framebuffer via sysfs name/driver before falling back to `/dev/fb1` then `/dev/fb0`.
+- **Static state optimisation** — non-animated states (clear, overcast, fog, etc.) are only redrawn when state, day/night flag, or sun position changes, eliminating unnecessary I2C writes and the resulting stroboscopic effect.
+
+### Changed
+- Test mode (`--test`) now animates the full east→west sun arc over each 15-second clear/sunset state so the colour shift and movement can be verified without waiting for real conditions.
+- Ice pellets visual differentiated from snow: bright cyan (80, 200, 255) 2-pixel-wide drops on a dark background, falling faster (period 8 vs 10), vs snow's single-pixel near-white flakes on a grey background.
+
+---
+
 ## [2.2.8] - 2026-04-23
 
 ### Added
