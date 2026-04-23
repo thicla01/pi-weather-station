@@ -1,10 +1,11 @@
 #!/bin/bash
 # Pi Weather Station — install.sh
-# Full installation script for Raspberry Pi OS (Bullseye, Bookworm, Trixie).
+# Full installation script for Raspberry Pi OS (Bullseye, Bookworm, Trixie) and macOS.
 
 set -e
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+PLATFORM="$(uname)"
 
 echo "=== Pi Weather Station — Installation ==="
 echo ""
@@ -21,8 +22,6 @@ fi
 
 # --- 0. Node.js ---
 NODE_MIN=18
-OS_CODENAME=$(lsb_release -cs)
-ARCH=$(uname -m)
 NVM_INSTALL=false
 
 # Load nvm if already installed — check common install locations
@@ -48,32 +47,68 @@ if ! command -v node &>/dev/null || [ "${NODE_VERSION:-0}" -lt "$NODE_MIN" ]; th
         echo ">> Node.js is not installed."
     fi
 
-    case "$OS_CODENAME" in
-        bullseye)
-            if [[ "$ARCH" == "armv7l" || "$ARCH" == "armv6l" ]]; then
-                # Bullseye 32-bit ARM: NodeSource does not provide Node.js 22
-                # packages for armv7l — use nvm instead.
-                echo ""
-                read -p "   Install Node.js v22 LTS via nvm? (Y/n) " -n 1 -r
-                echo
-                if [[ -z "$REPLY" || $REPLY =~ ^[Yy]$ ]]; then
-                    echo ">> Installing nvm..."
-                    unset NVM_DIR
-                    curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
-                    # Source nvm from wherever it was actually installed
-                    _load_nvm || true
-                    echo ">> Installing Node.js v22 LTS via nvm..."
-                    nvm install 22
-                    nvm use 22
-                    nvm alias default 22
-                    NVM_INSTALL=true
-                    echo ">> Node.js $(node --version) installed via nvm."
-                else
-                    echo ">> Installation cancelled. Node.js v${NODE_MIN} or later is required."
-                    exit 1
-                fi
+    if [[ "$PLATFORM" == "Darwin" ]]; then
+        # macOS — use Homebrew or nvm
+        if command -v brew &>/dev/null; then
+            read -p "   Install Node.js via Homebrew? (Y/n) " -n 1 -r
+            echo
+            if [[ -z "$REPLY" || $REPLY =~ ^[Yy]$ ]]; then
+                echo ">> Installing Node.js via Homebrew..."
+                brew install node
             else
-                # Bullseye 64-bit (aarch64): NodeSource supports arm64 — use it.
+                echo ">> Installation cancelled. Node.js v${NODE_MIN} or later is required."
+                exit 1
+            fi
+        else
+            echo "   Homebrew not found. Install Node.js from https://nodejs.org/"
+            echo "   or install Homebrew first: https://brew.sh/"
+            exit 1
+        fi
+    else
+        # Linux — use NodeSource or nvm
+        OS_CODENAME=$(lsb_release -cs)
+        ARCH=$(uname -m)
+
+        case "$OS_CODENAME" in
+            bullseye)
+                if [[ "$ARCH" == "armv7l" || "$ARCH" == "armv6l" ]]; then
+                    # Bullseye 32-bit ARM: NodeSource does not provide Node.js 22
+                    # packages for armv7l — use nvm instead.
+                    echo ""
+                    read -p "   Install Node.js v22 LTS via nvm? (Y/n) " -n 1 -r
+                    echo
+                    if [[ -z "$REPLY" || $REPLY =~ ^[Yy]$ ]]; then
+                        echo ">> Installing nvm..."
+                        unset NVM_DIR
+                        curl -o- https://raw.githubusercontent.com/nvm-sh/nvm/v0.40.1/install.sh | bash
+                        # Source nvm from wherever it was actually installed
+                        _load_nvm || true
+                        echo ">> Installing Node.js v22 LTS via nvm..."
+                        nvm install 22
+                        nvm use 22
+                        nvm alias default 22
+                        NVM_INSTALL=true
+                        echo ">> Node.js $(node --version) installed via nvm."
+                    else
+                        echo ">> Installation cancelled. Node.js v${NODE_MIN} or later is required."
+                        exit 1
+                    fi
+                else
+                    # Bullseye 64-bit (aarch64): NodeSource supports arm64 — use it.
+                    read -p "   Install Node.js v22 LTS via NodeSource? (Y/n) " -n 1 -r
+                    echo
+                    if [[ -z "$REPLY" || $REPLY =~ ^[Yy]$ ]]; then
+                        echo ">> Installing Node.js v22 LTS via NodeSource for $OS_CODENAME ($ARCH)..."
+                        curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
+                        sudo apt-get install -y nodejs
+                    else
+                        echo ">> Installation cancelled. Node.js v${NODE_MIN} or later is required."
+                        exit 1
+                    fi
+                fi
+                ;;
+            *)
+                # On Bookworm, Trixie and later — use NodeSource (system-wide install)
                 read -p "   Install Node.js v22 LTS via NodeSource? (Y/n) " -n 1 -r
                 echo
                 if [[ -z "$REPLY" || $REPLY =~ ^[Yy]$ ]]; then
@@ -84,34 +119,23 @@ if ! command -v node &>/dev/null || [ "${NODE_VERSION:-0}" -lt "$NODE_MIN" ]; th
                     echo ">> Installation cancelled. Node.js v${NODE_MIN} or later is required."
                     exit 1
                 fi
-            fi
-            ;;
-        *)
-            # On Bookworm, Trixie and later — use NodeSource (system-wide install)
-            read -p "   Install Node.js v22 LTS via NodeSource? (Y/n) " -n 1 -r
-            echo
-            if [[ -z "$REPLY" || $REPLY =~ ^[Yy]$ ]]; then
-                echo ">> Installing Node.js v22 LTS via NodeSource for $OS_CODENAME ($ARCH)..."
-                curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
-                sudo apt-get install -y nodejs
-            else
-                echo ">> Installation cancelled. Node.js v${NODE_MIN} or later is required."
-                exit 1
-            fi
-            ;;
-    esac
+                ;;
+        esac
+    fi
 else
     echo ">> Node.js detected: $(node --version)"
 fi
 
-# Detect nvm usage regardless of whether node was just installed or already present
-if [ -n "$NVM_DIR" ] && [ -s "$NVM_DIR/nvm.sh" ] && [[ "$(which node 2>/dev/null)" == *"$NVM_DIR"* ]]; then
-    NVM_INSTALL=true
-    if command -v nodejs &>/dev/null; then
-        echo ""
-        echo "   NOTE: A system nodejs package is also present alongside nvm."
-        echo "         It will not be used, but you can remove it to avoid confusion:"
-        echo "         sudo apt remove nodejs"
+# Detect nvm usage (Linux only) regardless of whether node was just installed or already present
+if [[ "$PLATFORM" != "Darwin" ]]; then
+    if [ -n "$NVM_DIR" ] && [ -s "$NVM_DIR/nvm.sh" ] && [[ "$(which node 2>/dev/null)" == *"$NVM_DIR"* ]]; then
+        NVM_INSTALL=true
+        if command -v nodejs &>/dev/null; then
+            echo ""
+            echo "   NOTE: A system nodejs package is also present alongside nvm."
+            echo "         It will not be used, but you can remove it to avoid confusion:"
+            echo "         sudo apt remove nodejs"
+        fi
     fi
 fi
 
@@ -174,9 +198,13 @@ read -p "   Allow access from other machines on the network? (y/N) " -n 1 -r
 echo
 if [[ $REPLY =~ ^[Yy]$ ]]; then
     ALLOW_REMOTE="yes"
-    DETECTED_IP=$(hostname -I | awk '{print $1}')
+    if [[ "$PLATFORM" == "Darwin" ]]; then
+        DETECTED_IP=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || echo "127.0.0.1")
+    else
+        DETECTED_IP=$(hostname -I | awk '{print $1}')
+    fi
     echo ""
-    read -p "   Pi IP address [$DETECTED_IP]: " CUSTOM_IP
+    read -p "   IP address [$DETECTED_IP]: " CUSTOM_IP
     REMOTE_IP=${CUSTOM_IP:-$DETECTED_IP}
     echo ""
     echo ">> Generating SSL certificate for localhost and $REMOTE_IP..."
@@ -189,10 +217,9 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     chmod 600 "$REPO_DIR/server/key.pem"
     echo ">> SSL certificate generated."
     echo ""
-    echo "   *** WARNING: If your Pi's IP address changes, the SSL certificate"
+    echo "   *** WARNING: If your IP address changes, the SSL certificate"
     echo "       will no longer be valid for remote connections."
     echo "       Re-run install.sh to regenerate it with the new address."
-    echo "       To avoid this, consider assigning a static IP to your Pi."
     echo ""
 else
     ALLOW_REMOTE="no"
@@ -205,12 +232,16 @@ read -p "   Enable debug panel? (localhost only, shows cache/quota/logs) (y/N) "
 echo
 DEBUG_MODE=$([[ $REPLY =~ ^[Yy]$ ]] && echo "yes" || echo "no")
 
-# --- 2c. Kiosk mode ---
-echo ""
-echo ">> Kiosk mode..."
-read -p "   Launch Chromium automatically in fullscreen on startup? (Y/n) " -n 1 -r
-echo
-KIOSK_MODE=$([[ -z "$REPLY" || $REPLY =~ ^[Yy]$ ]] && echo "yes" || echo "no")
+# --- 2c. Kiosk mode (Linux/Pi only) ---
+if [[ "$PLATFORM" != "Darwin" ]]; then
+    echo ""
+    echo ">> Kiosk mode..."
+    read -p "   Launch Chromium automatically in fullscreen on startup? (Y/n) " -n 1 -r
+    echo
+    KIOSK_MODE=$([[ -z "$REPLY" || $REPLY =~ ^[Yy]$ ]] && echo "yes" || echo "no")
+else
+    KIOSK_MODE="no"
+fi
 
 # --- 3. Node.js dependencies ---
 AUDIT_LOG="$REPO_DIR/npm-audit.log"
@@ -255,137 +286,191 @@ fi
 
 npm run prod && cd ..
 
-# --- 4. Systemd ---
+# --- 4. Service setup ---
 echo ""
-echo ">> Configuring systemd service..."
-mkdir -p ~/.config/systemd/user
-cp "$REPO_DIR/deploy/pi-weather-server.service" ~/.config/systemd/user/
-if [ "$ALLOW_REMOTE" = "yes" ]; then
-    sed -i 's/# Environment=ALLOW_REMOTE=true/Environment=ALLOW_REMOTE=true/' \
-        ~/.config/systemd/user/pi-weather-server.service
-fi
+if [[ "$PLATFORM" == "Darwin" ]]; then
+    # macOS — launchd user agent
+    echo ">> Configuring launchd agent..."
+    PLIST_DEST="$HOME/Library/LaunchAgents/com.pi-weather-station.plist"
+    mkdir -p "$HOME/Library/LaunchAgents"
 
-mkdir -p ~/.config/systemd/user/pi-weather-server.service.d
-cat > ~/.config/systemd/user/pi-weather-server.service.d/override.conf << 'EOF'
+    # Build the plist with correct paths and environment variables
+    python3 - "$REPO_DIR" "$PLIST_DEST" "$ALLOW_REMOTE" "$DEBUG_MODE" << 'PYEOF'
+import plistlib, sys
+
+repo_dir, plist_dest, allow_remote, debug_mode = sys.argv[1:]
+
+with open(repo_dir + "/deploy/com.pi-weather-station.plist", "rb") as f:
+    data = plistlib.load(f)
+
+data["WorkingDirectory"] = repo_dir
+data["StandardOutPath"]  = repo_dir + "/server.log"
+data["StandardErrorPath"] = repo_dir + "/server.log"
+
+env = data.get("EnvironmentVariables", {})
+env["NODE_ENV"] = "production"
+if allow_remote == "yes":
+    env["ALLOW_REMOTE"] = "true"
+if debug_mode == "yes":
+    env["DEBUG"] = "true"
+data["EnvironmentVariables"] = env
+
+with open(plist_dest, "wb") as f:
+    plistlib.dump(data, f, fmt=plistlib.FMT_XML)
+PYEOF
+
+    # Unload existing agent if any, then load the new one
+    launchctl bootout "gui/$(id -u)" "$PLIST_DEST" 2>/dev/null || true
+    launchctl bootstrap "gui/$(id -u)" "$PLIST_DEST"
+    echo ">> launchd agent installed and started."
+    echo ">> Server logs: tail -f $REPO_DIR/server.log"
+
+else
+    # Linux/Pi — systemd user service
+    echo ">> Configuring systemd service..."
+    mkdir -p ~/.config/systemd/user
+    cp "$REPO_DIR/deploy/pi-weather-server.service" ~/.config/systemd/user/
+    if [ "$ALLOW_REMOTE" = "yes" ]; then
+        sed -i 's/# Environment=ALLOW_REMOTE=true/Environment=ALLOW_REMOTE=true/' \
+            ~/.config/systemd/user/pi-weather-server.service
+    fi
+
+    mkdir -p ~/.config/systemd/user/pi-weather-server.service.d
+    cat > ~/.config/systemd/user/pi-weather-server.service.d/override.conf << 'EOF'
 [Service]
 StandardOutput=append:/tmp/weather-server.log
 StandardError=append:/tmp/weather-server.log
 # Environment=DEBUG=true
 EOF
-if [ "$DEBUG_MODE" = "yes" ]; then
-    sed -i 's/# Environment=DEBUG=true/Environment=DEBUG=true/' \
-        ~/.config/systemd/user/pi-weather-server.service.d/override.conf
-fi
-if [ "$NVM_INSTALL" = "true" ]; then
-    # systemd does not source ~/.bashrc (guarded for interactive shells),
-    # so nvm must be loaded explicitly via a drop-in override.
-    # Use the actual NVM_DIR path (may be ~/.nvm or ~/.config/nvm depending on env).
-    cat > ~/.config/systemd/user/pi-weather-server.service.d/nvm.conf << EOF
+    if [ "$DEBUG_MODE" = "yes" ]; then
+        sed -i 's/# Environment=DEBUG=true/Environment=DEBUG=true/' \
+            ~/.config/systemd/user/pi-weather-server.service.d/override.conf
+    fi
+    if [ "$NVM_INSTALL" = "true" ]; then
+        # systemd does not source ~/.bashrc (guarded for interactive shells),
+        # so nvm must be loaded explicitly via a drop-in override.
+        # Use the actual NVM_DIR path (may be ~/.nvm or ~/.config/nvm depending on env).
+        cat > ~/.config/systemd/user/pi-weather-server.service.d/nvm.conf << EOF
 [Service]
 ExecStart=
 ExecStart=/bin/bash -c '. ${NVM_DIR}/nvm.sh && exec npm start'
 EOF
-    echo ">> nvm sourcing configured for systemd service (${NVM_DIR})."
-fi
-systemctl --user daemon-reload
-systemctl --user enable pi-weather-server
-systemctl --user start pi-weather-server
-loginctl enable-linger "$USER"
-echo ">> Service pi-weather-server enabled and started."
-echo ">> Server logs available at: tail -f /tmp/weather-server.log"
+        echo ">> nvm sourcing configured for systemd service (${NVM_DIR})."
+    fi
+    systemctl --user daemon-reload
+    systemctl --user enable pi-weather-server
+    systemctl --user start pi-weather-server
+    loginctl enable-linger "$USER"
+    echo ">> Service pi-weather-server enabled and started."
+    echo ">> Server logs available at: tail -f /tmp/weather-server.log"
 
-# --- 4b. Log rotation ---
-echo ""
-echo ">> Configuring log rotation..."
-sudo cp "$REPO_DIR/deploy/logrotate-weather-server" /etc/logrotate.d/weather-server
-echo ">> Log rotation configured (daily, 7 days, max 10M, compressed)."
-
-# --- 5. Unified start-server script ---
-echo ""
-echo ">> Deploying start-server..."
-mkdir -p ~/.local/bin
-cp "$REPO_DIR/deploy/start-server" ~/.local/bin/start-server
-chmod +x ~/.local/bin/start-server
-echo ">> ~/.local/bin/start-server installed."
-
-# --- 6. Autostart based on display server ---
-if [ "$KIOSK_MODE" = "yes" ]; then
+    # --- 4b. Log rotation (Linux only) ---
     echo ""
-    echo ">> Detecting display server..."
-    DISPLAY_SERVER=$(ps aux | grep -E 'labwc|wayfire|Xorg' | grep -v grep | awk '{print $11}' | xargs -I{} basename {} 2>/dev/null | head -1)
+    echo ">> Configuring log rotation..."
+    sudo cp "$REPO_DIR/deploy/logrotate-weather-server" /etc/logrotate.d/weather-server
+    echo ">> Log rotation configured (daily, 7 days, max 10M, compressed)."
 
-    case "$DISPLAY_SERVER" in
-        labwc)
-            echo ">> Display server detected: labwc"
-            mkdir -p ~/.config/labwc
-            cp "$REPO_DIR/deploy/autostart" ~/.config/labwc/autostart
-            echo ">> ~/.config/labwc/autostart configured."
-            ;;
-        wayfire)
-            echo ">> Display server detected: wayfire"
-            WAYFIRE_INI="$HOME/.config/wayfire.ini"
-            if grep -q "start-server" "$WAYFIRE_INI" 2>/dev/null; then
-                echo ">> ~/.config/wayfire.ini already configured, no changes made."
-            elif grep -q "\[autostart\]" "$WAYFIRE_INI" 2>/dev/null; then
-                sed -i '/\[autostart\]/a start-server = start-server' "$WAYFIRE_INI"
-                echo ">> ~/.config/wayfire.ini updated."
-            else
-                echo -e "\n[autostart]\nstart-server = start-server" >> "$WAYFIRE_INI"
-                echo ">> [autostart] section added to ~/.config/wayfire.ini."
-            fi
-            ;;
-        Xorg)
-            echo ">> Display server detected: X11/LXDE"
-            LXDE_AUTOSTART="$HOME/.config/lxsession/LXDE-pi/autostart"
-            mkdir -p "$(dirname "$LXDE_AUTOSTART")"
-            if grep -q "start-server" "$LXDE_AUTOSTART" 2>/dev/null; then
-                echo ">> $LXDE_AUTOSTART already configured, no changes made."
-            else
-                # If no user autostart exists yet, copy the system default first
-                # so lxpanel, pcmanfm and other desktop entries are preserved.
-                if [ ! -f "$LXDE_AUTOSTART" ] && [ -f "/etc/xdg/lxsession/LXDE-pi/autostart" ]; then
-                    cp "/etc/xdg/lxsession/LXDE-pi/autostart" "$LXDE_AUTOSTART"
+    # --- 5. Unified start-server script (Linux only) ---
+    echo ""
+    echo ">> Deploying start-server..."
+    mkdir -p ~/.local/bin
+    cp "$REPO_DIR/deploy/start-server" ~/.local/bin/start-server
+    chmod +x ~/.local/bin/start-server
+    echo ">> ~/.local/bin/start-server installed."
+
+    # --- 6. Autostart based on display server (Linux only) ---
+    if [ "$KIOSK_MODE" = "yes" ]; then
+        echo ""
+        echo ">> Detecting display server..."
+        DISPLAY_SERVER=$(ps aux | grep -E 'labwc|wayfire|Xorg' | grep -v grep | awk '{print $11}' | xargs -I{} basename {} 2>/dev/null | head -1)
+
+        case "$DISPLAY_SERVER" in
+            labwc)
+                echo ">> Display server detected: labwc"
+                mkdir -p ~/.config/labwc
+                cp "$REPO_DIR/deploy/autostart" ~/.config/labwc/autostart
+                echo ">> ~/.config/labwc/autostart configured."
+                ;;
+            wayfire)
+                echo ">> Display server detected: wayfire"
+                WAYFIRE_INI="$HOME/.config/wayfire.ini"
+                if grep -q "start-server" "$WAYFIRE_INI" 2>/dev/null; then
+                    echo ">> ~/.config/wayfire.ini already configured, no changes made."
+                elif grep -q "\[autostart\]" "$WAYFIRE_INI" 2>/dev/null; then
+                    sed -i '/\[autostart\]/a start-server = start-server' "$WAYFIRE_INI"
+                    echo ">> ~/.config/wayfire.ini updated."
+                else
+                    echo -e "\n[autostart]\nstart-server = start-server" >> "$WAYFIRE_INI"
+                    echo ">> [autostart] section added to ~/.config/wayfire.ini."
                 fi
-                echo "@start-server" >> "$LXDE_AUTOSTART"
-                echo ">> $LXDE_AUTOSTART updated."
-            fi
-            ;;
-        *)
-            echo ">> Display server not detected."
-            echo "   Configure autostart manually. See the README for instructions."
-            ;;
-    esac
-else
-    echo ""
-    echo ">> Kiosk mode skipped — Chromium will not launch automatically."
-    echo "   To open the app manually, run: start-server"
-    echo "   Or open a browser and navigate to https://localhost:8443"
+                ;;
+            Xorg)
+                echo ">> Display server detected: X11/LXDE"
+                LXDE_AUTOSTART="$HOME/.config/lxsession/LXDE-pi/autostart"
+                mkdir -p "$(dirname "$LXDE_AUTOSTART")"
+                if grep -q "start-server" "$LXDE_AUTOSTART" 2>/dev/null; then
+                    echo ">> $LXDE_AUTOSTART already configured, no changes made."
+                else
+                    # If no user autostart exists yet, copy the system default first
+                    # so lxpanel, pcmanfm and other desktop entries are preserved.
+                    if [ ! -f "$LXDE_AUTOSTART" ] && [ -f "/etc/xdg/lxsession/LXDE-pi/autostart" ]; then
+                        cp "/etc/xdg/lxsession/LXDE-pi/autostart" "$LXDE_AUTOSTART"
+                    fi
+                    echo "@start-server" >> "$LXDE_AUTOSTART"
+                    echo ">> $LXDE_AUTOSTART updated."
+                fi
+                ;;
+            *)
+                echo ">> Display server not detected."
+                echo "   Configure autostart manually. See the README for instructions."
+                ;;
+        esac
+    else
+        echo ""
+        echo ">> Kiosk mode skipped — Chromium will not launch automatically."
+        echo "   To open the app manually, run: start-server"
+        echo "   Or open a browser and navigate to https://localhost:8443"
+    fi
 fi
 
+# --- Summary ---
 echo ""
 echo "=== Installation complete ==="
 echo ""
 if [ "$ALLOW_REMOTE" = "yes" ]; then
     echo "   Remote access enabled — https://$REMOTE_IP:8443"
-    echo "   Remote users have read-only access (settings writes always restricted to the Pi)."
-    echo "   NOTE: If your Pi's IP address changes, re-run install.sh to"
-    echo "         regenerate the SSL certificate with the new address."
+    echo "   Remote users have read-only access (settings writes always restricted to localhost)."
+    if [[ "$PLATFORM" != "Darwin" ]]; then
+        echo "   NOTE: If your Pi's IP address changes, re-run install.sh to"
+        echo "         regenerate the SSL certificate with the new address."
+    fi
     echo ""
 fi
 if [ "$DEBUG_MODE" = "yes" ]; then
-    echo "   Debug panel enabled — accessible from the Pi only (bug icon in the control bar)."
+    echo "   Debug panel enabled — accessible from localhost only (bug icon in the control bar)."
     echo ""
 fi
-if [ "$KIOSK_MODE" = "yes" ]; then
-    echo "   Kiosk mode enabled — Chromium will launch automatically in fullscreen on startup."
+
+if [[ "$PLATFORM" == "Darwin" ]]; then
+    echo "   Open https://localhost:8443 in your browser."
+    echo "   The server starts automatically at login."
+    echo ""
+    echo "   Useful commands:"
+    echo "     Stop:    launchctl stop com.pi-weather-station"
+    echo "     Start:   launchctl start com.pi-weather-station"
+    echo "     Logs:    tail -f $REPO_DIR/server.log"
 else
-    echo "   Kiosk mode disabled — open https://localhost:8443 manually in a browser."
-fi
-echo ""
-read -p ">> Reboot now to launch the application automatically? (Y/n) " -n 1 -r
-echo
-if [[ -z "$REPLY" || $REPLY =~ ^[Yy]$ ]]; then
-    sudo reboot
-else
-    echo "   Reboot skipped. Run 'sudo reboot' when ready."
+    if [ "$KIOSK_MODE" = "yes" ]; then
+        echo "   Kiosk mode enabled — Chromium will launch automatically in fullscreen on startup."
+    else
+        echo "   Kiosk mode disabled — open https://localhost:8443 manually in a browser."
+    fi
+    echo ""
+    read -p ">> Reboot now to launch the application automatically? (Y/n) " -n 1 -r
+    echo
+    if [[ -z "$REPLY" || $REPLY =~ ^[Yy]$ ]]; then
+        sudo reboot
+    else
+        echo "   Reboot skipped. Run 'sudo reboot' when ready."
+    fi
 fi
