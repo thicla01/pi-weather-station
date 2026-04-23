@@ -119,12 +119,15 @@
   max-width: 900px;
   margin-top: 10px;
   display: flex;
+  flex-wrap: wrap;
   justify-content: space-between;
   align-items: flex-end;
+  gap: 10px;
 }
 
 .bottom-button-group {
   display: flex;
+  flex-wrap: wrap;
   gap: 20px;
   align-items: flex-end;
 }
