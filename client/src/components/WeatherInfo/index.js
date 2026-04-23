@@ -74,7 +74,6 @@ const WeatherInfo = () => {
 
   const [activeChart, setActiveChart] = useState("hourly");
   const [aiExpanded, setAiExpanded] = useState(false);
-  const [dbgMsg, setDbgMsg] = useState("");
   const aiRef = useRef(null);
   const panelRef = useRef(null); // ref on the WeatherInfo root div
   const locationRef = useRef(null); // ref on the LocationName wrapper div
@@ -124,32 +123,25 @@ const WeatherInfo = () => {
     prevAiExpandedRef.current = aiExpanded;
 
     if (aiExpanded) {
+      const scrollEl = infoPanelScrollRef?.current;
       const chartsEl = chartsRef?.current;
 
-      // Brute-force: walk up the DOM from locationRef and reset scrollTop on every
-      // ancestor that is currently scrolled. Also resets known containers directly.
-      // Writes a debug snapshot to document.title so the Pi state is visible via SSH
-      // (document.title persists in window.document even in kiosk mode).
-      const scrollToTop = (step) => {
-        const chartsH = chartsEl ? Math.round(chartsEl.getBoundingClientRect().height) : "?";
-        const aiH = aiRef.current ? Math.round(aiRef.current.getBoundingClientRect().height) : "?";
-        const outerST = infoPanelScrollRef?.current?.scrollTop ?? "?";
-        const innerST = panelRef.current?.scrollTop ?? "?";
-        const msg = `step${step}: charts=${chartsH}px ai=${aiH}px out=${outerST} in=${innerST}`;
-        document.title = msg;
-        setDbgMsg(msg);
+      // After charts collapse, scroll DOWN so AiSummary's top aligns with the
+      // viewport top — the AI text fills the entire panel (Option B).
+      const scrollToAi = () => {
+        if (!scrollEl || !aiRef.current) return;
+        const containerTop = scrollEl.getBoundingClientRect().top;
+        const aiTop = aiRef.current.getBoundingClientRect().top;
+        scrollEl.scrollTop += aiTop - containerTop;
       };
 
-      // Immediate snapshot (transition just started)
-      scrollToTop(1);
-
-      // Snapshot exactly when the collapse transition ends
-      const onTransitionEnd = () => scrollToTop(2);
+      // Fire exactly when the 350ms collapse transition ends
+      const onTransitionEnd = () => scrollToAi();
       if (chartsEl) {
         chartsEl.addEventListener("transitionend", onTransitionEnd, { once: true });
       }
-      // Fallback snapshot after 600ms
-      const fallback = setTimeout(() => scrollToTop(3), 600);
+      // Fallback in case transitionend doesn't fire
+      const fallback = setTimeout(scrollToAi, 500);
 
       return () => {
         if (chartsEl) chartsEl.removeEventListener("transitionend", onTransitionEnd);
@@ -157,22 +149,12 @@ const WeatherInfo = () => {
       };
     }
 
-    if (!aiExpanded && wasExpanded && aiRef.current) {
-      // Collapsing: scroll the info panel back to top after charts re-expand.
-      // Find the ancestor that is actually scrolled (scrollTop > 0) rather than
-      // the first one with overflow-y: auto, since WeatherInfo's own container
-      // also carries that property without ever scrolling.
+    if (!aiExpanded && wasExpanded) {
+      // Collapsing: wait for charts to re-expand, then scroll back to top
+      const scrollEl = infoPanelScrollRef?.current;
       const timer = setTimeout(() => {
-        let el = aiRef.current.parentElement;
-        while (el) {
-          const { overflowY } = window.getComputedStyle(el);
-          if ((overflowY === "auto" || overflowY === "scroll") && el.scrollTop > 0) {
-            el.scrollTo({ top: 0, behavior: "smooth" });
-            break;
-          }
-          el = el.parentElement;
-        }
-      }, 380);
+        if (scrollEl) scrollEl.scrollTo({ top: 0, behavior: "smooth" });
+      }, 400);
       return () => clearTimeout(timer);
     }
   }, [aiExpanded]); // eslint-disable-line react-hooks/exhaustive-deps -- infoPanelScrollRef is a stable ref object
@@ -332,16 +314,6 @@ const WeatherInfo = () => {
           onToggle={handleAiToggle}
           containerRef={aiRef}
         />
-        {dbgMsg ? (
-          <div style={{
-            position: "fixed", bottom: 0, left: 0, right: 0,
-            background: "rgba(0,0,0,0.85)", color: "#0f0",
-            fontSize: "11px", padding: "4px 6px", zIndex: 9999,
-            fontFamily: "monospace", whiteSpace: "pre-wrap", wordBreak: "break-all",
-          }}>
-            {dbgMsg}
-          </div>
-        ) : null}
       </div>
     );
   } else if (currentWeatherData || currentWeatherDataErr || err) {
