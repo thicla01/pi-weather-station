@@ -387,7 +387,10 @@ def _render(sense, state, is_day, tick):
     brightness = BRIGHTNESS_DAY if is_day else BRIGHTNESS_NIGHT
     frame = get_frame(state, is_day, tick)
     frame = apply_brightness(frame, brightness)
-    sense.set_pixels(frame)
+    try:
+        sense.set_pixels(frame)
+    except Exception as exc:
+        log.error("set_pixels failed (state=%s tick=%d): %s", state, tick, exc)
 
 
 # ── MAIN LOOP ─────────────────────────────────────────────────────────────────
@@ -482,6 +485,7 @@ def run_test():
                 deadline = time.time() + TEST_STATE_DURATION
                 # Static states: draw once, then sleep.
                 # Animated states: keep redrawing to show the animation.
+                sense.clear()
                 if state not in _ANIMATED_STATES:
                     _render(sense, state, is_day, tick)
                     while time.time() < deadline:
