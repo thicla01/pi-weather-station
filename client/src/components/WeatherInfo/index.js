@@ -247,7 +247,7 @@ const WeatherInfo = () => {
         <div className={styles.location} ref={locationRef}>
           <LocationName />
         </div>
-        <div>
+        <div style={{ display: aiExpanded ? "none" : undefined }}>
           <CurrentWeather />
         </div>
         <div
