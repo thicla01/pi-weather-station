@@ -74,6 +74,7 @@ const WeatherInfo = () => {
 
   const [activeChart, setActiveChart] = useState("hourly");
   const [aiExpanded, setAiExpanded] = useState(false);
+  const [dbgMsg, setDbgMsg] = useState("");
   const aiRef = useRef(null);
   const panelRef = useRef(null); // ref on the WeatherInfo root div
   const locationRef = useRef(null); // ref on the LocationName wrapper div
@@ -131,7 +132,7 @@ const WeatherInfo = () => {
       // (document.title persists in window.document even in kiosk mode).
       const scrollToTop = (label) => {
         const info = [];
-        // Walk up from the LocationName wrapper
+        // Walk up from the LocationName wrapper and reset every scrolled ancestor
         let el = locationRef.current;
         while (el && el !== document.documentElement) {
           if (el.scrollTop > 0) {
@@ -143,7 +144,9 @@ const WeatherInfo = () => {
         // Also force the two known containers regardless of current scrollTop
         if (infoPanelScrollRef?.current) infoPanelScrollRef.current.scrollTop = 0;
         if (panelRef.current) panelRef.current.scrollTop = 0;
-        document.title = `[AI-${label}] ${info.length ? info.join(" ") : "no scroll found"} outer=${infoPanelScrollRef?.current?.scrollTop ?? "?"} inner=${panelRef.current?.scrollTop ?? "?"}`;
+        const msg = `[${label}] ${info.length ? info.join(" ") : "no-scroll"} out=${infoPanelScrollRef?.current?.scrollTop ?? "?"} in=${panelRef.current?.scrollTop ?? "?"}`;
+        document.title = msg;
+        setDbgMsg(msg);
       };
 
       // Immediate scroll (handles case where panel is already idle)
@@ -338,6 +341,16 @@ const WeatherInfo = () => {
           onToggle={handleAiToggle}
           containerRef={aiRef}
         />
+        {dbgMsg ? (
+          <div style={{
+            position: "fixed", bottom: 0, left: 0, right: 0,
+            background: "rgba(0,0,0,0.85)", color: "#0f0",
+            fontSize: "11px", padding: "4px 6px", zIndex: 9999,
+            fontFamily: "monospace", whiteSpace: "pre-wrap", wordBreak: "break-all",
+          }}>
+            {dbgMsg}
+          </div>
+        ) : null}
       </div>
     );
   } else if (currentWeatherData || currentWeatherDataErr || err) {
