@@ -3,67 +3,87 @@
 # Removes the Pi Weather Station service, scripts, and configurations.
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
+PLATFORM="$(uname)"
 
 echo "=== Pi Weather Station — Uninstall ==="
 echo ""
 
-# --- 1. Systemd service ---
-echo ">> Stopping and disabling systemd service..."
-systemctl --user stop pi-weather-server 2>/dev/null && echo "   Service stopped." || echo "   Service was not running."
-systemctl --user disable pi-weather-server 2>/dev/null && echo "   Service disabled." || echo "   Service was not enabled."
-if [ -f "$HOME/.config/systemd/user/pi-weather-server.service" ]; then
-    rm "$HOME/.config/systemd/user/pi-weather-server.service"
-    echo "   Service file removed."
-fi
-if [ -d "$HOME/.config/systemd/user/pi-weather-server.service.d" ]; then
-    rm -rf "$HOME/.config/systemd/user/pi-weather-server.service.d"
-    echo "   Service override directory removed."
-fi
-systemctl --user daemon-reload
-
-# --- 2. start-server and start-weather scripts ---
-echo ""
-echo ">> Removing scripts from ~/.local/bin..."
-for SCRIPT in start-server start-weather; do
-    if [ -f "$HOME/.local/bin/$SCRIPT" ]; then
-        rm "$HOME/.local/bin/$SCRIPT"
-        echo "   ~/.local/bin/$SCRIPT removed."
+# --- 1. Service manager ---
+if [[ "$PLATFORM" == "Darwin" ]]; then
+    # macOS — launchd user agent
+    echo ">> Stopping and removing launchd agent..."
+    PLIST_DEST="$HOME/Library/LaunchAgents/com.pi-weather-station.plist"
+    launchctl bootout "gui/$(id -u)" "$PLIST_DEST" 2>/dev/null \
+        && echo "   Agent stopped and unloaded." \
+        || echo "   Agent was not loaded."
+    if [ -f "$PLIST_DEST" ]; then
+        rm "$PLIST_DEST"
+        echo "   $PLIST_DEST removed."
     fi
-done
 
-# --- 3. Autostart configuration ---
-echo ""
-echo ">> Detecting display server..."
-DISPLAY_SERVER=$(ps aux | grep -E 'labwc|wayfire|Xorg' | grep -v grep | awk '{print $11}' | xargs -I{} basename {} 2>/dev/null | head -1)
+else
+    # Linux/Pi — systemd user service
+    echo ">> Stopping and disabling systemd service..."
+    systemctl --user stop pi-weather-server 2>/dev/null && echo "   Service stopped." || echo "   Service was not running."
+    systemctl --user disable pi-weather-server 2>/dev/null && echo "   Service disabled." || echo "   Service was not enabled."
+    if [ -f "$HOME/.config/systemd/user/pi-weather-server.service" ]; then
+        rm "$HOME/.config/systemd/user/pi-weather-server.service"
+        echo "   Service file removed."
+    fi
+    if [ -d "$HOME/.config/systemd/user/pi-weather-server.service.d" ]; then
+        rm -rf "$HOME/.config/systemd/user/pi-weather-server.service.d"
+        echo "   Service override directory removed."
+    fi
+    systemctl --user daemon-reload
+fi
 
-case "$DISPLAY_SERVER" in
-    labwc)
-        echo ">> Display server detected: labwc"
-        if [ -f "$HOME/.config/labwc/autostart" ]; then
-            rm "$HOME/.config/labwc/autostart"
-            echo "   ~/.config/labwc/autostart removed."
+# --- 2. start-server and start-weather scripts (Linux only) ---
+if [[ "$PLATFORM" != "Darwin" ]]; then
+    echo ""
+    echo ">> Removing scripts from ~/.local/bin..."
+    for SCRIPT in start-server start-weather; do
+        if [ -f "$HOME/.local/bin/$SCRIPT" ]; then
+            rm "$HOME/.local/bin/$SCRIPT"
+            echo "   ~/.local/bin/$SCRIPT removed."
         fi
-        ;;
-    wayfire)
-        echo ">> Display server detected: wayfire"
-        WAYFIRE_INI="$HOME/.config/wayfire.ini"
-        if grep -qE "start-server|start-weather" "$WAYFIRE_INI" 2>/dev/null; then
-            sed -i '/start-server\|start-weather/d' "$WAYFIRE_INI"
-            echo "   start-server/start-weather entry removed from ~/.config/wayfire.ini."
-        fi
-        ;;
-    Xorg)
-        echo ">> Display server detected: X11/LXDE"
-        LXDE_AUTOSTART="$HOME/.config/lxsession/LXDE-pi/autostart"
-        if grep -qE "start-server|start-weather" "$LXDE_AUTOSTART" 2>/dev/null; then
-            sed -i '/start-server\|start-weather/d' "$LXDE_AUTOSTART"
-            echo "   start-server/start-weather entry removed from $LXDE_AUTOSTART."
-        fi
-        ;;
-    *)
-        echo ">> Display server not detected. Skipping autostart cleanup."
-        ;;
-esac
+    done
+fi
+
+# --- 3. Autostart configuration (Linux only) ---
+if [[ "$PLATFORM" != "Darwin" ]]; then
+    echo ""
+    echo ">> Detecting display server..."
+    DISPLAY_SERVER=$(ps aux | grep -E 'labwc|wayfire|Xorg' | grep -v grep | awk '{print $11}' | xargs -I{} basename {} 2>/dev/null | head -1)
+
+    case "$DISPLAY_SERVER" in
+        labwc)
+            echo ">> Display server detected: labwc"
+            if [ -f "$HOME/.config/labwc/autostart" ]; then
+                rm "$HOME/.config/labwc/autostart"
+                echo "   ~/.config/labwc/autostart removed."
+            fi
+            ;;
+        wayfire)
+            echo ">> Display server detected: wayfire"
+            WAYFIRE_INI="$HOME/.config/wayfire.ini"
+            if grep -qE "start-server|start-weather" "$WAYFIRE_INI" 2>/dev/null; then
+                sed -i '/start-server\|start-weather/d' "$WAYFIRE_INI"
+                echo "   start-server/start-weather entry removed from ~/.config/wayfire.ini."
+            fi
+            ;;
+        Xorg)
+            echo ">> Display server detected: X11/LXDE"
+            LXDE_AUTOSTART="$HOME/.config/lxsession/LXDE-pi/autostart"
+            if grep -qE "start-server|start-weather" "$LXDE_AUTOSTART" 2>/dev/null; then
+                sed -i '/start-server\|start-weather/d' "$LXDE_AUTOSTART"
+                echo "   start-server/start-weather entry removed from $LXDE_AUTOSTART."
+            fi
+            ;;
+        *)
+            echo ">> Display server not detected. Skipping autostart cleanup."
+            ;;
+    esac
+fi
 
 # --- 4. settings.json (optional) ---
 echo ""
@@ -104,55 +124,57 @@ if [ -d "$REPO_DIR/node_modules" ] || [ -d "$REPO_DIR/client/node_modules" ]; th
     fi
 fi
 
-# --- 7. nvm (optional, Bullseye only) ---
-NVM_DIR_EXISTS=false
-FOUND_NVM_DIR=""
-NVM_IN_PROFILES=false
-for _d in "$HOME/.nvm" "${XDG_CONFIG_HOME:-$HOME/.config}/nvm" "$HOME/.config/nvm"; do
-    if [ -s "$_d/nvm.sh" ]; then
-        NVM_DIR_EXISTS=true
-        FOUND_NVM_DIR="$_d"
-        break
-    fi
-done
-for _PROFILE in "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile"; do
-    grep -q "NVM_DIR" "$_PROFILE" 2>/dev/null && NVM_IN_PROFILES=true && break
-done
-
-if { [ "$NVM_DIR_EXISTS" = "true" ] || [ "$NVM_IN_PROFILES" = "true" ]; } \
-    && [ "$(lsb_release -cs 2>/dev/null)" = "bullseye" ]; then
-    echo ""
-    if [ "$NVM_DIR_EXISTS" = "true" ]; then
-        echo ">> nvm detected (used to install Node.js on Bullseye)."
-        echo "   WARNING: nvm manages all Node.js versions for your user account."
-        echo "   Removing it will affect any other project that depends on it."
-    else
-        echo ">> Stale nvm references detected in shell profile files (NVM_DIR)."
-        echo "   The nvm directory is already gone but profile entries remain."
-    fi
-    echo ""
-    read -p "   Remove nvm and clean shell profile files? (y/N) " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        if [ "$NVM_DIR_EXISTS" = "true" ]; then
-            read -p "   Are you sure? This cannot be undone. (y/N) " -n 1 -r
-            echo
-            [[ ! $REPLY =~ ^[Yy]$ ]] && { echo "   nvm kept."; } || {
-                rm -rf "$FOUND_NVM_DIR"
-                echo "   $FOUND_NVM_DIR removed."
-            }
+# --- 7. nvm (optional, Bullseye/Linux only) ---
+if [[ "$PLATFORM" != "Darwin" ]]; then
+    NVM_DIR_EXISTS=false
+    FOUND_NVM_DIR=""
+    NVM_IN_PROFILES=false
+    for _d in "$HOME/.nvm" "${XDG_CONFIG_HOME:-$HOME/.config}/nvm" "$HOME/.config/nvm"; do
+        if [ -s "$_d/nvm.sh" ]; then
+            NVM_DIR_EXISTS=true
+            FOUND_NVM_DIR="$_d"
+            break
         fi
-        for _PROFILE in "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile"; do
-            if [ -f "$_PROFILE" ]; then
-                sed -i '/NVM_DIR/d' "$_PROFILE"
-                sed -i '/nvm\.sh/d' "$_PROFILE"
-                sed -i '/nvm_completion/d' "$_PROFILE"
-                sed -i '/# nvm/Id' "$_PROFILE"
+    done
+    for _PROFILE in "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile"; do
+        grep -q "NVM_DIR" "$_PROFILE" 2>/dev/null && NVM_IN_PROFILES=true && break
+    done
+
+    if { [ "$NVM_DIR_EXISTS" = "true" ] || [ "$NVM_IN_PROFILES" = "true" ]; } \
+        && [ "$(lsb_release -cs 2>/dev/null)" = "bullseye" ]; then
+        echo ""
+        if [ "$NVM_DIR_EXISTS" = "true" ]; then
+            echo ">> nvm detected (used to install Node.js on Bullseye)."
+            echo "   WARNING: nvm manages all Node.js versions for your user account."
+            echo "   Removing it will affect any other project that depends on it."
+        else
+            echo ">> Stale nvm references detected in shell profile files (NVM_DIR)."
+            echo "   The nvm directory is already gone but profile entries remain."
+        fi
+        echo ""
+        read -p "   Remove nvm and clean shell profile files? (y/N) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            if [ "$NVM_DIR_EXISTS" = "true" ]; then
+                read -p "   Are you sure? This cannot be undone. (y/N) " -n 1 -r
+                echo
+                [[ ! $REPLY =~ ^[Yy]$ ]] && { echo "   nvm kept."; } || {
+                    rm -rf "$FOUND_NVM_DIR"
+                    echo "   $FOUND_NVM_DIR removed."
+                }
             fi
-        done
-        echo "   Shell profile files cleaned."
-    else
-        echo "   nvm kept."
+            for _PROFILE in "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile"; do
+                if [ -f "$_PROFILE" ]; then
+                    sed -i '/NVM_DIR/d' "$_PROFILE"
+                    sed -i '/nvm\.sh/d' "$_PROFILE"
+                    sed -i '/nvm_completion/d' "$_PROFILE"
+                    sed -i '/# nvm/Id' "$_PROFILE"
+                fi
+            done
+            echo "   Shell profile files cleaned."
+        else
+            echo "   nvm kept."
+        fi
     fi
 fi
 
