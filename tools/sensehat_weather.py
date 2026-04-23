@@ -27,7 +27,22 @@ import time
 import urllib3
 
 import requests
-from sense_hat import SenseHat
+
+logging.basicConfig(
+    level=logging.INFO,
+    format="%(asctime)s [sensehat] %(levelname)s %(message)s",
+    datefmt="%Y-%m-%d %H:%M:%S",
+)
+log = logging.getLogger(__name__)
+
+try:
+    from sense_hat import SenseHat
+except Exception as exc:
+    log.error("Cannot initialize Sense HAT: %s", exc)
+    log.error("Verify that the Sense HAT is physically attached and that")
+    log.error("the sense-hat package is installed (sudo apt-get install sense-hat).")
+    log.error("To disable this service: systemctl --user disable pi-sensehat")
+    raise SystemExit(1)
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 
@@ -47,13 +62,6 @@ BRIGHTNESS_NIGHT = 0.35  # dimmer at night (avoids glare in the dark)
 
 # Suppress InsecureRequestWarning for the self-signed localhost certificate.
 urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [sensehat] %(levelname)s %(message)s",
-    datefmt="%Y-%m-%d %H:%M:%S",
-)
-log = logging.getLogger(__name__)
 
 
 # ── COLORS ────────────────────────────────────────────────────────────────────

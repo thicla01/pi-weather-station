@@ -13,6 +13,11 @@ WorkingDirectory=%h/pi-weather-station
 ExecStart=/usr/bin/python3 %h/pi-weather-station/tools/sensehat_weather.py
 Restart=on-failure
 RestartSec=15
+# After 3 consecutive failures within 2 minutes, stop retrying.
+# This prevents a tight restart loop when the HAT is not physically present.
+# Check status with: journalctl --user -u pi-sensehat -n 20
+StartLimitIntervalSec=120
+StartLimitBurst=3
 # Flush Python print/log output immediately (no buffering).
 Environment=PYTHONUNBUFFERED=1
 
