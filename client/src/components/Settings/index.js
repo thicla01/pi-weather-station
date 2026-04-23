@@ -190,19 +190,19 @@ const Settings = () => {
                   cb={(lang) => i18n.changeLanguage(lang)}
                 />
               </div>
+              {!isRemoteRestricted && (
+                <div className={styles.saveButtonContainer}>
+                  <SaveButton
+                    mapsKey={mapsKey}
+                    weatherKey={weatherKey}
+                    geoKey={geoKey}
+                    anthropicKey={anthropicKey}
+                    lat={lat}
+                    lon={lon}
+                  />
+                </div>
+              )}
             </div>
-            {!isRemoteRestricted && (
-              <div className={styles.saveButtonContainer}>
-                <SaveButton
-                  mapsKey={mapsKey}
-                  weatherKey={weatherKey}
-                  geoKey={geoKey}
-                  anthropicKey={anthropicKey}
-                  lat={lat}
-                  lon={lon}
-                />
-              </div>
-            )}
           </div>
         </div>
       </div>
