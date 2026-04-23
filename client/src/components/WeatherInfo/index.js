@@ -77,6 +77,7 @@ const WeatherInfo = () => {
   const aiRef = useRef(null);
   const panelRef = useRef(null); // ref on the WeatherInfo root div
   const locationRef = useRef(null); // ref on the LocationName wrapper div
+  const chartsRef = useRef(null); // ref on the chartsCollapsible div
   const prevAiExpandedRef = useRef(false);
   const [isSmallScreen, setIsSmallScreen] = useState(
     () => window.matchMedia("(max-height: 520px)").matches
@@ -122,14 +123,28 @@ const WeatherInfo = () => {
     prevAiExpandedRef.current = aiExpanded;
 
     if (aiExpanded) {
-      // Scroll the info panel back to top so LocationName is visible.
-      // infoPanelScrollRef is set directly by InfoPanel on the scroll container.
-      // overflow-anchor: none (InfoPanel/styles.css) prevents the browser from
-      // fighting this assignment during the chart collapse transition.
-      const el = infoPanelScrollRef?.current;
-      if (el) el.scrollTop = 0;
-      const timer = setTimeout(() => { if (el) el.scrollTop = 0; }, 380);
-      return () => clearTimeout(timer);
+      // Scroll the info panel to top so LocationName is visible after charts collapse.
+      // We trigger on transitionend of the charts div so timing is exact regardless
+      // of hardware speed. A fallback timeout fires if transitionend never arrives.
+      const scrollEl = infoPanelScrollRef?.current;
+      const chartsEl = chartsRef?.current;
+
+      const scrollToTop = () => { if (scrollEl) scrollEl.scrollTop = 0; };
+
+      // Immediate scroll (handles case where panel is already idle)
+      scrollToTop();
+
+      // Fire again exactly when the collapse transition ends
+      if (chartsEl) {
+        chartsEl.addEventListener("transitionend", scrollToTop, { once: true });
+      }
+      // Fallback: in case transitionend doesn't fire (e.g. no overflow on this screen)
+      const fallback = setTimeout(scrollToTop, 600);
+
+      return () => {
+        if (chartsEl) chartsEl.removeEventListener("transitionend", scrollToTop);
+        clearTimeout(fallback);
+      };
     }
 
     if (!aiExpanded && wasExpanded && aiRef.current) {
@@ -246,6 +261,7 @@ const WeatherInfo = () => {
         <div
           className={styles.chartsCollapsible}
           style={{ maxHeight: aiExpanded ? 0 : "1200px" }}
+          ref={chartsRef}
         >
           <div className={styles.chartLegend}>
             <span className={styles.legendItem}>
