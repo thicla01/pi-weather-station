@@ -22,7 +22,10 @@ Systemd service (managed by install.sh, or manually):
   systemctl --user enable --now pi-sensehat
 """
 
+import glob
 import logging
+import os
+import struct
 import time
 import urllib3
 
@@ -382,15 +385,91 @@ def is_sunset_soon(sunset_ts):
 _ANIMATED_STATES = {"rain", "rain_light", "snow", "ice", "storm"}
 
 
+def _find_sensehat_fb():
+    """
+    Return the path of the Sense HAT framebuffer device, or None.
+    The HAT registers as /dev/fb0 or /dev/fb1 depending on Pi OS version.
+    Detection order:
+      1. sysfs 'name' file containing 'sense' or 'RPi-Sense'
+      2. sysfs driver symlink containing 'sense' or 'rpisense'
+      3. Fallback to /dev/fb1 then /dev/fb0
+    """
+    for sysfs in sorted(glob.glob("/sys/class/graphics/fb*")):
+        fb_dev = "/dev/" + os.path.basename(sysfs)
+        # Check human-readable name (e.g. "RPi-Sense HAT")
+        try:
+            with open(sysfs + "/name") as f:
+                if "sense" in f.read().lower():
+                    return fb_dev
+        except OSError:
+            pass
+        # Check driver symlink (e.g. "rpisense-fb")
+        try:
+            driver = os.path.basename(os.readlink(sysfs + "/device/driver"))
+            if "sense" in driver.lower():
+                return fb_dev
+        except OSError:
+            pass
+    # Fallback
+    for fb in ["/dev/fb1", "/dev/fb0"]:
+        if os.path.exists(fb):
+            return fb
+    return None
+
+
+_FB_PATH = None  # resolved once at first render
+
+
 def _render(sense, state, is_day, tick):
-    """Build and push one frame to the Sense HAT."""
+    """
+    Build and push one frame to the Sense HAT.
+
+    Writes directly to the framebuffer device in RGB565 format, bypassing
+    the sense_hat library's internal pixel cache which only sends changed
+    pixels and causes previous pixel colours to bleed into new frames.
+    """
+    global _FB_PATH
+
     brightness = BRIGHTNESS_DAY if is_day else BRIGHTNESS_NIGHT
     frame = get_frame(state, is_day, tick)
     frame = apply_brightness(frame, brightness)
+
+    # ── Build rotated 8×8 grid ────────────────────────────────────────────
+    grid = [frame[y * 8 + x] for y in range(8) for x in range(8)]
+
+    rot = ROTATION % 360
+    if rot == 90:
+        grid = [frame[(7 - x) * 8 + y] for y in range(8) for x in range(8)]
+    elif rot == 180:
+        grid = [frame[(7 - y) * 8 + (7 - x)] for y in range(8) for x in range(8)]
+    elif rot == 270:
+        grid = [frame[x * 8 + (7 - y)] for y in range(8) for x in range(8)]
+
+    # ── Convert to RGB565 ─────────────────────────────────────────────────
+    raw = b"".join(
+        struct.pack("H", ((r & 0xF8) << 8) | ((g & 0xFC) << 3) | (b >> 3))
+        for r, g, b in grid
+    )
+
+    # ── Write to framebuffer ──────────────────────────────────────────────
+    if _FB_PATH is None:
+        _FB_PATH = _find_sensehat_fb()
+        log.info("Sense HAT framebuffer: %s", _FB_PATH)
+
+    if _FB_PATH:
+        try:
+            with open(_FB_PATH, "wb") as fb:
+                fb.write(raw)
+            return
+        except OSError as exc:
+            log.warning("Framebuffer write failed (%s): %s — falling back to set_pixels", _FB_PATH, exc)
+            _FB_PATH = None  # retry detection next time
+
+    # ── Fallback: sense_hat set_pixels ────────────────────────────────────
     try:
-        sense.set_pixels(frame)
+        sense.set_pixels([[r, g, b] for r, g, b in frame])
     except Exception as exc:
-        log.error("set_pixels failed (state=%s tick=%d): %s", state, tick, exc)
+        log.error("set_pixels fallback failed: %s", exc)
 
 
 # ── MAIN LOOP ─────────────────────────────────────────────────────────────────
