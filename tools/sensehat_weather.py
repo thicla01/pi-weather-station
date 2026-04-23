@@ -254,6 +254,30 @@ def _clear_day_frame(sun_row, sun_col):
     return frame
 
 
+def _partly_cloudy_day_frame(sun_row, sun_col):
+    """
+    Blue sky with the dynamic sun at (sun_row, sun_col) and a grey cloud
+    overlaid on the upper portion. The cloud draws on top of the sun, so
+    when the sun is high (rows 0–3) it is partially or fully hidden behind
+    the cloud — just like real partly-cloudy conditions.
+
+    @param sun_row: int  top row of the sun (0–6)
+    @param sun_col: int  left col of the sun (0–6)
+    @returns: list  64-element flat list of RGB tuples
+    """
+    frame = _clear_day_frame(sun_row, sun_col)
+    # Cloud pixels overlaid on top of the sky+sun base
+    cloud_pixels = [
+        (0, 2, CL), (0, 3, CL), (0, 4, CL), (0, 5, CL),
+        (1, 1, CL), (1, 2, CL), (1, 3, CL), (1, 4, CL), (1, 5, CL), (1, 6, CL),
+        (2, 1, CL), (2, 2, CD), (2, 3, CD), (2, 4, CD), (2, 5, CD), (2, 6, CL),
+        (3, 2, CD), (3, 3, CD), (3, 4, CD), (3, 5, CD),
+    ]
+    for r, c, color in cloud_pixels:
+        frame[r * 8 + c] = color
+    return frame
+
+
 def _sunset_frame(sun_row, sun_col):
     """
     Clear day sky + red horizon glow when the sun is low (sun_row >= 4).
@@ -411,7 +435,9 @@ def get_frame(state, is_day, tick, sun_row=0, sun_col=3):
     if state == "overcast":
         return list(FRAME_OVERCAST)
     if state == "partly_cloudy":
-        return list(FRAME_PARTLY_CLOUDY_DAY if is_day else FRAME_PARTLY_CLOUDY_NIGHT)
+        if is_day:
+            return _partly_cloudy_day_frame(sun_row, sun_col)
+        return list(FRAME_PARTLY_CLOUDY_NIGHT)
     if state == "sunset":
         return _sunset_frame(sun_row, sun_col)
     # "clear"
