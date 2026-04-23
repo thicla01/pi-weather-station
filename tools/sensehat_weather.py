@@ -62,7 +62,7 @@ BRIGHTNESS_NIGHT = 0.35  # dimmer at night (avoids glare in the dark)
 SUNSET_WINDOW_SEC = 30 * 60  # 30 minutes
 
 # Duration of each state in test mode (seconds).
-TEST_STATE_DURATION = 3
+TEST_STATE_DURATION = 15
 
 # ──────────────────────────────────────────────────────────────────────────────
 
@@ -331,11 +331,13 @@ def get_frame(state, is_day, tick):
 # ── BRIGHTNESS ────────────────────────────────────────────────────────────────
 
 def apply_brightness(frame, brightness):
-    """Scale all pixel values by a 0.0–1.0 brightness factor."""
-    if brightness >= 1.0:
-        return frame
+    """
+    Scale all pixel values by a 0.0–1.0 brightness factor.
+    Always returns a list of [r, g, b] lists (not tuples) because
+    sense.set_pixels() requires lists in some versions of the library.
+    """
     return [
-        (int(r * brightness), int(g * brightness), int(b * brightness))
+        [int(r * brightness), int(g * brightness), int(b * brightness)]
         for r, g, b in frame
     ]
 
@@ -375,6 +377,19 @@ def is_sunset_soon(sunset_ts):
     return 0 < seconds_to_sunset < SUNSET_WINDOW_SEC
 
 
+# States that require continuous redraws (animation).
+# All other states are static: set_pixels is called only when state changes.
+_ANIMATED_STATES = {"rain", "rain_light", "snow", "ice", "storm"}
+
+
+def _render(sense, state, is_day, tick):
+    """Build and push one frame to the Sense HAT."""
+    brightness = BRIGHTNESS_DAY if is_day else BRIGHTNESS_NIGHT
+    frame = get_frame(state, is_day, tick)
+    frame = apply_brightness(frame, brightness)
+    sense.set_pixels(frame)
+
+
 # ── MAIN LOOP ─────────────────────────────────────────────────────────────────
 
 def run():
@@ -382,11 +397,12 @@ def run():
     sense.set_rotation(ROTATION)
     sense.low_light = False
 
-    base_state = "clear"   # weather-derived state (no sunset override)
-    is_day     = True
-    sunset_ts  = None
-    tick       = 0
-    next_poll  = 0  # 0 forces an immediate fetch on first iteration
+    base_state  = "clear"
+    is_day      = True
+    sunset_ts   = None
+    tick        = 0
+    next_poll   = 0       # 0 forces an immediate fetch on first iteration
+    last_render = None    # (state, is_day) of the last set_pixels call
 
     log.info("Sense HAT display started (rotation=%d°, poll every %ds)", ROTATION, POLL_INTERVAL)
 
@@ -410,19 +426,22 @@ def run():
             next_poll = now + POLL_INTERVAL
 
         # ── Resolve final display state (sunset override on clear days) ───────
-        if base_state == "clear" and is_day and is_sunset_soon(sunset_ts):
-            state = "sunset"
+        state = "sunset" if (base_state == "clear" and is_day and is_sunset_soon(sunset_ts)) \
+                else base_state
+
+        # ── Render ────────────────────────────────────────────────────────────
+        if state in _ANIMATED_STATES:
+            # Animated: redraw every frame to advance the animation.
+            _render(sense, state, is_day, tick)
+            time.sleep(FRAME_DELAY)
+            tick += 1
         else:
-            state = base_state
-
-        # ── Render frame ──────────────────────────────────────────────────────
-        brightness = BRIGHTNESS_DAY if is_day else BRIGHTNESS_NIGHT
-        frame = get_frame(state, is_day, tick)
-        frame = apply_brightness(frame, brightness)
-        sense.set_pixels(frame)
-
-        time.sleep(FRAME_DELAY)
-        tick += 1
+            # Static: only redraw when state or day/night changes, then sleep.
+            render_key = (state, is_day)
+            if render_key != last_render:
+                _render(sense, state, is_day, tick)
+                last_render = render_key
+            time.sleep(FRAME_DELAY)
 
 
 # ── TEST MODE ─────────────────────────────────────────────────────────────────
@@ -438,18 +457,18 @@ def run_test():
     sense.low_light = False
 
     test_states = [
-        ("clear (day)",           "clear",        True),
-        ("sunset",                "sunset",        True),
-        ("clear (night)",         "clear",        False),
-        ("partly cloudy (day)",   "partly_cloudy", True),
+        ("clear (day)",           "clear",         True),
+        ("sunset",                "sunset",         True),
+        ("clear (night)",         "clear",         False),
+        ("partly cloudy (day)",   "partly_cloudy",  True),
         ("partly cloudy (night)", "partly_cloudy", False),
-        ("overcast",              "overcast",      True),
-        ("fog",                   "fog",           True),
-        ("light rain",            "rain_light",    True),
-        ("rain",                  "rain",          True),
-        ("snow",                  "snow",          False),
-        ("ice pellets",           "ice",           True),
-        ("thunderstorm",          "storm",         False),
+        ("overcast",              "overcast",        True),
+        ("fog",                   "fog",             True),
+        ("light rain",            "rain_light",      True),
+        ("rain",                  "rain",            True),
+        ("snow",                  "snow",           False),
+        ("ice pellets",           "ice",             True),
+        ("thunderstorm",          "storm",          False),
     ]
 
     log.info("TEST MODE — cycling %d states × %ds each. Ctrl-C to exit.",
@@ -461,13 +480,17 @@ def run_test():
             for label, state, is_day in test_states:
                 log.info("State: %s", label)
                 deadline = time.time() + TEST_STATE_DURATION
-                while time.time() < deadline:
-                    brightness = BRIGHTNESS_DAY if is_day else BRIGHTNESS_NIGHT
-                    frame = get_frame(state, is_day, tick)
-                    frame = apply_brightness(frame, brightness)
-                    sense.set_pixels(frame)
-                    time.sleep(FRAME_DELAY)
-                    tick += 1
+                # Static states: draw once, then sleep.
+                # Animated states: keep redrawing to show the animation.
+                if state not in _ANIMATED_STATES:
+                    _render(sense, state, is_day, tick)
+                    while time.time() < deadline:
+                        time.sleep(FRAME_DELAY)
+                else:
+                    while time.time() < deadline:
+                        _render(sense, state, is_day, tick)
+                        time.sleep(FRAME_DELAY)
+                        tick += 1
     except KeyboardInterrupt:
         pass
     finally:
