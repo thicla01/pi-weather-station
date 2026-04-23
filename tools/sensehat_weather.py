@@ -205,20 +205,40 @@ def _compute_sun_row(sunrise_ts, sunset_ts):
     return round(6.0 * (1.0 - math.sin(progress * math.pi)))
 
 
+def _sun_color(sun_row):
+    """
+    Interpolate the sun colour from yellow (zenith) to red (horizon).
+
+    sun_row 0 → SUN_YELLOW (255, 200, 0)   noon / high sun
+    sun_row 3 → orange     (~237, 130, 0)  mid-morning / mid-afternoon
+    sun_row 6 → SUNSET_RED (220,  60, 0)   sunrise / sunset horizon
+
+    @param sun_row: int  top row of the sun (0–6)
+    @returns: tuple  (r, g, b)
+    """
+    t = sun_row / 6.0  # 0.0 at zenith → 1.0 at horizon
+    r = round(SUN_YELLOW[0] + t * (SUNSET_RED[0] - SUN_YELLOW[0]))
+    g = round(SUN_YELLOW[1] + t * (SUNSET_RED[1] - SUN_YELLOW[1]))
+    b = round(SUN_YELLOW[2] + t * (SUNSET_RED[2] - SUN_YELLOW[2]))
+    return (r, g, b)
+
+
 def _clear_day_frame(sun_row):
     """
-    Blue sky with a 2×2 yellow sun block at (sun_row, col 6–7).
+    Blue sky with a 2×2 sun block at (sun_row, col 6–7).
+    Sun colour shifts from yellow at noon to orange/red near the horizon.
     sun_row 0 = top of display (noon), sun_row 6 = near bottom (sunrise/sunset).
 
     @param sun_row: int  top row of the sun (0–6)
     @returns: list  64-element flat list of RGB tuples
     """
     frame = [B] * 64
+    color = _sun_color(sun_row)
     for dr in range(2):
         r = sun_row + dr
         if r < 8:
-            frame[r * 8 + 6] = Y
-            frame[r * 8 + 7] = Y
+            frame[r * 8 + 6] = color
+            frame[r * 8 + 7] = color
     return frame
 
 
