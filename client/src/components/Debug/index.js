@@ -47,7 +47,7 @@ const Debug = () => {
   const forceUpdateCheck = useCallback(() => {
     setCheckingUpdate(true);
     axios
-      .post("/api/update-check/force")
+      .get("/api/update-check/force")
       .then((res) => {
         setUpdateAvailable(res.data.updateAvailable ?? false);
         setLatestVersion(res.data.latestVersion ?? null);

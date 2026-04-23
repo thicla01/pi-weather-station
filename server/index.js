@@ -209,7 +209,7 @@ app.get("/api/update-check", apiLimiter, async (req, res) => {
   }
 });
 
-app.post("/api/update-check/force", localhostOnly, async (req, res) => {
+app.all("/api/update-check/force", localhostOnly, async (req, res) => {
   clearUpdateCache();
   try {
     const result = await checkForUpdate();
