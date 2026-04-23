@@ -22,6 +22,7 @@ WorkingDirectory=%h/pi-weather-station
 ExecStart=/bin/bash -lc "npm start"
 Restart=on-failure
 RestartSec=5
+Environment=NODE_ENV=production
 # Environment=ALLOW_REMOTE=true
 # Environment=DEBUG=true
 
