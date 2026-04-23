@@ -1,0 +1,289 @@
+/* UpdateModal — slides up from the bottom, positioned over the InfoPanel */
+.container {
+  position: fixed;
+  bottom: 40px; /* above the ControlButtons bar */
+  right: 0;
+  width: 300px;
+  max-height: calc(100dvh - 40px);
+  z-index: 4999;
+  display: flex;
+  flex-direction: column;
+  font-family: "Rubik", sans-serif;
+  overflow: hidden;
+}
+
+.container-dark {
+  background: #2a2a2a;
+  border: 1px solid #444;
+  border-bottom: none;
+  border-right: none;
+  color: #e2e8f0;
+}
+
+.container-light {
+  background: #f0f4f8;
+  border: 1px solid #ccc;
+  border-bottom: none;
+  border-right: none;
+  color: #1a2a3a;
+}
+
+/* Header */
+.header {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 10px 12px 8px;
+  border-bottom: 1px solid;
+  flex-shrink: 0;
+}
+
+.container-dark .header {
+  border-color: #444;
+}
+
+.container-light .header {
+  border-color: #ccc;
+}
+
+.title {
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  flex-shrink: 0;
+}
+
+.version {
+  font-size: 10px;
+  opacity: 0.6;
+  flex: 1;
+}
+
+.close-button {
+  background: none;
+  border: none;
+  cursor: pointer;
+  font-size: 16px;
+  line-height: 1;
+  padding: 0;
+  opacity: 0.55;
+  transition: opacity 0.15s;
+  flex-shrink: 0;
+}
+
+.close-button:hover {
+  opacity: 1;
+}
+
+.container-dark .close-button {
+  color: #e2e8f0;
+}
+
+.container-light .close-button {
+  color: #1a2a3a;
+}
+
+/* Changelog list */
+.changelog {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+}
+
+.no-changelog {
+  font-size: 10px;
+  opacity: 0.5;
+  font-style: italic;
+  padding: 4px 0;
+}
+
+.commit-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 6px;
+}
+
+.badge {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  padding: 1px 5px;
+  border-radius: 3px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.badge-feat {
+  background: #1d4ed8;
+  color: #fff;
+}
+
+.badge-fix {
+  background: #15803d;
+  color: #fff;
+}
+
+.commit-message {
+  font-size: 10px;
+  line-height: 1.45;
+  opacity: 0.9;
+}
+
+/* Manual command area */
+.cmd-section {
+  padding: 6px 12px;
+  border-top: 1px solid;
+  flex-shrink: 0;
+}
+
+.container-dark .cmd-section {
+  border-color: #444;
+}
+
+.container-light .cmd-section {
+  border-color: #ccc;
+}
+
+.cmd-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.cmd-code {
+  font-family: monospace;
+  font-size: 9px;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  padding: 3px 6px;
+  border-radius: 3px;
+}
+
+.container-dark .cmd-code {
+  background: #111;
+  color: #7dd3a8;
+}
+
+.container-light .cmd-code {
+  background: #dde3ea;
+  color: #1a5c3a;
+}
+
+.copy-button {
+  font-family: "Rubik", sans-serif;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  padding: 2px 7px;
+  border-radius: 3px;
+  border: none;
+  cursor: pointer;
+  flex-shrink: 0;
+  transition: opacity 0.15s;
+}
+
+.container-dark .copy-button {
+  background: #444;
+  color: #e2e8f0;
+}
+
+.container-light .copy-button {
+  background: #ccd3da;
+  color: #1a2a3a;
+}
+
+.copy-button-copied {
+  opacity: 0.6;
+}
+
+.no-systemd-note {
+  font-size: 9px;
+  opacity: 0.55;
+  font-style: italic;
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.no-systemd-cmd {
+  font-family: monospace;
+  font-style: normal;
+  padding: 1px 4px;
+  border-radius: 3px;
+}
+
+.container-dark .no-systemd-cmd {
+  background: #111;
+  color: #7dd3a8;
+}
+
+.container-light .no-systemd-cmd {
+  background: #dde3ea;
+  color: #1a5c3a;
+}
+
+/* Action buttons */
+.actions {
+  display: flex;
+  gap: 6px;
+  padding: 8px 12px;
+  border-top: 1px solid;
+  flex-shrink: 0;
+}
+
+.container-dark .actions {
+  border-color: #444;
+}
+
+.container-light .actions {
+  border-color: #ccc;
+}
+
+.skip-button,
+.update-button {
+  font-family: "Rubik", sans-serif;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.05em;
+  padding: 4px 0;
+  border-radius: 4px;
+  border: none;
+  cursor: pointer;
+  flex: 1;
+  transition: opacity 0.15s;
+}
+
+.skip-button:disabled,
+.update-button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.container-dark .skip-button {
+  background: #3a3a3a;
+  color: #e2e8f0;
+}
+
+.container-light .skip-button {
+  background: #ccd3da;
+  color: #1a2a3a;
+}
+
+.update-button {
+  background: #2563eb;
+  color: #fff;
+}
+
+.update-button-failed {
+  background: #dc2626;
+}
+
+.update-button-stopped {
+  background: #16a34a;
+}

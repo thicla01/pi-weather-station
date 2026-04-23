@@ -120,15 +120,18 @@ const WeatherInfo = () => {
     prevAiExpandedRef.current = aiExpanded;
 
     if (aiExpanded && panelRef.current) {
-      // Expanding: jump to the very top so LocationName is visible.
-      // panelRef is the WeatherInfo root div; its parent is InfoPanel's
-      // weatherInfoContainer — the actual overflow-y:auto scroll container.
-      // We use instant scrollTop (not smooth) so no browser focus-scroll
-      // can interrupt the animation mid-flight.
       const timer = setTimeout(() => {
-        const scrollEl = panelRef.current?.parentElement;
-        if (scrollEl) scrollEl.scrollTop = 0;
-      }, 380); // after CSS transition (350ms)
+        const el     = panelRef.current;
+        const parent = el?.parentElement;
+        console.log("[AI-expand] el class        :", el?.className);
+        console.log("[AI-expand] parent class     :", parent?.className);
+        console.log("[AI-expand] el.scrollTop     :", el?.scrollTop);
+        console.log("[AI-expand] parent.scrollTop :", parent?.scrollTop);
+        if (el)     el.scrollTop     = 0;
+        if (parent) parent.scrollTop = 0;
+        console.log("[AI-expand] after el.scrollTop     :", el?.scrollTop);
+        console.log("[AI-expand] after parent.scrollTop :", parent?.scrollTop);
+      }, 400);
       return () => clearTimeout(timer);
     }
 

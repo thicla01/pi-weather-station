@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect } from "react";
+import React, { createContext, useState, useEffect, useRef, useCallback } from "react";
 import { getSettings } from "~/settings";
 import PropTypes from "prop-types";
 import { getCoordsFromApi } from "~/services/geolocation";
@@ -13,6 +13,7 @@ const CLOCK_UNIT_STORAGE_KEY = "clockTime";
 const MOUSE_HIDE_STORAGE_KEY = "mouseHide";
 const FONT_SIZE_STORAGE_KEY = "fontSize";
 const HIDE_RADAR_LEGEND_STORAGE_KEY = "hideRadarLegend";
+const SKIPPED_SHA_STORAGE_KEY = "skippedSha";
 
 /**
  * App context provider
@@ -62,6 +63,12 @@ export function AppContextProvider({ children }) {
   const [debugMenuOpen, setDebugMenuOpen] = useState(false);
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [latestVersion, setLatestVersion] = useState(null);
+  const [latestSha, setLatestSha] = useState(null);
+  const [updateCommits, setUpdateCommits] = useState([]);
+  const [skippedSha, setSkippedSha] = useState(null);
+  const [updateModalOpen, setUpdateModalOpen] = useState(false);
+  const [updateState, setUpdateState] = useState("idle"); // idle|updating|restarting|stopped|failed
+  const updatePollRef = useRef(null);
   const [serverPlatform, setServerPlatform] = useState(null);
   const [isSystemd, setIsSystemd] = useState(false);
 
@@ -98,6 +105,46 @@ export function AppContextProvider({ children }) {
     setHideRadarLegend(newState);
     window.localStorage.setItem(HIDE_RADAR_LEGEND_STORAGE_KEY, newState);
   }
+
+  /**
+   * Save skipped update SHA so the indicator is suppressed for that version
+   *
+   * @param {string} sha Short commit SHA returned by /api/update-check
+   */
+  function saveSkippedSha(sha) {
+    setSkippedSha(sha);
+    window.localStorage.setItem(SKIPPED_SHA_STORAGE_KEY, sha);
+  }
+
+  /** Poll /api/is-local until the server responds, then reload the page. */
+  const pollUntilReady = useCallback(() => {
+    let attempts = 0;
+    const poll = () => {
+      attempts++;
+      if (attempts > 30) { setUpdateState("failed"); return; }
+      axios.get("/api/is-local")
+        .then(() => window.location.reload())
+        .catch(() => { updatePollRef.current = setTimeout(poll, 2000); });
+    };
+    updatePollRef.current = setTimeout(poll, 3000);
+  }, []);
+
+  /**
+   * Trigger an automatic update via the server API
+   */
+  const triggerUpdate = useCallback(() => {
+    setUpdateState("updating");
+    axios.post("/api/update")
+      .then(() => {
+        if (isSystemd) {
+          setUpdateState("restarting");
+          pollUntilReady();
+        } else {
+          setUpdateState("stopped");
+        }
+      })
+      .catch(() => setUpdateState("failed"));
+  }, [isSystemd, pollUntilReady]);
 
   /**
    * Save clock time
@@ -175,6 +222,8 @@ export function AppContextProvider({ children }) {
       axios.get("/api/update-check").then((res) => {
         setUpdateAvailable(res.data.updateAvailable ?? false);
         setLatestVersion(res.data.latestVersion ?? null);
+        setLatestSha(res.data.latestSha ?? null);
+        setUpdateCommits(res.data.commits ?? []);
         setServerPlatform(res.data.platform ?? null);
         setIsSystemd(res.data.isSystemd ?? false);
       }).catch(() => {
@@ -213,6 +262,9 @@ export function AppContextProvider({ children }) {
       console.log("hideRadarLegend", e);
     }
     setHideRadarLegend(!!hideRadarLegend);
+
+    const savedSkippedSha = window.localStorage.getItem(SKIPPED_SHA_STORAGE_KEY);
+    if (savedSkippedSha) setSkippedSha(savedSkippedSha);
 
     if (temp) {
       setTempUnit(temp);
@@ -686,10 +738,17 @@ export function AppContextProvider({ children }) {
     debugMenuOpen,
     setDebugMenuOpen,
     toggleDebugMenuOpen,
-    updateAvailable,
-    setUpdateAvailable,
+    updateAvailable: updateAvailable && latestSha !== skippedSha,
     latestVersion,
-    setLatestVersion,
+    latestSha,
+    updateCommits,
+    skippedSha,
+    saveSkippedSha,
+    updateModalOpen,
+    setUpdateModalOpen,
+    updateState,
+    setUpdateState,
+    triggerUpdate,
     serverPlatform,
     isSystemd,
   };

@@ -6,6 +6,7 @@ import WeatherMap from "~/components/WeatherMap";
 import InfoPanel from "~/components/InfoPanel";
 import Settings from "~/components/Settings";
 import Debug from "~/components/Debug";
+import UpdateModal from "~/components/UpdateModal";
 
 import "!style-loader!css-loader!./overrides.css";
 
@@ -64,6 +65,7 @@ const App = () => {
           <Settings />
           <Debug />
         </div>
+        <UpdateModal />
         <div
           className={`${styles.weatherMap} map-container ${
             mouseHide ? "map-mouse-hide" : ""

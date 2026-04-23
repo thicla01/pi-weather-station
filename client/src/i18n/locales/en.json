@@ -79,7 +79,12 @@
     "restarting": "Restarting...",
     "done": "Done!",
     "failed": "Failed",
-    "noSystemd": "Then restart the server manually:"
+    "noSystemd": "Then restart the server manually:",
+    "whatsNew": "WHAT'S NEW",
+    "skip": "SKIP THIS VERSION",
+    "noChangelog": "No changelog available for this update.",
+    "feat": "New",
+    "fix": "Fix"
   },
   "radar": {
     "legend": "RADAR",

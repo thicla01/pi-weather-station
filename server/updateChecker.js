@@ -74,12 +74,35 @@ async function checkForUpdate() {
     const latestVersion = pkgRes.data.version;
     const updateAvailable = Boolean(localSha && latestSha !== localSha);
 
+    // Fetch feat/fix commits between current and latest when an update is available
+    let commits = [];
+    if (updateAvailable && localSha) {
+      try {
+        const compareRes = await axios.get(
+          `https://api.github.com/repos/${REPO}/compare/${localSha}...${latestSha}`,
+          { timeout: 10_000, headers: { "User-Agent": "pi-weather-station" } }
+        );
+        commits = compareRes.data.commits
+          .map((c) => {
+            const firstLine = c.commit.message.split("\n")[0];
+            const match = firstLine.match(/^(feat|fix)(?:\(.+?\))?:\s*(.+)/);
+            if (!match) return null;
+            return { type: match[1], message: match[2] };
+          })
+          .filter(Boolean)
+          .reverse(); // most recent first
+      } catch {
+        // non-critical — commits stays empty
+      }
+    }
+
     _cache = {
       updateAvailable,
       latestVersion,
       latestSha: latestSha.slice(0, 7),
       localSha: localSha ? localSha.slice(0, 7) : null,
       checkedAt: new Date().toISOString(),
+      commits,
     };
   } catch {
     // On network error: keep last known result if available, otherwise return no-update

@@ -79,7 +79,12 @@
     "restarting": "Reiniciando...",
     "done": "¡Hecho!",
     "failed": "Error",
-    "noSystemd": "Reinicie el servidor manualmente:"
+    "noSystemd": "Reinicie el servidor manualmente:",
+    "whatsNew": "NOVEDADES",
+    "skip": "IGNORAR ESTA VERSIÓN",
+    "noChangelog": "No hay registro de cambios disponible.",
+    "feat": "Nuevo",
+    "fix": "Corrección"
   },
   "radar": {
     "legend": "RADAR",
