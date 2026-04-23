@@ -244,15 +244,17 @@ def _clear_day_frame(sun_row):
 
 def _sunset_frame(sun_row):
     """
-    Clear day sky with sun near the horizon + 4 red pixels at the very bottom row.
-    The red pixels represent the warm glow on the horizon before sunset.
+    Clear day sky with sun near the horizon + optional red horizon glow.
+    The 4 red pixels at the bottom row appear only when the sun is low
+    (sun_row >= 4), so the glow fades away as the sun climbs higher.
 
     @param sun_row: int  top row of the sun (0–6)
     @returns: list  64-element flat list of RGB tuples
     """
     frame = _clear_day_frame(sun_row)
-    for c in range(2, 6):
-        frame[7 * 8 + c] = R
+    if sun_row >= 4:
+        for c in range(2, 6):
+            frame[7 * 8 + c] = R
     return frame
 
 
