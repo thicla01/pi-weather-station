@@ -66,6 +66,7 @@ const WeatherInfo = () => {
     currentWeatherData,
     updateSunriseSunset,
     fontSize,
+    infoPanelScrollRef,
   } = useContext(AppContext);
 
   const fontSizeZoom = { s: 0.85, m: 1.0, l: 1.15 }[fontSize] || 1.0;
@@ -75,6 +76,7 @@ const WeatherInfo = () => {
   const [aiExpanded, setAiExpanded] = useState(false);
   const aiRef = useRef(null);
   const panelRef = useRef(null); // ref on the WeatherInfo root div
+  const locationRef = useRef(null); // ref on the LocationName wrapper div
   const prevAiExpandedRef = useRef(false);
   const [isSmallScreen, setIsSmallScreen] = useState(
     () => window.matchMedia("(max-height: 520px)").matches
@@ -119,19 +121,14 @@ const WeatherInfo = () => {
     const wasExpanded = prevAiExpandedRef.current;
     prevAiExpandedRef.current = aiExpanded;
 
-    if (aiExpanded && panelRef.current) {
-      const timer = setTimeout(() => {
-        const el     = panelRef.current;
-        const parent = el?.parentElement;
-        console.log("[AI-expand] el class        :", el?.className);
-        console.log("[AI-expand] parent class     :", parent?.className);
-        console.log("[AI-expand] el.scrollTop     :", el?.scrollTop);
-        console.log("[AI-expand] parent.scrollTop :", parent?.scrollTop);
-        if (el)     el.scrollTop     = 0;
-        if (parent) parent.scrollTop = 0;
-        console.log("[AI-expand] after el.scrollTop     :", el?.scrollTop);
-        console.log("[AI-expand] after parent.scrollTop :", parent?.scrollTop);
-      }, 400);
+    if (aiExpanded) {
+      // Scroll the info panel back to top so LocationName is visible.
+      // infoPanelScrollRef is set directly by InfoPanel on the scroll container.
+      // overflow-anchor: none (InfoPanel/styles.css) prevents the browser from
+      // fighting this assignment during the chart collapse transition.
+      const el = infoPanelScrollRef?.current;
+      if (el) el.scrollTop = 0;
+      const timer = setTimeout(() => { if (el) el.scrollTop = 0; }, 380);
       return () => clearTimeout(timer);
     }
 
@@ -153,7 +150,7 @@ const WeatherInfo = () => {
       }, 380);
       return () => clearTimeout(timer);
     }
-  }, [aiExpanded]);
+  }, [aiExpanded]); // eslint-disable-line react-hooks/exhaustive-deps -- infoPanelScrollRef is a stable ref object
 
   const { t } = useTranslation();
 
@@ -240,7 +237,7 @@ const WeatherInfo = () => {
   if (currentWeatherData) {
     return (
       <div className={styles.container} ref={panelRef}>
-        <div className={styles.location}>
+        <div className={styles.location} ref={locationRef}>
           <LocationName />
         </div>
         <div>

@@ -12,7 +12,7 @@ import styles from "./styles.css";
  * @returns {JSX.Element} Info Panel
  */
 const InfoPanel = () => {
-  const { darkMode } = useContext(AppContext);
+  const { darkMode, infoPanelScrollRef } = useContext(AppContext);
   const weatherInfoRef = useDragScroll();
 
   return (
@@ -21,7 +21,7 @@ const InfoPanel = () => {
         <div className={styles.clockContainer}>
           <Clock />
         </div>
-        <div className={styles.weatherInfoContainer} ref={weatherInfoRef}>
+        <div className={styles.weatherInfoContainer} ref={(el) => { weatherInfoRef(el); infoPanelScrollRef.current = el; }}>
           <WeatherInfo />
         </div>
         <div className={styles.controls}>

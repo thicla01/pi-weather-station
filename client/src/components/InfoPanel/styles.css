@@ -29,6 +29,7 @@
 .weather-info-container {
   grid-area: weather-info;
   overflow-y: auto;
+  overflow-anchor: none; /* prevent browser from fighting programmatic scrollTop changes */
   min-height: 0;
   touch-action: pan-y;
 }

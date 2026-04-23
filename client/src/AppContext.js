@@ -69,6 +69,7 @@ export function AppContextProvider({ children }) {
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [updateState, setUpdateState] = useState("idle"); // idle|updating|restarting|stopped|failed
   const updatePollRef = useRef(null);
+  const infoPanelScrollRef = useRef(null); // set by InfoPanel on the scroll container
   const [serverPlatform, setServerPlatform] = useState(null);
   const [isSystemd, setIsSystemd] = useState(false);
 
@@ -755,6 +756,7 @@ export function AppContextProvider({ children }) {
     triggerUpdate,
     serverPlatform,
     isSystemd,
+    infoPanelScrollRef,
   };
 
   return (
