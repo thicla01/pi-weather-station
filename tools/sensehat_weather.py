@@ -24,6 +24,7 @@ Systemd service (managed by install.sh, or manually):
 
 import glob
 import logging
+import math
 import os
 import struct
 import time
@@ -93,7 +94,7 @@ SNOW_FLAKE  = (220, 230, 255)
 STORM_BG    = ( 35,  35,  45)
 LIGHTNING   = (255, 225,   0)
 ICE_BG      = ( 20,  40,  65)
-ICE_PELLET  = (160, 210, 255)
+ICE_PELLET  = ( 80, 200, 255)  # bright cyan — distinct from white snow flakes
 OFF         = (  0,   0,   0)
 
 # Short aliases for the static frame tables below
@@ -113,29 +114,9 @@ X  = STORM_BG
 
 # ── STATIC FRAMES (64-element flat lists of RGB tuples) ───────────────────────
 
-# ☀️  Clear sky — day: solid blue with 2×2 yellow sun in top-right corner
-FRAME_CLEAR_DAY = [
-    B,  B,  B,  B,  B,  B,  Y,  Y,
-    B,  B,  B,  B,  B,  B,  Y,  Y,
-    B,  B,  B,  B,  B,  B,  B,  B,
-    B,  B,  B,  B,  B,  B,  B,  B,
-    B,  B,  B,  B,  B,  B,  B,  B,
-    B,  B,  B,  B,  B,  B,  B,  B,
-    B,  B,  B,  B,  B,  B,  B,  B,
-    B,  B,  B,  B,  B,  B,  B,  B,
-]
-
-# 🌅  Sunset (clear sky, within 30 min of sunset): blue sky + sun + 4 red pixels at bottom
-FRAME_SUNSET = [
-    B,  B,  B,  B,  B,  B,  Y,  Y,
-    B,  B,  B,  B,  B,  B,  Y,  Y,
-    B,  B,  B,  B,  B,  B,  B,  B,
-    B,  B,  B,  B,  B,  B,  B,  B,
-    B,  B,  B,  B,  B,  B,  B,  B,
-    B,  B,  B,  B,  B,  B,  B,  B,
-    B,  B,  B,  B,  B,  B,  B,  B,
-    B,  B,  R,  R,  R,  R,  B,  B,
-]
+# ☀️  Clear sky — day: blue sky with 2×2 yellow sun; position varies by time of day.
+# ☀️  Sunset: same as clear_day but with 4 red pixels at the bottom row (horizon glow).
+# Both are built dynamically by _clear_day_frame() / _sunset_frame() using sun_row.
 
 # 🌙  Clear sky — night: black with scattered warm-white stars
 FRAME_CLEAR_NIGHT = [
@@ -201,6 +182,60 @@ LIGHTNING_BOLT = [
 ]
 
 
+# ── DYNAMIC SUN FRAMES ───────────────────────────────────────────────────────
+
+def _compute_sun_row(sunrise_ts, sunset_ts):
+    """
+    Return the top row (0–6) of the 2×2 sun block based on the current time.
+    The sun follows a sine arc: row 6 at sunrise/sunset, row 0 at solar noon.
+
+    @param sunrise_ts: int|None — Unix timestamp in milliseconds
+    @param sunset_ts:  int|None — Unix timestamp in milliseconds
+    @returns: int  row index 0–6
+    """
+    if sunrise_ts is None or sunset_ts is None:
+        return 1  # default: sun near top when no data
+    now_ms    = time.time() * 1000
+    total_ms  = sunset_ts - sunrise_ts
+    if total_ms <= 0:
+        return 1
+    # progress: 0.0 at sunrise, 0.5 at solar noon, 1.0 at sunset
+    progress = max(0.0, min(1.0, (now_ms - sunrise_ts) / total_ms))
+    # sin arc: 0 at progress=0/1 (horizon), 1 at progress=0.5 (zenith)
+    return round(6.0 * (1.0 - math.sin(progress * math.pi)))
+
+
+def _clear_day_frame(sun_row):
+    """
+    Blue sky with a 2×2 yellow sun block at (sun_row, col 6–7).
+    sun_row 0 = top of display (noon), sun_row 6 = near bottom (sunrise/sunset).
+
+    @param sun_row: int  top row of the sun (0–6)
+    @returns: list  64-element flat list of RGB tuples
+    """
+    frame = [B] * 64
+    for dr in range(2):
+        r = sun_row + dr
+        if r < 8:
+            frame[r * 8 + 6] = Y
+            frame[r * 8 + 7] = Y
+    return frame
+
+
+def _sunset_frame(sun_row):
+    """
+    Clear day sky with sun near the horizon + 4 red pixels at the very bottom row.
+    The red pixels represent the warm glow on the horizon before sunset.
+
+    @param sun_row: int  top row of the sun (0–6)
+    @returns: list  64-element flat list of RGB tuples
+    """
+    frame = _clear_day_frame(sun_row)
+    for c in range(2, 6):
+        frame[7 * 8 + c] = R
+    return frame
+
+
 # ── ANIMATED FRAME BUILDERS ───────────────────────────────────────────────────
 
 # Rain drop column definitions: (col, phase_offset, drop_length)
@@ -213,7 +248,8 @@ _RAIN_DROPS = [
 _SNOW_FLAKES = [(0, 0), (2, 5), (4, 2), (6, 8), (1, 3), (5, 7), (7, 1)]
 
 # Ice pellet column definitions: (col, phase_offset)
-_ICE_PELLETS = [(1, 0), (3, 3), (5, 6), (7, 1), (0, 4)]
+# Fewer columns than rain/snow because each pellet is 2 pixels wide.
+_ICE_PELLETS = [(0, 0), (3, 4), (5, 2), (1, 6)]
 
 
 def _rain_frame(tick, light=False):
@@ -253,13 +289,20 @@ def _storm_frame(tick):
 
 
 def _ice_frame(tick):
-    """Freezing rain / ice pellets: pale-blue drops on dark background."""
+    """
+    Freezing rain / ice pellets: bright-cyan 2-pixel-wide drops on dark background.
+    Wider and a different colour than snow flakes (white single-pixel on grey).
+    Falls at full tick speed — faster than snow (tick // 2).
+    """
     grid = [ICE_BG] * 64
-    period = 10
+    period = 8  # shorter than snow for a faster, harder fall
     for col, offset in _ICE_PELLETS:
         row = (tick + offset) % period
         if 0 <= row < 8:
             grid[row * 8 + col] = ICE_PELLET
+            # 2-pixel-wide pellet — suggests a hard, round ice pellet vs a soft flake
+            if col + 1 < 8:
+                grid[row * 8 + col + 1] = ICE_PELLET
     return grid
 
 
@@ -309,8 +352,16 @@ def classify(weather_code, cloud_cover):
     return "clear"
 
 
-def get_frame(state, is_day, tick):
-    """Return the 64-element RGB pixel list for the current animation frame."""
+def get_frame(state, is_day, tick, sun_row=0):
+    """
+    Return the 64-element RGB pixel list for the current animation frame.
+
+    @param state:   str  display state (e.g. 'clear', 'rain', 'storm')
+    @param is_day:  bool true between sunrise and sunset
+    @param tick:    int  animation frame counter
+    @param sun_row: int  top row of the sun (0=top/noon … 6=bottom/horizon)
+    @returns: list  64-element flat list of RGB tuples
+    """
     if state == "storm":
         return _storm_frame(tick)
     if state == "ice":
@@ -326,9 +377,11 @@ def get_frame(state, is_day, tick):
     if state == "partly_cloudy":
         return list(FRAME_PARTLY_CLOUDY_DAY if is_day else FRAME_PARTLY_CLOUDY_NIGHT)
     if state == "sunset":
-        return list(FRAME_SUNSET)
+        return _sunset_frame(sun_row)
     # "clear"
-    return list(FRAME_CLEAR_DAY if is_day else FRAME_CLEAR_NIGHT)
+    if is_day:
+        return _clear_day_frame(sun_row)
+    return list(FRAME_CLEAR_NIGHT)
 
 
 # ── BRIGHTNESS ────────────────────────────────────────────────────────────────
@@ -420,18 +473,24 @@ def _find_sensehat_fb():
 _FB_PATH = None  # resolved once at first render
 
 
-def _render(sense, state, is_day, tick):
+def _render(sense, state, is_day, tick, sun_row=0):
     """
     Build and push one frame to the Sense HAT.
 
     Writes directly to the framebuffer device in RGB565 format, bypassing
     the sense_hat library's internal pixel cache which only sends changed
     pixels and causes previous pixel colours to bleed into new frames.
+
+    @param sense:   SenseHat instance (fallback only)
+    @param state:   str  display state
+    @param is_day:  bool true between sunrise and sunset
+    @param tick:    int  animation frame counter
+    @param sun_row: int  top row of the sun block (0=noon … 6=horizon)
     """
     global _FB_PATH
 
     brightness = BRIGHTNESS_DAY if is_day else BRIGHTNESS_NIGHT
-    frame = get_frame(state, is_day, tick)
+    frame = get_frame(state, is_day, tick, sun_row)
     frame = apply_brightness(frame, brightness)
 
     # ── Build rotated 8×8 grid ────────────────────────────────────────────
@@ -481,10 +540,11 @@ def run():
 
     base_state  = "clear"
     is_day      = True
+    sunrise_ts  = None
     sunset_ts   = None
     tick        = 0
     next_poll   = 0       # 0 forces an immediate fetch on first iteration
-    last_render = None    # (state, is_day) of the last set_pixels call
+    last_render = None    # (state, is_day, sun_row) of the last rendered frame
 
     log.info("Sense HAT display started (rotation=%d°, poll every %ds)", ROTATION, POLL_INTERVAL)
 
@@ -497,6 +557,7 @@ def run():
             if data:
                 base_state = classify(data.get("weatherCode"), data.get("cloudCover", 0))
                 is_day     = data.get("isDay", True)
+                sunrise_ts = data.get("sunriseTs")
                 sunset_ts  = data.get("sunsetTs")
                 log.info(
                     "Updated — code=%s state=%s isDay=%s temp=%s°C",
@@ -511,17 +572,21 @@ def run():
         state = "sunset" if (base_state == "clear" and is_day and is_sunset_soon(sunset_ts)) \
                 else base_state
 
+        # ── Sun position (arc from horizon at sunrise → zenith at noon → horizon) ──
+        sun_row = _compute_sun_row(sunrise_ts, sunset_ts) if is_day else 0
+
         # ── Render ────────────────────────────────────────────────────────────
         if state in _ANIMATED_STATES:
             # Animated: redraw every frame to advance the animation.
-            _render(sense, state, is_day, tick)
+            _render(sense, state, is_day, tick, sun_row)
             time.sleep(FRAME_DELAY)
             tick += 1
         else:
-            # Static: only redraw when state or day/night changes, then sleep.
-            render_key = (state, is_day)
+            # Static: redraw when state, day/night, or sun position changes.
+            # sun_row is included so the display updates as the sun moves.
+            render_key = (state, is_day, sun_row)
             if render_key != last_render:
-                _render(sense, state, is_day, tick)
+                _render(sense, state, is_day, tick, sun_row)
                 last_render = render_key
             time.sleep(FRAME_DELAY)
 
@@ -561,17 +626,26 @@ def run_test():
         while True:
             for label, state, is_day in test_states:
                 log.info("State: %s", label)
-                deadline = time.time() + TEST_STATE_DURATION
-                # Static states: draw once, then sleep.
-                # Animated states: keep redrawing to show the animation.
+                deadline   = time.time() + TEST_STATE_DURATION
+                state_start = time.time()
                 sense.clear()
-                if state not in _ANIMATED_STATES:
-                    _render(sense, state, is_day, tick)
+                # For clear/sunset states: animate the sun arc over the test duration
+                # so the viewer can see the sun move up and down.
+                if state in ("clear", "sunset") and is_day:
+                    while time.time() < deadline:
+                        elapsed  = time.time() - state_start
+                        progress = min(1.0, elapsed / TEST_STATE_DURATION)
+                        sun_row  = round(6.0 * (1.0 - math.sin(progress * math.pi)))
+                        _render(sense, state, is_day, tick, sun_row)
+                        time.sleep(FRAME_DELAY)
+                        tick += 1
+                elif state not in _ANIMATED_STATES:
+                    _render(sense, state, is_day, tick, 0)
                     while time.time() < deadline:
                         time.sleep(FRAME_DELAY)
                 else:
                     while time.time() < deadline:
-                        _render(sense, state, is_day, tick)
+                        _render(sense, state, is_day, tick, 0)
                         time.sleep(FRAME_DELAY)
                         tick += 1
     except KeyboardInterrupt:
