@@ -18,6 +18,7 @@ const { weatherCache }    = require("./proxyCtrl");
 
 const API_TIMEOUT_MS   = 10_000;
 const SUN_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+const GEO_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
 const LOCAL_HTTPS_PORT = 8443;
 
 /** Reusable HTTPS agent for internal localhost calls (self-signed cert). */
@@ -27,6 +28,10 @@ const _localAgent = new https.Agent({ rejectUnauthorized: false });
 let _sunCache    = null;
 let _sunCacheKey = null;
 let _sunExpiry   = 0;
+
+/** In-process ipapi.co geolocation cache — used when settings has no coordinates. */
+let _geoCache   = null; // { lat, lon }
+let _geoExpiry  = 0;
 
 /**
  * Read current weather from the shared in-memory weatherCache.
@@ -78,13 +83,26 @@ async function getSenseHatData(req, res) {
     return res.status(500).json({ error: "Could not read settings" });
   }
 
-  const lat = settings.startingLat;
-  const lon = settings.startingLon;
+  let lat = settings.startingLat;
+  let lon = settings.startingLon;
 
+  // ── Fallback to IP-based geolocation when no location is configured ──────
   if (lat == null || lon == null) {
-    return res.status(503).json({
-      error: "No location configured — set startingLat/startingLon in Settings",
-    });
+    if (_geoCache && Date.now() < _geoExpiry) {
+      ({ lat, lon } = _geoCache);
+    } else {
+      try {
+        const r = await axios.get("https://ipapi.co/json/", { timeout: API_TIMEOUT_MS });
+        lat = r.data.latitude;
+        lon = r.data.longitude;
+        _geoCache  = { lat, lon };
+        _geoExpiry = Date.now() + GEO_CACHE_TTL_MS;
+      } catch {
+        return res.status(503).json({
+          error: "No location configured and IP geolocation failed — set startingLat/startingLon in Settings",
+        });
+      }
+    }
   }
 
   // ── 2. Current weather (shared cache → local HTTPS fallback) ─────────────
