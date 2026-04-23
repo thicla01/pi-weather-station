@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.2.8] - 2026-04-23
+
+### Added
+- **Sense HAT display** (`tools/sensehat_weather.py`) — Python script for Raspberry Pi with Sense HAT 8×8 RGB LED matrix. Displays animated weather states: clear day/night, partly cloudy day/night, overcast, fog, light rain, rain, snow, ice pellets, and thunderstorm. Brightness is automatically reduced at night. Polls `/api/sensehat` every 10 minutes; animates at ~8 fps between polls.
+- **`GET /api/sensehat`** — new server endpoint returning a lightweight JSON payload (`weatherCode`, `precipitationType`, `cloudCover`, `temperature`, `isDay`) for the display script. Reads the configured location from `settings.json`, pulls current weather from the shared server-side cache (no extra Tomorrow.io quota), and computes day/night from sunrise-sunset.org (1-hour in-process cache).
+- **`deploy/pi-sensehat.service`** — systemd user service file for the Sense HAT display script. Starts after `pi-weather-server.service`; auto-restarts on failure.
+
+---
+
 ## [2.2.7] - 2026-04-23
 
 ### Changed

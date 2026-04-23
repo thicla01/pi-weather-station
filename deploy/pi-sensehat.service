@@ -1,0 +1,20 @@
+[Unit]
+Description=Pi Weather Station — Sense HAT Display
+# Start after the weather server is up and the network is available.
+After=network-online.target pi-weather-server.service
+Wants=network-online.target
+# Do not fail if pi-weather-server is not installed (e.g. on a standalone Pi).
+# Remove the line below if both services are always on the same machine.
+PartOf=pi-weather-server.service
+
+[Service]
+Type=simple
+WorkingDirectory=%h/pi-weather-station
+ExecStart=/usr/bin/python3 %h/pi-weather-station/tools/sensehat_weather.py
+Restart=on-failure
+RestartSec=15
+# Flush Python print/log output immediately (no buffering).
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+WantedBy=default.target

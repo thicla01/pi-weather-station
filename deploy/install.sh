@@ -243,6 +243,29 @@ else
     KIOSK_MODE="no"
 fi
 
+# --- 2d. Sense HAT (Linux/Pi only) ---
+SENSEHAT_MODE="no"
+if [[ "$PLATFORM" != "Darwin" ]]; then
+    echo ""
+    echo ">> Sense HAT..."
+    read -p "   Is a Sense HAT attached and dedicated to this weather station? (y/N) " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        echo ""
+        echo "   WARNING: pi-weather-station will take exclusive control of the"
+        echo "   Sense HAT LED matrix. Any other program writing to the HAT"
+        echo "   (clock display, demos, etc.) must be disabled first to avoid"
+        echo "   display conflicts."
+        echo ""
+        echo "   Tip: check for conflicting services with:"
+        echo "     systemctl --user list-units | grep -iE 'sense|hat'"
+        echo ""
+        read -p "   Install Sense HAT LED weather display? (Y/n) " -n 1 -r
+        echo
+        SENSEHAT_MODE=$([[ -z "$REPLY" || $REPLY =~ ^[Yy]$ ]] && echo "yes" || echo "no")
+    fi
+fi
+
 # --- 3. Node.js dependencies ---
 AUDIT_LOG="$REPO_DIR/npm-audit.log"
 { echo "Pi Weather Station — npm audit report"; echo "Generated: $(date)"; } > "$AUDIT_LOG"
@@ -364,7 +387,23 @@ EOF
     echo ">> Service pi-weather-server enabled and started."
     echo ">> Server logs available at: tail -f /tmp/weather-server.log"
 
-    # --- 4b. Log rotation (Linux only) ---
+    # --- 4b. Sense HAT display service (Linux only) ---
+    if [ "$SENSEHAT_MODE" = "yes" ]; then
+        echo ""
+        echo ">> Installing Sense HAT display service..."
+        if ! python3 -c "import sense_hat" 2>/dev/null; then
+            echo "   sense-hat Python package not found — installing..."
+            sudo apt-get install -y sense-hat
+        fi
+        cp "$REPO_DIR/deploy/pi-sensehat.service" ~/.config/systemd/user/
+        systemctl --user daemon-reload
+        systemctl --user enable pi-sensehat
+        systemctl --user start pi-sensehat
+        echo ">> Service pi-sensehat enabled and started."
+        echo ">> Sense HAT logs: journalctl --user -u pi-sensehat -f"
+    fi
+
+    # --- 4c. Log rotation (Linux only) ---
     echo ""
     echo ">> Configuring log rotation..."
     sudo cp "$REPO_DIR/deploy/logrotate-weather-server" /etc/logrotate.d/weather-server

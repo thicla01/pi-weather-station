@@ -22,6 +22,7 @@ const geolocationCtrl = require("./geolocationCtrl");
 const proxyCtrl = require("./proxyCtrl");
 const debugCtrl = require("./debugCtrl");
 const aiSummaryCtrl = require("./aiSummaryCtrl");
+const { getSenseHatData } = require("./sensehatCtrl");
 
 const {
   getSettings,
@@ -195,6 +196,7 @@ app.get("/api/weather/daily", apiLimiter, weatherDaily);
 app.get("/api/sunrise-sunset", apiLimiter, sunriseSunset);
 
 app.get("/api/weather-summary", apiLimiter, getWeatherSummary);
+app.get("/api/sensehat",        apiLimiter, getSenseHatData);
 
 app.get("/api/update-check", apiLimiter, async (req, res) => {
   try {

@@ -179,6 +179,37 @@ Summaries are cached 15 minutes server-side. The second paragraph adapts to the 
 
 ---
 
+## Sense HAT Display
+
+### `GET /api/sensehat`
+Lightweight aggregated weather state intended for the Sense HAT 8×8 LED matrix display script (`tools/sensehat_weather.py`). Pulls current weather from the shared server-side cache (no extra Tomorrow.io quota) and computes day/night from sunrise/sunset.org (cached 1 hour in-process).
+
+Returns HTTP 503 if no location is configured in `settings.json` (`startingLat` / `startingLon` required).
+
+- **Access:** 🌐 Public — rate limited (120 req/min)
+- **Query params:** none (location read from `settings.json`)
+- **Response:**
+
+```json
+{
+  "weatherCode":       1101,
+  "precipitationType": 0,
+  "cloudCover":        45,
+  "temperature":       14.2,
+  "isDay":             true
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `weatherCode` | integer \| null | Tomorrow.io weather code (1000 = clear, 4001 = rain, 5000 = snow, 8000 = storm, …) |
+| `precipitationType` | integer | 0 = none, 1 = rain, 2 = snow, 3 = freezing rain, 4 = ice pellets |
+| `cloudCover` | integer | 0–100 % |
+| `temperature` | float \| null | °C |
+| `isDay` | boolean | `true` between sunrise and sunset (hour-based fallback if sunrise-sunset.org unavailable) |
+
+---
+
 ## Update
 
 ### `GET /api/update-check`
