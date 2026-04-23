@@ -57,6 +57,23 @@ A service worker caching the last known weather data and the compiled bundle wou
 
 ---
 
+## Maintenance & Deployment
+
+### 🔧 Detect systemd service file changes during update
+When `deploy/pi-weather-server.service` is modified between releases, the one-click update (`git pull` + service restart) is not sufficient — the user must also copy the new file to `~/.config/systemd/user/` and run `systemctl --user daemon-reload`. The UpdateModal has no way to signal this today.
+
+A practical improvement would be to compare the SHA of `deploy/pi-weather-server.service` at the local commit vs the latest release commit, and display a warning in the UpdateModal when they differ:
+
+> ⚠️ The systemd service file has changed. After updating, run:
+> ```
+> cp deploy/pi-weather-server.service ~/.config/systemd/user/
+> systemctl --user daemon-reload
+> ```
+
+**Impact:** low (edge case, rare releases touch the service file) — **Complexity:** low (git diff on a single file via the GitHub API)
+
+---
+
 ## Technical debt
 
 These are known weaknesses in the current codebase that do not affect functionality today but will slow down development or increase the risk of regressions if left unaddressed as the project grows.
@@ -95,4 +112,4 @@ The three items I would prioritize above all others if returning to this project
 
 ---
 
-*Last updated: 2026-04-21*
+*Last updated: 2026-04-23*
