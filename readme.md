@@ -1,11 +1,17 @@
 
 # Pi Weather Station
 
-This is a weather station designed to be used with a Raspberry Pi on the official 7" 800x480 touchscreen.
+A full-stack weather display application originally designed for the Raspberry Pi 7" touchscreen, and confirmed to run on any modern Linux system (Debian, Ubuntu) or macOS.
+
+| Platform | Systemd service | Kiosk mode |
+|---|---|---|
+| Raspberry Pi OS (Bullseye / Bookworm / Trixie) | ✅ | ✅ Chromium |
+| Debian / Ubuntu | ✅ | optional |
+| macOS | ❌ (`npm start`) | — |
 
 ![pws-screenshot3](https://user-images.githubusercontent.com/15202038/91359998-4625bb80-e7bb-11ea-937e-c87eede41f35.JPG)
 
-The weather station will require you to have API keys from [Mapbox](https://www.mapbox.com/) and [Tomorrow.io](https://www.tomorrow.io/). Optionally, you can use an API key from [LocationIQ](https://locationiq.com/) to perform reverse geocoding, and an [Anthropic](https://console.anthropic.com/) API key for AI-generated weather summaries powered by Claude. All API keys are kept server-side: they never appear in client-side request URLs, and remote clients only receive a masked response (boolean) from `GET /settings` — the actual key values are only accessible from the Pi itself.
+The weather station will require you to have API keys from [Mapbox](https://www.mapbox.com/) and [Tomorrow.io](https://www.tomorrow.io/). Optionally, you can use an API key from [LocationIQ](https://locationiq.com/) to perform reverse geocoding, and an [Anthropic](https://console.anthropic.com/) API key for AI-generated weather summaries powered by Claude. All API keys are kept server-side: they never appear in client-side request URLs, and remote clients only receive a masked response (boolean) from `GET /settings` — the actual key values are only accessible from the host itself.
 
 Weather maps are provided by the [RainViewer](https://www.rainviewer.com/) API, which generously does not require an [API key](https://www.rainviewer.com/api.html).
 
