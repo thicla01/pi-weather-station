@@ -275,6 +275,10 @@ def _partly_cloudy_day_frame(sun_row, sun_col):
     ]
     for r, c, color in cloud_pixels:
         frame[r * 8 + c] = color
+    # Horizon glow when sun is low — same behaviour as sunset frame
+    if sun_row >= 4:
+        for c in range(max(0, sun_col - 1), min(8, sun_col + 3)):
+            frame[7 * 8 + c] = R
     return frame
 
 
