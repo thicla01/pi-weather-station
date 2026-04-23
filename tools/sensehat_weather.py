@@ -58,6 +58,12 @@ ROTATION = 180
 BRIGHTNESS_DAY   = 1.0   # LED brightness 0.0–1.0 (daytime)
 BRIGHTNESS_NIGHT = 0.35  # dimmer at night (avoids glare in the dark)
 
+# Time window before sunset during which the sunset frame is shown (seconds).
+SUNSET_WINDOW_SEC = 30 * 60  # 30 minutes
+
+# Duration of each state in test mode (seconds).
+TEST_STATE_DURATION = 3
+
 # ──────────────────────────────────────────────────────────────────────────────
 
 # Suppress InsecureRequestWarning for the self-signed localhost certificate.
@@ -68,6 +74,7 @@ urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 SKY_BLUE    = (  0, 100, 200)
 SUN_YELLOW  = (255, 200,   0)
+SUNSET_RED  = (220,  60,   0)
 NIGHT_SKY   = (  0,   0,  25)
 STAR_WHITE  = (240, 240, 200)
 CLOUD_LIGHT = (160, 160, 165)
@@ -89,6 +96,7 @@ OFF         = (  0,   0,   0)
 # Short aliases for the static frame tables below
 B  = SKY_BLUE
 Y  = SUN_YELLOW
+R  = SUNSET_RED
 N  = NIGHT_SKY
 S  = STAR_WHITE
 CL = CLOUD_LIGHT
@@ -112,6 +120,18 @@ FRAME_CLEAR_DAY = [
     B,  B,  B,  B,  B,  B,  B,  B,
     B,  B,  B,  B,  B,  B,  B,  B,
     B,  B,  B,  B,  B,  B,  B,  B,
+]
+
+# 🌅  Sunset (clear sky, within 30 min of sunset): blue sky + sun + 4 red pixels at bottom
+FRAME_SUNSET = [
+    B,  B,  B,  B,  B,  B,  Y,  Y,
+    B,  B,  B,  B,  B,  B,  Y,  Y,
+    B,  B,  B,  B,  B,  B,  B,  B,
+    B,  B,  B,  B,  B,  B,  B,  B,
+    B,  B,  B,  B,  B,  B,  B,  B,
+    B,  B,  B,  B,  B,  B,  B,  B,
+    B,  B,  B,  B,  B,  B,  B,  B,
+    B,  B,  R,  R,  R,  R,  B,  B,
 ]
 
 # 🌙  Clear sky — night: black with scattered warm-white stars
@@ -302,6 +322,8 @@ def get_frame(state, is_day, tick):
         return list(FRAME_OVERCAST)
     if state == "partly_cloudy":
         return list(FRAME_PARTLY_CLOUDY_DAY if is_day else FRAME_PARTLY_CLOUDY_NIGHT)
+    if state == "sunset":
+        return list(FRAME_SUNSET)
     # "clear"
     return list(FRAME_CLEAR_DAY if is_day else FRAME_CLEAR_NIGHT)
 
@@ -338,6 +360,21 @@ def fetch_weather():
         return None
 
 
+# ── SUNSET DETECTION ─────────────────────────────────────────────────────────
+
+def is_sunset_soon(sunset_ts):
+    """
+    Return True if sunset_ts (Unix ms) is within SUNSET_WINDOW_SEC from now.
+
+    @param sunset_ts: int|None — Unix timestamp in milliseconds from /api/sensehat
+    @returns: bool
+    """
+    if sunset_ts is None:
+        return False
+    seconds_to_sunset = sunset_ts / 1000 - time.time()
+    return 0 < seconds_to_sunset < SUNSET_WINDOW_SEC
+
+
 # ── MAIN LOOP ─────────────────────────────────────────────────────────────────
 
 def run():
@@ -345,10 +382,11 @@ def run():
     sense.set_rotation(ROTATION)
     sense.low_light = False
 
-    state    = "clear"
-    is_day   = True
-    tick     = 0
-    next_poll = 0  # 0 forces an immediate fetch on first iteration
+    base_state = "clear"   # weather-derived state (no sunset override)
+    is_day     = True
+    sunset_ts  = None
+    tick       = 0
+    next_poll  = 0  # 0 forces an immediate fetch on first iteration
 
     log.info("Sense HAT display started (rotation=%d°, poll every %ds)", ROTATION, POLL_INTERVAL)
 
@@ -359,16 +397,23 @@ def run():
         if now >= next_poll:
             data = fetch_weather()
             if data:
-                state  = classify(data.get("weatherCode"), data.get("cloudCover", 0))
-                is_day = data.get("isDay", True)
+                base_state = classify(data.get("weatherCode"), data.get("cloudCover", 0))
+                is_day     = data.get("isDay", True)
+                sunset_ts  = data.get("sunsetTs")
                 log.info(
                     "Updated — code=%s state=%s isDay=%s temp=%s°C",
-                    data.get("weatherCode"), state, is_day,
+                    data.get("weatherCode"), base_state, is_day,
                     f"{data['temperature']:.1f}" if data.get("temperature") is not None else "?",
                 )
             else:
-                log.warning("Fetch failed — keeping previous state: %s", state)
+                log.warning("Fetch failed — keeping previous state: %s", base_state)
             next_poll = now + POLL_INTERVAL
+
+        # ── Resolve final display state (sunset override on clear days) ───────
+        if base_state == "clear" and is_day and is_sunset_soon(sunset_ts):
+            state = "sunset"
+        else:
+            state = base_state
 
         # ── Render frame ──────────────────────────────────────────────────────
         brightness = BRIGHTNESS_DAY if is_day else BRIGHTNESS_NIGHT
@@ -380,9 +425,70 @@ def run():
         tick += 1
 
 
-if __name__ == "__main__":
+# ── TEST MODE ─────────────────────────────────────────────────────────────────
+
+def run_test():
+    """
+    Cycle through all display states for TEST_STATE_DURATION seconds each.
+    Useful for verifying colours, animations and rotation without waiting
+    for real weather changes.  Run with: python3 sensehat_weather.py --test
+    """
+    sense = SenseHat()
+    sense.set_rotation(ROTATION)
+    sense.low_light = False
+
+    test_states = [
+        ("clear (day)",           "clear",        True),
+        ("sunset",                "sunset",        True),
+        ("clear (night)",         "clear",        False),
+        ("partly cloudy (day)",   "partly_cloudy", True),
+        ("partly cloudy (night)", "partly_cloudy", False),
+        ("overcast",              "overcast",      True),
+        ("fog",                   "fog",           True),
+        ("light rain",            "rain_light",    True),
+        ("rain",                  "rain",          True),
+        ("snow",                  "snow",          False),
+        ("ice pellets",           "ice",           True),
+        ("thunderstorm",          "storm",         False),
+    ]
+
+    log.info("TEST MODE — cycling %d states × %ds each. Ctrl-C to exit.",
+             len(test_states), TEST_STATE_DURATION)
+
+    tick = 0
     try:
-        run()
+        while True:
+            for label, state, is_day in test_states:
+                log.info("State: %s", label)
+                deadline = time.time() + TEST_STATE_DURATION
+                while time.time() < deadline:
+                    brightness = BRIGHTNESS_DAY if is_day else BRIGHTNESS_NIGHT
+                    frame = get_frame(state, is_day, tick)
+                    frame = apply_brightness(frame, brightness)
+                    sense.set_pixels(frame)
+                    time.sleep(FRAME_DELAY)
+                    tick += 1
+    except KeyboardInterrupt:
+        pass
+    finally:
+        sense.clear()
+        log.info("Test mode ended — display cleared")
+
+
+if __name__ == "__main__":
+    import argparse
+    parser = argparse.ArgumentParser(description="Pi Weather Station — Sense HAT display")
+    parser.add_argument(
+        "--test", action="store_true",
+        help="Cycle through all display states for testing"
+    )
+    args = parser.parse_args()
+
+    try:
+        if args.test:
+            run_test()
+        else:
+            run()
     except KeyboardInterrupt:
         log.info("Interrupted — clearing display")
         SenseHat().clear()

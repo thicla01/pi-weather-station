@@ -129,12 +129,17 @@ async function getSenseHatData(req, res) {
     ? _computeIsDay(sunData.results.sunrise, sunData.results.sunset)
     : (new Date().getHours() >= 6 && new Date().getHours() < 20);
 
+  const sunriseTs = sunData?.results?.sunrise ? new Date(sunData.results.sunrise).getTime() : null;
+  const sunsetTs  = sunData?.results?.sunset  ? new Date(sunData.results.sunset).getTime()  : null;
+
   return res.json({
     weatherCode:       values.weatherCode       ?? null,
     precipitationType: values.precipitationType ?? 0,
     cloudCover:        values.cloudCover        ?? 0,
     temperature:       values.temperature       ?? null,
     isDay,
+    sunriseTs,
+    sunsetTs,
   });
 }
 
