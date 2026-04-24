@@ -23,6 +23,35 @@ See it in action [here](https://www.youtube.com/watch?v=dvM6cyqYSw8).
 
 > Be mindful of the plan limits for your API keys and understand the terms of each provider, as scrolling around the map and selecting different locations will incur API calls for every location. Additionally, the weather station will periodically make additional API calls to get weather updates throughout the day. All weather (Tomorrow.io), map tile (Mapbox), and reverse geocoding (LocationIQ) calls are proxied through the server — multiple browser clients share the same quota rather than each consuming it independently. Weather responses are cached server-side, further reducing API usage.
 
+# v2.3.0 — 2026-04-23
+
+Sense HAT: animated sun arc, colour shift, and east-to-west movement.
+
+- **Animated sun arc** — The 2×2 sun block on the Sense HAT now travels a realistic arc throughout the day: rising from the east (bottom-left), climbing to the zenith at solar noon (top-centre), and setting in the west (bottom-right). Vertical position follows a sine curve; horizontal position drifts linearly east→west.
+- **Sun colour shift** — The sun pixels interpolate from yellow at noon to orange at mid-morning/afternoon to red near the horizon, reversing symmetrically at sunrise.
+- **Dynamic horizon glow** — The 4 red sunset pixels appear only when the sun is in the lower third of the display and follow its horizontal position. They disappear as the sun climbs higher, so the glow is never shown at midday.
+- **Sun visible in partly cloudy state** — The partly cloudy day frame now includes the dynamic sun below (or partially behind) the cloud.
+- **Direct framebuffer write** — The display script now writes raw RGB565 bytes directly to `/dev/fb0` or `/dev/fb1`, bypassing the `sense_hat` library's differential pixel cache which caused colour bleed-through between states.
+- **IP geolocation fallback** — `GET /api/sensehat` now falls back to ipapi.co when no custom coordinates are configured in `settings.json`, matching the behaviour of the main client.
+- **Touchscreen fix (Trixie)** — Switching the official Raspberry Pi 7" touchscreen from Mouse Emulation to Multitouch mode (Control Centre → Screens → DSI-1 → Touchscreen) fixes imprecise tapping, panel scrolling, and pinch-to-zoom. See `docs/troubleshooting-touchscreen.md`.
+
+# v2.2.8 — 2026-04-23
+
+New feature: Sense HAT 8×8 LED weather display.
+
+- **Sense HAT display** (`tools/sensehat_weather.py`) — Python script for Raspberry Pi with a Sense HAT attached. Displays animated weather states on the 8×8 RGB LED matrix: clear day/night, partly cloudy day/night, overcast, fog, light rain, rain, snow, ice pellets, and thunderstorm. Brightness is automatically reduced at night.
+- **`GET /api/sensehat`** — new server endpoint returning a lightweight JSON payload for the display script (`weatherCode`, `cloudCover`, `temperature`, `isDay`, `sunriseTs`, `sunsetTs`). Reads location from `settings.json`, pulls current weather from the shared server-side cache, and computes sunrise/sunset from sunrise-sunset.org (1-hour cache).
+- **`deploy/pi-sensehat.service`** — systemd user service for the Sense HAT display script. Starts after `pi-weather-server.service`; stops retrying after 3 failures in 2 minutes if the HAT is not physically present.
+- **`install.sh`** — now asks during installation whether a Sense HAT is attached and installs the `sense-hat` package and enables the service if selected.
+- **Test mode** — run `python3 tools/sensehat_weather.py --test` to cycle through all 12 display states for 15 seconds each, without waiting for real weather changes.
+
+# v2.2.7 — 2026-04-23
+
+Observability: macOS launchd detection in the debug panel.
+
+- **Debug panel — launchd support** — The SYSTEMD row in the debug panel now shows **LAUNCHD** on macOS: the server detects the init manager at runtime (`INVOCATION_ID` → systemd, `darwin` platform → launchd, otherwise null for a manual `npm start`) and displays the correct label and enabled/disabled state.
+- **`uninstall.sh`** — updated with full macOS support: removes the launchd agent (`~/Library/LaunchAgents/com.pi-weather-station.plist`), unloads it if running, and skips Linux-only steps on macOS.
+
 # v2.2.6 — 2026-04-23
 
 Deployment: macOS launchd support.
@@ -361,6 +390,42 @@ Then reboot to launch the application automatically:
 ```bash
 sudo reboot
 ```
+
+## Sense HAT LED display (optional)
+
+If your Raspberry Pi has a [Sense HAT](https://www.raspberrypi.com/products/sense-hat/) attached, the included display script shows animated weather states on the 8×8 RGB LED matrix.
+
+**Features:**
+- 12 weather states: clear day/night, partly cloudy day/night, overcast, fog, light rain, rain, snow, ice pellets, thunderstorm
+- Sun travels an east-to-west arc throughout the day, shifting from yellow at noon to red near the horizon
+- Sunset glow (4 red pixels) appears on the horizon as the sun sets
+- Brightness automatically reduced at night
+
+**Installation:**
+
+The `deploy/install.sh` script asks whether a Sense HAT is present and handles the setup automatically. For a manual install:
+
+```bash
+sudo apt-get install sense-hat
+cp deploy/pi-sensehat.service ~/.config/systemd/user/
+systemctl --user enable --now pi-sensehat
+```
+
+**Test mode** — cycles through all 12 states for 15 seconds each:
+
+```bash
+python3 ~/pi-weather-station/tools/sensehat_weather.py --test
+```
+
+**View logs:**
+
+```bash
+journalctl --user -u pi-sensehat -n 50
+```
+
+> **Important:** the script takes exclusive control of the Sense HAT LED matrix. Disable any other program writing to the HAT (clock display, demos, etc.) before enabling the service.
+
+> **Orientation:** edit the `ROTATION` constant in `tools/sensehat_weather.py` if the display appears rotated. On a Pi 4B with USB-C/HDMI pointing up, use `ROTATION = 180`.
 
 ## Uninstall
 
