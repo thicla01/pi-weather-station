@@ -7,6 +7,15 @@ const { increment } = require("./requestCounter");
 
 const ALLOWED_STYLES = ["dark-v10", "light-v10", "light-v11", "navigation-day-v1"];
 
+/**
+ * Custom Mapbox Studio styles (Protected visibility).
+ * Maps a short style name to its full "username/style-id" path.
+ * Tiles are served with the end-user's own Mapbox API key.
+ */
+const CUSTOM_STYLES = {
+  "custom-light": "thicla01/cmoc6sqrr007v01sce5c4c9qd",
+};
+
 const API_TIMEOUT_MS = 10 * 1000;
 
 const WEATHER_CACHE_TTL = {
@@ -151,7 +160,7 @@ async function reverseGeocode(req, res) {
 async function mapTile(req, res) {
   const { style, z, x, y } = req.params;
 
-  if (!ALLOWED_STYLES.includes(style)) {
+  if (!ALLOWED_STYLES.includes(style) && !CUSTOM_STYLES[style]) {
     return res.status(400).json("Invalid map style").end();
   }
 
@@ -174,9 +183,11 @@ async function mapTile(req, res) {
     return res.status(503).json("Map API key not configured").end();
   }
 
+  const stylePath = CUSTOM_STYLES[style] ?? `mapbox/${style}`;
+
   try {
     const result = await axios.get(
-      `https://api.mapbox.com/styles/v1/mapbox/${style}/tiles/${zNum}/${xNum}/${yNum}?access_token=${settings.mapApiKey}`,
+      `https://api.mapbox.com/styles/v1/${stylePath}/tiles/${zNum}/${xNum}/${yNum}?access_token=${settings.mapApiKey}`,
       { responseType: "arraybuffer", timeout: API_TIMEOUT_MS }
     );
 
