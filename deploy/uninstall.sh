@@ -34,6 +34,18 @@ else
         rm -rf "$HOME/.config/systemd/user/pi-weather-server.service.d"
         echo "   Service override directory removed."
     fi
+
+    # Sense HAT display service (optional — only present if Sense HAT was enabled)
+    if systemctl --user list-unit-files pi-sensehat.service &>/dev/null; then
+        echo ">> Stopping and disabling Sense HAT service..."
+        systemctl --user stop pi-sensehat 2>/dev/null && echo "   pi-sensehat stopped." || echo "   pi-sensehat was not running."
+        systemctl --user disable pi-sensehat 2>/dev/null && echo "   pi-sensehat disabled." || echo "   pi-sensehat was not enabled."
+    fi
+    if [ -f "$HOME/.config/systemd/user/pi-sensehat.service" ]; then
+        rm "$HOME/.config/systemd/user/pi-sensehat.service"
+        echo "   pi-sensehat.service removed."
+    fi
+
     systemctl --user daemon-reload
 fi
 
