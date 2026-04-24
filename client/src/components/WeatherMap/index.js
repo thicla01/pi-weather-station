@@ -4,6 +4,7 @@ import React, {
   useState,
   useCallback,
   useMemo,
+  useRef,
 } from "react";
 import {
   MapContainer,
@@ -28,6 +29,9 @@ const RADAR_LEGEND_ITEMS = [
   { color: "#e60000", key: "veryHeavy" },
   { color: "#7800b4", key: "extreme"   },
 ];
+
+// Mapbox basemaps served via the server proxy (keeps the API key off the client).
+const MAPBOX_ATTRIBUTION = '© <a href="https://www.mapbox.com/feedback/">Mapbox</a>';
 
 /**
  * Radar precipitation legend overlay
@@ -154,6 +158,7 @@ const WeatherMap = ({ zoom, dark }) => {
   const [mapTimestamps, setMapTimestamps] = useState(null);
   const [mapTimestamp, setMapTimestamp] = useState(null);
   const [currentMapTimestampIdx, setCurrentMapTimestampIdx] = useState(0);
+  const animationIntervalRef = useRef(null);
 
   const MAP_TIMESTAMP_REFRESH_FREQUENCY = 1000 * 60 * 10; //update every 10 minutes
   const MAP_CYCLE_RATE = 1000; //ms
@@ -189,33 +194,39 @@ const WeatherMap = ({ zoom, dark }) => {
 
   const { latitude, longitude } = browserGeo || {};
 
+  // Keep the displayed timestamp in sync with the current index
   useEffect(() => {
     if (mapTimestamps) {
       setMapTimestamp(mapTimestamps[currentMapTimestampIdx]);
     }
   }, [currentMapTimestampIdx, mapTimestamps]);
 
-  // cycle through weather maps when animated is enabled
+  // Radar animation: start/stop interval based on animateWeatherMap toggle.
+  // Using a ref for the interval avoids recreating it on every frame tick.
   useEffect(() => {
-    if (mapTimestamps) {
-      if (animateWeatherMap) {
-        const interval = setInterval(() => {
-          let nextIdx;
-          if (currentMapTimestampIdx + 1 >= mapTimestamps.length) {
-            nextIdx = 0;
-          } else {
-            nextIdx = currentMapTimestampIdx + 1;
-          }
-          setCurrentMapTimestampIdx(nextIdx);
-        }, MAP_CYCLE_RATE);
-        return () => {
-          clearInterval(interval);
-        };
-      } else {
-        setCurrentMapTimestampIdx(mapTimestamps.length - 1);
-      }
+    if (animationIntervalRef.current) {
+      clearInterval(animationIntervalRef.current);
+      animationIntervalRef.current = null;
     }
-  }, [currentMapTimestampIdx, animateWeatherMap, mapTimestamps]);
+
+    if (mapTimestamps && animateWeatherMap) {
+      animationIntervalRef.current = setInterval(() => {
+        setCurrentMapTimestampIdx((prev) =>
+          prev + 1 >= mapTimestamps.length ? 0 : prev + 1
+        );
+      }, MAP_CYCLE_RATE);
+    } else if (mapTimestamps) {
+      // When animation is off, show the most recent frame
+      setCurrentMapTimestampIdx(mapTimestamps.length - 1);
+    }
+
+    return () => {
+      if (animationIntervalRef.current) {
+        clearInterval(animationIntervalRef.current);
+        animationIntervalRef.current = null;
+      }
+    };
+  }, [animateWeatherMap, mapTimestamps]);
 
   if (!hasVal(latitude) || !hasVal(longitude) || !zoom || !mapApiKey) {
     return (
@@ -243,14 +254,14 @@ const WeatherMap = ({ zoom, dark }) => {
         <MapResizer infoPanelCollapsed={infoPanelCollapsed} />
         <AttributionControl position={"bottomleft"} />
         <TileLayer
-          attribution='© <a href="https://www.mapbox.com/feedback/">Mapbox</a>'
+          attribution={MAPBOX_ATTRIBUTION}
           url={`/api/tiles/${dark ? "dark-v10" : "light-v10"}/{z}/{x}/{y}`}
         />
         {mapTimestamp ? (
           <TileLayer
             attribution='<a href="https://www.rainviewer.com/">RainViewer</a>'
             url={`https://tilecache.rainviewer.com${mapTimestamp.path}/512/{z}/{x}/{y}/6/1_1.png`}
-            opacity={dark ? 0.3 : 0.6}
+            opacity={dark ? 0.3 : 0.7}
             maxNativeZoom={7}
           />
         ) : null}
@@ -258,7 +269,7 @@ const WeatherMap = ({ zoom, dark }) => {
           <Marker position={markerPosition} opacity={0.65}></Marker>
         ) : null}
       </MapContainer>
-      {mapTimestamp && !hideRadarLegend && <RadarLegend dark={dark} />}
+      {mapTimestamps && !hideRadarLegend && <RadarLegend dark={dark} />}
     </div>
   );
 };
