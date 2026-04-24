@@ -13,7 +13,7 @@ const ALLOWED_STYLES = ["dark-v10", "light-v10", "light-v11", "navigation-day-v1
  * Tiles are served with the end-user's own Mapbox API key.
  */
 const CUSTOM_STYLES = {
-  "custom-light": "thicla01/cmoc6sqrr007v01sce5c4c9qd",
+  "custom-light": "thicla01/cmoc9fbfs00c801s833rub3b7",
 };
 
 const API_TIMEOUT_MS = 10 * 1000;
@@ -184,10 +184,14 @@ async function mapTile(req, res) {
   }
 
   const stylePath = CUSTOM_STYLES[style] ?? `mapbox/${style}`;
+  // Custom styles require an explicit tile size; built-in mapbox styles work without it.
+  const tileUrl = CUSTOM_STYLES[style]
+    ? `https://api.mapbox.com/styles/v1/${stylePath}/tiles/256/${zNum}/${xNum}/${yNum}?access_token=${settings.mapApiKey}`
+    : `https://api.mapbox.com/styles/v1/${stylePath}/tiles/${zNum}/${xNum}/${yNum}?access_token=${settings.mapApiKey}`;
 
   try {
     const result = await axios.get(
-      `https://api.mapbox.com/styles/v1/${stylePath}/tiles/${zNum}/${xNum}/${yNum}?access_token=${settings.mapApiKey}`,
+      tileUrl,
       { responseType: "arraybuffer", timeout: API_TIMEOUT_MS }
     );
 
