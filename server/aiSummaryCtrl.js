@@ -4,6 +4,7 @@ const { getSettingsData } = require("./settingsCtrl");
 const { weatherCache } = require("./proxyCtrl");
 const { recordServiceCall } = require("./serviceStatus");
 const { increment } = require("./requestCounter");
+const { analyzeRadar } = require("./radarAnalyzerCtrl");
 
 const SUMMARY_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 const summaryCache = {};
@@ -207,17 +208,40 @@ async function getWeatherSummary(req, res) {
     }
   }
 
+  // Radar analysis — fetched in parallel with the prompt assembly. Any failure
+  // is non-fatal: we just drop the third paragraph and behave like before.
+  let radarText = null;
+  try {
+    radarText = await analyzeRadar(lat, lon);
+  } catch {
+    radarText = null;
+  }
+
   const language = LANG_NAMES[lang] || "English";
+  const paragraphCount = 1 + (secondPeriodLabel ? 1 : 0) + (radarText ? 1 : 0);
+  const paragraphWord = paragraphCount === 1
+    ? "one short paragraph"
+    : paragraphCount === 2 ? "two short paragraphs" : "three short paragraphs";
   const secondInstruction = secondPeriodLabel
-    ? `The second paragraph covers ${secondPeriodLabel} (1-2 sentences).`
+    ? ` The second paragraph covers ${secondPeriodLabel} (1-2 sentences).`
     : "";
-  const prompt = `Write a weather summary in ${language} with ${secondInstruction ? "two short paragraphs" : "one short paragraph"}. The first paragraph covers current conditions (2-3 sentences). ${secondInstruction} Be concise and conversational. Reply with plain text only — no title, no markdown, no labels before each paragraph.\n\nCurrent conditions:\n${currentLines}${secondSection}`;
+  const radarInstruction = radarText
+    ? ` The ${secondPeriodLabel ? "third" : "second"} paragraph MUST start with the literal label "Analyse radar : " (in ${language === "French" ? "French — keep this exact wording" : `${language}, translated as appropriate`}) and describe where precipitation is right now relative to the user, whether it is approaching, and an estimated arrival time if a band is moving toward them. Use the radar snapshots below to reason about movement. 1-3 sentences.`
+    : "";
+  const radarSection = radarText
+    ? `\n\nRadar samples (8 directions × 4 distances around the user, intensity 0-6):\n${radarText}`
+    : "";
+
+  const prompt =
+    `Write a weather summary in ${language} with ${paragraphWord}. The first paragraph covers current conditions (2-3 sentences).${secondInstruction}${radarInstruction} ` +
+    `Be concise and conversational. Reply with plain text only — no title, no markdown, no labels before each paragraph (except the radar label described above).\n\n` +
+    `Current conditions:\n${currentLines}${secondSection}${radarSection}`;
 
   try {
     const client = new Anthropic({ apiKey: settings.anthropicApiKey });
     const message = await client.messages.create({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: 150,
+      max_tokens: radarText ? 280 : 150,
       temperature: 0,
       messages: [{ role: "user", content: prompt }],
     });
