@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.3.1] - 2026-04-25
+
+### Fixed
+- **Empty "update available" modal** — when the only commits between your local copy and the latest GitHub master were of types other than `feat` or `fix` (e.g. `docs:`, `chore:`, `refactor:`), the update checker still flagged an update as available, opening the update modal with an empty "What's new" section. Worse, hitting **Skip this version** in that empty modal silenced the next genuine `feat`/`fix` update too. The checker now requires at least one user-visible commit (`feat` or `fix`) in the diff before flagging the update as available, so the modal no longer appears with empty release notes.
+
+---
+
 ## [2.3.0] - 2026-04-23
 
 ### Added

@@ -72,11 +72,14 @@ async function checkForUpdate() {
 
     const latestSha = commitRes.data.sha;
     const latestVersion = pkgRes.data.version;
-    const updateAvailable = Boolean(localSha && latestSha !== localSha);
+    const shasDiffer = Boolean(localSha && latestSha !== localSha);
 
-    // Fetch feat/fix commits between current and latest when an update is available
+    // Fetch the commits between current and latest, then keep only those that
+    // are user-visible changes (conventional `feat:` / `fix:` prefixes). Other
+    // commit types — `docs:`, `chore:`, `refactor:`, etc. — are infrastructure
+    // and don't warrant a notification on their own.
     let commits = [];
-    if (updateAvailable && localSha) {
+    if (shasDiffer && localSha) {
       try {
         const compareRes = await axios.get(
           `https://api.github.com/repos/${REPO}/compare/${localSha}...${latestSha}`,
@@ -95,6 +98,12 @@ async function checkForUpdate() {
         // non-critical — commits stays empty
       }
     }
+
+    // Only flag an update as available when there's at least one feat/fix to
+    // show. This keeps the modal silent for docs-only pushes (where the
+    // "What's new" section would otherwise render empty), and prevents the
+    // "skip" button from suppressing future genuine updates.
+    const updateAvailable = shasDiffer && commits.length > 0;
 
     _cache = {
       updateAvailable,
