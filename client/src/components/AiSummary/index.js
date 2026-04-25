@@ -23,10 +23,14 @@ const REFRESH_INTERVAL = 15 * 60 * 1000;
  * @returns {JSX.Element|null} AI summary block, or null if unavailable
  */
 const AiSummary = ({ expanded, onToggle, containerRef }) => {
-  const { mapGeo, darkMode } = useContext(AppContext);
+  const {
+    mapGeo,
+    darkMode,
+    aiSummaryAvailable: available,
+    setAiSummaryAvailable: setAvailable,
+  } = useContext(AppContext);
   const { i18n } = useTranslation();
   const [summary, setSummary] = useState(null);
-  const [available, setAvailable] = useState(true);
   const intervalRef = useRef(null);
 
   const lang = ["fr", "es"].find((l) => i18n.language.startsWith(l)) || "en";
@@ -74,7 +78,7 @@ const AiSummary = ({ expanded, onToggle, containerRef }) => {
     intervalRef.current = setInterval(fetchSummary, REFRESH_INTERVAL);
 
     return () => clearInterval(intervalRef.current);
-  }, [mapGeo, lang, available]);
+  }, [mapGeo, lang, available, setAvailable]);
 
   if (!available || !summary) return null;
 

@@ -29,6 +29,11 @@ export function AppContextProvider({ children }) {
   const [anthropicApiKey, setAnthropicApiKey] = useState(null);
   const [browserGeo, setBrowserGeo] = useState(null);
   const [mapGeo, setMapGeo] = useState(null);
+  // Whether the AI weather summary feature is operational on this Pi.
+  // Starts true (optimistic) and is flipped to false when the server returns
+  // 503 (no Anthropic API key configured). Used by WeatherMap to conditionally
+  // show the 45 km radar-analysis circle around mapGeo.
+  const [aiSummaryAvailable, setAiSummaryAvailable] = useState(true);
   const [darkMode, setDarkMode] = useState(true);
   const [currentWeatherData, setCurrentWeatherData] = useState(null);
   const [currentWeatherDataErr, setCurrentWeatherDataErr] = useState(null);
@@ -685,6 +690,8 @@ export function AppContextProvider({ children }) {
     setDarkMode,
     mapGeo,
     setMapGeo,
+    aiSummaryAvailable,
+    setAiSummaryAvailable,
     setMapPosition,
     resetMapPosition,
     panToCoords,

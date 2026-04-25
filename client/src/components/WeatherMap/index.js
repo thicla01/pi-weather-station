@@ -11,6 +11,7 @@ import {
   TileLayer,
   AttributionControl,
   Marker,
+  Circle,
   useMap,
   useMapEvents,
 } from "react-leaflet";
@@ -142,6 +143,7 @@ const WeatherMap = ({ zoom, dark }) => {
     animateWeatherMap,
     infoPanelCollapsed,
     hideRadarLegend,
+    aiSummaryAvailable,
   } = useContext(AppContext);
 
   const handleMapClick = useCallback((e) => {
@@ -267,6 +269,21 @@ const WeatherMap = ({ zoom, dark }) => {
         ) : null}
         {markerIsVisible && markerPosition ? (
           <Marker position={markerPosition} opacity={0.65}></Marker>
+        ) : null}
+        {/* 45 km circle showing the AI radar-analysis zone — only visible when
+            the AI summary feature is configured and we have a center point. */}
+        {aiSummaryAvailable && markerPosition ? (
+          <Circle
+            center={markerPosition}
+            radius={45000}
+            pathOptions={{
+              color: dark ? "#f6f6f4" : "#3a3938",
+              weight: 1,
+              opacity: 0.45,
+              dashArray: "6 6",
+              fill: false,
+            }}
+          />
         ) : null}
       </MapContainer>
       {mapTimestamps && !hideRadarLegend && <RadarLegend dark={dark} />}

@@ -5,6 +5,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.4.0] - 2026-04-26
+
+### Added
+- **Radar analysis paragraph in the AI weather summary** — the existing summary now ends with a third paragraph starting with `Analyse radar :` (in the user's language) that describes where precipitation is right now relative to the user, whether it is approaching, and an estimated arrival time when a band is moving toward them. Powered by a new server module that samples the RainViewer radar at 32 points around the location (8 directions × 4 distances of 5/15/30/45 km) at 3 timestamps (now, -15 min, -45 min). The compact textual grid is fed to Claude alongside the existing weather data, so the model reasons about movement on its own. Activated automatically when an Anthropic API key is configured; falls back gracefully to the previous two-paragraph format when RainViewer is unreachable.
+- **45 km radar-analysis circle on the map** — a thin dashed circle centred on `mapGeo` shows the area covered by the analysis. Real-world radius (Leaflet `Circle`), so it scales correctly with zoom. Visible only when the AI summary feature is configured. Clicking elsewhere on the map relocates both the analysis and the circle in sync.
+
+### Internal
+- New dependency: `pngjs` (pure JS PNG decoder) — used server-side to read RainViewer tile pixels for the radar sampling.
+- The `aiSummaryAvailable` flag was hoisted from `AiSummary`'s local state to `AppContext`, so other components (notably `WeatherMap`) can react to feature availability.
+
+---
+
 ## [2.3.2] - 2026-04-26
 
 ### Fixed
