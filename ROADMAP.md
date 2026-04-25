@@ -98,6 +98,9 @@ Without tests, every change to shared utilities or server middleware carries an 
 ### 🗂️ `AppContext.js` size and responsibility
 `AppContext.js` currently holds all global state: settings, units, geolocation, dark mode, font size, panel state, and all update functions. As the project grows, this single file becomes harder to navigate and reason about. Splitting it into focused context providers (e.g. `SettingsContext`, `WeatherContext`, `UIContext`) would improve maintainability without changing any observable behaviour.
 
+### 🌅 Sense HAT script renders a stale default state when the first API fetch fails
+`tools/sensehat_weather.py` polls `/api/sensehat` on a loop. When the very first fetch fails — typically a startup race where `pi-sensehat.service` comes up before `pi-weather-server.service` is ready to answer HTTPS — the script falls back to a default state with no valid `sunriseTs`/`sunsetTs`, which renders the sun near the noon position regardless of the real time of day. Subsequent successful fetches do recover the correct state, but the user-visible artefact is the wrong scene shown for one or two minutes after every restart of the weather server (since systemd cascades the restart to `pi-sensehat`). Fix candidates: retry-with-backoff on the initial fetch, suppress rendering until at least one fetch has succeeded, or strengthen the systemd ordering so `pi-sensehat` only starts once the HTTPS endpoint is actually responsive.
+
 ---
 
 ## Perspective
@@ -112,4 +115,4 @@ The three items I would prioritize above all others if returning to this project
 
 ---
 
-*Last updated: 2026-04-23*
+*Last updated: 2026-04-25*
