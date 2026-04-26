@@ -107,13 +107,21 @@ if [[ "$PLATFORM" != "Darwin" ]]; then
     fi
 fi
 
-# --- 3b. ~/.config/pi-weather-station/ (browser config + firefox profile) ---
+# --- 3b. ~/.config/pi-weather-station/ (browser choice config) ---
 if [ -d "$HOME/.config/pi-weather-station" ]; then
     echo ""
     echo ">> Removing per-user kiosk config in ~/.config/pi-weather-station/..."
     rm -rf "$HOME/.config/pi-weather-station"
     echo "   ~/.config/pi-weather-station removed."
 fi
+
+# Note: when the Firefox kiosk path was used, start-server created a named
+# Firefox profile called "pi-weather-station". It lives in Firefox's
+# user-data dir (under ~/.mozilla/firefox/ on deb installs, or inside the
+# snap confinement at ~/snap/firefox/.../firefox/ on snap). We don't try to
+# remove it automatically — it's harmless leftover and removing it would
+# require parsing profiles.ini. To clean up, run `firefox -ProfileManager`
+# and delete the "pi-weather-station" profile manually.
 
 # --- 4. settings.json (optional) ---
 echo ""

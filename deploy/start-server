@@ -72,15 +72,21 @@ case "$BROWSER_FAMILY" in
         ;;
     firefox)
         # Firefox has no CLI flag to bypass SSL warnings — the user accepts
-        # the self-signed cert once on first launch, the dedicated profile
-        # remembers it, and subsequent launches are silent. --no-remote
-        # ensures we don't reuse a non-kiosk Firefox window if one is open.
-        PROFILE_DIR="$HOME/.config/pi-weather-station/firefox-profile"
-        if [ ! -d "$PROFILE_DIR" ]; then
-            mkdir -p "$PROFILE_DIR"
-            "$BROWSER_CMD" -CreateProfile "pi-weather-station $PROFILE_DIR" >/dev/null 2>&1 || true
-        fi
-        "$BROWSER_CMD" --kiosk --no-remote --profile "$PROFILE_DIR" "$URL"
+        # the self-signed cert once on first launch, a dedicated named profile
+        # remembers it, and subsequent launches are silent.
+        #
+        # Use a NAMED profile (-P) rather than a custom --profile <path>:
+        # Firefox-as-snap (the default packaging on Ubuntu 25+) is confined
+        # and refuses to access arbitrary paths under ~/.config, so the
+        # path-based form fails silently with snap. The named profile lives
+        # wherever Firefox decides to put it, which is always inside the
+        # confinement on snap and inside ~/.mozilla/firefox/ on deb installs
+        # — both work without intervention.
+        PROFILE_NAME="pi-weather-station"
+        "$BROWSER_CMD" -CreateProfile "$PROFILE_NAME" >/dev/null 2>&1 || true
+        # --no-remote ensures we don't reuse a non-kiosk Firefox window if one
+        # is already open with another profile.
+        "$BROWSER_CMD" --kiosk --no-remote -P "$PROFILE_NAME" "$URL"
         ;;
     *)
         echo "start-server: unknown browser family '$BROWSER_FAMILY'. Re-run install.sh." >&2
