@@ -95,6 +95,24 @@ if [[ "$PLATFORM" != "Darwin" ]]; then
             echo ">> Display server not detected. Skipping autostart cleanup."
             ;;
     esac
+
+    # XDG autostart entry (GNOME, KDE Plasma, and any other DE following the
+    # freedesktop.org spec). Independent of the display server above — the
+    # install script writes here when it detects a desktop environment that
+    # isn't labwc/wayfire/LXDE-pi.
+    XDG_AUTOSTART="$HOME/.config/autostart/pi-weather-station.desktop"
+    if [ -f "$XDG_AUTOSTART" ]; then
+        rm "$XDG_AUTOSTART"
+        echo "   $XDG_AUTOSTART removed."
+    fi
+fi
+
+# --- 3b. ~/.config/pi-weather-station/ (browser config + firefox profile) ---
+if [ -d "$HOME/.config/pi-weather-station" ]; then
+    echo ""
+    echo ">> Removing per-user kiosk config in ~/.config/pi-weather-station/..."
+    rm -rf "$HOME/.config/pi-weather-station"
+    echo "   ~/.config/pi-weather-station removed."
 fi
 
 # --- 4. settings.json (optional) ---

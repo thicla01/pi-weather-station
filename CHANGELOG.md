@@ -5,6 +5,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.5.0] - 2026-04-26
+
+### Added
+- **Browser choice for kiosk mode** — `install.sh` now detects every supported browser installed on the machine (Chromium, Google Chrome, Microsoft Edge, Brave, Firefox / Firefox ESR), highlights the system default, and prompts the user to pick one for kiosk mode. The choice is persisted in `~/.config/pi-weather-station/browser.conf` and read by `~/.local/bin/start-server` at launch. Two browser families are handled with the right flags: Chromium-based browsers use `--kiosk --noerrdialogs ...`; Firefox uses `--kiosk --no-remote --profile <dedicated-profile>` so the self-signed-cert acceptance persists across launches.
+- **GNOME and KDE Plasma autostart support** — `install.sh` now writes a freedesktop.org `~/.config/autostart/pi-weather-station.desktop` entry when it detects GNOME or KDE Plasma as the desktop environment. Existing labwc, wayfire, and X11/LXDE-Pi autostart paths are unchanged. Makes the kiosk usable on standard Ubuntu / Fedora / openSUSE desktops, not just Raspberry Pi OS.
+- **Pre-flight checks for required tools** — before doing anything, `install.sh` verifies that `curl` and `git` are installed; if not, it offers to install them via `apt-get` or `zypper` (with the user's permission). Previously, `curl` missing on a minimal Ubuntu/Debian install caused the NodeSource setup to silently fall back to the distribution's old `nodejs` package without `npm`.
+- **openSUSE support** — `install.sh` recognises `zypper` as the system package manager and installs Node.js v22 from the openSUSE repos when needed (Leap 16+ ships a recent enough version).
+
+### Changed
+- **`install.sh` reorganised into named phases** — the script is now structured around clearly-marked phases (pre-flight, Node.js, base configuration, kiosk + browser, dependencies, services, autostart, advanced features, summary). The flow itself is unchanged; the markers make the script easier to navigate and modify.
+- **Sense HAT moved to an explicit "Advanced features" section** — the question is now asked behind an opt-in `Configure now? (y/N)` prompt, so first-time installers aren't asked about hardware they don't have. Re-running `install.sh` is the way to add advanced features later.
+- **`start-server` reads the browser config** instead of hard-coding Chromium detection. Backward compatible: when no config file is present, it still auto-detects the first available Chromium-family browser as before.
+- **`uninstall.sh` cleans up the new files** — removes `~/.config/pi-weather-station/` (browser config + Firefox profile) and the XDG autostart `.desktop` entry alongside the existing autostart paths.
+
+### Upgrade note
+Existing installations don't pick up `start-server` or `install.sh` changes from `git pull` automatically — re-run `bash deploy/install.sh` to refresh both. Existing Chromium kiosk users will get the same experience without any reconfiguration; users who want to switch to Firefox or Chrome can pick a different browser at the kiosk prompt.
+
+---
+
 ## [2.4.6] - 2026-04-26
 
 ### Fixed

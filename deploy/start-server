@@ -1,9 +1,13 @@
 #!/bin/bash
 # Pi Weather Station — start-server
-# Waits for the server to be ready, then launches Chromium in kiosk mode.
-# Works with labwc, wayfire, and X11/LXDE display servers.
+# Waits for the server to be ready, then launches the configured browser
+# in kiosk mode. Browser choice is persisted by install.sh in
+# ~/.config/pi-weather-station/browser.conf (BROWSER_CMD + BROWSER_FAMILY).
+# Falls back to auto-detecting Chromium when no config is present, for
+# backward compatibility with older installations.
 
-# Wait for server on 8443 (HTTPS) or 8080 (HTTP)
+# --- 1. Wait for the local pi-weather-server (HTTPS preferred) -----------
+URL=""
 for i in $(seq 1 30); do
     if (echo > /dev/tcp/localhost/8443) 2>/dev/null; then
         URL="https://localhost:8443"
@@ -15,14 +19,71 @@ for i in $(seq 1 30); do
     sleep 1
 done
 
-# Detect Chromium binary (name varies by OS version)
-CHROMIUM=$(which chromium 2>/dev/null || which chromium-browser 2>/dev/null)
-
-# Chromium flags based on display server
-if [ -n "$WAYLAND_DISPLAY" ]; then
-    FLAGS="--ozone-platform=wayland --enable-features=OverlayScrollbar --start-maximized"
+if [ -z "$URL" ]; then
+    echo "start-server: pi-weather-server not reachable after 30s — aborting." >&2
+    exit 1
 fi
 
-"$CHROMIUM" --kiosk --noerrdialogs --disable-infobars --no-first-run \
-    --ignore-certificate-errors --touch-events=enabled \
-    --remote-debugging-port=9222 $FLAGS "$URL"
+# --- 2. Resolve the browser command + family ------------------------------
+CONFIG_FILE="$HOME/.config/pi-weather-station/browser.conf"
+BROWSER_CMD=""
+BROWSER_FAMILY=""
+
+if [ -f "$CONFIG_FILE" ]; then
+    # shellcheck disable=SC1090
+    . "$CONFIG_FILE"
+fi
+
+# Fallback: auto-detect a browser when no config exists. Keeps existing
+# installs working until they re-run install.sh.
+if [ -z "$BROWSER_CMD" ]; then
+    BROWSER_CMD=$(command -v chromium 2>/dev/null \
+        || command -v chromium-browser 2>/dev/null \
+        || command -v google-chrome 2>/dev/null \
+        || command -v firefox 2>/dev/null \
+        || true)
+fi
+
+if [ -z "$BROWSER_FAMILY" ]; then
+    case "$(basename "$BROWSER_CMD")" in
+        chromium|chromium-browser|google-chrome|google-chrome-stable|microsoft-edge|microsoft-edge-stable|brave-browser)
+            BROWSER_FAMILY="chromium" ;;
+        firefox|firefox-esr)
+            BROWSER_FAMILY="firefox" ;;
+    esac
+fi
+
+if [ -z "$BROWSER_CMD" ] || ! command -v "$BROWSER_CMD" >/dev/null 2>&1; then
+    echo "start-server: no usable browser found. Re-run install.sh to configure one." >&2
+    exit 1
+fi
+
+# --- 3. Launch in kiosk mode with family-specific flags ------------------
+case "$BROWSER_FAMILY" in
+    chromium)
+        FLAGS=""
+        if [ -n "$WAYLAND_DISPLAY" ]; then
+            FLAGS="--ozone-platform=wayland --enable-features=OverlayScrollbar --start-maximized"
+        fi
+        # shellcheck disable=SC2086
+        "$BROWSER_CMD" --kiosk --noerrdialogs --disable-infobars --no-first-run \
+            --ignore-certificate-errors --touch-events=enabled \
+            --remote-debugging-port=9222 $FLAGS "$URL"
+        ;;
+    firefox)
+        # Firefox has no CLI flag to bypass SSL warnings — the user accepts
+        # the self-signed cert once on first launch, the dedicated profile
+        # remembers it, and subsequent launches are silent. --no-remote
+        # ensures we don't reuse a non-kiosk Firefox window if one is open.
+        PROFILE_DIR="$HOME/.config/pi-weather-station/firefox-profile"
+        if [ ! -d "$PROFILE_DIR" ]; then
+            mkdir -p "$PROFILE_DIR"
+            "$BROWSER_CMD" -CreateProfile "pi-weather-station $PROFILE_DIR" >/dev/null 2>&1 || true
+        fi
+        "$BROWSER_CMD" --kiosk --no-remote --profile "$PROFILE_DIR" "$URL"
+        ;;
+    *)
+        echo "start-server: unknown browser family '$BROWSER_FAMILY'. Re-run install.sh." >&2
+        exit 1
+        ;;
+esac
