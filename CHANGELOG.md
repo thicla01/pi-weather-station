@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.4.2] - 2026-04-26
+
+### Fixed
+- **Geolocation fallback failing on networks with broken IPv6** — some home networks advertise AAAA records but can't actually route IPv6. Node.js before v23 doesn't run Happy Eyeballs by default, so axios calls to dual-stacked endpoints like `ipapi.co` (Cloudflare) tried the IPv6 address first and failed with "Network is unreachable" without falling back to IPv4 in time. The result was a `[service] ipapi.co → 500 — Geolocation failed` in the log at boot, no default coordinates resolved, and a "Cannot retrieve map data" message in the kiosk until the user reloaded the page or the browser geolocation eventually succeeded. Force `dns.setDefaultResultOrder("ipv4first")` at server startup so all outbound HTTP from the Node process tries IPv4 before IPv6 — no measurable cost on networks where IPv6 works.
+
+---
+
 ## [2.4.1] - 2026-04-26
 
 ### Fixed
