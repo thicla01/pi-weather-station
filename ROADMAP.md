@@ -101,6 +101,9 @@ Without tests, every change to shared utilities or server middleware carries an 
 ### ⚙️ Service-file customizations should live in a systemd drop-in, not the main unit
 Today `deploy/pi-weather-server.service` is the canonical service file but `install.sh` rewrites it in place to apply user choices like `ALLOW_REMOTE=true`. That makes the installed file diverge from what's checked in, so the in-app updater can't safely overwrite it on releases that change the service definition (v2.4.4 was the first such release — see the `serviceFileChanged` notice added in v2.4.5). The fix: keep the canonical file pristine, write user customizations to `~/.config/systemd/user/pi-weather-server.service.d/override.conf` instead. Once that's done, the in-app updater can `cp` and `daemon-reload` the service file unattended on every update without risking user config loss.
 
+### 🖥️ Debug panel — graceful fallback for non-Pi platforms
+Several rows in the debug panel (under-voltage, frequency capped, throttled, temp limit, hardware model) come from `vcgencmd`, a Raspberry-Pi-only binary. On x86 deployments (VMware, openSUSE, Ubuntu desktop), `vcgencmd` doesn't exist so the rows silently render empty. Now that the project is officially multi-distro (since v2.5.0), the debug panel should either hide the Pi-specific section entirely on non-Pi hosts, replace it with x86-compatible equivalents (CPU temp via `/sys/class/hwmon`, throttling via `/sys/devices/system/cpu/cpufreq`), or label the rows "N/A — Raspberry Pi only" so the absence is intentional rather than a bug.
+
 ---
 
 ## Perspective
@@ -116,3 +119,5 @@ The three items I would prioritize above all others if returning to this project
 ---
 
 *Last updated: 2026-04-26*
+
+
