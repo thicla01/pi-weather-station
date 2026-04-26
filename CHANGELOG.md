@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.4.3] - 2026-04-26
+
+### Fixed
+- **Geolocation request failing on cold boot leaves the map empty** — at cold boot, the network stack often isn't fully ready (DNS resolver still bootstrapping, default route not yet installed) when `pi-weather-server` starts. The first call to `ipapi.co` would fail almost immediately, no fallback coordinates were resolved, and the kiosk showed "Cannot retrieve map data" until the user reloaded the page. The geolocation controller now retries with exponential backoff (5 attempts, ~31 s worst case) to absorb the early-boot race, and persists every successful response to a disk cache (`server/geolocation-cache.json`, 30 day TTL). On subsequent boots — even if the network fetch fails again — the cached coordinates are returned immediately, and the kiosk comes up with the right map.
+
+---
+
 ## [2.4.2] - 2026-04-26
 
 ### Fixed

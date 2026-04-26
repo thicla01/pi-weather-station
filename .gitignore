@@ -4,6 +4,7 @@ server/key.pem
 server/cert.pem
 npm-audit.log
 server/weather-cache.json
+server/geolocation-cache.json
 server.log
 server/request-counts.json
 ssh.key
