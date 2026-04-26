@@ -19,6 +19,13 @@ Wants=network-online.target
 
 [Service]
 WorkingDirectory=%h/pi-weather-station
+# At cold boot the user session can come up before the network stack is
+# fully usable — `network-online.target` doesn't reliably gate user
+# services. Block here until name resolution actually works for an external
+# host (up to 60 s), so the first axios calls don't all fail with
+# ENOTFOUND/EAI_AGAIN. Exits 0 unconditionally so the service still starts
+# offline; cached endpoints (geolocation, weather) keep the kiosk usable.
+ExecStartPre=/bin/sh -c 'for i in $(seq 1 60); do getent hosts ipapi.co >/dev/null 2>&1 && exit 0; sleep 1; done; exit 0'
 ExecStart=/bin/bash -lc "npm start"
 Restart=on-failure
 RestartSec=5

@@ -5,6 +5,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.4.4] - 2026-04-26
+
+### Fixed
+- **Multiple service errors at cold boot — sunrise-sunset, Mapbox tiles, etc.** — even with the geolocation cache and the IPv4-first DNS fix, on cold boot the systemd user session would launch `pi-weather-server` before the network stack was fully usable. The first wave of outbound HTTP calls (Mapbox tile proxy, `sunrise-sunset.org`, etc.) would fail with `ENOTFOUND` / `EAI_AGAIN` for two to three seconds, and components that don't auto-retry (sunrise/sunset times, reverse geocoded location name) stayed empty in the kiosk until the next page load. Add an `ExecStartPre` step to `deploy/pi-weather-server.service` that blocks until `getent hosts` succeeds for an external domain (up to 60 s, then continues anyway). All outbound calls from Node now happen on a network that's actually ready.
+
+### Upgrade note
+Existing installations don't pick up service file changes from `git pull` automatically. After updating, copy the new service file into place and reload systemd:
+```bash
+cp ~/pi-weather-station/deploy/pi-weather-server.service ~/.config/systemd/user/
+systemctl --user daemon-reload
+systemctl --user restart pi-weather-server
+```
+
+---
+
 ## [2.4.3] - 2026-04-26
 
 ### Fixed
