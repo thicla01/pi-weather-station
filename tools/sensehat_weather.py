@@ -72,6 +72,16 @@ SUN_EAST_LEFT = True
 # Duration of each state in test mode (seconds).
 TEST_STATE_DURATION = 15
 
+# Retry-with-backoff policy at startup. Used to absorb the typical race where
+# pi-sensehat starts before pi-weather-server is ready to answer HTTPS — the
+# display stays blank until the first successful fetch rather than rendering
+# a misleading default scene (e.g. midday sun at midnight).
+# Total worst-case wait with the values below: ~120 s across 8 attempts
+# (1, 2, 4, 8, 16, 30, 30, 30 seconds between tries).
+STARTUP_FETCH_MAX_ATTEMPTS  = 8
+STARTUP_FETCH_INITIAL_DELAY = 1.0
+STARTUP_FETCH_MAX_DELAY     = 30.0
+
 # ──────────────────────────────────────────────────────────────────────────────
 
 # Suppress InsecureRequestWarning for the self-signed localhost certificate.
@@ -484,6 +494,33 @@ def fetch_weather():
         return None
 
 
+def fetch_weather_with_retry():
+    """
+    Try to fetch weather with exponential backoff. Returns the parsed dict
+    on the first successful response, or None if every attempt failed.
+
+    Used at startup to absorb the typical race condition where pi-sensehat
+    comes up before pi-weather-server is ready to answer HTTPS. Without
+    this retry, the first fetch fails, the script falls back to default
+    values (no sunrise/sunset → midday-sun position, isDay=True), and a
+    misleading scene is shown until the regular polling interval kicks in.
+    """
+    delay = STARTUP_FETCH_INITIAL_DELAY
+    for attempt in range(1, STARTUP_FETCH_MAX_ATTEMPTS + 1):
+        data = fetch_weather()
+        if data:
+            if attempt > 1:
+                log.info("Initial fetch succeeded on attempt %d/%d",
+                         attempt, STARTUP_FETCH_MAX_ATTEMPTS)
+            return data
+        if attempt < STARTUP_FETCH_MAX_ATTEMPTS:
+            log.info("Initial fetch attempt %d/%d failed; retrying in %.1fs",
+                     attempt, STARTUP_FETCH_MAX_ATTEMPTS, delay)
+            time.sleep(delay)
+            delay = min(delay * 2, STARTUP_FETCH_MAX_DELAY)
+    return None
+
+
 # ── SUNSET DETECTION ─────────────────────────────────────────────────────────
 
 def is_sunset_soon(sunset_ts):
@@ -605,15 +642,37 @@ def run():
     sense.set_rotation(ROTATION)
     sense.low_light = False
 
-    base_state  = "clear"
-    is_day      = True
+    # State variables — None until the first successful fetch. Rendering is
+    # suppressed in that case so we don't show a misleading default scene
+    # (e.g. midday sun at midnight) when pi-sensehat starts before the
+    # weather server is responsive.
+    base_state  = None
+    is_day      = None
     sunrise_ts  = None
     sunset_ts   = None
     tick        = 0
-    next_poll   = 0       # 0 forces an immediate fetch on first iteration
-    last_render = None    # (state, is_day, sun_row) of the last rendered frame
+    last_render = None  # (state, is_day, sun_row, sun_col) of the last rendered frame
 
     log.info("Sense HAT display started (rotation=%d°, poll every %ds)", ROTATION, POLL_INTERVAL)
+
+    # Try harder at startup to land on real values before falling through to
+    # the regular polling cadence. Display stays blank during the wait.
+    sense.clear((0, 0, 0))
+    initial = fetch_weather_with_retry()
+    if initial:
+        base_state = classify(initial.get("weatherCode"), initial.get("cloudCover", 0))
+        is_day     = initial.get("isDay", True)
+        sunrise_ts = initial.get("sunriseTs")
+        sunset_ts  = initial.get("sunsetTs")
+        log.info(
+            "Initial state — code=%s state=%s isDay=%s temp=%s°C",
+            initial.get("weatherCode"), base_state, is_day,
+            f"{initial['temperature']:.1f}" if initial.get("temperature") is not None else "?",
+        )
+    else:
+        log.warning("Server unreachable after retries — display blank until a fetch succeeds")
+
+    next_poll = time.time() + POLL_INTERVAL
 
     while True:
         now = time.time()
@@ -622,6 +681,7 @@ def run():
         if now >= next_poll:
             data = fetch_weather()
             if data:
+                was_blank  = base_state is None
                 base_state = classify(data.get("weatherCode"), data.get("cloudCover", 0))
                 is_day     = data.get("isDay", True)
                 sunrise_ts = data.get("sunriseTs")
@@ -631,9 +691,18 @@ def run():
                     data.get("weatherCode"), base_state, is_day,
                     f"{data['temperature']:.1f}" if data.get("temperature") is not None else "?",
                 )
+                if was_blank:
+                    log.info("Display now active after recovery")
+            elif base_state is None:
+                log.warning("Server still unreachable — display still blank")
             else:
                 log.warning("Fetch failed — keeping previous state: %s", base_state)
             next_poll = now + POLL_INTERVAL
+
+        # Suppress rendering until at least one successful fetch.
+        if base_state is None:
+            time.sleep(FRAME_DELAY)
+            continue
 
         # ── Resolve final display state (sunset override on clear days) ───────
         state = "sunset" if (base_state == "clear" and is_day and is_sunset_soon(sunset_ts)) \

@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.3.2] - 2026-04-26
+
+### Fixed
+- **Sense HAT — midday-sun-at-midnight after a server restart** — when `pi-weather-server` was restarted (manually or as part of an in-app update), systemd cascaded the restart to `pi-sensehat`, which raced against the HTTPS server coming up. The first `/api/sensehat` fetch failed, the Python script fell back to its default state with no `sunriseTs`/`sunsetTs`, and `_compute_sun_pos` returned the noon position (row 1, col 3) — so a midday-sun frame was rendered regardless of the real time of day. The script now retries the initial fetch with exponential backoff (8 attempts, ~120 s worst case) and keeps the display blank until at least one fetch succeeds, instead of rendering a misleading scene.
+
+---
+
 ## [2.3.1] - 2026-04-25
 
 ### Fixed
