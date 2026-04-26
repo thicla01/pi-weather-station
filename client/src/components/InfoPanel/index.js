@@ -1,6 +1,7 @@
 import React, { useContext } from "react";
 import { AppContext } from "~/AppContext";
 import Clock from "~/components/Clock";
+import IndoorTemperature from "~/components/IndoorTemperature";
 import WeatherInfo from "~/components/WeatherInfo";
 import ControlButtons from "~/components/ControlButtons";
 import useDragScroll from "~/hooks/useDragScroll";
@@ -19,6 +20,7 @@ const InfoPanel = () => {
     <div className={`${darkMode ? styles.dark : styles.light} ${styles.panel}`}>
       <div className={styles.container}>
         <div className={styles.clockContainer}>
+          <IndoorTemperature />
           <Clock />
         </div>
         <div className={styles.weatherInfoContainer} ref={(el) => { weatherInfoRef(el); infoPanelScrollRef.current = el; }}>

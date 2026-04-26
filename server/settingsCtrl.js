@@ -8,10 +8,21 @@ const ENCODING = "utf8";
 const ALLOWED_KEYS = new Set([
   "weatherApiKey", "mapApiKey", "reverseGeoApiKey", "anthropicApiKey",
   "startingLat", "startingLon",
+  // Indoor temperature integration via Homebridge — opaque sub-object
+  // (homebridgeUrl, username, password, sensorName, enabled). Stripped from
+  // remote /settings responses to avoid leaking the password.
+  "indoorTemperature",
 ]);
 
 const API_KEY_FIELDS = new Set([
   "weatherApiKey", "mapApiKey", "reverseGeoApiKey", "anthropicApiKey",
+]);
+
+// Top-level keys whose value is a structured sub-object that may contain
+// secrets (passwords, etc.) — entirely stripped from /settings responses to
+// remote clients. Local clients still see the full content.
+const REMOTE_HIDDEN_KEYS = new Set([
+  "indoorTemperature",
 ]);
 
 /**
@@ -88,8 +99,12 @@ function getSettings(req, res) {
       if (req.isLocal) {
         return res.status(200).json(data).end();
       }
+      // Remote clients: mask top-level API key fields to booleans and strip
+      // out any sub-object that may contain secrets (REMOTE_HIDDEN_KEYS).
       const masked = Object.fromEntries(
-        Object.entries(data).map(([k, v]) => [k, API_KEY_FIELDS.has(k) ? Boolean(v) : v])
+        Object.entries(data)
+          .filter(([k]) => !REMOTE_HIDDEN_KEYS.has(k))
+          .map(([k, v]) => [k, API_KEY_FIELDS.has(k) ? Boolean(v) : v])
       );
       return res.status(200).json(masked).end();
     },

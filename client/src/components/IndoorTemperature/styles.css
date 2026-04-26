@@ -1,0 +1,58 @@
+/* Minimal indoor-temperature readout displayed to the left of the clock.
+   Reuses the same vw-clamp scale as the clock to stay visually balanced. */
+.container {
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-start;
+  align-items: flex-start;
+  gap: 2px;
+  font-family: "Rubik", sans-serif;
+  opacity: 0.85;
+}
+
+.label {
+  font-size: clamp(10px, 0.95vw, 13px);
+  letter-spacing: 0.08em;
+  opacity: 0.6;
+}
+
+.temp {
+  font-size: clamp(22px, 2.2vw, 32px);
+  line-height: 1;
+}
+
+.humidity {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: clamp(11px, 1.05vw, 14px);
+  opacity: 0.65;
+}
+
+/* Air quality readout: small coloured dot + localised label.
+   Colours follow the HomeKit AirQuality 1..5 scale (Excellent → Poor). */
+.air-quality {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: clamp(11px, 1.05vw, 14px);
+  opacity: 0.65;
+}
+
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.aq1 { background: #4caf50; }  /* Excellent */
+.aq2 { background: #8bc34a; }  /* Good */
+.aq3 { background: #ffc107; }  /* Fair */
+.aq4 { background: #ff9800; }  /* Inferior */
+.aq5 { background: #f44336; }  /* Poor */
+
+.stale {
+  opacity: 0.4;
+}

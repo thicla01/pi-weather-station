@@ -87,6 +87,16 @@
     "fix": "Correctif",
     "serviceFileChanged": "Cette mise à jour modifie le fichier de service systemd. Le bouton ne peut pas l'écraser sans risque (ton fichier installé peut contenir des personnalisations). Exécute plutôt la commande complète ci-dessus manuellement."
   },
+  "indoor": {
+    "label": "INTÉRIEUR",
+    "airQuality": {
+      "1": "Excellente",
+      "2": "Bonne",
+      "3": "Moyenne",
+      "4": "Mauvaise",
+      "5": "Très mauvaise"
+    }
+  },
   "radar": {
     "legend": "RADAR",
     "veryLight": "Très léger",

@@ -690,18 +690,17 @@ fi
 # from the base configuration so first-time installers can skip and come back
 # later by re-running install.sh.
 
-ADVANCED_PROMPTED="no"
 SENSEHAT_MODE="no"
+INDOOR_TEMP_MODE="no"
 
-if [[ "$PLATFORM" != "Darwin" ]]; then
-    echo ""
-    echo ">> Advanced features (hardware integrations, optional)"
-    read -p "   Configure now? (y/N) " -n 1 -r
-    echo
-    if [[ $REPLY =~ ^[Yy]$ ]]; then
-        ADVANCED_PROMPTED="yes"
+echo ""
+echo ">> Advanced features (hardware / external integrations, optional)"
+read -p "   Configure now? (y/N) " -n 1 -r
+echo
+if [[ $REPLY =~ ^[Yy]$ ]]; then
 
-        # --- Sense HAT (LED matrix) ---
+    # --- Sense HAT (LED matrix) — Linux only ---
+    if [[ "$PLATFORM" != "Darwin" ]]; then
         echo ""
         echo "   Sense HAT — animated 8x8 LED weather display"
         read -p "   Is a Sense HAT attached and dedicated to this station? (y/N) " -n 1 -r
@@ -720,27 +719,83 @@ if [[ "$PLATFORM" != "Darwin" ]]; then
             echo
             SENSEHAT_MODE=$([[ -z "$REPLY" || $REPLY =~ ^[Yy]$ ]] && echo "yes" || echo "no")
         fi
+    fi
 
-        # --- Sense HAT install ---
-        if [ "$SENSEHAT_MODE" = "yes" ]; then
-            echo ""
-            echo ">> Installing Sense HAT display service..."
-            if ! python3 -c "import sense_hat" 2>/dev/null; then
-                echo "   sense-hat Python package not found — installing..."
-                if command -v apt-get >/dev/null 2>&1; then
-                    sudo apt-get install -y sense-hat
-                else
-                    echo "   Cannot auto-install sense-hat on this distribution."
-                    echo "   Install it manually before continuing, then re-run install.sh."
-                fi
-            fi
-            cp "$REPO_DIR/deploy/pi-sensehat.service" ~/.config/systemd/user/
-            systemctl --user daemon-reload
-            systemctl --user enable pi-sensehat
-            systemctl --user start pi-sensehat
-            echo ">> Service pi-sensehat enabled and started."
-            echo ">> Sense HAT logs: journalctl --user -u pi-sensehat -f"
+    # --- Indoor temperature via Homebridge — all platforms ---
+    echo ""
+    echo "   Indoor temperature — fetched from a Homebridge sensor (Hue, Dyson, ...)"
+    echo "   You will need a running Homebridge instance with homebridge-config-ui-x"
+    echo "   reachable from this device."
+    read -p "   Configure indoor temperature now? (y/N) " -n 1 -r
+    echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        INDOOR_TEMP_MODE="yes"
+        echo ""
+        read -p "   Homebridge URL (e.g. http://192.168.1.10:8581)   : " HB_URL
+        read -p "   Homebridge username                              : " HB_USER
+        read -s -p "   Homebridge password (input hidden)               : " HB_PASS
+        echo
+        read -p "   Sensor name (exact serviceName from Homebridge)  : " HB_SENSOR
+
+        if [ -z "$HB_URL" ] || [ -z "$HB_USER" ] || [ -z "$HB_PASS" ] || [ -z "$HB_SENSOR" ]; then
+            echo "   Missing required field — skipping indoor temperature setup."
+            INDOOR_TEMP_MODE="no"
+        else
+            # Merge an indoorTemperature block into the existing settings.json
+            # without disturbing other top-level keys.
+            python3 - "$REPO_DIR/settings.json" "$HB_URL" "$HB_USER" "$HB_PASS" "$HB_SENSOR" <<'PYEOF'
+import json, sys
+path, url, user, password, sensor = sys.argv[1:]
+try:
+    with open(path) as f: data = json.load(f)
+except Exception:
+    data = {}
+data["indoorTemperature"] = {
+    "enabled": True,
+    "homebridgeUrl": url,
+    "username": user,
+    "password": password,
+    "sensorName": sensor,
+}
+with open(path, "w") as f:
+    json.dump(data, f, indent=2)
+PYEOF
+            echo ">> indoorTemperature block written to settings.json."
+            echo "   To find the exact sensor name, see docs/indoor-temperature.md"
         fi
+    fi
+fi
+
+# --- Sense HAT install (Linux only, after settings are written) ---
+if [ "$SENSEHAT_MODE" = "yes" ]; then
+    echo ""
+    echo ">> Installing Sense HAT display service..."
+    if ! python3 -c "import sense_hat" 2>/dev/null; then
+        echo "   sense-hat Python package not found — installing..."
+        if command -v apt-get >/dev/null 2>&1; then
+            sudo apt-get install -y sense-hat
+        else
+            echo "   Cannot auto-install sense-hat on this distribution."
+            echo "   Install it manually before continuing, then re-run install.sh."
+        fi
+    fi
+    cp "$REPO_DIR/deploy/pi-sensehat.service" ~/.config/systemd/user/
+    systemctl --user daemon-reload
+    systemctl --user enable pi-sensehat
+    systemctl --user start pi-sensehat
+    echo ">> Service pi-sensehat enabled and started."
+    echo ">> Sense HAT logs: journalctl --user -u pi-sensehat -f"
+fi
+
+# --- Indoor temperature: restart the server so it picks up the new config ---
+if [ "$INDOOR_TEMP_MODE" = "yes" ]; then
+    echo ""
+    echo ">> Restarting pi-weather-server to apply indoor temperature config..."
+    if [[ "$PLATFORM" == "Darwin" ]]; then
+        launchctl bootout "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.pi-weather-station.plist" 2>/dev/null || true
+        launchctl bootstrap "gui/$(id -u)" "$HOME/Library/LaunchAgents/com.pi-weather-station.plist"
+    else
+        systemctl --user restart pi-weather-server
     fi
 fi
 

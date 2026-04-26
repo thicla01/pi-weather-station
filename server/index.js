@@ -45,6 +45,7 @@ const proxyCtrl = require("./proxyCtrl");
 const debugCtrl = require("./debugCtrl");
 const aiSummaryCtrl = require("./aiSummaryCtrl");
 const { getSenseHatData } = require("./sensehatCtrl");
+const { initIndoorTemperature, getIndoorTemperature } = require("./indoorTempCtrl");
 
 const {
   getSettings,
@@ -197,12 +198,14 @@ const openInBrowserIfDev = async (url) => {
 if (sslOptions) {
   https.createServer(sslOptions, app).listen(HTTPS_PORT, HOST, async () => {
     initServerInfo(HTTPS_PORT, "https");
+    initIndoorTemperature();
     await openInBrowserIfDev(`https://localhost:${HTTPS_PORT}`);
     console.log(`${appName} v${ver} has started on port ${HTTPS_PORT} (HTTPS, bound to ${HOST})`);
   });
 } else {
   app.listen(PORT, HOST, async () => {
     initServerInfo(PORT, "http");
+    initIndoorTemperature();
     await openInBrowserIfDev(`http://localhost:${PORT}`);
     console.log(`${appName} v${ver} has started on port ${PORT} (HTTP, bound to ${HOST})`);
   });
@@ -232,7 +235,8 @@ app.get("/api/weather/daily", apiLimiter, weatherDaily);
 app.get("/api/sunrise-sunset", apiLimiter, sunriseSunset);
 
 app.get("/api/weather-summary", apiLimiter, getWeatherSummary);
-app.get("/api/sensehat",        apiLimiter, getSenseHatData);
+app.get("/api/sensehat",            apiLimiter, getSenseHatData);
+app.get("/api/indoor-temperature",  apiLimiter, getIndoorTemperature);
 
 app.get("/api/update-check", apiLimiter, async (req, res) => {
   try {

@@ -24,6 +24,11 @@
 
 .clock-container {
   grid-area: clock;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 8px;
 }
 
 .weather-info-container {

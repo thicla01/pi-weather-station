@@ -87,6 +87,16 @@
     "fix": "Corrección",
     "serviceFileChanged": "Esta actualización modifica el archivo de servicio systemd. El botón no puede sobrescribirlo de forma segura (tu copia instalada puede tener personalizaciones). Ejecuta el comando completo de arriba manualmente."
   },
+  "indoor": {
+    "label": "INTERIOR",
+    "airQuality": {
+      "1": "Excelente",
+      "2": "Buena",
+      "3": "Aceptable",
+      "4": "Mala",
+      "5": "Muy mala"
+    }
+  },
   "radar": {
     "legend": "RADAR",
     "veryLight": "Muy ligero",

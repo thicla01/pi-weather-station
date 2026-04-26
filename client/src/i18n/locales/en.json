@@ -87,6 +87,16 @@
     "fix": "Fix",
     "serviceFileChanged": "This update changes the systemd service file. The one-click update can't safely overwrite it (your installed copy may have customizations). Run the full command above manually instead."
   },
+  "indoor": {
+    "label": "INDOOR",
+    "airQuality": {
+      "1": "Excellent",
+      "2": "Good",
+      "3": "Fair",
+      "4": "Inferior",
+      "5": "Poor"
+    }
+  },
   "radar": {
     "legend": "RADAR",
     "veryLight": "Very light",

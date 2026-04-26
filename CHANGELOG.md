@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.6.0] - 2026-04-26
+
+### Added
+- **Indoor temperature display, promoted out of experimental** — a Homebridge-backed indoor reading is now a first-class feature. A small block to the left of the clock shows the temperature, humidity (when the sensor exposes it), and HomeKit air quality (1=Excellent..5=Poor, with a coloured dot). Polls a single configured sensor via `homebridge-config-ui-x`'s REST API every five minutes, with auto-relogin on JWT expiry, range-based defensive filtering, and a stale-after-30-min indicator that dims the readout. The configuration moves from the previous `experimental.indoorTemperature` block in `settings.json` to a top-level `indoorTemperature` block; `install.sh` now offers an interactive prompt for it under "Advanced features" (Homebridge URL, username, password, sensor name). Available on all platforms — works as long as Homebridge is reachable from the device. Documentation: `docs/indoor-temperature.md`.
+
+### Migration note
+Users who had the experimental block on `feat/indoor-temperature`: move the contents up one level (drop the `experimental:` wrapper) and restart. `install.sh` re-run is the simplest path — its prompt writes the new top-level block for you. The old `experimental` key is no longer recognised by the server.
+
+---
+
 ## [2.5.1] - 2026-04-26
 
 ### Fixed
