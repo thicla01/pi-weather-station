@@ -70,6 +70,7 @@ export function AppContextProvider({ children }) {
   const [latestVersion, setLatestVersion] = useState(null);
   const [latestSha, setLatestSha] = useState(null);
   const [updateCommits, setUpdateCommits] = useState([]);
+  const [serviceFileChanged, setServiceFileChanged] = useState(false);
   const [skippedSha, setSkippedSha] = useState(null);
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [updateState, setUpdateState] = useState("idle"); // idle|updating|restarting|stopped|failed
@@ -230,6 +231,7 @@ export function AppContextProvider({ children }) {
         setLatestVersion(res.data.latestVersion ?? null);
         setLatestSha(res.data.latestSha ?? null);
         setUpdateCommits(res.data.commits ?? []);
+        setServiceFileChanged(Boolean(res.data.serviceFileChanged));
         setServerPlatform(res.data.platform ?? null);
         setIsSystemd(res.data.isSystemd ?? false);
       }).catch(() => {
@@ -754,6 +756,7 @@ export function AppContextProvider({ children }) {
     setLatestSha,
     updateCommits,
     setUpdateCommits,
+    serviceFileChanged,
     skippedSha,
     saveSkippedSha,
     updateModalOpen,

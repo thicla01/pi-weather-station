@@ -84,7 +84,8 @@
     "skip": "IGNORAR ESTA VERSIÓN",
     "noChangelog": "No hay registro de cambios disponible.",
     "feat": "Nuevo",
-    "fix": "Corrección"
+    "fix": "Corrección",
+    "serviceFileChanged": "Esta actualización modifica el archivo de servicio systemd. El botón no puede sobrescribirlo de forma segura (tu copia instalada puede tener personalizaciones). Ejecuta el comando completo de arriba manualmente."
   },
   "radar": {
     "legend": "RADAR",

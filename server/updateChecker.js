@@ -1,8 +1,15 @@
 const axios = require("axios");
+const fs = require("fs");
+const crypto = require("crypto");
 const { execSync } = require("child_process");
 const path = require("path");
 
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour
+const SERVICE_FILE_REL = "deploy/pi-weather-server.service";
+const INSTALLED_SERVICE_FILE = path.join(
+  process.env.HOME || "",
+  ".config/systemd/user/pi-weather-server.service"
+);
 
 let _cache = null;
 let _cacheTime = 0;
@@ -43,6 +50,44 @@ function getRepo() {
     if (match) return match[1];
   } catch { /* git not available or no remote */ }
   return "thicla01/pi-weather-station"; // fallback
+}
+
+/**
+ * Compare the installed systemd service file with the upstream version that
+ * would land after a `git pull`. Returns true when an update would change
+ * the service file (so the user needs the manual `cp` + `daemon-reload`
+ * step beyond what the in-app updater does), false when they match, and
+ * null when the comparison can't be made (e.g. installed file missing,
+ * remote fetch failed, or running on a non-systemd platform).
+ *
+ * @param {string} repo "owner/repo" form
+ * @returns {Promise<boolean|null>}
+ */
+async function checkServiceFileChanged(repo) {
+  // Only meaningful when actually running under systemd user services.
+  if (!process.env.INVOCATION_ID || process.platform !== "linux") return null;
+
+  let installedHash;
+  try {
+    const installed = fs.readFileSync(INSTALLED_SERVICE_FILE);
+    installedHash = crypto.createHash("sha256").update(installed).digest("hex");
+  } catch {
+    return null; // No installed file — likely a dev install without systemd
+  }
+
+  let upstream;
+  try {
+    const r = await axios.get(
+      `https://raw.githubusercontent.com/${repo}/master/${SERVICE_FILE_REL}`,
+      { timeout: 10_000, responseType: "text", transformResponse: [(d) => d] }
+    );
+    upstream = r.data;
+  } catch {
+    return null; // Network error — don't pretend to know
+  }
+
+  const upstreamHash = crypto.createHash("sha256").update(upstream).digest("hex");
+  return upstreamHash !== installedHash;
 }
 
 /**
@@ -105,6 +150,14 @@ async function checkForUpdate() {
     // "skip" button from suppressing future genuine updates.
     const updateAvailable = shasDiffer && commits.length > 0;
 
+    // Detect changes to deploy/pi-weather-server.service that the in-app
+    // updater can't safely apply on its own (the installed file may have
+    // user customizations like ALLOW_REMOTE=true). Surfaces a notice in
+    // the modal with the manual cp + daemon-reload commands.
+    const serviceFileChanged = updateAvailable
+      ? await checkServiceFileChanged(REPO)
+      : false;
+
     _cache = {
       updateAvailable,
       latestVersion,
@@ -112,6 +165,7 @@ async function checkForUpdate() {
       localSha: localSha ? localSha.slice(0, 7) : null,
       checkedAt: new Date().toISOString(),
       commits,
+      serviceFileChanged,
     };
   } catch {
     // On network error: keep last known result if available, otherwise return no-update

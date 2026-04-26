@@ -84,7 +84,8 @@
     "skip": "SKIP THIS VERSION",
     "noChangelog": "No changelog available for this update.",
     "feat": "New",
-    "fix": "Fix"
+    "fix": "Fix",
+    "serviceFileChanged": "This update changes the systemd service file. The one-click update can't safely overwrite it (your installed copy may have customizations). Run the full command above manually instead."
   },
   "radar": {
     "legend": "RADAR",

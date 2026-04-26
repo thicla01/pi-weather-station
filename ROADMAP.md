@@ -98,6 +98,9 @@ Without tests, every change to shared utilities or server middleware carries an 
 ### 🗂️ `AppContext.js` size and responsibility
 `AppContext.js` currently holds all global state: settings, units, geolocation, dark mode, font size, panel state, and all update functions. As the project grows, this single file becomes harder to navigate and reason about. Splitting it into focused context providers (e.g. `SettingsContext`, `WeatherContext`, `UIContext`) would improve maintainability without changing any observable behaviour.
 
+### ⚙️ Service-file customizations should live in a systemd drop-in, not the main unit
+Today `deploy/pi-weather-server.service` is the canonical service file but `install.sh` rewrites it in place to apply user choices like `ALLOW_REMOTE=true`. That makes the installed file diverge from what's checked in, so the in-app updater can't safely overwrite it on releases that change the service definition (v2.4.4 was the first such release — see the `serviceFileChanged` notice added in v2.4.5). The fix: keep the canonical file pristine, write user customizations to `~/.config/systemd/user/pi-weather-server.service.d/override.conf` instead. Once that's done, the in-app updater can `cp` and `daemon-reload` the service file unattended on every update without risking user config loss.
+
 ---
 
 ## Perspective

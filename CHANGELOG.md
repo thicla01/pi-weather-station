@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.4.5] - 2026-04-26
+
+### Added
+- **Update modal warns when the systemd service file changed** — the in-app updater (`POST /api/update`) safely handles `git pull`, `npm install`, and `systemctl restart`, but it can't safely overwrite `~/.config/systemd/user/pi-weather-server.service` because the installed copy may have user customizations like `ALLOW_REMOTE=true`. The update checker now hashes the upstream version of `deploy/pi-weather-server.service` and compares it with the installed file. When they differ, the modal shows an amber notice, expands the displayed command to include the manual `cp` + `daemon-reload` steps, and disables the one-click Update button so the user is forced through the manual recipe.
+
+---
+
 ## [2.4.4] - 2026-04-26
 
 ### Fixed

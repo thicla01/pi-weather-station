@@ -132,6 +132,28 @@
   opacity: 0.9;
 }
 
+/* Service-file-changed notice — shown above the manual command */
+.service-file-notice {
+  font-size: 10px;
+  line-height: 1.45;
+  padding: 6px 10px;
+  margin: 0 12px 4px;
+  border-radius: 3px;
+  border-left: 3px solid;
+}
+
+.container-dark .service-file-notice {
+  background: #3a2a14;
+  border-color: #f59e0b;
+  color: #fde68a;
+}
+
+.container-light .service-file-notice {
+  background: #fef3c7;
+  border-color: #d97706;
+  color: #78350f;
+}
+
 /* Manual command area */
 .cmd-section {
   padding: 6px 12px;

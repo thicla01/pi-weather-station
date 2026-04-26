@@ -18,6 +18,7 @@ const UpdateModal = () => {
     latestVersion,
     latestSha,
     updateCommits,
+    serviceFileChanged,
     saveSkippedSha,
     updateState,
     setUpdateState,
@@ -33,9 +34,21 @@ const UpdateModal = () => {
   const isBusy = updateState === "updating" || updateState === "restarting";
   const isReset = updateState === "failed"  || updateState === "stopped";
 
-  const cmdDisplay = isSystemd
-    ? "cd ~/pi-weather-station && git pull && systemctl --user restart pi-weather-server"
-    : "cd ~/pi-weather-station && git pull";
+  // When the systemd service file itself changed, the in-app updater cannot
+  // safely overwrite it (the installed copy may have user customizations
+  // like ALLOW_REMOTE=true). Surface the full manual recipe instead.
+  let cmdDisplay;
+  if (serviceFileChanged) {
+    cmdDisplay =
+      "cd ~/pi-weather-station && git pull && npm install && " +
+      "cp deploy/pi-weather-server.service ~/.config/systemd/user/ && " +
+      "systemctl --user daemon-reload && " +
+      "systemctl --user restart pi-weather-server";
+  } else if (isSystemd) {
+    cmdDisplay = "cd ~/pi-weather-station && git pull && systemctl --user restart pi-weather-server";
+  } else {
+    cmdDisplay = "cd ~/pi-weather-station && git pull";
+  }
 
   const handleCopy = useCallback(() => {
     navigator.clipboard.writeText(cmdDisplay).then(() => {
@@ -99,6 +112,13 @@ const UpdateModal = () => {
           )}
         </div>
 
+        {/* Service file change notice — only when relevant */}
+        {serviceFileChanged && (
+          <div className={styles.serviceFileNotice}>
+            {t("update.serviceFileChanged")}
+          </div>
+        )}
+
         {/* Manual command */}
         <div className={styles.cmdSection}>
           <div className={styles.cmdRow}>
@@ -130,7 +150,7 @@ const UpdateModal = () => {
           <button
             className={`${styles.updateButton} ${updateState === "failed" ? styles.updateButtonFailed : ""} ${updateState === "stopped" ? styles.updateButtonStopped : ""}`}
             onClick={handleUpdate}
-            disabled={isBusy}
+            disabled={isBusy || serviceFileChanged}
           >
             {updateState === "idle"        && t("update.update")}
             {updateState === "updating"    && t("update.updating")}

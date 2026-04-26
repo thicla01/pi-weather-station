@@ -84,7 +84,8 @@
     "skip": "IGNORER CETTE VERSION",
     "noChangelog": "Aucun journal des modifications disponible.",
     "feat": "Nouveau",
-    "fix": "Correctif"
+    "fix": "Correctif",
+    "serviceFileChanged": "Cette mise à jour modifie le fichier de service systemd. Le bouton ne peut pas l'écraser sans risque (ton fichier installé peut contenir des personnalisations). Exécute plutôt la commande complète ci-dessus manuellement."
   },
   "radar": {
     "legend": "RADAR",
