@@ -31,7 +31,16 @@ const Clock = () => {
       <div className={styles.date}>
         {format(date, t("dateFormat"), { locale }).toUpperCase()}
       </div>
-      <div className={styles.time}>{format(date, clockTime === "12" ? "p" : "HH:mm")}</div>
+      <div className={styles.time}>
+        {clockTime === "12" ? (
+          <>
+            {format(date, "h:mm")}
+            <span className={styles.amPm}>{format(date, "a")}</span>
+          </>
+        ) : (
+          format(date, "HH:mm")
+        )}
+      </div>
       <div className={styles.sunRiseSetContainer}>
         <SunRiseSet/>
       </div>

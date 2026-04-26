@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.6.1] - 2026-04-26
+
+### Fixed
+- **Clock AM/PM overflow next to the indoor temperature block** — in 12-hour mode the `3:01 PM` time string was rendered at the same large font as the digits and overflowed into the indoor-temperature block on the left, overlapping the location name and other rows. The `AM`/`PM` suffix is now rendered in a smaller span (digital-clock proportions, ~0.4em of the digit size, baseline-aligned) so the time fits the available width on small panels.
+
+---
+
 ## [2.6.0] - 2026-04-26
 
 ### Added

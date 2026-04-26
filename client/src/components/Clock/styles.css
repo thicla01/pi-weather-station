@@ -7,7 +7,18 @@
 .time{
     display: flex;
     justify-content: flex-end;
+    align-items: baseline;
+    gap: 0.15em;
     font-size: clamp(45px, 4.2vw, 60px);
+}
+
+/* AM/PM suffix in 12-hour mode — sized down to digital-clock proportions
+   so "3:01 PM" doesn't overflow into the indoor-temperature block on the
+   left in tight layouts. */
+.am-pm{
+    font-size: 0.4em;
+    letter-spacing: 0.02em;
+    opacity: 0.85;
 }
 
 .sun-rise-set-container{
