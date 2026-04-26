@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.4.6] - 2026-04-26
+
+### Fixed
+- **Kiosk no longer starts in non-kiosk mode after boot** — `server/index.js` was using the npm `open` package to auto-launch the default browser at server startup, a convenience for `npm start` in dev mode. On the Pi, where the systemd service starts before the user session has loaded its display compositor, the call used to fail silently — leaving `~/.local/bin/start-server` (run from the labwc autostart) free to launch `chromium --kiosk` correctly. As a side effect of v2.4.4's `ExecStartPre` waiting for DNS, the service now starts late enough that the display is already available, so `open()` succeeded and launched a non-kiosk Chromium first; `start-server`'s subsequent `chromium --kiosk` call only opened a tab in the existing instance (Chromium being single-instance, the kiosk flag was ignored). Skip the `open()` call entirely when no TTY is attached, so service environments leave the kiosk launcher to do its job.
+
+---
+
 ## [2.4.5] - 2026-04-26
 
 ### Added

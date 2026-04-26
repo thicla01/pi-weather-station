@@ -165,18 +165,32 @@ const debugLocalhostOnly = (req, res, next) => {
   next();
 };
 
+// Open the URL in the default browser only in interactive dev mode (npm
+// start in a terminal). In a kiosk service environment, this would launch
+// a non-kiosk Chromium that wins the race against start-server's
+// `chromium --kiosk ...` invocation (Chromium is single-instance and the
+// second call's flags are ignored). TTY presence is the cleanest signal:
+// dev shells have one, systemd/launchd services don't.
+const openInBrowserIfDev = async (url) => {
+  if (!process.stdout.isTTY) return;
+  try {
+    const { default: open } = await import("open");
+    await open(url);
+  } catch (err) {
+    console.error("Failed to open browser:", err.message);
+  }
+};
+
 if (sslOptions) {
   https.createServer(sslOptions, app).listen(HTTPS_PORT, HOST, async () => {
     initServerInfo(HTTPS_PORT, "https");
-    const { default: open } = await import("open");
-    await open(`https://localhost:${HTTPS_PORT}`);
+    await openInBrowserIfDev(`https://localhost:${HTTPS_PORT}`);
     console.log(`${appName} v${ver} has started on port ${HTTPS_PORT} (HTTPS, bound to ${HOST})`);
   });
 } else {
   app.listen(PORT, HOST, async () => {
     initServerInfo(PORT, "http");
-    const { default: open } = await import("open");
-    await open(`http://localhost:${PORT}`);
+    await openInBrowserIfDev(`http://localhost:${PORT}`);
     console.log(`${appName} v${ver} has started on port ${PORT} (HTTP, bound to ${HOST})`);
   });
 }
