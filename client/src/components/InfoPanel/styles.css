@@ -31,6 +31,15 @@
   gap: 8px;
 }
 
+/* Keep the clock anchored to the right edge even when IndoorTemperature
+   renders null (i.e. the feature is not configured on this Pi). Without
+   this, `space-between` with a single child would leave the clock at
+   flex-start (left). The auto-margin is harmless when both children are
+   present — `space-between` already pushes them to opposite ends. */
+.clock-container > :last-child {
+  margin-inline-start: auto;
+}
+
 .weather-info-container {
   grid-area: weather-info;
   overflow-y: auto;
