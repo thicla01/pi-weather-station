@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.4.1] - 2026-04-26
+
+### Fixed
+- **In-app updater now installs new dependencies before restarting** — when an update introduced a new npm package (e.g. `pngjs` for the radar analyzer), `POST /api/update` would `git pull` and restart the server without running `npm install`, leaving the freshly restarted Node process to crash-loop on `Cannot find module '<dep>'`. The endpoint now runs `npm install --omit=dev --no-audit --no-fund` between the pull and the restart, and returns 500 on `npm install` failure (so the running server stays on the previous code rather than restarting into a broken state). When `package.json` hasn't changed, the install is a fast no-op (~2-3 s) — acceptable overhead for the safety guarantee.
+
+---
+
 ## [2.4.0] - 2026-04-26
 
 ### Added

@@ -229,27 +229,48 @@ app.post("/api/update", localhostOnly, (req, res) => {
   const projectRoot = path.join(__dirname, "..");
   console.log("[update] Starting git pull…");
 
-  exec("git pull --ff-only", { cwd: projectRoot, timeout: 30_000 }, (err, stdout, stderr) => {
-    if (err) {
-      console.error("[update] git pull failed:", stderr);
-      return res.status(500).json({ error: true, message: stderr });
+  exec("git pull --ff-only", { cwd: projectRoot, timeout: 30_000 }, (pullErr, pullStdout, pullStderr) => {
+    if (pullErr) {
+      console.error("[update] git pull failed:", pullStderr);
+      return res.status(500).json({ error: true, message: pullStderr });
     }
-    console.log("[update] git pull succeeded:", stdout.trim());
-    res.json({ ok: true, isSystemd: !!process.env.INVOCATION_ID });
+    console.log("[update] git pull succeeded:", pullStdout.trim());
 
-    setTimeout(() => {
-      if (process.env.INVOCATION_ID) {
-        exec("systemctl --user restart pi-weather-server", (restartErr) => {
-          if (restartErr) {
-            console.error("[update] systemctl restart failed, falling back to process.exit:", restartErr.message);
+    // Always run `npm install` after the pull. It's idempotent (a few
+    // seconds when nothing changed), and it prevents the
+    // "Cannot find module 'X'" trap when an update introduces a new
+    // dependency — without this step, the post-restart server would
+    // crash-loop on the missing module.
+    console.log("[update] Running npm install (--omit=dev)…");
+    exec(
+      "npm install --omit=dev --no-audit --no-fund",
+      { cwd: projectRoot, timeout: 180_000 },
+      (npmErr, npmStdout, npmStderr) => {
+        if (npmErr) {
+          console.error("[update] npm install failed:", npmStderr);
+          return res.status(500).json({
+            error: true,
+            message: `npm install failed: ${npmStderr || npmErr.message}`,
+          });
+        }
+        console.log("[update] npm install succeeded.");
+        res.json({ ok: true, isSystemd: !!process.env.INVOCATION_ID });
+
+        setTimeout(() => {
+          if (process.env.INVOCATION_ID) {
+            exec("systemctl --user restart pi-weather-server", (restartErr) => {
+              if (restartErr) {
+                console.error("[update] systemctl restart failed, falling back to process.exit:", restartErr.message);
+                process.exit(0);
+              }
+            });
+          } else {
+            // No systemd (dev / macOS) — exit and let the developer restart manually.
             process.exit(0);
           }
-        });
-      } else {
-        // No systemd (dev / macOS) — exit and let the developer restart manually.
-        process.exit(0);
+        }, 500);
       }
-    }, 500);
+    );
   });
 });
 
