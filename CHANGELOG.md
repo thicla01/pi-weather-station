@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.5.1] - 2026-04-26
+
+### Fixed
+- **`install.sh` no longer silently switches feature/fix branches to master** — the script auto-switched to `master` whenever it detected another branch, which is sensible for normal users but actively breaks testing of work-in-progress branches: bash loads the script into memory before running, so the running install behaved as expected, but the deploy/ files later `cp`-ed into `~/.local/bin` and `~/.config/systemd/user` came from master instead of the branch the maintainer thought they were testing. Now branches matching `feat/*` and `fix/*` are recognised as in-development and skip the auto-switch (with a one-line notice). Any other non-master branch (e.g. a leftover from an old workflow) still triggers the safety switch as before.
+- **Server log prefix no longer breaks `printf`-style formatting** — `server/index.js` overrides `console.log`/`console.error` to prepend a timestamp. The previous implementation passed the timestamp as a separate first argument, which made Node treat it as the format string and skip `%s` / `%d` substitutions on the actual log message, leaving placeholders unrendered in the log. The wrapper now inlines the timestamp into the format string when the first argument is a string, so substitutions work as expected (and falls back to the previous behaviour for non-string first arguments like objects).
+
+---
+
 ## [2.5.0] - 2026-04-26
 
 ### Added

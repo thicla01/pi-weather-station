@@ -24,14 +24,31 @@ echo "=== Pi Weather Station — Installation ==="
 echo ""
 
 # --- Ensure master branch ---
+# Catches the common mistake of running install.sh from a stale branch.
+# Skipped intentionally on feat/* and fix/* branches so that maintainers
+# can test in-development changes without the script silently switching
+# them off the branch they meant to install from. (Bash already loads the
+# script into memory before running, so the auto-switch wouldn't even
+# affect the running script — but it would replace the deploy/ files we
+# subsequently `cp` to ~/.local/bin and ~/.config/systemd/user, which is
+# the actually-confusing failure mode.)
 cd "$REPO_DIR"
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
-if [ "$CURRENT_BRANCH" != "master" ]; then
-    echo ">> Switching from '$CURRENT_BRANCH' to 'master'..."
-    git checkout master
-    git pull
-    echo ""
-fi
+case "$CURRENT_BRANCH" in
+    master)
+        ;;
+    feat/*|fix/*)
+        echo ">> Running from development branch '$CURRENT_BRANCH' — staying put."
+        echo "   (master is the recommended branch for normal installs.)"
+        echo ""
+        ;;
+    *)
+        echo ">> Switching from '$CURRENT_BRANCH' to 'master'..."
+        git checkout master
+        git pull
+        echo ""
+        ;;
+esac
 
 # ============================================================================
 # Phase 0 — Pre-flight checks

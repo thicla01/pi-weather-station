@@ -7,15 +7,28 @@
 // the issue entirely with no measurable cost on networks where IPv6 works.
 require("dns").setDefaultResultOrder("ipv4first");
 
-// Prefix all console output with an ISO timestamp for log readability
+// Prefix all console output with an ISO timestamp for log readability.
+//
+// When the first argument is a string we PREPEND the timestamp into it
+// rather than passing the timestamp as a separate argument. Otherwise
+// Node's console.log treats the timestamp as the format string,
+// `%s/%d/%j` placeholders in subsequent arguments are never substituted,
+// and the printf-style format strings printed unsubstituted in the log.
 const _origLog = console.log.bind(console);
 const _origErr = console.error.bind(console);
 const _ts = () => {
   const d = new Date();
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")} ${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}:${String(d.getSeconds()).padStart(2, "0")}`;
 };
-console.log   = (...args) => _origLog(`[${_ts()}]`, ...args);
-console.error = (...args) => _origErr(`[${_ts()}]`, ...args);
+const _withTimestamp = (orig) => (first, ...rest) => {
+  if (typeof first === "string") {
+    orig(`[${_ts()}] ${first}`, ...rest);
+  } else {
+    orig(`[${_ts()}]`, ...(first === undefined ? [] : [first]), ...rest);
+  }
+};
+console.log   = _withTimestamp(_origLog);
+console.error = _withTimestamp(_origErr);
 
 const express = require("express");
 const bodyParser = require("body-parser");
