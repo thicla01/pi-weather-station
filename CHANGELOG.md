@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.7.0] - 2026-04-27
+
+### Added
+- **`deploy/toggle-remote.sh` — focused script for toggling remote access** — flipping `ALLOW_REMOTE` on or off after the initial install used to mean either re-running the full `install.sh` flow (and pressing Enter through every prompt) or hand-editing the systemd unit / launchd plist, regenerating the SSL cert, and restarting the service manager. The new script does only that one job: reads the current state, asks to confirm the inverse action, regenerates `server/cert.pem` with the LAN IP as a Subject Alternative Name (when enabling), edits the env var in the right config file, and reloads + restarts the service. Works on Linux (systemd) and macOS (launchd). Settings writes remain localhost-only either way.
+
+---
+
 ## [2.6.3] - 2026-04-27
 
 ### Added

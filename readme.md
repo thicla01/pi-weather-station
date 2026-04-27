@@ -342,7 +342,13 @@ If you used `deploy/install.sh`, remote access can be configured automatically d
 - Enable `ALLOW_REMOTE=true` in the systemd service
 - Remote users are always restricted to read-only access (settings writes are always localhost-only)
 
-> **Note:** If your Pi's IP address changes, the SSL certificate will no longer be valid for remote connections. Re-run `bash deploy/install.sh` to regenerate it. To avoid this, assign a static IP to your Pi.
+> **Toggling remote access after installation:** use `deploy/toggle-remote.sh` to flip the switch on or off without re-walking through the full install.sh flow. The script reads the current state, asks to confirm the inverse action, regenerates the SSL certificate with your LAN IP (when enabling), reloads the service manager, and restarts the server. Works on Linux (systemd) and macOS (launchd).
+>
+> ```bash
+> bash deploy/toggle-remote.sh
+> ```
+
+> **Note:** If your Pi's IP address changes, the SSL certificate will no longer be valid for remote connections. Re-run `bash deploy/toggle-remote.sh` (or `bash deploy/install.sh`) to regenerate it. To avoid this, assign a static IP to your Pi.
 
 ### Option 2 — Manual
 
