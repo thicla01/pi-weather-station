@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased]
+
+### Documentation
+- **`docs/security-hardening.md` gains a "Cost-related controls" section** — captures the rationale for keeping `advanced.ai.*` settings behind the `localhostOnly` boundary: beyond the classical security argument, these toggles directly affect Anthropic API billing (prompt size, paragraph count, sample-point density). The section spells out the per-toggle impact, the enforcement points (server route + UI), and recommends per-key quotas + per-device API keys for multi-Pi deployments. The threat model in the same doc gains a corresponding bullet. A code comment on the `PATCH /setting` route in `server/index.js` mirrors the rationale for future maintainers tempted to relax the rule for "harmless preferences".
+
+---
+
 ## [2.10.1] - 2026-04-27
 
 ### Fixed

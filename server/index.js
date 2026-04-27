@@ -212,6 +212,18 @@ if (sslOptions) {
 }
 
 app.get("/settings", getSettings);
+// All settings writes are localhostOnly — including for advanced.ai.* keys
+// which look benign (booleans, no secrets). Two reasons, both worth keeping:
+//   1. Security boundary: a single, clear rule ("no writes from remote ever")
+//      is easier to reason about and audit than per-key exceptions.
+//   2. Cost control: advanced.ai.* gates a paid feature (Anthropic API tokens
+//      consumed by the AI summary). Even small toggles change prompt size or
+//      enable analyses that bill against the Pi owner's API key. Only the
+//      device owner — physically at the Pi or via SSH tunnel — should be
+//      able to dial those up.
+// If you're tempted to relax this for "harmless preferences", remember the
+// AdvancedSettings UI already shows the section read-only on remote with a
+// notice pointing the user to the SSH-tunnel workflow.
 app.post("/settings", localhostOnly, createSettingsFile);
 app.put("/settings", localhostOnly, replaceSettings);
 app.patch("/setting", localhostOnly, setSetting);
