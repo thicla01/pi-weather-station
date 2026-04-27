@@ -22,6 +22,7 @@
     "fontL": "G",
     "advanced": {
       "title": "Paramètres avancés",
+      "readOnlyNotice": "Ces réglages ne peuvent être modifiés qu'à partir de l'appareil lui-même. Pour les modifier à distance, ouvre un tunnel SSH (ssh -L 8443:localhost:8443 user@<hôte>) et recharge l'application depuis https://localhost:8443.",
       "aiGroup": "Résumé météo IA",
       "radarAnalysisEnabled": "Analyse radar",
       "radarAnalysisEnabledHint": "Ajoute le troisième paragraphe « Analyse radar » au résumé IA, à partir des tuiles RainViewer autour de ta position. Désactive pour omettre complètement cette analyse.",

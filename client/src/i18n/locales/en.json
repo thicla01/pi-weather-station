@@ -22,6 +22,7 @@
     "fontL": "L",
     "advanced": {
       "title": "Advanced settings",
+      "readOnlyNotice": "These toggles can only be changed from the device itself. To modify them remotely, open an SSH tunnel (ssh -L 8443:localhost:8443 user@<host>) and reload the app from https://localhost:8443.",
       "aiGroup": "AI weather summary",
       "radarAnalysisEnabled": "Radar analysis",
       "radarAnalysisEnabledHint": "Adds the third \"Radar analysis\" paragraph to the AI summary, sampled from RainViewer tiles around your location. Turn off to skip the analysis entirely.",

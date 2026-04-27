@@ -17,17 +17,20 @@ const ignoreSaveError = () => undefined;
 /**
  * Inline two-button toggle. Saves on click via the provided callback; the
  * callback is expected to return a Promise so we can keep the UI in sync if
- * the write fails.
+ * the write fails. When `readOnly` is true, clicks do nothing and the toggle
+ * is rendered with reduced opacity to signal the disabled state — used on
+ * remote clients where settings writes are localhostOnly.
  *
  * @param {object} props Component props
  * @param {boolean} props.value Current value of the toggle
  * @param {Function} props.onChange Async setter (returns a Promise)
  * @param {string} props.onLabel Label for the "On" button
  * @param {string} props.offLabel Label for the "Off" button
+ * @param {boolean} [props.readOnly] When true, the toggle is read-only
  * @returns {JSX.Element} Inline toggle
  */
-const InlineToggle = ({ value, onChange, onLabel, offLabel }) => (
-  <div className={styles.toggleContainer || "toggle-container"} style={{ display: "flex", gap: "0.3em" }}>
+const InlineToggle = ({ value, onChange, onLabel, offLabel, readOnly }) => (
+  <div className={styles.toggleContainer || "toggle-container"} style={{ display: "flex", gap: "0.3em", opacity: readOnly ? 0.5 : 1 }}>
     {[
       { label: onLabel, val: true },
       { label: offLabel, val: false },
@@ -35,13 +38,14 @@ const InlineToggle = ({ value, onChange, onLabel, offLabel }) => (
       <div
         key={String(val)}
         onClick={() => {
+          if (readOnly) return;
           if (val !== value) onChange(val).catch(ignoreSaveError);
         }}
         style={{
           padding: "0.3em 0.7em",
           border: "1px solid rgba(255,255,255,0.3)",
           borderRadius: "3px",
-          cursor: "pointer",
+          cursor: readOnly ? "default" : "pointer",
           background: val === value ? "rgba(255,255,255,0.2)" : "transparent",
           fontSize: "0.85em",
           minWidth: "2.5em",
@@ -59,6 +63,7 @@ InlineToggle.propTypes = {
   onChange: PropTypes.func.isRequired,
   onLabel: PropTypes.string.isRequired,
   offLabel: PropTypes.string.isRequired,
+  readOnly: PropTypes.bool,
 };
 
 /**
@@ -67,9 +72,15 @@ InlineToggle.propTypes = {
  * one-click accessible. Toggles save to settings.json on click — no separate
  * Save button — via the AppContext's saveAdvancedAiFlag helper.
  *
+ * On remote clients, where settings writes are localhostOnly, the section is
+ * still shown but the toggles are read-only and a notice points the user
+ * toward the SSH-tunnel workflow for actual changes.
+ *
+ * @param {object} props Component props
+ * @param {boolean} [props.readOnly] When true, toggles are disabled (remote)
  * @returns {JSX.Element} Advanced settings section
  */
-const AdvancedSettings = () => {
+const AdvancedSettings = ({ readOnly }) => {
   const { t } = useTranslation();
   const {
     radarAnalysisEnabled,
@@ -97,6 +108,12 @@ const AdvancedSettings = () => {
 
       {open && (
         <div className={styles.advancedBody}>
+          {readOnly && (
+            <div className={styles.readOnlyNotice}>
+              {t("settings.advanced.readOnlyNotice")}
+            </div>
+          )}
+
           <div className={styles.groupLabel}>{t("settings.advanced.aiGroup")}</div>
 
           <div className={styles.row}>
@@ -111,6 +128,7 @@ const AdvancedSettings = () => {
               onChange={(v) => saveAdvancedAiFlag("radarAnalysisEnabled", v)}
               onLabel={t("settings.on")}
               offLabel={t("settings.off")}
+              readOnly={readOnly}
             />
           </div>
 
@@ -126,6 +144,7 @@ const AdvancedSettings = () => {
               onChange={(v) => saveAdvancedAiFlag("extendedRadius", v)}
               onLabel={t("settings.on")}
               offLabel={t("settings.off")}
+              readOnly={readOnly}
             />
           </div>
 
@@ -141,6 +160,7 @@ const AdvancedSettings = () => {
               onChange={(v) => saveAdvancedAiFlag("doubleOuterPoints", v)}
               onLabel={t("settings.on")}
               offLabel={t("settings.off")}
+              readOnly={readOnly}
             />
           </div>
 
@@ -156,12 +176,17 @@ const AdvancedSettings = () => {
               onChange={(v) => saveAdvancedAiFlag("showSamplingPoints", v)}
               onLabel={t("settings.on")}
               offLabel={t("settings.off")}
+              readOnly={readOnly}
             />
           </div>
         </div>
       )}
     </div>
   );
+};
+
+AdvancedSettings.propTypes = {
+  readOnly: PropTypes.bool,
 };
 
 export default AdvancedSettings;

@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.10.1] - 2026-04-27
+
+### Fixed
+- **Advanced settings now visible from remote clients (read-only)** — the section was hidden entirely on remote because the toggles save via `PATCH /setting` (localhostOnly). Hiding it left users wondering "where did my advanced settings go?". Show the section everywhere; on remote, the toggles render with reduced opacity and ignore clicks, and an amber notice at the top of the section points the user toward the SSH-tunnel workflow for actual changes. The localhostOnly write boundary is preserved unchanged — this is purely a UX clarification.
+
+---
+
 ## [2.10.0] - 2026-04-27
 
 ### Added

@@ -63,3 +63,14 @@
   opacity: 0.6;
   margin-top: 0.15em;
 }
+
+.read-only-notice {
+  font-size: 0.85em;
+  font-style: italic;
+  background: rgba(201, 169, 97, 0.12);
+  border-left: 3px solid rgba(201, 169, 97, 0.6);
+  padding: 0.5em 0.7em;
+  margin-bottom: 0.8em;
+  border-radius: 2px;
+  line-height: 1.4;
+}

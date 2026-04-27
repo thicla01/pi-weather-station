@@ -205,7 +205,7 @@ const Settings = () => {
               )}
             </div>
           </div>
-          {!isRemoteRestricted && <AdvancedSettings />}
+          <AdvancedSettings readOnly={isRemoteRestricted} />
         </div>
       </div>
     </CSSTransition>
