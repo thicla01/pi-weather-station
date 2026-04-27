@@ -49,7 +49,7 @@ For day-to-day updates, the in-app **Update** button (debug panel → notificati
 > cd ~/pi-weather-station && git pull && bash deploy/install.sh
 > ```
 >
-> The script picks up your existing `settings.json`, refreshes service files, and reinstalls dependencies cleanly. Starting from v2.6.3 the modal also detects this case and shows the same recipe.
+> The script picks up your existing `settings.json`, refreshes service files, and reinstalls dependencies cleanly. Since v2.6.3, the modal detects this case and shows the same recipe automatically.
 
 # Version history
 
