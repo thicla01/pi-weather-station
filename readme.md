@@ -12,7 +12,20 @@ A full-stack weather display application originally designed for the Raspberry P
 
 The kiosk browser is chosen interactively by `install.sh` (Chromium, Chrome, Brave, Edge, or Firefox) and persisted in `~/.config/pi-weather-station/browser.conf`. Snap-confined Firefox is supported via a named profile (`-P pi-weather-station`).
 
-![pws-screenshot3](https://user-images.githubusercontent.com/15202038/91359998-4625bb80-e7bb-11ea-937e-c87eede41f35.JPG)
+## Screenshots
+
+The original Pi Weather Station (v1.x), as designed by [@elewin](https://github.com/elewin):
+
+![Original layout, v1.x](https://user-images.githubusercontent.com/15202038/91359998-4625bb80-e7bb-11ea-937e-c87eede41f35.JPG)
+
+The current build (v2.6), with the indoor-temperature header block, the 45 km radar-analysis circle, the AI weather summary, the small-screen panel toggle, and the localhost-only debug panel:
+
+| | |
+|---|---|
+| ![Full layout — InfoPanel open](docs/screenshots/full-layout.png) | ![Radar full-width — InfoPanel collapsed](docs/screenshots/radar-fullscreen.png) |
+| **Full layout** — InfoPanel header shows the Homebridge-backed indoor temperature/humidity/air quality next to the clock; the dashed circle on the map is the 45 km radar-analysis zone fed to the AI summary. | **Radar full-width** — On screens ≤ 520 px tall, the floating chevron collapses the InfoPanel so the radar takes the full viewport. |
+| ![AI summary expanded](docs/screenshots/ai-summary.png) | ![Debug panel](docs/screenshots/debug-panel.png) |
+| **AI summary expanded** — Tapping the chevron hides the charts and slides the summary up; the third paragraph (`Radar analysis:`) describes precipitation movement around the user, sampled from RainViewer tiles server-side. | **Debug panel** — Localhost-only, enabled with `DEBUG=true`. Server config, KPIs (uptime, heap, cache hit rate), per-endpoint response times, provider status, quota counters, security events, and logs. |
 
 The weather station will require you to have API keys from [Mapbox](https://www.mapbox.com/) and [Tomorrow.io](https://www.tomorrow.io/). Optionally, you can use an API key from [LocationIQ](https://locationiq.com/) to perform reverse geocoding, and an [Anthropic](https://console.anthropic.com/) API key for AI-generated weather summaries powered by Claude. All API keys are kept server-side: they never appear in client-side request URLs, and remote clients only receive a masked response (boolean) from `GET /settings` — the actual key values are only accessible from the host itself.
 
