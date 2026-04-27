@@ -15,6 +15,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Documentation
+- **New `docs/ssl-custom-cert.md`** — full reference for replacing the auto-generated self-signed certificate with one from a real CA (Let's Encrypt, corporate CA, mkcert). Covers the file replacement procedure, three typical scenarios, the auto-regeneration caveat (`server/index.js` regenerates a self-signed cert if `cert.pem` is missing or expired — so a custom cert can be silently overwritten on restart if it's let to expire), format conversion from PKCS#12 / DER / encrypted keys, and verification commands. Linked from the readme's first-launch note and from `docs/security-hardening.md`.
 - **`docs/security-hardening.md` gains a "Cost-related controls" section** — captures the rationale for keeping `advanced.ai.*` settings behind the `localhostOnly` boundary: beyond the classical security argument, these toggles directly affect Anthropic API billing (prompt size, paragraph count, sample-point density). The section spells out the per-toggle impact, the enforcement points (server route + UI), and recommends per-key quotas + per-device API keys for multi-Pi deployments. The threat model in the same doc gains a corresponding bullet. A code comment on the `PATCH /setting` route in `server/index.js` mirrors the rationale for future maintainers tempted to relax the rule for "harmless preferences".
 
 ---

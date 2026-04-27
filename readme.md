@@ -113,7 +113,7 @@ To test the installation manually:
 
 Now point your browser to `https://localhost:8443` and put it in full screen mode (`F11` in Chromium).
 
-> **Note:** The server uses a self-signed SSL certificate generated automatically on first launch. Your browser will show a security warning — this is expected. You can safely accept the exception for `localhost`.
+> **Note:** The server uses a self-signed SSL certificate generated automatically on first launch. Your browser will show a security warning — this is expected. You can safely accept the exception for `localhost`. To replace the self-signed cert with one from your own CA (Let's Encrypt, corporate CA, mkcert, etc.), see [docs/ssl-custom-cert.md](docs/ssl-custom-cert.md).
 
 ## Running on startup
 

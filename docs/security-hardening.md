@@ -227,6 +227,17 @@ bill against their API key**.
   particularly Anthropic call rates. A sudden 24x jump is more likely
   configuration drift than an attack but worth investigating either way.
 
+## TLS / SSL — using your own certificate
+
+The server generates a self-signed certificate on first launch (Pi name
++ `localhost` + LAN IP as SAN when `ALLOW_REMOTE=true`). For a real
+deployment, you usually want a certificate signed by an authority your
+clients already trust (Let's Encrypt, your corporate CA, mkcert for
+LAN-only). The substitution is straightforward — replace
+`server/cert.pem` and `server/key.pem`, restart the service. Full
+procedure, conversion from PKCS#12, and the auto-regeneration caveat
+are documented in [docs/ssl-custom-cert.md](ssl-custom-cert.md).
+
 ## If you need more
 
 The script deliberately stops before things that cost significantly more to
