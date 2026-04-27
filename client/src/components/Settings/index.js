@@ -113,48 +113,55 @@ const Settings = () => {
         </div>
         <div className={styles.settingsContainer} ref={settingsScrollRef}>
           <ToggleButtons />
-          {!isRemoteRestricted && (
-            <>
-              <Input
-                label={t("settings.mapsApiKey")}
-                val={mapsKey}
-                current={currentMapsKey}
-                cb={setMapsKey}
-                required={true}
-              />
-              <Input
-                label={t("settings.weatherApiKey")}
-                val={weatherKey}
-                current={currentWeatherKey}
-                cb={setWeatherKey}
-                required={true}
-              />
-              <Input
-                label={t("settings.geoApiKey")}
-                val={geoKey}
-                current={currentGeoKey}
-                cb={setGeoKey}
-              />
-              <Input
-                label={t("settings.anthropicApiKey")}
-                val={anthropicKey}
-                current={currentAnthropicKey}
-                cb={setAnthropicKey}
-              />
-              <Input
-                label={t("settings.customLat")}
-                val={lat}
-                cb={setLat}
-                current={currentLat}
-              />
-              <Input
-                label={t("settings.customLon")}
-                val={lon}
-                cb={setLon}
-                current={currentLon}
-              />
-            </>
+          {isRemoteRestricted && (
+            <div className={styles.remoteNotice}>
+              {t("settings.remoteApiKeysNotice")}
+            </div>
           )}
+          <Input
+            label={t("settings.mapsApiKey")}
+            val={mapsKey}
+            current={currentMapsKey}
+            cb={setMapsKey}
+            required={true}
+            readOnly={isRemoteRestricted}
+          />
+          <Input
+            label={t("settings.weatherApiKey")}
+            val={weatherKey}
+            current={currentWeatherKey}
+            cb={setWeatherKey}
+            required={true}
+            readOnly={isRemoteRestricted}
+          />
+          <Input
+            label={t("settings.geoApiKey")}
+            val={geoKey}
+            current={currentGeoKey}
+            cb={setGeoKey}
+            readOnly={isRemoteRestricted}
+          />
+          <Input
+            label={t("settings.anthropicApiKey")}
+            val={anthropicKey}
+            current={currentAnthropicKey}
+            cb={setAnthropicKey}
+            readOnly={isRemoteRestricted}
+          />
+          <Input
+            label={t("settings.customLat")}
+            val={lat}
+            cb={setLat}
+            current={currentLat}
+            readOnly={isRemoteRestricted}
+          />
+          <Input
+            label={t("settings.customLon")}
+            val={lon}
+            cb={setLon}
+            current={currentLon}
+            readOnly={isRemoteRestricted}
+          />
           <div className={styles.bottomButtonContainer}>
             <div className={styles.bottomButtonGroup}>
               <div>
@@ -449,11 +456,13 @@ UndoButton.propTypes = {
  * @param {String} props.label Label
  * @param {String} props.val value
  * @param {Function} props.cb change callback
- * @param {String} props.current current default value
+ * @param {String|Boolean} props.current current default value (boolean when
+ *   the field is masked server-side for remote clients)
  * @param {Boolean} [props.required] If input is required
+ * @param {Boolean} [props.readOnly] Render as read-only (remote clients)
  * @returns {JSX.Element} Input
  */
-const Input = ({ label, val, cb, required, current }) => {
+const Input = ({ label, val, cb, required, current, readOnly }) => {
   const { t } = useTranslation();
   const [inputValue, setInputValue] = useState(val);
   const [defaultValue, setDefaultValue] = useState(null);
@@ -464,6 +473,29 @@ const Input = ({ label, val, cb, required, current }) => {
     }
     setInputValue(val);
   }, [val, defaultValue]);
+
+  // Read-only display for remote clients. API key fields arrive as booleans
+  // (server-side masking strips the actual key string); coordinate fields
+  // arrive as strings/numbers. Render accordingly so the user can confirm
+  // what's configured without seeing — or pretending to edit — secrets.
+  if (readOnly) {
+    const isBoolean = typeof current === "boolean";
+    const display = isBoolean
+      ? (current ? t("settings.configured") : t("settings.notConfigured"))
+      : (current != null && current !== "" ? String(current) : t("settings.notConfigured"));
+    const statusClass = isBoolean
+      ? (current ? styles.readOnlyOk : styles.readOnlyMissing)
+      : (current != null && current !== "" ? styles.readOnlyOk : styles.readOnlyMissing);
+    return (
+      <div className={styles.settingsItem}>
+        <div className={styles.label}>{label}</div>
+        <div className={`${styles.readOnlyValue} ${statusClass}`}>
+          {display}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.settingsItem}>
       <div className={styles.label}>{label}</div>
@@ -507,5 +539,8 @@ Input.propTypes = {
   val: PropTypes.string,
   cb: PropTypes.func.isRequired,
   required: PropTypes.bool,
-  current: PropTypes.string,
+  // current can be a string (raw value) or a boolean (server-side masking
+  // for API key fields when accessed remotely)
+  current: PropTypes.oneOfType([PropTypes.string, PropTypes.bool]),
+  readOnly: PropTypes.bool,
 };

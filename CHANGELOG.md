@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.10.2] - 2026-04-27
+
+### Fixed
+- **API key fields visible on remote (read-only) with the same amber notice** — same UX gap as Advanced settings before v2.10.1: API keys, Anthropic key, and custom coordinates were hidden entirely on remote, leaving users wondering where they went. Show them everywhere; on remote, render API keys as a coloured "Configured" / "Not configured" status (the actual key string is never sent to remote clients — server-side masking continues to return booleans), render coordinates as a plain read-only text value, and show an amber notice at the top of the section pointing to the SSH-tunnel workflow. The localhostOnly write boundary on `PATCH /setting`, `PUT /settings`, etc. is preserved unchanged.
+
+---
+
 ## [Unreleased]
 
 ### Documentation

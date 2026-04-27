@@ -97,6 +97,34 @@
   margin: 10px 0px;
 }
 
+.remote-notice {
+  font-size: 0.85em;
+  font-style: italic;
+  background: rgba(201, 169, 97, 0.12);
+  border-left: 3px solid rgba(201, 169, 97, 0.6);
+  padding: 0.6em 0.8em;
+  margin: 4px 0 12px 0;
+  border-radius: 2px;
+  line-height: 1.4;
+}
+
+.read-only-value {
+  padding: 6px 10px;
+  font-size: 0.95em;
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  display: inline-block;
+}
+
+.read-only-ok {
+  color: rgba(120, 200, 140, 0.95);
+}
+
+.read-only-missing {
+  color: rgba(220, 150, 130, 0.95);
+}
+
 .toggle-container {
   display: flex;
 }
