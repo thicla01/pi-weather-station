@@ -543,12 +543,22 @@ else
     echo ">> Configuring systemd service..."
     mkdir -p ~/.config/systemd/user
     cp "$REPO_DIR/deploy/pi-weather-server.service" ~/.config/systemd/user/
-    if [ "$ALLOW_REMOTE" = "yes" ]; then
-        sed -i 's/# Environment=ALLOW_REMOTE=true/Environment=ALLOW_REMOTE=true/' \
-            ~/.config/systemd/user/pi-weather-server.service
-    fi
 
     mkdir -p ~/.config/systemd/user/pi-weather-server.service.d
+    # ALLOW_REMOTE lives in a drop-in instead of editing the main service
+    # file, so future `cp deploy/pi-weather-server.service ~/.config/...`
+    # operations (during update or re-install) leave this customization
+    # intact — and the in-app updater's `serviceFileChanged` check stops
+    # raising the amber warning on every release.
+    if [ "$ALLOW_REMOTE" = "yes" ]; then
+        cat > ~/.config/systemd/user/pi-weather-server.service.d/local.conf << 'EOF'
+[Service]
+Environment=ALLOW_REMOTE=true
+EOF
+    else
+        rm -f ~/.config/systemd/user/pi-weather-server.service.d/local.conf
+    fi
+
     cat > ~/.config/systemd/user/pi-weather-server.service.d/override.conf << 'EOF'
 [Service]
 StandardOutput=append:/tmp/weather-server.log

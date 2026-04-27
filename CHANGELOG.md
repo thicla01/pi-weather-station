@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.8.1] - 2026-04-27
+
+### Fixed
+- **`ALLOW_REMOTE` no longer drifts the upstream service file out of sync** — `install.sh` used to enable remote access by `sed`-uncommenting `Environment=ALLOW_REMOTE=true` directly inside `~/.config/systemd/user/pi-weather-server.service`. Once that line was edited, the installed file's hash no longer matched the upstream copy on master, so the in-app updater raised the amber "service file changed" warning on every release — even when the file hadn't actually changed in the new version. Move the env var into a drop-in (`pi-weather-server.service.d/local.conf`) instead, matching what `override.conf` already does for `DEBUG`. The main service file now stays a clean mirror of upstream and the warning only fires when there's a real upstream change.
+- **`toggle-remote.sh` migrates legacy installs on the fly** — the script now writes/deletes the drop-in (canonical layout from v2.8.1) and re-comments any leftover `Environment=ALLOW_REMOTE=true` line found in the main service file from a pre-v2.8.1 install. Users on either layout get a consistent toggle UX, and the next toggle normalizes their setup automatically.
+
+---
+
 ## [2.8.0] - 2026-04-27
 
 ### Added

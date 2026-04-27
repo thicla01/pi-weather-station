@@ -26,20 +26,31 @@ REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 PLATFORM="$(uname)"
 
 SERVICE_FILE="$HOME/.config/systemd/user/pi-weather-server.service"
+DROPIN_DIR="$HOME/.config/systemd/user/pi-weather-server.service.d"
+DROPIN_FILE="$DROPIN_DIR/local.conf"
 PLIST_FILE="$HOME/Library/LaunchAgents/com.pi-weather-station.plist"
 
 # --- Detect current state ---------------------------------------------------
+# ALLOW_REMOTE lives in `local.conf` (drop-in) on installs from v2.8.1+, but
+# pre-v2.8.1 installs may still have the line uncommented inside the main
+# service file. Treat both as "enabled" so the toggle UX stays consistent
+# across both layouts; the apply step normalizes to the drop-in pattern.
 read_current_state_linux() {
     if [ ! -f "$SERVICE_FILE" ]; then
         echo "ERROR: systemd unit not found at $SERVICE_FILE" >&2
         echo "Run bash deploy/install.sh first to set up the service." >&2
         exit 1
     fi
+    if [ -f "$DROPIN_FILE" ] \
+       && grep -qE '^[[:space:]]*Environment=ALLOW_REMOTE=true' "$DROPIN_FILE"; then
+        echo "enabled"
+        return
+    fi
     if grep -qE '^[[:space:]]*Environment=ALLOW_REMOTE=true' "$SERVICE_FILE"; then
         echo "enabled"
-    else
-        echo "disabled"
+        return
     fi
+    echo "disabled"
 }
 
 read_current_state_macos() {
@@ -133,18 +144,23 @@ PYEOF
     launchctl bootstrap "gui/$(id -u)" "$PLIST_FILE"
 else
     echo ""
-    echo ">> Updating systemd unit..."
+    echo ">> Updating systemd drop-in..."
+    mkdir -p "$DROPIN_DIR"
     if [ "$TARGET" = "enabled" ]; then
-        # Uncomment if commented, or add the line if absent.
-        if grep -qE '^[[:space:]]*#[[:space:]]*Environment=ALLOW_REMOTE=true' "$SERVICE_FILE"; then
-            sed -i 's/^[[:space:]]*#[[:space:]]*Environment=ALLOW_REMOTE=true/Environment=ALLOW_REMOTE=true/' "$SERVICE_FILE"
-        elif ! grep -qE '^[[:space:]]*Environment=ALLOW_REMOTE=true' "$SERVICE_FILE"; then
-            # Append at the end of the [Service] section.
-            sed -i '/^\[Service\]/a Environment=ALLOW_REMOTE=true' "$SERVICE_FILE"
-        fi
+        cat > "$DROPIN_FILE" << 'EOF'
+[Service]
+Environment=ALLOW_REMOTE=true
+EOF
     else
-        # Comment the line so it stays in the file as a hint for next time.
-        sed -i 's/^[[:space:]]*Environment=ALLOW_REMOTE=true/# Environment=ALLOW_REMOTE=true/' "$SERVICE_FILE"
+        rm -f "$DROPIN_FILE"
+    fi
+    # Legacy migration: pre-v2.8.1 installs had ALLOW_REMOTE uncommented in
+    # the main service file. Re-comment it whenever we see it so the drop-in
+    # becomes the single source of truth, and the in-app updater's
+    # `serviceFileChanged` warning stops triggering on every release.
+    if grep -qE '^Environment=ALLOW_REMOTE=true' "$SERVICE_FILE"; then
+        sed -i 's/^Environment=ALLOW_REMOTE=true/# Environment=ALLOW_REMOTE=true/' "$SERVICE_FILE"
+        echo ">> Migrated legacy ALLOW_REMOTE line out of $SERVICE_FILE."
     fi
     echo ">> Reloading systemd and restarting service..."
     systemctl --user daemon-reload

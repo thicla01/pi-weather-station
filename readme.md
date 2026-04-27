@@ -354,18 +354,19 @@ If you used `deploy/install.sh`, remote access can be configured automatically d
 
 To allow access from other devices, set the `ALLOW_REMOTE=true` environment variable when starting the server.
 
-**With systemd** — edit `~/.config/systemd/user/pi-weather-server.service` and uncomment:
-
-```ini
-Environment=ALLOW_REMOTE=true
-```
-
-Then reload and restart:
+**With systemd** — write a drop-in file so the upstream service file stays untouched (and future updates don't flag a "service file changed" warning):
 
 ```bash
+mkdir -p ~/.config/systemd/user/pi-weather-server.service.d
+cat > ~/.config/systemd/user/pi-weather-server.service.d/local.conf << 'EOF'
+[Service]
+Environment=ALLOW_REMOTE=true
+EOF
 systemctl --user daemon-reload
 systemctl --user restart pi-weather-server
 ```
+
+Or just run `bash deploy/toggle-remote.sh` which does the above plus regenerates the SSL certificate with your LAN IP as a Subject Alternative Name.
 
 > Settings writes are always restricted to the Pi itself. To change settings remotely, use an SSH tunnel.
 
