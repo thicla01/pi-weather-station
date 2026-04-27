@@ -74,6 +74,7 @@ export function AppContextProvider({ children }) {
   const [skippedSha, setSkippedSha] = useState(null);
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
   const [updateState, setUpdateState] = useState("idle"); // idle|updating|restarting|stopped|failed
+  const [updateErrorMessage, setUpdateErrorMessage] = useState(null);
   const updatePollRef = useRef(null);
   const infoPanelScrollRef = useRef(null); // set by InfoPanel on the scroll container
   const [serverPlatform, setServerPlatform] = useState(null);
@@ -141,6 +142,7 @@ export function AppContextProvider({ children }) {
    */
   const triggerUpdate = useCallback(() => {
     setUpdateState("updating");
+    setUpdateErrorMessage(null);
     axios.post("/api/update")
       .then(() => {
         if (isSystemd) {
@@ -150,7 +152,15 @@ export function AppContextProvider({ children }) {
           setUpdateState("stopped");
         }
       })
-      .catch(() => setUpdateState("failed"));
+      .catch((err) => {
+        // The server returns a structured { error, reason, message } body
+        // for known failure modes (detached HEAD, wrong branch, local
+        // changes, npm install failure...). Surface the message so the
+        // user sees what to fix instead of a generic "Failed".
+        const message = err?.response?.data?.message || err?.message || null;
+        setUpdateErrorMessage(message);
+        setUpdateState("failed");
+      });
   }, [isSystemd, pollUntilReady]);
 
   /**
@@ -763,6 +773,7 @@ export function AppContextProvider({ children }) {
     setUpdateModalOpen,
     updateState,
     setUpdateState,
+    updateErrorMessage,
     triggerUpdate,
     serverPlatform,
     isSystemd,

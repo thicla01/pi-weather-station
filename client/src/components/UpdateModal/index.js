@@ -22,6 +22,7 @@ const UpdateModal = () => {
     saveSkippedSha,
     updateState,
     setUpdateState,
+    updateErrorMessage,
     triggerUpdate,
     isSystemd,
     darkMode,
@@ -134,6 +135,11 @@ const UpdateModal = () => {
             <div className={styles.noSystemdNote}>
               {t("update.noSystemd")}
               <code className={styles.noSystemdCmd}>npm start</code>
+            </div>
+          )}
+          {updateState === "failed" && updateErrorMessage && (
+            <div className={styles.errorMessage}>
+              {updateErrorMessage}
             </div>
           )}
         </div>

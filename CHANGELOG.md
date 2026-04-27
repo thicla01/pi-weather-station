@@ -5,6 +5,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.6.2] - 2026-04-27
+
+### Fixed
+- **One-click update no longer fails silently with a generic "Failed"** — three real failure modes the in-app updater couldn't recover from were surfaced during a v2.3.0 → v2.6.0 rollback test. The `POST /api/update` endpoint now runs three pre-flight checks before touching anything, and returns a structured 409 with a clear, actionable message when one fails:
+  - **Detached HEAD** — happens when the working copy was checked out at a specific commit instead of a branch (`git checkout <sha>`). `git pull` had no branch to merge with.
+  - **Not on `master`** — happens when the user is testing a feature branch or left a stale branch checked out. Pulling silently followed the wrong remote.
+  - **Local uncommitted changes** — happens when an earlier `npm install` (or any local edit) modified `package-lock.json` or another tracked file. `git pull --ff-only` then refused to overwrite the changes.
+  - The same path also surfaces `git pull` and `npm install` failures with their actual stderr instead of swallowing them.
+- **Update modal now shows the failure message** — when `/api/update` returns an error, the modal renders the server's message (in a red bordered box) above the action buttons instead of just turning the button red. Users see exactly what command to run on the device to recover, without having to SSH in to grep the server log.
+
+---
+
 ## [2.6.1] - 2026-04-26
 
 ### Fixed

@@ -233,6 +233,30 @@
   gap: 4px;
 }
 
+/* Server-side failure message (detached HEAD, wrong branch, local
+   changes, npm install failed, etc.). Shown above the action buttons
+   when /api/update returns an error. */
+.error-message {
+  font-size: 10px;
+  line-height: 1.4;
+  margin-top: 6px;
+  padding: 6px 8px;
+  border-radius: 3px;
+  border-left: 3px solid;
+}
+
+.container-dark .error-message {
+  background: #3a1a1a;
+  border-color: #dc2626;
+  color: #fecaca;
+}
+
+.container-light .error-message {
+  background: #fee2e2;
+  border-color: #dc2626;
+  color: #7f1d1d;
+}
+
 .no-systemd-cmd {
   font-family: monospace;
   font-style: normal;

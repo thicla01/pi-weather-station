@@ -267,50 +267,106 @@ app.all("/api/update-check/force", localhostOnly, async (req, res) => {
 
 app.post("/api/update", localhostOnly, (req, res) => {
   const projectRoot = path.join(__dirname, "..");
-  console.log("[update] Starting git pull…");
 
-  exec("git pull --ff-only", { cwd: projectRoot, timeout: 30_000 }, (pullErr, pullStdout, pullStderr) => {
-    if (pullErr) {
-      console.error("[update] git pull failed:", pullStderr);
-      return res.status(500).json({ error: true, message: pullStderr });
+  // ── Pre-flight checks ──
+  // git pull --ff-only fails with cryptic messages when:
+  //   1. The working copy is in detached HEAD (no branch to pull)
+  //   2. The working copy is on a non-master branch (testing leftovers)
+  //   3. There are uncommitted local changes that would be overwritten
+  // Each of these silently surfaces as a generic "Failed" in the modal.
+  // Detect them up front and return a structured 409 with a clear, actionable
+  // message instead.
+  const failPrecondition = (reason, message, extra = {}) =>
+    res.status(409).json({ error: true, reason, message, ...extra });
+
+  exec("git symbolic-ref --short HEAD", { cwd: projectRoot, timeout: 5_000 }, (symbolicErr, symbolicStdout) => {
+    if (symbolicErr) {
+      // symbolic-ref fails on detached HEAD with exit code 1
+      console.error("[update] precheck: detached HEAD");
+      return failPrecondition(
+        "detached-head",
+        "Repository is in detached HEAD state. Run `git checkout master` on the device, then retry."
+      );
     }
-    console.log("[update] git pull succeeded:", pullStdout.trim());
+    const currentBranch = symbolicStdout.trim();
+    if (currentBranch !== "master") {
+      console.error("[update] precheck: not on master, on '%s'", currentBranch);
+      return failPrecondition(
+        "wrong-branch",
+        `On branch '${currentBranch}' instead of 'master'. Run \`git checkout master\` on the device, then retry.`,
+        { currentBranch }
+      );
+    }
 
-    // Always run `npm install` after the pull. It's idempotent (a few
-    // seconds when nothing changed), and it prevents the
-    // "Cannot find module 'X'" trap when an update introduces a new
-    // dependency — without this step, the post-restart server would
-    // crash-loop on the missing module.
-    console.log("[update] Running npm install (--omit=dev)…");
-    exec(
-      "npm install --omit=dev --no-audit --no-fund",
-      { cwd: projectRoot, timeout: 180_000 },
-      (npmErr, npmStdout, npmStderr) => {
-        if (npmErr) {
-          console.error("[update] npm install failed:", npmStderr);
+    exec("git status --porcelain", { cwd: projectRoot, timeout: 5_000 }, (statusErr, statusStdout) => {
+      if (statusErr) {
+        console.error("[update] precheck: git status failed:", statusErr.message);
+        return failPrecondition(
+          "git-status-failed",
+          `git status failed: ${statusErr.message}`
+        );
+      }
+      if (statusStdout.trim()) {
+        const dirtyFiles = statusStdout.trim().split("\n").map((l) => l.trim()).slice(0, 5);
+        console.error("[update] precheck: local changes detected:", dirtyFiles);
+        return failPrecondition(
+          "local-changes",
+          `Local uncommitted changes would be overwritten by the update. Run \`git stash\` on the device, then retry.`,
+          { dirtyFiles }
+        );
+      }
+
+      // ── All pre-flight checks passed — proceed with the actual update ──
+      console.log("[update] Starting git pull…");
+      exec("git pull --ff-only", { cwd: projectRoot, timeout: 30_000 }, (pullErr, pullStdout, pullStderr) => {
+        if (pullErr) {
+          console.error("[update] git pull failed:", pullStderr);
           return res.status(500).json({
             error: true,
-            message: `npm install failed: ${npmStderr || npmErr.message}`,
+            reason: "pull-failed",
+            message: `git pull failed: ${pullStderr || pullErr.message}`,
           });
         }
-        console.log("[update] npm install succeeded.");
-        res.json({ ok: true, isSystemd: !!process.env.INVOCATION_ID });
+        console.log("[update] git pull succeeded:", pullStdout.trim());
 
-        setTimeout(() => {
-          if (process.env.INVOCATION_ID) {
-            exec("systemctl --user restart pi-weather-server", (restartErr) => {
-              if (restartErr) {
-                console.error("[update] systemctl restart failed, falling back to process.exit:", restartErr.message);
+        // Always run `npm install` after the pull. It's idempotent (a few
+        // seconds when nothing changed), and it prevents the
+        // "Cannot find module 'X'" trap when an update introduces a new
+        // dependency — without this step, the post-restart server would
+        // crash-loop on the missing module.
+        console.log("[update] Running npm install (--omit=dev)…");
+        exec(
+          "npm install --omit=dev --no-audit --no-fund",
+          { cwd: projectRoot, timeout: 180_000 },
+          (npmErr, npmStdout, npmStderr) => {
+            if (npmErr) {
+              console.error("[update] npm install failed:", npmStderr);
+              return res.status(500).json({
+                error: true,
+                reason: "npm-install-failed",
+                message: `npm install failed: ${npmStderr || npmErr.message}`,
+              });
+            }
+            console.log("[update] npm install succeeded.");
+            res.json({ ok: true, isSystemd: !!process.env.INVOCATION_ID });
+
+            setTimeout(() => {
+              if (process.env.INVOCATION_ID) {
+                exec("systemctl --user restart pi-weather-server", (restartErr) => {
+                  if (restartErr) {
+                    console.error("[update] systemctl restart failed, falling back to process.exit:", restartErr.message);
+                    process.exit(0);
+                  }
+                });
+              } else {
+                // No systemd (dev / macOS) — exit and let the developer restart manually.
                 process.exit(0);
               }
-            });
-          } else {
-            // No systemd (dev / macOS) — exit and let the developer restart manually.
-            process.exit(0);
+            }, 500);
           }
-        }, 500);
-      }
-    );
+        );
+      });
+    });
   });
 });
 
