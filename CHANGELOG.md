@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.9.1] - 2026-04-27
+
+### Fixed
+- **"Check for update" now refreshes an open Update modal** — when a user opened the modal, then clicked the debug panel's "Check for update" button to refresh stale data, the server-side cache was correctly cleared and re-evaluated, but only `updateAvailable`, `latestVersion`, `latestSha`, and `commits` were propagated back into AppContext. `serviceFileChanged` and `needsManualUpgrade` were left at their stale values, so an open modal could keep its amber warning and disabled Update button even after the actual condition had cleared. Centralize the fetch in a shared `refreshUpdateCheck(force)` helper that updates every relevant field, so the periodic 6-hour poll and the on-demand button stay in lockstep.
+
+---
+
 ## [2.9.0] - 2026-04-27
 
 ### Added

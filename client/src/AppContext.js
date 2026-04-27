@@ -243,20 +243,39 @@ export function AppContextProvider({ children }) {
 
   const UPDATE_CHECK_INTERVAL = 6 * 60 * 60 * 1000; // 6 hours
 
+  /**
+   * Fetch /api/update-check (or /force) and propagate every relevant field
+   * into AppContext state. Shared by the periodic background poll and the
+   * Debug panel's "Check for update" button so both call sites end up with
+   * the same set of state updates — including serviceFileChanged and
+   * needsManualUpgrade, which UpdateModal reads to gate the Update button.
+   *
+   * @param {Boolean} [force] When true, hits /api/update-check/force which
+   *   clears the server cache before re-evaluating
+   * @returns {Promise<Object|null>} Resolves with the response data, or null
+   *   on network error
+   */
+  const refreshUpdateCheck = useCallback((force) => {
+    const url = force ? "/api/update-check/force" : "/api/update-check";
+    return axios.get(url).then((res) => {
+      setUpdateAvailable(res.data.updateAvailable ?? false);
+      setLatestVersion(res.data.latestVersion ?? null);
+      setLatestSha(res.data.latestSha ?? null);
+      setUpdateCommits(res.data.commits ?? []);
+      setServiceFileChanged(Boolean(res.data.serviceFileChanged));
+      setNeedsManualUpgrade(Boolean(res.data.needsManualUpgrade));
+      setServerPlatform(res.data.platform ?? null);
+      setIsSystemd(res.data.isSystemd ?? false);
+      return res.data;
+    }).catch(() => {
+      // non-critical — silently ignore errors
+      return null;
+    });
+  }, []);
+
   useEffect(() => {
     const fetchUpdateStatus = () => {
-      axios.get("/api/update-check").then((res) => {
-        setUpdateAvailable(res.data.updateAvailable ?? false);
-        setLatestVersion(res.data.latestVersion ?? null);
-        setLatestSha(res.data.latestSha ?? null);
-        setUpdateCommits(res.data.commits ?? []);
-        setServiceFileChanged(Boolean(res.data.serviceFileChanged));
-        setNeedsManualUpgrade(Boolean(res.data.needsManualUpgrade));
-        setServerPlatform(res.data.platform ?? null);
-        setIsSystemd(res.data.isSystemd ?? false);
-      }).catch(() => {
-        // non-critical — silently ignore errors
-      });
+      refreshUpdateCheck();
     };
 
     fetchUpdateStatus();
@@ -823,6 +842,7 @@ export function AppContextProvider({ children }) {
     setUpdateCommits,
     serviceFileChanged,
     needsManualUpgrade,
+    refreshUpdateCheck,
     skippedSha,
     saveSkippedSha,
     updateModalOpen,

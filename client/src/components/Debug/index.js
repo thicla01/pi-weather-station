@@ -19,7 +19,7 @@ import "!style-loader!css-loader!./animations.css";
  * @returns {JSX.Element} Debug panel
  */
 const Debug = () => {
-  const { debugMenuOpen, setDebugMenuOpen, setUpdateAvailable, setLatestVersion, setLatestSha, setUpdateCommits } = useContext(AppContext);
+  const { debugMenuOpen, setDebugMenuOpen, setUpdateAvailable, setLatestVersion, refreshUpdateCheck } = useContext(AppContext);
   const { t } = useTranslation();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -46,20 +46,17 @@ const Debug = () => {
 
   const forceUpdateCheck = useCallback(() => {
     setCheckingUpdate(true);
-    axios
-      .get("/api/update-check/force")
-      .then((res) => {
-        setUpdateAvailable(res.data.updateAvailable ?? false);
-        setLatestVersion(res.data.latestVersion ?? null);
-        setLatestSha(res.data.latestSha ?? null);
-        setUpdateCommits(res.data.commits ?? []);
-        // Also refresh the full debug panel to reflect the new updateInfo
-        return axios.get("/api/debug");
-      })
+    // refreshUpdateCheck(true) hits /api/update-check/force and propagates
+    // every relevant field — including serviceFileChanged and
+    // needsManualUpgrade — into AppContext, so an UpdateModal already open
+    // re-renders with fresh data instead of staying stuck on the stale
+    // pre-refresh state.
+    refreshUpdateCheck(true)
+      .then(() => axios.get("/api/debug"))
       .then((res) => setData(res.data))
       .catch((_err) => _err)
       .finally(() => setCheckingUpdate(false));
-  }, [setUpdateAvailable, setLatestVersion, setLatestSha, setUpdateCommits]);
+  }, [refreshUpdateCheck]);
 
   useEffect(() => {
     if (debugMenuOpen) fetchDebugInfo();
