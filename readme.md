@@ -5,9 +5,12 @@ A full-stack weather display application originally designed for the Raspberry P
 
 | Platform | Auto-start | Kiosk mode |
 |---|---|---|
-| Raspberry Pi OS (Bullseye / Bookworm / Trixie) | ✅ systemd | ✅ Chromium |
-| Debian / Ubuntu | ✅ systemd | optional |
-| macOS | ✅ launchd | — |
+| Raspberry Pi OS (Bullseye / Bookworm / Trixie) | systemd + labwc / wayfire / LXDE autostart | Chromium-family or Firefox |
+| Debian / Ubuntu (incl. 26.04 GNOME, snap-Firefox) | systemd + XDG `~/.config/autostart` | Chromium-family or Firefox |
+| openSUSE Leap 16+ (KDE Plasma) | systemd + XDG `~/.config/autostart` | Chromium-family or Firefox |
+| macOS | launchd | — (window mode) |
+
+The kiosk browser is chosen interactively by `install.sh` (Chromium, Chrome, Brave, Edge, or Firefox) and persisted in `~/.config/pi-weather-station/browser.conf`. Snap-confined Firefox is supported via a named profile (`-P pi-weather-station`).
 
 ![pws-screenshot3](https://user-images.githubusercontent.com/15202038/91359998-4625bb80-e7bb-11ea-937e-c87eede41f35.JPG)
 
@@ -35,202 +38,51 @@ For day-to-day updates, the in-app **Update** button (debug panel → notificati
 >
 > The script picks up your existing `settings.json`, refreshes service files, and reinstalls dependencies cleanly. Starting from v2.6.3 the modal also detects this case and shows the same recipe.
 
-# v2.3.0 — 2026-04-23
+# Version history
 
-Sense HAT: animated sun arc, colour shift, and east-to-west movement.
+Each release is fully documented in [CHANGELOG.md](./CHANGELOG.md). The sections below summarize the highlights of each minor version and link to the per-release notes.
 
-- **Animated sun arc** — The 2×2 sun block on the Sense HAT now travels a realistic arc throughout the day: rising from the east (bottom-left), climbing to the zenith at solar noon (top-centre), and setting in the west (bottom-right). Vertical position follows a sine curve; horizontal position drifts linearly east→west.
-- **Sun colour shift** — The sun pixels interpolate from yellow at noon to orange at mid-morning/afternoon to red near the horizon, reversing symmetrically at sunrise.
-- **Dynamic horizon glow** — The 4 red sunset pixels appear only when the sun is in the lower third of the display and follow its horizontal position. They disappear as the sun climbs higher, so the glow is never shown at midday.
-- **Sun visible in partly cloudy state** — The partly cloudy day frame now includes the dynamic sun below (or partially behind) the cloud.
-- **Direct framebuffer write** — The display script now writes raw RGB565 bytes directly to `/dev/fb0` or `/dev/fb1`, bypassing the `sense_hat` library's differential pixel cache which caused colour bleed-through between states.
-- **IP geolocation fallback** — `GET /api/sensehat` now falls back to ipapi.co when no custom coordinates are configured in `settings.json`, matching the behaviour of the main client.
-- **Touchscreen fix (Trixie)** — Switching the official Raspberry Pi 7" touchscreen from Mouse Emulation to Multitouch mode (Control Centre → Screens → DSI-1 → Touchscreen) fixes imprecise tapping, panel scrolling, and pinch-to-zoom. See `docs/troubleshooting-touchscreen.md`.
+## v2.6 — Indoor temperature, radar analysis paragraph, and updater UX (Apr 2026)
 
-# v2.2.8 — 2026-04-23
+Indoor temperature/humidity/air-quality block (Homebridge-backed) promoted from experimental to a top-level setting in the InfoPanel header, with `install.sh` interactive prompt and stripped credentials in remote settings responses. The in-app updater gained pre-flight checks (rejects detached HEAD, non-`master`, or local changes with structured 409s) and surfaces the actual failure message in the modal; installs older than v2.4.1 are now flagged with `needsManualUpgrade` so the user is steered to `bash deploy/install.sh` instead of crashing on missing dependencies. Plus small layout polish (clock right-aligned without indoor block, AM/PM scaled).
 
-New feature: Sense HAT 8×8 LED weather display.
+Releases: [2.6.3](./CHANGELOG.md#263---2026-04-27) · [2.6.2](./CHANGELOG.md#262---2026-04-27) · [2.6.1](./CHANGELOG.md#261---2026-04-26) · [2.6.0](./CHANGELOG.md#260---2026-04-26)
 
-- **Sense HAT display** (`tools/sensehat_weather.py`) — Python script for Raspberry Pi with a Sense HAT attached. Displays animated weather states on the 8×8 RGB LED matrix: clear day/night, partly cloudy day/night, overcast, fog, light rain, rain, snow, ice pellets, and thunderstorm. Brightness is automatically reduced at night.
-- **`GET /api/sensehat`** — new server endpoint returning a lightweight JSON payload for the display script (`weatherCode`, `cloudCover`, `temperature`, `isDay`, `sunriseTs`, `sunsetTs`). Reads location from `settings.json`, pulls current weather from the shared server-side cache, and computes sunrise/sunset from sunrise-sunset.org (1-hour cache).
-- **`deploy/pi-sensehat.service`** — systemd user service for the Sense HAT display script. Starts after `pi-weather-server.service`; stops retrying after 3 failures in 2 minutes if the HAT is not physically present.
-- **`install.sh`** — now asks during installation whether a Sense HAT is attached and installs the `sense-hat` package and enables the service if selected.
-- **Test mode** — run `python3 tools/sensehat_weather.py --test` to cycle through all 12 display states for 15 seconds each, without waiting for real weather changes.
+## v2.5 — Multi-browser kiosk, GNOME/KDE autostart, openSUSE (Apr 2026)
 
-# v2.2.7 — 2026-04-23
+Browser choice (Chromium-family or Firefox) prompted at install and persisted in `~/.config/pi-weather-station/browser.conf`, with family-aware kiosk flags. XDG `~/.config/autostart/pi-weather-station.desktop` for GNOME and KDE Plasma alongside the existing labwc / wayfire / LXDE paths. `install.sh` reorganised into named phases, gained pre-flight checks for `curl`/`git`, and recognises `zypper` for openSUSE Leap 16+. Plus `install.sh` no longer hijacks `feat/*` and `fix/*` branches off `master` during testing.
 
-Observability: macOS launchd detection in the debug panel.
+Releases: [2.5.1](./CHANGELOG.md#251---2026-04-26) · [2.5.0](./CHANGELOG.md#250---2026-04-26)
 
-- **Debug panel — launchd support** — The SYSTEMD row in the debug panel now shows **LAUNCHD** on macOS: the server detects the init manager at runtime (`INVOCATION_ID` → systemd, `darwin` platform → launchd, otherwise null for a manual `npm start`) and displays the correct label and enabled/disabled state.
-- **`uninstall.sh`** — updated with full macOS support: removes the launchd agent (`~/Library/LaunchAgents/com.pi-weather-station.plist`), unloads it if running, and skips Linux-only steps on macOS.
+## v2.4 — Cold-boot robustness, AI radar analysis (Apr 2026)
 
-# v2.2.6 — 2026-04-23
+A 45 km radar-analysis circle on the map and a third "Analyse radar" paragraph in the AI summary, fed by a server-side RainViewer tile sampler (8 directions × 4 distances × 3 timestamps, decoded via `pngjs`). Cold-boot reliability was hardened on multiple fronts: `dns.setDefaultResultOrder("ipv4first")` to avoid IPv6 stalls, geolocation retry-with-backoff + 30-day disk cache, `ExecStartPre` waiting on DNS in the systemd unit, and `npm install` added to the in-app updater so dependency-introducing pulls don't crash-loop on `Cannot find module`.
 
-Deployment: macOS launchd support.
+Releases: [2.4.6](./CHANGELOG.md#246---2026-04-26) · [2.4.5](./CHANGELOG.md#245---2026-04-26) · [2.4.4](./CHANGELOG.md#244---2026-04-26) · [2.4.3](./CHANGELOG.md#243---2026-04-26) · [2.4.2](./CHANGELOG.md#242---2026-04-26) · [2.4.1](./CHANGELOG.md#241---2026-04-26) · [2.4.0](./CHANGELOG.md#240---2026-04-26)
 
-- **macOS launchd agent** — `deploy/com.pi-weather-station.plist` is the macOS equivalent of the systemd service file. Copy it to `~/Library/LaunchAgents/`, replace `INSTALL_DIR` with your absolute install path, then load it with `launchctl bootstrap gui/$(id -u) ~/Library/LaunchAgents/com.pi-weather-station.plist`. The server starts automatically at login and restarts on crash. Optional `ALLOW_REMOTE` and `DEBUG` variables are documented as comments inside the file.
+## v2.3 — Sense HAT animated sun arc and Trixie touchscreen fix (Apr 2026)
 
-# v2.2.5 — 2026-04-23
+The Sense HAT 8×8 LED display gained a realistic animated sun arc (rising east → zenith → setting west) with colour shift (yellow → orange → red), a dynamic horizon glow, and a direct framebuffer write that bypasses the `sense_hat` differential cache. `GET /api/sensehat` falls back to ipapi.co when no custom coordinates are configured. Documented the official Raspberry Pi 7" touchscreen fix on Trixie (DSI-1 → Multitouch in Control Centre) for imprecise tapping, scrolling, and pinch-to-zoom.
 
-UX: AI Summary now fills the entire panel when expanded.
+Releases: [2.3.2](./CHANGELOG.md#232---2026-04-26) · [2.3.1](./CHANGELOG.md#231---2026-04-25) · [2.3.0](./CHANGELOG.md#230---2026-04-23)
 
-- **AI Summary full-panel view** — When the AI Summary is expanded, the forecast charts collapse and the panel scrolls down so the AI text fills the entire viewport. `CurrentWeather` is hidden during expansion to avoid a partial fragment appearing at the top. Closing the summary smooth-scrolls back to the top of the panel.
+## v2.2 — Security hardening, AI summary, Sense HAT, macOS, small-screen UX (Apr 2026)
 
-# v2.2.4 — 2026-04-22
+Security: `GET /settings` masks API keys to remote clients, `REMOTE_SECURITY` removed (writes are now unconditionally `localhostOnly`), per-client rate limiting (120 req/min on weather/geocoding, 600 req/min on tiles), proxy-aware IP detection, and a server-side settings key whitelist. AI weather summary powered by Claude Haiku with localized output. Sense HAT 8×8 LED display + companion `pi-sensehat.service`. macOS deployment via launchd. Small-screen UX: chart tabs, collapsible info panel, font-size setting, frosted-glass radar legend. Plus the in-app `UpdateModal` with one-click update, force-check button, and `Update` button for kiosk users.
 
-UX: update modal, force update check, temperature unit labels, and small-screen layout fixes.
+Releases: [2.2.8](./CHANGELOG.md#228---2026-04-23) · [2.2.7](./CHANGELOG.md#227---2026-04-23) · [2.2.6](./CHANGELOG.md#226---2026-04-23) · [2.2.5](./CHANGELOG.md#225---2026-04-23) · [2.2.4](./CHANGELOG.md#224---2026-04-22) · [2.2.3](./CHANGELOG.md#223---2026-04-20) · [2.2.2](./CHANGELOG.md#222---2026-04-19) · [2.2.1](./CHANGELOG.md#221---2026-04-18) · [2.2.0](./CHANGELOG.md#220---2026-04-16)
 
-- **UpdateModal** — Clicking the update badge in the control bar now opens a modal displaying the release notes, the list of new commits, and a skip-version option. Replaces the previous tooltip.
-- **Force update check** — A new button in the debug panel clears the 1-hour GitHub release cache and triggers an immediate check. The endpoint `GET /api/update-check/force` is also accessible directly from a browser on localhost.
-- **Temperature unit labels** — The current temperature now displays its unit symbol (°F / °C / °K) next to the value in the `CurrentWeather` section.
-- **Hide radar legend toggle** — A new toggle in Settings allows hiding the radar legend overlay on the map.
-- **Small-screen overflow fixes** — The debug panel button row and the Settings bottom button group now wrap correctly on the Pi 7" touchscreen. The Save button no longer appears alone on a third row.
-- **Debug panel fix** — The debug panel was silently empty after a fresh install because `setUpdateAvailable` and `setLatestVersion` were not exported from `AppContext`; this caused the data fetch to fail silently.
+## v2.1 — Webpack 5, server-side cache, debug panel, i18n, kiosk options (Apr 2026)
 
-# v2.2.3 — 2026-04-20
+Build system modernized to webpack 5, all build dependencies refreshed, RainViewer API v2, axios v1.x and express v4.22. Server-side weather cache reduces Tomorrow.io API spend; new debug panel (localhost-only, `DEBUG=true`) exposes provider status, network info, server/client KPIs, response times, quota counters, cache state, security events, and logs. Internationalization (EN/FR/ES) via i18next with browser-language detection. Kiosk mode made optional during install. LXDE autostart no longer discards system defaults on Bullseye. Bullseye 32-bit Node.js 22 via nvm; NodeSource everywhere else. License cleanup (no more GPL icon packs).
 
-UX: font size setting, chart tabs for small screens, collapsible info panel, and radar legend style.
+Releases: [2.1.11](./CHANGELOG.md#2111---2026-04-14) · [2.1.10](./CHANGELOG.md#2110---2026-04-13) · [2.1.9](./CHANGELOG.md#219---2026-04-13) · [2.1.8](./CHANGELOG.md#218---2026-04-13) · [2.1.7](./CHANGELOG.md#217---2026-04-12) · [2.1.6](./CHANGELOG.md#216---2026-04-12) · [2.1.5](./CHANGELOG.md#215---2026-04-12) · [2.1.4](./CHANGELOG.md#214---2026-04-11) · [2.1.3](./CHANGELOG.md#213---2026-04-11) · [2.1.2](./CHANGELOG.md#212---2026-04-11) · [2.1.1](./CHANGELOG.md#211---2026-04-09) · [2.1.0](./CHANGELOG.md#210---2026-04-03)
 
-- **Font size setting** — A new Font Size control in the Settings panel lets users choose between S (85%), M (100%), and L (115%) zoom levels for the info panel. Useful on the 7" touchscreen to adapt the layout to personal preference. The setting is persisted in `localStorage`.
-- **Chart tabs on small screens** — On screens ≤ 520 px tall (the official 7" Pi touchscreen), the hourly and daily forecast charts are now shown as tabs ("24 hours" / "5 days") rather than stacked, reclaiming vertical space. The selected tab is remembered while the app is open.
-- **Collapsible info panel on small screens** — A floating toggle button appears on the right edge of the radar map (small screens only) to collapse the info panel and expand the map to full width. Leaflet automatically resizes the map when the panel is toggled.
-- **Radar legend style** — The radar legend overlay now uses the same frosted-glass palette as the rest of the UI: backdrop blur, panel-tinted background, and a subtle border that adapts to dark/light mode. Color swatches are slightly larger for better readability.
-- **Speed unit label** — The km/h speed unit is now labelled "kph" in forecast charts, where the shorter label fits the axis area better.
+## v2.0 — Tomorrow.io and ClimaCell APIs (2021–2024)
 
-# v2.2.2 — 2026-04-19
+Switched from ClimaCell API v4 to Tomorrow.io. For ClimaCell API v3 keys, use [Pi Weather Station v1](https://github.com/elewin/pi-weather-station/releases/tag/v1.0).
 
-UX: one-click update from the UI, platform-aware update commands, and FPS measurement improvements.
-
-- **One-click update (kiosk-friendly)** — The update tooltip now includes a **Update** button that triggers `git pull --ff-only` and restarts the service directly from the browser — no terminal needed. Ideal for kiosk mode where opening a terminal is impractical. The page reloads automatically once the server is back up. Only available from the Pi itself (localhost).
-- **Platform-aware update commands** — The update tooltip detects whether the server is running under systemd and adapts the displayed commands accordingly. On non-systemd hosts (e.g. macOS), the `systemctl` line is replaced by a `npm start` restart note.
-- **Copy to clipboard** — A **Copy** button copies the full update command to the clipboard for easy pasting into a terminal.
-- **Update indicator synced on debug refresh** — Clicking Refresh in the debug panel now immediately updates the badge in the control bar — no need to wait for the 6-hour client-side check cycle.
-- **FPS measurement** — The debug panel now uses a sliding window of 60 frames for a more stable FPS reading, instead of a single-frame delta which produced noisy values.
-
-# v2.2.1 — 2026-04-18
-
-Bug fixes: drag-scroll compatibility and update indicator refresh.
-
-- **iPad / mobile browser scroll** — The drag-scroll hook previously registered a non-passive `touchmove` listener that called `preventDefault()`, which blocked iOS Safari's native scroll even when `touch-action: pan-y` was set. Touch event handlers have been removed from `useDragScroll`; iOS now uses native scroll unobstructed. The Pi's Chromium touchscreen is unaffected — it continues to use pointer events.
-- **Controls hidden on mobile browsers** — The app container used `height: 100vh`, which on iOS Safari includes the area behind the address bar and toolbar. The bottom control bar was hidden behind the browser UI. Fixed by adding `height: 100dvh` (dynamic viewport height, iOS 15.4+ / Chrome 108+) alongside the existing `100vh` fallback.
-- **Update indicator after `git pull`** — The update badge remained visible after a `git pull` and service restart until the next 6-hour client-side check. The Debug panel refresh now reads `updateInfo` from the `/api/debug` response (already fetched server-side) and updates the indicator immediately — no extra API call needed.
-
-# v2.2.0 — 2026-04-16
-
-Security hardening: API key masking, rate limiting, proxy-aware IP detection, and settings key whitelist.
-
-- **API key masking** — `GET /settings` now returns boolean values (`true`/`false`) for API key fields when called by remote clients. Key values are only returned when the request originates from the Pi itself (localhost). This prevents key exposure even when `ALLOW_REMOTE=true`.
-- **`REMOTE_SECURITY` removed** — Settings write endpoints (`POST`, `PUT`, `PATCH`, `DELETE`) are now always restricted to localhost. The `REMOTE_SECURITY` environment variable has been removed. Use an SSH tunnel to change settings remotely.
-- **Rate limiting** — All `/api/*` endpoints are now rate-limited per client IP. Weather and geocoding endpoints: 120 req/min. Map tile endpoints: 600 req/min (tile bursts require a higher limit). Protects external API quotas from exhaustion.
-- **Proxy-aware IP detection** — All locality checks (`localhostOnly`, `req.isLocal`) now use `req.ip` instead of `req.socket.remoteAddress`. When `ALLOW_REMOTE=true`, Express trusts the first `X-Forwarded-For` hop so that a local reverse proxy does not mask real client IPs. This ensures `localhostOnly` correctly blocks remote clients even when the proxy runs on the Pi itself.
-- **Settings key whitelist** — `POST`, `PUT`, and `PATCH` to `/settings` now accept only known keys (`weatherApiKey`, `mapApiKey`, `reverseGeoApiKey`, `anthropicApiKey`, `startingLat`, `startingLon`). Unknown keys are stripped silently (PUT/POST) or rejected with 400 (PATCH).
-- **`/api/is-local` scoped response** — `debugEnabled` is now only included in the response when the request comes from localhost. `securityEnabled` remains visible to all clients (needed by the UI).
-
-# v2.1.11 — 2026-04-14
-
-Observability: server and client KPIs in debug panel, license cleanup.
-
-- **Debug panel — Server KPIs** — A new SERVER KPIs section shows Node.js process uptime, heap memory usage (used/total), RSS, and weather cache hit rate (with raw hit/miss counts). A response time table tracks count, average, min, and max latency per server endpoint, measured by a new `responseTimerMiddleware`.
-- **Debug panel — Client KPIs** — A new CLIENT KPIs section collects browser-side metrics live when the panel opens: page load time (Navigation Timing API), live FPS measured via `requestAnimationFrame`, JS heap size (Chromium only), and a per-endpoint summary of all `/api/*` calls made since page load (Resource Timing API).
-- **Debug panel — mutual exclusion** — Opening the Settings panel now closes the Debug panel, and vice versa. Both panels can no longer be visible at the same time.
-- **License cleanup** — Replaced two GPL-licensed icon packages (`@iconify/icons-gridicons`, `@iconify/icons-dashicons`) with MIT-licensed equivalents already present in the project (`ion/location-sharp`, `carbon/undo`). All dependencies are now MIT, ISC, BSD, Apache-2.0, or CC — no copyleft obligations.
-
-# v2.1.10 — 2026-04-13
-
-Bug fix: LXDE autostart no longer discards system default entries on Bullseye.
-
-- **LXDE autostart fix** — On Bullseye with X11/LXDE, `install.sh` previously created `~/.config/lxsession/LXDE-pi/autostart` with only `@start-server`, discarding the system default entries (`lxpanel`, `pcmanfm`, `xscreensaver`). Exiting kiosk mode would leave a black screen with no taskbar or desktop. The script now copies the system default first before appending `@start-server`.
-
-# v2.1.9 — 2026-04-13
-
-Compatibility: Node.js 22 via nvm on Bullseye 32-bit, plus debug and install improvements.
-
-- **Bullseye — Node.js 22 via nvm (32-bit only)** — On Raspberry Pi OS Bullseye **32-bit** (`armv7l`), `install.sh` now installs Node.js 22 via [nvm](https://github.com/nvm-sh/nvm) instead of NodeSource, which does not provide Node.js 22 packages for `armv7l`. nvm is installed to the user account and Node.js 22 is set as the default version. The systemd service is automatically configured to source nvm at startup via a drop-in override (`nvm.conf`). Bullseye **64-bit** (`aarch64`), Bookworm, and Trixie continue to use NodeSource.
-- **Debug panel — git branch** — The debug panel header now shows the active git branch when it differs from `master` (e.g. `pi-weather-station v2.1.9 · abc1234 [feature/my-branch]`). Useful when testing feature branches directly on the Pi.
-- **install.sh — API key prompt default** — When no `settings.json` exists, the API key configuration prompt now defaults to yes (`Y/n`) since configuring keys is required for the app to function.
-- **uninstall.sh — improved nvm cleanup** — The nvm removal section now detects stale `NVM_DIR` references in shell profile files even when `~/.nvm` (or `~/.config/nvm`) has already been manually removed, and cleans them up to prevent conflicts on reinstall.
-
-# v2.1.8 — 2026-04-13
-
-Internationalization: full EN/FR/ES localization and debug panel improvements.
-
-- **Internationalization (i18n)** — The interface is now fully localized in English, French, and Spanish. A language selector is available in the Settings panel. The browser's language is detected automatically on first load, falling back to English if the detected language is not supported. All UI labels, error messages, and debug panel strings are covered.
-- **Debug panel — two-column header** — The debug panel header is now split into two columns (system info on the left, network info on the right) to reduce vertical height and improve readability.
-- **Debug panel — version display** — The debug panel header now shows the application name, version, and current Git commit hash (e.g. `pi-weather-station v2.1.8 · 9aa3702`).
-
-# v2.1.7 — 2026-04-12
-
-UX: kiosk mode is now optional during installation.
-
-- **Kiosk mode is now optional** — `deploy/install.sh` now asks whether to launch Chromium automatically in fullscreen on startup. When declined, the server still starts via systemd but no autostart is configured — the app can be accessed manually at `https://localhost:8443` or from another machine on the network.
-
-# v2.1.6 — 2026-04-12
-
-Observability: external provider status and internet connectivity in debug panel.
-
-- **Debug panel — provider status** — A new PROVIDER STATUS section shows the live operational status of external providers (Tomorrow.io, Mapbox via Atlassian Statuspage JSON API; ipapi.co via HTML scraping; LocationIQ via RSS feed). Results are cached 30 minutes server-side.
-- **Debug panel — internet connectivity** — The debug panel header now shows whether the Pi has internet access (`ONLINE` / `OFFLINE`) and the measured latency to `1.1.1.1`. Cached 60 seconds, fetched in parallel with provider status.
-
-# v2.1.5 — 2026-04-12
-
-Observability: network info in debug panel and sunrise-sunset.org proxied server-side.
-
-- **Debug panel — network info** — The debug panel header now shows the Pi's IP address(es), server port, protocol, and the full URL(s) to access the app from the network (e.g. `https://192.168.1.42:8443`).
-- **sunrise-sunset.org proxy** — Sunrise/sunset API calls are now proxied through the Express server, consistent with all other external services. This enables service status tracking in the debug panel and avoids mixed-content issues when the server runs over HTTPS.
-
-# v2.1.4 — 2026-04-11
-
-Reliability: weather cache persistence across restarts, debug panel improvements.
-
-- **Weather cache persistence** — The server-side weather cache is now saved to `server/weather-cache.json` on shutdown and every 5 minutes. On restart, non-expired entries are reloaded automatically, avoiding unnecessary API calls to Tomorrow.io when the server is restarted during development or after a crash.
-- **Debug panel — system info** — The debug panel header now shows the detected hardware model (e.g. `Raspberry Pi 4 Model B`) and OS version (e.g. `Debian GNU/Linux 12 (bookworm)`).
-- **Debug panel — install option** — `deploy/install.sh` now offers to enable the debug panel during installation.
-- **Startup script fix** — Replaced `nc` (netcat) with bash's built-in `/dev/tcp` for server readiness detection in `start-server` and `start-weather`. No external dependency required.
-
-# v2.1.3 — 2026-04-11
-
-Performance: server-side weather cache and new debug panel.
-
-- **Server-side weather cache** — Tomorrow.io responses are now cached in memory on the server, reducing API quota consumption when multiple clients are connected or when the page is reloaded frequently. Cache TTLs match the natural update cadence of each data type: 15 minutes for current conditions, 30 minutes for hourly forecasts, and 6 hours for daily forecasts. The cache is shared across all clients and is cleared on server restart.
-- **Debug panel** — A debug panel is available when `DEBUG=true` is set server-side. The panel is accessible only from the Pi itself (localhost) and shows API service status, quota counters, cache state, server logs, security events, and npm audit results. See [Debug panel](#debug-panel) for details.
-
-# v2.1.2 — 2026-04-11
-
-API key security: Tomorrow.io weather calls are now proxied server-side.
-
-- **Tomorrow.io proxy** — Weather API calls (current, hourly, daily) are now proxied through the Express server, consistent with Mapbox and LocationIQ. The API key is no longer included in client-side request URLs. Multiple browser clients now share the same quota rather than each consuming it independently.
-
-# v2.1.1 — 2026-04-09
-
-Security improvements:
-
-- **API key proxying** — Mapbox (map tiles) and LocationIQ (reverse geocoding) API calls are now proxied through the Express server. Keys are no longer included in client-side request URLs, keeping them out of browser network logs and third-party server logs.
-- **Settings write protection** — `POST`, `PUT`, `PATCH`, and `DELETE` requests to `/settings` are always restricted to `localhost` (see v2.2.0).
-- **Remote access UX** — The settings panel always hides API key and coordinate fields for remote users. Unit and display preferences (temperature, speed, clock format, mouse) remain accessible as they are stored locally in the browser.
-- **CORS removed** — The `cors` middleware (which allowed any origin to call the API) has been removed. All legitimate requests are same-origin and do not require it.
-- **Shell injection fix** — `deploy/install.sh` now uses `python3 + json.dumps` to write `settings.json`, preventing potential shell injection via API key input.
-- **JSON parse hardening** — `settings.json` parsing is now wrapped in a try/catch; a corrupted file returns a clean 500 error instead of crashing the server.
-- **Dependency update** — `axios` updated to v1.15.0 to address a SSRF vulnerability (GHSA-3p68-rc4w-qgx5).
-- **SSH keys excluded** — `ssh.key` and `ssh.key.pub` added to `.gitignore`.
-
-# v2.1.0 — 2026-04-03
-
-Build system modernization: webpack 5, updated dependencies, and RainViewer API v2.
-
-- Upgraded build system from webpack 4 to webpack 5
-- Updated all build dependencies (css-loader v7, style-loader v3, postcss v8, html-webpack-plugin v5)
-- Fixed CSS modules compatibility with css-loader v7 (`esModule: false`)
-- Updated [RainViewer](https://www.rainviewer.com/) API to v2 (`weather-maps.json`)
-- Updated geolocation service to [ipapi.co](https://ipapi.co/)
-- Updated axios to v1.x and express to v4.22
-
-# v2.0.1 — 2024-06-12
-
-Now uses [Tomorrow.io](https://www.tomorrow.io) APi instead of ClimaCell.
-
-# v2.0.0 — 2021-01-22
-
-Now uses [ClimaCell](https://www.climacell.co/) API v4. For ClimaCell API v3 keys, use [Pi Weather Station v1](https://github.com/elewin/pi-weather-station/releases/tag/v1.0).
+Releases: [2.0.1](./CHANGELOG.md#201---2024-06-12) · [2.0.0](./CHANGELOG.md#200---2021-01-22)
 
 # Setup
 
