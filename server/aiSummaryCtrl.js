@@ -210,13 +210,20 @@ async function getWeatherSummary(req, res) {
 
   // Radar analysis — fetched in parallel with the prompt assembly. Any failure
   // is non-fatal: we just drop the third paragraph and behave like before.
+  // The radarAnalysisEnabled flag (default true) lets users opt out entirely;
+  // when off, we short-circuit here and the prompt falls back to two paragraphs.
   let radarText = null;
-  try {
-    radarText = await analyzeRadar(lat, lon, {
-      extendedRadius: Boolean(settings?.advanced?.ai?.extendedRadius),
-    });
-  } catch {
-    radarText = null;
+  const aiSettings = settings?.advanced?.ai || {};
+  const radarEnabled = aiSettings.radarAnalysisEnabled !== false; // default true
+  if (radarEnabled) {
+    try {
+      radarText = await analyzeRadar(lat, lon, {
+        extendedRadius: Boolean(aiSettings.extendedRadius),
+        doubleOuterPoints: Boolean(aiSettings.doubleOuterPoints),
+      });
+    } catch {
+      radarText = null;
+    }
   }
 
   const language = LANG_NAMES[lang] || "English";

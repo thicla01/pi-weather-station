@@ -72,7 +72,9 @@ InlineToggle.propTypes = {
 const AdvancedSettings = () => {
   const { t } = useTranslation();
   const {
+    radarAnalysisEnabled,
     extendedRadarRadius,
+    doubleOuterPoints,
     showSamplingPoints,
     saveAdvancedAiFlag,
   } = useContext(AppContext);
@@ -99,6 +101,21 @@ const AdvancedSettings = () => {
 
           <div className={styles.row}>
             <div className={styles.rowLabel}>
+              {t("settings.advanced.radarAnalysisEnabled")}
+              <span className={styles.rowHint}>
+                {t("settings.advanced.radarAnalysisEnabledHint")}
+              </span>
+            </div>
+            <InlineToggle
+              value={radarAnalysisEnabled}
+              onChange={(v) => saveAdvancedAiFlag("radarAnalysisEnabled", v)}
+              onLabel={t("settings.on")}
+              offLabel={t("settings.off")}
+            />
+          </div>
+
+          <div className={styles.row}>
+            <div className={styles.rowLabel}>
               {t("settings.advanced.extendedRadius")}
               <span className={styles.rowHint}>
                 {t("settings.advanced.extendedRadiusHint")}
@@ -107,6 +124,21 @@ const AdvancedSettings = () => {
             <InlineToggle
               value={extendedRadarRadius}
               onChange={(v) => saveAdvancedAiFlag("extendedRadius", v)}
+              onLabel={t("settings.on")}
+              offLabel={t("settings.off")}
+            />
+          </div>
+
+          <div className={styles.row}>
+            <div className={styles.rowLabel}>
+              {t("settings.advanced.doubleOuterPoints")}
+              <span className={styles.rowHint}>
+                {t("settings.advanced.doubleOuterPointsHint")}
+              </span>
+            </div>
+            <InlineToggle
+              value={doubleOuterPoints}
+              onChange={(v) => saveAdvancedAiFlag("doubleOuterPoints", v)}
               onLabel={t("settings.on")}
               offLabel={t("settings.off")}
             />

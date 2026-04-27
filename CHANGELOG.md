@@ -5,6 +5,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.9.0] - 2026-04-27
+
+### Added
+- **`advanced.ai.radarAnalysisEnabled` — toggle the radar analysis on or off** — when this flag is `false`, `analyzeRadar` short-circuits to `null` server-side, the AI summary falls back to its two-paragraph form (no "Radar analysis" paragraph), and `WeatherMap` skips the 45/90 km dashed circles and the sampling-point overlay. Default `true` so existing behaviour is unchanged. The toggle now sits at the top of the AI section in Advanced settings.
+- **`advanced.ai.doubleOuterPoints` — uniform point density across rings** — between 45 and 90 km, the area covered grows quadratically while the standard 8-direction sampling stays constant, so points-per-km² drops to ~⅓ of the inner ring's density. When this flag is on (and `extendedRadius` is also on), the outer ring uses 16 directions (every 22.5° — the full 16-point compass: N/NNE/NE/ENE/E/ESE/…/NNW) instead of 8, restoring uniform coverage. Total samples: 32 inner + 48 outer = 80 (vs 56 with extended only, 32 standard). Cache key includes the doubled flag so toggling never returns a stale snapshot.
+
+### Changed
+- `radarAnalyzerCtrl` was refactored to split inner and outer rings as separate configurations rather than one combined distance array. `buildSnapshot` now takes a pre-built `points` list of `{direction, distance, bearing}` tuples instead of computing them inline; `formatSnapshot` iterates the 16-point compass so both 8- and 16-direction snapshots come out in a stable N → NNE → NE → … → NNW order.
+- The "no precipitation" line in the radar prompt now reports the actual sampled radius (`within 45 km` vs `within 90 km`) instead of the hard-coded 45 km.
+
+---
+
 ## [2.8.1] - 2026-04-27
 
 ### Fixed

@@ -34,10 +34,13 @@ export function AppContextProvider({ children }) {
   // 503 (no Anthropic API key configured). Used by WeatherMap to conditionally
   // show the 45 km radar-analysis circle around mapGeo.
   const [aiSummaryAvailable, setAiSummaryAvailable] = useState(true);
-  // Advanced settings (advanced.ai.* in settings.json). Default behaviour
-  // mirrors the v2.6 baseline; toggles flip independently and persist via
-  // saveAdvancedSettings (no Save button — instant write on click).
+  // Advanced settings (advanced.ai.* in settings.json). Defaults mirror the
+  // v2.6 baseline (radar analysis on, no extended radius, no doubled outer
+  // points, no sampling-point overlay). Toggles flip independently and
+  // persist via saveAdvancedAiFlag (no Save button — instant write on click).
+  const [radarAnalysisEnabled, setRadarAnalysisEnabled] = useState(true);
   const [extendedRadarRadius, setExtendedRadarRadius] = useState(false);
+  const [doubleOuterPoints, setDoubleOuterPoints] = useState(false);
   const [showSamplingPoints, setShowSamplingPoints] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
   const [currentWeatherData, setCurrentWeatherData] = useState(null);
@@ -330,10 +333,17 @@ export function AppContextProvider({ children }) {
             if (res.anthropicApiKey) {
               setAnthropicApiKey(res.anthropicApiKey);
             }
-            // Advanced settings — defaults to false (v2.6 behaviour) if absent.
+            // Advanced settings — radar analysis defaults to ON (matches the
+            // baseline behaviour where the third paragraph always renders
+            // when an Anthropic key is configured); the other three default
+            // to OFF if absent.
             const advancedAi = res.advanced && res.advanced.ai;
             if (advancedAi) {
+              if (advancedAi.radarAnalysisEnabled !== undefined) {
+                setRadarAnalysisEnabled(Boolean(advancedAi.radarAnalysisEnabled));
+              }
               setExtendedRadarRadius(Boolean(advancedAi.extendedRadius));
+              setDoubleOuterPoints(Boolean(advancedAi.doubleOuterPoints));
               setShowSamplingPoints(Boolean(advancedAi.showSamplingPoints));
             }
           }
@@ -712,14 +722,18 @@ export function AppContextProvider({ children }) {
    */
   function saveAdvancedAiFlag(key, value) {
     const nextAi = {
+      radarAnalysisEnabled,
       extendedRadius: extendedRadarRadius,
+      doubleOuterPoints,
       showSamplingPoints,
       [key]: value,
     };
     return axios
       .patch("/setting", { key: "advanced", val: { ai: nextAi } })
       .then(() => {
+        if (key === "radarAnalysisEnabled") setRadarAnalysisEnabled(value);
         if (key === "extendedRadius") setExtendedRadarRadius(value);
+        if (key === "doubleOuterPoints") setDoubleOuterPoints(value);
         if (key === "showSamplingPoints") setShowSamplingPoints(value);
       });
   }
@@ -740,7 +754,9 @@ export function AppContextProvider({ children }) {
     setMapGeo,
     aiSummaryAvailable,
     setAiSummaryAvailable,
+    radarAnalysisEnabled,
     extendedRadarRadius,
+    doubleOuterPoints,
     showSamplingPoints,
     saveAdvancedAiFlag,
     setMapPosition,

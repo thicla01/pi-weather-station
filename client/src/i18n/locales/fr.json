@@ -23,8 +23,12 @@
     "advanced": {
       "title": "Paramètres avancés",
       "aiGroup": "Résumé météo IA",
-      "extendedRadius": "Analyse radar étendue (90 km)",
+      "radarAnalysisEnabled": "Analyse radar",
+      "radarAnalysisEnabledHint": "Ajoute le troisième paragraphe « Analyse radar » au résumé IA, à partir des tuiles RainViewer autour de ta position. Désactive pour omettre complètement cette analyse.",
+      "extendedRadius": "Rayon étendu (90 km)",
       "extendedRadiusHint": "Double le rayon d'échantillonnage de 45 km à 90 km. Ajoute des anneaux à 60/75/90 km pour suivre les cellules plus loin.",
+      "doubleOuterPoints": "Doubler les points au-delà de 45 km",
+      "doubleOuterPointsHint": "Sur les anneaux 60/75/90 km, échantillonne à 16 directions (tous les 22,5°) au lieu de 8, pour garder une densité de points par km² uniforme entre les deux anneaux. Effet uniquement si le rayon étendu est actif.",
       "showSamplingPoints": "Afficher les points d'échantillonnage",
       "showSamplingPointsHint": "Affiche un petit point à chaque position que le résumé IA échantillonne sur le radar."
     }

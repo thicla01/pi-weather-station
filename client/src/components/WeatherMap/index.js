@@ -26,9 +26,13 @@ import styles from "./styles.css";
 // Sampling geometry — must match server/radarAnalyzerCtrl.js exactly so the
 // dots rendered on the map line up with the points the AI summary actually
 // reads from RainViewer. Bearings clockwise from north (deg).
-const SAMPLE_BEARINGS = [0, 45, 90, 135, 180, 225, 270, 315];
-const SAMPLE_DISTANCES_KM = [5, 15, 30, 45];
-const SAMPLE_DISTANCES_KM_EXTENDED = [5, 15, 30, 45, 60, 75, 90];
+const INNER_BEARINGS = [0, 45, 90, 135, 180, 225, 270, 315];
+const OUTER_BEARINGS_DOUBLED = [
+  0, 22.5, 45, 67.5, 90, 112.5, 135, 157.5,
+  180, 202.5, 225, 247.5, 270, 292.5, 315, 337.5,
+];
+const INNER_DISTANCES_KM = [5, 15, 30, 45];
+const OUTER_DISTANCES_KM = [60, 75, 90];
 const EARTH_R_KM = 6371;
 
 /**
@@ -61,20 +65,31 @@ function offsetLatLon(lat, lon, distanceKm, bearingDeg) {
 /**
  * Build the list of sampling points around a center, using the same geometry
  * as the server radar analyzer. Accepts the same `[lat, lng]` array format
- * used elsewhere in WeatherMap for marker/circle positions.
+ * used elsewhere in WeatherMap for marker/circle positions. Inner ring is
+ * always 8 directions; outer ring (when extended) is 8 or 16 directions
+ * depending on doubleOuter.
  *
  * @param {Array<Number>} center [lat, lng] pair
- * @param {Boolean} extended Whether to include the 60/75/90 km rings
+ * @param {Boolean} extended Whether to include the outer ring (60/75/90 km)
+ * @param {Boolean} doubleOuter Whether to use 16 directions on the outer ring
  * @returns {Array<[Number, Number]>} Array of [lat, lng] pairs
  */
-function buildSamplingPoints(center, extended) {
+function buildSamplingPoints(center, extended, doubleOuter) {
   const [centerLat, centerLng] = center;
-  const distances = extended ? SAMPLE_DISTANCES_KM_EXTENDED : SAMPLE_DISTANCES_KM;
   const points = [];
-  for (const bearing of SAMPLE_BEARINGS) {
-    for (const distance of distances) {
+  for (const bearing of INNER_BEARINGS) {
+    for (const distance of INNER_DISTANCES_KM) {
       const p = offsetLatLon(centerLat, centerLng, distance, bearing);
       points.push([p.lat, p.lon]);
+    }
+  }
+  if (extended) {
+    const outerBearings = doubleOuter ? OUTER_BEARINGS_DOUBLED : INNER_BEARINGS;
+    for (const bearing of outerBearings) {
+      for (const distance of OUTER_DISTANCES_KM) {
+        const p = offsetLatLon(centerLat, centerLng, distance, bearing);
+        points.push([p.lat, p.lon]);
+      }
     }
   }
   return points;
@@ -202,7 +217,9 @@ const WeatherMap = ({ zoom, dark }) => {
     infoPanelCollapsed,
     hideRadarLegend,
     aiSummaryAvailable,
+    radarAnalysisEnabled,
     extendedRadarRadius,
+    doubleOuterPoints,
     showSamplingPoints,
   } = useContext(AppContext);
 
@@ -330,12 +347,15 @@ const WeatherMap = ({ zoom, dark }) => {
         {markerIsVisible && markerPosition ? (
           <Marker position={markerPosition} opacity={0.65}></Marker>
         ) : null}
-        {/* Radar-analysis circles — only visible when the AI summary feature
-            is configured and we have a center point. The 45 km circle is the
-            default analysis zone. When the extended-radius advanced setting
-            is on, a second 90 km circle is drawn outside it (same dashed
-            style) so the larger sampling area is also visible. */}
-        {aiSummaryAvailable && markerPosition ? (
+        {/* Radar-analysis overlays — only visible when the AI summary feature
+            is configured AND the radar analysis is enabled in advanced
+            settings. The 45 km circle marks the default analysis zone; when
+            extendedRadius is on, a second 90 km circle joins it with the
+            same dashed style. Sampling-point dots opt-in via a separate
+            toggle so curious users can see exactly what the analyzer reads.
+            Inner ring is always 8 directions; outer ring uses 16 when
+            doubleOuterPoints is on. */}
+        {aiSummaryAvailable && radarAnalysisEnabled && markerPosition ? (
           <Circle
             center={markerPosition}
             radius={45000}
@@ -348,7 +368,7 @@ const WeatherMap = ({ zoom, dark }) => {
             }}
           />
         ) : null}
-        {aiSummaryAvailable && markerPosition && extendedRadarRadius ? (
+        {aiSummaryAvailable && radarAnalysisEnabled && markerPosition && extendedRadarRadius ? (
           <Circle
             center={markerPosition}
             radius={90000}
@@ -361,12 +381,8 @@ const WeatherMap = ({ zoom, dark }) => {
             }}
           />
         ) : null}
-        {/* Sampling-point markers — small dots at every (direction, distance)
-            position fed to the AI summary. Off by default; enabled via the
-            advanced settings toggle so curious users can see exactly what
-            the analyzer is reading. */}
-        {aiSummaryAvailable && markerPosition && showSamplingPoints
-          ? buildSamplingPoints(markerPosition, extendedRadarRadius).map(
+        {aiSummaryAvailable && radarAnalysisEnabled && markerPosition && showSamplingPoints
+          ? buildSamplingPoints(markerPosition, extendedRadarRadius, doubleOuterPoints).map(
               ([lat, lng], idx) => (
                 <CircleMarker
                   key={`sp-${idx}`}

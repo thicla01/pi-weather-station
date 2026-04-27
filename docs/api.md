@@ -52,7 +52,9 @@ Creates or overwrites `settings.json` with the provided body.
 - **Body:** JSON object with any subset of known keys (unknown keys are stripped)
 - **Whitelisted top-level keys:** `weatherApiKey`, `mapApiKey`, `reverseGeoApiKey`, `anthropicApiKey`, `startingLat`, `startingLon`, `indoorTemperature`, `advanced`
 - **`advanced` sub-object** — opaque, grouped by feature area:
-  - `advanced.ai.extendedRadius` (boolean) — when `true`, the radar analyzer samples 7 distance rings up to 90 km instead of the default 4 rings up to 45 km. Adds 60/75/90 km positions; same 8 directions and 3 timestamps. Defaults to `false`.
+  - `advanced.ai.radarAnalysisEnabled` (boolean) — controls whether the AI summary's third paragraph (`Radar analysis: …`) is generated and the analysis circles render on the map. Defaults to `true`. When `false`, the analyzer is short-circuited server-side and no circles are drawn client-side.
+  - `advanced.ai.extendedRadius` (boolean) — when `true`, the analyzer also samples the outer ring (60/75/90 km) on top of the default inner ring (5/15/30/45 km). The map shows a second 90 km dashed circle. Defaults to `false`.
+  - `advanced.ai.doubleOuterPoints` (boolean) — when both `extendedRadius` and this flag are `true`, the outer ring uses 16 directions (every 22.5°) instead of 8, to keep point density per km² roughly uniform across both rings. Defaults to `false`.
   - `advanced.ai.showSamplingPoints` (boolean) — purely client-side rendering flag. When `true`, `WeatherMap` overlays a small dot at every (direction, distance) the analyzer reads. Defaults to `false`.
 
 ---

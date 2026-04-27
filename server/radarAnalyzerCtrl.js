@@ -21,12 +21,17 @@ const ZOOM = 7;                             // RainViewer's max native zoom — 
 const TILE_SIZE = 512;
 const TARGET_OFFSETS_MIN = [0, -15, -45];   // now, 15 min ago, 45 min ago
 
-// Default ring distances around the user. The very-near 5 km probe is kept
-// even with the extended set because it captures precipitation already on
-// top of the user (where the 15 km ring would just barely miss it).
-const SAMPLE_DISTANCES_KM = [5, 15, 30, 45];
-const SAMPLE_DISTANCES_KM_EXTENDED = [5, 15, 30, 45, 60, 75, 90];
-const SAMPLE_DIRECTIONS = [
+// Inner-ring distances (always 8 cardinal directions). The very-near 5 km
+// probe is kept because it captures precipitation already on top of the
+// user, where the 15 km ring would just barely miss it.
+const INNER_DISTANCES_KM = [5, 15, 30, 45];
+// Outer-ring distances, only sampled when extendedRadius is on. Each ring
+// covers ~3× the area of an equivalent inner ring, so the optional
+// doubleOuterPoints flag also lets users sample at 16 directions (every
+// 22.5°) on this ring to keep the points-per-km² roughly uniform.
+const OUTER_DISTANCES_KM = [60, 75, 90];
+
+const INNER_DIRECTIONS = [
   { name: "N",  bearing: 0   },
   { name: "NE", bearing: 45  },
   { name: "E",  bearing: 90  },
@@ -35,6 +40,27 @@ const SAMPLE_DIRECTIONS = [
   { name: "SW", bearing: 225 },
   { name: "W",  bearing: 270 },
   { name: "NW", bearing: 315 },
+];
+// 16-point compass — the 8 cardinals interleaved with the 8 half-bearings
+// (NNE/ENE/ESE/SSE/SSW/WSW/WNW/NNW). Used on the outer ring when
+// doubleOuterPoints is on.
+const OUTER_DIRECTIONS_DOUBLED = [
+  { name: "N",   bearing: 0     },
+  { name: "NNE", bearing: 22.5  },
+  { name: "NE",  bearing: 45    },
+  { name: "ENE", bearing: 67.5  },
+  { name: "E",   bearing: 90    },
+  { name: "ESE", bearing: 112.5 },
+  { name: "SE",  bearing: 135   },
+  { name: "SSE", bearing: 157.5 },
+  { name: "S",   bearing: 180   },
+  { name: "SSW", bearing: 202.5 },
+  { name: "SW",  bearing: 225   },
+  { name: "WSW", bearing: 247.5 },
+  { name: "W",   bearing: 270   },
+  { name: "WNW", bearing: 292.5 },
+  { name: "NW",  bearing: 315   },
+  { name: "NNW", bearing: 337.5 },
 ];
 
 // RainViewer color scheme 6 (NEXRAD Level III) — the same palette the client
@@ -199,21 +225,20 @@ function readPixelIntensity(png, x, y) {
  * @param {Number} lat
  * @param {Number} lon
  * @param {String} framePath the RainViewer path for the desired frame
- * @param {Array<Number>} distancesKm Ring distances to sample, in km
+ * @param {Array<{direction: String, distance: Number, bearing: Number}>} points
+ *   Pre-built list of (direction, distance, bearing) tuples to sample
  * @returns {Promise<Array<{direction: String, distance: Number, intensity: Number}>>}
  */
-async function buildSnapshot(lat, lon, framePath, distancesKm) {
+async function buildSnapshot(lat, lon, framePath, points) {
   const samples = [];
   // Group by tile to minimize fetches
   const tileMap = new Map(); // "tileX:tileY" → list of pending samples
-  for (const dir of SAMPLE_DIRECTIONS) {
-    for (const distance of distancesKm) {
-      const point = offsetLatLon(lat, lon, distance, dir.bearing);
-      const { tileX, tileY, pixelX, pixelY } = latLonToTilePixel(point.lat, point.lon);
-      const key = `${tileX}:${tileY}`;
-      if (!tileMap.has(key)) tileMap.set(key, []);
-      tileMap.get(key).push({ direction: dir.name, distance, pixelX, pixelY });
-    }
+  for (const { direction, distance, bearing } of points) {
+    const point = offsetLatLon(lat, lon, distance, bearing);
+    const { tileX, tileY, pixelX, pixelY } = latLonToTilePixel(point.lat, point.lon);
+    const key = `${tileX}:${tileY}`;
+    if (!tileMap.has(key)) tileMap.set(key, []);
+    tileMap.get(key).push({ direction, distance, pixelX, pixelY });
   }
   // Fetch each tile once, then collect intensities
   for (const [key, pending] of tileMap.entries()) {
@@ -241,23 +266,32 @@ async function buildSnapshot(lat, lon, framePath, distancesKm) {
  * @returns {String|null}
  */
 function formatSnapshot(samples, label) {
-  // Group by direction, keep order
+  // Group by direction. The display order follows the 16-point compass so
+  // both 8-direction (inner-only) and 16-direction (with doubled outer)
+  // snapshots come out sorted N → NNE → NE → … → NNW.
   const byDir = new Map();
-  for (const dir of SAMPLE_DIRECTIONS) byDir.set(dir.name, []);
-  for (const s of samples) byDir.get(s.direction).push(s);
+  for (const dir of OUTER_DIRECTIONS_DOUBLED) byDir.set(dir.name, []);
+  for (const s of samples) {
+    if (!byDir.has(s.direction)) byDir.set(s.direction, []);
+    byDir.get(s.direction).push(s);
+  }
 
   let anyHit = false;
   const lines = [];
-  for (const dir of SAMPLE_DIRECTIONS) {
+  for (const dir of OUTER_DIRECTIONS_DOUBLED) {
     const dirSamples = byDir.get(dir.name).sort((a, b) => a.distance - b.distance);
+    if (!dirSamples.length) continue;
     const parts = dirSamples.map((s) => {
       if (s.intensity > 0) anyHit = true;
       return `${s.distance}km ${INTENSITY_LABELS[s.intensity]}`;
     });
-    lines.push(`  ${dir.name.padEnd(2)} : ${parts.join(", ")}`);
+    lines.push(`  ${dir.name.padEnd(3)} : ${parts.join(", ")}`);
   }
 
-  if (!anyHit) return `${label}: clear (no precipitation within 45 km)`;
+  // Largest sampled distance, used to phrase the "no precipitation" line
+  // honestly (mode-aware: "within 45 km" vs "within 90 km").
+  const maxDist = samples.reduce((m, s) => Math.max(m, s.distance), 0);
+  if (!anyHit) return `${label}: clear (no precipitation within ${maxDist} km)`;
   return `${label}:\n${lines.join("\n")}`;
 }
 
@@ -268,17 +302,37 @@ function formatSnapshot(samples, label) {
  * @param {Number} lat
  * @param {Number} lon
  * @param {Object} [options] Analysis options
- * @param {Boolean} [options.extendedRadius] Sample 7 rings up to 90 km instead
- *   of the default 4 rings up to 45 km
+ * @param {Boolean} [options.extendedRadius] Sample the outer ring (60/75/90 km)
+ *   in addition to the inner one (5/15/30/45 km)
+ * @param {Boolean} [options.doubleOuterPoints] When extendedRadius is on, use
+ *   16 directions (every 22.5°) on the outer ring instead of 8, to keep the
+ *   point density per km² roughly uniform across both rings
  * @returns {Promise<String|null>}
  */
 async function analyzeRadar(lat, lon, options = {}) {
-  const distancesKm = options.extendedRadius
-    ? SAMPLE_DISTANCES_KM_EXTENDED
-    : SAMPLE_DISTANCES_KM;
-  // Cache key includes the radius mode so toggling the flag doesn't return a
-  // stale snapshot built with the previous distance set.
-  const radiusTag = options.extendedRadius ? "x" : "s";
+  // Build the (direction, distance, bearing) tuples to sample. Inner ring is
+  // always 8 directions; outer ring (if enabled) is 8 or 16 directions.
+  const points = [];
+  for (const dir of INNER_DIRECTIONS) {
+    for (const distance of INNER_DISTANCES_KM) {
+      points.push({ direction: dir.name, distance, bearing: dir.bearing });
+    }
+  }
+  if (options.extendedRadius) {
+    const outerDirs = options.doubleOuterPoints
+      ? OUTER_DIRECTIONS_DOUBLED
+      : INNER_DIRECTIONS;
+    for (const dir of outerDirs) {
+      for (const distance of OUTER_DISTANCES_KM) {
+        points.push({ direction: dir.name, distance, bearing: dir.bearing });
+      }
+    }
+  }
+
+  // Cache key encodes the geometry mode so toggling any flag never returns a
+  // stale snapshot built with a different sample set.
+  let radiusTag = "s";
+  if (options.extendedRadius) radiusTag = options.doubleOuterPoints ? "x2" : "x";
   const cacheKey = `${lat.toFixed(3)}:${lon.toFixed(3)}:${radiusTag}`;
   const cached = analysisCache.get(cacheKey);
   if (cached && Date.now() < cached.expiresAt) return cached.text;
@@ -303,7 +357,7 @@ async function analyzeRadar(lat, lon, options = {}) {
     if (!frame) continue;
     const label = offsetMin === 0 ? "now" : `${offsetMin} min`;
     try {
-      const samples = await buildSnapshot(lat, lon, frame.path, distancesKm);
+      const samples = await buildSnapshot(lat, lon, frame.path, points);
       const block = formatSnapshot(samples, label);
       if (block) sections.push(block);
     } catch (err) {

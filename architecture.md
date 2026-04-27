@@ -106,10 +106,14 @@ server/index.js  ─── entry point, routes, middleware, HTTPS server
     │                        own in-memory summary cache (15 min TTL, keyed
     │                        by lat/lon/lang/period). Returns 503 if no key.
     │
-    ├── radarAnalyzerCtrl.js Samples the RainViewer radar at 32 (or 56 in
-    │                        extended-radius mode) points around the user
-    │                        (8 directions × 4 or 7 distances of 5/15/30/45,
-    │                        +60/75/90 km) at 3 timestamps (now, -15, -45 min).
+    ├── radarAnalyzerCtrl.js Samples the RainViewer radar around the user at
+    │                        3 timestamps (now, -15, -45 min). Geometry is
+    │                        configurable: inner ring is always 8 directions ×
+    │                        4 distances (5/15/30/45 km); outer ring (60/75/90
+    │                        km) is opt-in via advanced.ai.extendedRadius and
+    │                        uses 8 or 16 directions per advanced.ai.double-
+    │                        OuterPoints. Disabled entirely when advanced.ai.
+    │                        radarAnalysisEnabled is false.
     │                        Reads tile pixels via pngjs, classifies against
     │                        the 6-level NEXRAD palette, returns a compact
     │                        textual grid for inclusion in the AI prompt.
