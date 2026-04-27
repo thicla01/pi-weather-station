@@ -8,42 +8,48 @@ Pi Weather Station is a full-stack weather display application designed to run o
 
 - **Frontend**: React (webpack, CSS Modules, i18next for EN/FR/ES)
 - **Backend**: Node.js / Express
-- **Target hardware**: Raspberry Pi (Bullseye, Bookworm, Trixie) with 7" touchscreen running Chromium in kiosk mode; also runs on Debian/Ubuntu and macOS
+- **Target hardware**: Raspberry Pi (Bullseye, Bookworm, Trixie) with 7" touchscreen running a kiosk browser; also runs on Debian/Ubuntu, openSUSE, and macOS
+- **Kiosk browser**: Chromium-family (Chromium, Chrome, Brave, Edge) or Firefox; choice prompted by `install.sh` and persisted in `~/.config/pi-weather-station/browser.conf` (`BROWSER_CMD` + `BROWSER_FAMILY`). Snap-Firefox is supported via named profile (`-P pi-weather-station`)
 - **Official 7" touchscreen on Trixie**: Mouse Emulation mode must be disabled — set DSI-1 to **Multitouch** via Control Centre → Screens → DSI-1 → Touchscreen. See `docs/troubleshooting-touchscreen.md`.
-- **Deployment**: systemd user service (`pi-weather-server.service`) on Linux; launchd agent (`com.pi-weather-station.plist`) on macOS
+- **Deployment**: systemd user service (`pi-weather-server.service`) on Linux + XDG autostart entry on GNOME/KDE; launchd agent (`com.pi-weather-station.plist`) on macOS. Optional `pi-sensehat.service` for Sense HAT readings.
 
 ## Architecture
 
 ```
 pi-weather-station/
 ├── server/               # Express server (Node.js)
-│   ├── index.js          # Entry point, routes, middleware
+│   ├── index.js          # Entry point, routes, middleware, /api/update flow
 │   ├── proxyCtrl.js      # Proxies all external API calls (weather, maps, geocoding)
-│   ├── aiSummaryCtrl.js  # Claude AI weather summary endpoint
-│   ├── debugCtrl.js      # Debug panel data endpoint
+│   ├── aiSummaryCtrl.js  # Claude AI weather summary endpoint (current + radar paragraph)
+│   ├── radarAnalyzerCtrl.js # Parses RainViewer tile pixels for the 45 km zone
+│   ├── indoorTempCtrl.js # Polls Homebridge for indoor temperature/humidity/air quality
+│   ├── sensehatCtrl.js   # Reads Sense HAT JSON dropped by tools/sensehat_weather.py
+│   ├── debugCtrl.js      # Debug panel data endpoint (localhost-only)
 │   ├── clientTracker.js  # Tracks remote client IP addresses
-│   ├── geolocationCtrl.js # Default location lookup via ipapi.co
+│   ├── geolocationCtrl.js # Default location lookup via ipapi.co (retry + 30-day disk cache)
 │   ├── responseTimer.js  # Per-endpoint response time tracking middleware
-│   ├── settingsCtrl.js   # Reads/writes settings.json
+│   ├── settingsCtrl.js   # Reads/writes settings.json (server-side whitelist)
 │   ├── serviceStatus.js  # Tracks last status of each external service
 │   ├── requestCounter.js # API quota counters (persisted to request-counts.json)
-│   └── updateChecker.js  # Checks GitHub for new releases (cached 1 hour)
+│   └── updateChecker.js  # GitHub release check + needsManualUpgrade detection (cached 1 h)
 ├── client/               # React frontend
 │   ├── src/
 │   │   ├── AppContext.js             # Global state (settings, units, dark mode, etc.)
 │   │   ├── components/
 │   │   │   ├── App/                  # Root layout (CSS grid)
 │   │   │   ├── CurrentWeather/       # Temperature, weather icon, wind, humidity
+│   │   │   ├── IndoorTemperature/    # Indoor temp/humidity/air-quality block (Homebridge)
 │   │   │   ├── InfoPanel/            # Right panel with all weather info + controls
-│   │   │   ├── Settings/             # Settings overlay (API keys, units, language)
+│   │   │   ├── Settings/             # Settings overlay (API keys, units, language, indoor)
 │   │   │   ├── Debug/                # Debug panel (localhost only)
 │   │   │   ├── AiSummary/            # AI-generated weather summary
-│   │   │   ├── Clock/                # Digital clock display
+│   │   │   ├── Clock/                # Digital clock display (12/24 h, scaled AM/PM)
 │   │   │   ├── LocationName/         # Current location name display
 │   │   │   ├── Spinner/              # Loading spinner
 │   │   │   ├── SunRiseSet/           # Sunrise/sunset times display
+│   │   │   ├── UpdateModal/          # In-app updater UX (commits, warnings, errors)
 │   │   │   ├── WeatherInfo/          # Weather information container
-│   │   │   ├── WeatherMap/           # Radar map (Leaflet + Mapbox tiles)
+│   │   │   ├── WeatherMap/           # Radar map (Leaflet + RainViewer tiles + 45 km circle)
 │   │   │   ├── weatherCharts/        # Hourly and daily forecast charts
 │   │   │   └── ControlButtons/       # Bottom control bar (settings, debug, dark mode)
 │   │   ├── hooks/
@@ -51,9 +57,10 @@ pi-weather-station/
 │   │   ├── i18n/locales/             # EN / FR / ES translations
 │   │   └── services/conversions.js   # Unit conversions (temp, speed, length)
 │   └── dist/             # Compiled bundle (committed to git)
-├── deploy/               # Deployment files (systemd service, install script, logrotate)
-├── docs/                 # Documentation (architecture, KPI definitions)
-└── tools/                # Utility scripts (CSV to Excel converter)
+├── deploy/               # Multi-distro install.sh, systemd units, autostart, kiosk launcher,
+│                          # harden-kiosk.sh, logrotate, launchd plist, uninstall.sh
+├── docs/                 # api.md, architecture, KPI, security, troubleshooting, ui-layout (en/fr)
+└── tools/                # CSV→Excel converter, Sense HAT collector script
 ```
 
 ## Key Conventions
@@ -89,6 +96,7 @@ The compiled `dist/` files are committed to git so Pis can `git pull` without re
 - Length units: `in`, `mm`
 - Clock: `12`, `24`
 - Font size: `s` (85% zoom), `m` (100%, default), `l` (115% zoom) — persisted in `localStorage`
+- `indoorTemperature` block (top-level since v2.6.0): `{ enabled, host, port, username, password, sensorName }` — fully stripped from remote `GET /settings` responses (host/credentials are not even masked)
 
 ### Small screen adaptations (≤ 520 px height)
 - **Chart tabs** — Hourly and daily charts are shown as tabs ("24 hours" / "5 days") rather than stacked, to save vertical space
@@ -108,6 +116,8 @@ git pull
 systemctl --user restart pi-weather-server
 ```
 No client rebuild needed — dist files are committed.
+
+The in-app updater (`POST /api/update` from the settings modal) does the same thing plus `npm install` and a service restart, gated by pre-flight checks (rejects detached HEAD, non-master branch, or local changes with a structured 409). Installs older than commit `a1b8b78` (pre-v2.4.1) are flagged with `needsManualUpgrade` so the modal directs the user to `bash deploy/install.sh` instead.
 
 ## Maintainability Guidelines
 
@@ -149,10 +159,12 @@ These rules apply to every change, regardless of size. They exist to keep the co
 | Service | Purpose | Environment |
 |---|---|---|
 | Tomorrow.io | Weather data (current, hourly, daily) | `weatherApiKey` in settings.json |
-| Mapbox | Radar tiles + map | `mapApiKey` in settings.json |
+| Mapbox | Base map tiles | `mapApiKey` in settings.json |
+| RainViewer | Radar tiles + 45 km zone analysis | No key required |
 | LocationIQ | Reverse geocoding | `reverseGeoApiKey` in settings.json |
-| Anthropic Claude | AI weather summary | `anthropicApiKey` in settings.json |
-| ipapi.co | IP-based geolocation | No key required |
+| Anthropic Claude | AI weather summary (claude-haiku-4-5) | `anthropicApiKey` in settings.json |
+| Homebridge (`homebridge-config-ui-x`) | Indoor temperature/humidity/air quality | `indoorTemperature.*` in settings.json |
+| ipapi.co | IP-based geolocation (default location) | No key required |
 | sunrise-sunset.org | Sunrise/sunset times | No key required |
 
 ## Security
