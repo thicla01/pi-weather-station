@@ -85,7 +85,8 @@
     "noChangelog": "No changelog available for this update.",
     "feat": "New",
     "fix": "Fix",
-    "serviceFileChanged": "This update changes the systemd service file. The one-click update can't safely overwrite it (your installed copy may have customizations). Run the full command above manually instead."
+    "serviceFileChanged": "This update changes the systemd service file. The one-click update can't safely overwrite it (your installed copy may have customizations). Run the full command above manually instead.",
+    "needsManualUpgrade": "Your installed version is too old for the one-click update (pre-v2.4.1, before /api/update started running npm install). The auto-update would land new dependencies as missing-module crashes. Run the full command above to upgrade safely via deploy/install.sh."
   },
   "indoor": {
     "label": "INDOOR",

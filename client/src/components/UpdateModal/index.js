@@ -19,6 +19,7 @@ const UpdateModal = () => {
     latestSha,
     updateCommits,
     serviceFileChanged,
+    needsManualUpgrade,
     saveSkippedSha,
     updateState,
     setUpdateState,
@@ -35,11 +36,19 @@ const UpdateModal = () => {
   const isBusy = updateState === "updating" || updateState === "restarting";
   const isReset = updateState === "failed"  || updateState === "stopped";
 
-  // When the systemd service file itself changed, the in-app updater cannot
-  // safely overwrite it (the installed copy may have user customizations
-  // like ALLOW_REMOTE=true). Surface the full manual recipe instead.
+  // Two situations make the one-click updater unsafe:
+  //   - needsManualUpgrade: the installed /api/update is too old (pre-v2.4.1)
+  //     to run npm install — one-click would leave the post-restart server
+  //     crash-looping on missing dependencies. Need install.sh to recover.
+  //   - serviceFileChanged: the systemd service file changed upstream and
+  //     can't be safely overwritten on top of user customizations.
+  // Both disable the auto-update button and show their own notice + recipe.
+  // needsManualUpgrade takes precedence — install.sh handles everything,
+  // including any service file change.
   let cmdDisplay;
-  if (serviceFileChanged) {
+  if (needsManualUpgrade) {
+    cmdDisplay = "cd ~/pi-weather-station && git pull && bash deploy/install.sh";
+  } else if (serviceFileChanged) {
     cmdDisplay =
       "cd ~/pi-weather-station && git pull && npm install && " +
       "cp deploy/pi-weather-server.service ~/.config/systemd/user/ && " +
@@ -113,8 +122,16 @@ const UpdateModal = () => {
           )}
         </div>
 
-        {/* Service file change notice — only when relevant */}
-        {serviceFileChanged && (
+        {/* Manual-upgrade notice — older installs need install.sh */}
+        {needsManualUpgrade && (
+          <div className={styles.serviceFileNotice}>
+            {t("update.needsManualUpgrade")}
+          </div>
+        )}
+
+        {/* Service file change notice — only when relevant and the
+            broader manual-upgrade notice is not already shown */}
+        {!needsManualUpgrade && serviceFileChanged && (
           <div className={styles.serviceFileNotice}>
             {t("update.serviceFileChanged")}
           </div>
@@ -156,7 +173,7 @@ const UpdateModal = () => {
           <button
             className={`${styles.updateButton} ${updateState === "failed" ? styles.updateButtonFailed : ""} ${updateState === "stopped" ? styles.updateButtonStopped : ""}`}
             onClick={handleUpdate}
-            disabled={isBusy || serviceFileChanged}
+            disabled={isBusy || serviceFileChanged || needsManualUpgrade}
           >
             {updateState === "idle"        && t("update.update")}
             {updateState === "updating"    && t("update.updating")}

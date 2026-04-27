@@ -63,6 +63,40 @@ function getRepo() {
  * @param {string} repo "owner/repo" form
  * @returns {Promise<boolean|null>}
  */
+// Commit that added `npm install` to /api/update (v2.4.1). Anything older
+// has the bug where one-click upgrades don't install new dependencies, so
+// the post-restart server crash-loops on `Cannot find module 'X'`. We
+// detect "older than this commit" with `git merge-base --is-ancestor` and
+// surface a warning in the modal so the user takes the manual install.sh
+// path instead of one-click.
+const NPM_INSTALL_FIX_SHA = "a1b8b78";
+
+/**
+ * Returns true when the local commit is older than the version of /api/update
+ * that runs `npm install`. False when local is at or newer than that commit,
+ * or null when the comparison can't be made (no git, no local SHA, etc.).
+ *
+ * @param {string|null} localSha
+ * @returns {boolean|null}
+ */
+function checkNeedsManualUpgrade(localSha) {
+  if (!localSha) return null;
+  try {
+    // `git merge-base --is-ancestor A B` exits 0 when A is an ancestor of B.
+    // We want true when localSha is an ancestor of the parent of the fix
+    // commit, i.e. older than the fix.
+    execSync(
+      `git merge-base --is-ancestor ${localSha} ${NPM_INSTALL_FIX_SHA}^`,
+      { cwd: path.join(__dirname, ".."), stdio: "pipe", timeout: 3000 }
+    );
+    return true;
+  } catch {
+    // exit code 1 → not an ancestor (i.e. local is newer or unrelated)
+    // exit code 128 → bad commit reference (e.g. shallow clone missing the SHA)
+    return false;
+  }
+}
+
 async function checkServiceFileChanged(repo) {
   // Only meaningful when actually running under systemd user services.
   if (!process.env.INVOCATION_ID || process.platform !== "linux") return null;
@@ -158,6 +192,14 @@ async function checkForUpdate() {
       ? await checkServiceFileChanged(REPO)
       : false;
 
+    // Detect installations whose /api/update doesn't run npm install yet
+    // (pre-v2.4.1). The one-click upgrade would land new dependencies as
+    // missing-module crashes. The modal surfaces a warning and points the
+    // user at `bash deploy/install.sh` instead.
+    const needsManualUpgrade = updateAvailable
+      ? checkNeedsManualUpgrade(localSha)
+      : false;
+
     _cache = {
       updateAvailable,
       latestVersion,
@@ -166,6 +208,7 @@ async function checkForUpdate() {
       checkedAt: new Date().toISOString(),
       commits,
       serviceFileChanged,
+      needsManualUpgrade,
     };
   } catch {
     // On network error: keep last known result if available, otherwise return no-update

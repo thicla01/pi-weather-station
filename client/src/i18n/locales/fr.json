@@ -85,7 +85,8 @@
     "noChangelog": "Aucun journal des modifications disponible.",
     "feat": "Nouveau",
     "fix": "Correctif",
-    "serviceFileChanged": "Cette mise à jour modifie le fichier de service systemd. Le bouton ne peut pas l'écraser sans risque (ton fichier installé peut contenir des personnalisations). Exécute plutôt la commande complète ci-dessus manuellement."
+    "serviceFileChanged": "Cette mise à jour modifie le fichier de service systemd. Le bouton ne peut pas l'écraser sans risque (ton fichier installé peut contenir des personnalisations). Exécute plutôt la commande complète ci-dessus manuellement.",
+    "needsManualUpgrade": "Ta version installée est trop ancienne pour la mise à jour en un clic (pré-v2.4.1, avant que /api/update lance npm install). L'auto-update planterait sur des modules manquants. Exécute la commande complète ci-dessus pour mettre à jour proprement via deploy/install.sh."
   },
   "indoor": {
     "label": "INTÉRIEUR",

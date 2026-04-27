@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.6.3] - 2026-04-27
+
+### Added
+- **Update modal warns when the installed version is too old for one-click upgrade** — installations running v2.3.x and earlier have a `/api/update` that doesn't run `npm install` (the fix shipped in v2.4.1). Clicking the one-click button on those installs would `git pull` recent code that requires new dependencies, then restart into a `Cannot find module 'X'` crash loop. The update checker now runs `git merge-base --is-ancestor` against the SHA that introduced the npm-install fix; when local is older, the modal shows an amber notice, expands the displayed command to `git pull && bash deploy/install.sh`, and disables the one-click Update button so the user is forced through the install script (which handles dependencies, service file, and autostart in one go).
+
+---
+
 ## [2.6.2] - 2026-04-27
 
 ### Fixed
