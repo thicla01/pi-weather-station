@@ -28,6 +28,8 @@ These items require new logic or UI work but remain well within the scope of the
 ### 📡 Radar animation (play / pause / speed)
 RainViewer exposes multiple historical and forecast frames via its API. The WeatherMap component already uses RainViewer tiles. Adding a timeline control bar below the map — with play, pause, and frame scrubbing — would turn the static radar into a proper storm-tracking tool, which is arguably the most useful feature a weather kiosk can offer.
 
+> **UX inspiration** — [Weather Underground's WunderMap](https://www.wunderground.com/wundermap) has particularly polished light/dark base maps and a clean layer-opacity slider. Worth a look when designing the radar timeline + layer controls (their public API is no longer free, so this is purely visual reference, not a data source).
+
 ### 😴 Sleep mode / screensaver
 After a configurable period of inactivity, the display would transition to a minimal fullscreen clock (large digits, low brightness). Any touch or mouse event would restore the full interface. This protects the LCD panel from burn-in and gives the device a polished, always-on appearance. Implementation requires an inactivity timer in the client and the brightness control endpoint described above.
 
