@@ -23,6 +23,18 @@ See it in action [here](https://www.youtube.com/watch?v=dvM6cyqYSw8).
 
 > Be mindful of the plan limits for your API keys and understand the terms of each provider, as scrolling around the map and selecting different locations will incur API calls for every location. Additionally, the weather station will periodically make additional API calls to get weather updates throughout the day. All weather (Tomorrow.io), map tile (Mapbox), and reverse geocoding (LocationIQ) calls are proxied through the server — multiple browser clients share the same quota rather than each consuming it independently. Weather responses are cached server-side, further reducing API usage.
 
+## Updating
+
+For day-to-day updates, the in-app **Update** button (debug panel → notification badge) handles `git pull`, `npm install`, and the service restart automatically.
+
+> ⚠️ **Upgrading from v2.3.x or older?** The in-app updater in those releases doesn't run `npm install`, so a one-click upgrade would land new dependencies as `Cannot find module` crashes. Run the install script once instead, and you're safe to use one-click updates from then on:
+>
+> ```bash
+> cd ~/pi-weather-station && git pull && bash deploy/install.sh
+> ```
+>
+> The script picks up your existing `settings.json`, refreshes service files, and reinstalls dependencies cleanly. Starting from v2.6.3 the modal also detects this case and shows the same recipe.
+
 # v2.3.0 — 2026-04-23
 
 Sense HAT: animated sun arc, colour shift, and east-to-west movement.
