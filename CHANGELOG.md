@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.10.0] - 2026-04-27
+
+### Added
+- **CPU temperature in the debug panel** — a new live row in the SERVER KPIs section shows the CPU temperature in degrees Celsius, refreshed every 5 s while the panel is open. Read from `/sys/class/thermal/thermal_zone0/temp`, which works on Raspberry Pi (any model), Linux x86, and most embedded boards; falls back to `—` on platforms that don't expose the file (macOS). Color-coded thresholds: green below 60 °C, orange 60–74 °C, red 75 °C and above (close to the Pi 4's ~80–85 °C throttling threshold). The value is also exported to the debug CSV alongside the other KPIs.
+- **`GET /api/debug/cpu-temp`** — lightweight endpoint returning `{ cpuTempC: <number | null> }` for cheap polling without re-fetching the full `/api/debug` payload. Localhost-only.
+
+---
+
 ## [2.9.1] - 2026-04-27
 
 ### Fixed

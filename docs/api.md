@@ -361,4 +361,12 @@ Indicates whether the request originates from localhost. Used by the client to d
 Returns full server diagnostics for the debug panel.
 
 - **Access:** 🔒 Localhost only — also requires `DEBUG=true` server-side for the button to appear in the UI (the endpoint itself is always restricted regardless)
-- **Response:** large JSON object containing system info, KPIs, provider status, cache state, quota counters, service call history, security events, and recent log lines
+- **Response:** large JSON object containing system info, KPIs, provider status, cache state, quota counters, service call history, security events, and recent log lines. The `serverKpis.cpuTempC` field holds the CPU temperature in degrees Celsius (read from `/sys/class/thermal/thermal_zone0/temp`); `null` on platforms that don't expose the file.
+
+---
+
+### `GET /api/debug/cpu-temp`
+Lightweight endpoint polled by the debug panel every 5 s while open, for live CPU-temperature updates without re-fetching the full debug payload.
+
+- **Access:** 🔒 Localhost only
+- **Response:** `{ "cpuTempC": <number | null> }`

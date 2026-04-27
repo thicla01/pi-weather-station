@@ -17,6 +17,7 @@ These metrics are collected server-side by the Node.js / Express process.
 | **Cache Hit Rate** | % | Percentage of incoming weather API requests served from the in-memory cache, computed as `hits / (hits + misses) × 100`. A high rate (≥ 70 %) means fewer calls to external paid APIs. |
 | **Cache Hits** | count | Number of requests answered directly from cache since the server started. |
 | **Cache Misses** | count | Number of requests that were not in cache and required a live call to an external API (Tomorrow.io, etc.). |
+| **CPU Temp** | °C | CPU package temperature, read from `/sys/class/thermal/thermal_zone0/temp` (Pi: SoC; x86: typically the package sensor). Refreshed every 5 s while the debug panel is open via `GET /api/debug/cpu-temp`. `—` on platforms where the file doesn't exist (macOS). |
 
 ### Color thresholds — Cache Hit Rate
 
@@ -25,6 +26,14 @@ These metrics are collected server-side by the Node.js / Express process.
 | Green | ≥ 70 % — healthy, most requests cached |
 | Orange | 40–69 % — moderate, cache warming up or TTL too short |
 | Red | < 40 % — low, most requests bypass cache |
+
+### Color thresholds — CPU Temp
+
+| Color | Meaning |
+|---|---|
+| Green | < 60 °C — comfortable |
+| Orange | 60–74 °C — warm, system still healthy |
+| Red | ≥ 75 °C — close to throttling threshold (~80–85 °C on Pi 4); check ventilation / heatsink |
 
 ---
 

@@ -26,6 +26,10 @@ const Debug = () => {
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [fps, setFps] = useState(null);
   const [clientMetrics, setClientMetrics] = useState(null);
+  // Live CPU temperature, refreshed every 5 s while the panel is open via
+  // a tiny /api/debug/cpu-temp endpoint. Initial value comes from the
+  // full /api/debug response so there's no "—" flash on first paint.
+  const [cpuTemp, setCpuTemp] = useState(null);
   const contentScrollRef = useDragScroll();
 
   const fetchDebugInfo = useCallback(() => {
@@ -38,6 +42,9 @@ const Debug = () => {
         if (updateInfo) {
           setUpdateAvailable(updateInfo.updateAvailable ?? false);
           setLatestVersion(updateInfo.latestVersion ?? null);
+        }
+        if (res.data?.serverKpis?.cpuTempC !== undefined) {
+          setCpuTemp(res.data.serverKpis.cpuTempC);
         }
       })
       .catch(() => setData(null))
@@ -61,6 +68,20 @@ const Debug = () => {
   useEffect(() => {
     if (debugMenuOpen) fetchDebugInfo();
   }, [debugMenuOpen, fetchDebugInfo]);
+
+  // Live CPU temperature poll — only runs while the debug panel is open.
+  // 5 s interval is plenty: temperature changes slowly and a more aggressive
+  // poll would burn cycles for no human-perceptible benefit.
+  useEffect(() => {
+    if (!debugMenuOpen) return undefined;
+    const fetchCpuTemp = () => {
+      axios.get("/api/debug/cpu-temp")
+        .then((res) => setCpuTemp(res.data.cpuTempC))
+        .catch(() => { /* non-critical — keep previous value */ });
+    };
+    const interval = setInterval(fetchCpuTemp, 5000);
+    return () => clearInterval(interval);
+  }, [debugMenuOpen]);
 
   return (
     <CSSTransition
@@ -169,7 +190,7 @@ const Debug = () => {
         <div className={styles.content} ref={contentScrollRef}>
           <div className={styles.columns}>
             <ServerConfigSection serverConfig={data?.serverConfig} network={data?.network} />
-            <ServerKpiSection serverKpis={data?.serverKpis} />
+            <ServerKpiSection serverKpis={data?.serverKpis} cpuTemp={cpuTemp} />
             <ClientKpiSection
               fps={fps}
               setFps={setFps}
@@ -684,6 +705,7 @@ function exportDebugCsv(data, clientMetrics, fps) {
     rows.push([q("Cache Hit Rate (%)"), q(rate !== null ? rate : "N/A")]);
     rows.push([q("Cache Hits"),         q(kpis.cache.hits)]);
     rows.push([q("Cache Misses"),       q(kpis.cache.misses)]);
+    rows.push([q("CPU Temp (°C)"),      q(kpis.cpuTempC != null ? kpis.cpuTempC : "N/A")]);
   } else {
     rows.push([q("(no data)")]);
   }
@@ -877,9 +899,10 @@ ServerConfigSection.propTypes = {
  *
  * @param {object} props
  * @param {object} props.serverKpis
+ * @param {number|null} props.cpuTemp Live CPU temperature in °C
  * @returns {JSX.Element} Server KPI section
  */
-const ServerKpiSection = ({ serverKpis }) => {
+const ServerKpiSection = ({ serverKpis, cpuTemp }) => {
   const { t } = useTranslation();
   const kpis = serverKpis;
 
@@ -887,6 +910,14 @@ const ServerKpiSection = ({ serverKpis }) => {
   const hitRateClass = hitRate === null ? styles.kpiValue
     : hitRate >= 70 ? styles.kpiValueGood
     : hitRate >= 40 ? styles.kpiValueWarn
+    : styles.kpiValueErr;
+
+  // CPU temp thresholds: green up to 60°C (comfortable), orange 60–75°C
+  // (hot, system still healthy), red above 75°C (close to Pi 4 throttling
+  // at ~80–85°C). null/undefined → grey neutral (no sensor available).
+  const cpuTempClass = cpuTemp == null ? styles.kpiValue
+    : cpuTemp < 60 ? styles.kpiValueGood
+    : cpuTemp < 75 ? styles.kpiValueWarn
     : styles.kpiValueErr;
 
   return (
@@ -922,6 +953,12 @@ const ServerKpiSection = ({ serverKpis }) => {
                     ({kpis.cache.hits} {t("debug.hits")} / {kpis.cache.misses} {t("debug.misses")})
                   </span>
                 )}
+              </span>
+            </div>
+            <div className={styles.kpiItem}>
+              <span className={styles.kpiLabel}>{t("debug.cpuTemp")}</span>
+              <span className={cpuTempClass}>
+                {cpuTemp != null ? `${cpuTemp.toFixed(1)}°C` : "—"}
               </span>
             </div>
           </div>
@@ -974,7 +1011,9 @@ ServerKpiSection.propTypes = {
     }),
     responseTimes: PropTypes.array,
     powerStatus: PropTypes.object,
+    cpuTempC: PropTypes.number,
   }),
+  cpuTemp: PropTypes.number,
 };
 
 const POWER_FLAGS = ["underVoltage", "freqCapped", "throttled", "tempLimit"];

@@ -289,6 +289,26 @@ function getPowerStatus() {
   }
 }
 
+/**
+ * Read the CPU temperature in degrees Celsius. Uses /sys/class/thermal,
+ * which works on Pi (any model), Linux x86, and most embedded boards;
+ * returns null on macOS and any platform that doesn't expose the file.
+ * The thermal_zone0 file holds the temperature in millidegrees C — divide
+ * by 1000 to get degrees.
+ *
+ * @returns {Number|null} Temperature in °C (rounded to one decimal), or null
+ */
+function getCpuTempC() {
+  try {
+    const raw = fs.readFileSync("/sys/class/thermal/thermal_zone0/temp", "utf8");
+    const milliC = parseInt(raw.trim(), 10);
+    if (!Number.isFinite(milliC)) return null;
+    return Math.round(milliC / 100) / 10; // one decimal place
+  } catch {
+    return null;
+  }
+}
+
 const securityEvents = [];
 const MAX_SECURITY_EVENTS = 50;
 const LOG_LINES = 100;
@@ -372,6 +392,7 @@ async function getDebugInfo(req, res) {
     cache: getCacheStats(),
     responseTimes: getResponseTimeStats(),
     powerStatus: getPowerStatus(),
+    cpuTempC: getCpuTempC(),
   };
 
   // Resolve hostnames for remote clients (cached, best-effort)
@@ -385,4 +406,16 @@ async function getDebugInfo(req, res) {
   return res.status(200).json({ cache, logs, audit, securityEvents, services: getServiceStatus(), counters: getCounters(), system: getSystemInfo(), network: getNetworkInfo(), providerStatus, connectivity, appVersion: getAppVersion(), serverKpis, remoteClients, updateInfo, serverConfig: getServerConfig() });
 }
 
-module.exports = { getDebugInfo, logSecurityEvent, initServerInfo };
+/**
+ * Lightweight CPU-temperature endpoint, polled every few seconds by the
+ * client debug panel for live updates. Reads a single sysfs file — no
+ * caching needed on the server side.
+ *
+ * @param {Object} req
+ * @param {Object} res
+ */
+function getCpuTemp(req, res) {
+  return res.status(200).json({ cpuTempC: getCpuTempC() });
+}
+
+module.exports = { getDebugInfo, getCpuTemp, logSecurityEvent, initServerInfo };

@@ -175,6 +175,7 @@
     "heapTotal": "HEAP TOTAL",
     "rss": "RSS",
     "cacheHitRate": "CACHE HIT RATE",
+    "cpuTemp": "CPU TEMP",
     "hits": "HITS",
     "misses": "MISSES",
     "responseTimes": "RESPONSE TIMES",
