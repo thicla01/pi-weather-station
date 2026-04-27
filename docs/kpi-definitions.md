@@ -114,12 +114,14 @@ Tracks outbound calls to paid/rate-limited external services. Counters are persi
 | **tomorrow.io** | `current` | 25 | 500 | — | Realtime weather |
 | **tomorrow.io** | `hourly` | 25 | 500 | — | Hourly forecast |
 | **tomorrow.io** | `daily` | 25 | 500 | — | Daily forecast |
-| **mapbox** | `tiles` | — | — | 50 000 | Map tile requests |
-| **locationiq** | `reverse` | — | 5 000 | — | Reverse geocoding |
-| **ipapi.co** | `geolocate` | — | 1 000 | — | IP geolocation |
+| **mapbox** | `tiles` | — | — | 50 000 | Base map tile requests |
+| **locationiq** | `geocode` | — | 5 000 | — | Reverse geocoding |
+| **ipapi.co** | `geolocation` | — | 1 000 | — | IP-based default location |
 | **anthropic** | `summary` | — | — | — | AI weather summary (no published quota) |
 
 > Counters with `—` for a period mean no limit is tracked for that period; the counter still increments and is displayed in the debug panel.
+
+> RainViewer (radar tiles + 45 km zone analysis), Homebridge (indoor temperature polling), and the Sense HAT JSON reader are not tracked here — RainViewer has no published quota, while Homebridge and Sense HAT are local-network sources without rate limits.
 
 ---
 

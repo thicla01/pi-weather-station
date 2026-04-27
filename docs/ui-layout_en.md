@@ -10,11 +10,11 @@ This document describes the screen layout, panel names, and section names used i
 ┌─────────────────────────────────────────┬───────────────────┐
 │                                         │   INFOPANEL       │
 │                                         │ ┌───────────────┐ │
-│                                         │ │     CLOCK     │ │
+│                                         │ │ IndoorTemp│CLK│ │
 │                                         │ └───────────────┘ │
 │                                         │ ╔═══════════════╗ │
-│           WEATHERMAP                    │ ║ LocationName  ║ │
-│         (Leaflet radar map)             │ ╠═══════════════╣ │
+│  WEATHERMAP (Leaflet + RainViewer       │ ║ LocationName  ║ │
+│  radar tiles, 45 km analysis circle)    │ ╠═══════════════╣ │
 │                                         │ ║CurrentWeather ║ │
 │                                         │ ║  temp, icon   ║ │
 │                                         │ ║  wind, humidity║ │
@@ -47,7 +47,7 @@ On small screens, two adaptations activate automatically:
 ┌──────────────────────────────────────┬─┬───────────────────┐
 │                                      │ │   INFOPANEL       │
 │                                      │›│ ┌───────────────┐ │
-│           WEATHERMAP                 │ │ │     CLOCK     │ │
+│           WEATHERMAP                 │ │ │ IndoorTmp│CLK │ │
 │         (Leaflet radar map)          │P│ └───────────────┘ │
 │                                      │a│ ╔═══════════════╗ │
 │                                      │n│ ║ LocationName  ║ │
@@ -114,6 +114,7 @@ Pressing **AI SUMMARY ↓** restores the charts and automatically scrolls the vi
 | Radar map                   | `WeatherMap`             | `components/WeatherMap/index.js`            |
 | Right side panel            | `InfoPanel`              | `components/InfoPanel/index.js`             |
 | Clock                       | `Clock`                  | `components/Clock/index.js`                 |
+| Indoor temperature          | `IndoorTemperature`      | `components/IndoorTemperature/index.js`     |
 | Location                    | `LocationName`           | `components/LocationName/index.js`          |
 | Current weather             | `CurrentWeather`         | `components/CurrentWeather/index.js`        |
 | Chart legend                | `ChartLegend`            | inside `WeatherInfo/index.js`               |
@@ -124,6 +125,7 @@ Pressing **AI SUMMARY ↓** restores the charts and automatically scrolls the vi
 | Control buttons             | `ControlButtons`         | `components/ControlButtons/index.js`        |
 | Settings (overlay)          | `Settings`               | `components/Settings/index.js`              |
 | Debug (overlay)             | `Debug`                  | `components/Debug/index.js`                 |
+| Update modal (overlay)      | `UpdateModal`            | `components/UpdateModal/index.js`           |
 | Panel toggle (small screen) | `PanelToggle`            | inside `App/index.js`                       |
 
 ---
@@ -134,3 +136,10 @@ Pressing **AI SUMMARY ↓** restores the charts and automatically scrolls the vi
 
 - **Settings**: accessible via the ⚙ button in ControlButtons, always visible
 - **Debug**: accessible via the 🐛 button in ControlButtons, only visible from the Pi itself (`localhost`) when `DEBUG=true`
+- **UpdateModal**: opens from inside the Settings overlay when `GET /api/update-check` reports `updateAvailable: true`. Lists incoming `feat:`/`fix:` commits and surfaces warnings (`needsManualUpgrade`, `serviceFileChanged`) plus error messages from a failed `POST /api/update`.
+
+---
+
+## InfoPanel header
+
+The header row at the top of the InfoPanel hosts both **IndoorTemperature** (left) and **Clock** (right). When `indoorTemperature.enabled` is `false` or the Homebridge poll returns no data, IndoorTemperature renders nothing and Clock alone is right-aligned via `margin-inline-start: auto` on the last child.
