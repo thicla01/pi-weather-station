@@ -34,6 +34,11 @@ export function AppContextProvider({ children }) {
   // 503 (no Anthropic API key configured). Used by WeatherMap to conditionally
   // show the 45 km radar-analysis circle around mapGeo.
   const [aiSummaryAvailable, setAiSummaryAvailable] = useState(true);
+  // Advanced settings (advanced.ai.* in settings.json). Default behaviour
+  // mirrors the v2.6 baseline; toggles flip independently and persist via
+  // saveAdvancedSettings (no Save button — instant write on click).
+  const [extendedRadarRadius, setExtendedRadarRadius] = useState(false);
+  const [showSamplingPoints, setShowSamplingPoints] = useState(false);
   const [darkMode, setDarkMode] = useState(true);
   const [currentWeatherData, setCurrentWeatherData] = useState(null);
   const [currentWeatherDataErr, setCurrentWeatherDataErr] = useState(null);
@@ -324,6 +329,12 @@ export function AppContextProvider({ children }) {
             }
             if (res.anthropicApiKey) {
               setAnthropicApiKey(res.anthropicApiKey);
+            }
+            // Advanced settings — defaults to false (v2.6 behaviour) if absent.
+            const advancedAi = res.advanced && res.advanced.ai;
+            if (advancedAi) {
+              setExtendedRadarRadius(Boolean(advancedAi.extendedRadius));
+              setShowSamplingPoints(Boolean(advancedAi.showSamplingPoints));
             }
           }
           resolve(res);
@@ -690,6 +701,29 @@ export function AppContextProvider({ children }) {
     });
   }
 
+  /**
+   * Persist a single advanced.ai.* flag to settings.json.
+   * Toggles save instantly on click — no separate Save button — and update
+   * local state on success so the UI reflects the new value immediately.
+   *
+   * @param {String} key one of "extendedRadius", "showSamplingPoints"
+   * @param {Boolean} value new value
+   * @returns {Promise} Resolves when saved
+   */
+  function saveAdvancedAiFlag(key, value) {
+    const nextAi = {
+      extendedRadius: extendedRadarRadius,
+      showSamplingPoints,
+      [key]: value,
+    };
+    return axios
+      .patch("/setting", { key: "advanced", val: { ai: nextAi } })
+      .then(() => {
+        if (key === "extendedRadius") setExtendedRadarRadius(value);
+        if (key === "showSamplingPoints") setShowSamplingPoints(value);
+      });
+  }
+
   const defaultContext = {
     weatherApiKey,
     getWeatherApiKey,
@@ -706,6 +740,9 @@ export function AppContextProvider({ children }) {
     setMapGeo,
     aiSummaryAvailable,
     setAiSummaryAvailable,
+    extendedRadarRadius,
+    showSamplingPoints,
+    saveAdvancedAiFlag,
     setMapPosition,
     resetMapPosition,
     panToCoords,

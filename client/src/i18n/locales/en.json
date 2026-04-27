@@ -19,7 +19,15 @@
     "fontSize": "FONT SIZE",
     "fontS": "S",
     "fontM": "M",
-    "fontL": "L"
+    "fontL": "L",
+    "advanced": {
+      "title": "Advanced settings",
+      "aiGroup": "AI weather summary",
+      "extendedRadius": "Extended radar analysis (90 km)",
+      "extendedRadiusHint": "Doubles the radar sampling radius from 45 km to 90 km. Adds 60/75/90 km rings for longer-range storm tracking.",
+      "showSamplingPoints": "Show sampling points on map",
+      "showSamplingPointsHint": "Displays a small dot at every position the AI summary samples on the radar."
+    }
   },
   "weather": {
     "heavyFreezingRain": "Heavy freezing rain",

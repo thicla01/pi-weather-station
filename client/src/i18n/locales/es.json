@@ -19,7 +19,15 @@
     "fontSize": "TAMAÑO FUENTE",
     "fontS": "P",
     "fontM": "M",
-    "fontL": "G"
+    "fontL": "G",
+    "advanced": {
+      "title": "Ajustes avanzados",
+      "aiGroup": "Resumen meteo IA",
+      "extendedRadius": "Análisis radar extendido (90 km)",
+      "extendedRadiusHint": "Duplica el radio de muestreo del radar de 45 km a 90 km. Añade anillos a 60/75/90 km para seguir células de tormenta más lejos.",
+      "showSamplingPoints": "Mostrar puntos de muestreo",
+      "showSamplingPointsHint": "Muestra un pequeño punto en cada posición que el resumen IA muestrea en el radar."
+    }
   },
   "weather": {
     "heavyFreezingRain": "Lluvia helada intensa",

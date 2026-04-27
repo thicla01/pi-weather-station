@@ -12,6 +12,10 @@ const ALLOWED_KEYS = new Set([
   // (homebridgeUrl, username, password, sensorName, enabled). Stripped from
   // remote /settings responses to avoid leaking the password.
   "indoorTemperature",
+  // Advanced settings — opaque sub-object grouped by feature area, e.g.
+  // advanced.ai.{extendedRadius, showSamplingPoints}. Default behavior when
+  // absent matches the v2.6 baseline.
+  "advanced",
 ]);
 
 const API_KEY_FIELDS = new Set([

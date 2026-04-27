@@ -10,6 +10,7 @@ import roundSaveAlt from "@iconify/icons-ic/round-save-alt";
 import undoIcon from "@iconify/icons-carbon/undo";
 import closeSharp from "@iconify/icons-ion/close-sharp";
 import PropTypes from "prop-types";
+import AdvancedSettings from "./AdvancedSettings";
 import "!style-loader!css-loader!./animations.css";
 
 /**
@@ -204,6 +205,7 @@ const Settings = () => {
               )}
             </div>
           </div>
+          {!isRemoteRestricted && <AdvancedSettings />}
         </div>
       </div>
     </CSSTransition>
