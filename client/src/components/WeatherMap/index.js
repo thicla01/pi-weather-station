@@ -60,18 +60,20 @@ function offsetLatLon(lat, lon, distanceKm, bearingDeg) {
 
 /**
  * Build the list of sampling points around a center, using the same geometry
- * as the server radar analyzer.
+ * as the server radar analyzer. Accepts the same `[lat, lng]` array format
+ * used elsewhere in WeatherMap for marker/circle positions.
  *
- * @param {{lat: Number, lng: Number}} center Map center
+ * @param {Array<Number>} center [lat, lng] pair
  * @param {Boolean} extended Whether to include the 60/75/90 km rings
  * @returns {Array<[Number, Number]>} Array of [lat, lng] pairs
  */
 function buildSamplingPoints(center, extended) {
+  const [centerLat, centerLng] = center;
   const distances = extended ? SAMPLE_DISTANCES_KM_EXTENDED : SAMPLE_DISTANCES_KM;
   const points = [];
   for (const bearing of SAMPLE_BEARINGS) {
     for (const distance of distances) {
-      const p = offsetLatLon(center.lat, center.lng, distance, bearing);
+      const p = offsetLatLon(centerLat, centerLng, distance, bearing);
       points.push([p.lat, p.lon]);
     }
   }
