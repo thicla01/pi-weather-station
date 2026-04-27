@@ -1,9 +1,11 @@
 # Pi Weather Station — API Reference
 
+*Current as of v2.6.3.*
+
 All endpoints are served by the Express server on port **8443 (HTTPS)** or **8080 (HTTP)** as a fallback. Endpoints prefixed with `/api/` are subject to rate limiting unless noted otherwise.
 
 **Rate limits (per client IP):**
-- Weather, geocoding, summary: **120 req / min**
+- Weather, geocoding, summary, indoor-temperature, sensehat, update-check: **120 req / min**
 - Map tiles: **600 req / min**
 
 **Access levels:**
@@ -18,15 +20,27 @@ All endpoints are served by the Express server on port **8443 (HTTPS)** or **808
 Returns the current settings.
 
 - **Access:** 🌐 Public
-- **Response (localhost):** full settings object including API key values
-- **Response (remote):** same object with API key fields replaced by booleans (`true` if configured, `false` otherwise)
+- **Response (localhost):** full settings object including API key values and the entire `indoorTemperature` block
+- **Response (remote):** API key fields replaced by booleans (`true` if configured, `false` otherwise); `indoorTemperature` block stripped entirely (it contains a Homebridge password)
 
 ```json
 // localhost
-{ "weatherApiKey": "abc123", "mapApiKey": "xyz", ... }
+{
+  "weatherApiKey": "abc123",
+  "mapApiKey": "xyz",
+  "indoorTemperature": {
+    "enabled": true,
+    "homebridgeUrl": "http://192.168.x.y:8581",
+    "username": "admin",
+    "password": "...",
+    "sensorName": "Purificateur bureau"
+  },
+  ...
+}
 
 // remote
 { "weatherApiKey": true, "mapApiKey": false, ... }
+// (no indoorTemperature key)
 ```
 
 ---
@@ -36,7 +50,7 @@ Creates or overwrites `settings.json` with the provided body.
 
 - **Access:** 🔒 Localhost only
 - **Body:** JSON object with any subset of known keys (unknown keys are stripped)
-- **Known keys:** `weatherApiKey`, `mapApiKey`, `reverseGeoApiKey`, `anthropicApiKey`, `startingLat`, `startingLon`
+- **Whitelisted top-level keys:** `weatherApiKey`, `mapApiKey`, `reverseGeoApiKey`, `anthropicApiKey`, `startingLat`, `startingLon`, `indoorTemperature`
 
 ---
 
@@ -44,7 +58,7 @@ Creates or overwrites `settings.json` with the provided body.
 Replaces `settings.json` entirely.
 
 - **Access:** 🔒 Localhost only
-- **Body:** full settings JSON object
+- **Body:** full settings JSON object — same whitelist as `POST /settings`
 
 ---
 
@@ -68,7 +82,9 @@ Removes a single key from `settings.json`.
 ## Geolocation
 
 ### `GET /geolocation`
-Returns the Pi's approximate location based on its public IP address (via ipapi.co). Used as the default map center when no custom coordinates are configured.
+Returns the device's approximate location based on its public IP address (via ipapi.co). Used as the default map center when no custom coordinates are configured.
+
+The result is cached on disk (`server/geolocation-cache.json`, 30-day TTL). At cold boot, fresh fetches use retry-with-backoff (5 attempts, ~31 s worst case). If all retries fail but a stale cache exists, the cached value is returned rather than 500.
 
 - **Access:** 🌐 Public
 - **Response:** `{ "latitude": 45.5, "longitude": -73.6 }`
@@ -111,7 +127,7 @@ Proxies Mapbox raster tiles.
 
 | Parameter | Values | Description |
 |---|---|---|
-| `style` | `dark-v10`, `light-v10`, `light-v11`, `navigation-day-v1` | Mapbox style |
+| `style` | `dark-v10`, `light-v10`, `light-v11`, `navigation-day-v1`, or any defined custom style | Mapbox style |
 | `z` | integer | Zoom level |
 | `x` | integer | Tile X coordinate |
 | `y` | integer | Tile Y coordinate |
@@ -159,7 +175,13 @@ Returns sunrise and sunset times for the given coordinates (via sunrise-sunset.o
 ### `GET /api/weather-summary`
 Returns an AI-generated weather summary powered by Claude Haiku (Anthropic). Returns HTTP 503 if no Anthropic API key is configured — the client silently hides the feature in that case.
 
-Summaries are cached 15 minutes server-side. The second paragraph adapts to the time of day: evening preview (18h–21h) in the morning/afternoon, overnight preview (21h–5h) in the evening, next-day preview at night.
+The response can be 1, 2, or 3 paragraphs depending on what data is available:
+
+1. **Current conditions** (always)
+2. **Period preview** when timestamp params are present and the matching cache (hourly/daily) is hot — evening preview (18h–21h) in the morning/afternoon, overnight preview (21h–5h) in the evening, next-day preview at night
+3. **Radar analysis** (since v2.4.0) when the radar analyzer can sample tiles successfully — starts with the localised label `Analyse radar : ...` and describes where precipitation is, whether it is approaching, and an estimated arrival time. Powered by sampling the RainViewer radar at 32 points (8 directions × 4 distances of 5/15/30/45 km) at 3 timestamps (now, -15 min, -45 min) and feeding the compact textual grid to Claude.
+
+Summaries are cached 15 minutes server-side, keyed by `lat:lon:lang:period`.
 
 - **Access:** 🌐 Public — rate limited (120 req/min)
 - **Query params:**
@@ -174,7 +196,7 @@ Summaries are cached 15 minutes server-side. The second paragraph adapts to the 
 | `ts21` | integer | | Unix timestamp (ms) for 21:00 local time today |
 | `ts05tomorrow` | integer | | Unix timestamp (ms) for 05:00 local time tomorrow |
 
-- **Response:** `{ "summary": "Two-paragraph weather summary." }`
+- **Response:** `{ "summary": "..." }` — paragraphs separated by blank lines
 - **Errors:** HTTP 503 if Anthropic key not configured
 
 ---
@@ -182,12 +204,12 @@ Summaries are cached 15 minutes server-side. The second paragraph adapts to the 
 ## Sense HAT Display
 
 ### `GET /api/sensehat`
-Lightweight aggregated weather state intended for the Sense HAT 8×8 LED matrix display script (`tools/sensehat_weather.py`). Pulls current weather from the shared server-side cache (no extra Tomorrow.io quota) and computes day/night from sunrise/sunset.org (cached 1 hour in-process).
+Lightweight aggregated weather state intended for the Sense HAT 8×8 LED matrix display script (`tools/sensehat_weather.py`). Pulls current weather from the shared server-side cache (no extra Tomorrow.io quota) and computes day/night and sun position from sunrise/sunset.org (1-hour in-process cache).
 
-Returns HTTP 503 if no location is configured in `settings.json` (`startingLat` / `startingLon` required).
+When no location is configured in `settings.json` (`startingLat` / `startingLon`), falls back to `ipapi.co` for IP-based geolocation (cached 1 hour).
 
 - **Access:** 🌐 Public — rate limited (120 req/min)
-- **Query params:** none (location read from `settings.json`)
+- **Query params:** none (location read from `settings.json` or ipapi fallback)
 - **Response:**
 
 ```json
@@ -196,7 +218,9 @@ Returns HTTP 503 if no location is configured in `settings.json` (`startingLat` 
   "precipitationType": 0,
   "cloudCover":        45,
   "temperature":       14.2,
-  "isDay":             true
+  "isDay":             true,
+  "sunriseTs":         1777110561000,
+  "sunsetTs":          1777161287000
 }
 ```
 
@@ -207,35 +231,113 @@ Returns HTTP 503 if no location is configured in `settings.json` (`startingLat` 
 | `cloudCover` | integer | 0–100 % |
 | `temperature` | float \| null | °C |
 | `isDay` | boolean | `true` between sunrise and sunset (hour-based fallback if sunrise-sunset.org unavailable) |
+| `sunriseTs` | integer \| null | Unix timestamp (ms) for today's sunrise — used by the Python script to position the sun on its arc |
+| `sunsetTs` | integer \| null | Unix timestamp (ms) for today's sunset |
+
+---
+
+## Indoor Temperature
+
+### `GET /api/indoor-temperature`
+Returns the latest indoor temperature reading (and optionally humidity and HomeKit air-quality) for the configured Homebridge sensor. Polled server-side every 5 minutes; this endpoint just returns the cached result.
+
+The feature is opt-in: it is activated only when `settings.json` contains an `indoorTemperature` block with `enabled: true`. Otherwise this endpoint returns 404 with `{ "enabled": false }` and the client component renders nothing.
+
+See `docs/indoor-temperature.md` for setup details.
+
+- **Access:** 🌐 Public — rate limited (120 req/min)
+- **Query params:** none
+- **Response (configured & data available):**
+
+```json
+{
+  "enabled":     true,
+  "value":       21.4,
+  "humidity":    35,
+  "airQuality":  1,
+  "sensorName":  "Purificateur bureau",
+  "lastUpdated": "2026-04-26T18:32:11.000Z",
+  "isStale":     false
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `enabled` | boolean | Always `true` here (this endpoint returns 404 when not configured) |
+| `value` | float \| null | Temperature in °C; `null` until the first successful poll |
+| `humidity` | float \| null | Relative humidity in %, when the sensor exposes it (Dyson does, Hue doesn't) |
+| `airQuality` | integer \| null | HomeKit AirQuality 1..5 (1=Excellent..5=Poor); `null` when not exposed |
+| `sensorName` | string | Echo of the configured `serviceName` |
+| `lastUpdated` | string \| null | ISO 8601 of the last successful poll |
+| `isStale` | boolean | `true` when the cached reading is older than 30 min |
+
+- **Response (not configured):** HTTP 404 `{ "enabled": false }`
 
 ---
 
 ## Update
 
 ### `GET /api/update-check`
-Checks GitHub for a newer release (cached 1 hour).
+Checks GitHub for a newer release. Cached 1 hour to stay within GitHub's unauthenticated rate limit (60 req/h).
 
 - **Access:** 🌐 Public — rate limited (120 req/min)
 - **Response:**
 
 ```json
 {
-  "updateAvailable": true,
-  "latestVersion": "2.2.3",
-  "currentVersion": "2.2.2",
-  "platform": "linux",
-  "isSystemd": true
+  "updateAvailable":     true,
+  "latestVersion":       "2.6.3",
+  "latestSha":           "34fc363",
+  "localSha":            "94b35e4",
+  "checkedAt":           "2026-04-27T10:15:00.000Z",
+  "commits": [
+    { "type": "feat", "message": "promote indoor temperature out of experimental" },
+    { "type": "fix",  "message": "render AM/PM suffix at digital-clock proportions" }
+  ],
+  "serviceFileChanged":  false,
+  "needsManualUpgrade":  false,
+  "platform":            "linux",
+  "isSystemd":           true
 }
 ```
+
+| Field | Type | Description |
+|---|---|---|
+| `updateAvailable` | boolean | True only when remote head differs from local AND at least one feat/fix commit is in the diff (silent for docs-only releases) |
+| `latestVersion` | string \| null | Semver from `package.json` on master |
+| `latestSha` / `localSha` | string \| null | Short SHAs |
+| `commits` | array | feat/fix commits in the diff, most recent first |
+| `serviceFileChanged` | boolean \| null | True when `deploy/pi-weather-server.service` differs from the installed copy — the modal disables one-click and shows a `cp + daemon-reload` recipe. Null on non-systemd platforms or when the comparison can't be made |
+| `needsManualUpgrade` | boolean \| null | True when the local SHA is older than the v2.4.1 commit that added `npm install` to `/api/update` — the modal disables one-click and points the user at `bash deploy/install.sh` |
+| `platform` | string | `process.platform` |
+| `isSystemd` | boolean | `true` when the server is running under systemd (presence of `INVOCATION_ID`) |
+
+---
+
+### `GET /api/update-check/force`
+### `POST /api/update-check/force`
+Same response shape as `GET /api/update-check`, but clears the 1-hour cache first so the next answer comes from a fresh GitHub round-trip. Available on any HTTP method (`app.all`).
+
+- **Access:** 🔒 Localhost only
 
 ---
 
 ### `POST /api/update`
-Triggers a `git pull --ff-only` and restarts the service. The server process exits after responding; systemd restarts it automatically.
+Pulls the latest code, installs new dependencies, and restarts the service.
 
 - **Access:** 🔒 Localhost only
-- **Response:** `{ "ok": true, "isSystemd": true }`
-- **Errors:** HTTP 500 with `{ "error": true, "message": "..." }` if `git pull` fails
+- **Pre-flight checks** — return HTTP 409 with `{ error, reason, message, ...details }` when any precondition fails. The modal renders `message` directly to the user:
+
+| `reason` | When |
+|---|---|
+| `detached-head` | `git symbolic-ref --short HEAD` failed (working copy at a specific SHA, not on a branch) |
+| `wrong-branch` | Current branch isn't `master` (`currentBranch` field returned for context) |
+| `local-changes` | `git status --porcelain` reported uncommitted changes (`dirtyFiles` field returned for context) |
+| `git-status-failed` | git itself errored unexpectedly |
+
+- **Successful flow** — when pre-flight passes, runs `git pull --ff-only`, then `npm install --omit=dev --no-audit --no-fund`, then schedules a service restart. Errors during the pull or install return HTTP 500 with `{ error, reason: "pull-failed" | "npm-install-failed", message: "..." }`.
+
+- **Success response:** `{ "ok": true, "isSystemd": true }`
 
 ---
 
