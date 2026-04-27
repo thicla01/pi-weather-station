@@ -212,7 +212,9 @@ async function getWeatherSummary(req, res) {
   // is non-fatal: we just drop the third paragraph and behave like before.
   let radarText = null;
   try {
-    radarText = await analyzeRadar(lat, lon);
+    radarText = await analyzeRadar(lat, lon, {
+      extendedRadius: Boolean(settings?.advanced?.ai?.extendedRadius),
+    });
   } catch {
     radarText = null;
   }

@@ -50,7 +50,10 @@ Creates or overwrites `settings.json` with the provided body.
 
 - **Access:** 🔒 Localhost only
 - **Body:** JSON object with any subset of known keys (unknown keys are stripped)
-- **Whitelisted top-level keys:** `weatherApiKey`, `mapApiKey`, `reverseGeoApiKey`, `anthropicApiKey`, `startingLat`, `startingLon`, `indoorTemperature`
+- **Whitelisted top-level keys:** `weatherApiKey`, `mapApiKey`, `reverseGeoApiKey`, `anthropicApiKey`, `startingLat`, `startingLon`, `indoorTemperature`, `advanced`
+- **`advanced` sub-object** — opaque, grouped by feature area:
+  - `advanced.ai.extendedRadius` (boolean) — when `true`, the radar analyzer samples 7 distance rings up to 90 km instead of the default 4 rings up to 45 km. Adds 60/75/90 km positions; same 8 directions and 3 timestamps. Defaults to `false`.
+  - `advanced.ai.showSamplingPoints` (boolean) — purely client-side rendering flag. When `true`, `WeatherMap` overlays a small dot at every (direction, distance) the analyzer reads. Defaults to `false`.
 
 ---
 

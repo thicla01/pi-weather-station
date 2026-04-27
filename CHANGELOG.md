@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.8.0] - 2026-04-27
+
+### Added
+- **Advanced settings section in the Settings panel** — collapsible "Advanced settings" block at the bottom of the Settings overlay, closed by default, opens on click. Hosts expert toggles without cluttering the main flow. Reads/writes a new top-level `advanced` key in `settings.json`, grouped by feature area. Toggles save instantly via `PATCH /setting` (no separate Save button). Sub-keys are stripped from remote `GET /settings` responses by virtue of the localhost-only write boundary already in place; the read path returns them so the UI can hydrate consistently.
+- **`advanced.ai.extendedRadius` — extend the radar analysis from 45 km to 90 km** — when enabled, the server-side radar analyzer samples 7 distance rings instead of 4 (5/15/30/45/60/75/90 km), keeping the same 8 directions and 3 timestamps. Roughly +75 % tile reads to RainViewer (no quota, no key required), parallelized so the latency impact stays within ~0.5-1 s on a cold cache miss. The cache key includes the radius mode so toggling the flag never returns a stale snapshot built with the previous distance set.
+- **`advanced.ai.showSamplingPoints` — visualize the analyzer's sample positions on the map** — when enabled, `WeatherMap` draws a small dashed dot at every (direction, distance) point the analyzer reads. The geometry is computed client-side using the same great-circle formula as `radarAnalyzerCtrl`, so the dots always match the server's actual sample positions. Useful for understanding what the AI radar paragraph reasons about, and for visually validating the extended-radius mode.
+- **Second 90 km circle on the map** — when `extendedRadius` is on, the existing 45 km dashed circle is joined by an outer 90 km dashed circle in the same style, marking the larger sampling area without hiding the inner zone.
+
+---
+
 ## [2.7.0] - 2026-04-27
 
 ### Added

@@ -12,6 +12,7 @@ import {
   AttributionControl,
   Marker,
   Circle,
+  CircleMarker,
   useMap,
   useMapEvents,
 } from "react-leaflet";
@@ -21,6 +22,61 @@ import { useTranslation } from "react-i18next";
 import debounce from "debounce";
 import axios from "axios";
 import styles from "./styles.css";
+
+// Sampling geometry — must match server/radarAnalyzerCtrl.js exactly so the
+// dots rendered on the map line up with the points the AI summary actually
+// reads from RainViewer. Bearings clockwise from north (deg).
+const SAMPLE_BEARINGS = [0, 45, 90, 135, 180, 225, 270, 315];
+const SAMPLE_DISTANCES_KM = [5, 15, 30, 45];
+const SAMPLE_DISTANCES_KM_EXTENDED = [5, 15, 30, 45, 60, 75, 90];
+const EARTH_R_KM = 6371;
+
+/**
+ * Compute a destination lat/lon from a starting point, distance, and bearing.
+ * Mirrors offsetLatLon in server/radarAnalyzerCtrl.js (great-circle formula).
+ *
+ * @param {Number} lat Starting latitude (deg)
+ * @param {Number} lon Starting longitude (deg)
+ * @param {Number} distanceKm Distance in kilometres
+ * @param {Number} bearingDeg Bearing clockwise from north (deg)
+ * @returns {{lat: Number, lon: Number}} Destination coordinates
+ */
+function offsetLatLon(lat, lon, distanceKm, bearingDeg) {
+  const lat1 = (lat * Math.PI) / 180;
+  const lon1 = (lon * Math.PI) / 180;
+  const bearing = (bearingDeg * Math.PI) / 180;
+  const d = distanceKm / EARTH_R_KM;
+  const lat2 = Math.asin(
+    Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(bearing)
+  );
+  const lon2 =
+    lon1 +
+    Math.atan2(
+      Math.sin(bearing) * Math.sin(d) * Math.cos(lat1),
+      Math.cos(d) - Math.sin(lat1) * Math.sin(lat2)
+    );
+  return { lat: (lat2 * 180) / Math.PI, lon: (lon2 * 180) / Math.PI };
+}
+
+/**
+ * Build the list of sampling points around a center, using the same geometry
+ * as the server radar analyzer.
+ *
+ * @param {{lat: Number, lng: Number}} center Map center
+ * @param {Boolean} extended Whether to include the 60/75/90 km rings
+ * @returns {Array<[Number, Number]>} Array of [lat, lng] pairs
+ */
+function buildSamplingPoints(center, extended) {
+  const distances = extended ? SAMPLE_DISTANCES_KM_EXTENDED : SAMPLE_DISTANCES_KM;
+  const points = [];
+  for (const bearing of SAMPLE_BEARINGS) {
+    for (const distance of distances) {
+      const p = offsetLatLon(center.lat, center.lng, distance, bearing);
+      points.push([p.lat, p.lon]);
+    }
+  }
+  return points;
+}
 
 const RADAR_LEGEND_ITEMS = [
   { color: "#00d0d0", key: "veryLight" },
@@ -144,6 +200,8 @@ const WeatherMap = ({ zoom, dark }) => {
     infoPanelCollapsed,
     hideRadarLegend,
     aiSummaryAvailable,
+    extendedRadarRadius,
+    showSamplingPoints,
   } = useContext(AppContext);
 
   const handleMapClick = useCallback((e) => {
@@ -270,8 +328,11 @@ const WeatherMap = ({ zoom, dark }) => {
         {markerIsVisible && markerPosition ? (
           <Marker position={markerPosition} opacity={0.65}></Marker>
         ) : null}
-        {/* 45 km circle showing the AI radar-analysis zone — only visible when
-            the AI summary feature is configured and we have a center point. */}
+        {/* Radar-analysis circles — only visible when the AI summary feature
+            is configured and we have a center point. The 45 km circle is the
+            default analysis zone. When the extended-radius advanced setting
+            is on, a second 90 km circle is drawn outside it (same dashed
+            style) so the larger sampling area is also visible. */}
         {aiSummaryAvailable && markerPosition ? (
           <Circle
             center={markerPosition}
@@ -285,6 +346,40 @@ const WeatherMap = ({ zoom, dark }) => {
             }}
           />
         ) : null}
+        {aiSummaryAvailable && markerPosition && extendedRadarRadius ? (
+          <Circle
+            center={markerPosition}
+            radius={90000}
+            pathOptions={{
+              color: dark ? "#f6f6f4" : "#3a3938",
+              weight: 1,
+              opacity: 0.45,
+              dashArray: "6 6",
+              fill: false,
+            }}
+          />
+        ) : null}
+        {/* Sampling-point markers — small dots at every (direction, distance)
+            position fed to the AI summary. Off by default; enabled via the
+            advanced settings toggle so curious users can see exactly what
+            the analyzer is reading. */}
+        {aiSummaryAvailable && markerPosition && showSamplingPoints
+          ? buildSamplingPoints(markerPosition, extendedRadarRadius).map(
+              ([lat, lng], idx) => (
+                <CircleMarker
+                  key={`sp-${idx}`}
+                  center={[lat, lng]}
+                  radius={3}
+                  pathOptions={{
+                    color: dark ? "#f6f6f4" : "#3a3938",
+                    weight: 1,
+                    opacity: 0.7,
+                    fillOpacity: 0.5,
+                  }}
+                />
+              )
+            )
+          : null}
       </MapContainer>
       {mapTimestamps && !hideRadarLegend && <RadarLegend dark={dark} />}
     </div>

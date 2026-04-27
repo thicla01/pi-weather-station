@@ -21,7 +21,11 @@ const ZOOM = 7;                             // RainViewer's max native zoom — 
 const TILE_SIZE = 512;
 const TARGET_OFFSETS_MIN = [0, -15, -45];   // now, 15 min ago, 45 min ago
 
+// Default ring distances around the user. The very-near 5 km probe is kept
+// even with the extended set because it captures precipitation already on
+// top of the user (where the 15 km ring would just barely miss it).
 const SAMPLE_DISTANCES_KM = [5, 15, 30, 45];
+const SAMPLE_DISTANCES_KM_EXTENDED = [5, 15, 30, 45, 60, 75, 90];
 const SAMPLE_DIRECTIONS = [
   { name: "N",  bearing: 0   },
   { name: "NE", bearing: 45  },
@@ -195,14 +199,15 @@ function readPixelIntensity(png, x, y) {
  * @param {Number} lat
  * @param {Number} lon
  * @param {String} framePath the RainViewer path for the desired frame
+ * @param {Array<Number>} distancesKm Ring distances to sample, in km
  * @returns {Promise<Array<{direction: String, distance: Number, intensity: Number}>>}
  */
-async function buildSnapshot(lat, lon, framePath) {
+async function buildSnapshot(lat, lon, framePath, distancesKm) {
   const samples = [];
   // Group by tile to minimize fetches
   const tileMap = new Map(); // "tileX:tileY" → list of pending samples
   for (const dir of SAMPLE_DIRECTIONS) {
-    for (const distance of SAMPLE_DISTANCES_KM) {
+    for (const distance of distancesKm) {
       const point = offsetLatLon(lat, lon, distance, dir.bearing);
       const { tileX, tileY, pixelX, pixelY } = latLonToTilePixel(point.lat, point.lon);
       const key = `${tileX}:${tileY}`;
@@ -262,10 +267,19 @@ function formatSnapshot(samples, label) {
  *
  * @param {Number} lat
  * @param {Number} lon
+ * @param {Object} [options] Analysis options
+ * @param {Boolean} [options.extendedRadius] Sample 7 rings up to 90 km instead
+ *   of the default 4 rings up to 45 km
  * @returns {Promise<String|null>}
  */
-async function analyzeRadar(lat, lon) {
-  const cacheKey = `${lat.toFixed(3)}:${lon.toFixed(3)}`;
+async function analyzeRadar(lat, lon, options = {}) {
+  const distancesKm = options.extendedRadius
+    ? SAMPLE_DISTANCES_KM_EXTENDED
+    : SAMPLE_DISTANCES_KM;
+  // Cache key includes the radius mode so toggling the flag doesn't return a
+  // stale snapshot built with the previous distance set.
+  const radiusTag = options.extendedRadius ? "x" : "s";
+  const cacheKey = `${lat.toFixed(3)}:${lon.toFixed(3)}:${radiusTag}`;
   const cached = analysisCache.get(cacheKey);
   if (cached && Date.now() < cached.expiresAt) return cached.text;
 
@@ -289,7 +303,7 @@ async function analyzeRadar(lat, lon) {
     if (!frame) continue;
     const label = offsetMin === 0 ? "now" : `${offsetMin} min`;
     try {
-      const samples = await buildSnapshot(lat, lon, frame.path);
+      const samples = await buildSnapshot(lat, lon, frame.path, distancesKm);
       const block = formatSnapshot(samples, label);
       if (block) sections.push(block);
     } catch (err) {

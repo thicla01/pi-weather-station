@@ -106,9 +106,10 @@ server/index.js  ─── entry point, routes, middleware, HTTPS server
     │                        own in-memory summary cache (15 min TTL, keyed
     │                        by lat/lon/lang/period). Returns 503 if no key.
     │
-    ├── radarAnalyzerCtrl.js Samples the RainViewer radar at 32 points
-    │                        (8 directions × 4 distances of 5/15/30/45 km)
-    │                        at 3 timestamps (now, -15 min, -45 min).
+    ├── radarAnalyzerCtrl.js Samples the RainViewer radar at 32 (or 56 in
+    │                        extended-radius mode) points around the user
+    │                        (8 directions × 4 or 7 distances of 5/15/30/45,
+    │                        +60/75/90 km) at 3 timestamps (now, -15, -45 min).
     │                        Reads tile pixels via pngjs, classifies against
     │                        the 6-level NEXRAD palette, returns a compact
     │                        textual grid for inclusion in the AI prompt.
@@ -203,8 +204,11 @@ App                          Root layout — CSS grid (map | info panel)
 │   ├── MapResizer           Mapbox base tiles (proxied through /api/tiles).
 │   ├── PanHandler           Renders the 45 km dashed circle showing the
 │   ├── MapClickHandler      area covered by the radar AI analysis when
-│   ├── RadarLegend          aiSummaryAvailable is true.
-│   └── (Leaflet Circle)
+│   ├── RadarLegend          aiSummaryAvailable is true. When the
+│   └── (Leaflet Circle      advanced.ai.extendedRadius flag is on, a
+│       + CircleMarker)      second 90 km circle is added; when
+│                            advanced.ai.showSamplingPoints is on, small
+│                            dots mark each (direction, distance) sample.
 │
 ├── UpdateModal              Slide-up modal triggered by the update badge;
 │                            shows changelog, manual command, and three
