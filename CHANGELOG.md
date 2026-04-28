@@ -12,6 +12,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.10.3] - 2026-04-27
+
+### Fixed
+- **Pre-flight check no longer trips on harmless untracked files** — the in-app updater's `local-changes` check used `git status --porcelain` to detect anything that would conflict with `git pull --ff-only`. That command also lists untracked files (with `??` prefix), which `git pull --ff-only` doesn't actually touch — they live outside git's view entirely. Result: harmless backups like `settings.json.bak` blocked the updater with a misleading "uncommitted changes" message. Add `--untracked-files=no` so only real conflicts (modified, staged, deleted, renamed files) trigger the rejection.
+
+---
+
 ## [Unreleased]
 
 ### Documentation

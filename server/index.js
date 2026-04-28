@@ -310,7 +310,11 @@ app.post("/api/update", localhostOnly, (req, res) => {
       );
     }
 
-    exec("git status --porcelain", { cwd: projectRoot, timeout: 5_000 }, (statusErr, statusStdout) => {
+    // --untracked-files=no skips files with `??` prefix (not in git's index).
+    // Untracked files cannot conflict with `git pull --ff-only` — they live
+    // outside git's view entirely. Without this flag, harmless backups like
+    // settings.json.bak would block the in-app updater.
+    exec("git status --porcelain --untracked-files=no", { cwd: projectRoot, timeout: 5_000 }, (statusErr, statusStdout) => {
       if (statusErr) {
         console.error("[update] precheck: git status failed:", statusErr.message);
         return failPrecondition(
