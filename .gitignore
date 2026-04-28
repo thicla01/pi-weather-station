@@ -14,5 +14,6 @@ ssh.key.pub
 collaboration-ia-presentation.pptx
 Videotron-template.pptx
 ssl-custom-cert-howto.pdf
+rpi-connect-bug-report.pdf
 # Office lock files (created when a .pptx/.docx is open in PowerPoint/Word)
 ~$*
