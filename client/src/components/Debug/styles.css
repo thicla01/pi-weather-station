@@ -90,15 +90,38 @@
 .update-available { color: #f97316; margin-top: 4px; font-size: clamp(10px, 0.9vw, 12px); letter-spacing: 0.3px; font-weight: 600; }
 
 .close-button {
+  /* Close button is a coloured pill so users can spot it instantly on the
+     7" / 10" touchscreen — the previous icon-only X was hard to see and,
+     positioned right at the corner, could get clipped or be hard to tap.
+     Red background = universal "close" affordance, padding gives a 44 px+
+     touch target (Apple HIG / Material guidelines), and the right/top
+     offsets are bumped to 16 px to keep the button safely inside the
+     visible area even when zoom warps coordinates. */
   font-size: clamp(18px, 1.5vw, 24px);
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 16px;
+  right: 16px;
   cursor: pointer;
+  background-color: #c0392b;
+  color: #fff;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  transition: background-color 0.15s ease, transform 0.1s ease;
+  z-index: 10;
+}
+
+.close-button:hover {
+  background-color: #e74c3c;
 }
 
 .close-button:active {
-  color: #c7c7c7;
+  background-color: #922b21;
+  transform: scale(0.92);
 }
 
 .button-row {
