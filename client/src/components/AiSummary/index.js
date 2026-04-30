@@ -28,6 +28,8 @@ const AiSummary = ({ expanded, onToggle, containerRef }) => {
     darkMode,
     aiSummaryAvailable: available,
     setAiSummaryAvailable: setAvailable,
+    tempUnit,
+    speedUnit,
   } = useContext(AppContext);
   const { i18n } = useTranslation();
   const [summary, setSummary] = useState(null);
@@ -56,6 +58,10 @@ const AiSummary = ({ expanded, onToggle, containerRef }) => {
         ts18: ts18.getTime(),
         ts21: ts21.getTime(),
         ts05tomorrow: ts05tomorrow.getTime(),
+        // Unit preferences — server formats prompt values to match and
+        // instructs Claude to keep these units throughout its response.
+        tempUnit,
+        speedUnit,
       });
 
       axios
@@ -78,7 +84,7 @@ const AiSummary = ({ expanded, onToggle, containerRef }) => {
     intervalRef.current = setInterval(fetchSummary, REFRESH_INTERVAL);
 
     return () => clearInterval(intervalRef.current);
-  }, [mapGeo, lang, available, setAvailable]);
+  }, [mapGeo, lang, available, setAvailable, tempUnit, speedUnit]);
 
   if (!available || !summary) return null;
 

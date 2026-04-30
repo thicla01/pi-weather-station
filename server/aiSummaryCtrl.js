@@ -11,6 +11,57 @@ const summaryCache = {};
 
 const LANG_NAMES = { en: "English", fr: "French", es: "Spanish" };
 
+// ── Unit conversion helpers ───────────────────────────────────────────────
+// Source values from Tomorrow.io are always metric (°C, m/s). The client
+// passes the user's preferred display units; we convert here so the prompt
+// values match what the rest of the UI shows, and we tell Claude to use the
+// matching unit symbols throughout its response.
+
+/**
+ * Format a temperature in the requested unit.
+ *
+ * @param {Number} c Temperature in degrees Celsius
+ * @param {String} unit "f" (Fahrenheit), "c" (Celsius), "k" (Kelvin)
+ * @returns {String} Formatted value with unit symbol, e.g. "53°F"
+ */
+function fmtTemp(c, unit) {
+  if (c === undefined || c === null) return null;
+  if (unit === "f") return `${Math.round(c * 9 / 5 + 32)}°F`;
+  if (unit === "k") return `${Math.round(c + 273.15)}K`;
+  return `${Math.round(c)}°C`;
+}
+
+/**
+ * Format a wind speed in the requested unit. Tomorrow.io returns m/s.
+ *
+ * @param {Number} ms Wind speed in m/s
+ * @param {String} unit "mph", "ms", or "kmh"
+ * @returns {String} Formatted value with unit symbol
+ */
+function fmtSpeed(ms, unit) {
+  if (ms === undefined || ms === null) return null;
+  if (unit === "mph") return `${Math.round(ms / 0.44704)} mph`;
+  if (unit === "ms") return `${Math.round(ms)} m/s`;
+  return `${Math.round(ms * 3.6)} km/h`;
+}
+
+/**
+ * Human-readable unit name for inclusion in the prompt instruction to Claude.
+ *
+ * @param {String} tempUnit "f" / "c" / "k"
+ * @param {String} speedUnit "mph" / "kmh" / "ms"
+ * @returns {String} A clause like "use Fahrenheit for temperatures and mph for wind speeds"
+ */
+function unitInstruction(tempUnit, speedUnit) {
+  const tempName = tempUnit === "f" ? "Fahrenheit"
+                 : tempUnit === "k" ? "Kelvin"
+                 : "Celsius";
+  const speedName = speedUnit === "mph" ? "mph"
+                  : speedUnit === "ms"  ? "m/s"
+                  : "km/h";
+  return `use ${tempName} for temperatures and ${speedName} for wind speeds`;
+}
+
 const WEATHER_CODE_LABELS = {
   1000: "Clear", 1001: "Cloudy", 1100: "Mostly Clear", 1101: "Partly Cloudy",
   1102: "Mostly Cloudy", 2000: "Fog", 2100: "Light Fog", 3000: "Light Wind",
@@ -103,6 +154,13 @@ async function getWeatherSummary(req, res) {
   const ts21       = parseInt(req.query.ts21, 10) || null;
   const ts05tomorrow = parseInt(req.query.ts05tomorrow, 10) || null;
   const period     = getPeriod(localHour);
+  // User unit preferences. Default to metric so older clients that don't
+  // pass these params still get sensible output.
+  const tempUnit  = req.query.tempUnit  || "c";
+  const speedUnit = req.query.speedUnit || "kmh";
+  // Imperial distance for the radar paragraph is inferred from the speed
+  // unit — mph users almost always think in miles, kmh / m/s users in km.
+  const useImperialDistance = speedUnit === "mph";
 
   if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
     return res.status(400).json("Invalid coordinates").end();
@@ -119,7 +177,9 @@ async function getWeatherSummary(req, res) {
     return res.status(503).json("Anthropic API key not configured").end();
   }
 
-  const cacheKey = `${lat.toFixed(4)}:${lon.toFixed(4)}:${lang}:${period}`;
+  // Cache key includes unit preferences so toggling Settings (e.g. °C → °F)
+  // doesn't keep serving a stale summary built with the previous units.
+  const cacheKey = `${lat.toFixed(4)}:${lon.toFixed(4)}:${lang}:${period}:${tempUnit}:${speedUnit}`;
   const cached = summaryCache[cacheKey];
   if (cached && Date.now() < cached.expiresAt) {
     return res.status(200).json({ summary: cached.summary }).end();
@@ -146,9 +206,9 @@ async function getWeatherSummary(req, res) {
   }
 
   const values = weatherData?.data?.timelines?.[0]?.intervals?.[0]?.values || {};
-  const temp     = values.temperature              !== undefined ? `${Math.round(values.temperature)}°C`           : null;
+  const temp     = fmtTemp(values.temperature, tempUnit);
   const humidity = values.humidity                 !== undefined ? `${Math.round(values.humidity)}%`               : null;
-  const wind     = values.windSpeed                !== undefined ? `${Math.round(values.windSpeed)} km/h`          : null;
+  const wind     = fmtSpeed(values.windSpeed, speedUnit);
   const precip   = values.precipitationProbability !== undefined ? `${Math.round(values.precipitationProbability)}%` : null;
   const cond     = WEATHER_CODE_LABELS[values.weatherCode] || null;
   const cloud    = values.cloudCover               !== undefined ? `${Math.round(values.cloudCover)}%`             : null;
@@ -173,9 +233,9 @@ async function getWeatherSummary(req, res) {
     const forecast = hourlyData ? getHourlyForecast(hourlyData, ts18, ts21) : null;
     if (forecast) {
       secondSection = `\n\nTonight's evening forecast (18h-21h):\n` +
-        `- Average temperature: ${forecast.avgTemp}°C\n` +
+        `- Average temperature: ${fmtTemp(forecast.avgTemp, tempUnit)}\n` +
         `- Max precipitation probability: ${forecast.maxPrecip}%\n` +
-        `- Average wind: ${forecast.avgWind} km/h`;
+        `- Average wind: ${fmtSpeed(forecast.avgWind, speedUnit)}`;
       secondPeriodLabel = "tonight's evening (18h–21h)";
     }
   } else if (period === "evening" && ts21 && ts05tomorrow) {
@@ -183,9 +243,9 @@ async function getWeatherSummary(req, res) {
     const forecast = hourlyData ? getHourlyForecast(hourlyData, ts21, ts05tomorrow) : null;
     if (forecast) {
       secondSection = `\n\nOvernight forecast (21h-5h):\n` +
-        `- Average temperature: ${forecast.avgTemp}°C\n` +
+        `- Average temperature: ${fmtTemp(forecast.avgTemp, tempUnit)}\n` +
         `- Max precipitation probability: ${forecast.maxPrecip}%\n` +
-        `- Average wind: ${forecast.avgWind} km/h`;
+        `- Average wind: ${fmtSpeed(forecast.avgWind, speedUnit)}`;
       secondPeriodLabel = "tonight overnight (21h–5h)";
     }
   }
@@ -195,8 +255,8 @@ async function getWeatherSummary(req, res) {
     const dailyData = getDailyFromSharedCache(lat, lon);
     const tomorrowValues = dailyData?.data?.timelines?.[0]?.intervals?.[1]?.values || null;
     if (tomorrowValues) {
-      const tTemp   = tomorrowValues.temperature              !== undefined ? `${Math.round(tomorrowValues.temperature)}°C`             : null;
-      const tWind   = tomorrowValues.windSpeed                !== undefined ? `${Math.round(tomorrowValues.windSpeed)} km/h`            : null;
+      const tTemp   = fmtTemp(tomorrowValues.temperature, tempUnit);
+      const tWind   = fmtSpeed(tomorrowValues.windSpeed, speedUnit);
       const tPrecip = tomorrowValues.precipitationProbability !== undefined ? `${Math.round(tomorrowValues.precipitationProbability)}%` : null;
       const tLines = [
         tTemp   && `- Temperature: ${tTemp}`,
@@ -220,6 +280,7 @@ async function getWeatherSummary(req, res) {
       radarText = await analyzeRadar(lat, lon, {
         extendedRadius: Boolean(aiSettings.extendedRadius),
         doubleOuterPoints: Boolean(aiSettings.doubleOuterPoints),
+        imperial: useImperialDistance,
       });
     } catch {
       radarText = null;
@@ -241,8 +302,10 @@ async function getWeatherSummary(req, res) {
     ? `\n\nRadar samples (8 directions × 4 distances around the user, intensity 0-6):\n${radarText}`
     : "";
 
+  const distanceUnitInstruction = useImperialDistance ? "miles" : "km";
   const prompt =
     `Write a weather summary in ${language} with ${paragraphWord}. The first paragraph covers current conditions (2-3 sentences).${secondInstruction}${radarInstruction} ` +
+    `Throughout your response, ${unitInstruction(tempUnit, speedUnit)}, and ${distanceUnitInstruction} for distances. Match the unit symbols exactly as shown in the data below — do not convert. ` +
     `Be concise and conversational. Reply with plain text only — no title, no markdown, no labels before each paragraph (except the radar label described above).\n\n` +
     `Current conditions:\n${currentLines}${secondSection}${radarSection}`;
 

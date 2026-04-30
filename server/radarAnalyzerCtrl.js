@@ -263,9 +263,10 @@ async function buildSnapshot(lat, lon, framePath, points) {
  *
  * @param {Array} samples
  * @param {String} label e.g. "now", "-15 min", "-45 min"
+ * @param {Boolean} [imperial] If true, distances are formatted in miles
  * @returns {String|null}
  */
-function formatSnapshot(samples, label) {
+function formatSnapshot(samples, label, imperial = false) {
   // Group by direction. The display order follows the 16-point compass so
   // both 8-direction (inner-only) and 16-direction (with doubled outer)
   // snapshots come out sorted N → NNE → NE → … → NNW.
@@ -276,6 +277,12 @@ function formatSnapshot(samples, label) {
     byDir.get(s.direction).push(s);
   }
 
+  // Convert km to miles for display (1 km = 0.621371 mi). Sample points are
+  // computed in km regardless — only the textual rendering changes.
+  const fmtDist = (km) => imperial
+    ? `${Math.round(km * 0.621371)}mi`
+    : `${km}km`;
+
   let anyHit = false;
   const lines = [];
   for (const dir of OUTER_DIRECTIONS_DOUBLED) {
@@ -283,15 +290,15 @@ function formatSnapshot(samples, label) {
     if (!dirSamples.length) continue;
     const parts = dirSamples.map((s) => {
       if (s.intensity > 0) anyHit = true;
-      return `${s.distance}km ${INTENSITY_LABELS[s.intensity]}`;
+      return `${fmtDist(s.distance)} ${INTENSITY_LABELS[s.intensity]}`;
     });
     lines.push(`  ${dir.name.padEnd(3)} : ${parts.join(", ")}`);
   }
 
   // Largest sampled distance, used to phrase the "no precipitation" line
-  // honestly (mode-aware: "within 45 km" vs "within 90 km").
+  // honestly (mode-aware: "within 45 km/28 mi" vs "within 90 km/56 mi").
   const maxDist = samples.reduce((m, s) => Math.max(m, s.distance), 0);
-  if (!anyHit) return `${label}: clear (no precipitation within ${maxDist} km)`;
+  if (!anyHit) return `${label}: clear (no precipitation within ${fmtDist(maxDist)})`;
   return `${label}:\n${lines.join("\n")}`;
 }
 
@@ -307,6 +314,7 @@ function formatSnapshot(samples, label) {
  * @param {Boolean} [options.doubleOuterPoints] When extendedRadius is on, use
  *   16 directions (every 22.5°) on the outer ring instead of 8, to keep the
  *   point density per km² roughly uniform across both rings
+ * @param {Boolean} [options.imperial] Format distances in miles instead of km
  * @returns {Promise<String|null>}
  */
 async function analyzeRadar(lat, lon, options = {}) {
@@ -329,11 +337,13 @@ async function analyzeRadar(lat, lon, options = {}) {
     }
   }
 
-  // Cache key encodes the geometry mode so toggling any flag never returns a
-  // stale snapshot built with a different sample set.
+  // Cache key encodes the geometry mode AND the unit system so toggling any
+  // flag never returns a stale snapshot built with a different sample set
+  // or different unit text.
   let radiusTag = "s";
   if (options.extendedRadius) radiusTag = options.doubleOuterPoints ? "x2" : "x";
-  const cacheKey = `${lat.toFixed(3)}:${lon.toFixed(3)}:${radiusTag}`;
+  const unitTag = options.imperial ? "mi" : "km";
+  const cacheKey = `${lat.toFixed(3)}:${lon.toFixed(3)}:${radiusTag}:${unitTag}`;
   const cached = analysisCache.get(cacheKey);
   if (cached && Date.now() < cached.expiresAt) return cached.text;
 
@@ -358,7 +368,7 @@ async function analyzeRadar(lat, lon, options = {}) {
     const label = offsetMin === 0 ? "now" : `${offsetMin} min`;
     try {
       const samples = await buildSnapshot(lat, lon, frame.path, points);
-      const block = formatSnapshot(samples, label);
+      const block = formatSnapshot(samples, label, options.imperial);
       if (block) sections.push(block);
     } catch (err) {
       // One snapshot failed — keep going with whatever we have
