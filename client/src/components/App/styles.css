@@ -17,7 +17,7 @@
 }
 
 .light .container {
-  background-color: #f7f7f7;
+  background-color: #eeece8;
 }
 
 .weather-map {
@@ -63,7 +63,7 @@
 }
 
 .panel-toggle-light {
-  background: rgba(247, 247, 247, 0.88);
+  background: rgba(238, 236, 232, 0.88);
   border: 1px solid rgba(218, 218, 218, 0.85);
   border-right: none;
   color: #3a3938;
