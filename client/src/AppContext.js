@@ -46,6 +46,12 @@ export function AppContextProvider({ children }) {
   // lightModeStyle drives both the Mapbox style and the panel background
   // tint — see WeatherMap and the --light-panel-bg-rgb CSS variable.
   const [lightModeStyle, setLightModeStyle] = useState("streets-v12");
+  // Radar layer opacity per theme — defaults are the historical hard-coded
+  // values from before the slider was introduced (a memory note documents
+  // these as deliberately tuned: 0.7 light, 0.3 dark). Range 0.05-1; the
+  // floor of 0.05 prevents the radar from disappearing entirely.
+  const [radarOpacityLight, setRadarOpacityLight] = useState(0.7);
+  const [radarOpacityDark, setRadarOpacityDark] = useState(0.3);
   const [darkMode, setDarkMode] = useState(true);
   const [currentWeatherData, setCurrentWeatherData] = useState(null);
   const [currentWeatherDataErr, setCurrentWeatherDataErr] = useState(null);
@@ -370,8 +376,16 @@ export function AppContextProvider({ children }) {
               setShowSamplingPoints(Boolean(advancedAi.showSamplingPoints));
             }
             const advancedDisplay = res.advanced && res.advanced.display;
-            if (advancedDisplay && advancedDisplay.lightModeStyle) {
-              setLightModeStyle(advancedDisplay.lightModeStyle);
+            if (advancedDisplay) {
+              if (advancedDisplay.lightModeStyle) {
+                setLightModeStyle(advancedDisplay.lightModeStyle);
+              }
+              if (typeof advancedDisplay.radarOpacityLight === "number") {
+                setRadarOpacityLight(advancedDisplay.radarOpacityLight);
+              }
+              if (typeof advancedDisplay.radarOpacityDark === "number") {
+                setRadarOpacityDark(advancedDisplay.radarOpacityDark);
+              }
             }
           }
           resolve(res);
@@ -755,7 +769,7 @@ export function AppContextProvider({ children }) {
       showSamplingPoints,
       [key]: value,
     };
-    const nextDisplay = { lightModeStyle };
+    const nextDisplay = { lightModeStyle, radarOpacityLight, radarOpacityDark };
     return axios
       .patch("/setting", { key: "advanced", val: { ai: nextAi, display: nextDisplay } })
       .then(() => {
@@ -775,7 +789,7 @@ export function AppContextProvider({ children }) {
    * @returns {Promise} Resolves when saved
    */
   function saveAdvancedDisplayFlag(key, value) {
-    const nextDisplay = { lightModeStyle, [key]: value };
+    const nextDisplay = { lightModeStyle, radarOpacityLight, radarOpacityDark, [key]: value };
     const nextAi = {
       radarAnalysisEnabled,
       extendedRadius: extendedRadarRadius,
@@ -786,8 +800,31 @@ export function AppContextProvider({ children }) {
       .patch("/setting", { key: "advanced", val: { ai: nextAi, display: nextDisplay } })
       .then(() => {
         if (key === "lightModeStyle") setLightModeStyle(value);
+        if (key === "radarOpacityLight") setRadarOpacityLight(value);
+        if (key === "radarOpacityDark") setRadarOpacityDark(value);
       });
   }
+
+  // Debounced setters for the radar opacity sliders. State updates
+  // immediately on each tick (live preview on the map); the network
+  // PATCH /setting is delayed so we don't spam the server while dragging.
+  // 500 ms feels right — long enough to coalesce a drag, short enough
+  // that releasing the slider feels responsive.
+  const radarOpacitySaveTimerRef = useRef(null);
+  const setRadarOpacityLightLive = (v) => {
+    setRadarOpacityLight(v);
+    clearTimeout(radarOpacitySaveTimerRef.current);
+    radarOpacitySaveTimerRef.current = setTimeout(() => {
+      saveAdvancedDisplayFlag("radarOpacityLight", v).catch(() => undefined);
+    }, 500);
+  };
+  const setRadarOpacityDarkLive = (v) => {
+    setRadarOpacityDark(v);
+    clearTimeout(radarOpacitySaveTimerRef.current);
+    radarOpacitySaveTimerRef.current = setTimeout(() => {
+      saveAdvancedDisplayFlag("radarOpacityDark", v).catch(() => undefined);
+    }, 500);
+  };
 
   // Reflect lightModeStyle into a CSS custom property so the panel,
   // panel-toggle and radar legend backgrounds tint to match the Mapbox
@@ -824,6 +861,10 @@ export function AppContextProvider({ children }) {
     saveAdvancedAiFlag,
     lightModeStyle,
     saveAdvancedDisplayFlag,
+    radarOpacityLight,
+    radarOpacityDark,
+    setRadarOpacityLightLive,
+    setRadarOpacityDarkLive,
     setMapPosition,
     resetMapPosition,
     panToCoords,

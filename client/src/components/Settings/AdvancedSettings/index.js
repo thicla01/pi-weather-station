@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
 import styles from "./styles.css";
 import { AppContext } from "~/AppContext";
+import RangeSlider from "~/components/RangeSlider";
 
 /**
  * Swallow errors from the save promise. The UI does not roll back on failure
@@ -105,6 +106,10 @@ const AdvancedSettings = ({ readOnly }) => {
     saveAdvancedAiFlag,
     lightModeStyle,
     saveAdvancedDisplayFlag,
+    radarOpacityLight,
+    radarOpacityDark,
+    setRadarOpacityLightLive,
+    setRadarOpacityDarkLive,
   } = useContext(AppContext);
   const [open, setOpen] = useState(false);
 
@@ -149,6 +154,44 @@ const AdvancedSettings = ({ readOnly }) => {
                 { label: "Streets", val: "streets-v12" },
               ]}
               readOnly={readOnly}
+            />
+          </div>
+
+          <div className={styles.row}>
+            <div className={styles.rowLabel}>
+              {t("settings.advanced.radarOpacityLight")}
+              <span className={styles.rowHint}>
+                {t("settings.advanced.radarOpacityLightHint")}
+              </span>
+            </div>
+            <RangeSlider
+              value={radarOpacityLight}
+              onChange={setRadarOpacityLightLive}
+              min={0.05}
+              max={1}
+              step={0.05}
+              disabled={readOnly}
+              formatValue={(v) => `${Math.round(v * 100)}%`}
+              ariaLabel={t("settings.advanced.radarOpacityLight")}
+            />
+          </div>
+
+          <div className={styles.row}>
+            <div className={styles.rowLabel}>
+              {t("settings.advanced.radarOpacityDark")}
+              <span className={styles.rowHint}>
+                {t("settings.advanced.radarOpacityDarkHint")}
+              </span>
+            </div>
+            <RangeSlider
+              value={radarOpacityDark}
+              onChange={setRadarOpacityDarkLive}
+              min={0.05}
+              max={1}
+              step={0.05}
+              disabled={readOnly}
+              formatValue={(v) => `${Math.round(v * 100)}%`}
+              ariaLabel={t("settings.advanced.radarOpacityDark")}
             />
           </div>
 

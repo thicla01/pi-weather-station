@@ -222,6 +222,8 @@ const WeatherMap = ({ zoom, dark }) => {
     doubleOuterPoints,
     showSamplingPoints,
     lightModeStyle,
+    radarOpacityLight,
+    radarOpacityDark,
   } = useContext(AppContext);
 
   const handleMapClick = useCallback((e) => {
@@ -345,7 +347,7 @@ const WeatherMap = ({ zoom, dark }) => {
           <TileLayer
             attribution='<a href="https://www.rainviewer.com/">RainViewer</a>'
             url={`https://tilecache.rainviewer.com${mapTimestamp.path}/512/{z}/{x}/{y}/6/1_1.png`}
-            opacity={dark ? 0.3 : 0.7}
+            opacity={dark ? radarOpacityDark : radarOpacityLight}
             maxNativeZoom={7}
           />
         ) : null}
