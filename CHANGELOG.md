@@ -21,6 +21,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed
+- **Radar-analysis dashed circles (45 km / 90 km) now visible on the streets-v12 basemap** — the circles used `weight: 1` and `opacity: 0.45`, which read fine on the very pale `light-v10` basemap but disappeared into the green/beige variation of `streets-v12`. Bumped to `weight: 2` and `opacity: 0.85` so the dashed outline reads clearly across forest, water, urban, and farmland tiles. Sampling-point dots are unchanged — they were already rendered at higher opacity and remained visible. Dark mode is unaffected (the same higher values still look correct on the dark basemap).
+
 ### Changed
 - **Light-mode basemap switched from `light-v10` to `streets-v12`** — the previous `light-v10` Mapbox style (`light-v10`) was so pale that city names and the radar's lighter precipitation cells faded into the background. `streets-v12` provides much higher contrast for labels and roads, and the saturated yellow/orange of the radar reads sharply against the green/beige basemap. Dark mode is unchanged (`dark-v10`) — the asymmetry is intentional, since each mode solves a different legibility problem and the dark map already worked well. The `streets-v12` style is added to the proxy's `ALLOWED_STYLES` whitelist in `server/proxyCtrl.js`.
 - **InfoPanel light-mode background warmed from `#f7f7f7` to `#eeece8`** — the previous near-white panel looked clinical next to `streets-v12`'s warmer beige/green palette. The new neutral cream tone harmonizes with the basemap without becoming a thematic colour. The same value is applied to the small-screen panel-toggle button on the right edge of the map and to the radar legend overlay, so all three light-mode surfaces match.
