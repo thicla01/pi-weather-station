@@ -49,6 +49,21 @@ else
     systemctl --user daemon-reload
 fi
 
+# --- 1b. Brightness control udev rule (Linux only) ---
+# The dtoverlay line in /boot/firmware/config.txt is left in place — removing
+# it would require a reboot to take effect, and it doesn't hurt anything if
+# the project is gone (the overlay just exposes a sysfs path nobody reads).
+if [[ "$PLATFORM" != "Darwin" ]]; then
+    UDEV_RULE="/etc/udev/rules.d/52-pi-weather-station-backlight.rules"
+    if [ -f "$UDEV_RULE" ]; then
+        echo ""
+        echo ">> Removing brightness control udev rule..."
+        sudo rm "$UDEV_RULE"
+        sudo udevadm control --reload-rules 2>/dev/null || true
+        echo "   $UDEV_RULE removed."
+    fi
+fi
+
 # --- 2. start-server and start-weather scripts (Linux only) ---
 if [[ "$PLATFORM" != "Darwin" ]]; then
     echo ""

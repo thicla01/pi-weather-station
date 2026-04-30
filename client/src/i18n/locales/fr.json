@@ -33,6 +33,8 @@
       "radarOpacityLightHint": "Intensité de la couche radar quand le mode clair est actif. 70 % est la valeur historique — plus bas laisse passer la carte, plus haut fait ressortir les bandes de pluie.",
       "radarOpacityDark": "Opacité radar (mode sombre)",
       "radarOpacityDarkHint": "Même contrôle pour le mode sombre. Le défaut est plus bas (30 %) parce que la carte sombre fait naturellement ressortir les couleurs radar — trop haut et c'est saturé.",
+      "brightness": "Luminosité de l'écran",
+      "brightnessHint": "Atténuation matérielle de l'écran connecté. Plancher à 10 % pour garder l'écran lisible. Masqué sur les appareils qui n'exposent pas de backlight (moniteurs HDMI, overlay kernel manquant, etc.).",
       "aiGroup": "Résumé météo IA",
       "radarAnalysisEnabled": "Analyse radar",
       "radarAnalysisEnabledHint": "Ajoute le troisième paragraphe « Analyse radar » au résumé IA, à partir des tuiles RainViewer autour de ta position. Désactive pour omettre complètement cette analyse.",

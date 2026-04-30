@@ -110,6 +110,10 @@ const AdvancedSettings = ({ readOnly }) => {
     radarOpacityDark,
     setRadarOpacityLightLive,
     setRadarOpacityDarkLive,
+    brightnessAvailable,
+    brightnessPercent,
+    brightnessMinPercent,
+    setBrightnessLive,
   } = useContext(AppContext);
   const [open, setOpen] = useState(false);
 
@@ -194,6 +198,27 @@ const AdvancedSettings = ({ readOnly }) => {
               ariaLabel={t("settings.advanced.radarOpacityDark")}
             />
           </div>
+
+          {brightnessAvailable && brightnessPercent !== null && (
+            <div className={styles.row}>
+              <div className={styles.rowLabel}>
+                {t("settings.advanced.brightness")}
+                <span className={styles.rowHint}>
+                  {t("settings.advanced.brightnessHint")}
+                </span>
+              </div>
+              <RangeSlider
+                value={brightnessPercent}
+                onChange={setBrightnessLive}
+                min={brightnessMinPercent}
+                max={100}
+                step={5}
+                disabled={readOnly}
+                formatValue={(v) => `${Math.round(v)}%`}
+                ariaLabel={t("settings.advanced.brightness")}
+              />
+            </div>
+          )}
 
           <div className={styles.groupLabel} style={{ marginTop: "1em" }}>{t("settings.advanced.aiGroup")}</div>
 

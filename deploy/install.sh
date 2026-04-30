@@ -702,6 +702,7 @@ fi
 
 SENSEHAT_MODE="no"
 INDOOR_TEMP_MODE="no"
+BRIGHTNESS_MODE="no"
 
 echo ""
 echo ">> Advanced features (hardware / external integrations, optional)"
@@ -774,6 +775,20 @@ PYEOF
             echo "   To find the exact sensor name, see docs/indoor-temperature.md"
         fi
     fi
+
+    # --- Display brightness control — Linux only, requires kernel overlay + udev rule ---
+    if [[ "$PLATFORM" != "Darwin" ]]; then
+        echo ""
+        echo "   Display brightness control"
+        echo "   Lets the kiosk dim the connected screen via a slider in Settings."
+        echo "   Only works on Pis with an officially-supported touchscreen (DSI). HDMI"
+        echo "   monitors handle brightness physically — the slider stays hidden there."
+        read -p "   Configure brightness control? (y/N) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            BRIGHTNESS_MODE="yes"
+        fi
+    fi
 fi
 
 # --- Sense HAT install (Linux only, after settings are written) ---
@@ -809,6 +824,78 @@ if [ "$INDOOR_TEMP_MODE" = "yes" ]; then
     fi
 fi
 
+# --- Display brightness setup ---
+# Two pieces:
+#   1. Ensure /boot/firmware/config.txt has `dtoverlay=rpi-backlight` so the
+#      kernel exposes /sys/class/backlight/. Required on Trixie + 7" official
+#      touchscreen (and CM5 + DSI), not always required on older Bookworm
+#      with the 7" screen, never useful on HDMI monitors.
+#   2. Add a udev rule that makes /sys/class/backlight/*/brightness writable
+#      by the pi user (default permissions are root-write-only). Without
+#      this, the Node server gets EACCES when calling fs.writeFileSync.
+if [ "$BRIGHTNESS_MODE" = "yes" ]; then
+    echo ""
+    echo ">> Configuring display brightness control..."
+
+    BACKLIGHT_AVAILABLE_NOW="no"
+    if [ -d /sys/class/backlight ] && [ -n "$(ls -A /sys/class/backlight 2>/dev/null)" ]; then
+        BACKLIGHT_AVAILABLE_NOW="yes"
+    fi
+
+    # Step 1 — config.txt overlay
+    CONFIG_TXT=""
+    if [ -f /boot/firmware/config.txt ]; then
+        CONFIG_TXT="/boot/firmware/config.txt"
+    elif [ -f /boot/config.txt ]; then
+        CONFIG_TXT="/boot/config.txt"
+    fi
+    if [ -n "$CONFIG_TXT" ]; then
+        if grep -qE '^[[:space:]]*dtoverlay=rpi-backlight' "$CONFIG_TXT"; then
+            echo "   $CONFIG_TXT already has dtoverlay=rpi-backlight ✓"
+        else
+            echo "   Adding dtoverlay=rpi-backlight to $CONFIG_TXT (with backup)..."
+            sudo cp "$CONFIG_TXT" "${CONFIG_TXT}.pi-weather-station.bak"
+            echo "" | sudo tee -a "$CONFIG_TXT" >/dev/null
+            echo "# pi-weather-station: enable software brightness control" | sudo tee -a "$CONFIG_TXT" >/dev/null
+            echo "dtoverlay=rpi-backlight" | sudo tee -a "$CONFIG_TXT" >/dev/null
+            echo "   ⚠ Reboot required for the overlay to take effect."
+        fi
+    else
+        echo "   Could not find config.txt at /boot/firmware/ or /boot/ — skipping overlay step."
+    fi
+
+    # Step 2 — udev rule for write permission
+    UDEV_RULE="/etc/udev/rules.d/52-pi-weather-station-backlight.rules"
+    if [ -f "$UDEV_RULE" ]; then
+        echo "   udev rule already in place ($UDEV_RULE) ✓"
+    else
+        echo "   Adding udev rule to make backlight brightness writable by user..."
+        echo 'SUBSYSTEM=="backlight", RUN+="/bin/chmod 0664 /sys/class/backlight/%k/brightness"' \
+            | sudo tee "$UDEV_RULE" >/dev/null
+        echo 'SUBSYSTEM=="backlight", RUN+="/bin/chgrp video /sys/class/backlight/%k/brightness"' \
+            | sudo tee -a "$UDEV_RULE" >/dev/null
+        sudo udevadm control --reload-rules
+        # Trigger now so the existing backlight (if any) becomes writable
+        # without waiting for a reboot — only useful when the device is
+        # already exposed (i.e., overlay was already in place).
+        sudo udevadm trigger --subsystem-match=backlight 2>/dev/null || true
+    fi
+
+    # Make sure pi user is in the video group (usually already the case)
+    if ! groups "$USER" | grep -qw video; then
+        echo "   Adding $USER to the video group..."
+        sudo usermod -aG video "$USER"
+        echo "   ⚠ Log out and back in (or reboot) for the group change to take effect."
+    fi
+
+    if [ "$BACKLIGHT_AVAILABLE_NOW" = "no" ]; then
+        echo ""
+        echo "   Note: /sys/class/backlight is currently empty. Reboot the Pi"
+        echo "   to load the dtoverlay, then the slider will appear in Settings →"
+        echo "   Advanced settings → Display."
+    fi
+fi
+
 # ============================================================================
 # Phase 8 — Summary
 # ============================================================================
@@ -834,6 +921,13 @@ if [ -n "$KIOSK_BROWSER" ]; then
     if [ "$KIOSK_BROWSER_FAMILY" = "firefox" ]; then
         echo "     NOTE: First launch will prompt to accept the self-signed certificate."
         echo "     Click \"Accept the Risk and Continue\" — Firefox will remember the choice."
+    fi
+    echo ""
+fi
+if [ "$BRIGHTNESS_MODE" = "yes" ]; then
+    echo "   Display brightness control: configured (Settings → Advanced → Display)"
+    if [ "$BACKLIGHT_AVAILABLE_NOW" = "no" ]; then
+        echo "     ⚠ Reboot required for the dtoverlay to load and the slider to appear."
     fi
     echo ""
 fi

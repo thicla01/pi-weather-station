@@ -370,3 +370,26 @@ Lightweight endpoint polled by the debug panel every 5 s while open, for live CP
 
 - **Access:** 🔒 Localhost only
 - **Response:** `{ "cpuTempC": <number | null> }`
+
+---
+
+### `GET /api/brightness`
+Reports the current screen-brightness state. The client uses this on mount to decide whether to render the brightness slider in Advanced settings (hidden when `available: false`) and to initialize the slider value.
+
+- **Access:** Open (read is harmless and the client needs it before rendering even on remote, where the slider stays hidden anyway)
+- **Response when supported:** `{ "available": true, "percent": <0-100>, "raw": <int>, "max": <int>, "devicePath": "/sys/class/backlight/...", "minPercent": 10 }`
+- **Response when not supported** (no kernel backlight, e.g. HDMI monitor, missing dtoverlay, macOS): `{ "available": false }`
+
+---
+
+### `POST /api/brightness`
+Sets the screen brightness in percent (0–100). Floors at `minPercent` (10%) to prevent accidental black screens.
+
+- **Access:** 🔒 Localhost only — brightness physically affects the device's screen, no value changing it from a remote client
+- **Body:** `{ "percent": <number> }`
+- **Response on success:** `{ "ok": true, "percent": <clamped>, "raw": <int>, "max": <int> }`
+- **Errors:**
+  - `400` — `{ error: "Body must be { percent: <number> }" }` or `invalid-percent`
+  - `403` — `{ error: "no-write-permission" }` (udev rule missing — install.sh adds it under `/etc/udev/rules.d/52-pi-weather-station-backlight.rules`)
+  - `503` — `{ error: "no-device" }` (no `/sys/class/backlight/*` exposed; usually means the kernel `dtoverlay=rpi-backlight` line is missing from `/boot/firmware/config.txt`)
+  - `500` — `{ error: "max-unreadable" }` or `write-failed`

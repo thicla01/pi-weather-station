@@ -52,6 +52,12 @@ export function AppContextProvider({ children }) {
   // floor of 0.05 prevents the radar from disappearing entirely.
   const [radarOpacityLight, setRadarOpacityLight] = useState(0.7);
   const [radarOpacityDark, setRadarOpacityDark] = useState(0.3);
+  // Display brightness — null until the server reports its state. If the
+  // server says no backlight device is exposed (HDMI screens, x86, missing
+  // overlay), brightnessAvailable stays false and the slider is hidden.
+  const [brightnessPercent, setBrightnessPercent] = useState(null);
+  const [brightnessAvailable, setBrightnessAvailable] = useState(false);
+  const [brightnessMinPercent, setBrightnessMinPercent] = useState(10);
   const [darkMode, setDarkMode] = useState(true);
   const [currentWeatherData, setCurrentWeatherData] = useState(null);
   const [currentWeatherDataErr, setCurrentWeatherDataErr] = useState(null);
@@ -826,6 +832,36 @@ export function AppContextProvider({ children }) {
     }, 500);
   };
 
+  // Brightness state is fetched once on mount from /api/brightness. The
+  // server tells us whether the device exposes a backlight (sysfs path),
+  // the current value, and the floor — so the client doesn't have to
+  // hardcode anything platform-specific.
+  useEffect(() => {
+    axios.get("/api/brightness").then((res) => {
+      if (res.data?.available) {
+        setBrightnessAvailable(true);
+        setBrightnessPercent(res.data.percent);
+        if (typeof res.data.minPercent === "number") {
+          setBrightnessMinPercent(res.data.minPercent);
+        }
+      }
+    }).catch(() => undefined);
+  }, []);
+
+  // Debounced setter for the brightness slider. Same pattern as the radar
+  // opacity sliders — local state updates immediately so the slider thumb
+  // tracks the cursor smoothly, but the actual brightness write to sysfs
+  // is debounced. 250 ms here (faster than radar opacity) because users
+  // typically expect dimming to react quickly to feedback.
+  const brightnessSaveTimerRef = useRef(null);
+  const setBrightnessLive = (v) => {
+    setBrightnessPercent(v);
+    clearTimeout(brightnessSaveTimerRef.current);
+    brightnessSaveTimerRef.current = setTimeout(() => {
+      axios.post("/api/brightness", { percent: v }).catch(() => undefined);
+    }, 250);
+  };
+
   // Reflect lightModeStyle into a CSS custom property so the panel,
   // panel-toggle and radar legend backgrounds tint to match the Mapbox
   // style. The native Mapbox styles (light-v10 / light-v11) are very pale,
@@ -865,6 +901,10 @@ export function AppContextProvider({ children }) {
     radarOpacityDark,
     setRadarOpacityLightLive,
     setRadarOpacityDarkLive,
+    brightnessAvailable,
+    brightnessPercent,
+    brightnessMinPercent,
+    setBrightnessLive,
     setMapPosition,
     resetMapPosition,
     panToCoords,

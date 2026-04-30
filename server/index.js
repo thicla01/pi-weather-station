@@ -43,6 +43,7 @@ const settingsCtrl = require("./settingsCtrl");
 const geolocationCtrl = require("./geolocationCtrl");
 const proxyCtrl = require("./proxyCtrl");
 const debugCtrl = require("./debugCtrl");
+const { getBrightness, setBrightness } = require("./brightnessCtrl");
 const aiSummaryCtrl = require("./aiSummaryCtrl");
 const { getSenseHatData } = require("./sensehatCtrl");
 const { initIndoorTemperature, getIndoorTemperature } = require("./indoorTempCtrl");
@@ -388,6 +389,13 @@ app.post("/api/update", localhostOnly, (req, res) => {
 
 app.get("/api/debug", debugLocalhostOnly, getDebugInfo);
 app.get("/api/debug/cpu-temp", debugLocalhostOnly, getCpuTemp);
+
+// Display brightness — read open to anyone (for the client to know whether
+// to render the slider), write localhost-only (the brightness physically
+// affects the device's screen, makes no sense for a remote client to dim
+// what they aren't looking at).
+app.get("/api/brightness", getBrightness);
+app.post("/api/brightness", localhostOnly, setBrightness);
 
 function shutdown() {
   saveCacheToDisk();

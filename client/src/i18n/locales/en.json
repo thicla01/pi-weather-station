@@ -33,6 +33,8 @@
       "radarOpacityLightHint": "How strongly the radar overlay tints the basemap when light mode is active. 70% is the historical default — lower values let the basemap show through, higher values make rain bands stand out.",
       "radarOpacityDark": "Radar opacity (dark mode)",
       "radarOpacityDarkHint": "Same control but for dark mode. The default is lower (30%) because the dark basemap makes radar colours pop naturally — too high and they look saturated.",
+      "brightness": "Display brightness",
+      "brightnessHint": "Hardware-level dimming of the connected screen. Floors at 10% to keep the display readable. Hidden on devices that don't expose a backlight (HDMI monitors, no kernel overlay, etc.).",
       "aiGroup": "AI weather summary",
       "radarAnalysisEnabled": "Radar analysis",
       "radarAnalysisEnabledHint": "Adds the third \"Radar analysis\" paragraph to the AI summary, sampled from RainViewer tiles around your location. Turn off to skip the analysis entirely.",
