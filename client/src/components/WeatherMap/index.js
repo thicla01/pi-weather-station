@@ -334,7 +334,7 @@ const WeatherMap = ({ zoom, dark }) => {
         <AttributionControl position={"bottomleft"} />
         <TileLayer
           attribution={MAPBOX_ATTRIBUTION}
-          url={`/api/tiles/${dark ? "dark-v10" : "light-v10"}/{z}/{x}/{y}`}
+          url={`/api/tiles/${dark ? "dark-v10" : "streets-v12"}/{z}/{x}/{y}`}
         />
         {mapTimestamp ? (
           <TileLayer
@@ -361,8 +361,8 @@ const WeatherMap = ({ zoom, dark }) => {
             radius={45000}
             pathOptions={{
               color: dark ? "#f6f6f4" : "#3a3938",
-              weight: 1,
-              opacity: 0.45,
+              weight: 2,
+              opacity: 0.85,
               dashArray: "6 6",
               fill: false,
             }}
@@ -374,8 +374,8 @@ const WeatherMap = ({ zoom, dark }) => {
             radius={90000}
             pathOptions={{
               color: dark ? "#f6f6f4" : "#3a3938",
-              weight: 1,
-              opacity: 0.45,
+              weight: 2,
+              opacity: 0.85,
               dashArray: "6 6",
               fill: false,
             }}
