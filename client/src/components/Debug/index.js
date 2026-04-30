@@ -13,13 +13,21 @@ import PropTypes from "prop-types";
 import axios from "axios";
 import "!style-loader!css-loader!./animations.css";
 
+// Font-size zoom for the debug overlay. Reuses the global fontSize setting
+// (s/m/l) but with its own scale: the historical compact appearance is "s"
+// (1.0×) so existing users see no change, and m/l bump up for readability
+// on the 7" touchscreen. Different from the InfoPanel scale (0.85/1.0/1.15)
+// because the debug panel's clamp() font sizes are already tuned tight.
+const DEBUG_FONT_ZOOM = { s: 1.0, m: 1.15, l: 1.30 };
+
 /**
  * Debug panel — localhost only, visible when DEBUG=true server-side
  *
  * @returns {JSX.Element} Debug panel
  */
 const Debug = () => {
-  const { debugMenuOpen, setDebugMenuOpen, setUpdateAvailable, setLatestVersion, refreshUpdateCheck } = useContext(AppContext);
+  const { debugMenuOpen, setDebugMenuOpen, setUpdateAvailable, setLatestVersion, refreshUpdateCheck, fontSize } = useContext(AppContext);
+  const debugZoom = DEBUG_FONT_ZOOM[fontSize] || 1.0;
   const { t } = useTranslation();
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -90,7 +98,14 @@ const Debug = () => {
       timeout={300}
       classNames="animate-debug"
     >
-      <div className={styles.container}>
+      <div
+        className={styles.container}
+        style={{
+          zoom: debugZoom,
+          height: `calc((100vh - 20px) / ${debugZoom})`,
+          width: `calc((100vw - 320px) / ${debugZoom})`,
+        }}
+      >
         <div className={styles.header}>
           <div className={styles.headerColumns}>
             <div className={styles.headerLeft}>
