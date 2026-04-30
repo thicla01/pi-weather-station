@@ -29,6 +29,23 @@ const Debug = () => {
   const { debugMenuOpen, setDebugMenuOpen, setUpdateAvailable, setLatestVersion, refreshUpdateCheck, fontSize } = useContext(AppContext);
   const debugZoom = DEBUG_FONT_ZOOM[fontSize] || 1.0;
   const { t } = useTranslation();
+  // On small screens, the debug panel takes the full viewport width (covering
+  // the InfoPanel) so cramped data tables get every available pixel. The
+  // built-in close button (X, top-right) stays accessible — it sits in the
+  // panel itself, not on the InfoPanel — so closing the overlay still works.
+  // Same breakpoint as the chart-tabs / panel-toggle features.
+  const [isSmallScreen, setIsSmallScreen] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(max-height: 520px)").matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(max-height: 520px)");
+    const handler = (e) => setIsSmallScreen(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+  // Right gutter reserved for the InfoPanel + ControlButtons. Collapsed to 0
+  // on small screens for the full-width takeover described above.
+  const rightGutter = isSmallScreen ? 0 : 320;
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
@@ -103,7 +120,7 @@ const Debug = () => {
         style={{
           zoom: debugZoom,
           height: `calc((100vh - 20px) / ${debugZoom})`,
-          width: `calc((100vw - 320px) / ${debugZoom})`,
+          width: `calc((100vw - ${rightGutter}px) / ${debugZoom})`,
         }}
       >
         <div className={styles.header}>
