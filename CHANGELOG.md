@@ -21,6 +21,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+- **Map `maxZoom` raised from Leaflet's default 18 to 20** — at the previous limit, even with the 512 px tile fix, neighbourhood-level features stayed cramped on the 7" touchscreen. `streets-v12` supports zoom levels up to 22 natively, so going to 20 stays well within the no-degradation zone and gives roughly 4× more zoom-in headroom without any visual loss. Applied to both `<MapContainer>` and the Mapbox `<TileLayer>` so Leaflet keeps fetching native tiles up to that level.
+
 ### Fixed
 - **Mapbox tiles now render at native 512 px resolution instead of being downscaled to 256 px** — `WeatherMap`'s `<TileLayer>` was using Leaflet's default `tileSize` of 256 px, but Mapbox's Static Tiles API serves 512×512 PNGs by default for built-in styles. The mismatch meant Leaflet displayed each 512 px image into a 256 px slot, scaling everything down by 2× — labels, roads, and icons all appeared at half their intended size, blurry on the 7" touchscreen. Add `tileSize={512}` and `zoomOffset={-1}` (the canonical pair for Mapbox 512 px tiles in Leaflet) so tiles render at native resolution with the correct geographic alignment. Effect: city names and road labels are now legible at the kiosk's typical zoom levels without any other change.
 - **Radar-analysis dashed circles (45 km / 90 km) now visible on the streets-v12 basemap** — the circles used `weight: 1` and `opacity: 0.45`, which read fine on the very pale `light-v10` basemap but disappeared into the green/beige variation of `streets-v12`. Bumped to `weight: 2` and `opacity: 0.85` so the dashed outline reads clearly across forest, water, urban, and farmland tiles. Sampling-point dots are unchanged — they were already rendered at higher opacity and remained visible. Dark mode is unaffected (the same higher values still look correct on the dark basemap).

@@ -322,6 +322,7 @@ const WeatherMap = ({ zoom, dark }) => {
       <MapContainer
         center={[latitude, longitude]}
         zoom={zoom}
+        maxZoom={20}
         style={{ width: "100%", height: "100%" }}
         attributionControl={false}
         touchZoom={true}
@@ -337,6 +338,7 @@ const WeatherMap = ({ zoom, dark }) => {
           url={`/api/tiles/${dark ? "dark-v10" : "streets-v12"}/{z}/{x}/{y}`}
           tileSize={512}
           zoomOffset={-1}
+          maxZoom={20}
         />
         {mapTimestamp ? (
           <TileLayer
