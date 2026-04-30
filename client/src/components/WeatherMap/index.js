@@ -335,6 +335,8 @@ const WeatherMap = ({ zoom, dark }) => {
         <TileLayer
           attribution={MAPBOX_ATTRIBUTION}
           url={`/api/tiles/${dark ? "dark-v10" : "streets-v12"}/{z}/{x}/{y}`}
+          tileSize={512}
+          zoomOffset={-1}
         />
         {mapTimestamp ? (
           <TileLayer
