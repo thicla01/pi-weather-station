@@ -42,6 +42,10 @@ export function AppContextProvider({ children }) {
   const [extendedRadarRadius, setExtendedRadarRadius] = useState(false);
   const [doubleOuterPoints, setDoubleOuterPoints] = useState(false);
   const [showSamplingPoints, setShowSamplingPoints] = useState(false);
+  // Display sub-tree (advanced.display.* in settings.json).
+  // lightModeStyle drives both the Mapbox style and the panel background
+  // tint — see WeatherMap and the --light-panel-bg-rgb CSS variable.
+  const [lightModeStyle, setLightModeStyle] = useState("streets-v12");
   const [darkMode, setDarkMode] = useState(true);
   const [currentWeatherData, setCurrentWeatherData] = useState(null);
   const [currentWeatherDataErr, setCurrentWeatherDataErr] = useState(null);
@@ -364,6 +368,10 @@ export function AppContextProvider({ children }) {
               setExtendedRadarRadius(Boolean(advancedAi.extendedRadius));
               setDoubleOuterPoints(Boolean(advancedAi.doubleOuterPoints));
               setShowSamplingPoints(Boolean(advancedAi.showSamplingPoints));
+            }
+            const advancedDisplay = res.advanced && res.advanced.display;
+            if (advancedDisplay && advancedDisplay.lightModeStyle) {
+              setLightModeStyle(advancedDisplay.lightModeStyle);
             }
           }
           resolve(res);
@@ -747,8 +755,9 @@ export function AppContextProvider({ children }) {
       showSamplingPoints,
       [key]: value,
     };
+    const nextDisplay = { lightModeStyle };
     return axios
-      .patch("/setting", { key: "advanced", val: { ai: nextAi } })
+      .patch("/setting", { key: "advanced", val: { ai: nextAi, display: nextDisplay } })
       .then(() => {
         if (key === "radarAnalysisEnabled") setRadarAnalysisEnabled(value);
         if (key === "extendedRadius") setExtendedRadarRadius(value);
@@ -756,6 +765,41 @@ export function AppContextProvider({ children }) {
         if (key === "showSamplingPoints") setShowSamplingPoints(value);
       });
   }
+
+  /**
+   * Persist a single advanced.display.* flag. Same instant-save pattern as
+   * saveAdvancedAiFlag — toggles flip immediately on click.
+   *
+   * @param {String} key one of "lightModeStyle"
+   * @param {String} value new value
+   * @returns {Promise} Resolves when saved
+   */
+  function saveAdvancedDisplayFlag(key, value) {
+    const nextDisplay = { lightModeStyle, [key]: value };
+    const nextAi = {
+      radarAnalysisEnabled,
+      extendedRadius: extendedRadarRadius,
+      doubleOuterPoints,
+      showSamplingPoints,
+    };
+    return axios
+      .patch("/setting", { key: "advanced", val: { ai: nextAi, display: nextDisplay } })
+      .then(() => {
+        if (key === "lightModeStyle") setLightModeStyle(value);
+      });
+  }
+
+  // Reflect lightModeStyle into a CSS custom property so the panel,
+  // panel-toggle and radar legend backgrounds tint to match the Mapbox
+  // style. The native Mapbox styles (light-v10 / light-v11) are very pale,
+  // so a near-white panel reads better; streets-v12 has a warmer beige
+  // base, so a cream panel harmonizes with it.
+  useEffect(() => {
+    const rgb = lightModeStyle === "streets-v12"
+      ? "238, 236, 232"  // cream
+      : "247, 247, 247"; // near-white for light-v10 / light-v11
+    document.documentElement.style.setProperty("--light-panel-bg-rgb", rgb);
+  }, [lightModeStyle]);
 
   const defaultContext = {
     weatherApiKey,
@@ -778,6 +822,8 @@ export function AppContextProvider({ children }) {
     doubleOuterPoints,
     showSamplingPoints,
     saveAdvancedAiFlag,
+    lightModeStyle,
+    saveAdvancedDisplayFlag,
     setMapPosition,
     resetMapPosition,
     panToCoords,

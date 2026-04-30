@@ -21,6 +21,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- **Light-mode map style is now user-selectable** — new "Display" group at the top of Advanced settings with a 3-button picker for `light-v10` / `light-v11` / `streets-v12`. The InfoPanel, panel-toggle and radar legend backgrounds tint to match: cream (`rgb(238, 236, 232)`) for `streets-v12`'s warmer green/beige basemap, near-white (`rgb(247, 247, 247)`) for the paler `light-v10` and `light-v11`. Implemented via a single CSS custom property `--light-panel-bg-rgb` set on `:root` from a `useEffect` in `AppContext`, so all three surfaces stay synchronized with one source of truth. Persisted under `advanced.display.lightModeStyle`. Dark mode is unaffected.
+- **`InlineToggle` accepts an `options` array for N-button selectors** — the previous boolean shape (`onLabel` / `offLabel`) still works for the existing AI toggles. The new shape (`options=[{label, val}, ...]`) supports 3+ choices and is what the new map-style picker uses.
+
 ### Changed
 - **Map `maxZoom` raised from Leaflet's default 18 to 20** — at the previous limit, even with the 512 px tile fix, neighbourhood-level features stayed cramped on the 7" touchscreen. `streets-v12` supports zoom levels up to 22 natively, so going to 20 stays well within the no-degradation zone and gives roughly 4× more zoom-in headroom without any visual loss. Applied to both `<MapContainer>` and the Mapbox `<TileLayer>` so Leaflet keeps fetching native tiles up to that level.
 

@@ -221,6 +221,7 @@ const WeatherMap = ({ zoom, dark }) => {
     extendedRadarRadius,
     doubleOuterPoints,
     showSamplingPoints,
+    lightModeStyle,
   } = useContext(AppContext);
 
   const handleMapClick = useCallback((e) => {
@@ -335,7 +336,7 @@ const WeatherMap = ({ zoom, dark }) => {
         <AttributionControl position={"bottomleft"} />
         <TileLayer
           attribution={MAPBOX_ATTRIBUTION}
-          url={`/api/tiles/${dark ? "dark-v10" : "streets-v12"}/{z}/{x}/{y}`}
+          url={`/api/tiles/${dark ? "dark-v10" : lightModeStyle}/{z}/{x}/{y}`}
           tileSize={512}
           zoomOffset={-1}
           maxZoom={20}

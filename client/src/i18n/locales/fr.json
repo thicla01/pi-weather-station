@@ -26,6 +26,9 @@
     "advanced": {
       "title": "Paramètres avancés",
       "readOnlyNotice": "Ces réglages ne peuvent être modifiés qu'à partir de l'appareil lui-même. Pour les modifier à distance, ouvre un tunnel SSH (ssh -L 8443:localhost:8443 user@<hôte>) et recharge l'application depuis https://localhost:8443.",
+      "displayGroup": "Affichage",
+      "lightModeStyle": "Style de carte (mode clair)",
+      "lightModeStyleHint": "v10 / v11 sont les styles Mapbox light classiques très pâles (panneau presque blanc). Streets est la variante plus chaude vert/beige avec des labels plus marqués (panneau crème).",
       "aiGroup": "Résumé météo IA",
       "radarAnalysisEnabled": "Analyse radar",
       "radarAnalysisEnabledHint": "Ajoute le troisième paragraphe « Analyse radar » au résumé IA, à partir des tuiles RainViewer autour de ta position. Désactive pour omettre complètement cette analyse.",

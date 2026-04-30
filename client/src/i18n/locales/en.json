@@ -26,6 +26,9 @@
     "advanced": {
       "title": "Advanced settings",
       "readOnlyNotice": "These toggles can only be changed from the device itself. To modify them remotely, open an SSH tunnel (ssh -L 8443:localhost:8443 user@<host>) and reload the app from https://localhost:8443.",
+      "displayGroup": "Display",
+      "lightModeStyle": "Light-mode map style",
+      "lightModeStyleHint": "v10 / v11 are the classic pale Mapbox light styles (panel turns near-white). Streets is the warmer green/beige variant with stronger labels (panel turns cream).",
       "aiGroup": "AI weather summary",
       "radarAnalysisEnabled": "Radar analysis",
       "radarAnalysisEnabledHint": "Adds the third \"Radar analysis\" paragraph to the AI summary, sampled from RainViewer tiles around your location. Turn off to skip the analysis entirely.",

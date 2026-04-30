@@ -15,54 +15,69 @@ import { AppContext } from "~/AppContext";
 const ignoreSaveError = () => undefined;
 
 /**
- * Inline two-button toggle. Saves on click via the provided callback; the
+ * Inline N-button toggle. Saves on click via the provided callback; the
  * callback is expected to return a Promise so we can keep the UI in sync if
  * the write fails. When `readOnly` is true, clicks do nothing and the toggle
  * is rendered with reduced opacity to signal the disabled state — used on
  * remote clients where settings writes are localhostOnly.
  *
+ * Two API shapes:
+ *   - Boolean shape (legacy): pass {value: bool, onLabel, offLabel} and the
+ *     toggle renders an "On / Off"-style 2-button group.
+ *   - Multi shape: pass {value: any, options: [{label, val}, ...]} and the
+ *     toggle renders one button per option. The button whose val equals
+ *     value is highlighted as selected.
+ *
  * @param {object} props Component props
- * @param {boolean} props.value Current value of the toggle
+ * @param {*} props.value Current value of the toggle
  * @param {Function} props.onChange Async setter (returns a Promise)
- * @param {string} props.onLabel Label for the "On" button
- * @param {string} props.offLabel Label for the "Off" button
+ * @param {Array<{label: string, val: *}>} [props.options] Multi-option items
+ * @param {string} [props.onLabel] Label for the "On" button (boolean shape)
+ * @param {string} [props.offLabel] Label for the "Off" button (boolean shape)
  * @param {boolean} [props.readOnly] When true, the toggle is read-only
  * @returns {JSX.Element} Inline toggle
  */
-const InlineToggle = ({ value, onChange, onLabel, offLabel, readOnly }) => (
-  <div className={styles.toggleContainer || "toggle-container"} style={{ display: "flex", gap: "0.3em", opacity: readOnly ? 0.5 : 1 }}>
-    {[
-      { label: onLabel, val: true },
-      { label: offLabel, val: false },
-    ].map(({ label, val }) => (
-      <div
-        key={String(val)}
-        onClick={() => {
-          if (readOnly) return;
-          if (val !== value) onChange(val).catch(ignoreSaveError);
-        }}
-        style={{
-          padding: "0.3em 0.7em",
-          border: "1px solid rgba(255,255,255,0.3)",
-          borderRadius: "3px",
-          cursor: readOnly ? "default" : "pointer",
-          background: val === value ? "rgba(255,255,255,0.2)" : "transparent",
-          fontSize: "0.85em",
-          minWidth: "2.5em",
-          textAlign: "center",
-        }}
-      >
-        {label}
-      </div>
-    ))}
-  </div>
-);
+const InlineToggle = ({ value, onChange, onLabel, offLabel, options, readOnly }) => {
+  const items = options || [
+    { label: onLabel, val: true },
+    { label: offLabel, val: false },
+  ];
+  return (
+    <div className={styles.toggleContainer || "toggle-container"} style={{ display: "flex", gap: "0.3em", opacity: readOnly ? 0.5 : 1 }}>
+      {items.map(({ label, val }) => (
+        <div
+          key={String(val)}
+          onClick={() => {
+            if (readOnly) return;
+            if (val !== value) onChange(val).catch(ignoreSaveError);
+          }}
+          style={{
+            padding: "0.3em 0.7em",
+            border: "1px solid rgba(255,255,255,0.3)",
+            borderRadius: "3px",
+            cursor: readOnly ? "default" : "pointer",
+            background: val === value ? "rgba(255,255,255,0.2)" : "transparent",
+            fontSize: "0.85em",
+            minWidth: "2.5em",
+            textAlign: "center",
+          }}
+        >
+          {label}
+        </div>
+      ))}
+    </div>
+  );
+};
 
 InlineToggle.propTypes = {
-  value: PropTypes.bool.isRequired,
+  value: PropTypes.oneOfType([PropTypes.bool, PropTypes.string, PropTypes.number]).isRequired,
   onChange: PropTypes.func.isRequired,
-  onLabel: PropTypes.string.isRequired,
-  offLabel: PropTypes.string.isRequired,
+  options: PropTypes.arrayOf(PropTypes.shape({
+    label: PropTypes.string.isRequired,
+    val: PropTypes.any.isRequired,
+  })),
+  onLabel: PropTypes.string,
+  offLabel: PropTypes.string,
   readOnly: PropTypes.bool,
 };
 
@@ -88,6 +103,8 @@ const AdvancedSettings = ({ readOnly }) => {
     doubleOuterPoints,
     showSamplingPoints,
     saveAdvancedAiFlag,
+    lightModeStyle,
+    saveAdvancedDisplayFlag,
   } = useContext(AppContext);
   const [open, setOpen] = useState(false);
 
@@ -114,7 +131,28 @@ const AdvancedSettings = ({ readOnly }) => {
             </div>
           )}
 
-          <div className={styles.groupLabel}>{t("settings.advanced.aiGroup")}</div>
+          <div className={styles.groupLabel}>{t("settings.advanced.displayGroup")}</div>
+
+          <div className={styles.row}>
+            <div className={styles.rowLabel}>
+              {t("settings.advanced.lightModeStyle")}
+              <span className={styles.rowHint}>
+                {t("settings.advanced.lightModeStyleHint")}
+              </span>
+            </div>
+            <InlineToggle
+              value={lightModeStyle}
+              onChange={(v) => saveAdvancedDisplayFlag("lightModeStyle", v)}
+              options={[
+                { label: "v10", val: "light-v10" },
+                { label: "v11", val: "light-v11" },
+                { label: "Streets", val: "streets-v12" },
+              ]}
+              readOnly={readOnly}
+            />
+          </div>
+
+          <div className={styles.groupLabel} style={{ marginTop: "1em" }}>{t("settings.advanced.aiGroup")}</div>
 
           <div className={styles.row}>
             <div className={styles.rowLabel}>
