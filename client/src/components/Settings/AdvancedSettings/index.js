@@ -1,4 +1,4 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useRef, useEffect } from "react";
 import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
 import styles from "./styles.css";
@@ -117,9 +117,23 @@ const AdvancedSettings = ({ readOnly }) => {
     setBrightnessLive,
   } = useContext(AppContext);
   const [open, setOpen] = useState(false);
+  const sectionRef = useRef(null);
+
+  // When the section opens, scroll its toggle row to the top of the
+  // surrounding scrollable Settings panel so the freshly-revealed body
+  // is immediately in view. Without this, on the 7" touchscreen the
+  // toggle sits at the bottom of the panel and the user has to scroll
+  // manually to see what they just opened. Wrapped in requestAnimationFrame
+  // to wait for the body to be rendered (open flips before paint).
+  useEffect(() => {
+    if (!open || !sectionRef.current) return;
+    requestAnimationFrame(() => {
+      sectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+    });
+  }, [open]);
 
   return (
-    <div className={styles.advancedSection}>
+    <div className={styles.advancedSection} ref={sectionRef}>
       <div
         className={styles.advancedToggle}
         onClick={() => setOpen((v) => !v)}

@@ -5,18 +5,32 @@
 }
 
 .advanced-toggle {
+  /* Bigger tap target: padding bumped from 0.3em 0 to 0.7em + horizontal
+     padding so the whole pill is easy to hit on a touchscreen. Subtle
+     background and border make it visually obvious that the row is
+     interactive — previously it read as plain text. Kiosk testing on the
+     7" touchscreen showed users hesitating on the old chevron-only row. */
   display: flex;
   align-items: center;
-  gap: 0.4em;
+  gap: 0.5em;
   cursor: pointer;
   user-select: none;
   font-size: 1em;
-  opacity: 0.8;
-  padding: 0.3em 0;
+  opacity: 0.85;
+  padding: 0.7em 0.8em;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.15);
+  border-radius: 4px;
+  transition: background-color 0.15s ease, opacity 0.15s ease;
 }
 
 .advanced-toggle:hover {
   opacity: 1;
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.advanced-toggle:active {
+  background: rgba(255, 255, 255, 0.15);
 }
 
 .chevron {
