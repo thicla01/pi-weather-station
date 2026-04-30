@@ -29,6 +29,8 @@
       "displayGroup": "Display",
       "lightModeStyle": "Light-mode map style",
       "lightModeStyleHint": "v10 / v11 are the classic pale Mapbox light styles (panel turns near-white). Streets is the warmer green/beige variant with stronger labels (panel turns cream).",
+      "darkModeStyle": "Dark-mode map style",
+      "darkModeStyleHint": "v10 is the classic dark Mapbox style. v11 is the modern variant — slightly different palette and label rendering. Both keep the same dark grey panel.",
       "radarOpacityLight": "Radar opacity (light mode)",
       "radarOpacityLightHint": "How strongly the radar overlay tints the basemap when light mode is active. 70% is the historical default — lower values let the basemap show through, higher values make rain bands stand out.",
       "radarOpacityDark": "Radar opacity (dark mode)",

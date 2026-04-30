@@ -43,9 +43,13 @@ export function AppContextProvider({ children }) {
   const [doubleOuterPoints, setDoubleOuterPoints] = useState(false);
   const [showSamplingPoints, setShowSamplingPoints] = useState(false);
   // Display sub-tree (advanced.display.* in settings.json).
-  // lightModeStyle drives both the Mapbox style and the panel background
-  // tint — see WeatherMap and the --light-panel-bg-rgb CSS variable.
+  // lightModeStyle / darkModeStyle drive the Mapbox style for each theme.
+  // For light mode, the panel background tint also follows via the
+  // --light-panel-bg-rgb CSS variable. Dark mode keeps a fixed panel
+  // colour regardless of style — both dark Mapbox variants harmonize
+  // with the same dark grey panel.
   const [lightModeStyle, setLightModeStyle] = useState("streets-v12");
+  const [darkModeStyle, setDarkModeStyle] = useState("dark-v10");
   // Radar layer opacity per theme — defaults are the historical hard-coded
   // values from before the slider was introduced (a memory note documents
   // these as deliberately tuned: 0.7 light, 0.3 dark). Range 0.05-1; the
@@ -385,6 +389,9 @@ export function AppContextProvider({ children }) {
             if (advancedDisplay) {
               if (advancedDisplay.lightModeStyle) {
                 setLightModeStyle(advancedDisplay.lightModeStyle);
+              }
+              if (advancedDisplay.darkModeStyle) {
+                setDarkModeStyle(advancedDisplay.darkModeStyle);
               }
               if (typeof advancedDisplay.radarOpacityLight === "number") {
                 setRadarOpacityLight(advancedDisplay.radarOpacityLight);
@@ -775,7 +782,7 @@ export function AppContextProvider({ children }) {
       showSamplingPoints,
       [key]: value,
     };
-    const nextDisplay = { lightModeStyle, radarOpacityLight, radarOpacityDark };
+    const nextDisplay = { lightModeStyle, darkModeStyle, radarOpacityLight, radarOpacityDark };
     return axios
       .patch("/setting", { key: "advanced", val: { ai: nextAi, display: nextDisplay } })
       .then(() => {
@@ -806,6 +813,7 @@ export function AppContextProvider({ children }) {
       .patch("/setting", { key: "advanced", val: { ai: nextAi, display: nextDisplay } })
       .then(() => {
         if (key === "lightModeStyle") setLightModeStyle(value);
+        if (key === "darkModeStyle") setDarkModeStyle(value);
         if (key === "radarOpacityLight") setRadarOpacityLight(value);
         if (key === "radarOpacityDark") setRadarOpacityDark(value);
       });
@@ -896,6 +904,7 @@ export function AppContextProvider({ children }) {
     showSamplingPoints,
     saveAdvancedAiFlag,
     lightModeStyle,
+    darkModeStyle,
     saveAdvancedDisplayFlag,
     radarOpacityLight,
     radarOpacityDark,

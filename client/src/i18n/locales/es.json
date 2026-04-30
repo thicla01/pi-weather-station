@@ -29,6 +29,8 @@
       "displayGroup": "Visualización",
       "lightModeStyle": "Estilo de mapa (modo claro)",
       "lightModeStyleHint": "v10 / v11 son los estilos Mapbox light clásicos muy pálidos (panel casi blanco). Streets es la variante más cálida verde/beige con etiquetas más marcadas (panel crema).",
+      "darkModeStyle": "Estilo de mapa (modo oscuro)",
+      "darkModeStyleHint": "v10 es el estilo Mapbox dark clásico. v11 es la variante moderna — paleta y renderizado de etiquetas ligeramente distintos. El panel gris oscuro permanece igual en ambos casos.",
       "radarOpacityLight": "Opacidad radar (modo claro)",
       "radarOpacityLightHint": "Intensidad de la capa radar cuando el modo claro está activo. 70 % es el valor histórico — más bajo deja ver el mapa, más alto hace resaltar las bandas de lluvia.",
       "radarOpacityDark": "Opacidad radar (modo oscuro)",

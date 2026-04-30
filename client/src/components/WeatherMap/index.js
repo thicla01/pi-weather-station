@@ -222,6 +222,7 @@ const WeatherMap = ({ zoom, dark }) => {
     doubleOuterPoints,
     showSamplingPoints,
     lightModeStyle,
+    darkModeStyle,
     radarOpacityLight,
     radarOpacityDark,
   } = useContext(AppContext);
@@ -338,7 +339,7 @@ const WeatherMap = ({ zoom, dark }) => {
         <AttributionControl position={"bottomleft"} />
         <TileLayer
           attribution={MAPBOX_ATTRIBUTION}
-          url={`/api/tiles/${dark ? "dark-v10" : lightModeStyle}/{z}/{x}/{y}`}
+          url={`/api/tiles/${dark ? darkModeStyle : lightModeStyle}/{z}/{x}/{y}`}
           tileSize={512}
           zoomOffset={-1}
           maxZoom={20}

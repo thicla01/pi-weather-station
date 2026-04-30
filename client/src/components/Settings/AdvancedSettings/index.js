@@ -105,6 +105,7 @@ const AdvancedSettings = ({ readOnly }) => {
     showSamplingPoints,
     saveAdvancedAiFlag,
     lightModeStyle,
+    darkModeStyle,
     saveAdvancedDisplayFlag,
     radarOpacityLight,
     radarOpacityDark,
@@ -156,6 +157,24 @@ const AdvancedSettings = ({ readOnly }) => {
                 { label: "v10", val: "light-v10" },
                 { label: "v11", val: "light-v11" },
                 { label: "Streets", val: "streets-v12" },
+              ]}
+              readOnly={readOnly}
+            />
+          </div>
+
+          <div className={styles.row}>
+            <div className={styles.rowLabel}>
+              {t("settings.advanced.darkModeStyle")}
+              <span className={styles.rowHint}>
+                {t("settings.advanced.darkModeStyleHint")}
+              </span>
+            </div>
+            <InlineToggle
+              value={darkModeStyle}
+              onChange={(v) => saveAdvancedDisplayFlag("darkModeStyle", v)}
+              options={[
+                { label: "v10", val: "dark-v10" },
+                { label: "v11", val: "dark-v11" },
               ]}
               readOnly={readOnly}
             />
