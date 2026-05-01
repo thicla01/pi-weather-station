@@ -18,7 +18,7 @@ The original Pi Weather Station (v1.x), as designed by [@elewin](https://github.
 
 ![Original layout, v1.x](https://user-images.githubusercontent.com/15202038/91359998-4625bb80-e7bb-11ea-937e-c87eede41f35.JPG)
 
-The current build (v2.6), with the indoor-temperature header block, the 45 km radar-analysis circle, the AI weather summary, the small-screen panel toggle, and the localhost-only debug panel:
+The current build (v2.11), with the indoor-temperature header block, the 45 km radar-analysis circle, the AI weather summary, user-selectable light/dark map styles, live radar opacity sliders, hardware screen-brightness control, the small-screen panel toggle, and the localhost-only debug panel:
 
 | | |
 |---|---|

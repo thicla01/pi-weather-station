@@ -16,8 +16,10 @@ Both fields (`uvIndex`, `epaIndex`) are already present in the Tomorrow.io hourl
 ### 🌓 Automatic dark / light mode at sunrise and sunset
 The app already fetches precise sunrise and sunset times. Switching the color theme automatically at those moments is a natural extension — a `setInterval` check every minute against the stored times would be sufficient.
 
-### 💡 Screen brightness control
-The Pi's official display exposes a brightness interface at `/sys/class/backlight/*/brightness`. A simple server endpoint wrapping a `fs.writeFileSync` call would allow the client to dim the screen at night and restore it in the morning — one of the most practical improvements for a device that runs 24/7.
+### 💡 ~~Screen brightness control~~ ✅ Shipped in v2.11.0
+Manual brightness slider in Advanced settings, backed by `/sys/class/backlight/*/brightness`. Hidden when no backlight is exposed (HDMI monitors, x86, missing kernel overlay). `install.sh` provisions the `dtoverlay=rpi-backlight` line and a udev rule so the `pi` user can write to the sysfs node. Automatic dim-at-night is still open — see the dark/light auto-switch item above for the analogous mechanism.
+
+> Future extension to HDMI monitors via DDC/CI is captured as its own item in the medium-term section below.
 
 ---
 
