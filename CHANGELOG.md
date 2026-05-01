@@ -19,6 +19,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased]
+
+### Changed
+- **`install.sh` indoor-temperature prompt now lists Homebridge sensors and lets you pick by number** — previously the script asked for the exact `serviceName` string up front, leaving the user to track it down via the curl + jq recipe in `docs/indoor-temperature.md` before re-running install. Now the script queries `/api/auth/login` and `/api/accessories` itself (Python's `urllib`, no extra dependencies), filters services exposing `CurrentTemperature` / `CurrentRelativeHumidity` / `AirQuality`, groups them by `serviceName` so a single Dyson appears as one entry, and presents a numbered list with capability tags (`temp`, `humidity`, `air-quality`). The user picks by number; pressing `m` falls back to manual entry. Falls back automatically to manual entry on auth failure, network error, or empty list — install never wedges on a Homebridge hiccup.
+
+---
+
 ## [2.11.0] - 2026-04-30
 
 ### Added

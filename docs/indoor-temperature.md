@@ -8,8 +8,12 @@ left of the clock in the info panel.
 The feature is opt-in: it polls nothing and renders nothing unless an
 `indoorTemperature` block is configured in `settings.json`. The interactive
 prompt in `deploy/install.sh` (under "Advanced features") writes the block
-for you; the manual setup below is for users editing `settings.json`
-directly.
+for you — after you supply the Homebridge URL, username and password, the
+script queries `/api/accessories`, lists every service exposing
+temperature, humidity, or air quality (grouped by `serviceName` so a single
+Dyson appears as one entry), and prompts you to pick one by number. The
+manual setup below is for users editing `settings.json` directly, or for
+fallback when the script cannot reach Homebridge.
 
 ## Configuration
 

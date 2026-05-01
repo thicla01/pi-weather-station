@@ -746,12 +746,121 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
         read -p "   Homebridge username                              : " HB_USER
         read -s -p "   Homebridge password (input hidden)               : " HB_PASS
         echo
-        read -p "   Sensor name (exact serviceName from Homebridge)  : " HB_SENSOR
 
-        if [ -z "$HB_URL" ] || [ -z "$HB_USER" ] || [ -z "$HB_PASS" ] || [ -z "$HB_SENSOR" ]; then
+        if [ -z "$HB_URL" ] || [ -z "$HB_USER" ] || [ -z "$HB_PASS" ]; then
             echo "   Missing required field — skipping indoor temperature setup."
             INDOOR_TEMP_MODE="no"
+            HB_SENSOR=""
         else
+            # Query Homebridge for the list of accessories that expose at least
+            # one of CurrentTemperature / CurrentRelativeHumidity / AirQuality,
+            # group by serviceName (Dyson exposes 3 services under one name),
+            # and let the user pick by number. Falls back to a manual prompt
+            # when the API is unreachable or returns nothing usable.
+            echo ""
+            echo "   Querying Homebridge for available sensors..."
+            SENSOR_LIST_FILE=$(mktemp)
+            python3 - "$HB_URL" "$HB_USER" "$HB_PASS" "$SENSOR_LIST_FILE" <<'PYEOF'
+import sys, json, urllib.request, urllib.error, ssl
+url, user, password, out_path = sys.argv[1:]
+sensors = []
+err_msg = ""
+try:
+    ctx = ssl.create_default_context()
+    ctx.check_hostname = False
+    ctx.verify_mode = ssl.CERT_NONE
+    login = urllib.request.Request(
+        url.rstrip("/") + "/api/auth/login",
+        data=json.dumps({"username": user, "password": password}).encode(),
+        headers={"Content-Type": "application/json"},
+    )
+    with urllib.request.urlopen(login, timeout=10, context=ctx) as r:
+        token = json.loads(r.read()).get("access_token")
+    if not token:
+        raise RuntimeError("login response had no access_token")
+    accs_req = urllib.request.Request(
+        url.rstrip("/") + "/api/accessories",
+        headers={"Authorization": "Bearer " + token},
+    )
+    with urllib.request.urlopen(accs_req, timeout=10, context=ctx) as r:
+        accs = json.loads(r.read())
+    grouped = {}
+    for a in accs or []:
+        name = a.get("serviceName")
+        if not name:
+            continue
+        values = a.get("values") or {}
+        caps = []
+        if "CurrentTemperature" in values:
+            caps.append("temp")
+        if "CurrentRelativeHumidity" in values:
+            caps.append("humidity")
+        if "AirQuality" in values:
+            caps.append("air-quality")
+        if not caps:
+            continue
+        grouped.setdefault(name, set()).update(caps)
+    sensors = sorted(
+        [{"name": n, "caps": sorted(c)} for n, c in grouped.items()],
+        key=lambda x: x["name"].lower(),
+    )
+except urllib.error.HTTPError as e:
+    err_msg = "HTTP " + str(e.code) + " from Homebridge (check credentials and URL)"
+except urllib.error.URLError as e:
+    err_msg = "Network error: " + str(e.reason)
+except Exception as e:
+    err_msg = str(e)
+with open(out_path, "w") as f:
+    json.dump({"sensors": sensors, "error": err_msg}, f)
+PYEOF
+
+            SENSOR_ERR=$(python3 -c "import json; d=json.load(open('$SENSOR_LIST_FILE')); print(d['error'])")
+            SENSOR_COUNT=$(python3 -c "import json; d=json.load(open('$SENSOR_LIST_FILE')); print(len(d['sensors']))")
+
+            HB_SENSOR=""
+            if [ -n "$SENSOR_ERR" ]; then
+                echo "   ⚠  Could not list sensors: $SENSOR_ERR"
+                echo "   Falling back to manual entry."
+                read -p "   Sensor name (exact serviceName from Homebridge): " HB_SENSOR
+            elif [ "$SENSOR_COUNT" -eq 0 ]; then
+                echo "   ⚠  No accessories with temperature, humidity, or air-quality were found."
+                echo "   Falling back to manual entry."
+                read -p "   Sensor name (exact serviceName from Homebridge): " HB_SENSOR
+            else
+                echo ""
+                echo "   Available sensors:"
+                python3 -c "
+import json
+data = json.load(open('$SENSOR_LIST_FILE'))
+for i, s in enumerate(data['sensors'], 1):
+    caps = ', '.join(s['caps'])
+    print('      {}) {} [{}]'.format(i, s['name'], caps))
+"
+                echo ""
+                while true; do
+                    read -p "   Pick a sensor (1-$SENSOR_COUNT, or m to type the name): " CHOICE
+                    if [[ "$CHOICE" =~ ^[mM]$ ]]; then
+                        read -p "   Sensor name: " HB_SENSOR
+                        break
+                    elif [[ "$CHOICE" =~ ^[0-9]+$ ]] && [ "$CHOICE" -ge 1 ] && [ "$CHOICE" -le "$SENSOR_COUNT" ]; then
+                        HB_SENSOR=$(python3 -c "import json; print(json.load(open('$SENSOR_LIST_FILE'))['sensors'][$CHOICE - 1]['name'])")
+                        echo "   Selected: $HB_SENSOR"
+                        break
+                    else
+                        echo "   Invalid choice — enter a number 1-$SENSOR_COUNT or 'm' for manual entry."
+                    fi
+                done
+            fi
+
+            rm -f "$SENSOR_LIST_FILE"
+
+            if [ -z "$HB_SENSOR" ]; then
+                echo "   No sensor selected — skipping indoor temperature setup."
+                INDOOR_TEMP_MODE="no"
+            fi
+        fi
+
+        if [ "$INDOOR_TEMP_MODE" = "yes" ]; then
             # Merge an indoorTemperature block into the existing settings.json
             # without disturbing other top-level keys.
             python3 - "$REPO_DIR/settings.json" "$HB_URL" "$HB_USER" "$HB_PASS" "$HB_SENSOR" <<'PYEOF'
