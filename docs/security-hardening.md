@@ -236,7 +236,7 @@ clients already trust (Let's Encrypt, your corporate CA, mkcert for
 LAN-only). The substitution is straightforward — replace
 `server/cert.pem` and `server/key.pem`, restart the service. Full
 procedure, conversion from PKCS#12, and the auto-regeneration caveat
-are documented in [docs/ssl-custom-cert.md](ssl-custom-cert.md).
+are documented in [docs/ssl-custom-cert_en.md](ssl-custom-cert_en.md) (French version: [ssl-custom-cert_fr.md](ssl-custom-cert_fr.md)).
 
 ## If you need more
 
