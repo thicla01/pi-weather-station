@@ -56,6 +56,10 @@ Creates or overwrites `settings.json` with the provided body.
   - `advanced.ai.extendedRadius` (boolean) — when `true`, the analyzer also samples the outer ring (60/75/90 km) on top of the default inner ring (5/15/30/45 km). The map shows a second 90 km dashed circle. Defaults to `false`.
   - `advanced.ai.doubleOuterPoints` (boolean) — when both `extendedRadius` and this flag are `true`, the outer ring uses 16 directions (every 22.5°) instead of 8, to keep point density per km² roughly uniform across both rings. Defaults to `false`.
   - `advanced.ai.showSamplingPoints` (boolean) — purely client-side rendering flag. When `true`, `WeatherMap` overlays a small dot at every (direction, distance) the analyzer reads. Defaults to `false`.
+  - `advanced.display.lightModeStyle` (string) — Mapbox basemap style used when the app is in light mode. One of `light-v10`, `light-v11`, `streets-v12`. Defaults to `streets-v12` (better label and radar contrast than the paler `light-*` styles). The InfoPanel, panel-toggle button and radar legend backgrounds tint to match the chosen style.
+  - `advanced.display.darkModeStyle` (string) — Mapbox basemap style used in dark mode. One of `dark-v10` (default — classic Mapbox dark, higher contrast) or `dark-v11` (modern variant with a flatter palette). The dark grey panel background is identical for both options.
+  - `advanced.display.radarOpacityLight` (number, 0.05–1.0) — opacity of the RainViewer radar layer over the light-mode basemap. Defaults to `0.7`. Lower values let the basemap show through; higher values make rain bands stand out.
+  - `advanced.display.radarOpacityDark` (number, 0.05–1.0) — same control for dark mode. Defaults to `0.3` (lower because the dark basemap makes radar colours pop naturally — too high and they look saturated).
 
 ---
 
@@ -132,7 +136,7 @@ Proxies Mapbox raster tiles.
 
 | Parameter | Values | Description |
 |---|---|---|
-| `style` | `dark-v10`, `light-v10`, `light-v11`, `navigation-day-v1`, or any defined custom style | Mapbox style |
+| `style` | `dark-v10`, `dark-v11`, `light-v10`, `light-v11`, `streets-v12`, `navigation-day-v1`, or any defined custom style | Mapbox style |
 | `z` | integer | Zoom level |
 | `x` | integer | Tile X coordinate |
 | `y` | integer | Tile Y coordinate |
@@ -184,9 +188,13 @@ The response can be 1, 2, or 3 paragraphs depending on what data is available:
 
 1. **Current conditions** (always)
 2. **Period preview** when timestamp params are present and the matching cache (hourly/daily) is hot — evening preview (18h–21h) in the morning/afternoon, overnight preview (21h–5h) in the evening, next-day preview at night
-3. **Radar analysis** (since v2.4.0) when the radar analyzer can sample tiles successfully — starts with the localised label `Analyse radar : ...` and describes where precipitation is, whether it is approaching, and an estimated arrival time. Powered by sampling the RainViewer radar at 32 points (8 directions × 4 distances of 5/15/30/45 km) at 3 timestamps (now, -15 min, -45 min) and feeding the compact textual grid to Claude.
+3. **Radar analysis** (since v2.4.0) when the radar analyzer can sample tiles successfully — starts with the localised label `Analyse radar : ...` and describes where precipitation is, whether it is approaching, and an estimated arrival time. Sampling geometry depends on the `advanced.ai.*` settings:
+   - **Default (inner ring only):** 32 points = 8 directions (N/NE/E/.../NW) × 4 distances (5/15/30/45 km).
+   - **`extendedRadius: true`:** adds the outer ring at 60/75/90 km. With 8 directions on the outer ring → 56 points total. The map shows a second 90 km dashed circle in addition to the existing 45 km one.
+   - **`extendedRadius: true` + `doubleOuterPoints: true`:** outer ring sampled at 16 directions (every 22.5°) instead of 8, to keep point density per km² uniform across the inner and outer rings → 80 points total.
+   Each point is read at 3 timestamps (now, -15 min, -45 min) on RainViewer raster tiles, decoded server-side via `pngjs`, and fed to Claude as a compact textual grid. Set `advanced.ai.radarAnalysisEnabled: false` to skip this paragraph entirely (and the matching circles on the map).
 
-Summaries are cached 15 minutes server-side, keyed by `lat:lon:lang:period`.
+Summaries are cached 15 minutes server-side, keyed by `lat:lon:lang:period:tempUnit:speedUnit` so toggling user-facing units never returns a stale snapshot in the wrong unit system.
 
 - **Access:** 🌐 Public — rate limited (120 req/min)
 - **Query params:**
@@ -200,6 +208,8 @@ Summaries are cached 15 minutes server-side, keyed by `lat:lon:lang:period`.
 | `ts18` | integer | | Unix timestamp (ms) for 18:00 local time today |
 | `ts21` | integer | | Unix timestamp (ms) for 21:00 local time today |
 | `ts05tomorrow` | integer | | Unix timestamp (ms) for 05:00 local time tomorrow |
+| `tempUnit` | string | | `c` (default), `f`, or `k`. The summary's temperatures and the matching unit symbol follow this preference — passing `f` produces "53°F" instead of the default "12°C". |
+| `speedUnit` | string | | `kmh` (default), `ms`, or `mph`. Drives wind-speed unit and the radar-analysis distance unit (`mph` → miles, otherwise km). |
 
 - **Response:** `{ "summary": "..." }` — paragraphs separated by blank lines
 - **Errors:** HTTP 503 if Anthropic key not configured
