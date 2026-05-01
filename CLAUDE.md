@@ -150,7 +150,7 @@ These rules apply to every change, regardless of size. They exist to keep the co
 - Never read `settings.json` directly from a controller — always go through `settingsCtrl.getSettings()`
 
 ### Documentation hygiene
-- `CHANGELOG.md` is the single source of truth for version history — do not add new version entries to `readme.md` (the existing ones will be trimmed over time)
+- `CHANGELOG.md` is the single source of truth for version history — do not add per-version highlight sections to `readme.md`. The readme points to `CHANGELOG.md` and the GitHub Releases page; that's enough.
 - `ROADMAP.md` technical debt section must be updated when a debt item is resolved or a new one is identified
 - `docs/ui-layout_fr.md` and `docs/ui-layout_en.md` must be kept in sync when the screen layout changes
 

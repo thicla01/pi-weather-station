@@ -53,49 +53,14 @@ For day-to-day updates, the in-app **Update** button (debug panel → notificati
 
 # Version history
 
-Each release is fully documented in [CHANGELOG.md](./CHANGELOG.md). The sections below summarize the highlights of each minor version and link to the per-release notes.
+See [CHANGELOG.md](./CHANGELOG.md) for full release notes per version, and the
+[GitHub Releases](https://github.com/thicla01/pi-weather-station/releases) page
+for tagged releases.
 
-## v2.6 — Indoor temperature, radar analysis paragraph, and updater UX (Apr 2026)
-
-Indoor temperature/humidity/air-quality block (Homebridge-backed) promoted from experimental to a top-level setting in the InfoPanel header, with `install.sh` interactive prompt and stripped credentials in remote settings responses. The in-app updater gained pre-flight checks (rejects detached HEAD, non-`master`, or local changes with structured 409s) and surfaces the actual failure message in the modal; installs older than v2.4.1 are now flagged with `needsManualUpgrade` so the user is steered to `bash deploy/install.sh` instead of crashing on missing dependencies. Plus small layout polish (clock right-aligned without indoor block, AM/PM scaled).
-
-Releases: [2.6.3](./CHANGELOG.md#263---2026-04-27) · [2.6.2](./CHANGELOG.md#262---2026-04-27) · [2.6.1](./CHANGELOG.md#261---2026-04-26) · [2.6.0](./CHANGELOG.md#260---2026-04-26)
-
-## v2.5 — Multi-browser kiosk, GNOME/KDE autostart, openSUSE (Apr 2026)
-
-Browser choice (Chromium-family or Firefox) prompted at install and persisted in `~/.config/pi-weather-station/browser.conf`, with family-aware kiosk flags. XDG `~/.config/autostart/pi-weather-station.desktop` for GNOME and KDE Plasma alongside the existing labwc / wayfire / LXDE paths. `install.sh` reorganised into named phases, gained pre-flight checks for `curl`/`git`, and recognises `zypper` for openSUSE Leap 16+. Plus `install.sh` no longer hijacks `feat/*` and `fix/*` branches off `master` during testing.
-
-Releases: [2.5.1](./CHANGELOG.md#251---2026-04-26) · [2.5.0](./CHANGELOG.md#250---2026-04-26)
-
-## v2.4 — Cold-boot robustness, AI radar analysis (Apr 2026)
-
-A 45 km radar-analysis circle on the map and a third "Analyse radar" paragraph in the AI summary, fed by a server-side RainViewer tile sampler (8 directions × 4 distances × 3 timestamps, decoded via `pngjs`). Cold-boot reliability was hardened on multiple fronts: `dns.setDefaultResultOrder("ipv4first")` to avoid IPv6 stalls, geolocation retry-with-backoff + 30-day disk cache, `ExecStartPre` waiting on DNS in the systemd unit, and `npm install` added to the in-app updater so dependency-introducing pulls don't crash-loop on `Cannot find module`.
-
-Releases: [2.4.6](./CHANGELOG.md#246---2026-04-26) · [2.4.5](./CHANGELOG.md#245---2026-04-26) · [2.4.4](./CHANGELOG.md#244---2026-04-26) · [2.4.3](./CHANGELOG.md#243---2026-04-26) · [2.4.2](./CHANGELOG.md#242---2026-04-26) · [2.4.1](./CHANGELOG.md#241---2026-04-26) · [2.4.0](./CHANGELOG.md#240---2026-04-26)
-
-## v2.3 — Sense HAT animated sun arc and Trixie touchscreen fix (Apr 2026)
-
-The Sense HAT 8×8 LED display gained a realistic animated sun arc (rising east → zenith → setting west) with colour shift (yellow → orange → red), a dynamic horizon glow, and a direct framebuffer write that bypasses the `sense_hat` differential cache. `GET /api/sensehat` falls back to ipapi.co when no custom coordinates are configured. Documented the official Raspberry Pi 7" touchscreen fix on Trixie (DSI-1 → Multitouch in Control Centre) for imprecise tapping, scrolling, and pinch-to-zoom.
-
-Releases: [2.3.2](./CHANGELOG.md#232---2026-04-26) · [2.3.1](./CHANGELOG.md#231---2026-04-25) · [2.3.0](./CHANGELOG.md#230---2026-04-23)
-
-## v2.2 — Security hardening, AI summary, Sense HAT, macOS, small-screen UX (Apr 2026)
-
-Security: `GET /settings` masks API keys to remote clients, `REMOTE_SECURITY` removed (writes are now unconditionally `localhostOnly`), per-client rate limiting (120 req/min on weather/geocoding, 600 req/min on tiles), proxy-aware IP detection, and a server-side settings key whitelist. AI weather summary powered by Claude Haiku with localized output. Sense HAT 8×8 LED display + companion `pi-sensehat.service`. macOS deployment via launchd. Small-screen UX: chart tabs, collapsible info panel, font-size setting, frosted-glass radar legend. Plus the in-app `UpdateModal` with one-click update, force-check button, and `Update` button for kiosk users.
-
-Releases: [2.2.8](./CHANGELOG.md#228---2026-04-23) · [2.2.7](./CHANGELOG.md#227---2026-04-23) · [2.2.6](./CHANGELOG.md#226---2026-04-23) · [2.2.5](./CHANGELOG.md#225---2026-04-23) · [2.2.4](./CHANGELOG.md#224---2026-04-22) · [2.2.3](./CHANGELOG.md#223---2026-04-20) · [2.2.2](./CHANGELOG.md#222---2026-04-19) · [2.2.1](./CHANGELOG.md#221---2026-04-18) · [2.2.0](./CHANGELOG.md#220---2026-04-16)
-
-## v2.1 — Webpack 5, server-side cache, debug panel, i18n, kiosk options (Apr 2026)
-
-Build system modernized to webpack 5, all build dependencies refreshed, RainViewer API v2, axios v1.x and express v4.22. Server-side weather cache reduces Tomorrow.io API spend; new debug panel (localhost-only, `DEBUG=true`) exposes provider status, network info, server/client KPIs, response times, quota counters, cache state, security events, and logs. Internationalization (EN/FR/ES) via i18next with browser-language detection. Kiosk mode made optional during install. LXDE autostart no longer discards system defaults on Bullseye. Bullseye 32-bit Node.js 22 via nvm; NodeSource everywhere else. License cleanup (no more GPL icon packs).
-
-Releases: [2.1.11](./CHANGELOG.md#2111---2026-04-14) · [2.1.10](./CHANGELOG.md#2110---2026-04-13) · [2.1.9](./CHANGELOG.md#219---2026-04-13) · [2.1.8](./CHANGELOG.md#218---2026-04-13) · [2.1.7](./CHANGELOG.md#217---2026-04-12) · [2.1.6](./CHANGELOG.md#216---2026-04-12) · [2.1.5](./CHANGELOG.md#215---2026-04-12) · [2.1.4](./CHANGELOG.md#214---2026-04-11) · [2.1.3](./CHANGELOG.md#213---2026-04-11) · [2.1.2](./CHANGELOG.md#212---2026-04-11) · [2.1.1](./CHANGELOG.md#211---2026-04-09) · [2.1.0](./CHANGELOG.md#210---2026-04-03)
-
-## v2.0 — Tomorrow.io and ClimaCell APIs (2021–2024)
-
-Switched from ClimaCell API v4 to Tomorrow.io. For ClimaCell API v3 keys, use [Pi Weather Station v1](https://github.com/elewin/pi-weather-station/releases/tag/v1.0).
-
-Releases: [2.0.1](./CHANGELOG.md#201---2024-06-12) · [2.0.0](./CHANGELOG.md#200---2021-01-22)
+> **v1 → v2 note:** v2 switched from the ClimaCell API to Tomorrow.io. If you
+> have a ClimaCell API v3 key and want to keep using it, use
+> [Pi Weather Station v1](https://github.com/elewin/pi-weather-station/releases/tag/v1.0)
+> instead.
 
 # Setup
 
