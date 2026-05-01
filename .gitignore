@@ -10,10 +10,5 @@ server/request-counts.json
 ssh.key
 ssh.key.pub
 
-# Local artifacts
-collaboration-ia-presentation.pptx
-ssl-custom-cert-howto.pdf
-rpi-connect-bug-report.pdf
-case-study-mapbox-slides.pptx
 # Office lock files (created when a .pptx/.docx is open in PowerPoint/Word)
 ~$*
