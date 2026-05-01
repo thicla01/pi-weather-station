@@ -21,6 +21,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- **`deploy/toggle-debug.sh` — companion to `toggle-remote.sh` for the DEBUG flag** — flipping the bug-icon panel on or off used to mean either editing `~/.config/systemd/user/pi-weather-server.service.d/override.conf` by hand (uncommenting `# Environment=DEBUG=true`, then `daemon-reload` + `restart`) or re-running the full `install.sh` flow. The new script reads the current state from `override.conf` (Linux) or the launchd plist (macOS), asks to confirm the inverse action, edits the env var, and reloads + restarts the service. It preserves the other directives in `override.conf` (StandardOutput, StandardError) untouched and re-comments the line on disable rather than deleting it, so the template stays consistent with what `install.sh` writes. Mirrors `toggle-remote.sh` in shape and naming for muscle memory.
+
 ### Documentation
 - **`docs/ssl-custom-cert.md` is now bilingual** — the original was in French only, which was inconsistent with the rest of the docs (api.md, security-hardening.md, indoor-temperature.md, etc.) being in English with a `_fr` companion only where one was specifically authored. Renamed the existing file to `docs/ssl-custom-cert_fr.md` and added an English equivalent at `docs/ssl-custom-cert_en.md`. Both `readme.md` and `docs/security-hardening.md` now point to the EN version with a parenthetical link to the FR version.
 

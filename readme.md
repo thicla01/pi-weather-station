@@ -376,6 +376,12 @@ A debug panel is available on the Pi when `DEBUG=true` is set server-side. It sh
 
 The debug button (bug icon) appears in the control bar only when `DEBUG=true` and only when the app is accessed from the Pi itself.
 
+> **Toggling debug mode after installation:** use `deploy/toggle-debug.sh` to flip the switch on or off without re-walking through the full install.sh flow. Reads the current state from the systemd drop-in (Linux) or the launchd plist (macOS), asks to confirm the inverse action, edits the env var, and reloads + restarts the service.
+>
+> ```bash
+> bash deploy/toggle-debug.sh
+> ```
+
 **With systemd (Option 1 or 2)** — edit the override file and uncomment the `DEBUG=true` line:
 
 ```bash
