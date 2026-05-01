@@ -88,6 +88,22 @@ Quand le **PanelToggle** est activé (chevron `‹`), l'InfoPanel est masqué et
 
 ---
 
+## Overlay Debug — pleine largeur sur petits écrans
+
+Sur petits écrans, l'overlay **Debug** s'étend sur toute la largeur du viewport au lieu de laisser une gouttière de 320 px à droite pour l'InfoPanel — sans cela, les tableaux de débogage (quotas, services, événements de sécurité) sont trop comprimés pour être utilisables. L'InfoPanel et le bouton **PanelToggle** restent montés en arrière-plan mais sont visuellement recouverts. La fermeture s'effectue via la pastille rouge **Fermer** au coin haut-droit du panneau lui-même, pas via l'icône bug dans ControlButtons (également recouverte).
+
+```
+┌──────────────────────────────────────────────────────────[X]┐
+│ DEBUG (pleine largeur du viewport)                          │
+│  · État des fournisseurs / KPIs / Quotas / Services / Logs  │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+L'overlay **Settings** conserve la gouttière de 320 px sur petits écrans — ses lignes tiennent dans la zone réduite, donc l'InfoPanel reste partiellement visible derrière.
+
+---
+
 ## AiSummary — mode étendu
 
 Quand on appuie sur le bouton **RÉSUMÉ IA ↑**, les graphiques (ChartLegend, ChartTabs/Charts) se masquent et le résumé remonte automatiquement :
@@ -132,10 +148,10 @@ Appuyer sur **RÉSUMÉ IA ↓** rétablit les graphiques et remonte automatiquem
 
 ## Overlays
 
-**Settings** et **Debug** sont des overlays qui se superposent par-dessus la carte radar (côté gauche). Ils n'occupent jamais l'InfoPanel. Les deux panneaux s'excluent mutuellement — ouvrir l'un ferme l'autre automatiquement.
+**Settings** et **Debug** sont des overlays qui se superposent par-dessus la carte radar. Sur grands écrans ils laissent une gouttière de 320 px à droite pour que l'InfoPanel reste visible ; sur petits écrans (≤ 520 px de hauteur), l'overlay **Debug** s'étend sur toute la largeur du viewport, tandis que **Settings** conserve la gouttière (voir « Overlay Debug — pleine largeur sur petits écrans » plus haut). Les deux panneaux s'excluent mutuellement — ouvrir l'un ferme l'autre automatiquement.
 
-- **Settings** : accessible via le bouton ⚙ dans ControlButtons, toujours visible
-- **Debug** : accessible via le bouton 🐛 dans ControlButtons, visible uniquement depuis le Pi lui-même (`localhost`) quand `DEBUG=true`
+- **Settings** : accessible via le bouton ⚙ dans ControlButtons, toujours visible. Le bouton de fermeture intégré est le **X** au coin haut-droit du panneau. Le bas du panneau expose une section repliable **Paramètres avancés** (groupe Affichage : styles de carte, sliders d'opacité radar, slider de luminosité matérielle ; groupe IA : bascules d'analyse radar, overlay des points d'échantillonnage).
+- **Debug** : accessible via le bouton 🐛 dans ControlButtons, visible uniquement depuis le Pi lui-même (`localhost`) quand `DEBUG=true`. La fermeture s'effectue via la pastille ronde rouge **Fermer** au coin haut-droit du panneau — dimensionnée pour le tactile (44×44 px) et bien visible sur le fond sombre. La taille de police du panneau Debug suit le sélecteur global Réglages → Taille police avec une échelle dédiée (P = 1.0×, M = 1.15×, G = 1.30×).
 - **UpdateModal** : s'ouvre depuis l'overlay Settings quand `GET /api/update-check` retourne `updateAvailable: true`. Liste les commits `feat:`/`fix:` à venir et affiche les avertissements (`needsManualUpgrade`, `serviceFileChanged`) ainsi que les messages d'erreur d'un `POST /api/update` échoué.
 
 ---

@@ -88,6 +88,22 @@ When the **PanelToggle** button is pressed (`‹`), the InfoPanel is hidden and 
 
 ---
 
+## Debug overlay — full-width on small screens
+
+On small screens the **Debug** overlay extends across the entire viewport instead of leaving a 320 px gutter for the InfoPanel — there isn't enough horizontal room to show the debug tables (quotas, services, security events) usefully otherwise. The InfoPanel and the **PanelToggle** button are still rendered behind the overlay but are visually covered. Closing is done via the red **Close** pill at the top-right corner of the panel itself, not via the bug-icon in ControlButtons (which is also covered).
+
+```
+┌──────────────────────────────────────────────────────────[X]┐
+│ DEBUG (full viewport width)                                 │
+│  · Provider status / KPIs / Quotas / Services / Logs ...    │
+│                                                             │
+└─────────────────────────────────────────────────────────────┘
+```
+
+The **Settings** overlay keeps the 320 px gutter on small screens — its rows fit fine in the narrower area, so the InfoPanel stays partially visible behind it.
+
+---
+
 ## AiSummary — expanded mode
 
 When the **AI SUMMARY ↑** button is pressed, the charts (ChartLegend, ChartTabs/Charts) are hidden and the summary slides up automatically:
@@ -132,10 +148,10 @@ Pressing **AI SUMMARY ↓** restores the charts and automatically scrolls the vi
 
 ## Overlays
 
-**Settings** and **Debug** are overlays that appear on top of the radar map (left side). They never occupy the InfoPanel. The two panels are mutually exclusive — opening one automatically closes the other.
+**Settings** and **Debug** are overlays that appear on top of the radar map. On wide screens they leave a 320 px gutter on the right so the InfoPanel stays visible; on small screens (≤ 520 px height) the **Debug** overlay extends across the full viewport, while **Settings** keeps the gutter (see "Debug overlay — full-width on small screens" above). The two panels are mutually exclusive — opening one automatically closes the other.
 
-- **Settings**: accessible via the ⚙ button in ControlButtons, always visible
-- **Debug**: accessible via the 🐛 button in ControlButtons, only visible from the Pi itself (`localhost`) when `DEBUG=true`
+- **Settings**: accessible via the ⚙ button in ControlButtons, always visible. Its built-in close button is the **X** at the top-right of the panel. The bottom of the panel exposes an **Advanced settings** collapsible section (Display group: map styles, radar opacity sliders, hardware brightness slider; AI group: radar-analysis toggles, sampling-point overlay).
+- **Debug**: accessible via the 🐛 button in ControlButtons, only visible from the Pi itself (`localhost`) when `DEBUG=true`. The close action is the red circular **Close** pill at the top-right of the panel — sized for touch (44×44 px) and clearly visible against the dark background. The font size for the Debug panel follows the global Settings → Font Size selector with a dedicated scale (S = 1.0×, M = 1.15×, L = 1.30×).
 - **UpdateModal**: opens from inside the Settings overlay when `GET /api/update-check` reports `updateAvailable: true`. Lists incoming `feat:`/`fix:` commits and surfaces warnings (`needsManualUpgrade`, `serviceFileChanged`) plus error messages from a failed `POST /api/update`.
 
 ---
