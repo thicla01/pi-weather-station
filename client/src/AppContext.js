@@ -12,6 +12,7 @@ const LENGTH_UNIT_STORAGE_KEY = "lengthUnit";
 const DISTANCE_UNIT_STORAGE_KEY = "distanceUnit";
 const DEFAULT_MAP_ZOOM_STORAGE_KEY = "defaultMapZoom";
 const DEFAULT_MAP_ZOOM_FALLBACK = 7; // historical hard-coded value before the slider
+const DARK_MODE_AUTO_STORAGE_KEY = "darkModeAuto";
 const CLOCK_UNIT_STORAGE_KEY = "clockTime";
 const MOUSE_HIDE_STORAGE_KEY = "mouseHide";
 const FONT_SIZE_STORAGE_KEY = "fontSize";
@@ -66,6 +67,12 @@ export function AppContextProvider({ children }) {
   const [brightnessAvailable, setBrightnessAvailable] = useState(false);
   const [brightnessMinPercent, setBrightnessMinPercent] = useState(10);
   const [darkMode, setDarkMode] = useState(true);
+  // When darkModeAuto is on, an interval flips darkMode at sunrise /
+  // sunset based on AppContext's sunriseTime / sunsetTime. Manual taps
+  // on the dark/light toggle below disable auto mode (override pattern:
+  // user wins). Persisted in localStorage; default OFF so existing
+  // installs aren't surprised by sudden theme switches.
+  const [darkModeAuto, setDarkModeAuto] = useState(false);
   const [currentWeatherData, setCurrentWeatherData] = useState(null);
   const [currentWeatherDataErr, setCurrentWeatherDataErr] = useState(null);
   const [currentWeatherDataErrMsg, setCurrentWeatherDataErrMsg] = useState(
@@ -266,6 +273,32 @@ export function AppContextProvider({ children }) {
   }
 
   /**
+   * Save the auto-dark-mode preference. Persisted under
+   * DARK_MODE_AUTO_STORAGE_KEY; the polling effect below picks it up and
+   * starts/stops the sunrise/sunset checks accordingly.
+   *
+   * @param {Boolean} newVal
+   */
+  function saveDarkModeAuto(newVal) {
+    const next = Boolean(newVal);
+    setDarkModeAuto(next);
+    window.localStorage.setItem(DARK_MODE_AUTO_STORAGE_KEY, String(next));
+  }
+
+  /**
+   * Manual dark/light toggle wrapper — same shape as setDarkMode for
+   * existing call sites, but also turns off auto mode if it was on.
+   * The intuition is "tap to override": the user wins, auto resumes
+   * only when they explicitly re-enable it from Settings.
+   *
+   * @param {Boolean} next
+   */
+  function setDarkModeManual(next) {
+    setDarkMode(next);
+    if (darkModeAuto) saveDarkModeAuto(false);
+  }
+
+  /**
    * Save default map zoom (used on next page load) and trigger a live preview
    * by signalling the ZoomLevelHandler in WeatherMap to call map.setZoom.
    * Without the live preview, sliding the control would feel inert until the
@@ -358,6 +391,7 @@ export function AppContextProvider({ children }) {
     const length = window.localStorage.getItem(LENGTH_UNIT_STORAGE_KEY);
     const distance = window.localStorage.getItem(DISTANCE_UNIT_STORAGE_KEY);
     const storedZoom = window.localStorage.getItem(DEFAULT_MAP_ZOOM_STORAGE_KEY);
+    const storedDarkAuto = window.localStorage.getItem(DARK_MODE_AUTO_STORAGE_KEY);
     const clock = window.localStorage.getItem(CLOCK_UNIT_STORAGE_KEY);
 
     let mouseHide;
@@ -401,6 +435,7 @@ export function AppContextProvider({ children }) {
       setDefaultMapZoom(parsedZoom);
       setCurrentMapZoom(parsedZoom);
     }
+    if (storedDarkAuto === "true") setDarkModeAuto(true);
     if (clock) {
       setClockTime(clock);
     }
@@ -941,6 +976,29 @@ export function AppContextProvider({ children }) {
     document.documentElement.style.setProperty("--light-panel-bg-rgb", rgb);
   }, [lightModeStyle]);
 
+  // Auto dark/light at sunrise / sunset. Runs only when the user opted
+  // in via Settings AND we have valid sunrise/sunset timestamps. Checks
+  // every minute (cheap — no network), plus immediately on mount/toggle.
+  // Manual taps on the dark/light button disable auto via the
+  // setDarkModeManual wrapper, so the user always wins.
+  useEffect(() => {
+    if (!darkModeAuto || !sunriseTime || !sunsetTime) return undefined;
+    const apply = () => {
+      const now = Date.now();
+      const sunrise = new Date(sunriseTime).getTime();
+      const sunset = new Date(sunsetTime).getTime();
+      // sunrise-sunset.org returns today's times; if we're past sunset
+      // it's "night" until midnight (and beyond, until tomorrow's
+      // sunrise — but the next /api/sunrise-sunset poll refreshes the
+      // window). Daytime = sunrise ≤ now < sunset.
+      const shouldBeDark = !(now >= sunrise && now < sunset);
+      setDarkMode((current) => (current === shouldBeDark ? current : shouldBeDark));
+    };
+    apply();
+    const interval = setInterval(apply, 60_000);
+    return () => clearInterval(interval);
+  }, [darkModeAuto, sunriseTime, sunsetTime]);
+
   const defaultContext = {
     weatherApiKey,
     getWeatherApiKey,
@@ -952,7 +1010,9 @@ export function AppContextProvider({ children }) {
     browserGeo,
     getBrowserGeo,
     darkMode,
-    setDarkMode,
+    setDarkMode: setDarkModeManual,
+    darkModeAuto,
+    saveDarkModeAuto,
     mapGeo,
     setMapGeo,
     aiSummaryAvailable,

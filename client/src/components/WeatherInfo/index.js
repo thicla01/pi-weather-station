@@ -5,6 +5,7 @@ import { AppContext } from "~/AppContext";
 import styles from "./styles.css";
 import LocationName from "~/components/LocationName";
 import CurrentWeather from "~/components/CurrentWeather";
+import UvAqiBadges from "~/components/UvAqiBadges";
 import DailyChart from "~/components/weatherCharts/DailyChart";
 import HourlyChart from "~/components/weatherCharts/HourlyChart";
 import AiSummary from "~/components/AiSummary";
@@ -266,7 +267,10 @@ const WeatherInfo = () => {
             ) : null}
           </div>
         ) : currentWeatherData ? (
-          <CurrentWeather />
+          <>
+            <CurrentWeather />
+            <UvAqiBadges />
+          </>
         ) : (
           <div className={styles.loadingContainer}>
             <Spinner size={"20px"} color={darkMode ? "#f6f6f444" : "#3a393844"} />

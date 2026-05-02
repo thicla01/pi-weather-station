@@ -11,6 +11,7 @@
     "units": "UNITÉS",
     "hideMouse": "MASQUER SOURIS",
     "hideRadarLegend": "MASQUER LÉGENDE RADAR",
+    "darkModeAuto": "MODE SOMBRE AUTO",
     "language": "LANGUE",
     "save": "ENREGISTRER",
     "on": "ON",
@@ -124,6 +125,25 @@
       "3": "Moyenne",
       "4": "Mauvaise",
       "5": "Très mauvaise"
+    }
+  },
+  "badges": {
+    "uv": "UV",
+    "aqi": "AQI",
+    "uvLevel": {
+      "low": "Faible",
+      "moderate": "Modéré",
+      "high": "Élevé",
+      "veryHigh": "Très élevé",
+      "extreme": "Extrême"
+    },
+    "aqiLevel": {
+      "good": "Bon",
+      "moderate": "Modéré",
+      "sensitive": "Mauvais (sensibles)",
+      "unhealthy": "Mauvais",
+      "veryUnhealthy": "Très mauvais",
+      "hazardous": "Dangereux"
     }
   },
   "alert": {

@@ -1,0 +1,37 @@
+.row {
+  display: flex;
+  gap: 8px;
+  margin: 6px 0 4px 0;
+  flex-wrap: wrap;
+}
+
+.badge {
+  /* Compact pill: label + numeric value + plain-language qualifier.
+     White text contrasts against every tier colour in both palettes
+     (UV and AQI both end at purple/maroon — none are pale). */
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 3px 8px;
+  border-radius: 3px;
+  color: #ffffff;
+  font-size: clamp(11px, 1vw, 13px);
+  line-height: 1.2;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.label {
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  font-size: 0.85em;
+}
+
+.value {
+  font-weight: 700;
+  font-size: 1.05em;
+}
+
+.qualifier {
+  font-size: 0.85em;
+  opacity: 0.95;
+}

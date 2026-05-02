@@ -40,6 +40,8 @@ const Settings = () => {
     saveMouseHide,
     hideRadarLegend,
     saveHideRadarLegend,
+    darkModeAuto,
+    saveDarkModeAuto,
     isLocal,
     remoteSecurityEnabled,
   } = useContext(AppContext);
@@ -192,6 +194,17 @@ const Settings = () => {
                   button1Val={true}
                   button2Val={false}
                   cb={saveHideRadarLegend}
+                />
+              </div>
+              <div>
+                <div className={styles.label}>{t("settings.darkModeAuto")}</div>
+                <ToggleButton
+                  button1Label={t("settings.on")}
+                  button2Label={t("settings.off")}
+                  val={darkModeAuto}
+                  button1Val={true}
+                  button2Val={false}
+                  cb={saveDarkModeAuto}
                 />
               </div>
               <div>

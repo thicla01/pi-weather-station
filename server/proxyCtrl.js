@@ -240,8 +240,12 @@ async function weatherCurrent(req, res) {
     return res.status(503).json("Weather API key not configured").end();
   }
 
+  // uvIndex (0-11+ scale, WMO categorisation) and epaIndex (EPA AQI
+  // category 1-6) are added only to the `current` endpoint — they're
+  // real-time read-outs in the InfoPanel, not values we chart over time.
   const fields = ["temperature", "humidity", "windSpeed", "precipitationIntensity",
-    "precipitationType", "precipitationProbability", "cloudCover", "weatherCode"].join("%2c");
+    "precipitationType", "precipitationProbability", "cloudCover", "weatherCode",
+    "uvIndex", "epaIndex"].join("%2c");
 
   const cacheKey = getCacheKey("current", lat, lon);
   const cached = getFromCache(cacheKey);
