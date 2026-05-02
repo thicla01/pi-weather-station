@@ -1,0 +1,34 @@
+.banner {
+  /* Sits between clockContainer and weatherInfoContainer in the InfoPanel.
+     Padded coloured rectangle; text white for contrast against orange/red.
+     Modest letter-spacing makes the alert label read as "system message"
+     rather than body copy. The banner is rendered with the same max-width
+     as the rest of the panel content so it lines up with the location
+     name and chart legend below. */
+  background-color: #f08200;
+  color: #ffffff;
+  padding: 8px 12px;
+  /* Top margin separates the banner from the clock/sunrise row above;
+     bottom margin gives breathing room before the location name below.
+     Margins live on the banner itself (not on the .alert-area wrapper)
+     so they only apply when the banner actually renders — the wrapper
+     stays a 0-height ghost in calm mode. */
+  margin: 6px 0 10px 0;
+  border-radius: 4px;
+  font-size: clamp(13px, 1.2vw, 16px);
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  line-height: 1.3;
+  text-align: center;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+/* Tier-specific backgrounds — match the ring colours so the alert text and
+   the radar circles speak the same visual language. */
+.orange {
+  background-color: #f08200;
+}
+
+.red {
+  background-color: #e60000;
+}

@@ -4,6 +4,7 @@ import Clock from "~/components/Clock";
 import IndoorTemperature from "~/components/IndoorTemperature";
 import WeatherInfo from "~/components/WeatherInfo";
 import ControlButtons from "~/components/ControlButtons";
+import AlertBanner from "~/components/AlertBanner";
 import useDragScroll from "~/hooks/useDragScroll";
 import styles from "./styles.css";
 
@@ -22,6 +23,9 @@ const InfoPanel = () => {
         <div className={styles.clockContainer}>
           <IndoorTemperature />
           <Clock />
+        </div>
+        <div className={styles.alertArea}>
+          <AlertBanner />
         </div>
         <div className={styles.weatherInfoContainer} ref={(el) => { weatherInfoRef(el); infoPanelScrollRef.current = el; }}>
           <WeatherInfo />

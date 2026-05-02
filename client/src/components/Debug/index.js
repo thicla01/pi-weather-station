@@ -459,6 +459,10 @@ const SERVICE_ORDER = [
   "LocationIQ",
   "ipapi.co",
   "sunrise-sunset.org",
+  "RainViewer (analyzer)",
+  "RainViewer (risk)",
+  "Claude (AI summary)",
+  "Homebridge",
 ];
 
 const ServicesSection = ({ services }) => {
@@ -483,13 +487,20 @@ const ServicesSection = ({ services }) => {
             <span>{t("debug.comment")}</span>
           </div>
           {entries.map(([name, info]) => {
-            const ok = info.status >= 200 && info.status < 300;
-            const time = new Date(info.lastCall).toLocaleTimeString();
+            // Pre-registered (never-called) entries have status === null and
+            // lastCall === null. Render them with a neutral "—" instead of
+            // the error-red badge that NaN/null would otherwise produce.
+            const neverCalled = info.status == null;
+            const ok = !neverCalled && info.status >= 200 && info.status < 300;
+            const statusClass = neverCalled
+              ? styles.serviceName
+              : ok ? styles.serviceStatusOk : styles.serviceStatusErr;
+            const time = info.lastCall ? new Date(info.lastCall).toLocaleTimeString() : "—";
             return (
               <div className={styles.serviceEntry} key={name}>
                 <span className={styles.serviceName}>{name}</span>
-                <span className={ok ? styles.serviceStatusOk : styles.serviceStatusErr}>
-                  {info.status}
+                <span className={statusClass}>
+                  {neverCalled ? "—" : info.status}
                 </span>
                 <span className={styles.serviceTime}>{time}</span>
                 <span className={styles.serviceComment}>{info.comment}</span>
@@ -1020,12 +1031,14 @@ const ServerKpiSection = ({ serverKpis, cpuTemp, fanRpm, fanAvailable }) => {
                 )}
               </span>
             </div>
-            <div className={styles.kpiItem}>
-              <span className={styles.kpiLabel}>{t("debug.cpuTemp")}</span>
-              <span className={cpuTempClass}>
-                {cpuTemp != null ? `${cpuTemp.toFixed(1)}°C` : "—"}
-              </span>
-            </div>
+            {cpuTemp != null && (
+              <div className={styles.kpiItem}>
+                <span className={styles.kpiLabel}>{t("debug.cpuTemp")}</span>
+                <span className={cpuTempClass}>
+                  {`${cpuTemp.toFixed(1)}°C`}
+                </span>
+              </div>
+            )}
             {fanAvailable && (
               <div className={styles.kpiItem}>
                 <span className={styles.kpiLabel}>{t("debug.fanSpeed")}</span>

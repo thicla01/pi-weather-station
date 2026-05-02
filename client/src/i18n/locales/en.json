@@ -126,6 +126,12 @@
       "5": "Poor"
     }
   },
+  "alert": {
+    "orangeNear": "Heavy precipitation in your area",
+    "orangeApproaching": "Heavy precipitation nearby",
+    "redNear": "Alert — Severe precipitation in your area",
+    "redApproaching": "Alert — Severe precipitation approaching"
+  },
   "radar": {
     "legend": "RADAR",
     "veryLight": "Very light",

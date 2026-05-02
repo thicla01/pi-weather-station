@@ -1,15 +1,22 @@
 .panel {
   height: 100%;
 }
-.container {  
+.container {
   height: calc(100% - 20px);  /* subtract padding */
   padding: 10px;
   font-family: "Rubik", sans-serif;
   display: grid;
   grid-template-columns: auto;
-  grid-template-rows: clamp(90px, 8.5vw, 115px) auto 40px;
+  /* Four rows: clock (clamped), alert (auto — collapses to 0 when the
+     AlertBanner returns null, since the cell has no content in calm
+     state), weather-info (1fr — takes all remaining space, scrolls
+     internally via overflow-y), controls (40 px fixed at the bottom).
+     1fr instead of the original auto on weather-info so adding the
+     alert row doesn't introduce ambiguity in space distribution. */
+  grid-template-rows: clamp(90px, 8.5vw, 115px) auto 1fr 40px;
   grid-template-areas:
     "clock"
+    "alert"
     "weather-info"
     "controls";
 }
@@ -38,6 +45,10 @@
    present — `space-between` already pushes them to opposite ends. */
 .clock-container > :last-child {
   margin-inline-start: auto;
+}
+
+.alert-area {
+  grid-area: alert;
 }
 
 .weather-info-container {

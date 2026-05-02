@@ -126,6 +126,12 @@
       "5": "Très mauvaise"
     }
   },
+  "alert": {
+    "orangeNear": "Précipitations fortes sur votre zone",
+    "orangeApproaching": "Précipitations fortes à proximité",
+    "redNear": "Alerte — précipitations sévères sur votre zone",
+    "redApproaching": "Alerte — précipitations sévères approchent"
+  },
   "radar": {
     "legend": "RADAR",
     "veryLight": "Très léger",

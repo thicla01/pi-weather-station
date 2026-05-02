@@ -47,6 +47,33 @@ const { getBrightness, setBrightness } = require("./brightnessCtrl");
 const aiSummaryCtrl = require("./aiSummaryCtrl");
 const { getSenseHatData } = require("./sensehatCtrl");
 const { initIndoorTemperature, getIndoorTemperature } = require("./indoorTempCtrl");
+const { registerService } = require("./serviceStatus");
+
+/**
+ * Pre-register every external service we expect to call so they all show
+ * up in the Debug panel's "Services" inventory from the first paint, even
+ * before the user has triggered an action that hits them. Without this,
+ * an absent row in the panel was ambiguous: "is the service broken or
+ * just unused?". Now an unused service appears with status null + comment
+ * "Not yet called", and a real call overwrites it with the live result.
+ *
+ * Names must match exactly the strings passed to recordServiceCall().
+ */
+function registerKnownServices() {
+  [
+    "Tomorrow.io (current)",
+    "Tomorrow.io (hourly)",
+    "Tomorrow.io (daily)",
+    "Mapbox",
+    "LocationIQ",
+    "ipapi.co",
+    "sunrise-sunset.org",
+    "RainViewer (analyzer)",
+    "RainViewer (risk)",
+    "Claude (AI summary)",
+    "Homebridge",
+  ].forEach(registerService);
+}
 
 const {
   getSettings,
@@ -200,6 +227,7 @@ if (sslOptions) {
   https.createServer(sslOptions, app).listen(HTTPS_PORT, HOST, async () => {
     initServerInfo(HTTPS_PORT, "https");
     initIndoorTemperature();
+    registerKnownServices();
     await openInBrowserIfDev(`https://localhost:${HTTPS_PORT}`);
     console.log(`${appName} v${ver} has started on port ${HTTPS_PORT} (HTTPS, bound to ${HOST})`);
   });
@@ -207,6 +235,7 @@ if (sslOptions) {
   app.listen(PORT, HOST, async () => {
     initServerInfo(PORT, "http");
     initIndoorTemperature();
+    registerKnownServices();
     await openInBrowserIfDev(`http://localhost:${PORT}`);
     console.log(`${appName} v${ver} has started on port ${PORT} (HTTP, bound to ${HOST})`);
   });
