@@ -168,18 +168,37 @@
 }
 
 .close-button {
-  font-size: clamp(20px, 1.8vw, 26px);
+  /* Mirrors the Debug panel's red pill — same rationale: instantly
+     recognisable on the 7" / 10" touchscreen, 44 px+ touch target
+     (Apple HIG / Material), bumped offsets so the corner stays
+     reachable even when zoom warps coordinates. Keeping the two
+     overlays visually identical so users build a single muscle-memory
+     for "close overlay". */
+  font-size: clamp(18px, 1.5vw, 24px);
   position: absolute;
-  top: 10px;
-  right: 10px;
+  top: 16px;
+  right: 16px;
+  cursor: pointer;
+  background-color: #c0392b;
+  color: #fff;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.4);
+  transition: background-color 0.15s ease, transform 0.1s ease;
+  z-index: 10;
 }
 
-.show-mouse.close-button {
-  cursor: pointer;
+.close-button:hover {
+  background-color: #e74c3c;
 }
 
 .close-button:active {
-  color: #c7c7c7;
+  background-color: #922b21;
+  transform: scale(0.92);
 }
 
 .save-button-container {
