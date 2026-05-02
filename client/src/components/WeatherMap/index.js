@@ -134,8 +134,13 @@ const RING_RISK_STYLE = {
  */
 function buildRingPathOptions(risk, dark) {
   const overlay = risk && RING_RISK_STYLE[risk];
+  // Dark-mode calm uses a warm desaturated grey instead of near-white. The
+  // previous #f6f6f4 read as "alarm" against the dark basemap even when
+  // there was no precipitation; #8a8378 picks up the dark-panel tones,
+  // stays visible without competing with the radar tile colours, and lets
+  // the risk tiers (yellow / orange / red) actually pop when they fire.
   return {
-    color: overlay ? overlay.color : (dark ? "#f6f6f4" : "#3a3938"),
+    color: overlay ? overlay.color : (dark ? "#8a8378" : "#3a3938"),
     weight: overlay ? overlay.weight : 2,
     opacity: 0.85,
     dashArray: "6 6",
