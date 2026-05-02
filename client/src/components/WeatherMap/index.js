@@ -111,15 +111,25 @@ function buildSamplingPoints(center, extended, doubleOuter, unit) {
 }
 
 // Risk-level colour mapping for the dashed radar circles. The four tiers
-// match the server's RISK_LEVELS in radarAnalyzerCtrl.js. Calm keeps the
-// existing neutral stroke (theme-dependent); the other three pull from the
-// same palette as the radar legend so the rings echo the underlying tile
-// colours instead of introducing a competing scheme. Bumped weight on
-// active states makes the alert glanceable at the 7" / 10" kiosk distance.
+// match the server's RISK_LEVELS in radarAnalyzerCtrl.js. Theme-aware:
+// dark mode echoes the radar-tile palette directly (high contrast against
+// the dark basemap); light mode shifts yellow to a deeper amber because
+// the radar's pure yellow stroke (~93% luminance) drowns against the
+// cream basemap (~92% luminance) — fine for filled tiles, useless for a
+// 3-px line. Orange and red have enough mid-tone luminance to read on
+// both themes unchanged. Bumped weight on the red tier makes the
+// severe-tier alert glanceable at the 7" / 10" kiosk distance.
 const RING_RISK_STYLE = {
-  yellow: { color: "#f0e600", weight: 3 },
-  orange: { color: "#f08200", weight: 3 },
-  red:    { color: "#e60000", weight: 4 },
+  light: {
+    yellow: { color: "#c9a200", weight: 4 },
+    orange: { color: "#f08200", weight: 4 },
+    red:    { color: "#e60000", weight: 4 },
+  },
+  dark: {
+    yellow: { color: "#f0e600", weight: 3 },
+    orange: { color: "#f08200", weight: 3 },
+    red:    { color: "#e60000", weight: 4 },
+  },
 };
 
 /**
@@ -133,14 +143,14 @@ const RING_RISK_STYLE = {
  * @returns {object} pathOptions ready to spread onto a Circle
  */
 function buildRingPathOptions(risk, dark) {
-  const overlay = risk && RING_RISK_STYLE[risk];
+  const overlay = risk && RING_RISK_STYLE[dark ? "dark" : "light"][risk];
   // Dark-mode calm uses a warm desaturated grey instead of near-white. The
   // previous #f6f6f4 read as "alarm" against the dark basemap even when
-  // there was no precipitation; #8a8378 picks up the dark-panel tones,
+  // there was no precipitation; #a8a097 picks up the dark-panel tones,
   // stays visible without competing with the radar tile colours, and lets
   // the risk tiers (yellow / orange / red) actually pop when they fire.
   return {
-    color: overlay ? overlay.color : (dark ? "#8a8378" : "#3a3938"),
+    color: overlay ? overlay.color : (dark ? "#a8a097" : "#3a3938"),
     weight: overlay ? overlay.weight : 2,
     opacity: 0.85,
     dashArray: "6 6",

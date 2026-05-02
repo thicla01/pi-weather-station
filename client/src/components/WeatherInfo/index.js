@@ -241,102 +241,104 @@ const WeatherInfo = () => {
     };
   }, [weatherApiKey, mapGeo]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (currentWeatherData) {
-    return (
-      <div className={styles.container} ref={panelRef}>
-        <div className={styles.location} ref={locationRef}>
-          <LocationName />
-        </div>
-        <div style={{ display: aiExpanded ? "none" : undefined }}>
-          <CurrentWeather />
-        </div>
-        <div
-          className={styles.chartsCollapsible}
-          style={{ maxHeight: aiExpanded ? 0 : "1200px" }}
-          ref={chartsRef}
-        >
-          <div className={styles.chartLegend}>
-            <span className={styles.legendItem}>
-              <span className={`${styles.legendDot} ${styles.legendDotGray}`} />
-              {t("charts.temp")} / {t("charts.windSpeed")}
-            </span>
-            <span className={styles.legendItem}>
-              <span className={`${styles.legendDot} ${styles.legendDotBlue}`} />
-              {t("charts.precipitation")}
-            </span>
+  // The shell is always rendered so a single Tomorrow.io failure doesn't
+  // black out everything in the panel — LocationName (LocationIQ),
+  // AiSummary (cached or independent), and the chart components' own
+  // error states stay visible. CurrentWeather surfaces the
+  // "could not retrieve weather data" message inline; the charts each
+  // carry their own per-endpoint error rendering already. Pre-refactor,
+  // a missing currentWeatherData hid LocationName and the AI summary
+  // too, even though neither depends on the current-weather endpoint —
+  // that asymmetry is the bug this fixes.
+  const showCurrentWeatherError = !currentWeatherData && (currentWeatherDataErr || err);
+  return (
+    <div className={styles.container} ref={panelRef}>
+      <div className={styles.location} ref={locationRef}>
+        <LocationName />
+      </div>
+      <div style={{ display: aiExpanded ? "none" : undefined }}>
+        {showCurrentWeatherError ? (
+          <div className={`${styles.errContainer} ${darkMode ? styles.dark : styles.light}`}>
+            <div>{t("errors.weatherDataFailed")}</div>
+            <div>{t("errors.weatherApiKeyInvalid")}</div>
+            {currentWeatherDataErr ? (
+              <div className={styles.message}>{currentWeatherDataErrMsg}</div>
+            ) : null}
           </div>
-          {isSmallScreen ? (
-            <>
-              <div className={styles.chartTabs}>
-                <button
-                  className={`${styles.chartTab} ${darkMode ? styles.chartTabDark : styles.chartTabLight} ${activeChart === "hourly" ? styles.chartTabActive : ""}`}
-                  onClick={() => { setActiveChart("hourly"); setCycleKey((k) => k + 1); restartCycle(); }}
-                >
-                  {t("charts.tab24h")}
-                </button>
-                <button
-                  className={`${styles.chartTab} ${darkMode ? styles.chartTabDark : styles.chartTabLight} ${activeChart === "daily" ? styles.chartTabActive : ""}`}
-                  onClick={() => { setActiveChart("daily"); setCycleKey((k) => k + 1); restartCycle(); }}
-                >
-                  {t("charts.tab5d")}
-                </button>
-                <svg width="12" height="12" viewBox="0 0 12 12" className={styles.chartTabTimer}>
-                  <circle
-                    cx="6" cy="6" r="4"
-                    className={`${styles.chartTabTimerTrack} ${darkMode ? styles.chartTabTimerTrackDark : styles.chartTabTimerTrackLight}`}
-                  />
-                  <circle
-                    key={cycleKey}
-                    cx="6" cy="6" r="4"
-                    transform="rotate(-90 6 6)"
-                    className={`${styles.chartTabTimerProgress} ${darkMode ? styles.chartTabTimerProgressDark : styles.chartTabTimerProgressLight}`}
-                    style={{ animationDuration: `${CHART_CYCLE_DURATION / 1000}s` }}
-                  />
-                </svg>
-              </div>
-              <div className={styles.weatherChart} style={chartWrapperStyle}>
-                {activeChart === "hourly" ? <HourlyChart /> : <DailyChart />}
-              </div>
-            </>
-          ) : (
-            <>
-              <div className={styles.weatherChart} style={chartWrapperStyle}>
-                <HourlyChart />
-              </div>
-              <div className={styles.weatherChart} style={chartWrapperStyle}>
-                <DailyChart />
-              </div>
-            </>
-          )}
-        </div>
-        <AiSummary
-          expanded={aiExpanded}
-          onToggle={handleAiToggle}
-          containerRef={aiRef}
-        />
+        ) : currentWeatherData ? (
+          <CurrentWeather />
+        ) : (
+          <div className={styles.loadingContainer}>
+            <Spinner size={"20px"} color={darkMode ? "#f6f6f444" : "#3a393844"} />
+          </div>
+        )}
       </div>
-    );
-  } else if (currentWeatherData || currentWeatherDataErr || err) {
-    return (
       <div
-        className={`${styles.errContainer} ${
-          darkMode ? styles.dark : styles.light
-        }`}
+        className={styles.chartsCollapsible}
+        style={{ maxHeight: aiExpanded ? 0 : "1200px" }}
+        ref={chartsRef}
       >
-        <div>{t("errors.weatherDataFailed")}</div>
-        <div>{t("errors.weatherApiKeyInvalid")}</div>
-        {currentWeatherDataErr ? (
-          <div className={styles.message}>{currentWeatherDataErrMsg}</div>
-        ) : null}
+        <div className={styles.chartLegend}>
+          <span className={styles.legendItem}>
+            <span className={`${styles.legendDot} ${styles.legendDotGray}`} />
+            {t("charts.temp")} / {t("charts.windSpeed")}
+          </span>
+          <span className={styles.legendItem}>
+            <span className={`${styles.legendDot} ${styles.legendDotBlue}`} />
+            {t("charts.precipitation")}
+          </span>
+        </div>
+        {isSmallScreen ? (
+          <>
+            <div className={styles.chartTabs}>
+              <button
+                className={`${styles.chartTab} ${darkMode ? styles.chartTabDark : styles.chartTabLight} ${activeChart === "hourly" ? styles.chartTabActive : ""}`}
+                onClick={() => { setActiveChart("hourly"); setCycleKey((k) => k + 1); restartCycle(); }}
+              >
+                {t("charts.tab24h")}
+              </button>
+              <button
+                className={`${styles.chartTab} ${darkMode ? styles.chartTabDark : styles.chartTabLight} ${activeChart === "daily" ? styles.chartTabActive : ""}`}
+                onClick={() => { setActiveChart("daily"); setCycleKey((k) => k + 1); restartCycle(); }}
+              >
+                {t("charts.tab5d")}
+              </button>
+              <svg width="12" height="12" viewBox="0 0 12 12" className={styles.chartTabTimer}>
+                <circle
+                  cx="6" cy="6" r="4"
+                  className={`${styles.chartTabTimerTrack} ${darkMode ? styles.chartTabTimerTrackDark : styles.chartTabTimerTrackLight}`}
+                />
+                <circle
+                  key={cycleKey}
+                  cx="6" cy="6" r="4"
+                  transform="rotate(-90 6 6)"
+                  className={`${styles.chartTabTimerProgress} ${darkMode ? styles.chartTabTimerProgressDark : styles.chartTabTimerProgressLight}`}
+                  style={{ animationDuration: `${CHART_CYCLE_DURATION / 1000}s` }}
+                />
+              </svg>
+            </div>
+            <div className={styles.weatherChart} style={chartWrapperStyle}>
+              {activeChart === "hourly" ? <HourlyChart /> : <DailyChart />}
+            </div>
+          </>
+        ) : (
+          <>
+            <div className={styles.weatherChart} style={chartWrapperStyle}>
+              <HourlyChart />
+            </div>
+            <div className={styles.weatherChart} style={chartWrapperStyle}>
+              <DailyChart />
+            </div>
+          </>
+        )}
       </div>
-    );
-  } else {
-    return (
-      <div className={styles.loadingContainer}>
-        <Spinner size={"20px"} color={darkMode ? "#f6f6f444" : "#3a393844"} />
-      </div>
-    );
-  }
+      <AiSummary
+        expanded={aiExpanded}
+        onToggle={handleAiToggle}
+        containerRef={aiRef}
+      />
+    </div>
+  );
 };
 
 export default WeatherInfo;
