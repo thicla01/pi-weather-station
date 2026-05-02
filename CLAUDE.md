@@ -59,7 +59,8 @@ pi-weather-station/
 │   └── dist/             # Compiled bundle (committed to git)
 ├── deploy/               # Multi-distro install.sh, systemd units, autostart, kiosk launcher,
 │                          # harden-kiosk.sh, logrotate, launchd plist, uninstall.sh
-├── docs/                 # api.md, architecture, KPI, security, troubleshooting, ui-layout (en/fr)
+├── docs/                 # api.md, architecture, KPI, security, troubleshooting, ui-layout (en/fr),
+│                          # radar-classification (RainViewer pixel → tier → display colour)
 └── tools/                # CSV→Excel converter, Sense HAT collector script
 ```
 

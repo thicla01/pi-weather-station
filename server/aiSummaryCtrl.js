@@ -191,10 +191,12 @@ async function getWeatherSummary(req, res) {
   // Use shared weather cache to avoid duplicate Tomorrow.io calls
   let weatherData = getWeatherFromSharedCache(lat, lon);
 
-  if (!weatherData) {
-    if (!settings.weatherApiKey) {
-      return res.status(503).json("Weather API key not configured").end();
-    }
+  if (!weatherData && settings.weatherApiKey) {
+    // Try to backfill from Tomorrow.io. A failure here is no longer fatal:
+    // we proceed with weatherData = null, the prompt drops the "Current
+    // conditions" section, and we rely on whatever forecast / radar context
+    // we already have so the summary still appears (it would otherwise
+    // disappear entirely whenever Tomorrow.io throttles us with a 429).
     try {
       const fields = ["temperature", "humidity", "windSpeed",
         "precipitationProbability", "weatherCode", "cloudCover"].join("%2c");
@@ -203,8 +205,9 @@ async function getWeatherSummary(req, res) {
         { timeout: 10_000 }
       );
       weatherData = result.data;
-    } catch {
-      return res.status(500).json("Could not fetch weather data").end();
+    } catch (err) {
+      recordServiceCall("Tomorrow.io (current)", err?.response?.status || 500, "fetch failed in AI summary path");
+      // Leave weatherData null and continue — sections are independent.
     }
   }
 
@@ -290,27 +293,60 @@ async function getWeatherSummary(req, res) {
     }
   }
 
+  // If none of the three sections has any content, there's nothing for
+  // Claude to summarise — return 503 so the client hides the AI banner.
+  // Pre-refactor, an empty currentLines couldn't happen because we'd
+  // already 500'd; now we have to check.
+  const hasCurrent = Boolean(currentLines);
+  const hasPeriod = Boolean(secondPeriodLabel);
+  const hasRadar = Boolean(radarText);
+  if (!hasCurrent && !hasPeriod && !hasRadar) {
+    return res.status(503).json("No weather data available").end();
+  }
+
+  // Build the per-paragraph instructions in the order they appear in the
+  // payload below. Numbering is dynamic so dropping "current" doesn't
+  // produce dangling references like "the second paragraph covers …" when
+  // the first one is missing.
   const language = LANG_NAMES[lang] || "English";
-  const paragraphCount = 1 + (secondPeriodLabel ? 1 : 0) + (radarText ? 1 : 0);
-  const paragraphWord = paragraphCount === 1
+  const paragraphSlots = [];
+  if (hasCurrent) paragraphSlots.push("current");
+  if (hasPeriod)  paragraphSlots.push("period");
+  if (hasRadar)   paragraphSlots.push("radar");
+  const paragraphWord = paragraphSlots.length === 1
     ? "one short paragraph"
-    : paragraphCount === 2 ? "two short paragraphs" : "three short paragraphs";
-  const secondInstruction = secondPeriodLabel
-    ? ` The second paragraph covers ${secondPeriodLabel} (1-2 sentences).`
+    : paragraphSlots.length === 2 ? "two short paragraphs" : "three short paragraphs";
+  const ordinal = (i) => ["first", "second", "third"][i] || `paragraph ${i + 1}`;
+
+  const instructions = paragraphSlots.map((slot, i) => {
+    const which = ordinal(i);
+    if (slot === "current") return `The ${which} paragraph covers current conditions (2-3 sentences).`;
+    if (slot === "period")  return `The ${which} paragraph covers ${secondPeriodLabel} (1-2 sentences).`;
+    if (slot === "radar") {
+      return `The ${which} paragraph MUST start with the literal label "Analyse radar : " (in ${language === "French" ? "French — keep this exact wording" : `${language}, translated as appropriate`}) and describe where precipitation is right now relative to the user, whether it is approaching, and an estimated arrival time if a band is moving toward them. Use the radar snapshots below to reason about movement. 1-3 sentences.`;
+    }
+    return "";
+  }).join(" ");
+
+  // When current conditions are missing (typically Tomorrow.io throttling),
+  // give Claude an explicit note so it doesn't invent values or apologise
+  // mid-summary.
+  const missingNote = !hasCurrent
+    ? " Note: live current-conditions data is temporarily unavailable; do not invent values for it. Lead with whatever sections are present."
     : "";
-  const radarInstruction = radarText
-    ? ` The ${secondPeriodLabel ? "third" : "second"} paragraph MUST start with the literal label "Analyse radar : " (in ${language === "French" ? "French — keep this exact wording" : `${language}, translated as appropriate`}) and describe where precipitation is right now relative to the user, whether it is approaching, and an estimated arrival time if a band is moving toward them. Use the radar snapshots below to reason about movement. 1-3 sentences.`
-    : "";
-  const radarSection = radarText
+
+  const radarSection = hasRadar
     ? `\n\nRadar samples (8 directions × 4 distances around the user, intensity 0-6):\n${radarText}`
     : "";
+  const currentSection = hasCurrent ? `Current conditions:\n${currentLines}` : "";
+  const dataPayload = [currentSection, secondSection, radarSection].filter(Boolean).join("");
 
   const distanceUnitInstruction = distanceUnit === "mi" ? "miles" : "km";
   const prompt =
-    `Write a weather summary in ${language} with ${paragraphWord}. The first paragraph covers current conditions (2-3 sentences).${secondInstruction}${radarInstruction} ` +
+    `Write a weather summary in ${language} with ${paragraphWord}. ${instructions}${missingNote} ` +
     `Throughout your response, ${unitInstruction(tempUnit, speedUnit)}, and ${distanceUnitInstruction} for distances. Match the unit symbols exactly as shown in the data below — do not convert. ` +
     `Be concise and conversational. Reply with plain text only — no title, no markdown, no labels before each paragraph (except the radar label described above).\n\n` +
-    `Current conditions:\n${currentLines}${secondSection}${radarSection}`;
+    `${dataPayload}`;
 
   try {
     const client = new Anthropic({ apiKey: settings.anthropicApiKey });
