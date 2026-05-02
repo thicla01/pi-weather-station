@@ -192,6 +192,7 @@
     "rss": "RSS",
     "cacheHitRate": "CACHE HIT RATE",
     "cpuTemp": "CPU TEMP",
+    "fanSpeed": "FAN SPEED",
     "hits": "HITS",
     "misses": "MISSES",
     "responseTimes": "RESPONSE TIMES",

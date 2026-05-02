@@ -412,7 +412,7 @@ Indicates whether the request originates from localhost. Used by the client to d
 Returns full server diagnostics for the debug panel.
 
 - **Access:** 🔒 Localhost only — also requires `DEBUG=true` server-side for the button to appear in the UI (the endpoint itself is always restricted regardless)
-- **Response:** large JSON object containing system info, KPIs, provider status, cache state, quota counters, service call history, security events, and recent log lines. The `serverKpis.cpuTempC` field holds the CPU temperature in degrees Celsius (read from `/sys/class/thermal/thermal_zone0/temp`); `null` on platforms that don't expose the file.
+- **Response:** large JSON object containing system info, KPIs, provider status, cache state, quota counters, service call history, security events, and recent log lines. The `serverKpis.cpuTempC` field holds the CPU temperature in degrees Celsius (read from `/sys/class/thermal/thermal_zone0/temp`); `null` on platforms that don't expose the file. The `serverKpis.fanRpm` field holds the fan speed in raw RPM (read from the first `/sys/class/hwmon/*/fan*_input` found — covers Pi 5 with the official Active Cooler, Pi 4 with PWM-fan overlays, and laptop x86 fans on Linux); `null` on hosts with no fan sensor exposed.
 
 ---
 
@@ -421,6 +421,14 @@ Lightweight endpoint polled by the debug panel every 5 s while open, for live CP
 
 - **Access:** 🔒 Localhost only
 - **Response:** `{ "cpuTempC": <number | null> }`
+
+---
+
+### `GET /api/debug/fan-speed`
+Lightweight endpoint polled by the debug panel every 5 s while open, alongside `cpu-temp`. Auto-detects the first `/sys/class/hwmon/*/fan*_input` exposed on the host (path cached after first scan — sysfs paths don't move at runtime). The client uses `available` to decide whether to render the FAN SPEED row at all (hidden on macOS, x86 without an exposed fan, and Pis without an Active Cooler).
+
+- **Access:** 🔒 Localhost only
+- **Response:** `{ "available": false }` when no fan sensor is exposed, otherwise `{ "available": true, "rpm": <number | null> }` (a value of `0` is valid — CPU cool, fan stopped — and is distinct from `null`, which means the file existed at detection time but became unreadable since).
 
 ---
 

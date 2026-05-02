@@ -192,6 +192,7 @@
     "rss": "RSS",
     "cacheHitRate": "TAUX DE CACHE",
     "cpuTemp": "TEMP. CPU",
+    "fanSpeed": "VENTILATEUR",
     "hits": "SUCCÈS",
     "misses": "MANQUÉS",
     "responseTimes": "TEMPS DE RÉPONSE",

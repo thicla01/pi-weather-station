@@ -59,7 +59,7 @@ const { getCoords } = geolocationCtrl;
 const { reverseGeocode: proxyReverseGeocode, mapTile, weatherCurrent, weatherHourly, weatherDaily, sunriseSunset, saveCacheToDisk } = proxyCtrl;
 const { responseTimerMiddleware } = require("./responseTimer");
 const { recordClient } = require("./clientTracker");
-const { getDebugInfo, getCpuTemp, logSecurityEvent, initServerInfo } = debugCtrl;
+const { getDebugInfo, getCpuTemp, getFanSpeed, logSecurityEvent, initServerInfo } = debugCtrl;
 const { getWeatherSummary } = aiSummaryCtrl;
 const { checkForUpdate, clearCache: clearUpdateCache } = require("./updateChecker");
 const rateLimit = require("express-rate-limit");
@@ -418,6 +418,7 @@ app.post("/api/update", localhostOnly, (req, res) => {
 
 app.get("/api/debug", debugLocalhostOnly, getDebugInfo);
 app.get("/api/debug/cpu-temp", debugLocalhostOnly, getCpuTemp);
+app.get("/api/debug/fan-speed", debugLocalhostOnly, getFanSpeed);
 
 // Display brightness — read open to anyone (for the client to know whether
 // to render the slider), write localhost-only (the brightness physically

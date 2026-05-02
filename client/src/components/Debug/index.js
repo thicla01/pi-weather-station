@@ -55,6 +55,12 @@ const Debug = () => {
   // a tiny /api/debug/cpu-temp endpoint. Initial value comes from the
   // full /api/debug response so there's no "—" flash on first paint.
   const [cpuTemp, setCpuTemp] = useState(null);
+  // Live fan speed, same pattern as cpuTemp. The full /api/debug response
+  // includes the value in serverKpis.fanRpm; the lightweight endpoint also
+  // tells us whether a fan sensor is exposed at all (`available: false` →
+  // hide the row entirely, same UX as the brightness slider).
+  const [fanRpm, setFanRpm] = useState(null);
+  const [fanAvailable, setFanAvailable] = useState(null); // null = unknown, bool once probed
   const contentScrollRef = useDragScroll();
 
   const fetchDebugInfo = useCallback(() => {
@@ -70,6 +76,11 @@ const Debug = () => {
         }
         if (res.data?.serverKpis?.cpuTempC !== undefined) {
           setCpuTemp(res.data.serverKpis.cpuTempC);
+        }
+        if (res.data?.serverKpis?.fanRpm !== undefined) {
+          // Initial seed from the full debug payload — the per-tick
+          // endpoint then keeps it fresh and confirms availability.
+          setFanRpm(res.data.serverKpis.fanRpm);
         }
       })
       .catch(() => setData(null))
@@ -105,6 +116,25 @@ const Debug = () => {
         .catch(() => { /* non-critical — keep previous value */ });
     };
     const interval = setInterval(fetchCpuTemp, 5000);
+    return () => clearInterval(interval);
+  }, [debugMenuOpen]);
+
+  // Live fan-speed poll — same cadence as CPU temp. The endpoint also
+  // tells us whether a fan sensor is exposed at all so we can hide the
+  // row entirely on Pis without an Active Cooler, x86 without an
+  // exposed fan, and macOS dev machines.
+  useEffect(() => {
+    if (!debugMenuOpen) return undefined;
+    const fetchFan = () => {
+      axios.get("/api/debug/fan-speed")
+        .then((res) => {
+          setFanAvailable(Boolean(res.data?.available));
+          if (res.data?.available) setFanRpm(res.data.rpm);
+        })
+        .catch(() => { /* non-critical — keep previous value */ });
+    };
+    fetchFan();
+    const interval = setInterval(fetchFan, 5000);
     return () => clearInterval(interval);
   }, [debugMenuOpen]);
 
@@ -222,7 +252,7 @@ const Debug = () => {
         <div className={styles.content} ref={contentScrollRef}>
           <div className={styles.columns}>
             <ServerConfigSection serverConfig={data?.serverConfig} network={data?.network} />
-            <ServerKpiSection serverKpis={data?.serverKpis} cpuTemp={cpuTemp} />
+            <ServerKpiSection serverKpis={data?.serverKpis} cpuTemp={cpuTemp} fanRpm={fanRpm} fanAvailable={fanAvailable} />
             <ClientKpiSection
               fps={fps}
               setFps={setFps}
@@ -738,6 +768,7 @@ function exportDebugCsv(data, clientMetrics, fps) {
     rows.push([q("Cache Hits"),         q(kpis.cache.hits)]);
     rows.push([q("Cache Misses"),       q(kpis.cache.misses)]);
     rows.push([q("CPU Temp (°C)"),      q(kpis.cpuTempC != null ? kpis.cpuTempC : "N/A")]);
+    rows.push([q("Fan Speed (RPM)"),    q(kpis.fanRpm != null ? kpis.fanRpm : "N/A")]);
   } else {
     rows.push([q("(no data)")]);
   }
@@ -932,9 +963,11 @@ ServerConfigSection.propTypes = {
  * @param {object} props
  * @param {object} props.serverKpis
  * @param {number|null} props.cpuTemp Live CPU temperature in °C
+ * @param {number|null} props.fanRpm Live fan speed in raw RPM (0 valid)
+ * @param {boolean|null} props.fanAvailable Whether a fan sensor is exposed
  * @returns {JSX.Element} Server KPI section
  */
-const ServerKpiSection = ({ serverKpis, cpuTemp }) => {
+const ServerKpiSection = ({ serverKpis, cpuTemp, fanRpm, fanAvailable }) => {
   const { t } = useTranslation();
   const kpis = serverKpis;
 
@@ -993,6 +1026,14 @@ const ServerKpiSection = ({ serverKpis, cpuTemp }) => {
                 {cpuTemp != null ? `${cpuTemp.toFixed(1)}°C` : "—"}
               </span>
             </div>
+            {fanAvailable && (
+              <div className={styles.kpiItem}>
+                <span className={styles.kpiLabel}>{t("debug.fanSpeed")}</span>
+                <span className={styles.kpiValue}>
+                  {fanRpm != null ? `${fanRpm} RPM` : "—"}
+                </span>
+              </div>
+            )}
           </div>
 
           {kpis.powerStatus?.available && (
@@ -1029,6 +1070,8 @@ const ServerKpiSection = ({ serverKpis, cpuTemp }) => {
 };
 
 ServerKpiSection.propTypes = {
+  fanRpm: PropTypes.number,
+  fanAvailable: PropTypes.bool,
   serverKpis: PropTypes.shape({
     uptimeSec: PropTypes.number,
     memory: PropTypes.shape({
@@ -1044,6 +1087,7 @@ ServerKpiSection.propTypes = {
     responseTimes: PropTypes.array,
     powerStatus: PropTypes.object,
     cpuTempC: PropTypes.number,
+    fanRpm: PropTypes.number,
   }),
   cpuTemp: PropTypes.number,
 };

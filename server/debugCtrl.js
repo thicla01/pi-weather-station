@@ -309,6 +309,70 @@ function getCpuTempC() {
   }
 }
 
+// Cached fan-input path. Resolved once on first call by walking
+// /sys/class/hwmon/* for any fanN_input file. Pi 5 with the official
+// Active Cooler exposes /sys/devices/platform/cooling_fan/hwmon/N/fan1_input,
+// which symlinks back into /sys/class/hwmon — so the same scan covers Pi
+// 4 with PWM overlays, Pi 5 cooler, and laptop x86 fans on Linux.
+//   undefined → not yet resolved
+//   null      → resolved, no fan available on this host
+//   string    → absolute path to the input file
+let fanInputPath;
+
+/**
+ * Find the first fan input file exposed under /sys/class/hwmon/. Returns
+ * null when no fan sensor is present (macOS, Pis without active coolers,
+ * x86 desktops without an exposed fan), or the absolute path otherwise.
+ * Result cached at module scope — sysfs paths don't move at runtime.
+ *
+ * @returns {String|null}
+ */
+function findFanInputPath() {
+  if (fanInputPath !== undefined) return fanInputPath;
+  try {
+    const hwmonDir = "/sys/class/hwmon";
+    const entries = fs.readdirSync(hwmonDir);
+    for (const entry of entries) {
+      const dir = `${hwmonDir}/${entry}`;
+      let files;
+      try {
+        files = fs.readdirSync(dir);
+      } catch {
+        continue;
+      }
+      const fan = files.find((f) => /^fan\d+_input$/.test(f));
+      if (fan) {
+        fanInputPath = `${dir}/${fan}`;
+        return fanInputPath;
+      }
+    }
+  } catch {
+    // /sys/class/hwmon doesn't exist (macOS) or is unreadable
+  }
+  fanInputPath = null;
+  return null;
+}
+
+/**
+ * Read the cached fan-input file. Returns the raw RPM as an integer, or
+ * null when no fan sensor is available on this host. 0 RPM is a valid
+ * reading (CPU cool, fan stopped) — we only treat path absence as
+ * "unavailable".
+ *
+ * @returns {Number|null}
+ */
+function getFanRpm() {
+  const path = findFanInputPath();
+  if (!path) return null;
+  try {
+    const raw = fs.readFileSync(path, "utf8");
+    const rpm = parseInt(raw.trim(), 10);
+    return Number.isFinite(rpm) ? rpm : null;
+  } catch {
+    return null;
+  }
+}
+
 const securityEvents = [];
 const MAX_SECURITY_EVENTS = 50;
 const LOG_LINES = 100;
@@ -393,6 +457,7 @@ async function getDebugInfo(req, res) {
     responseTimes: getResponseTimeStats(),
     powerStatus: getPowerStatus(),
     cpuTempC: getCpuTempC(),
+    fanRpm: getFanRpm(),
   };
 
   // Resolve hostnames for remote clients (cached, best-effort)
@@ -418,4 +483,20 @@ function getCpuTemp(req, res) {
   return res.status(200).json({ cpuTempC: getCpuTempC() });
 }
 
-module.exports = { getDebugInfo, getCpuTemp, logSecurityEvent, initServerInfo };
+/**
+ * Lightweight fan-speed endpoint, polled at the same cadence as cpu-temp.
+ * Returns `{ available: false }` when no fan sensor is exposed on the host
+ * — the client uses that flag to hide the row entirely (same UX pattern as
+ * the brightness slider). When available, `rpm` is the raw integer (0 is a
+ * valid reading: CPU cool, fan stopped).
+ *
+ * @param {Object} req
+ * @param {Object} res
+ */
+function getFanSpeed(req, res) {
+  const path = findFanInputPath();
+  if (!path) return res.status(200).json({ available: false });
+  return res.status(200).json({ available: true, rpm: getFanRpm() });
+}
+
+module.exports = { getDebugInfo, getCpuTemp, getFanSpeed, logSecurityEvent, initServerInfo };
