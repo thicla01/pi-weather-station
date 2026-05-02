@@ -88,7 +88,7 @@
     "5dayWind": "Vent 5 jours / Précipitations ({{unit}})",
     "24hourTemp": "Temp. 24 heures / Précipitations",
     "24hourWind": "Vent 24 heures / Précipitations ({{unit}})",
-    "windSpeed": "Vitesse du vent",
+    "windSpeed": "Vent",
     "temp": "Temp.",
     "precipitation": "Précipitations",
     "tab24h": "24 heures",
