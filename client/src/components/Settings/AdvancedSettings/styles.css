@@ -18,19 +18,24 @@
   font-size: 1em;
   opacity: 0.85;
   padding: 0.7em 0.8em;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(255, 255, 255, 0.15);
+  /* Warm amber-orange tint matching the notice banners — visually links
+     the toggle with its associated notice and stands out against the
+     dark panel without being shouty. Border-left echoes the notice
+     pattern for the same family-resemblance. */
+  background: rgba(220, 150, 80, 0.18);
+  border: 1px solid rgba(220, 150, 80, 0.4);
+  border-left: 3px solid rgba(220, 150, 80, 0.85);
   border-radius: 4px;
   transition: background-color 0.15s ease, opacity 0.15s ease;
 }
 
 .advanced-toggle:hover {
   opacity: 1;
-  background: rgba(255, 255, 255, 0.1);
+  background: rgba(220, 150, 80, 0.28);
 }
 
 .advanced-toggle:active {
-  background: rgba(255, 255, 255, 0.15);
+  background: rgba(220, 150, 80, 0.4);
 }
 
 .chevron {
@@ -79,10 +84,14 @@
 }
 
 .read-only-notice {
+  /* Warm amber-orange — reads as "attention" rather than the previous
+     muted gold, while keeping the same transparent treatment so it
+     doesn't compete with the actual content. Matches .remote-notice
+     in Settings/styles.css; the two should stay in lockstep. */
   font-size: 0.85em;
   font-style: italic;
-  background: rgba(201, 169, 97, 0.12);
-  border-left: 3px solid rgba(201, 169, 97, 0.6);
+  background: rgba(220, 150, 80, 0.18);
+  border-left: 3px solid rgba(220, 150, 80, 0.85);
   padding: 0.5em 0.7em;
   margin-bottom: 0.8em;
   border-radius: 2px;

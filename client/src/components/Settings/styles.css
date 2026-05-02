@@ -105,10 +105,13 @@
 }
 
 .remote-notice {
+  /* Warm amber-orange — reads as "attention" rather than muted gold,
+     keeping transparent treatment. Matches .read-only-notice in
+     AdvancedSettings/styles.css; the two should stay in lockstep. */
   font-size: 0.85em;
   font-style: italic;
-  background: rgba(201, 169, 97, 0.12);
-  border-left: 3px solid rgba(201, 169, 97, 0.6);
+  background: rgba(220, 150, 80, 0.18);
+  border-left: 3px solid rgba(220, 150, 80, 0.85);
   padding: 0.6em 0.8em;
   margin: 4px 0 12px 0;
   border-radius: 2px;
