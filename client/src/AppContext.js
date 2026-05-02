@@ -95,6 +95,13 @@ export function AppContextProvider({ children }) {
   const [defaultMapZoom, setDefaultMapZoom] = useState(DEFAULT_MAP_ZOOM_FALLBACK);
   const [currentMapZoom, setCurrentMapZoom] = useState(DEFAULT_MAP_ZOOM_FALLBACK);
   const [zoomToLevel, setZoomToLevel] = useState(null);
+  // Radar-risk levels for the inner / outer dashed circles, populated by
+  // WeatherMap's /api/radar-risk poll. Lifted to AppContext so the
+  // InfoPanel's AlertBanner can consume the same state without duplicating
+  // the polling logic. null = not yet loaded (or fetch failed); strings are
+  // "calm" | "yellow" | "orange" | "red".
+  const [innerRisk, setInnerRisk] = useState(null);
+  const [outerRisk, setOuterRisk] = useState(null);
   const [clockTime, setClockTime] = useState("12"); // 12h or 24h time for clock
   const [animateWeatherMap, setAnimateWeatherMap] = useState(false);
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
@@ -986,6 +993,10 @@ export function AppContextProvider({ children }) {
     setCurrentMapZoom,
     zoomToLevel,
     setZoomToLevel,
+    innerRisk,
+    setInnerRisk,
+    outerRisk,
+    setOuterRisk,
     animateWeatherMap,
     toggleAnimateWeatherMap,
     settingsMenuOpen,

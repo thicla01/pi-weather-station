@@ -232,10 +232,34 @@ async function getTile(framePath, tileX, tileY) {
   return png;
 }
 
+/**
+ * Read a 3×3 pixel neighbourhood around (x, y) and return the worst-case
+ * intensity. Single-pixel sampling on RainViewer tiles is noisy: a probe
+ * sitting between two precipitation bands, on an anti-aliased edge
+ * (alpha < ALPHA_THRESHOLD), or in a tiny gap inside a band would report
+ * "clear" even though the surrounding ~100 m clearly shows rain to the
+ * naked eye. Sampling 3×3 (~9 reads, negligible cost) absorbs that noise
+ * while only diluting spatial precision by ±1 pixel — at zoom 7 that's
+ * roughly ±100 m on the ground, well below the geometry's resolution.
+ *
+ * @param {Object} png Decoded PNG buffer
+ * @param {Number} x Centre pixel X within the tile
+ * @param {Number} y Centre pixel Y within the tile
+ * @returns {Number} Max intensity (0–6) across the 3×3 window
+ */
 function readPixelIntensity(png, x, y) {
-  if (x < 0 || x >= png.width || y < 0 || y >= png.height) return 0;
-  const idx = (y * png.width + x) * 4;
-  return pixelToIntensity(png.data[idx], png.data[idx + 1], png.data[idx + 2], png.data[idx + 3]);
+  let max = 0;
+  for (let dy = -1; dy <= 1; dy++) {
+    for (let dx = -1; dx <= 1; dx++) {
+      const px = x + dx;
+      const py = y + dy;
+      if (px < 0 || px >= png.width || py < 0 || py >= png.height) continue;
+      const idx = (py * png.width + px) * 4;
+      const intensity = pixelToIntensity(png.data[idx], png.data[idx + 1], png.data[idx + 2], png.data[idx + 3]);
+      if (intensity > max) max = intensity;
+    }
+  }
+  return max;
 }
 
 /**
@@ -289,10 +313,13 @@ async function buildSnapshot(lat, lon, framePath, points) {
  * @returns {String|null}
  */
 function formatSnapshot(samples, label, unit) {
-  // Group by direction. The display order follows the 16-point compass so
-  // both 8-direction (inner-only) and 16-direction (with doubled outer)
-  // snapshots come out sorted N → NNE → NE → … → NNW.
+  // Group by direction. The display order is "C" (the user's exact location)
+  // first, then the 16-point compass so both 8-direction (inner-only) and
+  // 16-direction (with doubled outer) snapshots come out sorted N → NNE → NE
+  // → … → NNW. The center sample matters because a small cell sitting right
+  // on the marker would otherwise sit between the 5 km probes and be missed.
   const byDir = new Map();
+  byDir.set("C", []);
   for (const dir of OUTER_DIRECTIONS_DOUBLED) byDir.set(dir.name, []);
   for (const s of samples) {
     if (!byDir.has(s.direction)) byDir.set(s.direction, []);
@@ -305,14 +332,16 @@ function formatSnapshot(samples, label, unit) {
 
   let anyHit = false;
   const lines = [];
-  for (const dir of OUTER_DIRECTIONS_DOUBLED) {
-    const dirSamples = byDir.get(dir.name).sort((a, b) => a.distance - b.distance);
-    if (!dirSamples.length) continue;
+  const directionOrder = ["C", ...OUTER_DIRECTIONS_DOUBLED.map((d) => d.name)];
+  for (const dirName of directionOrder) {
+    const dirSamples = byDir.get(dirName);
+    if (!dirSamples || !dirSamples.length) continue;
+    dirSamples.sort((a, b) => a.distance - b.distance);
     const parts = dirSamples.map((s) => {
       if (s.intensity > 0) anyHit = true;
       return `${fmtDist(s.distance)} ${INTENSITY_LABELS[s.intensity]}`;
     });
-    lines.push(`  ${dir.name.padEnd(3)} : ${parts.join(", ")}`);
+    lines.push(`  ${dirName.padEnd(3)} : ${parts.join(", ")}`);
   }
 
   // Largest sampled distance, used to phrase the "no precipitation" line
@@ -344,10 +373,13 @@ async function analyzeRadar(lat, lon, options = {}) {
   const kmPerUnit = KM_PER_UNIT[unit];
 
   // Build the (direction, distance, bearing, distanceKm) tuples to sample.
-  // Inner ring is always 8 directions; outer ring (if enabled) is 8 or 16
-  // directions. distance carries the user-unit value (used for display);
-  // distanceKm is the same value converted to km for the great-circle math.
-  const points = [];
+  // The first sample is at the user's exact location (direction "C", distance
+  // 0) so a small precipitation cell sitting right on the marker — too narrow
+  // to reach the 5 km / 3 mi probes — still registers. Inner ring is always
+  // 8 directions; outer ring (if enabled) is 8 or 16. distance carries the
+  // user-unit value (used for display); distanceKm is the same value
+  // converted to km for the great-circle math.
+  const points = [{ direction: "C", distance: 0, bearing: 0, distanceKm: 0 }];
   for (const dir of INNER_DIRECTIONS) {
     for (const distance of geometry.inner) {
       points.push({ direction: dir.name, distance, bearing: dir.bearing, distanceKm: distance * kmPerUnit });
@@ -464,7 +496,11 @@ async function getRiskLevels(lat, lon, options = {}) {
   if (!frame) return null;
 
   // Build inner sample points (always evaluated when this endpoint is hit).
-  const innerPoints = [];
+  // First sample is the user's exact location so a small cell sitting right
+  // on the marker still bumps the inner-ring max-intensity score, matching
+  // the analyzer's geometry. The center sample naturally feeds the same
+  // worst-case calculation as the rest of the ring.
+  const innerPoints = [{ direction: "C", distance: 0, bearing: 0, distanceKm: 0 }];
   for (const dir of INNER_DIRECTIONS) {
     for (const distance of geometry.inner) {
       innerPoints.push({ direction: dir.name, distance, bearing: dir.bearing, distanceKm: distance * kmPerUnit });
@@ -481,11 +517,13 @@ async function getRiskLevels(lat, lon, options = {}) {
 
   let innerMax = 0;
   let outerMax = 0;
+  let innerSamples = [];
+  let outerSamples = [];
   try {
-    const innerSamples = await buildSnapshot(lat, lon, frame.path, innerPoints);
+    innerSamples = await buildSnapshot(lat, lon, frame.path, innerPoints);
     innerMax = innerSamples.reduce((m, s) => Math.max(m, s.intensity), 0);
     if (outerPoints.length) {
-      const outerSamples = await buildSnapshot(lat, lon, frame.path, outerPoints);
+      outerSamples = await buildSnapshot(lat, lon, frame.path, outerPoints);
       outerMax = outerSamples.reduce((m, s) => Math.max(m, s.intensity), 0);
     }
   } catch (err) {
@@ -493,10 +531,15 @@ async function getRiskLevels(lat, lon, options = {}) {
     return null;
   }
 
+  // Per-sample intensities ride along with the ring summary so the
+  // WeatherMap can colour each visible sampling-point dot by its own
+  // intensity (same tier mapping as the ring stroke). Each sample is
+  // {direction, distance, intensity}; the client matches them to its
+  // own buildSamplingPoints output by `${direction}:${distance}` key.
   const result = {
-    inner: { level: RISK_LEVELS[innerMax], maxIntensity: innerMax },
+    inner: { level: RISK_LEVELS[innerMax], maxIntensity: innerMax, samples: innerSamples },
     outer: outerPoints.length
-      ? { level: RISK_LEVELS[outerMax], maxIntensity: outerMax }
+      ? { level: RISK_LEVELS[outerMax], maxIntensity: outerMax, samples: outerSamples }
       : null,
     timestamp: frame.time,
   };

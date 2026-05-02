@@ -189,9 +189,9 @@ The response can be 1, 2, or 3 paragraphs depending on what data is available:
 1. **Current conditions** (always)
 2. **Period preview** when timestamp params are present and the matching cache (hourly/daily) is hot — evening preview (18h–21h) in the morning/afternoon, overnight preview (21h–5h) in the evening, next-day preview at night
 3. **Radar analysis** (since v2.4.0) when the radar analyzer can sample tiles successfully — starts with the localised label `Analyse radar : ...` and describes where precipitation is, whether it is approaching, and an estimated arrival time. Sampling geometry depends on `distanceUnit` and the `advanced.ai.*` settings:
-   - **Default (inner ring only):** 32 points = 8 directions (N/NE/E/.../NW) × 4 distances. Distances are `5/15/30/50 km` when `distanceUnit=km` (inner circle 50 km) and `3/10/20/30 mi` when `distanceUnit=mi` (inner circle 30 mi).
-   - **`extendedRadius: true`:** adds an outer ring with 3 distances (`65/80/100 km` or `40/50/60 mi`). With 8 directions on the outer ring → 56 points total. The map shows a second dashed circle (100 km or 60 mi) in addition to the inner one.
-   - **`extendedRadius: true` + `doubleOuterPoints: true`:** outer ring sampled at 16 directions (every 22.5°) instead of 8, to keep point density per km² uniform across the inner and outer rings → 80 points total.
+   - **Default (inner ring only):** 33 points = 1 centre point on the user's exact location (labelled `C` in the prompt grid) + 8 directions (N/NE/E/.../NW) × 4 distances. Distances are `5/15/30/50 km` when `distanceUnit=km` (inner circle 50 km) and `3/10/20/30 mi` when `distanceUnit=mi` (inner circle 30 mi). The centre sample catches small cells sitting right on the marker — too narrow to extend out to the closest 5 km / 3 mi probes.
+   - **`extendedRadius: true`:** adds an outer ring with 3 distances (`65/80/100 km` or `40/50/60 mi`). With 8 directions on the outer ring → 57 points total. The map shows a second dashed circle (100 km or 60 mi) in addition to the inner one.
+   - **`extendedRadius: true` + `doubleOuterPoints: true`:** outer ring sampled at 16 directions (every 22.5°) instead of 8, to keep point density per km² uniform across the inner and outer rings → 81 points total.
    Each point is read at 3 timestamps (now, -15 min, -45 min) on RainViewer raster tiles, decoded server-side via `pngjs`, and fed to Claude as a compact textual grid. Set `advanced.ai.radarAnalysisEnabled: false` to skip this paragraph entirely (and the matching circles on the map).
 
 Summaries are cached 15 minutes server-side, keyed by `lat:lon:lang:period:tempUnit:speedUnit:distanceUnit` so toggling user-facing units never returns a stale snapshot in the wrong unit system.
@@ -250,7 +250,8 @@ The outer ring is sampled only when `advanced.ai.extendedRadius` is `true` (serv
 |---|---|---|
 | `inner.level` | string | `calm` \| `yellow` \| `orange` \| `red` |
 | `inner.maxIntensity` | integer | Worst-case RainViewer intensity (0–6) sampled on the inner ring |
-| `outer` | object \| null | Same shape as `inner`, or `null` when `extendedRadius` is off |
+| `inner.samples` | array | Per-point intensities: `[{ direction, distance, intensity }, ...]` — direction is `C` for the centre + 8 cardinals (`N`/`NE`/.../`NW`); distance is in the user's unit. Used by the WeatherMap to colour individual sampling-point dots when that overlay is on. |
+| `outer` | object \| null | Same shape as `inner` (level + maxIntensity + samples), or `null` when `extendedRadius` is off |
 | `timestamp` | integer | Unix timestamp (seconds) of the RainViewer frame the result is computed from |
 
 - **Errors:** HTTP 503 when RainViewer is unreachable or returns no recent frames

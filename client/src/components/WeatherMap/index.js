@@ -87,42 +87,88 @@ function offsetLatLon(lat, lon, distanceKm, bearingDeg) {
  * @param {String} unit "km" or "mi" — selects the geometry table
  * @returns {Array<[Number, Number]>} Array of [lat, lng] pairs
  */
+// Bearing → 8-point compass label (matches the server's INNER_DIRECTIONS).
+// 16-point names follow when doubleOuterPoints is on; only used to key the
+// outer-ring samples back to the response payload.
+const BEARING_TO_DIR_8 = {
+  0: "N", 45: "NE", 90: "E", 135: "SE", 180: "S", 225: "SW", 270: "W", 315: "NW",
+};
+const BEARING_TO_DIR_16 = {
+  ...BEARING_TO_DIR_8,
+  22.5: "NNE", 67.5: "ENE", 112.5: "ESE", 157.5: "SSE",
+  202.5: "SSW", 247.5: "WSW", 292.5: "WNW", 337.5: "NNW",
+};
+
 function buildSamplingPoints(center, extended, doubleOuter, unit) {
   const [centerLat, centerLng] = center;
   const geometry = RADAR_GEOMETRY[unit];
   const kmPerUnit = KM_PER_UNIT[unit];
-  const points = [];
+  // Each entry carries the lat/lng pair plus a `${direction}:${distance}`
+  // key that matches the server's per-sample shape. The renderer uses the
+  // key to look up the sample's intensity in the polled risk payload and
+  // colour the dot accordingly.
+  // Centre point — matches the "C" direction the server samples directly at
+  // (lat, lon) so a cell sitting right on the marker still registers in the
+  // analyzer and the risk score. The dot sits under the location marker so
+  // it's mostly hidden visually, but stays consistent with the principle
+  // that every analysed point gets a corresponding overlay dot.
+  const points = [{ position: [centerLat, centerLng], key: "C:0" }];
   for (const bearing of INNER_BEARINGS) {
+    const dir = BEARING_TO_DIR_8[bearing];
     for (const distance of geometry.inner) {
       const p = offsetLatLon(centerLat, centerLng, distance * kmPerUnit, bearing);
-      points.push([p.lat, p.lon]);
+      points.push({ position: [p.lat, p.lon], key: `${dir}:${distance}` });
     }
   }
   if (extended) {
     const outerBearings = doubleOuter ? OUTER_BEARINGS_DOUBLED : INNER_BEARINGS;
+    const dirMap = doubleOuter ? BEARING_TO_DIR_16 : BEARING_TO_DIR_8;
     for (const bearing of outerBearings) {
+      const dir = dirMap[bearing];
       for (const distance of geometry.outer) {
         const p = offsetLatLon(centerLat, centerLng, distance * kmPerUnit, bearing);
-        points.push([p.lat, p.lon]);
+        points.push({ position: [p.lat, p.lon], key: `${dir}:${distance}` });
       }
     }
   }
   return points;
 }
 
+// Intensity → tier mapping matching the server's RISK_LEVELS array.
+// Returns null for clear (intensity 0) so the caller can keep the
+// neutral default colour for that case.
+function tierForIntensity(intensity) {
+  if (intensity == null || intensity <= 0) return null;
+  if (intensity >= 5) return "red";
+  if (intensity >= 4) return "orange";
+  return "yellow";
+}
+
+// Sampling-point dot palette. Diverges from RING_RISK_STYLE only on the
+// light-mode yellow: the rings' goldenrod (#c9a200) reads cleanly as a
+// 4-px stroke but drowns as a small filled disc on cream — bright pure
+// yellow #f0e600 has more visible area at dot scale. Orange and red
+// have enough mid-tone luminance to stay readable in either treatment.
+const DOT_COLOR_BY_TIER = {
+  light: { yellow: "#f0e600", orange: "#f08200", red: "#e60000" },
+  dark:  { yellow: "#f0e600", orange: "#f08200", red: "#e60000" },
+};
+
 // Risk-level colour mapping for the dashed radar circles. The four tiers
-// match the server's RISK_LEVELS in radarAnalyzerCtrl.js. Theme-aware:
-// dark mode echoes the radar-tile palette directly (high contrast against
-// the dark basemap); light mode shifts yellow to a deeper amber because
-// the radar's pure yellow stroke (~93% luminance) drowns against the
-// cream basemap (~92% luminance) — fine for filled tiles, useless for a
-// 3-px line. Orange and red have enough mid-tone luminance to read on
-// both themes unchanged. Bumped weight on the red tier makes the
-// severe-tier alert glanceable at the 7" / 10" kiosk distance.
+// match the server's RISK_LEVELS in radarAnalyzerCtrl.js. Both themes
+// now use the radar-tile palette directly (yellow / orange / red); the
+// pure yellow used to drown against the cream basemap as a 3-px stroke,
+// but buildRingPathOptions now renders coloured rings as a dark outline
+// + bright stroke on top in light mode (the same trick the dot renderer
+// uses) — that gives the bright tier colours back without sacrificing
+// readability. Dark mode keeps the single-stroke look since the dark
+// basemap gives the colours enough contrast on its own. Bumped weight
+// on the red tier makes the severe-tier alert glanceable at the
+// 7" / 10" kiosk distance.
 const RING_RISK_STYLE = {
   light: {
-    yellow: { color: "#c9a200", weight: 4 },
-    orange: { color: "#f08200", weight: 4 },
+    yellow: { color: "#f0e600", weight: 3 },
+    orange: { color: "#f08200", weight: 3 },
     red:    { color: "#e60000", weight: 4 },
   },
   dark: {
@@ -131,32 +177,100 @@ const RING_RISK_STYLE = {
     red:    { color: "#e60000", weight: 4 },
   },
 };
+const RING_OUTLINE_COLOR = "#3a3938";   // dark-grey halo behind coloured strokes in light mode
+const RING_OUTLINE_EXTRA_WEIGHT = 2;    // outline extends ~1 px on each side of the coloured stroke
 
 /**
- * Build the Leaflet pathOptions for a dashed radar circle, given the
- * current risk level (null while loading, "calm" otherwise) and the
- * theme. Falls back to the original neutral dashed stroke when the
- * level is null/calm.
+ * Build the Leaflet pathOptions stack for a dashed radar circle. Returns
+ * one or two layers: a single neutral stroke for calm rings (and dark-
+ * mode coloured rings, where the dark basemap provides natural contrast),
+ * or a darker outline + bright coloured stroke pair for light-mode
+ * coloured rings. The two-layer trick lets us keep the bright radar-tile
+ * palette (#f0e600 / #f08200 / #e60000) without it drowning against the
+ * cream basemap — the outline does the heavy lifting on contrast.
+ *
+ * Dark-mode calm uses a warm desaturated grey instead of near-white. The
+ * previous #f6f6f4 read as "alarm" against the dark basemap even when
+ * there was no precipitation; #a8a097 picks up the dark-panel tones.
  *
  * @param {String|null} risk Risk level, or null when not yet loaded
  * @param {Boolean} dark Dark-mode flag
- * @returns {object} pathOptions ready to spread onto a Circle
+ * @returns {Array<object>} Ordered list of pathOptions; render in order
+ *   so the coloured stroke sits on top of the outline.
  */
-function buildRingPathOptions(risk, dark) {
+function buildRingLayers(risk, dark) {
   const overlay = risk && RING_RISK_STYLE[dark ? "dark" : "light"][risk];
-  // Dark-mode calm uses a warm desaturated grey instead of near-white. The
-  // previous #f6f6f4 read as "alarm" against the dark basemap even when
-  // there was no precipitation; #a8a097 picks up the dark-panel tones,
-  // stays visible without competing with the radar tile colours, and lets
-  // the risk tiers (yellow / orange / red) actually pop when they fire.
-  return {
-    color: overlay ? overlay.color : (dark ? "#a8a097" : "#3a3938"),
-    weight: overlay ? overlay.weight : 2,
-    opacity: 0.85,
-    dashArray: "6 6",
-    fill: false,
-  };
+  const baseDash = "6 6";
+  // Calm / not yet loaded — single neutral ring, theme-aware.
+  if (!overlay) {
+    return [{
+      color: dark ? "#a8a097" : "#3a3938",
+      weight: 2,
+      opacity: 0.85,
+      dashArray: baseDash,
+      fill: false,
+    }];
+  }
+  // Dark mode coloured tier — single bright stroke; basemap contrasts it.
+  if (dark) {
+    return [{
+      color: overlay.color,
+      weight: overlay.weight,
+      opacity: 0.85,
+      dashArray: baseDash,
+      fill: false,
+    }];
+  }
+  // Light mode coloured tier — dark continuous outline beneath, bright
+  // dashed stroke on top. The outline is intentionally NOT dashed: if it
+  // shared the dash pattern, the gap zones would have no outline either
+  // and the visual effect collapsed to "fat coloured dashes". A solid
+  // outline gives a clean dark ring with bright dashes embedded in it.
+  return [
+    {
+      color: RING_OUTLINE_COLOR,
+      weight: overlay.weight + RING_OUTLINE_EXTRA_WEIGHT,
+      opacity: 0.85,
+      fill: false,
+    },
+    {
+      color: overlay.color,
+      weight: overlay.weight,
+      opacity: 1,
+      dashArray: baseDash,
+      fill: false,
+    },
+  ];
 }
+
+/**
+ * Wrapper that renders one or two stacked dashed circles based on the
+ * risk tier — see buildRingLayers for the layering logic.
+ *
+ * @param {object} props
+ * @param {Array<Number>} props.center [lat, lng] pair for the circle centre
+ * @param {Number} props.radius Circle radius in metres
+ * @param {String|null} props.risk Risk level, or null when not yet loaded
+ * @param {Boolean} props.dark Dark-mode flag
+ * @returns {JSX.Element} One or two stacked Circles
+ */
+const RiskRing = ({ center, radius, risk, dark }) => {
+  const layers = buildRingLayers(risk, dark);
+  return (
+    <>
+      {layers.map((opts, i) => (
+        <Circle key={i} center={center} radius={radius} pathOptions={opts} />
+      ))}
+    </>
+  );
+};
+
+RiskRing.propTypes = {
+  center: PropTypes.array.isRequired,
+  radius: PropTypes.number.isRequired,
+  risk: PropTypes.string,
+  dark: PropTypes.bool,
+};
 
 const RADAR_LEGEND_ITEMS = [
   { color: "#00d0d0", key: "veryLight" },
@@ -343,6 +457,10 @@ const WeatherMap = ({ zoom, dark }) => {
     setCurrentMapZoom,
     zoomToLevel,
     setZoomToLevel,
+    innerRisk,
+    setInnerRisk,
+    outerRisk,
+    setOuterRisk,
   } = useContext(AppContext);
 
   // Largest sample in each ring drives the circle radius. Multiplied by
@@ -370,11 +488,14 @@ const WeatherMap = ({ zoom, dark }) => {
   const [currentMapTimestampIdx, setCurrentMapTimestampIdx] = useState(0);
   const animationIntervalRef = useRef(null);
 
-  // Risk levels for the dashed circles. Each is "calm" | "yellow" |
-  // "orange" | "red" — see RING_RISK_STYLE below for the colour mapping.
-  // Null means "not loaded yet" (or fetch failed) → ring renders neutral.
-  const [innerRisk, setInnerRisk] = useState(null);
-  const [outerRisk, setOuterRisk] = useState(null);
+  // Risk levels for the dashed circles live in AppContext (see InfoPanel's
+  // AlertBanner, which reads the same state to surface the alert text). We
+  // only keep the polling logic here because it's gated by the same
+  // conditions as the circles themselves.
+  // Per-point intensities for colouring sampling-point dots stay local —
+  // only the renderer below cares about them. Map keyed by `${dir}:${dist}`
+  // so the dot lookup is O(1) regardless of how many points are visible.
+  const [riskSamples, setRiskSamples] = useState(() => new Map());
   const riskIntervalRef = useRef(null);
 
   const MAP_TIMESTAMP_REFRESH_FREQUENCY = 1000 * 60 * 10; //update every 10 minutes
@@ -428,6 +549,7 @@ const WeatherMap = ({ zoom, dark }) => {
     if (!riskFetchEnabled) {
       setInnerRisk(null);
       setOuterRisk(null);
+      setRiskSamples(new Map());
       return undefined;
     }
     const fetchRisk = () => {
@@ -441,6 +563,17 @@ const WeatherMap = ({ zoom, dark }) => {
         .then((res) => {
           setInnerRisk(res.data?.inner?.level || "calm");
           setOuterRisk(res.data?.outer?.level || null);
+          // Build the lookup map from inner + outer samples. Same
+          // direction:distance keying as buildSamplingPoints, so the
+          // renderer can colour each dot in O(1).
+          const map = new Map();
+          for (const s of res.data?.inner?.samples || []) {
+            map.set(`${s.direction}:${s.distance}`, s.intensity);
+          }
+          for (const s of res.data?.outer?.samples || []) {
+            map.set(`${s.direction}:${s.distance}`, s.intensity);
+          }
+          setRiskSamples(map);
         })
         .catch(() => {
           // Non-fatal — leave the previous colour in place. The endpoint
@@ -454,7 +587,7 @@ const WeatherMap = ({ zoom, dark }) => {
       clearInterval(riskIntervalRef.current);
       riskIntervalRef.current = null;
     };
-  }, [riskFetchEnabled, mapGeo, distanceUnit, RISK_REFRESH_INTERVAL]);
+  }, [riskFetchEnabled, mapGeo, distanceUnit, RISK_REFRESH_INTERVAL, setInnerRisk, setOuterRisk]);
 
   // Radar animation: start/stop interval based on animateWeatherMap toggle.
   // Using a ref for the interval avoids recreating it on every frame tick.
@@ -539,34 +672,48 @@ const WeatherMap = ({ zoom, dark }) => {
             ring is always 8 directions; outer ring uses 16 when
             doubleOuterPoints is on. */}
         {aiSummaryAvailable && radarAnalysisEnabled && markerPosition ? (
-          <Circle
-            center={markerPosition}
-            radius={innerRadiusMeters}
-            pathOptions={buildRingPathOptions(innerRisk, dark)}
-          />
+          <RiskRing center={markerPosition} radius={innerRadiusMeters} risk={innerRisk} dark={dark} />
         ) : null}
         {aiSummaryAvailable && radarAnalysisEnabled && markerPosition && extendedRadarRadius ? (
-          <Circle
-            center={markerPosition}
-            radius={outerRadiusMeters}
-            pathOptions={buildRingPathOptions(outerRisk, dark)}
-          />
+          <RiskRing center={markerPosition} radius={outerRadiusMeters} risk={outerRisk} dark={dark} />
         ) : null}
         {aiSummaryAvailable && radarAnalysisEnabled && markerPosition && showSamplingPoints
           ? buildSamplingPoints(markerPosition, extendedRadarRadius, doubleOuterPoints, distanceUnit).map(
-              ([lat, lng], idx) => (
-                <CircleMarker
-                  key={`sp-${idx}`}
-                  center={[lat, lng]}
-                  radius={3}
-                  pathOptions={{
-                    color: dark ? "#f6f6f4" : "#3a3938",
-                    weight: 1,
-                    opacity: 0.7,
-                    fillOpacity: 0.5,
-                  }}
-                />
-              )
+              ({ position, key }, idx) => {
+                // Each dot picks its colour from the sample's own intensity.
+                // Clear (intensity 0 or unknown) keeps the neutral default
+                // — same colour the dots had before this change. Coloured
+                // tiers reuse RING_RISK_STYLE so the dots and the dashed
+                // circle they belong to speak the same visual language.
+                const intensity = riskSamples.get(key);
+                const tier = tierForIntensity(intensity);
+                const fillColor = tier
+                  ? DOT_COLOR_BY_TIER[dark ? "dark" : "light"][tier]
+                  : (dark ? "#f6f6f4" : "#3a3938");
+                // Light-mode dots get a slightly larger radius and a solid
+                // fill — the cream basemap eats thin strokes and low-opacity
+                // fills. For coloured tiers in light mode, also wrap a
+                // darker outline around the fill so an orange dot sitting on
+                // an orange radar tile (same hue!) still reads as a marker
+                // and not as part of the underlying band. Dark mode keeps
+                // the original subtler look — the dark basemap provides
+                // enough contrast that no separate outline is needed.
+                const outlineNeeded = !dark && tier;
+                return (
+                  <CircleMarker
+                    key={`sp-${idx}`}
+                    center={position}
+                    radius={dark ? 3 : 4}
+                    pathOptions={{
+                      color: outlineNeeded ? "#3a3938" : fillColor,
+                      fillColor,
+                      weight: outlineNeeded ? 1.5 : 1,
+                      opacity: 0.85,
+                      fillOpacity: dark ? 0.5 : 1,
+                    }}
+                  />
+                );
+              }
             )
           : null}
       </MapContainer>
