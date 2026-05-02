@@ -1,7 +1,12 @@
 .container {
   height: calc(100vh - 20px); /* subtract padding */
   width: calc(100vw - var(--info-col-width, 300px) - 20px); /* subtract info panel and padding */
-  background-color: rgba(0, 0, 0, 0.65);
+  /* Match the Debug panel's opacity (0.82) so the two overlays read as
+     a pair instead of "Debug = solid, Settings = washed out" — the
+     65% bg used to let the basemap bleed through the Settings text
+     too aggressively in light mode. Keep the small backdrop blur for
+     a touch of depth that Debug doesn't have. */
+  background-color: rgba(0, 0, 0, 0.82);
   backdrop-filter: blur(3px);
   padding: 10px;
   color: #f6f6f4;
