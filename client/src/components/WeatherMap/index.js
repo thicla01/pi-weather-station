@@ -110,6 +110,39 @@ function buildSamplingPoints(center, extended, doubleOuter, unit) {
   return points;
 }
 
+// Risk-level colour mapping for the dashed radar circles. The four tiers
+// match the server's RISK_LEVELS in radarAnalyzerCtrl.js. Calm keeps the
+// existing neutral stroke (theme-dependent); the other three pull from the
+// same palette as the radar legend so the rings echo the underlying tile
+// colours instead of introducing a competing scheme. Bumped weight on
+// active states makes the alert glanceable at the 7" / 10" kiosk distance.
+const RING_RISK_STYLE = {
+  yellow: { color: "#f0e600", weight: 3 },
+  orange: { color: "#f08200", weight: 3 },
+  red:    { color: "#e60000", weight: 4 },
+};
+
+/**
+ * Build the Leaflet pathOptions for a dashed radar circle, given the
+ * current risk level (null while loading, "calm" otherwise) and the
+ * theme. Falls back to the original neutral dashed stroke when the
+ * level is null/calm.
+ *
+ * @param {String|null} risk Risk level, or null when not yet loaded
+ * @param {Boolean} dark Dark-mode flag
+ * @returns {object} pathOptions ready to spread onto a Circle
+ */
+function buildRingPathOptions(risk, dark) {
+  const overlay = risk && RING_RISK_STYLE[risk];
+  return {
+    color: overlay ? overlay.color : (dark ? "#f6f6f4" : "#3a3938"),
+    weight: overlay ? overlay.weight : 2,
+    opacity: 0.85,
+    dashArray: "6 6",
+    fill: false,
+  };
+}
+
 const RADAR_LEGEND_ITEMS = [
   { color: "#00d0d0", key: "veryLight" },
   { color: "#00c800", key: "light"     },
@@ -322,8 +355,16 @@ const WeatherMap = ({ zoom, dark }) => {
   const [currentMapTimestampIdx, setCurrentMapTimestampIdx] = useState(0);
   const animationIntervalRef = useRef(null);
 
+  // Risk levels for the dashed circles. Each is "calm" | "yellow" |
+  // "orange" | "red" — see RING_RISK_STYLE below for the colour mapping.
+  // Null means "not loaded yet" (or fetch failed) → ring renders neutral.
+  const [innerRisk, setInnerRisk] = useState(null);
+  const [outerRisk, setOuterRisk] = useState(null);
+  const riskIntervalRef = useRef(null);
+
   const MAP_TIMESTAMP_REFRESH_FREQUENCY = 1000 * 60 * 10; //update every 10 minutes
   const MAP_CYCLE_RATE = 1000; //ms
+  const RISK_REFRESH_INTERVAL = 5 * 60 * 1000; // RainViewer cycles every 10 min; 5 min keeps us close to fresh
 
   const getMapApiKeyCallback = useCallback(() => getMapApiKey(), [
     getMapApiKey,
@@ -362,6 +403,43 @@ const WeatherMap = ({ zoom, dark }) => {
       setMapTimestamp(mapTimestamps[currentMapTimestampIdx]);
     }
   }, [currentMapTimestampIdx, mapTimestamps]);
+
+  // Poll /api/radar-risk every 5 min (and on mapGeo / config changes) to
+  // colour the dashed circles by intensity. Gated by the same conditions
+  // as the circles themselves — fetching when the rings aren't visible
+  // would be wasted work.
+  const riskFetchEnabled = aiSummaryAvailable && radarAnalysisEnabled && Boolean(mapGeo);
+  useEffect(() => {
+    if (!riskFetchEnabled) {
+      setInnerRisk(null);
+      setOuterRisk(null);
+      return undefined;
+    }
+    const fetchRisk = () => {
+      const params = new URLSearchParams({
+        lat: mapGeo.latitude,
+        lon: mapGeo.longitude,
+        distanceUnit,
+      });
+      axios
+        .get(`/api/radar-risk?${params}`)
+        .then((res) => {
+          setInnerRisk(res.data?.inner?.level || "calm");
+          setOuterRisk(res.data?.outer?.level || null);
+        })
+        .catch(() => {
+          // Non-fatal — leave the previous colour in place. The endpoint
+          // returns 503 when RainViewer is unreachable; clearing here would
+          // make the ring flash neutral on every transient failure.
+        });
+    };
+    fetchRisk();
+    riskIntervalRef.current = setInterval(fetchRisk, RISK_REFRESH_INTERVAL);
+    return () => {
+      clearInterval(riskIntervalRef.current);
+      riskIntervalRef.current = null;
+    };
+  }, [riskFetchEnabled, mapGeo, distanceUnit, RISK_REFRESH_INTERVAL]);
 
   // Radar animation: start/stop interval based on animateWeatherMap toggle.
   // Using a ref for the interval avoids recreating it on every frame tick.
@@ -449,26 +527,14 @@ const WeatherMap = ({ zoom, dark }) => {
           <Circle
             center={markerPosition}
             radius={innerRadiusMeters}
-            pathOptions={{
-              color: dark ? "#f6f6f4" : "#3a3938",
-              weight: 2,
-              opacity: 0.85,
-              dashArray: "6 6",
-              fill: false,
-            }}
+            pathOptions={buildRingPathOptions(innerRisk, dark)}
           />
         ) : null}
         {aiSummaryAvailable && radarAnalysisEnabled && markerPosition && extendedRadarRadius ? (
           <Circle
             center={markerPosition}
             radius={outerRadiusMeters}
-            pathOptions={{
-              color: dark ? "#f6f6f4" : "#3a3938",
-              weight: 2,
-              opacity: 0.85,
-              dashArray: "6 6",
-              fill: false,
-            }}
+            pathOptions={buildRingPathOptions(outerRisk, dark)}
           />
         ) : null}
         {aiSummaryAvailable && radarAnalysisEnabled && markerPosition && showSamplingPoints

@@ -35,6 +35,13 @@ RainViewer exposes multiple historical and forecast frames via its API. The Weat
 ### 😴 Sleep mode / screensaver
 After a configurable period of inactivity, the display would transition to a minimal fullscreen clock (large digits, low brightness). Any touch or mouse event would restore the full interface. This protects the LCD panel from burn-in and gives the device a polished, always-on appearance. Implementation requires an inactivity timer in the client and the brightness control endpoint described above.
 
+### 🟧 Trend-aware radar-risk colouring (v2)
+v1 (current) colours each dashed circle based on the *current* worst-case intensity sampled on the ring (calm / 🟡 / 🟠 / 🔴, mapped from RainViewer intensity 0-6). The analyzer already captures three timestamps (now, -15 min, -45 min); v2 would compare them per direction and bump the level when a band is *approaching* the user — i.e. an orange that's heading inward becomes red before it actually crosses the intensity-5 threshold. This aligns with operational meteorology where the "warning" tier accounts for imminence as much as raw intensity.
+
+- **Server**: `getRiskLevels` already fetches the latest frame; extend it to fetch the same three frames `analyzeRadar` uses, score the radial trend per direction, and bump the ring level when the inward gradient is positive AND the projected arrival is < ~30 min.
+- **Client**: zero changes — the API contract (`{ inner: { level }, outer: { level } | null }`) stays the same.
+- **Validation**: hand-tune the "approaching" threshold against a few captured radar sequences before shipping; too eager and the ring flickers, too lax and the bump is meaningless.
+
 ### ⚠️ Severe weather alerts
 Tomorrow.io exposes weather alerts (warnings, watches, advisories) for supported regions. A persistent banner at the top of the InfoPanel — or a badge on the ControlButtons bar — would surface critical alerts without interrupting the normal layout. The server would cache alerts alongside the existing weather data.
 
@@ -129,6 +136,6 @@ The three items I would prioritize above all others if returning to this project
 
 ---
 
-*Last updated: 2026-04-26*
+*Last updated: 2026-05-02*
 
 

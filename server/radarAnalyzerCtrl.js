@@ -93,6 +93,16 @@ const MAX_COLOR_DIST_SQ = 14000;  // squared RGB distance above which we still r
 // In-memory caches — a Map keyed by deterministic strings.
 const tileCache = new Map();      // key "framePath:tileX:tileY" → { png, expiresAt }
 const analysisCache = new Map();  // key "lat3:lon3"            → { text, expiresAt }
+const riskCache = new Map();      // key "lat3:lon3:ext"         → { result, expiresAt }
+
+// Risk-level mapping for the dashed circles around the user. Worst-case
+// approach (max intensity sampled in the ring), aligned with WMO /
+// Météo-France / NWS conventions where intensity drives the colour.
+//   0       → no echoes, ring stays neutral
+//   1-3     → very light to moderate, watch (jaune)
+//   4       → heavy, warning  (orange)
+//   5-6     → very heavy / extreme, severe (rouge)
+const RISK_LEVELS = ["calm", "yellow", "yellow", "yellow", "orange", "red", "red"];
 
 /**
  * Compute a destination lat/lon from a starting point, distance, and bearing.
@@ -401,4 +411,100 @@ async function analyzeRadar(lat, lon, options = {}) {
   return text;
 }
 
-module.exports = { analyzeRadar };
+/**
+ * Compute current radar-risk levels for the inner and (optionally) outer
+ * sampling rings around a location. Reuses the same sampling pipeline as
+ * analyzeRadar but only on the most recent frame — risk colouring is a
+ * "right now" concern, not a trend (trend support is on the roadmap).
+ *
+ * Returns an object the WeatherMap consumes to colour its dashed circles.
+ * Both rings carry the worst-case intensity sampled on that ring (see
+ * RISK_LEVELS). When the outer ring isn't requested or its samples all
+ * fail, the outer field is null and the client just doesn't tint its
+ * outer circle.
+ *
+ * @param {Number} lat
+ * @param {Number} lon
+ * @param {Object} [options]
+ * @param {Boolean} [options.extendedRadius] Also evaluate the outer ring
+ * @param {String}  [options.distanceUnit] "km" (default) or "mi" — selects
+ *   the geometry table so the same radii are sampled the client draws
+ * @returns {Promise<{
+ *   inner: { level: String, maxIntensity: Number },
+ *   outer: { level: String, maxIntensity: Number } | null,
+ *   timestamp: Number
+ * } | null>} null when RainViewer is unreachable
+ */
+async function getRiskLevels(lat, lon, options = {}) {
+  const unit = options.distanceUnit === "mi" ? "mi" : "km";
+  const geometry = RADAR_GEOMETRY[unit];
+  const kmPerUnit = KM_PER_UNIT[unit];
+
+  // Cache key encodes geometry mode + extended flag — same shape as the
+  // analyzer cache key so the two stay aligned.
+  const cacheKey = `${lat.toFixed(3)}:${lon.toFixed(3)}:${unit}:${options.extendedRadius ? "x" : "s"}`;
+  const cached = riskCache.get(cacheKey);
+  if (cached && Date.now() < cached.expiresAt) return cached.result;
+
+  let frames;
+  try {
+    frames = await fetchRadarFrames();
+  } catch (err) {
+    recordServiceCall("RainViewer (risk)", err?.response?.status || 500, "fetch frames failed");
+    return null;
+  }
+  if (!frames.length) {
+    recordServiceCall("RainViewer (risk)", 200, "no frames available");
+    return null;
+  }
+
+  // Latest frame only — risk colouring reads "right now". The 3-frame
+  // sequence the analyzer uses is for the AI prompt's movement reasoning.
+  const frame = findFrameNear(frames, Date.now());
+  if (!frame) return null;
+
+  // Build inner sample points (always evaluated when this endpoint is hit).
+  const innerPoints = [];
+  for (const dir of INNER_DIRECTIONS) {
+    for (const distance of geometry.inner) {
+      innerPoints.push({ direction: dir.name, distance, bearing: dir.bearing, distanceKm: distance * kmPerUnit });
+    }
+  }
+  const outerPoints = [];
+  if (options.extendedRadius) {
+    for (const dir of INNER_DIRECTIONS) {
+      for (const distance of geometry.outer) {
+        outerPoints.push({ direction: dir.name, distance, bearing: dir.bearing, distanceKm: distance * kmPerUnit });
+      }
+    }
+  }
+
+  let innerMax = 0;
+  let outerMax = 0;
+  try {
+    const innerSamples = await buildSnapshot(lat, lon, frame.path, innerPoints);
+    innerMax = innerSamples.reduce((m, s) => Math.max(m, s.intensity), 0);
+    if (outerPoints.length) {
+      const outerSamples = await buildSnapshot(lat, lon, frame.path, outerPoints);
+      outerMax = outerSamples.reduce((m, s) => Math.max(m, s.intensity), 0);
+    }
+  } catch (err) {
+    recordServiceCall("RainViewer (risk)", err?.response?.status || 500, "snapshot failed");
+    return null;
+  }
+
+  const result = {
+    inner: { level: RISK_LEVELS[innerMax], maxIntensity: innerMax },
+    outer: outerPoints.length
+      ? { level: RISK_LEVELS[outerMax], maxIntensity: outerMax }
+      : null,
+    timestamp: frame.time,
+  };
+
+  riskCache.set(cacheKey, { result, expiresAt: Date.now() + ANALYSIS_CACHE_TTL });
+  recordServiceCall("RainViewer (risk)", 200, "OK");
+  increment("rainviewer", "risk");
+  return result;
+}
+
+module.exports = { analyzeRadar, getRiskLevels };

@@ -215,6 +215,46 @@ Summaries are cached 15 minutes server-side, keyed by `lat:lon:lang:period:tempU
 - **Response:** `{ "summary": "..." }` — paragraphs separated by blank lines
 - **Errors:** HTTP 503 if Anthropic key not configured
 
+### `GET /api/radar-risk`
+Returns the current "right now" radar-risk level for the inner and (optionally) outer dashed circles around the user. Drives the colour of those circles in the WeatherMap component, on top of the underlying RainViewer tile layer. Worst-case approach: each ring's level reflects the highest precipitation intensity sampled on that ring, mapped via the table below.
+
+| RainViewer intensity | Level | Hex |
+|---:|---|---|
+| 0 (no echoes)            | `calm`   | (theme-default neutral) |
+| 1–3 (very light → moderate) | `yellow` | `#f0e600` |
+| 4 (heavy)                | `orange` | `#f08200` |
+| 5–6 (very heavy / extreme)| `red`    | `#e60000` |
+
+The outer ring is sampled only when `advanced.ai.extendedRadius` is `true` (server-side gate, matches the AI summary). Result is cached server-side for 5 minutes per location, so polling at the 5-minute interval the client uses costs at most one full sample per location per cycle. The underlying tile cache (12 minutes per RainViewer tile PNG) is shared with the AI summary's analyzer, so most polls only hit cache.
+
+- **Access:** 🌐 Public — rate limited (120 req/min)
+- **Query params:**
+
+| Parameter | Type | Required | Description |
+|---|---|:---:|---|
+| `lat` | float | ✅ | Latitude |
+| `lon` | float | ✅ | Longitude |
+| `distanceUnit` | string | | `km` (default) or `mi` — selects which sampling geometry to use, so the rings the client draws and the points the server samples stay aligned. |
+
+- **Response:**
+
+```json
+{
+  "inner": { "level": "yellow", "maxIntensity": 2 },
+  "outer": { "level": "red",    "maxIntensity": 5 },
+  "timestamp": 1777110561
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `inner.level` | string | `calm` \| `yellow` \| `orange` \| `red` |
+| `inner.maxIntensity` | integer | Worst-case RainViewer intensity (0–6) sampled on the inner ring |
+| `outer` | object \| null | Same shape as `inner`, or `null` when `extendedRadius` is off |
+| `timestamp` | integer | Unix timestamp (seconds) of the RainViewer frame the result is computed from |
+
+- **Errors:** HTTP 503 when RainViewer is unreachable or returns no recent frames
+
 ---
 
 ## Sense HAT Display

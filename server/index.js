@@ -251,6 +251,35 @@ app.get("/api/weather-summary", apiLimiter, getWeatherSummary);
 app.get("/api/sensehat",            apiLimiter, getSenseHatData);
 app.get("/api/indoor-temperature",  apiLimiter, getIndoorTemperature);
 
+// Radar risk-level overlay for the dashed circles in WeatherMap. Reads the
+// "right now" intensity sampled on each ring and maps to a colour tier
+// (calm / yellow / orange / red) aligned with WMO / Météo-France / NWS
+// conventions. The outer ring is only evaluated when the user has opted
+// into extendedRadius — same gate as the AI summary's outer-ring sampling.
+const { getRiskLevels } = require("./radarAnalyzerCtrl");
+app.get("/api/radar-risk", apiLimiter, async (req, res) => {
+  const lat = parseFloat(req.query.lat);
+  const lon = parseFloat(req.query.lon);
+  if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+    return res.status(400).json("Invalid coordinates").end();
+  }
+  const distanceUnit = req.query.distanceUnit === "mi" ? "mi" : "km";
+  let extendedRadius = false;
+  try {
+    const settings = await settingsCtrl.getSettingsData();
+    extendedRadius = Boolean(settings?.advanced?.ai?.extendedRadius);
+  } catch {
+    // Settings unreadable — proceed with inner ring only (safe default).
+  }
+  try {
+    const result = await getRiskLevels(lat, lon, { extendedRadius, distanceUnit });
+    if (!result) return res.status(503).json("Radar risk unavailable").end();
+    return res.status(200).json(result).end();
+  } catch {
+    return res.status(500).json("Radar risk failed").end();
+  }
+});
+
 app.get("/api/update-check", apiLimiter, async (req, res) => {
   try {
     const result = await checkForUpdate();
