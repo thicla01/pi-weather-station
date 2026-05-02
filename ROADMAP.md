@@ -42,6 +42,13 @@ v1 (current) colours each dashed circle based on the *current* worst-case intens
 - **Client**: zero changes — the API contract (`{ inner: { level }, outer: { level } | null }`) stays the same.
 - **Validation**: hand-tune the "approaching" threshold against a few captured radar sequences before shipping; too eager and the ring flickers, too lax and the bump is meaningless.
 
+### 🥧 Angular-sector risk colouring (v3 — utility to validate before building)
+Building on v2, divide each ring into the 8 angular sectors that match the sample directions (N / NE / E / … / NW) and tint each sector with the colour of the worst-case intensity among its radial samples. This adds a *direction-of-risk* dimension that the single-colour ring can't surface in one glance — "the storm is in the SW quadrant" instead of just "there's a storm somewhere on the ring". Optional 16-sector mode reuses `doubleOuterPoints` for the outer ring.
+
+- **Implementation**: client-side. Server contract extends from `{ level }` to `{ level, sectors: [{ direction, level }] }` for each ring. Leaflet `Polygon` per sector, low opacity fill (~10-15%) so the radar tiles stay readable underneath.
+- **Utility check before shipping**: the radar tile layer already shows precipitation with much higher spatial resolution than 8 sparse sample points. The benefit of the sector overlay is only the *quick directional read* — needs to be validated against real use ("would I have looked at this and known the storm was in the SW faster than just glancing at the radar?") before committing to the visual complexity. Risk: pie-slice tinting on top of radar tiles competes for attention rather than adding signal.
+- **Decision gate**: build a static mock first (hand-coloured sectors over a screenshot), test on the 7" kiosk, and only proceed to wiring up live data if the mock genuinely improves at-a-glance reading.
+
 ### ⚠️ Severe weather alerts
 Tomorrow.io exposes weather alerts (warnings, watches, advisories) for supported regions. A persistent banner at the top of the InfoPanel — or a badge on the ControlButtons bar — would surface critical alerts without interrupting the normal layout. The server would cache alerts alongside the existing weather data.
 
