@@ -125,10 +125,33 @@ const AdvancedSettings = ({ readOnly }) => {
   // toggle sits at the bottom of the panel and the user has to scroll
   // manually to see what they just opened. Wrapped in requestAnimationFrame
   // to wait for the body to be rendered (open flips before paint).
+  //
+  // We deliberately do NOT use Element.scrollIntoView here: on iPad
+  // Safari, scrollIntoView walks every scrollable ancestor and scrolls
+  // each one — including the InfoPanel's weather-info-container on the
+  // right side of the screen, which is a sibling scroller, not an
+  // ancestor of this section. The right panel + control buttons would
+  // visibly shift up when the user tapped the toggle and stay shifted
+  // until the entire Settings panel was closed. Walking up the DOM to
+  // find the nearest scrollable ancestor and setting its scrollTop
+  // explicitly keeps the scroll scoped to where it belongs.
   useEffect(() => {
     if (!open || !sectionRef.current) return;
     requestAnimationFrame(() => {
-      sectionRef.current.scrollIntoView({ behavior: "smooth", block: "start" });
+      const section = sectionRef.current;
+      let scroller = section.parentElement;
+      while (scroller) {
+        const style = window.getComputedStyle(scroller);
+        if (/(auto|scroll)/.test(style.overflowY)) break;
+        scroller = scroller.parentElement;
+      }
+      if (!scroller) return;
+      const scrollerRect = scroller.getBoundingClientRect();
+      const sectionRect = section.getBoundingClientRect();
+      scroller.scrollTo({
+        top: scroller.scrollTop + (sectionRect.top - scrollerRect.top),
+        behavior: "smooth",
+      });
     });
   }, [open]);
 
