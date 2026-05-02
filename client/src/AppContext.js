@@ -9,6 +9,7 @@ export const AppContext = createContext();
 const TEMP_UNIT_STORAGE_KEY = "tempUnit";
 const SPEED_UNIT_STORAGE_KEY = "speedUnit";
 const LENGTH_UNIT_STORAGE_KEY = "lengthUnit";
+const DISTANCE_UNIT_STORAGE_KEY = "distanceUnit";
 const CLOCK_UNIT_STORAGE_KEY = "clockTime";
 const MOUSE_HIDE_STORAGE_KEY = "mouseHide";
 const FONT_SIZE_STORAGE_KEY = "fontSize";
@@ -79,6 +80,7 @@ export function AppContextProvider({ children }) {
   const [tempUnit, setTempUnit] = useState("f"); // fahrenheit or celsius
   const [speedUnit, setSpeedUnit] = useState("mph"); // mph or ms for m/s
   const [lengthUnit, setLengthUnit] = useState("in"); // in or mm
+  const [distanceUnit, setDistanceUnit] = useState("mi"); // mi or km — drives radar circles, AI summary
   const [clockTime, setClockTime] = useState("12"); // 12h or 24h time for clock
   const [animateWeatherMap, setAnimateWeatherMap] = useState(false);
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
@@ -233,6 +235,16 @@ export function AppContextProvider({ children }) {
   }
 
   /**
+   * Save distance unit
+   *
+   * @param {String} newVal `mi` or `km`
+   */
+  function saveDistanceUnit(newVal) {
+    setDistanceUnit(newVal);
+    window.localStorage.setItem(DISTANCE_UNIT_STORAGE_KEY, newVal);
+  }
+
+  /**
    * Save font size preference
    *
    * @param {String} newVal `s`, `m`, or `l`
@@ -307,6 +319,7 @@ export function AppContextProvider({ children }) {
     const temp = window.localStorage.getItem(TEMP_UNIT_STORAGE_KEY);
     const speed = window.localStorage.getItem(SPEED_UNIT_STORAGE_KEY);
     const length = window.localStorage.getItem(LENGTH_UNIT_STORAGE_KEY);
+    const distance = window.localStorage.getItem(DISTANCE_UNIT_STORAGE_KEY);
     const clock = window.localStorage.getItem(CLOCK_UNIT_STORAGE_KEY);
 
     let mouseHide;
@@ -341,6 +354,9 @@ export function AppContextProvider({ children }) {
     }
     if (length) {
       setLengthUnit(length);
+    }
+    if (distance === "mi" || distance === "km") {
+      setDistanceUnit(distance);
     }
     if (clock) {
       setClockTime(clock);
@@ -926,6 +942,8 @@ export function AppContextProvider({ children }) {
     saveSpeedUnit,
     lengthUnit,
     saveLengthUnit,
+    distanceUnit,
+    saveDistanceUnit,
     animateWeatherMap,
     toggleAnimateWeatherMap,
     settingsMenuOpen,

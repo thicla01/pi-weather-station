@@ -25,14 +25,26 @@ import styles from "./styles.css";
 
 // Sampling geometry — must match server/radarAnalyzerCtrl.js exactly so the
 // dots rendered on the map line up with the points the AI summary actually
-// reads from RainViewer. Bearings clockwise from north (deg).
+// reads from RainViewer. Bearings clockwise from north (deg). Distances in
+// the user's chosen unit (km or mi); KM_PER_UNIT converts to km for the
+// great-circle math, and METERS_PER_UNIT for Leaflet circle radii.
 const INNER_BEARINGS = [0, 45, 90, 135, 180, 225, 270, 315];
 const OUTER_BEARINGS_DOUBLED = [
   0, 22.5, 45, 67.5, 90, 112.5, 135, 157.5,
   180, 202.5, 225, 247.5, 270, 292.5, 315, 337.5,
 ];
-const INNER_DISTANCES_KM = [5, 15, 30, 45];
-const OUTER_DISTANCES_KM = [60, 75, 90];
+const KM_PER_UNIT = { km: 1, mi: 1.609344 };
+const METERS_PER_UNIT = { km: 1000, mi: 1609.344 };
+const RADAR_GEOMETRY = {
+  km: {
+    inner: [5, 15, 30, 50],
+    outer: [65, 80, 100],
+  },
+  mi: {
+    inner: [3, 10, 20, 30],
+    outer: [40, 50, 60],
+  },
+};
 const EARTH_R_KM = 6371;
 
 /**
@@ -67,27 +79,30 @@ function offsetLatLon(lat, lon, distanceKm, bearingDeg) {
  * as the server radar analyzer. Accepts the same `[lat, lng]` array format
  * used elsewhere in WeatherMap for marker/circle positions. Inner ring is
  * always 8 directions; outer ring (when extended) is 8 or 16 directions
- * depending on doubleOuter.
+ * depending on doubleOuter. Sample distances vary by unit (km or mi).
  *
  * @param {Array<Number>} center [lat, lng] pair
- * @param {Boolean} extended Whether to include the outer ring (60/75/90 km)
+ * @param {Boolean} extended Whether to include the outer ring
  * @param {Boolean} doubleOuter Whether to use 16 directions on the outer ring
+ * @param {String} unit "km" or "mi" — selects the geometry table
  * @returns {Array<[Number, Number]>} Array of [lat, lng] pairs
  */
-function buildSamplingPoints(center, extended, doubleOuter) {
+function buildSamplingPoints(center, extended, doubleOuter, unit) {
   const [centerLat, centerLng] = center;
+  const geometry = RADAR_GEOMETRY[unit];
+  const kmPerUnit = KM_PER_UNIT[unit];
   const points = [];
   for (const bearing of INNER_BEARINGS) {
-    for (const distance of INNER_DISTANCES_KM) {
-      const p = offsetLatLon(centerLat, centerLng, distance, bearing);
+    for (const distance of geometry.inner) {
+      const p = offsetLatLon(centerLat, centerLng, distance * kmPerUnit, bearing);
       points.push([p.lat, p.lon]);
     }
   }
   if (extended) {
     const outerBearings = doubleOuter ? OUTER_BEARINGS_DOUBLED : INNER_BEARINGS;
     for (const bearing of outerBearings) {
-      for (const distance of OUTER_DISTANCES_KM) {
-        const p = offsetLatLon(centerLat, centerLng, distance, bearing);
+      for (const distance of geometry.outer) {
+        const p = offsetLatLon(centerLat, centerLng, distance * kmPerUnit, bearing);
         points.push([p.lat, p.lon]);
       }
     }
@@ -225,7 +240,17 @@ const WeatherMap = ({ zoom, dark }) => {
     darkModeStyle,
     radarOpacityLight,
     radarOpacityDark,
+    distanceUnit,
   } = useContext(AppContext);
+
+  // Largest sample in each ring drives the circle radius. Multiplied by
+  // METERS_PER_UNIT because Leaflet's Circle takes meters.
+  const innerRadiusMeters =
+    RADAR_GEOMETRY[distanceUnit].inner[RADAR_GEOMETRY[distanceUnit].inner.length - 1] *
+    METERS_PER_UNIT[distanceUnit];
+  const outerRadiusMeters =
+    RADAR_GEOMETRY[distanceUnit].outer[RADAR_GEOMETRY[distanceUnit].outer.length - 1] *
+    METERS_PER_UNIT[distanceUnit];
 
   const handleMapClick = useCallback((e) => {
     const { lat: latitude, lng: longitude } = e.latlng;
@@ -357,16 +382,17 @@ const WeatherMap = ({ zoom, dark }) => {
         ) : null}
         {/* Radar-analysis overlays — only visible when the AI summary feature
             is configured AND the radar analysis is enabled in advanced
-            settings. The 45 km circle marks the default analysis zone; when
-            extendedRadius is on, a second 90 km circle joins it with the
-            same dashed style. Sampling-point dots opt-in via a separate
-            toggle so curious users can see exactly what the analyzer reads.
-            Inner ring is always 8 directions; outer ring uses 16 when
+            settings. Inner circle marks the default analysis zone (50 km or
+            30 mi depending on distanceUnit); when extendedRadius is on, a
+            second outer circle (100 km or 60 mi) joins it with the same
+            dashed style. Sampling-point dots opt-in via a separate toggle
+            so curious users can see exactly what the analyzer reads. Inner
+            ring is always 8 directions; outer ring uses 16 when
             doubleOuterPoints is on. */}
         {aiSummaryAvailable && radarAnalysisEnabled && markerPosition ? (
           <Circle
             center={markerPosition}
-            radius={45000}
+            radius={innerRadiusMeters}
             pathOptions={{
               color: dark ? "#f6f6f4" : "#3a3938",
               weight: 2,
@@ -379,7 +405,7 @@ const WeatherMap = ({ zoom, dark }) => {
         {aiSummaryAvailable && radarAnalysisEnabled && markerPosition && extendedRadarRadius ? (
           <Circle
             center={markerPosition}
-            radius={90000}
+            radius={outerRadiusMeters}
             pathOptions={{
               color: dark ? "#f6f6f4" : "#3a3938",
               weight: 2,
@@ -390,7 +416,7 @@ const WeatherMap = ({ zoom, dark }) => {
           />
         ) : null}
         {aiSummaryAvailable && radarAnalysisEnabled && markerPosition && showSamplingPoints
-          ? buildSamplingPoints(markerPosition, extendedRadarRadius, doubleOuterPoints).map(
+          ? buildSamplingPoints(markerPosition, extendedRadarRadius, doubleOuterPoints, distanceUnit).map(
               ([lat, lng], idx) => (
                 <CircleMarker
                   key={`sp-${idx}`}

@@ -283,6 +283,8 @@ const ToggleButtons = () => {
     saveSpeedUnit,
     lengthUnit,
     saveLengthUnit,
+    distanceUnit,
+    saveDistanceUnit,
     clockTime,
     saveClockTime,
     fontSize,
@@ -325,6 +327,16 @@ const ToggleButtons = () => {
             button1Val={"in"}
             button2Val={"mm"}
             cb={saveLengthUnit}
+          />
+        </div>
+        <div>
+          <ToggleButton
+            button1Label={"mi"}
+            button2Label={"km"}
+            val={distanceUnit}
+            button1Val={"mi"}
+            button2Val={"km"}
+            cb={saveDistanceUnit}
           />
         </div>
         <div>

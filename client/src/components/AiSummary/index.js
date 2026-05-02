@@ -30,6 +30,7 @@ const AiSummary = ({ expanded, onToggle, containerRef }) => {
     setAiSummaryAvailable: setAvailable,
     tempUnit,
     speedUnit,
+    distanceUnit,
   } = useContext(AppContext);
   const { i18n } = useTranslation();
   const [summary, setSummary] = useState(null);
@@ -62,6 +63,7 @@ const AiSummary = ({ expanded, onToggle, containerRef }) => {
         // instructs Claude to keep these units throughout its response.
         tempUnit,
         speedUnit,
+        distanceUnit,
       });
 
       axios
@@ -84,7 +86,7 @@ const AiSummary = ({ expanded, onToggle, containerRef }) => {
     intervalRef.current = setInterval(fetchSummary, REFRESH_INTERVAL);
 
     return () => clearInterval(intervalRef.current);
-  }, [mapGeo, lang, available, setAvailable, tempUnit, speedUnit]);
+  }, [mapGeo, lang, available, setAvailable, tempUnit, speedUnit, distanceUnit]);
 
   if (!available || !summary) return null;
 

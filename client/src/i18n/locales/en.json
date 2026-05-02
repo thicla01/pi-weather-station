@@ -40,10 +40,10 @@
       "aiGroup": "AI weather summary",
       "radarAnalysisEnabled": "Radar analysis",
       "radarAnalysisEnabledHint": "Adds the third \"Radar analysis\" paragraph to the AI summary, sampled from RainViewer tiles around your location. Turn off to skip the analysis entirely.",
-      "extendedRadius": "Extended radius (90 km)",
-      "extendedRadiusHint": "Doubles the sampling radius from 45 km to 90 km. Adds 60/75/90 km rings for longer-range storm tracking.",
-      "doubleOuterPoints": "Double points beyond 45 km",
-      "doubleOuterPointsHint": "On the 60/75/90 km rings, sample at 16 directions (every 22.5°) instead of 8, to keep point density per km² roughly uniform across both rings. Only effective when extended radius is on.",
+      "extendedRadius": "Extended radius",
+      "extendedRadiusHint": "Roughly doubles the sampling radius (50 → 100 km, or 30 → 60 mi depending on the distance unit). Adds three outer rings for longer-range storm tracking.",
+      "doubleOuterPoints": "Double points on the outer ring",
+      "doubleOuterPointsHint": "On the outer ring, sample at 16 directions (every 22.5°) instead of 8, to keep point density per km² roughly uniform across both rings. Only effective when extended radius is on.",
       "showSamplingPoints": "Show sampling points on map",
       "showSamplingPointsHint": "Displays a small dot at every position the AI summary samples on the radar."
     }

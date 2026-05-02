@@ -21,15 +21,25 @@ const ZOOM = 7;                             // RainViewer's max native zoom — 
 const TILE_SIZE = 512;
 const TARGET_OFFSETS_MIN = [0, -15, -45];   // now, 15 min ago, 45 min ago
 
-// Inner-ring distances (always 8 cardinal directions). The very-near 5 km
-// probe is kept because it captures precipitation already on top of the
-// user, where the 15 km ring would just barely miss it.
-const INNER_DISTANCES_KM = [5, 15, 30, 45];
-// Outer-ring distances, only sampled when extendedRadius is on. Each ring
-// covers ~3× the area of an equivalent inner ring, so the optional
-// doubleOuterPoints flag also lets users sample at 16 directions (every
-// 22.5°) on this ring to keep the points-per-km² roughly uniform.
-const OUTER_DISTANCES_KM = [60, 75, 90];
+// Sampling geometry per distance unit. Values are expressed in the user's
+// chosen unit (km or mi); the great-circle math multiplies by KM_PER_UNIT
+// when computing offsets, and the textual format echoes the unit label.
+// Both rings keep 4 + 3 sample distances so the analyzer's behaviour and
+// prompt size stay constant — only the spacing changes between unit modes.
+//
+// Must stay in sync with client/src/components/WeatherMap/index.js so the
+// dots rendered on the map land on the points the analyzer actually reads.
+const KM_PER_UNIT = { km: 1, mi: 1.609344 };
+const RADAR_GEOMETRY = {
+  km: {
+    inner: [5, 15, 30, 50],
+    outer: [65, 80, 100],
+  },
+  mi: {
+    inner: [3, 10, 20, 30],
+    outer: [40, 50, 60],
+  },
+};
 
 const INNER_DIRECTIONS = [
   { name: "N",  bearing: 0   },
@@ -86,7 +96,7 @@ const analysisCache = new Map();  // key "lat3:lon3"            → { text, expi
 
 /**
  * Compute a destination lat/lon from a starting point, distance, and bearing.
- * Uses the standard great-circle formula; accurate enough for our 5-45 km range.
+ * Uses the standard great-circle formula; accurate enough for our 5-100 km range.
  *
  * @param {Number} lat starting latitude (deg)
  * @param {Number} lon starting longitude (deg)
@@ -225,16 +235,18 @@ function readPixelIntensity(png, x, y) {
  * @param {Number} lat
  * @param {Number} lon
  * @param {String} framePath the RainViewer path for the desired frame
- * @param {Array<{direction: String, distance: Number, bearing: Number}>} points
- *   Pre-built list of (direction, distance, bearing) tuples to sample
+ * @param {Array<{direction: String, distance: Number, bearing: Number, distanceKm: Number}>} points
+ *   Pre-built list of (direction, distance, bearing, distanceKm) tuples — distance
+ *   is the value in the user's chosen unit (used for display); distanceKm is the
+ *   same value in km (used for the great-circle offset).
  * @returns {Promise<Array<{direction: String, distance: Number, intensity: Number}>>}
  */
 async function buildSnapshot(lat, lon, framePath, points) {
   const samples = [];
   // Group by tile to minimize fetches
   const tileMap = new Map(); // "tileX:tileY" → list of pending samples
-  for (const { direction, distance, bearing } of points) {
-    const point = offsetLatLon(lat, lon, distance, bearing);
+  for (const { direction, distance, bearing, distanceKm } of points) {
+    const point = offsetLatLon(lat, lon, distanceKm, bearing);
     const { tileX, tileY, pixelX, pixelY } = latLonToTilePixel(point.lat, point.lon);
     const key = `${tileX}:${tileY}`;
     if (!tileMap.has(key)) tileMap.set(key, []);
@@ -259,14 +271,14 @@ async function buildSnapshot(lat, lon, framePath, points) {
  * Format a snapshot as a compact human-readable table for inclusion in a prompt.
  * Only directions that have at least one non-zero reading are listed, to keep
  * the prompt short when conditions are calm. Returns null when the entire grid
- * is clear (no precipitation anywhere within 45 km).
+ * is clear (no precipitation anywhere within the sampled radius).
  *
  * @param {Array} samples
  * @param {String} label e.g. "now", "-15 min", "-45 min"
- * @param {Boolean} [imperial] If true, distances are formatted in miles
+ * @param {String} unit "km" or "mi" — distance unit used in the sample values
  * @returns {String|null}
  */
-function formatSnapshot(samples, label, imperial = false) {
+function formatSnapshot(samples, label, unit) {
   // Group by direction. The display order follows the 16-point compass so
   // both 8-direction (inner-only) and 16-direction (with doubled outer)
   // snapshots come out sorted N → NNE → NE → … → NNW.
@@ -277,11 +289,9 @@ function formatSnapshot(samples, label, imperial = false) {
     byDir.get(s.direction).push(s);
   }
 
-  // Convert km to miles for display (1 km = 0.621371 mi). Sample points are
-  // computed in km regardless — only the textual rendering changes.
-  const fmtDist = (km) => imperial
-    ? `${Math.round(km * 0.621371)}mi`
-    : `${km}km`;
+  // Sample distances are already expressed in the user's unit; the formatter
+  // just appends the label.
+  const fmtDist = (d) => `${d}${unit}`;
 
   let anyHit = false;
   const lines = [];
@@ -296,7 +306,7 @@ function formatSnapshot(samples, label, imperial = false) {
   }
 
   // Largest sampled distance, used to phrase the "no precipitation" line
-  // honestly (mode-aware: "within 45 km/28 mi" vs "within 90 km/56 mi").
+  // honestly (mode-aware: "within 50 km" vs "within 100 km" vs "within 30 mi").
   const maxDist = samples.reduce((m, s) => Math.max(m, s.distance), 0);
   if (!anyHit) return `${label}: clear (no precipitation within ${fmtDist(maxDist)})`;
   return `${label}:\n${lines.join("\n")}`;
@@ -309,21 +319,28 @@ function formatSnapshot(samples, label, imperial = false) {
  * @param {Number} lat
  * @param {Number} lon
  * @param {Object} [options] Analysis options
- * @param {Boolean} [options.extendedRadius] Sample the outer ring (60/75/90 km)
- *   in addition to the inner one (5/15/30/45 km)
+ * @param {Boolean} [options.extendedRadius] Sample the outer ring in addition
+ *   to the inner one — adds three extra distances per direction
  * @param {Boolean} [options.doubleOuterPoints] When extendedRadius is on, use
  *   16 directions (every 22.5°) on the outer ring instead of 8, to keep the
  *   point density per km² roughly uniform across both rings
- * @param {Boolean} [options.imperial] Format distances in miles instead of km
+ * @param {String}  [options.distanceUnit] "km" (default) or "mi" — drives
+ *   sampling distances, the circle radius, and the unit label in the prompt
  * @returns {Promise<String|null>}
  */
 async function analyzeRadar(lat, lon, options = {}) {
-  // Build the (direction, distance, bearing) tuples to sample. Inner ring is
-  // always 8 directions; outer ring (if enabled) is 8 or 16 directions.
+  const unit = options.distanceUnit === "mi" ? "mi" : "km";
+  const geometry = RADAR_GEOMETRY[unit];
+  const kmPerUnit = KM_PER_UNIT[unit];
+
+  // Build the (direction, distance, bearing, distanceKm) tuples to sample.
+  // Inner ring is always 8 directions; outer ring (if enabled) is 8 or 16
+  // directions. distance carries the user-unit value (used for display);
+  // distanceKm is the same value converted to km for the great-circle math.
   const points = [];
   for (const dir of INNER_DIRECTIONS) {
-    for (const distance of INNER_DISTANCES_KM) {
-      points.push({ direction: dir.name, distance, bearing: dir.bearing });
+    for (const distance of geometry.inner) {
+      points.push({ direction: dir.name, distance, bearing: dir.bearing, distanceKm: distance * kmPerUnit });
     }
   }
   if (options.extendedRadius) {
@@ -331,8 +348,8 @@ async function analyzeRadar(lat, lon, options = {}) {
       ? OUTER_DIRECTIONS_DOUBLED
       : INNER_DIRECTIONS;
     for (const dir of outerDirs) {
-      for (const distance of OUTER_DISTANCES_KM) {
-        points.push({ direction: dir.name, distance, bearing: dir.bearing });
+      for (const distance of geometry.outer) {
+        points.push({ direction: dir.name, distance, bearing: dir.bearing, distanceKm: distance * kmPerUnit });
       }
     }
   }
@@ -342,8 +359,7 @@ async function analyzeRadar(lat, lon, options = {}) {
   // or different unit text.
   let radiusTag = "s";
   if (options.extendedRadius) radiusTag = options.doubleOuterPoints ? "x2" : "x";
-  const unitTag = options.imperial ? "mi" : "km";
-  const cacheKey = `${lat.toFixed(3)}:${lon.toFixed(3)}:${radiusTag}:${unitTag}`;
+  const cacheKey = `${lat.toFixed(3)}:${lon.toFixed(3)}:${radiusTag}:${unit}`;
   const cached = analysisCache.get(cacheKey);
   if (cached && Date.now() < cached.expiresAt) return cached.text;
 
@@ -368,7 +384,7 @@ async function analyzeRadar(lat, lon, options = {}) {
     const label = offsetMin === 0 ? "now" : `${offsetMin} min`;
     try {
       const samples = await buildSnapshot(lat, lon, frame.path, points);
-      const block = formatSnapshot(samples, label, options.imperial);
+      const block = formatSnapshot(samples, label, unit);
       if (block) sections.push(block);
     } catch (err) {
       // One snapshot failed — keep going with whatever we have

@@ -158,9 +158,12 @@ async function getWeatherSummary(req, res) {
   // pass these params still get sensible output.
   const tempUnit  = req.query.tempUnit  || "c";
   const speedUnit = req.query.speedUnit || "kmh";
-  // Imperial distance for the radar paragraph is inferred from the speed
-  // unit — mph users almost always think in miles, kmh / m/s users in km.
-  const useImperialDistance = speedUnit === "mph";
+  // Distance unit is explicit since v2.7. Older clients that don't pass it
+  // fall back to inferring from the speed unit (mph → mi, otherwise km) so
+  // they keep producing sensible prompts until they upgrade.
+  const distanceUnit = req.query.distanceUnit === "mi" || req.query.distanceUnit === "km"
+    ? req.query.distanceUnit
+    : (speedUnit === "mph" ? "mi" : "km");
 
   if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
     return res.status(400).json("Invalid coordinates").end();
@@ -179,7 +182,7 @@ async function getWeatherSummary(req, res) {
 
   // Cache key includes unit preferences so toggling Settings (e.g. °C → °F)
   // doesn't keep serving a stale summary built with the previous units.
-  const cacheKey = `${lat.toFixed(4)}:${lon.toFixed(4)}:${lang}:${period}:${tempUnit}:${speedUnit}`;
+  const cacheKey = `${lat.toFixed(4)}:${lon.toFixed(4)}:${lang}:${period}:${tempUnit}:${speedUnit}:${distanceUnit}`;
   const cached = summaryCache[cacheKey];
   if (cached && Date.now() < cached.expiresAt) {
     return res.status(200).json({ summary: cached.summary }).end();
@@ -280,7 +283,7 @@ async function getWeatherSummary(req, res) {
       radarText = await analyzeRadar(lat, lon, {
         extendedRadius: Boolean(aiSettings.extendedRadius),
         doubleOuterPoints: Boolean(aiSettings.doubleOuterPoints),
-        imperial: useImperialDistance,
+        distanceUnit,
       });
     } catch {
       radarText = null;
@@ -302,7 +305,7 @@ async function getWeatherSummary(req, res) {
     ? `\n\nRadar samples (8 directions × 4 distances around the user, intensity 0-6):\n${radarText}`
     : "";
 
-  const distanceUnitInstruction = useImperialDistance ? "miles" : "km";
+  const distanceUnitInstruction = distanceUnit === "mi" ? "miles" : "km";
   const prompt =
     `Write a weather summary in ${language} with ${paragraphWord}. The first paragraph covers current conditions (2-3 sentences).${secondInstruction}${radarInstruction} ` +
     `Throughout your response, ${unitInstruction(tempUnit, speedUnit)}, and ${distanceUnitInstruction} for distances. Match the unit symbols exactly as shown in the data below — do not convert. ` +

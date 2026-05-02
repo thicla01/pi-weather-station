@@ -188,13 +188,13 @@ The response can be 1, 2, or 3 paragraphs depending on what data is available:
 
 1. **Current conditions** (always)
 2. **Period preview** when timestamp params are present and the matching cache (hourly/daily) is hot — evening preview (18h–21h) in the morning/afternoon, overnight preview (21h–5h) in the evening, next-day preview at night
-3. **Radar analysis** (since v2.4.0) when the radar analyzer can sample tiles successfully — starts with the localised label `Analyse radar : ...` and describes where precipitation is, whether it is approaching, and an estimated arrival time. Sampling geometry depends on the `advanced.ai.*` settings:
-   - **Default (inner ring only):** 32 points = 8 directions (N/NE/E/.../NW) × 4 distances (5/15/30/45 km).
-   - **`extendedRadius: true`:** adds the outer ring at 60/75/90 km. With 8 directions on the outer ring → 56 points total. The map shows a second 90 km dashed circle in addition to the existing 45 km one.
+3. **Radar analysis** (since v2.4.0) when the radar analyzer can sample tiles successfully — starts with the localised label `Analyse radar : ...` and describes where precipitation is, whether it is approaching, and an estimated arrival time. Sampling geometry depends on `distanceUnit` and the `advanced.ai.*` settings:
+   - **Default (inner ring only):** 32 points = 8 directions (N/NE/E/.../NW) × 4 distances. Distances are `5/15/30/50 km` when `distanceUnit=km` (inner circle 50 km) and `3/10/20/30 mi` when `distanceUnit=mi` (inner circle 30 mi).
+   - **`extendedRadius: true`:** adds an outer ring with 3 distances (`65/80/100 km` or `40/50/60 mi`). With 8 directions on the outer ring → 56 points total. The map shows a second dashed circle (100 km or 60 mi) in addition to the inner one.
    - **`extendedRadius: true` + `doubleOuterPoints: true`:** outer ring sampled at 16 directions (every 22.5°) instead of 8, to keep point density per km² uniform across the inner and outer rings → 80 points total.
    Each point is read at 3 timestamps (now, -15 min, -45 min) on RainViewer raster tiles, decoded server-side via `pngjs`, and fed to Claude as a compact textual grid. Set `advanced.ai.radarAnalysisEnabled: false` to skip this paragraph entirely (and the matching circles on the map).
 
-Summaries are cached 15 minutes server-side, keyed by `lat:lon:lang:period:tempUnit:speedUnit` so toggling user-facing units never returns a stale snapshot in the wrong unit system.
+Summaries are cached 15 minutes server-side, keyed by `lat:lon:lang:period:tempUnit:speedUnit:distanceUnit` so toggling user-facing units never returns a stale snapshot in the wrong unit system.
 
 - **Access:** 🌐 Public — rate limited (120 req/min)
 - **Query params:**
@@ -209,7 +209,8 @@ Summaries are cached 15 minutes server-side, keyed by `lat:lon:lang:period:tempU
 | `ts21` | integer | | Unix timestamp (ms) for 21:00 local time today |
 | `ts05tomorrow` | integer | | Unix timestamp (ms) for 05:00 local time tomorrow |
 | `tempUnit` | string | | `c` (default), `f`, or `k`. The summary's temperatures and the matching unit symbol follow this preference — passing `f` produces "53°F" instead of the default "12°C". |
-| `speedUnit` | string | | `kmh` (default), `ms`, or `mph`. Drives wind-speed unit and the radar-analysis distance unit (`mph` → miles, otherwise km). |
+| `speedUnit` | string | | `kmh` (default), `ms`, or `mph`. Drives wind-speed unit. |
+| `distanceUnit` | string | | `km` (default) or `mi`. Drives the radar-analysis distance unit, the sampled distances, and the dashed circle radii on the map. Older clients that omit this param fall back to inferring from `speedUnit` (`mph` → mi, otherwise km). |
 
 - **Response:** `{ "summary": "..." }` — paragraphs separated by blank lines
 - **Errors:** HTTP 503 if Anthropic key not configured

@@ -94,6 +94,7 @@ The compiled `dist/` files are committed to git so Pis can `git pull` without re
 - Temperature units: `f` (Fahrenheit), `c` (Celsius), `k` (Kelvin)
 - Speed units: `mph`, `ms` (m/s), `kmh` (km/h — displayed as "kph" in charts)
 - Length units: `in`, `mm`
+- Distance units: `mi`, `km` (persisted in `localStorage` like the other unit prefs) — drives the radar circles, sampling geometry, and AI summary distance unit
 - Clock: `12`, `24`
 - Font size: `s` (85% zoom), `m` (100%, default), `l` (115% zoom) — persisted in `localStorage`
 - `indoorTemperature` block (top-level since v2.6.0): `{ enabled, host, port, username, password, sensorName }` — fully stripped from remote `GET /settings` responses (host/credentials are not even masked)

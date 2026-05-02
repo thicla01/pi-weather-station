@@ -40,10 +40,10 @@
       "aiGroup": "Resumen meteo IA",
       "radarAnalysisEnabled": "Análisis radar",
       "radarAnalysisEnabledHint": "Añade el tercer párrafo «Análisis radar» al resumen IA, muestreando las teselas RainViewer alrededor de tu posición. Desactiva para omitir completamente este análisis.",
-      "extendedRadius": "Radio extendido (90 km)",
-      "extendedRadiusHint": "Duplica el radio de muestreo de 45 km a 90 km. Añade anillos a 60/75/90 km para seguir células de tormenta más lejos.",
-      "doubleOuterPoints": "Duplicar puntos más allá de 45 km",
-      "doubleOuterPointsHint": "En los anillos 60/75/90 km, muestrea en 16 direcciones (cada 22,5°) en lugar de 8, para mantener una densidad de puntos por km² uniforme entre ambos anillos. Solo tiene efecto si el radio extendido está activo.",
+      "extendedRadius": "Radio extendido",
+      "extendedRadiusHint": "Duplica aproximadamente el radio de muestreo (50 → 100 km, o 30 → 60 mi según la unidad de distancia). Añade tres anillos exteriores para seguir células de tormenta más lejos.",
+      "doubleOuterPoints": "Duplicar puntos en el anillo exterior",
+      "doubleOuterPointsHint": "En el anillo exterior, muestrea en 16 direcciones (cada 22,5°) en lugar de 8, para mantener una densidad de puntos por km² uniforme entre ambos anillos. Solo tiene efecto si el radio extendido está activo.",
       "showSamplingPoints": "Mostrar puntos de muestreo",
       "showSamplingPointsHint": "Muestra un pequeño punto en cada posición que el resumen IA muestrea en el radar."
     }
