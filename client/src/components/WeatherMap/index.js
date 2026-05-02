@@ -210,6 +210,57 @@ PanHandler.propTypes = {
 };
 
 /**
+ * Pushes the current Leaflet zoom up to AppContext on every zoomend event,
+ * plus once on mount so the Debug panel doesn't read a stale fallback. The
+ * Debug panel reads currentMapZoom from context instead of poking into the
+ * Leaflet instance.
+ *
+ * @param {object} props
+ * @param {Function} props.onZoomChange called with the new zoom on every change
+ * @returns {null} renders nothing
+ */
+const MapZoomTracker = ({ onZoomChange }) => {
+  const map = useMapEvents({
+    zoomend: () => onZoomChange(map.getZoom()),
+  });
+  useEffect(() => {
+    onZoomChange(map.getZoom());
+  }, [map, onZoomChange]);
+  return null;
+};
+
+MapZoomTracker.propTypes = {
+  onZoomChange: PropTypes.func.isRequired,
+};
+
+/**
+ * Live preview for the Settings → Default Map Zoom slider. When the user
+ * moves the slider, AppContext sets zoomToLevel; this handler picks it up
+ * and calls map.setZoom, then resets zoomToLevel to null. Without this,
+ * the slider would only take effect on next page load — confusing UX.
+ *
+ * @param {object} props
+ * @param {Number|null} props.zoomToLevel target zoom level, or null when idle
+ * @param {Function} props.setZoomToLevel resets zoomToLevel to null
+ * @returns {null} renders nothing
+ */
+const ZoomLevelHandler = ({ zoomToLevel, setZoomToLevel }) => {
+  const map = useMap();
+  useEffect(() => {
+    if (zoomToLevel !== null && zoomToLevel !== undefined) {
+      map.setZoom(zoomToLevel);
+      setZoomToLevel(null);
+    }
+  }, [zoomToLevel, map, setZoomToLevel]);
+  return null;
+};
+
+ZoomLevelHandler.propTypes = {
+  zoomToLevel: PropTypes.number,
+  setZoomToLevel: PropTypes.func.isRequired,
+};
+
+/**
  * Weather map
  *
  * @param {object} props
@@ -241,6 +292,9 @@ const WeatherMap = ({ zoom, dark }) => {
     radarOpacityLight,
     radarOpacityDark,
     distanceUnit,
+    setCurrentMapZoom,
+    zoomToLevel,
+    setZoomToLevel,
   } = useContext(AppContext);
 
   // Largest sample in each ring drives the circle radius. Multiplied by
@@ -360,6 +414,8 @@ const WeatherMap = ({ zoom, dark }) => {
       >
         <MapClickHandler onClick={mapClickHandler} />
         <PanHandler panToCoords={panToCoords} setPanToCoords={setPanToCoords} />
+        <MapZoomTracker onZoomChange={setCurrentMapZoom} />
+        <ZoomLevelHandler zoomToLevel={zoomToLevel} setZoomToLevel={setZoomToLevel} />
         <MapResizer infoPanelCollapsed={infoPanelCollapsed} />
         <AttributionControl position={"bottomleft"} />
         <TileLayer

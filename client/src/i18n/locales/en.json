@@ -23,6 +23,7 @@
     "fontS": "S",
     "fontM": "M",
     "fontL": "L",
+    "defaultMapZoom": "DEFAULT MAP ZOOM",
     "advanced": {
       "title": "Advanced settings",
       "readOnlyNotice": "These toggles can only be changed from the device itself. To modify them remotely, open an SSH tunnel (ssh -L 8443:localhost:8443 user@<host>) and reload the app from https://localhost:8443.",
@@ -214,6 +215,7 @@
     "hostname": "HOSTNAME",
     "systemd": "SYSTEMD",
     "screenResolution": "SCREEN",
+    "mapZoom": "MAP ZOOM",
     "pixelRatio": "DPI RATIO",
     "powerStatus": "POWER",
     "powerOk": "OK",

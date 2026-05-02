@@ -1112,6 +1112,7 @@ PowerStatusRow.propTypes = {
  */
 const ClientKpiSection = ({ fps, setFps, clientMetrics, setClientMetrics }) => {
   const { t } = useTranslation();
+  const { currentMapZoom } = useContext(AppContext);
   const rafRef = useRef(null);
 
   useEffect(() => {
@@ -1230,6 +1231,10 @@ const ClientKpiSection = ({ fps, setFps, clientMetrics, setClientMetrics }) => {
             <span className={styles.kpiValue}>{clientMetrics.heap.used} / {clientMetrics.heap.total} MB</span>
           </div>
         )}
+        <div className={styles.kpiItem}>
+          <span className={styles.kpiLabel}>{t("debug.mapZoom")}</span>
+          <span className={styles.kpiValue}>{currentMapZoom != null ? currentMapZoom : "—"}</span>
+        </div>
       </div>
 
       <div className={styles.kpiLabel} style={{ marginBottom: 4 }}>{t("debug.apiCallsSession")}</div>

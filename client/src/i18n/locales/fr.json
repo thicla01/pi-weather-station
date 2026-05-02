@@ -23,6 +23,7 @@
     "fontS": "P",
     "fontM": "M",
     "fontL": "G",
+    "defaultMapZoom": "ZOOM PAR DÉFAUT",
     "advanced": {
       "title": "Paramètres avancés",
       "readOnlyNotice": "Ces réglages ne peuvent être modifiés qu'à partir de l'appareil lui-même. Pour les modifier à distance, ouvre un tunnel SSH (ssh -L 8443:localhost:8443 user@<hôte>) et recharge l'application depuis https://localhost:8443.",
@@ -214,6 +215,7 @@
     "hostname": "HOSTNAME",
     "systemd": "SYSTEMD",
     "screenResolution": "ÉCRAN",
+    "mapZoom": "ZOOM CARTE",
     "pixelRatio": "RATIO DPI",
     "powerStatus": "ALIMENTATION",
     "powerOk": "OK",

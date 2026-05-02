@@ -10,6 +10,8 @@ const TEMP_UNIT_STORAGE_KEY = "tempUnit";
 const SPEED_UNIT_STORAGE_KEY = "speedUnit";
 const LENGTH_UNIT_STORAGE_KEY = "lengthUnit";
 const DISTANCE_UNIT_STORAGE_KEY = "distanceUnit";
+const DEFAULT_MAP_ZOOM_STORAGE_KEY = "defaultMapZoom";
+const DEFAULT_MAP_ZOOM_FALLBACK = 7; // historical hard-coded value before the slider
 const CLOCK_UNIT_STORAGE_KEY = "clockTime";
 const MOUSE_HIDE_STORAGE_KEY = "mouseHide";
 const FONT_SIZE_STORAGE_KEY = "fontSize";
@@ -81,6 +83,18 @@ export function AppContextProvider({ children }) {
   const [speedUnit, setSpeedUnit] = useState("mph"); // mph or ms for m/s
   const [lengthUnit, setLengthUnit] = useState("in"); // in or mm
   const [distanceUnit, setDistanceUnit] = useState("mi"); // mi or km — drives radar circles, AI summary
+  // Map zoom — three pieces of state working together:
+  //   - defaultMapZoom : the user's preferred starting zoom, used on next mount
+  //                      (Leaflet's MapContainer reads `zoom` only on init).
+  //   - currentMapZoom : whatever Leaflet is showing right now, pushed up from
+  //                      WeatherMap's zoomend listener so the Debug panel can
+  //                      display it without poking into Leaflet.
+  //   - zoomToLevel    : transient signal sent when the user moves the
+  //                      Settings slider, picked up by WeatherMap's
+  //                      ZoomLevelHandler to call map.setZoom for live preview.
+  const [defaultMapZoom, setDefaultMapZoom] = useState(DEFAULT_MAP_ZOOM_FALLBACK);
+  const [currentMapZoom, setCurrentMapZoom] = useState(DEFAULT_MAP_ZOOM_FALLBACK);
+  const [zoomToLevel, setZoomToLevel] = useState(null);
   const [clockTime, setClockTime] = useState("12"); // 12h or 24h time for clock
   const [animateWeatherMap, setAnimateWeatherMap] = useState(false);
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
@@ -245,6 +259,22 @@ export function AppContextProvider({ children }) {
   }
 
   /**
+   * Save default map zoom (used on next page load) and trigger a live preview
+   * by signalling the ZoomLevelHandler in WeatherMap to call map.setZoom.
+   * Without the live preview, sliding the control would feel inert until the
+   * user reloaded — confusing.
+   *
+   * @param {Number} newVal Zoom level (4–12)
+   */
+  function saveDefaultMapZoom(newVal) {
+    const n = Math.round(Number(newVal));
+    if (!Number.isFinite(n)) return;
+    setDefaultMapZoom(n);
+    setZoomToLevel(n);
+    window.localStorage.setItem(DEFAULT_MAP_ZOOM_STORAGE_KEY, String(n));
+  }
+
+  /**
    * Save font size preference
    *
    * @param {String} newVal `s`, `m`, or `l`
@@ -320,6 +350,7 @@ export function AppContextProvider({ children }) {
     const speed = window.localStorage.getItem(SPEED_UNIT_STORAGE_KEY);
     const length = window.localStorage.getItem(LENGTH_UNIT_STORAGE_KEY);
     const distance = window.localStorage.getItem(DISTANCE_UNIT_STORAGE_KEY);
+    const storedZoom = window.localStorage.getItem(DEFAULT_MAP_ZOOM_STORAGE_KEY);
     const clock = window.localStorage.getItem(CLOCK_UNIT_STORAGE_KEY);
 
     let mouseHide;
@@ -357,6 +388,11 @@ export function AppContextProvider({ children }) {
     }
     if (distance === "mi" || distance === "km") {
       setDistanceUnit(distance);
+    }
+    const parsedZoom = parseInt(storedZoom, 10);
+    if (Number.isFinite(parsedZoom)) {
+      setDefaultMapZoom(parsedZoom);
+      setCurrentMapZoom(parsedZoom);
     }
     if (clock) {
       setClockTime(clock);
@@ -944,6 +980,12 @@ export function AppContextProvider({ children }) {
     saveLengthUnit,
     distanceUnit,
     saveDistanceUnit,
+    defaultMapZoom,
+    saveDefaultMapZoom,
+    currentMapZoom,
+    setCurrentMapZoom,
+    zoomToLevel,
+    setZoomToLevel,
     animateWeatherMap,
     toggleAnimateWeatherMap,
     settingsMenuOpen,

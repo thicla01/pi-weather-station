@@ -26,6 +26,7 @@ const App = () => {
     infoPanelCollapsed,
     setInfoPanelCollapsed,
     fontSize,
+    defaultMapZoom,
   } = useContext(AppContext);
 
   const [isSmallScreen, setIsSmallScreen] = useState(
@@ -71,7 +72,7 @@ const App = () => {
             mouseHide ? "map-mouse-hide" : ""
           } ${darkMode ? "map-dark-mode" : ""}`}
         >
-          <WeatherMap zoom={7} dark={darkMode} />
+          <WeatherMap zoom={defaultMapZoom} dark={darkMode} />
           {isSmallScreen && (
             <button
               className={`${styles.panelToggle} ${darkMode ? styles.panelToggleDark : styles.panelToggleLight}`}

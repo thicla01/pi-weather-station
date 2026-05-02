@@ -23,6 +23,7 @@
     "fontS": "P",
     "fontM": "M",
     "fontL": "G",
+    "defaultMapZoom": "ZOOM POR DEFECTO",
     "advanced": {
       "title": "Ajustes avanzados",
       "readOnlyNotice": "Estos ajustes solo pueden modificarse desde el dispositivo mismo. Para cambiarlos remotamente, abre un túnel SSH (ssh -L 8443:localhost:8443 user@<host>) y recarga la aplicación desde https://localhost:8443.",
@@ -214,6 +215,7 @@
     "hostname": "HOSTNAME",
     "systemd": "SYSTEMD",
     "screenResolution": "PANTALLA",
+    "mapZoom": "ZOOM MAPA",
     "pixelRatio": "RATIO DPI",
     "powerStatus": "ALIMENTACIÓN",
     "powerOk": "OK",

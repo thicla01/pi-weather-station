@@ -11,7 +11,15 @@ import undoIcon from "@iconify/icons-carbon/undo";
 import closeSharp from "@iconify/icons-ion/close-sharp";
 import PropTypes from "prop-types";
 import AdvancedSettings from "./AdvancedSettings";
+import RangeSlider from "~/components/RangeSlider";
 import "!style-loader!css-loader!./animations.css";
+
+// Bounds for the default-zoom slider. 4 = continent-scale (useful when
+// "starting" coordinates point to a country centroid); 12 = neighbourhood
+// scale. Anything finer wouldn't show enough radar context to be useful
+// as a default; anything coarser loses local labels entirely.
+const ZOOM_MIN = 4;
+const ZOOM_MAX = 12;
 
 /**
  * Settings page
@@ -289,6 +297,8 @@ const ToggleButtons = () => {
     saveClockTime,
     fontSize,
     saveFontSize,
+    defaultMapZoom,
+    saveDefaultMapZoom,
   } = useContext(AppContext);
   const { t } = useTranslation();
 
@@ -364,6 +374,18 @@ const ToggleButtons = () => {
             cb={saveFontSize}
           />
         </div>
+      </div>
+
+      <div className={styles.labelSection}>{t("settings.defaultMapZoom")}</div>
+      <div className={styles.zoomSliderRow}>
+        <RangeSlider
+          value={defaultMapZoom}
+          onChange={saveDefaultMapZoom}
+          min={ZOOM_MIN}
+          max={ZOOM_MAX}
+          step={1}
+          ariaLabel={t("settings.defaultMapZoom")}
+        />
       </div>
     </div>
   );
