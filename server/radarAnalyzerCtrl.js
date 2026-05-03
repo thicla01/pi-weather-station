@@ -443,15 +443,92 @@ async function analyzeRadar(lat, lon, options = {}) {
   return text;
 }
 
+// Tier-bump table. Used by trend-aware risk colouring (v2): when a
+// precipitation band on a given ring is moving inward fast enough to
+// reach the user within ~30 minutes, the ring's tier is bumped one
+// notch — operational meteorology treats imminence as part of the
+// warning, not just raw intensity. Red stays red (already max).
+const TIER_BUMP = { calm: "yellow", yellow: "orange", orange: "red", red: "red" };
+
+/**
+ * Compute a per-ring trend label by comparing the radial intensity profile
+ * across the 3 captured frames. Returns "approaching" when the strongest-
+ * intensity sample on at least one direction has shifted inward by more
+ * than the unit-aware threshold over the 45-minute window AND the projected
+ * arrival time at the centre is under 30 minutes; "stable" otherwise.
+ *
+ * Departing bands aren't called out separately — they don't change the
+ * displayed tier (the latest-frame intensity already accounts for the
+ * fact that they're farther out now).
+ *
+ * @param {Array<Array<{direction: String, distance: Number, intensity: Number}>>} framesSamples
+ *   Per-frame samples ordered newest → oldest (snapshots[0] = now, [1] = -15, [2] = -45).
+ *   Each frame's samples cover the same direction × distance grid.
+ * @param {String} unit "km" or "mi" — selects the inward-shift threshold.
+ * @returns {"approaching" | "stable"}
+ */
+function computeRingTrend(framesSamples, unit) {
+  if (!framesSamples || framesSamples.length < 2) return "stable";
+  const oldest = framesSamples[framesSamples.length - 1];
+  const latest = framesSamples[0];
+  if (!oldest?.length || !latest?.length) return "stable";
+
+  // Spans the time window between the oldest and the latest snapshot, in
+  // minutes. TARGET_OFFSETS_MIN is [0, -15, -45], so the typical span is
+  // 45 min; using the actual array length keeps us correct if the window
+  // ever changes (e.g. dropping the -45 frame on RainViewer hiccups).
+  const spanMin = Math.abs(TARGET_OFFSETS_MIN[framesSamples.length - 1] || 0) || 45;
+
+  // Threshold tuned empirically: a band whose strongest sample shifts ≥5 km
+  // (~3 mi) inward over 45 min is moving fast enough that the next 30 min
+  // matter. Tighter and we miss real cells; looser and we trigger on noise.
+  const inwardThreshold = unit === "mi" ? 3 : 5;
+  const arrivalLimitMin = 30;
+
+  // Per direction: find the distance of the strongest non-trivial sample
+  // in each frame. "Non-trivial" means intensity ≥ 2 (light or above);
+  // intensity 1 (very light) is too noisy to reason about movement from.
+  const directions = [...new Set(latest.map((s) => s.direction))];
+  for (const dir of directions) {
+    if (dir === "C") continue; // centre point has no radial movement
+    const peaks = framesSamples.map((snap) => {
+      let bestI = 0;
+      let bestDist = null;
+      for (const s of snap) {
+        if (s.direction === dir && s.intensity >= 2 && s.intensity >= bestI) {
+          bestI = s.intensity;
+          bestDist = s.distance;
+        }
+      }
+      return { intensity: bestI, distance: bestDist };
+    });
+    const peakNow = peaks[0];
+    const peakOld = peaks[peaks.length - 1];
+    if (peakNow.distance == null || peakOld.distance == null) continue;
+    const inwardShift = peakOld.distance - peakNow.distance;
+    if (inwardShift < inwardThreshold) continue;
+    // Project arrival: how long until this band reaches the centre at
+    // the current inward speed?
+    const speedPerMin = inwardShift / spanMin;
+    if (speedPerMin <= 0) continue;
+    const minutesToArrival = peakNow.distance / speedPerMin;
+    if (minutesToArrival < arrivalLimitMin) return "approaching";
+  }
+  return "stable";
+}
+
 /**
  * Compute current radar-risk levels for the inner and (optionally) outer
  * sampling rings around a location. Reuses the same sampling pipeline as
- * analyzeRadar but only on the most recent frame — risk colouring is a
- * "right now" concern, not a trend (trend support is on the roadmap).
+ * analyzeRadar — and now also reuses its 3-frame sequence (now / -15 min /
+ * -45 min) so the tier can be bumped one notch when a band is moving
+ * inward fast enough to reach the user within ~30 min ("trend-aware
+ * risk colouring", roadmap v2).
  *
  * Returns an object the WeatherMap consumes to colour its dashed circles.
- * Both rings carry the worst-case intensity sampled on that ring (see
- * RISK_LEVELS). When the outer ring isn't requested or its samples all
+ * Both rings carry the (possibly tier-bumped) worst-case intensity sampled
+ * on that ring (see RISK_LEVELS), plus a `trend` label for diagnostics
+ * and future UI. When the outer ring isn't requested or its samples all
  * fail, the outer field is null and the client just doesn't tint its
  * outer circle.
  *
@@ -462,8 +539,8 @@ async function analyzeRadar(lat, lon, options = {}) {
  * @param {String}  [options.distanceUnit] "km" (default) or "mi" — selects
  *   the geometry table so the same radii are sampled the client draws
  * @returns {Promise<{
- *   inner: { level: String, maxIntensity: Number },
- *   outer: { level: String, maxIntensity: Number } | null,
+ *   inner: { level: String, maxIntensity: Number, trend: String, samples: Array },
+ *   outer: { level: String, maxIntensity: Number, trend: String, samples: Array } | null,
  *   timestamp: Number
  * } | null>} null when RainViewer is unreachable
  */
@@ -490,16 +567,11 @@ async function getRiskLevels(lat, lon, options = {}) {
     return null;
   }
 
-  // Latest frame only — risk colouring reads "right now". The 3-frame
-  // sequence the analyzer uses is for the AI prompt's movement reasoning.
-  const frame = findFrameNear(frames, Date.now());
-  if (!frame) return null;
-
-  // Build inner sample points (always evaluated when this endpoint is hit).
-  // First sample is the user's exact location so a small cell sitting right
-  // on the marker still bumps the inner-ring max-intensity score, matching
-  // the analyzer's geometry. The center sample naturally feeds the same
-  // worst-case calculation as the rest of the ring.
+  // Build sample geometry once — same direction × distance grid is sampled
+  // on every frame in the trend window. First inner point is the user's
+  // exact location so a small cell sitting on the marker still bumps the
+  // inner-ring max-intensity score; centre point is excluded from trend
+  // analysis since "movement toward the centre" doesn't apply to it.
   const innerPoints = [{ direction: "C", distance: 0, bearing: 0, distanceKm: 0 }];
   for (const dir of INNER_DIRECTIONS) {
     for (const distance of geometry.inner) {
@@ -515,21 +587,60 @@ async function getRiskLevels(lat, lon, options = {}) {
     }
   }
 
-  let innerMax = 0;
-  let outerMax = 0;
-  let innerSamples = [];
-  let outerSamples = [];
+  // Capture the same 3-frame sequence the AI summary uses (now, -15 min,
+  // -45 min). Building all three snapshots in parallel keeps the latency
+  // close to a single-frame fetch since most tile reads will hit the
+  // shared tile cache (the analyzer for the AI summary already populated
+  // them on its 5-minute schedule).
+  const now = Date.now();
+  const frameJobs = TARGET_OFFSETS_MIN.map((offsetMin) => {
+    const targetMs = now + offsetMin * 60 * 1000;
+    const frame = findFrameNear(frames, targetMs);
+    if (!frame) return Promise.resolve(null);
+    return Promise.all([
+      buildSnapshot(lat, lon, frame.path, innerPoints),
+      outerPoints.length
+        ? buildSnapshot(lat, lon, frame.path, outerPoints)
+        : Promise.resolve([]),
+    ])
+      .then(([inner, outer]) => ({ frame, inner, outer }))
+      .catch(() => null);
+  });
+
+  let snapshots;
   try {
-    innerSamples = await buildSnapshot(lat, lon, frame.path, innerPoints);
-    innerMax = innerSamples.reduce((m, s) => Math.max(m, s.intensity), 0);
-    if (outerPoints.length) {
-      outerSamples = await buildSnapshot(lat, lon, frame.path, outerPoints);
-      outerMax = outerSamples.reduce((m, s) => Math.max(m, s.intensity), 0);
-    }
+    snapshots = (await Promise.all(frameJobs)).filter(Boolean);
   } catch (err) {
     recordServiceCall("RainViewer (risk)", err?.response?.status || 500, "snapshot failed");
     return null;
   }
+  if (!snapshots.length) {
+    recordServiceCall("RainViewer (risk)", 200, "no snapshots");
+    return null;
+  }
+
+  // snapshots[0] is the latest frame (TARGET_OFFSETS_MIN[0] = 0). The
+  // displayed tier and the per-sample dot colours both come from this
+  // frame; the older frames feed only the trend computation.
+  const latest = snapshots[0];
+  const innerSamples = latest.inner;
+  const outerSamples = latest.outer;
+  const innerMax = innerSamples.reduce((m, s) => Math.max(m, s.intensity), 0);
+  const outerMax = outerSamples.reduce((m, s) => Math.max(m, s.intensity), 0);
+
+  // Trend per ring: bump tier one notch when a band is moving inward
+  // fast enough to arrive within ~30 min (see computeRingTrend). The
+  // bump applies even from "calm" — light precipitation that's clearly
+  // moving in deserves an early heads-up.
+  const innerTrend = computeRingTrend(snapshots.map((s) => s.inner), unit);
+  const outerTrend = outerPoints.length
+    ? computeRingTrend(snapshots.map((s) => s.outer), unit)
+    : "stable";
+
+  const innerBaseLevel = RISK_LEVELS[innerMax];
+  const outerBaseLevel = RISK_LEVELS[outerMax];
+  const innerLevel = innerTrend === "approaching" ? TIER_BUMP[innerBaseLevel] : innerBaseLevel;
+  const outerLevel = outerTrend === "approaching" ? TIER_BUMP[outerBaseLevel] : outerBaseLevel;
 
   // Per-sample intensities ride along with the ring summary so the
   // WeatherMap can colour each visible sampling-point dot by its own
@@ -537,11 +648,11 @@ async function getRiskLevels(lat, lon, options = {}) {
   // {direction, distance, intensity}; the client matches them to its
   // own buildSamplingPoints output by `${direction}:${distance}` key.
   const result = {
-    inner: { level: RISK_LEVELS[innerMax], maxIntensity: innerMax, samples: innerSamples },
+    inner: { level: innerLevel, maxIntensity: innerMax, trend: innerTrend, samples: innerSamples },
     outer: outerPoints.length
-      ? { level: RISK_LEVELS[outerMax], maxIntensity: outerMax, samples: outerSamples }
+      ? { level: outerLevel, maxIntensity: outerMax, trend: outerTrend, samples: outerSamples }
       : null,
-    timestamp: frame.time,
+    timestamp: latest.frame.time,
   };
 
   riskCache.set(cacheKey, { result, expiresAt: Date.now() + ANALYSIS_CACHE_TTL });

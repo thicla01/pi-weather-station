@@ -37,12 +37,8 @@ After a configurable period of inactivity, the display would transition to a min
 
 > **Design-first candidate.** The whole feature is a visual identity exercise — large clock, optional weather highlights, optional ambient animation (subtle starfield, simplified radar bands, breathing glow). [Claude Design](https://claude.ai/design) is the right tool to mock this up before any React work. Save the standalone HTML to `docs/design-references/sleep-mode.html` for the eventual port.
 
-### 🟧 Trend-aware radar-risk colouring (v2)
-v1 (current) colours each dashed circle based on the *current* worst-case intensity sampled on the ring (calm / 🟡 / 🟠 / 🔴, mapped from RainViewer intensity 0-6). The analyzer already captures three timestamps (now, -15 min, -45 min); v2 would compare them per direction and bump the level when a band is *approaching* the user — i.e. an orange that's heading inward becomes red before it actually crosses the intensity-5 threshold. This aligns with operational meteorology where the "warning" tier accounts for imminence as much as raw intensity.
-
-- **Server**: `getRiskLevels` already fetches the latest frame; extend it to fetch the same three frames `analyzeRadar` uses, score the radial trend per direction, and bump the ring level when the inward gradient is positive AND the projected arrival is < ~30 min.
-- **Client**: zero changes — the API contract (`{ inner: { level }, outer: { level } | null }`) stays the same.
-- **Validation**: hand-tune the "approaching" threshold against a few captured radar sequences before shipping; too eager and the ring flickers, too lax and the bump is meaningless.
+### ✅ ~~Trend-aware radar-risk colouring (v2)~~ — **shipped May 2026**
+`getRiskLevels` now fetches the 3-frame sequence (now / -15 min / -45 min) and bumps the ring tier one notch when a band on at least one direction has shifted inward by ≥5 km (≥3 mi) over 45 min AND projected arrival is < 30 min. Snapshots fetched in parallel; most tile reads hit the shared cache populated by the AI-summary analyzer. Response gains a `trend` field per ring (`approaching` \| `stable`) for diagnostics — no client change required, the bumped `level` flows through the existing rendering. Threshold values are empirical: tighter and we miss real cells, looser and we trigger on noise. Re-tune if the observed false-positive rate is high.
 
 ### 🥧 Angular-sector risk colouring (v3 — utility to validate before building)
 Building on v2, divide each ring into the 8 angular sectors that match the sample directions (N / NE / E / … / NW) and tint each sector with the colour of the worst-case intensity among its radial samples. This adds a *direction-of-risk* dimension that the single-colour ring can't surface in one glance — "the storm is in the SW quadrant" instead of just "there's a storm somewhere on the ring". Optional 16-sector mode reuses `doubleOuterPoints` for the outer ring.

@@ -248,11 +248,12 @@ The outer ring is sampled only when `advanced.ai.extendedRadius` is `true` (serv
 
 | Field | Type | Description |
 |---|---|---|
-| `inner.level` | string | `calm` \| `yellow` \| `orange` \| `red` |
+| `inner.level` | string | `calm` \| `yellow` \| `orange` \| `red` — already includes the trend bump (one notch up from `maxIntensity` when `trend === "approaching"`) |
 | `inner.maxIntensity` | integer | Worst-case RainViewer intensity (0–6) sampled on the inner ring |
-| `inner.samples` | array | Per-point intensities: `[{ direction, distance, intensity }, ...]` — direction is `C` for the centre + 8 cardinals (`N`/`NE`/.../`NW`); distance is in the user's unit. Used by the WeatherMap to colour individual sampling-point dots when that overlay is on. |
-| `outer` | object \| null | Same shape as `inner` (level + maxIntensity + samples), or `null` when `extendedRadius` is off |
-| `timestamp` | integer | Unix timestamp (seconds) of the RainViewer frame the result is computed from |
+| `inner.trend` | string | `approaching` \| `stable` — `approaching` means a band on at least one direction has shifted inward by ≥5 km / ≥3 mi over the last 45 min AND its projected arrival at the centre is under 30 min. Computed from the same 3-frame sequence the AI summary uses. |
+| `inner.samples` | array | Per-point intensities: `[{ direction, distance, intensity }, ...]` — direction is `C` for the centre + 8 cardinals (`N`/`NE`/.../`NW`); distance is in the user's unit. Always from the latest frame (trend uses older frames internally but doesn't expose them). Used by the WeatherMap to colour individual sampling-point dots when that overlay is on. |
+| `outer` | object \| null | Same shape as `inner` (level + maxIntensity + trend + samples), or `null` when `extendedRadius` is off |
+| `timestamp` | integer | Unix timestamp (seconds) of the latest RainViewer frame the result is computed from |
 
 - **Errors:** HTTP 503 when RainViewer is unreachable or returns no recent frames
 
