@@ -3,6 +3,7 @@ import { getSettings } from "~/settings";
 import PropTypes from "prop-types";
 import { getCoordsFromApi } from "~/services/geolocation";
 import axios from "axios";
+import tzlookup from "tz-lookup";
 
 export const AppContext = createContext();
 
@@ -33,6 +34,23 @@ export function AppContextProvider({ children }) {
   const [anthropicApiKey, setAnthropicApiKey] = useState(null);
   const [browserGeo, setBrowserGeo] = useState(null);
   const [mapGeo, setMapGeo] = useState(null);
+  // IANA timezone derived from mapGeo via tz-lookup. Used by Clock to
+  // display the wall-clock time at the marker's location instead of the
+  // Pi's host timezone — so a kiosk in Quebec showing a marker on Hong
+  // Kong reads "21:00" (HKT) rather than "09:00" (EDT) for the same
+  // moment. Falls back to undefined → Intl uses host TZ → Clock
+  // behaves like before.
+  const [mapTimezone, setMapTimezone] = useState(undefined);
+  useEffect(() => {
+    if (!mapGeo) return;
+    try {
+      setMapTimezone(tzlookup(mapGeo.latitude, mapGeo.longitude));
+    } catch {
+      // tz-lookup throws on out-of-range coords (e.g. ocean buoy with
+      // no nearby polygon) — fall back to host timezone silently.
+      setMapTimezone(undefined);
+    }
+  }, [mapGeo]);
   // Whether the AI weather summary feature is operational on this Pi.
   // Starts true (optimistic) and is flipped to false when the server returns
   // 503 (no Anthropic API key configured). Used by WeatherMap to conditionally
@@ -1010,6 +1028,7 @@ export function AppContextProvider({ children }) {
     saveDarkModeAuto,
     mapGeo,
     setMapGeo,
+    mapTimezone,
     aiSummaryAvailable,
     setAiSummaryAvailable,
     radarAnalysisEnabled,
