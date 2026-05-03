@@ -126,6 +126,16 @@ export function AppContextProvider({ children }) {
   // "calm" | "yellow" | "orange" | "red".
   const [innerRisk, setInnerRisk] = useState(null);
   const [outerRisk, setOuterRisk] = useState(null);
+  // Raw maxIntensity + trend from each ring — lets the AlertBanner detect
+  // when a tier was bumped purely by v2 (trend === "approaching" + raw
+  // intensity below the natural threshold for the displayed tier) and
+  // soften the wording accordingly ("précipitations approchent" instead
+  // of the alarmist "précipitations fortes" when nothing heavy is
+  // actually on the ring yet).
+  const [innerTrend, setInnerTrend] = useState("stable");
+  const [outerTrend, setOuterTrend] = useState("stable");
+  const [innerMaxIntensity, setInnerMaxIntensity] = useState(0);
+  const [outerMaxIntensity, setOuterMaxIntensity] = useState(0);
   const [clockTime, setClockTime] = useState("12"); // 12h or 24h time for clock
   const [animateWeatherMap, setAnimateWeatherMap] = useState(false);
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
@@ -1070,6 +1080,14 @@ export function AppContextProvider({ children }) {
     setInnerRisk,
     outerRisk,
     setOuterRisk,
+    innerTrend,
+    setInnerTrend,
+    outerTrend,
+    setOuterTrend,
+    innerMaxIntensity,
+    setInnerMaxIntensity,
+    outerMaxIntensity,
+    setOuterMaxIntensity,
     animateWeatherMap,
     toggleAnimateWeatherMap,
     settingsMenuOpen,

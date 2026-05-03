@@ -148,7 +148,8 @@
     "orangeNear": "Precipitación fuerte en su zona",
     "orangeApproaching": "Precipitación fuerte en las cercanías",
     "redNear": "Alerta — Precipitación severa en su zona",
-    "redApproaching": "Alerta — Precipitación severa acercándose"
+    "redApproaching": "Alerta — Precipitación severa acercándose",
+    "approaching": "Precipitación acercándose"
   },
   "radar": {
     "legend": "RADAR",

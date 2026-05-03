@@ -148,7 +148,8 @@
     "orangeNear": "Heavy precipitation in your area",
     "orangeApproaching": "Heavy precipitation nearby",
     "redNear": "Alert — Severe precipitation in your area",
-    "redApproaching": "Alert — Severe precipitation approaching"
+    "redApproaching": "Alert — Severe precipitation approaching",
+    "approaching": "Precipitation approaching"
   },
   "radar": {
     "legend": "RADAR",
