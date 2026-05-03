@@ -35,6 +35,8 @@ RainViewer exposes multiple historical and forecast frames via its API. The Weat
 ### 😴 Sleep mode / screensaver
 After a configurable period of inactivity, the display would transition to a minimal fullscreen clock (large digits, low brightness). Any touch or mouse event would restore the full interface. This protects the LCD panel from burn-in and gives the device a polished, always-on appearance. Implementation requires an inactivity timer in the client and the brightness control endpoint described above.
 
+> **Design-first candidate.** The whole feature is a visual identity exercise — large clock, optional weather highlights, optional ambient animation (subtle starfield, simplified radar bands, breathing glow). [Claude Design](https://claude.ai/design) is the right tool to mock this up before any React work. Save the standalone HTML to `docs/design-references/sleep-mode.html` for the eventual port.
+
 ### 🟧 Trend-aware radar-risk colouring (v2)
 v1 (current) colours each dashed circle based on the *current* worst-case intensity sampled on the ring (calm / 🟡 / 🟠 / 🔴, mapped from RainViewer intensity 0-6). The analyzer already captures three timestamps (now, -15 min, -45 min); v2 would compare them per direction and bump the level when a band is *approaching* the user — i.e. an orange that's heading inward becomes red before it actually crosses the intensity-5 threshold. This aligns with operational meteorology where the "warning" tier accounts for imminence as much as raw intensity.
 
@@ -51,6 +53,15 @@ Building on v2, divide each ring into the 8 angular sectors that match the sampl
 
 ### ⚠️ Severe weather alerts
 Tomorrow.io exposes weather alerts (warnings, watches, advisories) for supported regions. A persistent banner at the top of the InfoPanel — or a badge on the ControlButtons bar — would surface critical alerts without interrupting the normal layout. The server would cache alerts alongside the existing weather data.
+
+> **Design-first for the critical-tier overlay.** The light-touch banner is straightforward, but for a red/severe alert that warrants taking over the whole screen, the visual language (colour, typography, iconography, motion) is the entire UX. Worth mocking the takeover overlay in [Claude Design](https://claude.ai/design) before coding — the goal is "you cannot miss this" without crossing into "annoying", and that line is purely a design judgment. Save to `docs/design-references/severe-alert-overlay.html`.
+
+### 🌌 Astronomy companion view
+A second optional "page" in the kiosk that complements the weather/radar primary view: Earth orbiting the Sun with continuous axial-tilt animation, day-length variation over the year, sunrise/sunset arcs, and a "Today" mode showing real-time orbital angle, current axial tilt, and a countdown to the next solstice/equinox. Branched on the user's actual latitude/longitude (not the generic 48°N / 35°S the prototype hard-codes), so the day-length curve is *their* curve, not a demo.
+
+Accessed via a new ControlButtons icon that toggles between the radar view and the astronomy view; the InfoPanel and clock area stay shared. Almost zero new server work — the data is purely astronomical (date + lat/lon → math), and the existing `sunriseTime` / `sunsetTime` from sunrise-sunset.org are already there to cross-check.
+
+> **Design-first.** A working visual prototype already exists at [`docs/design-references/solstices-equinoxes.html`](design-references/solstices-equinoxes.html) (saved May 2026, produced via [Claude Design](https://claude.ai/design)). Open it directly in a browser — that file is the source of truth for the visual identity. The integration work is to port the React-in-HTML to a proper component (CSS Modules, JSDoc + PropTypes, full i18n EN/FR/ES — the prototype is French-only), plus wire it to the user's real location, plus add the toggle button. Probably one full session.
 
 ### 🌡️ Local GPIO sensors (DHT22 / BME280)
 This is the item that most clearly differentiates a Pi weather station from any commercial weather app. Connecting a temperature and humidity sensor directly to the Pi's GPIO pins would allow the app to display the **actual conditions in the room** alongside the external forecast. A lightweight server-side poller (every 30 seconds) reading from the sensor via a Node.js GPIO library would feed a new panel section or a prominent badge on the CurrentWeather block. No external API call, no quota, no latency.
@@ -70,6 +81,11 @@ These items have real value but require a more significant investment.
 
 ### 🔔 Browser push notifications (severe weather)
 If the Pi also serves remote clients on the local network, the Web Push API could deliver severe weather alerts to those devices even when the browser tab is not active. Requires a service worker, VAPID key generation, and a subscription management endpoint.
+
+### 🚪 Guided onboarding for first-run installs
+Today, a fresh install dumps the user into the main UI with empty API key fields and no clear next step — they have to discover the Settings panel and figure out which keys go where. A guided onboarding flow (welcome → API key entry, one panel at a time → optional location override → "you're all set") would dramatically reduce the friction for new adopters. Not strictly necessary for the existing fleet, but a major polish item if the project grows.
+
+> **Design-first.** Onboarding flows are 90% UX copy + visual hierarchy + animation timing — exactly what [Claude Design](https://claude.ai/design) is built for. Mock the full flow there before any React work; the implementation is a small state machine wrapping a few existing input components. Save to `docs/design-references/onboarding.html`.
 
 ### 📍 Location favorites
 A small list of saved locations (home, chalet, work) that the user can switch between with a single tap. The map and all weather data would reload for the selected location. Useful for households that monitor multiple places regularly.
@@ -143,6 +159,6 @@ The three items I would prioritize above all others if returning to this project
 
 ---
 
-*Last updated: 2026-05-02*
+*Last updated: 2026-05-02 (added Claude Design references for astronomy view, sleep mode, severe-alert overlay, onboarding)*
 
 
