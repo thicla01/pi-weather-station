@@ -51,8 +51,23 @@ Building on v2, divide each ring into the 8 angular sectors that match the sampl
 - **Utility check before shipping**: the radar tile layer already shows precipitation with much higher spatial resolution than 8 sparse sample points. The benefit of the sector overlay is only the *quick directional read* — needs to be validated against real use ("would I have looked at this and known the storm was in the SW faster than just glancing at the radar?") before committing to the visual complexity. Risk: pie-slice tinting on top of radar tiles competes for attention rather than adding signal.
 - **Decision gate**: build a static mock first (hand-coloured sectors over a screenshot), test on the 7" kiosk, and only proceed to wiring up live data if the mock genuinely improves at-a-glance reading.
 
-### ⚠️ Severe weather alerts
-Tomorrow.io exposes weather alerts (warnings, watches, advisories) for supported regions. A persistent banner at the top of the InfoPanel — or a badge on the ControlButtons bar — would surface critical alerts without interrupting the normal layout. The server would cache alerts alongside the existing weather data.
+### ⚠️ Severe weather alerts (multi-source: NWS + ECCC + MeteoAlarm)
+Surface official severe-weather warnings (tornado, severe thunderstorm, flood, winter storm, heat, etc.) from authoritative national sources, in the same `<AlertBanner>` we already use for radar-tier alerts. Government alerts take precedence over the radar-derived tier — a tornado warning beats "radar shows red".
+
+**Tomorrow.io is not the right source.** We attempted `/v4/events` first (May 2026); turns out that endpoint expects user-defined insight rule UUIDs from the dashboard, not a global feed of government alerts. Tomorrow.io does not expose a free, plug-and-play "official alerts" feed — what they offer is rule-based monitoring you'd configure per location. The right approach is to call the actual government APIs directly:
+
+- **United States** — [NWS API](https://www.weather.gov/documentation/services-web-api) at `api.weather.gov/alerts/active?point={lat},{lon}`. Free, no API key, returns ATOM/JSON, full coverage. Polygon-based geo-targeting.
+- **Canada** — Environment and Climate Change Canada (ECCC) doesn't have a clean lat/lon REST API; alerts are CAP feeds keyed by region (ex. `https://dd.weather.gc.ca/alerts/cap/`). Need to map (lat, lon) → ECCC region code first. More plumbing than NWS, but free.
+- **Europe** — [MeteoAlarm](https://www.meteoalarm.org/) aggregates from national met services. Has a JSON feed by country/region.
+- **Other regions** — fall back to the radar-derived tier alone; document the coverage gap.
+
+Implementation:
+- **Server**: `server/govAlertsCtrl.js` with one source-specific function per region. Detect the region from (lat, lon) → bounding-box lookup → call the matching source. Cache 5-10 min.
+- **Endpoint**: `GET /api/weather-alerts?lat&lon` returns a normalised shape: `{ alerts: [{ source, severity, eventType, title, description, expiresAt }] }`.
+- **Client**: poll every 10 min, integrate with existing `<AlertBanner>` so a government alert outranks the highest-severity radar tier; show source badge ("NWS", "ECCC", "MeteoAlarm").
+- **Failure path**: every source call wrapped in try/catch with graceful degradation — empty list on failure, never blocks the radar-tier display.
+
+Effort: ~3-5h (source-specific parsers are the bulk; the AlertBanner integration is small since the pattern is already there).
 
 > **Design-first for the critical-tier overlay.** The light-touch banner is straightforward, but for a red/severe alert that warrants taking over the whole screen, the visual language (colour, typography, iconography, motion) is the entire UX. Worth mocking the takeover overlay in [Claude Design](https://claude.ai/design) before coding — the goal is "you cannot miss this" without crossing into "annoying", and that line is purely a design judgment. Save to `docs/design-references/severe-alert-overlay.html`.
 
