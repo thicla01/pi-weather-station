@@ -241,6 +241,7 @@
     "systemd": "SYSTEMD",
     "screenResolution": "SCREEN",
     "mapZoom": "MAP ZOOM",
+    "mapCoords": "MAP COORDS",
     "pixelRatio": "DPI RATIO",
     "powerStatus": "POWER",
     "powerOk": "OK",

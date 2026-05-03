@@ -456,6 +456,29 @@
 .kpi-value-warn { color: #f0a500; }
 .kpi-value-err  { color: #ff6b6b; }
 
+.kpi-copy-btn {
+  /* Inline pill button next to a kpi-value text. Small, neutral by
+     default, briefly switches to its "Copied!" label for 2 s after click
+     (handled in JS). Matches the project's interactive-grey palette so
+     it doesn't compete visually with the actual value. */
+  margin-left: 8px;
+  padding: 1px 8px;
+  font-family: inherit;
+  font-size: 0.85em;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.18);
+  border-radius: 3px;
+  color: #f6f6f4;
+  cursor: pointer;
+  transition: background-color 0.15s ease;
+}
+.kpi-copy-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+}
+.kpi-copy-btn:active {
+  background: rgba(255, 255, 255, 0.22);
+}
+
 .rt-table {
   display: table;
   width: 100%;

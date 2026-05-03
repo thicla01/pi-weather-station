@@ -1169,8 +1169,26 @@ PowerStatusRow.propTypes = {
  */
 const ClientKpiSection = ({ fps, setFps, clientMetrics, setClientMetrics }) => {
   const { t } = useTranslation();
-  const { currentMapZoom } = useContext(AppContext);
+  const { currentMapZoom, mapGeo } = useContext(AppContext);
   const rafRef = useRef(null);
+  const [coordsCopied, setCoordsCopied] = useState(false);
+
+  // Format the active map position as "lat, lon" with 6-decimal precision
+  // (about 11 cm at the equator — far more than the radar analyzer needs,
+  // but matches what the InfoPanel header shows on hover before reverse
+  // geocoding kicks in). Returns null when mapGeo isn't ready yet so the
+  // row hides cleanly.
+  const coordsString = mapGeo
+    ? `${mapGeo.latitude.toFixed(6)}, ${mapGeo.longitude.toFixed(6)}`
+    : null;
+
+  const copyCoords = useCallback(() => {
+    if (!coordsString) return;
+    navigator.clipboard.writeText(coordsString).then(() => {
+      setCoordsCopied(true);
+      setTimeout(() => setCoordsCopied(false), 2000);
+    }).catch(() => { /* clipboard API may be blocked — silent fail */ });
+  }, [coordsString]);
 
   useEffect(() => {
     // Page load time
@@ -1292,6 +1310,22 @@ const ClientKpiSection = ({ fps, setFps, clientMetrics, setClientMetrics }) => {
           <span className={styles.kpiLabel}>{t("debug.mapZoom")}</span>
           <span className={styles.kpiValue}>{currentMapZoom != null ? currentMapZoom : "—"}</span>
         </div>
+        {coordsString && (
+          <div className={styles.kpiItem}>
+            <span className={styles.kpiLabel}>{t("debug.mapCoords")}</span>
+            <span className={styles.kpiValue}>
+              {coordsString}
+              <button
+                type="button"
+                onClick={copyCoords}
+                className={styles.kpiCopyBtn}
+                title={t("update.copy")}
+              >
+                {coordsCopied ? t("update.copied") : t("update.copy")}
+              </button>
+            </span>
+          </div>
+        )}
       </div>
 
       <div className={styles.kpiLabel} style={{ marginBottom: 4 }}>{t("debug.apiCallsSession")}</div>
