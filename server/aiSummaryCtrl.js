@@ -285,7 +285,6 @@ async function getWeatherSummary(req, res) {
     try {
       radarText = await analyzeRadar(lat, lon, {
         extendedRadius: Boolean(aiSettings.extendedRadius),
-        doubleOuterPoints: Boolean(aiSettings.doubleOuterPoints),
         distanceUnit,
       });
     } catch {

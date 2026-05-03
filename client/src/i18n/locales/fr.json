@@ -43,9 +43,7 @@
       "radarAnalysisEnabled": "Analyse radar",
       "radarAnalysisEnabledHint": "Ajoute le troisième paragraphe « Analyse radar » au résumé IA, à partir des tuiles RainViewer autour de ta position. Désactive pour omettre complètement cette analyse.",
       "extendedRadius": "Rayon étendu",
-      "extendedRadiusHint": "Double approximativement le rayon d'échantillonnage (50 → 100 km, ou 30 → 60 mi selon l'unité de distance). Ajoute trois anneaux extérieurs pour suivre les cellules plus loin.",
-      "doubleOuterPoints": "Doubler les points sur l'anneau extérieur",
-      "doubleOuterPointsHint": "Sur l'anneau extérieur, échantillonne à 16 directions (tous les 22,5°) au lieu de 8, pour garder une densité de points par km² uniforme entre les deux anneaux. Effet uniquement si le rayon étendu est actif.",
+      "extendedRadiusHint": "Double approximativement le rayon d'échantillonnage (50 → 100 km, ou 30 → 60 mi selon l'unité de distance). Ajoute l'anneau extérieur (32 directions × 10 distances) pour suivre les cellules plus loin.",
       "showSamplingPoints": "Afficher les points d'échantillonnage",
       "showSamplingPointsHint": "Affiche un petit point à chaque position que le résumé IA échantillonne sur le radar."
     }

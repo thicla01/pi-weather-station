@@ -24,54 +24,52 @@ const TARGET_OFFSETS_MIN = [0, -15, -45];   // now, 15 min ago, 45 min ago
 // Sampling geometry per distance unit. Values are expressed in the user's
 // chosen unit (km or mi); the great-circle math multiplies by KM_PER_UNIT
 // when computing offsets, and the textual format echoes the unit label.
-// Both rings keep 4 + 3 sample distances so the analyzer's behaviour and
-// prompt size stay constant — only the spacing changes between unit modes.
+// Dense layout (May 2026 retune): 10 sample distances per ring per unit,
+// every 5 km (3 mi) — 481 total points when extendedRadius is on. Earlier
+// sparser geometry (4 + 3 distances at 8 + 16 directions = 57 points)
+// missed cells drifting between sample positions; the denser grid greatly
+// improves both the per-sample dot overlay's spatial fidelity and the
+// trend-detection signal-to-noise ratio.
 //
 // Must stay in sync with client/src/components/WeatherMap/index.js so the
 // dots rendered on the map land on the points the analyzer actually reads.
 const KM_PER_UNIT = { km: 1, mi: 1.609344 };
 const RADAR_GEOMETRY = {
   km: {
-    inner: [5, 15, 30, 50],
-    outer: [65, 80, 100],
+    inner: [5, 10, 15, 20, 25, 30, 35, 40, 45, 50],
+    outer: [55, 60, 65, 70, 75, 80, 85, 90, 95, 100],
   },
   mi: {
-    inner: [3, 10, 20, 30],
-    outer: [40, 50, 60],
+    inner: [3, 6, 9, 12, 15, 18, 21, 24, 27, 30],
+    outer: [33, 36, 39, 42, 45, 48, 51, 54, 57, 60],
   },
 };
 
-const INNER_DIRECTIONS = [
-  { name: "N",  bearing: 0   },
-  { name: "NE", bearing: 45  },
-  { name: "E",  bearing: 90  },
-  { name: "SE", bearing: 135 },
-  { name: "S",  bearing: 180 },
-  { name: "SW", bearing: 225 },
-  { name: "W",  bearing: 270 },
-  { name: "NW", bearing: 315 },
-];
-// 16-point compass — the 8 cardinals interleaved with the 8 half-bearings
-// (NNE/ENE/ESE/SSE/SSW/WSW/WNW/NNW). Used on the outer ring when
-// doubleOuterPoints is on.
-const OUTER_DIRECTIONS_DOUBLED = [
-  { name: "N",   bearing: 0     },
-  { name: "NNE", bearing: 22.5  },
-  { name: "NE",  bearing: 45    },
-  { name: "ENE", bearing: 67.5  },
-  { name: "E",   bearing: 90    },
-  { name: "ESE", bearing: 112.5 },
-  { name: "SE",  bearing: 135   },
-  { name: "SSE", bearing: 157.5 },
-  { name: "S",   bearing: 180   },
-  { name: "SSW", bearing: 202.5 },
-  { name: "SW",  bearing: 225   },
-  { name: "WSW", bearing: 247.5 },
-  { name: "W",   bearing: 270   },
-  { name: "WNW", bearing: 292.5 },
-  { name: "NW",  bearing: 315   },
-  { name: "NNW", bearing: 337.5 },
-];
+// 16-point compass for the inner ring — every 22.5°. Standard names so
+// the AI summary can reason naturally ("vent du nord-est").
+const COMPASS_16 = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+                    "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+const INNER_DIRECTIONS = COMPASS_16.map((name, i) => ({ name, bearing: i * 22.5 }));
+
+// 32-point compass for the outer ring — every 11.25°. Where the bearing
+// matches one of the 16 inner cardinals, we re-use the compass name so
+// formatSnapshot can group inner + outer samples on that bearing into
+// one direction block (denser radial profile, easier movement read for
+// the AI). For the 16 in-between bearings we use the bearing value
+// itself as the name (e.g. "11.25", "33.75") — the standard NbE/NEbN/…
+// names are obscure enough that they bloat the prompt without helping.
+const OUTER_DIRECTIONS = Array.from({ length: 32 }, (_, i) => {
+  const bearing = i * 11.25;
+  return {
+    name: i % 2 === 0 ? COMPASS_16[i / 2] : bearing.toString(),
+    bearing,
+  };
+});
+
+// Display order for formatSnapshot — bearing-sorted with compass names
+// interleaved with the half-bearing degree labels: C, N, 11.25, NNE,
+// 33.75, NE, 56.25, ENE, …
+const DIRECTION_ORDER = ["C", ...OUTER_DIRECTIONS.map((d) => d.name)];
 
 // RainViewer color scheme 6 (NEXRAD Level III) — the same palette the client
 // already shows in the radar legend. Each entry is the canonical RGB for that
@@ -313,14 +311,16 @@ async function buildSnapshot(lat, lon, framePath, points) {
  * @returns {String|null}
  */
 function formatSnapshot(samples, label, unit) {
-  // Group by direction. The display order is "C" (the user's exact location)
-  // first, then the 16-point compass so both 8-direction (inner-only) and
-  // 16-direction (with doubled outer) snapshots come out sorted N → NNE → NE
-  // → … → NNW. The center sample matters because a small cell sitting right
-  // on the marker would otherwise sit between the 5 km probes and be missed.
+  // Group by direction. Display order is "C" (centre) first, then bearings
+  // 0° → 348.75° (alternating compass names and degree labels — see
+  // OUTER_DIRECTIONS naming). When inner (compass-named) and outer samples
+  // share a bearing, they merge into one direction block so the AI sees a
+  // dense radial profile per direction (e.g. N: 5km clear, 10km clear, …,
+  // 50km moderate, 60km moderate, 100km clear). The centre sample matters
+  // because a small cell sitting right on the marker would otherwise sit
+  // between the 5 km probes and be missed.
   const byDir = new Map();
-  byDir.set("C", []);
-  for (const dir of OUTER_DIRECTIONS_DOUBLED) byDir.set(dir.name, []);
+  for (const dirName of DIRECTION_ORDER) byDir.set(dirName, []);
   for (const s of samples) {
     if (!byDir.has(s.direction)) byDir.set(s.direction, []);
     byDir.get(s.direction).push(s);
@@ -332,8 +332,7 @@ function formatSnapshot(samples, label, unit) {
 
   let anyHit = false;
   const lines = [];
-  const directionOrder = ["C", ...OUTER_DIRECTIONS_DOUBLED.map((d) => d.name)];
-  for (const dirName of directionOrder) {
+  for (const dirName of DIRECTION_ORDER) {
     const dirSamples = byDir.get(dirName);
     if (!dirSamples || !dirSamples.length) continue;
     dirSamples.sort((a, b) => a.distance - b.distance);
@@ -341,7 +340,8 @@ function formatSnapshot(samples, label, unit) {
       if (s.intensity > 0) anyHit = true;
       return `${fmtDist(s.distance)} ${INTENSITY_LABELS[s.intensity]}`;
     });
-    lines.push(`  ${dirName.padEnd(3)} : ${parts.join(", ")}`);
+    // Direction labels are up to 6 chars now ("337.5"), pad accordingly.
+    lines.push(`  ${dirName.padEnd(6)} : ${parts.join(", ")}`);
   }
 
   // Largest sampled distance, used to phrase the "no precipitation" line
@@ -359,10 +359,7 @@ function formatSnapshot(samples, label, unit) {
  * @param {Number} lon
  * @param {Object} [options] Analysis options
  * @param {Boolean} [options.extendedRadius] Sample the outer ring in addition
- *   to the inner one — adds three extra distances per direction
- * @param {Boolean} [options.doubleOuterPoints] When extendedRadius is on, use
- *   16 directions (every 22.5°) on the outer ring instead of 8, to keep the
- *   point density per km² roughly uniform across both rings
+ *   to the inner one — adds 32 directions × 10 distances when on
  * @param {String}  [options.distanceUnit] "km" (default) or "mi" — drives
  *   sampling distances, the circle radius, and the unit label in the prompt
  * @returns {Promise<String|null>}
@@ -373,12 +370,13 @@ async function analyzeRadar(lat, lon, options = {}) {
   const kmPerUnit = KM_PER_UNIT[unit];
 
   // Build the (direction, distance, bearing, distanceKm) tuples to sample.
-  // The first sample is at the user's exact location (direction "C", distance
-  // 0) so a small precipitation cell sitting right on the marker — too narrow
-  // to reach the 5 km / 3 mi probes — still registers. Inner ring is always
-  // 8 directions; outer ring (if enabled) is 8 or 16. distance carries the
-  // user-unit value (used for display); distanceKm is the same value
-  // converted to km for the great-circle math.
+  // First sample is at the user's exact location (direction "C", distance 0).
+  // Inner ring is 16 directions × 10 distances (160 points); outer ring
+  // (if enabled) is 32 directions × 10 distances (320 points). The
+  // doubleOuterPoints advanced setting is no longer consulted — outer is
+  // always the dense 32-direction grid when extendedRadius is on, because
+  // the May 2026 retune showed the previous sparser geometry missed real
+  // approaching cells.
   const points = [{ direction: "C", distance: 0, bearing: 0, distanceKm: 0 }];
   for (const dir of INNER_DIRECTIONS) {
     for (const distance of geometry.inner) {
@@ -386,21 +384,18 @@ async function analyzeRadar(lat, lon, options = {}) {
     }
   }
   if (options.extendedRadius) {
-    const outerDirs = options.doubleOuterPoints
-      ? OUTER_DIRECTIONS_DOUBLED
-      : INNER_DIRECTIONS;
-    for (const dir of outerDirs) {
+    for (const dir of OUTER_DIRECTIONS) {
       for (const distance of geometry.outer) {
         points.push({ direction: dir.name, distance, bearing: dir.bearing, distanceKm: distance * kmPerUnit });
       }
     }
   }
 
-  // Cache key encodes the geometry mode AND the unit system so toggling any
-  // flag never returns a stale snapshot built with a different sample set
-  // or different unit text.
-  let radiusTag = "s";
-  if (options.extendedRadius) radiusTag = options.doubleOuterPoints ? "x2" : "x";
+  // Cache key encodes the geometry mode AND the unit system so toggling
+  // extendedRadius never returns a stale snapshot built with a different
+  // sample set. doubleOuterPoints is no longer part of the key (it's a
+  // no-op now).
+  const radiusTag = options.extendedRadius ? "x" : "s";
   const cacheKey = `${lat.toFixed(3)}:${lon.toFixed(3)}:${radiusTag}:${unit}`;
   const cached = analysisCache.get(cacheKey);
   if (cached && Date.now() < cached.expiresAt) return cached.text;
@@ -485,9 +480,13 @@ function computeRingTrend(framesSamples, unit) {
   const inwardThreshold = unit === "mi" ? 3 : 5;
   const arrivalLimitMin = 30;
 
-  // Per direction: find the distance of the strongest non-trivial sample
-  // in each frame. "Non-trivial" means intensity ≥ 2 (light or above);
-  // intensity 1 (very light) is too noisy to reason about movement from.
+  // Per direction: find the distance of the strongest sample in each frame.
+  // Threshold lowered to intensity ≥ 1 (very light or above) after the
+  // May 2026 overnight observation showed real approaching cells with
+  // intensity 1-3 never triggered the previous ≥ 2 threshold. The denser
+  // 16/32-direction grid lets us tolerate the extra noise from light
+  // samples — a transient single-pixel bloom on one bearing won't survive
+  // the per-direction shift requirement.
   const directions = [...new Set(latest.map((s) => s.direction))];
   for (const dir of directions) {
     if (dir === "C") continue; // centre point has no radial movement
@@ -495,7 +494,7 @@ function computeRingTrend(framesSamples, unit) {
       let bestI = 0;
       let bestDist = null;
       for (const s of snap) {
-        if (s.direction === dir && s.intensity >= 2 && s.intensity >= bestI) {
+        if (s.direction === dir && s.intensity >= 1 && s.intensity >= bestI) {
           bestI = s.intensity;
           bestDist = s.distance;
         }
@@ -580,7 +579,7 @@ async function getRiskLevels(lat, lon, options = {}) {
   }
   const outerPoints = [];
   if (options.extendedRadius) {
-    for (const dir of INNER_DIRECTIONS) {
+    for (const dir of OUTER_DIRECTIONS) {
       for (const distance of geometry.outer) {
         outerPoints.push({ direction: dir.name, distance, bearing: dir.bearing, distanceKm: distance * kmPerUnit });
       }
@@ -654,6 +653,18 @@ async function getRiskLevels(lat, lon, options = {}) {
       : null,
     timestamp: latest.frame.time,
   };
+
+  // Diagnostic line — every server-side risk computation gets logged with
+  // the decision values so post-mortem on a "why did the banner fire then?"
+  // question can use journalctl. Compact one-line format for grep-friendly
+  // analysis: include the cache key (lat:lon:radius:unit), both rings'
+  // base intensity, trend, and final (possibly bumped) level.
+  const innerBumped = innerLevel !== innerBaseLevel ? "↑" : "·";
+  const outerBumped = outerLevel !== outerBaseLevel ? "↑" : "·";
+  const outerLog = outerPoints.length
+    ? `outer=${outerLevel}${outerBumped}(max=${outerMax},trend=${outerTrend})`
+    : "outer=n/a";
+  console.log(`[risk] ${cacheKey}: inner=${innerLevel}${innerBumped}(max=${innerMax},trend=${innerTrend}) ${outerLog}`);
 
   riskCache.set(cacheKey, { result, expiresAt: Date.now() + ANALYSIS_CACHE_TTL });
   recordServiceCall("RainViewer (risk)", 200, "OK");

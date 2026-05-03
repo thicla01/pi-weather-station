@@ -101,7 +101,6 @@ const AdvancedSettings = ({ readOnly }) => {
   const {
     radarAnalysisEnabled,
     extendedRadarRadius,
-    doubleOuterPoints,
     showSamplingPoints,
     saveAdvancedAiFlag,
     lightModeStyle,
@@ -310,21 +309,6 @@ const AdvancedSettings = ({ readOnly }) => {
             />
           </div>
 
-          <div className={styles.row}>
-            <div className={styles.rowLabel}>
-              {t("settings.advanced.doubleOuterPoints")}
-              <span className={styles.rowHint}>
-                {t("settings.advanced.doubleOuterPointsHint")}
-              </span>
-            </div>
-            <InlineToggle
-              value={doubleOuterPoints}
-              onChange={(v) => saveAdvancedAiFlag("doubleOuterPoints", v)}
-              onLabel={t("settings.on")}
-              offLabel={t("settings.off")}
-              readOnly={readOnly}
-            />
-          </div>
 
           <div className={styles.row}>
             <div className={styles.rowLabel}>

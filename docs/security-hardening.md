@@ -195,8 +195,7 @@ behavior of that call is controlled by `advanced.ai.*` settings:
 | Setting | Effect on Claude billing |
 |---|---|
 | `radarAnalysisEnabled` | Adds a third paragraph fed by RainViewer samples — larger prompt, larger response |
-| `extendedRadius` | Doubles the sampled range (32 → 56 points fed to the prompt) — slightly larger context |
-| `doubleOuterPoints` | Adds 24 more sample points (56 → 80) — slightly larger context still |
+| `extendedRadius` | Adds the outer-ring samples (161 → 481 points fed to the prompt) — meaningfully larger context |
 | `showSamplingPoints` | Purely client-side rendering; no billing impact |
 
 The per-toggle impact is small (a few cents per refresh at most), but the

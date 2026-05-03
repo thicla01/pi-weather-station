@@ -28,21 +28,22 @@ import styles from "./styles.css";
 // reads from RainViewer. Bearings clockwise from north (deg). Distances in
 // the user's chosen unit (km or mi); KM_PER_UNIT converts to km for the
 // great-circle math, and METERS_PER_UNIT for Leaflet circle radii.
-const INNER_BEARINGS = [0, 45, 90, 135, 180, 225, 270, 315];
-const OUTER_BEARINGS_DOUBLED = [
-  0, 22.5, 45, 67.5, 90, 112.5, 135, 157.5,
-  180, 202.5, 225, 247.5, 270, 292.5, 315, 337.5,
-];
+//
+// Dense layout (May 2026): 16 inner directions, 32 outer directions, 10
+// distance steps per ring per unit (every 5 km / 3 mi). 481 points total
+// when extendedRadius is on.
+const INNER_BEARINGS = Array.from({ length: 16 }, (_, i) => i * 22.5);
+const OUTER_BEARINGS = Array.from({ length: 32 }, (_, i) => i * 11.25);
 const KM_PER_UNIT = { km: 1, mi: 1.609344 };
 const METERS_PER_UNIT = { km: 1000, mi: 1609.344 };
 const RADAR_GEOMETRY = {
   km: {
-    inner: [5, 15, 30, 50],
-    outer: [65, 80, 100],
+    inner: [5, 10, 15, 20, 25, 30, 35, 40, 45, 50],
+    outer: [55, 60, 65, 70, 75, 80, 85, 90, 95, 100],
   },
   mi: {
-    inner: [3, 10, 20, 30],
-    outer: [40, 50, 60],
+    inner: [3, 6, 9, 12, 15, 18, 21, 24, 27, 30],
+    outer: [33, 36, 39, 42, 45, 48, 51, 54, 57, 60],
   },
 };
 const EARTH_R_KM = 6371;
@@ -87,19 +88,23 @@ function offsetLatLon(lat, lon, distanceKm, bearingDeg) {
  * @param {String} unit "km" or "mi" — selects the geometry table
  * @returns {Array<[Number, Number]>} Array of [lat, lng] pairs
  */
-// Bearing → 8-point compass label (matches the server's INNER_DIRECTIONS).
-// 16-point names follow when doubleOuterPoints is on; only used to key the
-// outer-ring samples back to the response payload.
-const BEARING_TO_DIR_8 = {
-  0: "N", 45: "NE", 90: "E", 135: "SE", 180: "S", 225: "SW", 270: "W", 315: "NW",
-};
-const BEARING_TO_DIR_16 = {
-  ...BEARING_TO_DIR_8,
-  22.5: "NNE", 67.5: "ENE", 112.5: "ESE", 157.5: "SSE",
-  202.5: "SSW", 247.5: "WSW", 292.5: "WNW", 337.5: "NNW",
-};
+// Bearing → direction-name maps. Names must match the server side
+// (radarAnalyzerCtrl.js INNER_DIRECTIONS / OUTER_DIRECTIONS) exactly so
+// the per-sample lookup key `${direction}:${distance}` resolves.
+// - INNER (16 directions): standard compass names (N, NNE, NE, …, NNW)
+// - OUTER (32 directions): compass name where bearing matches one of the
+//   16 main bearings, otherwise the bearing value itself as a string
+//   ("11.25", "33.75", …, "348.75").
+const COMPASS_16 = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+                    "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+const BEARING_TO_DIR_INNER = Object.fromEntries(
+  INNER_BEARINGS.map((b, i) => [b, COMPASS_16[i]])
+);
+const BEARING_TO_DIR_OUTER = Object.fromEntries(
+  OUTER_BEARINGS.map((b, i) => [b, i % 2 === 0 ? COMPASS_16[i / 2] : b.toString()])
+);
 
-function buildSamplingPoints(center, extended, doubleOuter, unit) {
+function buildSamplingPoints(center, extended, unit) {
   const [centerLat, centerLng] = center;
   const geometry = RADAR_GEOMETRY[unit];
   const kmPerUnit = KM_PER_UNIT[unit];
@@ -114,17 +119,15 @@ function buildSamplingPoints(center, extended, doubleOuter, unit) {
   // that every analysed point gets a corresponding overlay dot.
   const points = [{ position: [centerLat, centerLng], key: "C:0" }];
   for (const bearing of INNER_BEARINGS) {
-    const dir = BEARING_TO_DIR_8[bearing];
+    const dir = BEARING_TO_DIR_INNER[bearing];
     for (const distance of geometry.inner) {
       const p = offsetLatLon(centerLat, centerLng, distance * kmPerUnit, bearing);
       points.push({ position: [p.lat, p.lon], key: `${dir}:${distance}` });
     }
   }
   if (extended) {
-    const outerBearings = doubleOuter ? OUTER_BEARINGS_DOUBLED : INNER_BEARINGS;
-    const dirMap = doubleOuter ? BEARING_TO_DIR_16 : BEARING_TO_DIR_8;
-    for (const bearing of outerBearings) {
-      const dir = dirMap[bearing];
+    for (const bearing of OUTER_BEARINGS) {
+      const dir = BEARING_TO_DIR_OUTER[bearing];
       for (const distance of geometry.outer) {
         const p = offsetLatLon(centerLat, centerLng, distance * kmPerUnit, bearing);
         points.push({ position: [p.lat, p.lon], key: `${dir}:${distance}` });
@@ -447,7 +450,6 @@ const WeatherMap = ({ zoom, dark }) => {
     aiSummaryAvailable,
     radarAnalysisEnabled,
     extendedRadarRadius,
-    doubleOuterPoints,
     showSamplingPoints,
     lightModeStyle,
     darkModeStyle,
@@ -669,8 +671,8 @@ const WeatherMap = ({ zoom, dark }) => {
             second outer circle (100 km or 60 mi) joins it with the same
             dashed style. Sampling-point dots opt-in via a separate toggle
             so curious users can see exactly what the analyzer reads. Inner
-            ring is always 8 directions; outer ring uses 16 when
-            doubleOuterPoints is on. */}
+            ring is always 16 directions × 10 distances; outer ring is 32
+            directions × 10 distances when extendedRadius is on. */}
         {aiSummaryAvailable && radarAnalysisEnabled && markerPosition ? (
           <RiskRing center={markerPosition} radius={innerRadiusMeters} risk={innerRisk} dark={dark} />
         ) : null}
@@ -678,7 +680,7 @@ const WeatherMap = ({ zoom, dark }) => {
           <RiskRing center={markerPosition} radius={outerRadiusMeters} risk={outerRisk} dark={dark} />
         ) : null}
         {aiSummaryAvailable && radarAnalysisEnabled && markerPosition && showSamplingPoints
-          ? buildSamplingPoints(markerPosition, extendedRadarRadius, doubleOuterPoints, distanceUnit).map(
+          ? buildSamplingPoints(markerPosition, extendedRadarRadius, distanceUnit).map(
               ({ position, key }, idx) => {
                 // Each dot picks its colour from the sample's own intensity.
                 // Clear (intensity 0 or unknown) keeps the neutral default

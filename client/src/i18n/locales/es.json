@@ -43,9 +43,7 @@
       "radarAnalysisEnabled": "Análisis radar",
       "radarAnalysisEnabledHint": "Añade el tercer párrafo «Análisis radar» al resumen IA, muestreando las teselas RainViewer alrededor de tu posición. Desactiva para omitir completamente este análisis.",
       "extendedRadius": "Radio extendido",
-      "extendedRadiusHint": "Duplica aproximadamente el radio de muestreo (50 → 100 km, o 30 → 60 mi según la unidad de distancia). Añade tres anillos exteriores para seguir células de tormenta más lejos.",
-      "doubleOuterPoints": "Duplicar puntos en el anillo exterior",
-      "doubleOuterPointsHint": "En el anillo exterior, muestrea en 16 direcciones (cada 22,5°) en lugar de 8, para mantener una densidad de puntos por km² uniforme entre ambos anillos. Solo tiene efecto si el radio extendido está activo.",
+      "extendedRadiusHint": "Duplica aproximadamente el radio de muestreo (50 → 100 km, o 30 → 60 mi según la unidad de distancia). Añade el anillo exterior (32 direcciones × 10 distancias) para seguir células de tormenta más lejos.",
       "showSamplingPoints": "Mostrar puntos de muestreo",
       "showSamplingPointsHint": "Muestra un pequeño punto en cada posición que el resumen IA muestrea en el radar."
     }

@@ -44,7 +44,6 @@ export function AppContextProvider({ children }) {
   // persist via saveAdvancedAiFlag (no Save button — instant write on click).
   const [radarAnalysisEnabled, setRadarAnalysisEnabled] = useState(true);
   const [extendedRadarRadius, setExtendedRadarRadius] = useState(false);
-  const [doubleOuterPoints, setDoubleOuterPoints] = useState(false);
   const [showSamplingPoints, setShowSamplingPoints] = useState(false);
   // Display sub-tree (advanced.display.* in settings.json).
   // lightModeStyle / darkModeStyle drive the Mapbox style for each theme.
@@ -476,7 +475,6 @@ export function AppContextProvider({ children }) {
                 setRadarAnalysisEnabled(Boolean(advancedAi.radarAnalysisEnabled));
               }
               setExtendedRadarRadius(Boolean(advancedAi.extendedRadius));
-              setDoubleOuterPoints(Boolean(advancedAi.doubleOuterPoints));
               setShowSamplingPoints(Boolean(advancedAi.showSamplingPoints));
             }
             const advancedDisplay = res.advanced && res.advanced.display;
@@ -872,7 +870,6 @@ export function AppContextProvider({ children }) {
     const nextAi = {
       radarAnalysisEnabled,
       extendedRadius: extendedRadarRadius,
-      doubleOuterPoints,
       showSamplingPoints,
       [key]: value,
     };
@@ -882,7 +879,6 @@ export function AppContextProvider({ children }) {
       .then(() => {
         if (key === "radarAnalysisEnabled") setRadarAnalysisEnabled(value);
         if (key === "extendedRadius") setExtendedRadarRadius(value);
-        if (key === "doubleOuterPoints") setDoubleOuterPoints(value);
         if (key === "showSamplingPoints") setShowSamplingPoints(value);
       });
   }
@@ -900,7 +896,6 @@ export function AppContextProvider({ children }) {
     const nextAi = {
       radarAnalysisEnabled,
       extendedRadius: extendedRadarRadius,
-      doubleOuterPoints,
       showSamplingPoints,
     };
     return axios
@@ -1019,7 +1014,6 @@ export function AppContextProvider({ children }) {
     setAiSummaryAvailable,
     radarAnalysisEnabled,
     extendedRadarRadius,
-    doubleOuterPoints,
     showSamplingPoints,
     saveAdvancedAiFlag,
     lightModeStyle,
