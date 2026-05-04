@@ -141,6 +141,14 @@ export function AppContextProvider({ children }) {
   // name, distance, observation/forecast kind without refetching).
   // null = no fetch yet, out of coverage, or upstream failure.
   const [aqhiInfo, setAqhiInfo] = useState(null);
+  // Active government weather alerts at mapGeo, sorted server-side by
+  // descending severity. NWS for the US, ECCC for Canada — see
+  // server/govAlertsCtrl.js. Empty array means "no upstream alert
+  // covers this point right now"; the radar-derived banner remains
+  // the source of truth in that case. The poll uses the same 10 min
+  // cadence the roadmap specified — alerts don't change minute-to-
+  // minute and the upstreams already cache aggressively.
+  const [govAlerts, setGovAlerts] = useState([]);
   const [clockTime, setClockTime] = useState("12"); // 12h or 24h time for clock
   const [animateWeatherMap, setAnimateWeatherMap] = useState(false);
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
@@ -1004,6 +1012,26 @@ export function AppContextProvider({ children }) {
     document.documentElement.style.setProperty("--light-panel-bg-rgb", rgb);
   }, [lightModeStyle]);
 
+  // Government weather alerts polling. Fires once when mapGeo lands
+  // and every GOV_ALERTS_INTERVAL afterwards (10 min — alerts don't
+  // change minute-to-minute and the server caches the upstream feeds
+  // for 5 min anyway, so a tighter cadence would only generate
+  // redundant requests). Failures silently keep the previous list so
+  // a transient network blip doesn't blank the banner.
+  useEffect(() => {
+    if (!mapGeo) return undefined;
+    const GOV_ALERTS_INTERVAL = 10 * 60 * 1000;
+    const fetchAlerts = () => {
+      axios
+        .get(`/api/weather-alerts?lat=${mapGeo.latitude}&lon=${mapGeo.longitude}`)
+        .then((res) => setGovAlerts(Array.isArray(res.data?.alerts) ? res.data.alerts : []))
+        .catch(() => undefined);
+    };
+    fetchAlerts();
+    const interval = setInterval(fetchAlerts, GOV_ALERTS_INTERVAL);
+    return () => clearInterval(interval);
+  }, [mapGeo]);
+
   // Auto dark/light at sunrise / sunset. Runs only when the user opted
   // in via Settings AND we have valid sunrise/sunset timestamps. Checks
   // every minute (cheap — no network), plus immediately on mount/toggle.
@@ -1095,6 +1123,7 @@ export function AppContextProvider({ children }) {
     setOuterMaxIntensity,
     aqhiInfo,
     setAqhiInfo,
+    govAlerts,
     animateWeatherMap,
     toggleAnimateWeatherMap,
     settingsMenuOpen,

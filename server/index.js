@@ -75,6 +75,8 @@ function registerKnownServices() {
     "Environment Canada (AQHI)",
     "MELCC RSQAQ (Quebec)",
     "MELCC RSQA (Montreal)",
+    "NWS (severe weather alerts)",
+    "Environment Canada (severe weather alerts)",
   ].forEach(registerService);
 }
 
@@ -285,6 +287,9 @@ app.get("/api/indoor-temperature",  apiLimiter, getIndoorTemperature);
 
 const { getAirQuality } = require("./airQualityCtrl");
 app.get("/api/air-quality",         apiLimiter, getAirQuality);
+
+const { getWeatherAlerts } = require("./govAlertsCtrl");
+app.get("/api/weather-alerts",      apiLimiter, getWeatherAlerts);
 
 // Radar risk-level overlay for the dashed circles in WeatherMap. Reads the
 // "right now" intensity sampled on each ring and maps to a colour tier

@@ -320,6 +320,71 @@ Category cut-points per scale:
 
 ---
 
+## Severe Weather Alerts
+
+### `GET /api/weather-alerts`
+Returns the active government severe-weather alerts at the requested point, merged from every regional source whose bounding box covers it. Alerts come straight from authoritative national feeds (NWS for the US, ECCC for Canada) — no curation or rewording on our side. The client `<AlertBanner>` uses these to outrank the radar-derived tier: a tornado warning beats "radar shows red".
+
+Sources:
+
+- **NWS (United States)** — `api.weather.gov/alerts/active?point=lat,lon`. Free, no API key, descriptive User-Agent required by policy. NWS does the spatial matching internally (zone- or polygon-based depending on the alert), so this endpoint just normalises the response. Out-of-bounds coordinates return HTTP 400 from NWS, which is treated as "no coverage" rather than an error.
+- **ECCC (Canada)** — `api.weather.gc.ca/collections/weather-alerts/items` (the same pygeoapi instance that serves AQHI). The collection's `bbox` filter is non-functional on this instance (returns 0 features even when alerts intersect the box), so the strategy is to fetch all active Canadian alerts once (≤50 features, ~30-100 KB), cache the list server-side for 5 min, and run point-in-polygon locally per request. Bilingual EN/FR is built into every property (`alert_name_en` / `alert_name_fr`, etc.) and preserved through to the client.
+
+The two sources run in parallel — each is cached, so the cost is negligible even at the US/Canada border where both fire. Failures are isolated: one source erroring out doesn't blank the other. The endpoint always returns 200 with an `alerts` array (possibly empty); the client never has to handle "out of coverage" specially.
+
+- **Access:** 🌐 Public — rate limited (120 req/min)
+- **Caching:** Per-source server cache 5 min. Response sets `Cache-Control: public, max-age=300` so a remote client polling at the recommended 10 min cadence sees consistent results.
+- **Query params:**
+
+| Parameter | Type | Required | Description |
+|---|---|:---:|---|
+| `lat` | float | ✅ | Latitude |
+| `lon` | float | ✅ | Longitude |
+
+- **Response:**
+
+```json
+{
+  "alerts": [
+    {
+      "source": "ECCC",
+      "id": "1809563531455007548202605030504_fea1-1052",
+      "severity": "moderate",
+      "tier": "orange",
+      "eventType": "RFW",
+      "title_en": "Rainfall warning",
+      "title_fr": "Avertissement de pluie",
+      "description_en": "What: an additional 5 to 10 millimetres of rain ...",
+      "description_fr": "Quoi : pluie supplémentaire de 5 à 10 millimètres ...",
+      "expiresAt": "2026-05-05T00:41:04.346Z",
+      "areaDesc": "QC"
+    }
+  ]
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `source` | string | `NWS` \| `ECCC` — drives the badge label on the banner |
+| `id` | string\|null | Upstream alert identifier; useful for de-duplication if more sources are added later |
+| `severity` | string | `minor` \| `moderate` \| `severe` \| `extreme` — normalised from the source's CAP severity (or ECCC's `impact_*` field) |
+| `tier` | string | `yellow` \| `orange` \| `red` — pre-mapped colour tier matching the radar-derived banner so the client doesn't need to know severity vocabulary |
+| `eventType` | string | Raw upstream event code (`RFW`, `Tornado Warning`, etc.) |
+| `title_en` | string | Short, banner-sized event title in English (capitalised; `event` for NWS, `alert_name_en` for ECCC) |
+| `title_fr` | string | Same for French — for NWS this mirrors `title_en` since NWS is English-only |
+| `description_en` | string | Longer body text (NWS `headline` + `description`, ECCC `alert_text_en`). Not shown in the MVP banner; kept in the payload for future expansion-on-tap UI |
+| `description_fr` | string | Same for French |
+| `expiresAt` | string\|null | ISO 8601 timestamp |
+| `areaDesc` | string\|null | Human-readable area name (NWS `areaDesc`, ECCC `feature_name_en` or `province`) |
+
+The `alerts` array is sorted server-side by descending severity, ties broken by descending expiry time so the freshest critical alert lands first. The client banner shows only the first orange/red entry; minor/yellow alerts are present in the payload but not promoted to the banner (small craft advisories, frost watches, etc. fire often enough that surfacing them as a permanent banner would devalue the louder ones).
+
+Coverage gaps:
+
+- **Outside US and Canada** — both sources skip the call (their bbox check fails) and the orchestrator returns `{ "alerts": [] }`. Europe (MeteoAlarm) and other regions are roadmap items, not yet implemented.
+
+---
+
 ## Sense HAT Display
 
 ### `GET /api/sensehat`

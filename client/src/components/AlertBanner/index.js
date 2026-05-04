@@ -48,7 +48,7 @@ function naturalTier(maxIntensity) {
  * @param {Number} outerMaxIntensity 0-6
  * @returns {{tier: String, i18nKey: String} | null} Banner state, or null when no alert needs to be shown
  */
-function getAlertState(innerRisk, outerRisk, innerTrend, outerTrend, innerMaxIntensity, outerMaxIntensity) {
+function getRadarAlertState(innerRisk, outerRisk, innerTrend, outerTrend, innerMaxIntensity, outerMaxIntensity) {
   const innerSev = severity(innerRisk);
   const outerSev = severity(outerRisk);
   const maxSev = Math.max(innerSev, outerSev);
@@ -75,10 +75,30 @@ function getAlertState(innerRisk, outerRisk, innerTrend, outerTrend, innerMaxInt
 }
 
 /**
- * Persistent text alert banner shown in the InfoPanel when the radar-risk
- * analyser reports orange or red on either ring. Hidden otherwise — this
- * component returns null when nothing needs surfacing, so it doesn't take
- * any vertical space in the calm case.
+ * Pick the highest-severity government alert eligible for banner
+ * display. We surface only orange/red tiers — minor/yellow advisories
+ * fire often enough (small craft advisories, frost watches) that
+ * promoting them to a permanent banner would devalue the louder ones.
+ * Returns null when no alert clears the bar.
+ *
+ * @param {Array<Object>} govAlerts Sorted by severity server-side
+ * @returns {Object|null} The first orange/red alert, or null when nothing qualifies
+ */
+function pickGovBanner(govAlerts) {
+  if (!Array.isArray(govAlerts)) return null;
+  for (const a of govAlerts) {
+    if (a?.tier === "red" || a?.tier === "orange") return a;
+  }
+  return null;
+}
+
+/**
+ * Persistent text alert banner shown in the InfoPanel. A government
+ * alert from NWS or ECCC outranks the radar-derived tier — when one is
+ * active at orange/red severity, its localized title plus a source
+ * badge ("NWS" / "ECCC") replaces the radar wording. Otherwise the
+ * radar-tier banner from the original logic still drives the display.
+ * Hidden when neither source has anything to surface.
  *
  * @returns {JSX.Element|null} Banner, or null when no alert is active
  */
@@ -87,17 +107,34 @@ const AlertBanner = () => {
     innerRisk, outerRisk,
     innerTrend, outerTrend,
     innerMaxIntensity, outerMaxIntensity,
+    govAlerts,
   } = useContext(AppContext);
-  const { t } = useTranslation();
-  const state = getAlertState(
+  const { t, i18n } = useTranslation();
+
+  const govAlert = pickGovBanner(govAlerts);
+  if (govAlert) {
+    // The gov payload carries title_en and title_fr; ECCC publishes
+    // both natively, NWS mirrors EN into FR. Spanish has no native
+    // upstream, so it falls back to English.
+    const lang = (i18n.language || "en").slice(0, 2);
+    const title = lang === "fr" ? govAlert.title_fr : govAlert.title_en;
+    return (
+      <div className={`${styles.banner} ${styles[govAlert.tier]}`}>
+        <span className={styles.sourceBadge}>{govAlert.source}</span>
+        {title}
+      </div>
+    );
+  }
+
+  const radarState = getRadarAlertState(
     innerRisk, outerRisk,
     innerTrend, outerTrend,
     innerMaxIntensity, outerMaxIntensity,
   );
-  if (!state) return null;
+  if (!radarState) return null;
   return (
-    <div className={`${styles.banner} ${styles[state.tier]}`}>
-      {t(state.i18nKey)}
+    <div className={`${styles.banner} ${styles[radarState.tier]}`}>
+      {t(radarState.i18nKey)}
     </div>
   );
 };

@@ -32,3 +32,22 @@
 .red {
   background-color: #e60000;
 }
+
+/* Government source badge ("NWS" / "ECCC") shown next to the alert title
+   when the banner is driven by an official government feed rather than the
+   radar tier. Pill-shaped, semi-transparent white background so it reads
+   against both orange and red without needing a per-tier rule. The user
+   sees at a glance "this is from a government authority", not "this is
+   our heuristic". */
+.sourceBadge {
+  display: inline-block;
+  background-color: rgba(255, 255, 255, 0.22);
+  color: #ffffff;
+  font-size: 0.78em;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 2px 7px;
+  margin-right: 8px;
+  border-radius: 3px;
+  vertical-align: 1px;
+}
