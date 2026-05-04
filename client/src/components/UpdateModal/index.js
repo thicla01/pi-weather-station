@@ -111,8 +111,12 @@ const UpdateModal = () => {
           {updateCommits.length > 0 ? (
             updateCommits.map((commit, i) => (
               <div key={i} className={styles.commitItem}>
-                <span className={`${styles.badge} ${commit.type === "feat" ? styles.badgeFeat : styles.badgeFix}`}>
-                  {commit.type === "feat" ? t("update.feat") : t("update.fix")}
+                <span className={`${styles.badge} ${
+                  commit.type === "feat" ? styles.badgeFeat
+                  : commit.type === "perf" ? styles.badgePerf
+                  : styles.badgeFix
+                }`}>
+                  {t(`update.${commit.type}`)}
                 </span>
                 <span className={styles.commitMessage}>{commit.message}</span>
               </div>

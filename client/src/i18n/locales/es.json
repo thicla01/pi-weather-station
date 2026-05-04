@@ -114,6 +114,7 @@
     "noChangelog": "No hay registro de cambios disponible.",
     "feat": "Nuevo",
     "fix": "Corrección",
+    "perf": "Más rápido",
     "serviceFileChanged": "Esta actualización modifica el archivo de servicio systemd. El botón no puede sobrescribirlo de forma segura (tu copia instalada puede tener personalizaciones). Ejecuta el comando completo de arriba manualmente.",
     "needsManualUpgrade": "Tu versión instalada es demasiado antigua para la actualización con un clic (pre-v2.4.1, antes de que /api/update ejecutase npm install). La actualización automática fallaría con módulos faltantes. Ejecuta el comando completo de arriba para actualizar de forma segura vía deploy/install.sh."
   },

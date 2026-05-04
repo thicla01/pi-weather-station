@@ -126,6 +126,11 @@
   color: #fff;
 }
 
+.badge-perf {
+  background: #ea580c;
+  color: #fff;
+}
+
 .commit-message {
   font-size: 10px;
   line-height: 1.45;

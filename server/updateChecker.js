@@ -154,9 +154,12 @@ async function checkForUpdate() {
     const shasDiffer = Boolean(localSha && latestSha !== localSha);
 
     // Fetch the commits between current and latest, then keep only those that
-    // are user-visible changes (conventional `feat:` / `fix:` prefixes). Other
-    // commit types — `docs:`, `chore:`, `refactor:`, etc. — are infrastructure
-    // and don't warrant a notification on their own.
+    // are user-visible changes (conventional `feat:` / `fix:` / `perf:`
+    // prefixes). Other commit types — `docs:`, `chore:`, `refactor:`, etc.
+    // — are infrastructure and don't warrant a notification on their own.
+    // `perf:` was added after a token-compression commit on the radar prompt
+    // didn't trigger an update notification on remote Pis: cost reduction is
+    // exactly the kind of change the kiosk owner wants to know about.
     let commits = [];
     if (shasDiffer && localSha) {
       try {
@@ -167,7 +170,7 @@ async function checkForUpdate() {
         commits = compareRes.data.commits
           .map((c) => {
             const firstLine = c.commit.message.split("\n")[0];
-            const match = firstLine.match(/^(feat|fix)(?:\(.+?\))?:\s*(.+)/);
+            const match = firstLine.match(/^(feat|fix|perf)(?:\(.+?\))?:\s*(.+)/);
             if (!match) return null;
             return { type: match[1], message: match[2] };
           })
