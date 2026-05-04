@@ -88,7 +88,7 @@ The compiled `dist/` files are committed to git so Pis can `git pull` without re
 ### Server
 - All outbound `axios.get()` calls must include `{ timeout: 10_000 }`
 - Console output is timestamped (local time) via override in `server/index.js`
-- Logs are written to `server.log` at the project root (excluded from git)
+- Logs: `tail -f /tmp/weather-server.log` on Linux (systemd drop-in pins StandardOutput there), `tail -f <repo>/server.log` on macOS (launchd plist points there). Both are gitignored. **`journalctl --user -u pi-weather-server` only shows systemd lifecycle events on Linux — not the app's console output.** Full explanation in [`docs/logs.md`](docs/logs.md).
 
 ### Settings
 - API keys and user preferences are stored in `settings.json` (excluded from git)

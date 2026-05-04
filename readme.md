@@ -370,7 +370,7 @@ A debug panel is available on the Pi when `DEBUG=true` is set server-side. It sh
 - **Services** — last HTTP status and timestamp for each external API call (Tomorrow.io, Mapbox, LocationIQ, ipapi.co, sunrise-sunset.org, Claude)
 - **Quotas** — hourly, daily, and monthly request counters per service and endpoint, with colour-coded thresholds
 - **Cache** — current in-memory weather cache entries with remaining TTL
-- **Logs** — last 100 lines of the server log
+- **Logs** — last 100 lines of the server log (`/tmp/weather-server.log` on Linux, `<repo>/server.log` on macOS — see [`docs/logs.md`](docs/logs.md) for why `journalctl` is not the place to look)
 - **Security events** — blocked requests (write attempts from remote clients)
 - **npm audit** — output of the last `npm audit` run
 

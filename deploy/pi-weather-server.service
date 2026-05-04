@@ -14,7 +14,16 @@
 # Settings writes are always restricted to the Pi itself (no REMOTE_SECURITY option).
 #
 # Logs:
-#   journalctl --user -u pi-weather-server -f
+#   See docs/logs.md for the full picture. install.sh writes a drop-in
+#   `override.conf` that pins StandardOutput + StandardError to
+#   /tmp/weather-server.log (a flat file is easier to tail / grep /
+#   logrotate than the systemd journal), so the server's own
+#   console.log lines live there:
+#     tail -f /tmp/weather-server.log
+#   `journalctl --user -u pi-weather-server` only shows systemd
+#   LIFECYCLE events (start/stop/exit, ExecStartPre output) — none
+#   of the application output. This catches everyone at least once;
+#   docs/logs.md explains why.
 
 [Unit]
 Description=Pi Weather Station Server
