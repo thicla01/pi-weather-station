@@ -19,7 +19,13 @@ const { increment } = require("./requestCounter");
 const ECCC_BASE = "https://api.weather.gc.ca/collections";
 const STATIONS_URL = `${ECCC_BASE}/aqhi-stations/items?f=json&limit=1000`;
 const TIMEOUT_MS = 10_000;
-const STATION_MAX_KM = 150;          // pretend "no coverage" beyond this
+const STATION_MAX_KM = 300;          // pretend "no coverage" beyond this — generous because
+                                     // entire provinces can be reporting zero stations on the
+                                     // upstream API (Quebec province on May 3 2026 had no
+                                     // active station; Cornwall at ~180 km from Sorel was the
+                                     // nearest match). The badge tooltip surfaces the actual
+                                     // station name + distance so the user can judge the
+                                     // local relevance.
 const OBS_TTL_MS = 20 * 60 * 1000;   // 20 min, ECCC publishes hourly
 const STATIONS_TTL_MS = 24 * 60 * 60 * 1000; // 24 h
 
@@ -179,8 +185,11 @@ async function getAirQuality(req, res) {
   // fall through to the next nearest. Cap the walk at MAX_CANDIDATES
   // to avoid spending too long on a single user request when an entire
   // region is offline; in practice the second or third candidate
-  // resolves it.
-  const MAX_CANDIDATES = 4;
+  // resolves it. Bumped from 4 to 6 after observing Quebec province had
+  // no active station at all on May 3 2026 — letting the walk reach
+  // Cornwall / Ottawa from Sorel-area markers gives a regional read
+  // rather than nothing at all.
+  const MAX_CANDIDATES = 6;
   for (const { station, distanceKm } of candidates.slice(0, MAX_CANDIDATES)) {
     const stationId = stationIdOf(station);
     if (!stationId) continue;
