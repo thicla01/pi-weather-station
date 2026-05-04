@@ -33,7 +33,8 @@ const {
 
 const SERVICE_NAME = "OpenAQ";
 const BASE_URL = "https://api.openaq.org/v3";
-const SEARCH_RADIUS_M = 25_000;     // 25 km — comparable to the other sources' caps; OpenAQ accepts up to 25 km in v3
+const SEARCH_RADIUS_M = 25_000;     // 25 km — comparable to the other sources' caps; OpenAQ v3's hard maximum
+const NEAREST_PROBE_LIMIT = 25;     // pull this many candidates and rank locally — see findNearestLocation
 const TTL_MS = 30 * 60 * 1000;       // 30 min — most stations publish hourly; cache aligns with other sources
 const cache = new Map();             // cacheKey → { payload, expiresAt }
 
@@ -115,8 +116,13 @@ function cacheKey(lat, lon) {
 }
 
 /**
- * Fetch the nearest location (with sensor list) within
- * SEARCH_RADIUS_M of the given point.
+ * Fetch every location within SEARCH_RADIUS_M of the given point
+ * and return the geographically nearest one. v3 only supports
+ * `order_by=id` for the locations endpoint (sending `distance`
+ * returns HTTP 422), so we paginate up to NEAREST_PROBE_LIMIT
+ * candidates and rank by haversine ourselves. The radius filter
+ * has already constrained the candidate set tightly enough that
+ * scoring 25 entries is trivial.
  *
  * @param {Number} lat
  * @param {Number} lon
@@ -124,13 +130,22 @@ function cacheKey(lat, lon) {
  * @returns {Promise<Object|null>}
  */
 async function findNearestLocation(lat, lon, apiKey) {
-  const url = `${BASE_URL}/locations?coordinates=${lat.toFixed(4)},${lon.toFixed(4)}&radius=${SEARCH_RADIUS_M}&limit=1&order_by=distance`;
+  const url = `${BASE_URL}/locations?coordinates=${lat.toFixed(4)},${lon.toFixed(4)}&radius=${SEARCH_RADIUS_M}&limit=${NEAREST_PROBE_LIMIT}`;
   const resp = await axios.get(url, {
     timeout: TIMEOUT_MS,
     headers: { "X-API-Key": apiKey },
   });
   const results = resp.data?.results || [];
-  return results[0] || null;
+  let best = null;
+  let bestKm = Infinity;
+  for (const loc of results) {
+    const lat2 = loc.coordinates?.latitude;
+    const lon2 = loc.coordinates?.longitude;
+    if (typeof lat2 !== "number" || typeof lon2 !== "number") continue;
+    const km = haversineKm(lat, lon, lat2, lon2);
+    if (km < bestKm) { bestKm = km; best = loc; }
+  }
+  return best;
 }
 
 /**
