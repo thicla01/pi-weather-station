@@ -168,6 +168,13 @@ These rules apply to every change, regardless of size. They exist to keep the co
 | Homebridge (`homebridge-config-ui-x`) | Indoor temperature/humidity/air quality | `indoorTemperature.*` in settings.json |
 | ipapi.co | IP-based geolocation (default location) | No key required |
 | sunrise-sunset.org | Sunrise/sunset times | No key required |
+| MELCC RSQA Montréal | Air quality (Montreal IQA) | No key required |
+| MELCC RSQAQ provincial | Air quality (Quebec IQA outside Montreal) | No key required |
+| Environment Canada AQHI | Air quality (Canada-wide AQHI fallback) | No key required |
+| EPA AirNow | Air quality (US AQI) | `airNowApiKey` in settings.json |
+| OpenAQ | Air quality (global fallback, ~150 countries) | `openAqApiKey` in settings.json |
+| NWS | US severe weather alerts | No key required (User-Agent only) |
+| Environment Canada (alerts) | Canadian severe weather alerts | No key required |
 
 ## Security
 

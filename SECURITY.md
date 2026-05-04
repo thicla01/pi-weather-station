@@ -72,7 +72,7 @@ This protects external API quotas from exhaustion by rogue or misbehaving client
 
 `POST`, `PUT`, and `PATCH` requests to `/settings` enforce a server-side key whitelist. Only known keys are accepted:
 
-- `weatherApiKey`, `mapApiKey`, `reverseGeoApiKey`, `anthropicApiKey`
+- `weatherApiKey`, `mapApiKey`, `reverseGeoApiKey`, `anthropicApiKey`, `airNowApiKey`, `openAqApiKey`
 - `startingLat`, `startingLon`
 
 Unknown keys are stripped silently (PUT/POST) or rejected with HTTP 400 (PATCH).

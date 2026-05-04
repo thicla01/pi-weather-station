@@ -50,7 +50,7 @@ Creates or overwrites `settings.json` with the provided body.
 
 - **Access:** 🔒 Localhost only
 - **Body:** JSON object with any subset of known keys (unknown keys are stripped)
-- **Whitelisted top-level keys:** `weatherApiKey`, `mapApiKey`, `reverseGeoApiKey`, `anthropicApiKey`, `startingLat`, `startingLon`, `indoorTemperature`, `advanced`
+- **Whitelisted top-level keys:** `weatherApiKey`, `mapApiKey`, `reverseGeoApiKey`, `anthropicApiKey`, `airNowApiKey`, `openAqApiKey`, `startingLat`, `startingLon`, `indoorTemperature`, `advanced`
 - **`advanced` sub-object** — opaque, grouped by feature area:
   - `advanced.ai.radarAnalysisEnabled` (boolean) — controls whether the AI summary's third paragraph (`Radar analysis: …`) is generated and the analysis circles render on the map. Defaults to `true`. When `false`, the analyzer is short-circuited server-side and no circles are drawn client-side.
   - `advanced.ai.extendedRadius` (boolean) — when `true`, the analyzer also samples the outer ring (32 directions × 10 distances every 5 km / 3 mi from 55–100 km or 33–60 mi) on top of the default inner ring (16 directions × 10 distances every 5 km / 3 mi from 5–50 km or 3–30 mi). The map shows a second outer dashed circle. Defaults to `false`. (`doubleOuterPoints` is no longer a setting — outer is always sampled at the dense 32-direction grid when extendedRadius is on.)
