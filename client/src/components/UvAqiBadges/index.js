@@ -19,58 +19,77 @@ function uvTier(value) {
   return { color: "#5cb85c", label: "low" };
 }
 
-// AQI rendering data — the badge accepts either an ECCC AQHI value
-// (1-10+, Health Canada's four-tier categorisation) or an EPA AQI
-// category index (1-6). They use the same category vocabulary in the
-// UI ("low/moderate/high/veryHigh") so the badge label and colour
-// mapping stay consistent regardless of source.
-
-// AQHI tiers — Health Canada's four risk categories.
-function aqhiTier(value) {
-  if (value == null) return null;
-  if (value > 10)  return { color: "#7e3fb1", label: "veryHigh" };
-  if (value >= 7)  return { color: "#e60000", label: "high" };
-  if (value >= 4)  return { color: "#f0d000", label: "moderate" };
-  return { color: "#5cb85c", label: "low" };
-}
+// Shared four-tier colour map for the AQI badge — every source
+// (ECCC AQHI, MELCC IQA, EPA AQI) gets normalised to this four-tier
+// vocabulary on the server (or below for the Tomorrow.io fallback)
+// before reaching the badge.
+const CATEGORY_COLORS = {
+  low:      "#5cb85c",
+  moderate: "#f0d000",
+  high:     "#e60000",
+  veryHigh: "#7e3fb1",
+};
 
 // EPA category index (Tomorrow.io's epaIndex returns 1-6) → same
 // four-tier vocabulary, with sensitive/unhealthy mapping to "high".
-function epaTier(idx) {
+// Used only for the Tomorrow.io fallback path; the server-side
+// orchestrator already returns `category` for every other source.
+function epaCategory(idx) {
   if (idx == null) return null;
-  if (idx >= 5) return { color: "#7e3fb1", label: "veryHigh" };
-  if (idx >= 3) return { color: "#e60000", label: "high" };
-  if (idx >= 2) return { color: "#f0d000", label: "moderate" };
-  return { color: "#5cb85c", label: "low" };
+  if (idx >= 5) return "veryHigh";
+  if (idx >= 3) return "high";
+  if (idx >= 2) return "moderate";
+  return "low";
 }
 
-const ECCC_REFRESH_MS = 30 * 60 * 1000; // 30 min — ECCC publishes hourly
+const AQI_REFRESH_MS = 30 * 60 * 1000; // 30 min — every upstream publishes hourly
+
+// Source-specific label keys for the tooltip. Falls back to the
+// generic ECCC label if a new source ever ships without a matching
+// translation key (defensive — every active source does have one).
+const SOURCE_LABEL_KEY = {
+  "MELCC-Mtl":   "badges.aqiSourceMelccMtl",
+  "MELCC-RSQAQ": "badges.aqiSourceMelccRsqaq",
+  "ECCC":        "badges.aqiSourceEccc",
+};
+
+// Per-scale formatting and badge label. AQHI is fractional (2.8);
+// IQA and EPA are integers.
+const SCALE_BADGE_LABEL = {
+  aqhi: "badges.aqhi",
+  iqa:  "badges.iqa",
+};
+function formatValueForScale(scale, value) {
+  if (scale === "aqhi") return Number(value).toFixed(1);
+  return String(Math.round(Number(value)));
+}
 
 /**
  * Two compact colour-coded badges (UV index + AQI) rendered below
- * CurrentWeather. AQI prefers Environment Canada's AQHI (free, official
- * Canadian source, queried via /api/air-quality and only available
- * inside Canada) and falls back to Tomorrow.io's epaIndex (paid tier
- * only) when ECCC has nothing for the location. Each badge hides
- * individually when its value is missing; the whole row hides when
- * both are absent.
+ * CurrentWeather. AQI walks a server-side priority chain (MELCC
+ * Montreal → MELCC RSQAQ → ECCC AQHI) via /api/air-quality, and
+ * falls back to Tomorrow.io's epaIndex (paid tier only) when every
+ * Canadian source comes up empty. Each badge hides individually
+ * when its value is missing; the whole row hides when both are
+ * absent.
  *
  * @returns {JSX.Element|null} Badges row, or null when nothing to show
  */
 const UvAqiBadges = () => {
   const { currentWeatherData, mapGeo, darkMode, aqhiInfo, setAqhiInfo } = useContext(AppContext);
   const { t } = useTranslation();
-  const aqhi = aqhiInfo; // { value, category, source, kind, stationName, stationDistanceKm } | null
+  const aqi = aqhiInfo; // { value, category, source, scale, kind, stationName, stationDistanceKm } | null
 
-  // Poll ECCC's AQHI endpoint when the marker moves. 30-min refresh
-  // matches the upstream's ~hourly publication cadence; ECCC station
-  // observations don't change between API calls within that window
-  // (cached server-side too). State lives in AppContext so the Debug
-  // panel can show the chosen station + kind without refetching.
+  // Poll the air-quality endpoint when the marker moves. 30-min
+  // refresh matches every upstream's ~hourly publication cadence;
+  // server-side caches keep the cost flat regardless of how many
+  // remote clients are hitting the kiosk. State lives in AppContext
+  // so the Debug panel can show the chosen station + kind without
+  // refetching.
   useEffect(() => {
     if (!mapGeo) return undefined;
     let cancelled = false;
-    const fetchAqhi = () => {
+    const fetchAqi = () => {
       const params = new URLSearchParams({
         lat: mapGeo.latitude,
         lon: mapGeo.longitude,
@@ -81,8 +100,8 @@ const UvAqiBadges = () => {
         })
         .catch(() => { if (!cancelled) setAqhiInfo(null); });
     };
-    fetchAqhi();
-    const interval = setInterval(fetchAqhi, ECCC_REFRESH_MS);
+    fetchAqi();
+    const interval = setInterval(fetchAqi, AQI_REFRESH_MS);
     return () => { cancelled = true; clearInterval(interval); };
   }, [mapGeo, setAqhiInfo]);
 
@@ -90,20 +109,34 @@ const UvAqiBadges = () => {
   const uv = values.uvIndex;
   const uvT = uvTier(uv);
 
-  // Prefer ECCC. Fall back to Tomorrow.io's epaIndex when ECCC is
-  // unavailable (out of Canada / no nearby active station / API down).
-  const aqiValue = aqhi?.value ?? values.epaIndex;
-  const aqiT = aqhi
-    ? aqhiTier(aqhi.value)
-    : epaTier(values.epaIndex);
-  // Render the value as 1-decimal when it came from ECCC (the upstream
-  // returns fractional AQHI like 2.8) and as integer for EPA (which
-  // is a category index 1-6).
-  const aqiDisplay = aqhi
-    ? aqiValue.toFixed(1)
-    : Math.round(aqiValue);
+  // The orchestrator returns {value, category, source, scale, ...}
+  // pre-normalised; the only locally-computed branch is the
+  // Tomorrow.io fallback (which doesn't go through the orchestrator).
+  let aqiCategory = null;
+  let aqiValue = null;
+  let aqiScale = null;
+  let aqiSource = null; // null sentinel = Tomorrow.io fallback
+  if (aqi) {
+    aqiCategory = aqi.category;
+    aqiValue = aqi.value;
+    aqiScale = aqi.scale || "aqhi";
+    aqiSource = aqi.source;
+  } else if (values.epaIndex != null) {
+    aqiCategory = epaCategory(values.epaIndex);
+    aqiValue = values.epaIndex;
+    aqiScale = "epa";
+  }
+  const aqiColor = aqiCategory ? CATEGORY_COLORS[aqiCategory] : null;
+  const aqiBadgeLabel = aqiScale === "epa"
+    ? t("badges.aqi")
+    : t(SCALE_BADGE_LABEL[aqiScale] || "badges.aqi");
+  const aqiDisplay = aqiValue != null && aqiScale ? formatValueForScale(aqiScale, aqiValue) : null;
 
-  if (!uvT && !aqiT) return null;
+  const aqiTooltip = aqi
+    ? `${t(SOURCE_LABEL_KEY[aqiSource] || "badges.aqiSourceEccc")} — ${aqi.stationName} (${aqi.stationDistanceKm} km, ${t(`badges.aqiKind${aqi.kind === "forecast" ? "Forecast" : "Observation"}`)})`
+    : t("badges.aqiSourceEpa");
+
+  if (!uvT && !aqiCategory) return null;
   return (
     <div className={`${styles.row} ${darkMode ? styles.dark : styles.light}`}>
       {uvT && (
@@ -113,18 +146,15 @@ const UvAqiBadges = () => {
           <span className={styles.qualifier}>{t(`badges.uvLevel.${uvT.label}`)}</span>
         </div>
       )}
-      {aqiT && (
+      {aqiCategory && (
         <div
           className={styles.badge}
-          style={{ backgroundColor: aqiT.color }}
-          title={aqhi
-            ? `${t("badges.aqiSourceEccc")} — ${aqhi.stationName} (${aqhi.stationDistanceKm} km, ${t(`badges.aqiKind${aqhi.kind === "forecast" ? "Forecast" : "Observation"}`)})`
-            : t("badges.aqiSourceEpa")
-          }
+          style={{ backgroundColor: aqiColor }}
+          title={aqiTooltip}
         >
-          <span className={styles.label}>{aqhi ? t("badges.aqhi") : t("badges.aqi")}</span>
+          <span className={styles.label}>{aqiBadgeLabel}</span>
           <span className={styles.value}>{aqiDisplay}</span>
-          <span className={styles.qualifier}>{t(`badges.aqiLevel.${aqiT.label}`)}</span>
+          <span className={styles.qualifier}>{t(`badges.aqiLevel.${aqiCategory}`)}</span>
         </div>
       )}
     </div>

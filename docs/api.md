@@ -260,12 +260,18 @@ The outer ring is sampled only when `advanced.ai.extendedRadius` is `true` (serv
 ## Air Quality
 
 ### `GET /api/air-quality`
-Returns the AQHI (Air Quality Health Index / Cote air santé) for the nearest active Environment Canada station to a given lat/lon. Free, no API key, official Canadian source — fills the gap left by Tomorrow.io's `epaIndex`, which requires the paid Air Quality data layer. The client `<UvAqiBadges>` component prefers this source when available and falls back to Tomorrow.io's `epaIndex` (when configured) outside Canadian coverage.
+Returns the best-available air-quality reading for the nearest station to a given lat/lon. The endpoint orchestrates a priority-ordered chain of upstream sources — geographic specificity wins, so a hyper-local municipal observation beats a regional fall-back even if the fall-back is technically more recent. Free, no API key, all official government sources. The client `<UvAqiBadges>` component renders whatever the orchestrator returns and falls back to Tomorrow.io's `epaIndex` (when configured) only when every government source comes up empty.
 
-Defunct stations (the closest by lat/lon may be inactive — Montreal's "EHHUN" station, for example, is in the published list but returns zero current observations) are skipped automatically: the controller walks the six nearest stations within 300 km and uses the first one that has either a recent observation or a forecast value. For each candidate, the controller queries `aqhi-observations-realtime` first; if that returns nothing (Quebec province's stations currently publish forecasts but no observations), it falls back to `aqhi-forecasts-realtime` and picks the forecast row whose `forecast_datetime` is the latest hour ≤ now. Forecast values are official Health Canada AQHI for the hour in question — predicted rather than measured, but still authoritative — and the response carries a `kind` field so callers can distinguish.
+Source priority:
+
+1. **MELCC RSQA Montréal** — Ville de Montréal real-time IQA CSV (`donnees.montreal.ca`, hourly ~50 min after the hour). Covers the island of Montreal. Source label `MELCC-Mtl`.
+2. **MELCC RSQAQ provincial** — Quebec MELCC ArcGIS FeatureServer (`services3.arcgis.com`, hourly real-time, `rsqaq-indice-de-la-qualite-de-l-air` on Données Québec). Covers all of Quebec except the island of Montreal (excluded by intergovernmental agreement). Source label `MELCC-RSQAQ`.
+3. **Environment Canada AQHI** — `api.weather.gc.ca` OGC Features API. Covers all of Canada. Prefers `aqhi-observations-realtime`; when empty (Quebec stations sometimes publish forecasts but no observations), falls back to `aqhi-forecasts-realtime` and picks the forecast row whose `forecast_datetime` is the latest hour ≤ now. The forecast value is official Health Canada AQHI for the hour in question — predicted rather than measured but still authoritative — and the response's `kind` field distinguishes the two. Source label `ECCC`.
+
+For each ECCC candidate, defunct stations are skipped automatically: the controller walks the six nearest stations within 300 km and uses the first one that has either a recent observation or a forecast value.
 
 - **Access:** 🌐 Public — rate limited (120 req/min)
-- **Caching:** station list cached 24 h; per-station observations cached 20 min (ECCC publishes hourly so anything finer just adds load with no fresher data).
+- **Caching:** ECCC station list cached 24 h; ECCC per-station observations cached 20 min; MELCC RSQAQ dataset cached 20 min (whole province in one fetch); MELCC Montreal CSV cached 20 min (whole island in one fetch). Every upstream publishes hourly so 20 min smooths repeats without serving stale data.
 - **Query params:**
 
 | Parameter | Type | Required | Description |
@@ -273,30 +279,37 @@ Defunct stations (the closest by lat/lon may be inactive — Montreal's "EHHUN" 
 | `lat` | float | ✅ | Latitude |
 | `lon` | float | ✅ | Longitude |
 
-- **Response (when an active station is within 300 km):**
+- **Response (when any source returns a reading):**
 
 ```json
 {
   "available": true,
-  "value": 2,
-  "category": "low",
-  "source": "ECCC",
-  "kind": "forecast",
-  "stationName": "Quebec",
+  "value": 28,
+  "category": "moderate",
+  "source": "MELCC-Mtl",
+  "scale": "iqa",
+  "kind": "observation",
+  "stationName": "75 Ontario Est",
   "stationDistanceKm": 1
 }
 ```
 
 | Field | Type | Description |
 |---|---|---|
-| `value` | number | AQHI value, 1–10+ (Health Canada scale) |
-| `category` | string | `low` (1-3) \| `moderate` (4-6) \| `high` (7-10) \| `veryHigh` (>10) |
-| `source` | string | Always `"ECCC"` for now — the field is there so the client can render a different label/tooltip if more sources are added later (NWS AirNow, MeteoAlarm, etc.) |
-| `kind` | string | `"observation"` (live measurement from `aqhi-observations-realtime`) \| `"forecast"` (Health Canada forecast bulletin from `aqhi-forecasts-realtime`, used as fallback when the station has no current observation) |
-| `stationName` | string | English name of the station the AQHI was read from |
+| `value` | number | Raw value in the source's native scale (AQHI 1–10+, IQA 1–100+) |
+| `category` | string | `low` \| `moderate` \| `high` \| `veryHigh` — pre-normalised by the source so the badge's colour mapping is scale-agnostic |
+| `source` | string | `MELCC-Mtl` \| `MELCC-RSQAQ` \| `ECCC` — drives the badge tooltip's source label |
+| `scale` | string | `aqhi` (Health Canada AQHI) \| `iqa` (Quebec MELCC IQA) — drives badge label ("AQHI/CAS" vs "IQA") and value formatting (1 decimal vs integer) |
+| `kind` | string | `observation` (live measurement) \| `forecast` (only ECCC, used when the observation pipeline is empty) |
+| `stationName` | string | Human-readable station name (or municipal address for the Montreal source) |
 | `stationDistanceKm` | integer | Great-circle distance from the requested point, rounded to the nearest km |
 
-- **Response (out of coverage / no active station):** `{ "available": false, "reason": "..." }` where `reason` is one of `stations` (couldn't reach the upstream stations endpoint), `out-of-range` (no station within 300 km), `no-data` (6 nearest candidates all returned empty for both observations and forecasts — most of them are likely defunct).
+Category cut-points per scale:
+
+- AQHI (`scale: "aqhi"`): `low` 1-3, `moderate` 4-6, `high` 7-10, `veryHigh` >10.
+- IQA (`scale: "iqa"`): `low` 1-25 (Bon), `moderate` 26-50 (Acceptable), `high` 51-100, `veryHigh` >100. The official MELCC categorisation is three tiers (Bon/Acceptable/Mauvais); the badge splits Mauvais at 100 to keep the four-tier vocabulary it shares with AQHI.
+
+- **Response (no source had a reading):** `{ "available": false, "reason": "no-data" }`. Each source soft-fails internally and returns null; the orchestrator only emits `available: false` when every source has fallen through.
 
 ---
 

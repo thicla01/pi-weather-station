@@ -1,196 +1,32 @@
-// Air Quality Health Index (AQHI) lookup against Environment Canada's
-// public OGC Features API at api.weather.gc.ca. Queries the nearest
-// AQHI station to a given lat/lon and returns its most recent
-// observation. Free, no API key, official Canadian source — fills the
-// gap left by Tomorrow.io's epaIndex (paid tier only).
+// Air-quality orchestrator. Walks a priority-ordered chain of upstream
+// sources and returns the first one that produces a valid reading at
+// the requested coordinate; soft-fails to {available:false} when every
+// source is empty so the client can transparently fall back to other
+// signals (Tomorrow.io's epaIndex when configured).
 //
-// Data flow:
-//   1. List of AQHI stations cached in-memory (24 h TTL — stations
-//      don't move). Loaded lazily on first request.
-//   2. Per-request: find nearest station via Haversine, check it's
-//      within STATION_MAX_KM, fetch its latest observation.
-//   3. Per-station observation cached 20 min (ECCC publishes hourly,
-//      so 20 min smooths repeat polls without serving stale data).
+// Source priority is geographic specificity, not data freshness — a
+// hyper-local municipal observation beats a regional ECCC fall-back
+// every time, even if the ECCC reading is technically more recent:
+//
+//   1. MELCC Montreal RSQA (city of Montreal, hourly CSV)
+//   2. MELCC RSQAQ provincial (rest of Quebec, hourly ArcGIS REST)
+//   3. ECCC AQHI (rest of Canada, hourly OGC Features API; falls back
+//      to forecast bulletin when observations are empty)
+//
+// Each source module owns its upstream contract, its own cache, and
+// returns a normalised payload. The orchestrator only knows the order.
 
-const axios = require("axios").default;
-const { recordServiceCall } = require("./serviceStatus");
-const { increment } = require("./requestCounter");
-
-const ECCC_BASE = "https://api.weather.gc.ca/collections";
-const STATIONS_URL = `${ECCC_BASE}/aqhi-stations/items?f=json&limit=1000`;
-const TIMEOUT_MS = 10_000;
-const STATION_MAX_KM = 300;          // pretend "no coverage" beyond this — generous because
-                                     // entire provinces can be reporting zero stations on the
-                                     // upstream API (Quebec province on May 3 2026 had no
-                                     // active station; Cornwall at ~180 km from Sorel was the
-                                     // nearest match). The badge tooltip surfaces the actual
-                                     // station name + distance so the user can judge the
-                                     // local relevance.
-const OBS_TTL_MS = 20 * 60 * 1000;   // 20 min, ECCC publishes hourly
-const STATIONS_TTL_MS = 24 * 60 * 60 * 1000; // 24 h
-
-let stationsCache = null;            // { features, expiresAt }
-const obsCache = new Map();          // stationId → { payload, expiresAt }
-
-/**
- * Great-circle distance between two points in km.
- *
- * @param {Number} lat1
- * @param {Number} lon1
- * @param {Number} lat2
- * @param {Number} lon2
- * @returns {Number} kilometres
- */
-function haversineKm(lat1, lon1, lat2, lon2) {
-  const R = 6371;
-  const toRad = (d) => (d * Math.PI) / 180;
-  const dLat = toRad(lat2 - lat1);
-  const dLon = toRad(lon2 - lon1);
-  const a = Math.sin(dLat / 2) ** 2
-          + Math.cos(toRad(lat1)) * Math.cos(toRad(lat2)) * Math.sin(dLon / 2) ** 2;
-  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
-}
-
-/**
- * Pull the AQHI station list (cached 24 h).
- *
- * @returns {Promise<Array>}
- */
-async function getStations() {
-  if (stationsCache && Date.now() < stationsCache.expiresAt) {
-    return stationsCache.features;
-  }
-  const r = await axios.get(STATIONS_URL, { timeout: TIMEOUT_MS });
-  const features = r.data?.features || [];
-  stationsCache = { features, expiresAt: Date.now() + STATIONS_TTL_MS };
-  return features;
-}
-
-/**
- * Sort all stations by distance to (lat, lon) and keep only those
- * within STATION_MAX_KM. Returns an array of `{station, distanceKm}`
- * tuples in ascending distance order — the caller iterates through
- * candidates until one returns a current observation. Some stations
- * in the API's `aqhi-stations` collection are defunct (the Montreal
- * "EHHUN" station, for instance, is the closest to lat=45.5/lon=-73.5
- * but has zero current observations); falling back to the next
- * nearest active station keeps the badge useful.
- *
- * @param {Array} stations Station features from the OGC API
- * @param {Number} lat
- * @param {Number} lon
- * @returns {Array<{station: Object, distanceKm: Number}>}
- */
-function rankStationsByDistance(stations, lat, lon) {
-  const ranked = [];
-  for (const s of stations) {
-    const [stLon, stLat] = s.geometry?.coordinates || [];
-    if (typeof stLat !== "number" || typeof stLon !== "number") continue;
-    const distanceKm = haversineKm(lat, lon, stLat, stLon);
-    if (distanceKm <= STATION_MAX_KM) ranked.push({ station: s, distanceKm });
-  }
-  ranked.sort((a, b) => a.distanceKm - b.distanceKm);
-  return ranked;
-}
-
-/**
- * Fetch the most recent AQHI value for a station, preferring real
- * observations and falling back to the forecast bulletin when none are
- * published. ECCC's stations are advertised as 24/7 but in practice the
- * observation pipeline lags or stalls on some provincial networks
- * (Quebec stations currently publish forecasts twice daily but no
- * observations); the forecast value is still authoritative — it's the
- * official Health Canada AQHI for that hour, just predicted rather
- * than measured.
- *
- * @param {String} stationId Station ID (e.g. "EHTWR")
- * @returns {Promise<{value: Number, kind: "observation" | "forecast"} | null>}
- */
-async function fetchAqhi(stationId) {
-  // 1. Try the observation first (latest=true gives the freshest record).
-  const obsUrl = `${ECCC_BASE}/aqhi-observations-realtime/items?f=json&location_id=${encodeURIComponent(stationId)}&latest=true&limit=1`;
-  const obsResp = await axios.get(obsUrl, { timeout: TIMEOUT_MS });
-  const obs = obsResp.data?.features?.[0];
-  if (obs) {
-    const v = obs.properties?.aqhi ?? obs.properties?.value ?? obs.properties?.aqhi_value;
-    if (v != null && !isNaN(Number(v))) {
-      return { value: Number(v), kind: "observation" };
-    }
-  }
-
-  // 2. Fall back to the forecast. Each forecast feature carries a
-  // forecast_datetime (the hour it covers); we want the one closest to
-  // "now" without being in the future. Sorting by -publication_datetime
-  // returns the most recently issued bulletin, then we walk its hourly
-  // entries to find the row matching the current hour.
-  const fcstUrl = `${ECCC_BASE}/aqhi-forecasts-realtime/items?f=json&location_id=${encodeURIComponent(stationId)}&sortby=-forecast_datetime&limit=24`;
-  const fcstResp = await axios.get(fcstUrl, { timeout: TIMEOUT_MS });
-  const fcsts = fcstResp.data?.features || [];
-  if (!fcsts.length) return null;
-  const nowMs = Date.now();
-  // Pick the forecast whose forecast_datetime is the latest one ≤ now;
-  // if every forecast is in the future (shouldn't happen but be safe),
-  // fall back to the earliest future one.
-  let bestPast = null, bestPastTs = -Infinity;
-  let bestFuture = null, bestFutureTs = Infinity;
-  for (const f of fcsts) {
-    const dt = f.properties?.forecast_datetime;
-    const v = f.properties?.aqhi ?? f.properties?.value;
-    if (!dt || v == null || isNaN(Number(v))) continue;
-    const ts = Date.parse(dt);
-    if (ts <= nowMs && ts > bestPastTs) { bestPastTs = ts; bestPast = f; }
-    if (ts > nowMs && ts < bestFutureTs) { bestFutureTs = ts; bestFuture = f; }
-  }
-  const chosen = bestPast || bestFuture;
-  if (!chosen) return null;
-  const v = chosen.properties?.aqhi ?? chosen.properties?.value;
-  return { value: Number(v), kind: "forecast" };
-}
-
-/**
- * Map a numeric AQHI value to one of Health Canada's four risk
- * categories. Used by the client to colour the badge.
- *
- * @param {Number} value AQHI 1-10+
- * @returns {"low" | "moderate" | "high" | "veryHigh" | null}
- */
-function categoryFor(value) {
-  if (value == null || isNaN(value)) return null;
-  if (value > 10) return "veryHigh";
-  if (value >= 7) return "high";
-  if (value >= 4) return "moderate";
-  return "low";
-}
-
-/**
- * Pick the station identifier from a station feature, defensively
- * (the OGC spec is followed in practice but field names can drift).
- *
- * @param {Object} station Station feature
- * @returns {String | null}
- */
-function stationIdOf(station) {
-  const p = station?.properties || {};
-  return p.location_id || p.station_id || p.id || null;
-}
-
-/**
- * Pick a human-readable name for the station.
- *
- * @param {Object} station Station feature
- * @returns {String | null}
- */
-function stationNameOf(station) {
-  const p = station?.properties || {};
-  return p.location_name_en || p.location_name_fr || p.name || null;
-}
+const sources = [
+  require("./airQualitySources/melccMtl"),
+  require("./airQualitySources/melccRsqaq"),
+  require("./airQualitySources/eccc"),
+];
 
 /**
  * GET /api/air-quality
- * Returns the AQHI for the nearest ECCC station to a given lat/lon,
- * or `{ available: false }` when out of Canadian coverage / the
- * upstream API is unreachable. Soft-fails on every error path so the
- * client can transparently fall back to other sources.
+ * Returns the best-available air-quality reading for the nearest
+ * station to a given lat/lon, or `{ available: false }` when every
+ * source comes up empty.
  *
  * @param {Object} req
  * @param {Object} req.query
@@ -205,69 +41,32 @@ async function getAirQuality(req, res) {
     return res.status(400).json("Invalid coordinates").end();
   }
 
-  let stations;
-  try {
-    stations = await getStations();
-  } catch (err) {
-    recordServiceCall("Environment Canada (AQHI)", err?.response?.status || 500, "stations fetch failed");
-    return res.status(200).json({ available: false, reason: "stations" }).end();
-  }
-
-  const candidates = rankStationsByDistance(stations, lat, lon);
-  if (!candidates.length) {
-    recordServiceCall("Environment Canada (AQHI)", 200, `no station within ${STATION_MAX_KM} km`);
-    return res.status(200).json({ available: false, reason: "out-of-range" }).end();
-  }
-
-  // Walk candidates in distance order; the closest may be defunct and
-  // return zero observations (Montreal's EHHUN is a good example), so
-  // fall through to the next nearest. Cap the walk at MAX_CANDIDATES
-  // to avoid spending too long on a single user request when an entire
-  // region is offline; in practice the second or third candidate
-  // resolves it. Bumped from 4 to 6 after observing Quebec province had
-  // no active station at all on May 3 2026 — letting the walk reach
-  // Cornwall / Ottawa from Sorel-area markers gives a regional read
-  // rather than nothing at all.
-  const MAX_CANDIDATES = 6;
-  for (const { station, distanceKm } of candidates.slice(0, MAX_CANDIDATES)) {
-    const stationId = stationIdOf(station);
-    if (!stationId) continue;
-
-    const cached = obsCache.get(stationId);
-    if (cached && Date.now() < cached.expiresAt) {
-      return res.status(200).json({ available: true, ...cached.payload }).end();
-    }
-
-    let result;
+  for (const src of sources) {
+    let payload;
     try {
-      result = await fetchAqhi(stationId);
+      payload = await src.tryAqi(lat, lon);
     } catch {
-      // Network blip on one station shouldn't block the rest.
-      continue;
+      // tryAqi() is supposed to swallow its own errors and return
+      // null; this catch is just a belt-and-braces guard.
+      payload = null;
     }
-
-    if (!result) continue;
-
-    const { value, kind } = result;
-    const category = categoryFor(value);
-    if (value == null || category == null) continue;
-
-    const payload = {
-      value,
-      category,
-      source: "ECCC",
-      kind,
-      stationName: stationNameOf(station),
-      stationDistanceKm: Math.round(distanceKm),
-    };
-    obsCache.set(stationId, { payload, expiresAt: Date.now() + OBS_TTL_MS });
-    recordServiceCall("Environment Canada (AQHI)", 200, `${stationId} aqhi=${value} (${kind}, ${Math.round(distanceKm)} km)`);
-    increment("eccc", "aqhi");
-    return res.status(200).json({ available: true, ...payload }).end();
+    if (payload) {
+      return res.status(200).json({ available: true, ...payload }).end();
+    }
   }
 
-  recordServiceCall("Environment Canada (AQHI)", 200, `no active station within ${MAX_CANDIDATES} closest candidates`);
   return res.status(200).json({ available: false, reason: "no-data" }).end();
 }
 
-module.exports = { getAirQuality };
+/**
+ * Pre-register every air-quality source with the service-status
+ * tracker so the Debug panel shows them as "Not yet called" before
+ * the first poll lands. Called from `index.js` at startup.
+ */
+function registerAirQualityServices(registerService) {
+  for (const src of sources) {
+    if (src.SERVICE_NAME) registerService(src.SERVICE_NAME);
+  }
+}
+
+module.exports = { getAirQuality, registerAirQualityServices };

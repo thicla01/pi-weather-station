@@ -73,6 +73,8 @@ function registerKnownServices() {
     "Claude (AI summary)",
     "Homebridge",
     "Environment Canada (AQHI)",
+    "MELCC RSQAQ (Quebec)",
+    "MELCC RSQA (Montreal)",
   ].forEach(registerService);
 }
 
