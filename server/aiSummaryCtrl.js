@@ -334,8 +334,13 @@ async function getWeatherSummary(req, res) {
     ? " Note: live current-conditions data is temporarily unavailable; do not invent values for it. Lead with whatever sections are present."
     : "";
 
+  // Radar block uses a hierarchical compressed format documented in
+  // formatSnapshot (radarAnalyzerCtrl.js). Brief explanation in the
+  // wrapper below so Claude reads "Clear within 70km" / "Clear beyond
+  // 95km" / "Active 70-95km" as structural rollups rather than literal
+  // statements about specific samples.
   const radarSection = hasRadar
-    ? `\n\nRadar samples (8 directions × 4 distances around the user, intensity 0-6):\n${radarText}`
+    ? `\n\nRadar samples (16-point inner ring + 32-point outer ring around the user, intensity tiers: clear/very light/light/moderate/heavy/very heavy/extreme; "Clear within X" and "Clear beyond Y" annulus rollups omit fully-empty zones, "DIR : clear" inside an active annulus means that direction is empty in that range):\n${radarText}`
     : "";
   const currentSection = hasCurrent ? `Current conditions:\n${currentLines}` : "";
   const dataPayload = [currentSection, secondSection, radarSection].filter(Boolean).join("");
