@@ -257,6 +257,47 @@ The outer ring is sampled only when `advanced.ai.extendedRadius` is `true` (serv
 
 ---
 
+## Air Quality
+
+### `GET /api/air-quality`
+Returns the AQHI (Air Quality Health Index / Cote air santé) for the nearest active Environment Canada station to a given lat/lon. Free, no API key, official Canadian source — fills the gap left by Tomorrow.io's `epaIndex`, which requires the paid Air Quality data layer. The client `<UvAqiBadges>` component prefers this source when available and falls back to Tomorrow.io's `epaIndex` (when configured) outside Canadian coverage.
+
+Defunct stations (the closest by lat/lon may be inactive — Montreal's "EHHUN" station, for example, is in the published list but returns zero current observations) are skipped automatically: the controller walks the four nearest stations within 150 km and uses the first one that has a recent observation.
+
+- **Access:** 🌐 Public — rate limited (120 req/min)
+- **Caching:** station list cached 24 h; per-station observations cached 20 min (ECCC publishes hourly so anything finer just adds load with no fresher data).
+- **Query params:**
+
+| Parameter | Type | Required | Description |
+|---|---|:---:|---|
+| `lat` | float | ✅ | Latitude |
+| `lon` | float | ✅ | Longitude |
+
+- **Response (when an active station is within 150 km):**
+
+```json
+{
+  "available": true,
+  "value": 2.8,
+  "category": "low",
+  "source": "ECCC",
+  "stationName": "Cornwall",
+  "stationDistanceKm": 109
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `value` | number | AQHI value, 1–10+ (Health Canada scale) |
+| `category` | string | `low` (1-3) \| `moderate` (4-6) \| `high` (7-10) \| `veryHigh` (>10) |
+| `source` | string | Always `"ECCC"` for now — the field is there so the client can render a different label/tooltip if more sources are added later (NWS AirNow, MeteoAlarm, etc.) |
+| `stationName` | string | English name of the station the AQHI was read from |
+| `stationDistanceKm` | integer | Great-circle distance from the requested point, rounded to the nearest km |
+
+- **Response (out of coverage / no active station):** `{ "available": false, "reason": "..." }` where `reason` is one of `stations` (couldn't reach the upstream stations endpoint), `out-of-range` (no station within 150 km), `no-data` (4 nearest candidates all returned empty — most of them are likely defunct).
+
+---
+
 ## Sense HAT Display
 
 ### `GET /api/sensehat`

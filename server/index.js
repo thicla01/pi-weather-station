@@ -72,6 +72,7 @@ function registerKnownServices() {
     "RainViewer (risk)",
     "Claude (AI summary)",
     "Homebridge",
+    "Environment Canada (AQHI)",
   ].forEach(registerService);
 }
 
@@ -279,6 +280,9 @@ app.get("/api/sunrise-sunset", apiLimiter, sunriseSunset);
 app.get("/api/weather-summary", apiLimiter, getWeatherSummary);
 app.get("/api/sensehat",            apiLimiter, getSenseHatData);
 app.get("/api/indoor-temperature",  apiLimiter, getIndoorTemperature);
+
+const { getAirQuality } = require("./airQualityCtrl");
+app.get("/api/air-quality",         apiLimiter, getAirQuality);
 
 // Radar risk-level overlay for the dashed circles in WeatherMap. Reads the
 // "right now" intensity sampled on each ring and maps to a colour tier

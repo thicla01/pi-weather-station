@@ -463,6 +463,7 @@ const SERVICE_ORDER = [
   "RainViewer (risk)",
   "Claude (AI summary)",
   "Homebridge",
+  "Environment Canada (AQHI)",
 ];
 
 const ServicesSection = ({ services }) => {

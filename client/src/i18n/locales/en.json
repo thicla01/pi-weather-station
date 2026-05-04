@@ -128,6 +128,9 @@
   "badges": {
     "uv": "UV",
     "aqi": "AQI",
+    "aqhi": "AQHI",
+    "aqiSourceEccc": "Environment Canada AQHI",
+    "aqiSourceEpa": "Tomorrow.io EPA AQI",
     "uvLevel": {
       "low": "Low",
       "moderate": "Moderate",
@@ -136,12 +139,10 @@
       "extreme": "Extreme"
     },
     "aqiLevel": {
-      "good": "Good",
+      "low": "Low risk",
       "moderate": "Moderate",
-      "sensitive": "Unhealthy (sensitive)",
-      "unhealthy": "Unhealthy",
-      "veryUnhealthy": "Very unhealthy",
-      "hazardous": "Hazardous"
+      "high": "High",
+      "veryHigh": "Very high"
     }
   },
   "alert": {
