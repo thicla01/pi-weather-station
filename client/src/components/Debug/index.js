@@ -466,6 +466,9 @@ const SERVICE_ORDER = [
   "Environment Canada (AQHI)",
   "MELCC RSQAQ (Quebec)",
   "MELCC RSQA (Montreal)",
+  "EPA AirNow",
+  "NWS (severe weather alerts)",
+  "Environment Canada (severe weather alerts)",
 ];
 
 const ServicesSection = ({ services }) => {
@@ -1333,7 +1336,7 @@ const ClientKpiSection = ({ fps, setFps, clientMetrics, setClientMetrics }) => {
           <div className={styles.kpiItem}>
             <span className={styles.kpiLabel}>{t("debug.aqiSource")}</span>
             <span className={styles.kpiValue}>
-              {aqhiInfo.stationName} — {aqhiInfo.stationDistanceKm} km — {t(`badges.aqiKind${aqhiInfo.kind === "forecast" ? "Forecast" : "Observation"}`)} — {(aqhiInfo.scale || "aqhi").toUpperCase()} {aqhiInfo.scale === "aqhi" ? Number(aqhiInfo.value).toFixed(1) : Math.round(Number(aqhiInfo.value))}
+              {aqhiInfo.stationName} — {aqhiInfo.stationDistanceKm} km — {t(aqhiInfo.kind === "forecast" ? "badges.aqiKindForecast" : aqhiInfo.kind === "nowcast" ? "badges.aqiKindNowcast" : "badges.aqiKindObservation")} — {(aqhiInfo.scale || "aqhi").toUpperCase()} {aqhiInfo.scale === "aqhi" ? Number(aqhiInfo.value).toFixed(1) : Math.round(Number(aqhiInfo.value))}
             </span>
           </div>
         )}

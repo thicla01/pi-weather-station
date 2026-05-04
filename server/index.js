@@ -75,6 +75,7 @@ function registerKnownServices() {
     "Environment Canada (AQHI)",
     "MELCC RSQAQ (Quebec)",
     "MELCC RSQA (Montreal)",
+    "EPA AirNow",
     "NWS (severe weather alerts)",
     "Environment Canada (severe weather alerts)",
   ].forEach(registerService);

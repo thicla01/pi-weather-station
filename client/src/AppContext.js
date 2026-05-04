@@ -32,6 +32,13 @@ export function AppContextProvider({ children }) {
   const [mapApiKey, setMapApiKey] = useState(null);
   const [reverseGeoApiKey, setReverseGeoApiKey] = useState(null);
   const [anthropicApiKey, setAnthropicApiKey] = useState(null);
+  // AirNow API key — drives the EPA AirNow source in /api/air-quality.
+  // The badge silently falls through to the next source when this is
+  // unset (so a Canadian-only install pays nothing for it). Lifted to
+  // AppContext only so the Settings panel can write it back via
+  // saveSettingsToJson; nothing else in the client reads the value
+  // directly.
+  const [airNowApiKey, setAirNowApiKey] = useState(null);
   const [browserGeo, setBrowserGeo] = useState(null);
   const [mapGeo, setMapGeo] = useState(null);
   // IANA timezone derived from mapGeo via tz-lookup. Used by Clock to
@@ -506,6 +513,9 @@ export function AppContextProvider({ children }) {
             if (res.anthropicApiKey) {
               setAnthropicApiKey(res.anthropicApiKey);
             }
+            if (res.airNowApiKey) {
+              setAirNowApiKey(res.airNowApiKey);
+            }
             // Advanced settings — radar analysis defaults to ON (matches the
             // baseline behaviour where the third paragraph always renders
             // when an Anthropic key is configured); the other three default
@@ -868,11 +878,12 @@ export function AppContextProvider({ children }) {
    * @param {String} [settings.weatherKey]
    * @param {String} [settings.geoKey]
    * @param {String} [settings.anthropicKey]
+   * @param {String} [settings.airNowKey]
    * @param {String} [settings.lat]
    * @param {String} [settings.lon]
    * @returns {Promise} Resolves when complete
    */
-  function saveSettingsToJson({ mapsKey, weatherKey, geoKey, anthropicKey, lat, lon }) {
+  function saveSettingsToJson({ mapsKey, weatherKey, geoKey, anthropicKey, airNowKey, lat, lon }) {
     return new Promise((resolve, reject) => {
       axios
         .put("/settings", {
@@ -880,6 +891,7 @@ export function AppContextProvider({ children }) {
           mapApiKey: mapsKey,
           reverseGeoApiKey: geoKey,
           anthropicApiKey: anthropicKey,
+          airNowApiKey: airNowKey,
           startingLat: lat,
           startingLon: lon,
         })
@@ -889,6 +901,7 @@ export function AppContextProvider({ children }) {
           setWeatherApiKey(weatherKey);
           setReverseGeoApiKey(geoKey);
           setAnthropicApiKey(anthropicKey);
+          setAirNowApiKey(airNowKey);
           setCustomLat(lat);
           setCustomLon(lon);
         })
@@ -1061,6 +1074,7 @@ export function AppContextProvider({ children }) {
     reverseGeoApiKey,
     getReverseGeoApiKey,
     anthropicApiKey,
+    airNowApiKey,
     mapApiKey,
     getMapApiKey,
     browserGeo,

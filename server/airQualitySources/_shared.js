@@ -60,9 +60,32 @@ function categoryForIqa(value) {
   return "low";
 }
 
+/**
+ * Map an EPA AQI value (0–500 scale) to one of the four risk
+ * categories. EPA officially defines six tiers (Good 0-50, Moderate
+ * 51-100, Unhealthy for Sensitive Groups 101-150, Unhealthy 151-200,
+ * Very Unhealthy 201-300, Hazardous 301+), but the badge already
+ * shares a four-tier vocabulary with AQHI and IQA: we collapse the
+ * top three EPA tiers into "veryHigh" so the colour palette stays
+ * consistent across sources. The boundary between high and veryHigh
+ * sits at 150 (USG/Unhealthy split) — the same point at which the
+ * official EPA palette transitions from orange to red.
+ *
+ * @param {Number} value EPA AQI value (0-500)
+ * @returns {"low" | "moderate" | "high" | "veryHigh" | null}
+ */
+function categoryForEpaAqi(value) {
+  if (value == null || isNaN(value)) return null;
+  if (value > 150) return "veryHigh";
+  if (value > 100) return "high";
+  if (value > 50) return "moderate";
+  return "low";
+}
+
 module.exports = {
   TIMEOUT_MS,
   haversineKm,
   categoryForAqhi,
   categoryForIqa,
+  categoryForEpaAqi,
 };

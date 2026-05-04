@@ -260,25 +260,26 @@ The outer ring is sampled only when `advanced.ai.extendedRadius` is `true` (serv
 ## Air Quality
 
 ### `GET /api/air-quality`
-Returns the geographically closest air-quality reading the upstream sources can produce, or `{ available: false }` when every source comes up empty. Free, no API key, all official government sources. The client `<UvAqiBadges>` component renders whatever the orchestrator returns and falls back to Tomorrow.io's `epaIndex` (when configured) only when every government source comes up empty.
+Returns the geographically closest air-quality reading the upstream sources can produce, or `{ available: false }` when every source comes up empty. Free, no per-install API key required for the Canadian sources; AirNow needs a free EPA-issued key (`airNowApiKey` in `settings.json`) — without it, the AirNow source silently no-ops and a Canadian-only install pays nothing for it. The client `<UvAqiBadges>` component renders whatever the orchestrator returns and falls back to Tomorrow.io's `epaIndex` (when configured) only when every government source comes up empty.
 
 Sources:
 
 - **MELCC RSQA Montréal** — Ville de Montréal real-time IQA CSV (`donnees.montreal.ca`, hourly ~50 min after the hour). Covers the island of Montreal. Source label `MELCC-Mtl`.
 - **MELCC RSQAQ provincial** — Quebec MELCC ArcGIS FeatureServer (`services3.arcgis.com`, hourly real-time, `rsqaq-indice-de-la-qualite-de-l-air` on Données Québec). Covers all of Quebec except the island of Montreal (excluded by intergovernmental agreement; Montreal's network is published by the Mtl source above). Source label `MELCC-RSQAQ`.
+- **EPA AirNow** — `airnowapi.org/aq/observation/latLong/current/`. Covers the United States (continental + AK + HI + PR/VI). Free with a per-install API key, rate-limited at 500 calls/hour. Returns one record per pollutant present at the nearest reporting area; the source picks the worst-case AQI across pollutants per EPA's official "current AQI" methodology. Reported `kind` is `nowcast` — AirNow uses the NowCast 12-hour weighted average for PM2.5/PM10 and 1-hour averages for ozone, both of which are EPA's current-observation methodology rather than instantaneous spot values. Source label `AirNow`.
 - **Environment Canada AQHI** — `api.weather.gc.ca` OGC Features API. Covers all of Canada. Prefers `aqhi-observations-realtime`; when empty (Quebec stations sometimes publish forecasts but no observations), falls back to `aqhi-forecasts-realtime` and picks the forecast row whose `forecast_datetime` is the latest hour ≤ now. The forecast value is official Health Canada AQHI for the hour in question — predicted rather than measured but still authoritative — and the response's `kind` field distinguishes the two. Source label `ECCC`.
 
 Selection rule:
 
-1. The two MELCC sources run in parallel (each is a single cached upstream fetch — cheap). The hit with the smallest `stationDistanceKm` wins; ties broken by Mtl over RSQAQ.
-2. ECCC is sequenced **after**, only when neither MELCC source returned a hit. ECCC's per-station walk for defunct stations (up to six) makes it expensive to run speculatively.
+1. MELCC Montréal, MELCC RSQAQ, and AirNow run in parallel (each is a single cached upstream fetch — cheap). The hit with the smallest `stationDistanceKm` wins; ties broken by declaration order (MELCC-Mtl, MELCC-RSQAQ, AirNow).
+2. ECCC is sequenced **after**, only when none of the parallel sources returned a hit. ECCC's per-station walk for defunct stations (up to six) makes it expensive to run speculatively.
 
-This "closest wins" rule replaces the earlier strict priority chain because the chain produced an effect-edge bug: Sainte-Victoire-de-Sorel sat right at the 50 km cap of the Montreal source and got tagged with a station 50 km away while the RSQAQ network had Saint-Joseph-de-Sorel at 8 km. Distance is the real measure of relevance, so the orchestrator now compares it across every cheap source.
+This "closest wins" rule replaces the earlier strict priority chain because the chain produced an effect-edge bug: Sainte-Victoire-de-Sorel sat right at the 50 km cap of the Montreal source and got tagged with a station 50 km away while the RSQAQ network had Saint-Joseph-de-Sorel at 8 km. Distance is the real measure of relevance, so the orchestrator now compares it across every cheap source. The same rule handles the US/Canada border naturally — a kiosk in Plattsburgh NY picks AirNow at 5 km over MELCC at 30 km across the border, and a kiosk in Lacolle QC picks MELCC at 5 km over AirNow at 30 km — without any explicit country gate.
 
 For each ECCC candidate, defunct stations are skipped automatically: the controller walks the six nearest stations within 300 km and uses the first one that has either a recent observation or a forecast value.
 
 - **Access:** 🌐 Public — rate limited (120 req/min)
-- **Caching:** ECCC station list cached 24 h; ECCC per-station observations cached 20 min; MELCC RSQAQ dataset cached 20 min (whole province in one fetch); MELCC Montreal CSV cached 20 min (whole island in one fetch). Every upstream publishes hourly so 20 min smooths repeats without serving stale data.
+- **Caching:** ECCC station list cached 24 h; ECCC per-station observations cached 20 min; MELCC RSQAQ dataset cached 20 min (whole province in one fetch); MELCC Montreal CSV cached 20 min (whole island in one fetch); AirNow per-coordinate response cached 30 min (AirNow updates hourly). Every upstream publishes hourly so 20–30 min smooths repeats without serving stale data.
 - **Query params:**
 
 | Parameter | Type | Required | Description |
@@ -303,18 +304,20 @@ For each ECCC candidate, defunct stations are skipped automatically: the control
 
 | Field | Type | Description |
 |---|---|---|
-| `value` | number | Raw value in the source's native scale (AQHI 1–10+, IQA 1–100+) |
+| `value` | number | Raw value in the source's native scale (AQHI 1–10+, IQA 1–100+, EPA AQI 0–500) |
 | `category` | string | `low` \| `moderate` \| `high` \| `veryHigh` — pre-normalised by the source so the badge's colour mapping is scale-agnostic |
-| `source` | string | `MELCC-Mtl` \| `MELCC-RSQAQ` \| `ECCC` — drives the badge tooltip's source label |
-| `scale` | string | `aqhi` (Health Canada AQHI) \| `iqa` (Quebec MELCC IQA) — drives badge label ("AQHI/CAS" vs "IQA") and value formatting (1 decimal vs integer) |
-| `kind` | string | `observation` (live measurement) \| `forecast` (only ECCC, used when the observation pipeline is empty) |
-| `stationName` | string | Human-readable station name (or municipal address for the Montreal source) |
+| `source` | string | `MELCC-Mtl` \| `MELCC-RSQAQ` \| `AirNow` \| `ECCC` — drives the badge tooltip's source label |
+| `scale` | string | `aqhi` (Health Canada AQHI) \| `iqa` (Quebec MELCC IQA) \| `epa` (US EPA AQI) — drives badge label ("AQHI/CAS" vs "IQA" vs "AQI") and value formatting (1 decimal for AQHI, integer otherwise) |
+| `kind` | string | `observation` (live measurement) \| `nowcast` (AirNow's 12 h weighted average / 1 h ozone) \| `forecast` (ECCC, used when the observation pipeline is empty) |
+| `stationName` | string | Human-readable station name (or municipal address for the Montreal source, or `{ReportingArea}, {StateCode}` for AirNow) |
 | `stationDistanceKm` | integer | Great-circle distance from the requested point, rounded to the nearest km |
+| `pollutant` | string | (AirNow only) The pollutant that drove the worst-case AQI — `O3`, `PM2.5`, or `PM10`. Surfaced for the Debug panel; not displayed by the badge. |
 
 Category cut-points per scale:
 
 - AQHI (`scale: "aqhi"`): `low` 1-3, `moderate` 4-6, `high` 7-10, `veryHigh` >10.
 - IQA (`scale: "iqa"`): `low` 1-25 (Bon), `moderate` 26-50 (Acceptable), `high` 51-100, `veryHigh` >100. The official MELCC categorisation is three tiers (Bon/Acceptable/Mauvais); the badge splits Mauvais at 100 to keep the four-tier vocabulary it shares with AQHI.
+- EPA AQI (`scale: "epa"`): `low` 0-50 (Good), `moderate` 51-100 (Moderate), `high` 101-150 (Unhealthy for Sensitive Groups), `veryHigh` >150. EPA officially defines six tiers (USG / Unhealthy / Very Unhealthy / Hazardous past 150); we collapse the top three into `veryHigh` so the four-tier colour vocabulary stays consistent across sources. The 150 split is the same point at which EPA's own palette transitions from orange to red.
 
 - **Response (no source had a reading):** `{ "available": false, "reason": "no-data" }`. Each source soft-fails internally and returns null; the orchestrator only emits `available: false` when every source has fallen through.
 

@@ -6,7 +6,7 @@ const FILE_PATH = path.join(`${__dirname}/${SETTINGS_FILE}`);
 const ENCODING = "utf8";
 
 const ALLOWED_KEYS = new Set([
-  "weatherApiKey", "mapApiKey", "reverseGeoApiKey", "anthropicApiKey",
+  "weatherApiKey", "mapApiKey", "reverseGeoApiKey", "anthropicApiKey", "airNowApiKey",
   "startingLat", "startingLon",
   // Indoor temperature integration via Homebridge — opaque sub-object
   // (homebridgeUrl, username, password, sensorName, enabled). Stripped from
@@ -19,7 +19,7 @@ const ALLOWED_KEYS = new Set([
 ]);
 
 const API_KEY_FIELDS = new Set([
-  "weatherApiKey", "mapApiKey", "reverseGeoApiKey", "anthropicApiKey",
+  "weatherApiKey", "mapApiKey", "reverseGeoApiKey", "anthropicApiKey", "airNowApiKey",
 ]);
 
 // Top-level keys whose value is a structured sub-object that may contain

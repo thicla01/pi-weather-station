@@ -33,6 +33,7 @@ const Settings = () => {
     mapApiKey,
     reverseGeoApiKey,
     anthropicApiKey,
+    airNowApiKey,
     customLat,
     customLon,
     setSettingsMenuOpen,
@@ -51,6 +52,7 @@ const Settings = () => {
   const [weatherKey, setWeatherKey] = useState(null);
   const [geoKey, setGeoKey] = useState(null);
   const [anthropicKey, setAnthropicKey] = useState(null);
+  const [airNowKey, setAirNowKey] = useState(null);
   const [lat, setLat] = useState(null);
   const [lon, setLon] = useState(null);
 
@@ -58,6 +60,7 @@ const Settings = () => {
   const [currentWeatherKey, setCurrentWeatherKey] = useState(null);
   const [currentGeoKey, setCurrentGeoKey] = useState(null);
   const [currentAnthropicKey, setCurrentAnthropicKey] = useState(null);
+  const [currentAirNowKey, setCurrentAirNowKey] = useState(null);
   const [currentLat, setCurrentLat] = useState(null);
   const [currentLon, setCurrentLon] = useState(null);
 
@@ -66,6 +69,7 @@ const Settings = () => {
     setCurrentWeatherKey(weatherApiKey);
     setCurrentGeoKey(reverseGeoApiKey);
     setCurrentAnthropicKey(anthropicApiKey);
+    setCurrentAirNowKey(airNowApiKey);
     setCurrentLat(customLat);
     setCurrentLon(customLon);
   }, [
@@ -73,6 +77,7 @@ const Settings = () => {
     weatherApiKey,
     reverseGeoApiKey,
     anthropicApiKey,
+    airNowApiKey,
     customLat,
     customLon,
     currentGeoKey,
@@ -93,13 +98,16 @@ const Settings = () => {
     if (anthropicApiKey) {
       setAnthropicKey(anthropicApiKey);
     }
+    if (airNowApiKey) {
+      setAirNowKey(airNowApiKey);
+    }
     if (customLat) {
       setLat(customLat);
     }
     if (customLon) {
       setLon(customLon);
     }
-  }, [mapApiKey, weatherApiKey, reverseGeoApiKey, anthropicApiKey, customLon, customLat]);
+  }, [mapApiKey, weatherApiKey, reverseGeoApiKey, anthropicApiKey, airNowApiKey, customLon, customLat]);
 
   const isRemoteRestricted = !isLocal && remoteSecurityEnabled;
   const settingsScrollRef = useDragScroll();
@@ -156,6 +164,13 @@ const Settings = () => {
             val={anthropicKey}
             current={currentAnthropicKey}
             cb={setAnthropicKey}
+            readOnly={isRemoteRestricted}
+          />
+          <Input
+            label={t("settings.airNowApiKey")}
+            val={airNowKey}
+            current={currentAirNowKey}
+            cb={setAirNowKey}
             readOnly={isRemoteRestricted}
           />
           <Input
@@ -226,6 +241,7 @@ const Settings = () => {
                     weatherKey={weatherKey}
                     geoKey={geoKey}
                     anthropicKey={anthropicKey}
+                    airNowKey={airNowKey}
                     lat={lat}
                     lon={lon}
                   />
@@ -250,11 +266,12 @@ export default Settings;
  * @param {String} [props.weatherKey]
  * @param {String} [props.geoKey]
  * @param {String} [props.anthropicKey]
+ * @param {String} [props.airNowKey]
  * @param {String} [props.lat]
  * @param {String} [props.lon]
  * @returns {JSX.Element} Save button
  */
-const SaveButton = ({ mapsKey, weatherKey, geoKey, anthropicKey, lat, lon }) => {
+const SaveButton = ({ mapsKey, weatherKey, geoKey, anthropicKey, airNowKey, lat, lon }) => {
   const { saveSettingsToJson, setSettingsMenuOpen, mouseHide } = useContext(
     AppContext
   );
@@ -265,7 +282,7 @@ const SaveButton = ({ mapsKey, weatherKey, geoKey, anthropicKey, lat, lon }) => 
         !mouseHide ? styles.showMouse : ""
       }`}
       onClick={() => {
-        saveSettingsToJson({ mapsKey, weatherKey, geoKey, anthropicKey, lat, lon })
+        saveSettingsToJson({ mapsKey, weatherKey, geoKey, anthropicKey, airNowKey, lat, lon })
           .then(() => {
             setSettingsMenuOpen(false);
           })
@@ -287,6 +304,7 @@ SaveButton.propTypes = {
   weatherKey: PropTypes.string,
   geoKey: PropTypes.string,
   anthropicKey: PropTypes.string,
+  airNowKey: PropTypes.string,
   lat: PropTypes.string,
   lon: PropTypes.string,
 };

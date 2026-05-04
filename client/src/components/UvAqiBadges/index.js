@@ -51,6 +51,19 @@ const SOURCE_LABEL_KEY = {
   "MELCC-Mtl":   "badges.aqiSourceMelccMtl",
   "MELCC-RSQAQ": "badges.aqiSourceMelccRsqaq",
   "ECCC":        "badges.aqiSourceEccc",
+  "AirNow":      "badges.aqiSourceAirNow",
+};
+
+// Source-reported reading method, surfaced in the tooltip so the
+// user can tell live observations from forecasts or weighted
+// averages. AQHI uses observation/forecast; AirNow uses NowCast
+// (12-h weighted for PM2.5/PM10, 1-h for ozone — both are EPA's
+// "current observation" methodology, but neither is an instantaneous
+// spot reading, so the more honest label is "NowCast").
+const KIND_LABEL_KEY = {
+  observation: "badges.aqiKindObservation",
+  forecast:    "badges.aqiKindForecast",
+  nowcast:     "badges.aqiKindNowcast",
 };
 
 // Per-scale formatting and badge label. AQHI is fractional (2.8);
@@ -133,7 +146,7 @@ const UvAqiBadges = () => {
   const aqiDisplay = aqiValue != null && aqiScale ? formatValueForScale(aqiScale, aqiValue) : null;
 
   const aqiTooltip = aqi
-    ? `${t(SOURCE_LABEL_KEY[aqiSource] || "badges.aqiSourceEccc")} — ${aqi.stationName} (${aqi.stationDistanceKm} km, ${t(`badges.aqiKind${aqi.kind === "forecast" ? "Forecast" : "Observation"}`)})`
+    ? `${t(SOURCE_LABEL_KEY[aqiSource] || "badges.aqiSourceEccc")} — ${aqi.stationName} (${aqi.stationDistanceKm} km, ${t(KIND_LABEL_KEY[aqi.kind] || "badges.aqiKindObservation")})`
     : t("badges.aqiSourceEpa");
 
   // Yellow "moderate" tier is light enough that the default white
