@@ -60,6 +60,109 @@ function categoryForIqa(value) {
   return "low";
 }
 
+// EPA AQI breakpoint tables, per the EPA Technical Assistance
+// Document for Reporting AQI (40 CFR Part 58, App. G). Each entry
+// is [concentrationLow, concentrationHigh, aqiLow, aqiHigh] for one
+// AQI sub-band; AQI is computed as a linear interpolation inside
+// the band. We keep the official EPA averaging windows as the
+// canonical input — the OpenAQ source decides whether the latest
+// raw measurement is close enough to a 1h/8h/24h average to use it
+// (most stations now publish 1h or sub-hourly averaged readings, so
+// the "raw" reading is in practice the right input).
+//
+// Units are EPA-canonical: μg/m³ for particulates, ppm for O3 / CO,
+// ppb for NO2 / SO2. The OpenAQ source converts to these units
+// before calling `epaAqiFromConcentration`.
+const EPA_BREAKPOINTS = {
+  // PM2.5 24h average, μg/m³
+  pm25: [
+    [0.0, 12.0,    0,  50],
+    [12.1, 35.4,  51, 100],
+    [35.5, 55.4, 101, 150],
+    [55.5, 150.4, 151, 200],
+    [150.5, 250.4, 201, 300],
+    [250.5, 500.4, 301, 500],
+  ],
+  // PM10 24h average, μg/m³
+  pm10: [
+    [0,    54,    0,  50],
+    [55,  154,   51, 100],
+    [155, 254,  101, 150],
+    [255, 354,  151, 200],
+    [355, 424,  201, 300],
+    [425, 604,  301, 500],
+  ],
+  // O3 8h average, ppm — preferred for AQI ≤ 100
+  o3_8h: [
+    [0.000, 0.054,   0,  50],
+    [0.055, 0.070,  51, 100],
+    [0.071, 0.085, 101, 150],
+    [0.086, 0.105, 151, 200],
+    [0.106, 0.200, 201, 300],
+  ],
+  // O3 1h average, ppm — used only for AQI > 100; below 0.125 ppm
+  // the 8h band is the EPA-defined input.
+  o3_1h: [
+    [0.125, 0.164, 101, 150],
+    [0.165, 0.204, 151, 200],
+    [0.205, 0.404, 201, 300],
+    [0.405, 0.604, 301, 500],
+  ],
+  // NO2 1h average, ppb
+  no2: [
+    [0,     53,     0,  50],
+    [54,    100,   51, 100],
+    [101,   360,  101, 150],
+    [361,   649,  151, 200],
+    [650,  1249,  201, 300],
+    [1250, 2049,  301, 500],
+  ],
+  // SO2 1h average, ppb (above 304 ppb the 24h average drives AQI;
+  // we cap at the 1h band's top so an extreme spike still reads as
+  // "very high" rather than going off the scale.)
+  so2: [
+    [0,    35,    0,  50],
+    [36,   75,   51, 100],
+    [76,  185,  101, 150],
+    [186, 304,  151, 200],
+  ],
+  // CO 8h average, ppm
+  co: [
+    [0.0,  4.4,    0,  50],
+    [4.5,  9.4,   51, 100],
+    [9.5, 12.4,  101, 150],
+    [12.5, 15.4, 151, 200],
+    [15.5, 30.4, 201, 300],
+    [30.5, 50.4, 301, 500],
+  ],
+};
+
+/**
+ * Convert a raw concentration in EPA-canonical units to the
+ * corresponding EPA AQI sub-index. Returns null when the value is
+ * below or above every band defined for the parameter (above-range
+ * is rare in practice — only the PM bands cap at 500 — but we'd
+ * rather skip than emit an unbounded number).
+ *
+ * @param {String} parameter "pm25" | "pm10" | "o3_1h" | "o3_8h" | "no2" | "so2" | "co"
+ * @param {Number} value Concentration in the canonical unit (see EPA_BREAKPOINTS comments)
+ * @returns {Number|null} EPA AQI sub-index (0-500), or null if unmappable
+ */
+function epaAqiFromConcentration(parameter, value) {
+  if (value == null || isNaN(value) || value < 0) return null;
+  const table = EPA_BREAKPOINTS[parameter];
+  if (!table) return null;
+  for (const [cLow, cHigh, iLow, iHigh] of table) {
+    if (value >= cLow && value <= cHigh) {
+      return Math.round(((iHigh - iLow) / (cHigh - cLow)) * (value - cLow) + iLow);
+    }
+  }
+  // Below the lowest band — only happens for O3 1h (band starts at
+  // 0.125 ppm); the caller is expected to have already tried the 8h
+  // band first. Above the highest band — out of EPA's defined range.
+  return null;
+}
+
 /**
  * Map an EPA AQI value (0–500 scale) to one of the four risk
  * categories. EPA officially defines six tiers (Good 0-50, Moderate
@@ -88,4 +191,5 @@ module.exports = {
   categoryForAqhi,
   categoryForIqa,
   categoryForEpaAqi,
+  epaAqiFromConcentration,
 };

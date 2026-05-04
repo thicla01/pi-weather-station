@@ -1,10 +1,10 @@
 // Air-quality orchestrator. Collects candidate readings from the
-// cheap government sources in parallel (the two MELCC networks for
-// Quebec, EPA AirNow for the US), picks the geographically closest
-// one, and falls back to ECCC when none of them returned anything.
-// Soft-fails to {available:false} when every source is empty so the
-// client can transparently fall back to other signals (Tomorrow.io's
-// epaIndex when configured).
+// cheap government sources in parallel (MELCC for Quebec, EPA
+// AirNow for the US, OpenAQ for the rest of the world), picks the
+// geographically closest one, and falls back to ECCC when none of
+// them returned anything. Soft-fails to {available:false} when
+// every source is empty so the client can transparently fall back
+// to other signals (Tomorrow.io's epaIndex when configured).
 //
 // Why "closest wins" instead of strict source priority: the previous
 // "first non-null wins" rule produced an effect-edge bug —
@@ -32,6 +32,7 @@ const sources = {
   melccMtl:   require("./airQualitySources/melccMtl"),
   melccRsqaq: require("./airQualitySources/melccRsqaq"),
   airnow:     require("./airQualitySources/airnow"),
+  openaq:     require("./airQualitySources/openaq"),
   eccc:       require("./airQualitySources/eccc"),
 };
 
@@ -67,7 +68,10 @@ function pickClosest(candidates) {
 async function loadSourceOptions() {
   try {
     const settings = await settingsCtrl.getSettingsData();
-    return { airNowApiKey: settings?.airNowApiKey || null };
+    return {
+      airNowApiKey: settings?.airNowApiKey || null,
+      openAqApiKey: settings?.openAqApiKey || null,
+    };
   } catch {
     return {};
   }
@@ -95,15 +99,17 @@ async function getAirQuality(req, res) {
   const opts = await loadSourceOptions();
 
   // Cheap, parallel pass — each cheap source is a single cached
-  // upstream fetch. The closest valid hit wins; ties broken by
-  // declaration order. AirNow no-ops to null when no API key is
-  // configured, so a Canadian-only install pays nothing for it.
-  const [melccMtl, melccRsqaq, airnow] = await Promise.all([
+  // upstream fetch (OpenAQ is two but both are cached together).
+  // The closest valid hit wins; ties broken by declaration order.
+  // AirNow and OpenAQ no-op to null when no API key is configured,
+  // so a Canadian-only install pays nothing for either of them.
+  const [melccMtl, melccRsqaq, airnow, openaq] = await Promise.all([
     sources.melccMtl.tryAqi(lat, lon, opts).catch(() => null),
     sources.melccRsqaq.tryAqi(lat, lon, opts).catch(() => null),
     sources.airnow.tryAqi(lat, lon, opts).catch(() => null),
+    sources.openaq.tryAqi(lat, lon, opts).catch(() => null),
   ]);
-  let best = pickClosest([melccMtl, melccRsqaq, airnow]);
+  let best = pickClosest([melccMtl, melccRsqaq, airnow, openaq]);
 
   // Sequential ECCC fallback only when no cheap source had coverage.
   // ECCC's per-station walks for defunct stations make it expensive

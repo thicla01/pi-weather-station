@@ -52,6 +52,7 @@ const SOURCE_LABEL_KEY = {
   "MELCC-RSQAQ": "badges.aqiSourceMelccRsqaq",
   "ECCC":        "badges.aqiSourceEccc",
   "AirNow":      "badges.aqiSourceAirNow",
+  "OpenAQ":      "badges.aqiSourceOpenAq",
 };
 
 // Source-reported reading method, surfaced in the tooltip so the

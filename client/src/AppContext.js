@@ -39,6 +39,11 @@ export function AppContextProvider({ children }) {
   // saveSettingsToJson; nothing else in the client reads the value
   // directly.
   const [airNowApiKey, setAirNowApiKey] = useState(null);
+  // OpenAQ API key — drives the global air-quality fallback. Same
+  // skip-when-unset semantics as airNowApiKey; only material for
+  // kiosks outside the AirNow + Canadian-MELCC + ECCC footprint
+  // (i.e. anywhere outside US + Canada).
+  const [openAqApiKey, setOpenAqApiKey] = useState(null);
   const [browserGeo, setBrowserGeo] = useState(null);
   const [mapGeo, setMapGeo] = useState(null);
   // IANA timezone derived from mapGeo via tz-lookup. Used by Clock to
@@ -516,6 +521,9 @@ export function AppContextProvider({ children }) {
             if (res.airNowApiKey) {
               setAirNowApiKey(res.airNowApiKey);
             }
+            if (res.openAqApiKey) {
+              setOpenAqApiKey(res.openAqApiKey);
+            }
             // Advanced settings — radar analysis defaults to ON (matches the
             // baseline behaviour where the third paragraph always renders
             // when an Anthropic key is configured); the other three default
@@ -879,11 +887,12 @@ export function AppContextProvider({ children }) {
    * @param {String} [settings.geoKey]
    * @param {String} [settings.anthropicKey]
    * @param {String} [settings.airNowKey]
+   * @param {String} [settings.openAqKey]
    * @param {String} [settings.lat]
    * @param {String} [settings.lon]
    * @returns {Promise} Resolves when complete
    */
-  function saveSettingsToJson({ mapsKey, weatherKey, geoKey, anthropicKey, airNowKey, lat, lon }) {
+  function saveSettingsToJson({ mapsKey, weatherKey, geoKey, anthropicKey, airNowKey, openAqKey, lat, lon }) {
     return new Promise((resolve, reject) => {
       axios
         .put("/settings", {
@@ -892,6 +901,7 @@ export function AppContextProvider({ children }) {
           reverseGeoApiKey: geoKey,
           anthropicApiKey: anthropicKey,
           airNowApiKey: airNowKey,
+          openAqApiKey: openAqKey,
           startingLat: lat,
           startingLon: lon,
         })
@@ -902,6 +912,7 @@ export function AppContextProvider({ children }) {
           setReverseGeoApiKey(geoKey);
           setAnthropicApiKey(anthropicKey);
           setAirNowApiKey(airNowKey);
+          setOpenAqApiKey(openAqKey);
           setCustomLat(lat);
           setCustomLon(lon);
         })
@@ -1075,6 +1086,7 @@ export function AppContextProvider({ children }) {
     getReverseGeoApiKey,
     anthropicApiKey,
     airNowApiKey,
+    openAqApiKey,
     mapApiKey,
     getMapApiKey,
     browserGeo,
