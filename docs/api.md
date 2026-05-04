@@ -260,13 +260,20 @@ The outer ring is sampled only when `advanced.ai.extendedRadius` is `true` (serv
 ## Air Quality
 
 ### `GET /api/air-quality`
-Returns the best-available air-quality reading for the nearest station to a given lat/lon. The endpoint orchestrates a priority-ordered chain of upstream sources — geographic specificity wins, so a hyper-local municipal observation beats a regional fall-back even if the fall-back is technically more recent. Free, no API key, all official government sources. The client `<UvAqiBadges>` component renders whatever the orchestrator returns and falls back to Tomorrow.io's `epaIndex` (when configured) only when every government source comes up empty.
+Returns the geographically closest air-quality reading the upstream sources can produce, or `{ available: false }` when every source comes up empty. Free, no API key, all official government sources. The client `<UvAqiBadges>` component renders whatever the orchestrator returns and falls back to Tomorrow.io's `epaIndex` (when configured) only when every government source comes up empty.
 
-Source priority:
+Sources:
 
-1. **MELCC RSQA Montréal** — Ville de Montréal real-time IQA CSV (`donnees.montreal.ca`, hourly ~50 min after the hour). Covers the island of Montreal. Source label `MELCC-Mtl`.
-2. **MELCC RSQAQ provincial** — Quebec MELCC ArcGIS FeatureServer (`services3.arcgis.com`, hourly real-time, `rsqaq-indice-de-la-qualite-de-l-air` on Données Québec). Covers all of Quebec except the island of Montreal (excluded by intergovernmental agreement). Source label `MELCC-RSQAQ`.
-3. **Environment Canada AQHI** — `api.weather.gc.ca` OGC Features API. Covers all of Canada. Prefers `aqhi-observations-realtime`; when empty (Quebec stations sometimes publish forecasts but no observations), falls back to `aqhi-forecasts-realtime` and picks the forecast row whose `forecast_datetime` is the latest hour ≤ now. The forecast value is official Health Canada AQHI for the hour in question — predicted rather than measured but still authoritative — and the response's `kind` field distinguishes the two. Source label `ECCC`.
+- **MELCC RSQA Montréal** — Ville de Montréal real-time IQA CSV (`donnees.montreal.ca`, hourly ~50 min after the hour). Covers the island of Montreal. Source label `MELCC-Mtl`.
+- **MELCC RSQAQ provincial** — Quebec MELCC ArcGIS FeatureServer (`services3.arcgis.com`, hourly real-time, `rsqaq-indice-de-la-qualite-de-l-air` on Données Québec). Covers all of Quebec except the island of Montreal (excluded by intergovernmental agreement; Montreal's network is published by the Mtl source above). Source label `MELCC-RSQAQ`.
+- **Environment Canada AQHI** — `api.weather.gc.ca` OGC Features API. Covers all of Canada. Prefers `aqhi-observations-realtime`; when empty (Quebec stations sometimes publish forecasts but no observations), falls back to `aqhi-forecasts-realtime` and picks the forecast row whose `forecast_datetime` is the latest hour ≤ now. The forecast value is official Health Canada AQHI for the hour in question — predicted rather than measured but still authoritative — and the response's `kind` field distinguishes the two. Source label `ECCC`.
+
+Selection rule:
+
+1. The two MELCC sources run in parallel (each is a single cached upstream fetch — cheap). The hit with the smallest `stationDistanceKm` wins; ties broken by Mtl over RSQAQ.
+2. ECCC is sequenced **after**, only when neither MELCC source returned a hit. ECCC's per-station walk for defunct stations (up to six) makes it expensive to run speculatively.
+
+This "closest wins" rule replaces the earlier strict priority chain because the chain produced an effect-edge bug: Sainte-Victoire-de-Sorel sat right at the 50 km cap of the Montreal source and got tagged with a station 50 km away while the RSQAQ network had Saint-Joseph-de-Sorel at 8 km. Distance is the real measure of relevance, so the orchestrator now compares it across every cheap source.
 
 For each ECCC candidate, defunct stations are skipped automatically: the controller walks the six nearest stations within 300 km and uses the first one that has either a recent observation or a forecast value.
 

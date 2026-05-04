@@ -1,32 +1,52 @@
-// Air-quality orchestrator. Walks a priority-ordered chain of upstream
-// sources and returns the first one that produces a valid reading at
-// the requested coordinate; soft-fails to {available:false} when every
-// source is empty so the client can transparently fall back to other
-// signals (Tomorrow.io's epaIndex when configured).
+// Air-quality orchestrator. Collects candidate readings from the
+// MELCC sources in parallel, picks the geographically closest one,
+// and falls back to ECCC when neither returned anything.
+// Soft-fails to {available:false} when every source is empty so the
+// client can transparently fall back to other signals (Tomorrow.io's
+// epaIndex when configured).
 //
-// Source priority is geographic specificity, not data freshness — a
-// hyper-local municipal observation beats a regional ECCC fall-back
-// every time, even if the ECCC reading is technically more recent:
+// Why "closest wins" instead of strict source priority: the previous
+// "first non-null wins" rule produced an effect-edge bug —
+// Sainte-Victoire-de-Sorel sat right at the 50 km cap of the
+// Montreal source and got tagged with a station 50 km away while
+// the RSQAQ network had Saint-Joseph-de-Sorel at 8 km. Distance is
+// the real measure of relevance, so the orchestrator now compares
+// stationDistanceKm across whatever the cheap sources return.
 //
-//   1. MELCC Montreal RSQA (city of Montreal, hourly CSV)
-//   2. MELCC RSQAQ provincial (rest of Quebec, hourly ArcGIS REST)
-//   3. ECCC AQHI (rest of Canada, hourly OGC Features API; falls back
-//      to forecast bulletin when observations are empty)
-//
-// Each source module owns its upstream contract, its own cache, and
-// returns a normalised payload. The orchestrator only knows the order.
+// ECCC is sequenced after — not parallel with — the MELCC sources
+// because ECCC may make multiple per-station HTTP calls when the
+// nearest station is defunct (the existing 6-candidate walk). The
+// MELCC sources are each one cached fetch, so running both in
+// parallel is essentially free; firing ECCC for every Quebec
+// marker would not be.
 
-const sources = [
-  require("./airQualitySources/melccMtl"),
-  require("./airQualitySources/melccRsqaq"),
-  require("./airQualitySources/eccc"),
-];
+const sources = {
+  melccMtl:   require("./airQualitySources/melccMtl"),
+  melccRsqaq: require("./airQualitySources/melccRsqaq"),
+  eccc:       require("./airQualitySources/eccc"),
+};
+
+/**
+ * Pick the candidate with the smallest stationDistanceKm. Null
+ * entries are ignored. Returns null if every entry is null.
+ *
+ * @param {Array<Object|null>} candidates
+ * @returns {Object|null}
+ */
+function pickClosest(candidates) {
+  let best = null;
+  for (const c of candidates) {
+    if (!c) continue;
+    if (!best || c.stationDistanceKm < best.stationDistanceKm) best = c;
+  }
+  return best;
+}
 
 /**
  * GET /api/air-quality
- * Returns the best-available air-quality reading for the nearest
- * station to a given lat/lon, or `{ available: false }` when every
- * source comes up empty.
+ * Returns the geographically closest air-quality reading the
+ * upstream sources can produce, or `{ available: false }` when all
+ * of them come up empty.
  *
  * @param {Object} req
  * @param {Object} req.query
@@ -41,20 +61,25 @@ async function getAirQuality(req, res) {
     return res.status(400).json("Invalid coordinates").end();
   }
 
-  for (const src of sources) {
-    let payload;
-    try {
-      payload = await src.tryAqi(lat, lon);
-    } catch {
-      // tryAqi() is supposed to swallow its own errors and return
-      // null; this catch is just a belt-and-braces guard.
-      payload = null;
-    }
-    if (payload) {
-      return res.status(200).json({ available: true, ...payload }).end();
-    }
+  // Cheap, parallel pass — both MELCC sources are a single cached
+  // upstream fetch each. The closest valid hit wins; ties broken by
+  // declaration order (Mtl before RSQAQ).
+  const [melccMtl, melccRsqaq] = await Promise.all([
+    sources.melccMtl.tryAqi(lat, lon).catch(() => null),
+    sources.melccRsqaq.tryAqi(lat, lon).catch(() => null),
+  ]);
+  let best = pickClosest([melccMtl, melccRsqaq]);
+
+  // Sequential ECCC fallback only when no MELCC coverage — ECCC's
+  // per-station walks for defunct stations make it expensive to
+  // run speculatively.
+  if (!best) {
+    best = await sources.eccc.tryAqi(lat, lon).catch(() => null);
   }
 
+  if (best) {
+    return res.status(200).json({ available: true, ...best }).end();
+  }
   return res.status(200).json({ available: false, reason: "no-data" }).end();
 }
 
@@ -62,9 +87,11 @@ async function getAirQuality(req, res) {
  * Pre-register every air-quality source with the service-status
  * tracker so the Debug panel shows them as "Not yet called" before
  * the first poll lands. Called from `index.js` at startup.
+ *
+ * @param {Function} registerService Callback from serviceStatus
  */
 function registerAirQualityServices(registerService) {
-  for (const src of sources) {
+  for (const src of Object.values(sources)) {
     if (src.SERVICE_NAME) registerService(src.SERVICE_NAME);
   }
 }
