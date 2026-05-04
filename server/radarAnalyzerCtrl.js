@@ -459,10 +459,15 @@ const TIER_BUMP = { calm: "yellow", yellow: "orange", orange: "red", red: "red" 
  * @param {Array<Array<{direction: String, distance: Number, intensity: Number}>>} framesSamples
  *   Per-frame samples ordered newest → oldest (snapshots[0] = now, [1] = -15, [2] = -45).
  *   Each frame's samples cover the same direction × distance grid.
- * @param {String} unit "km" or "mi" — selects the inward-shift threshold.
+ * @param {String} unit "km" or "mi" — selects the unit-aware inward-shift threshold.
+ * @param {"inner" | "outer"} ring Which ring is being analysed — outer uses a
+ *   slightly larger threshold because the same shift in km is a smaller
+ *   fraction of the outer-ring radius (a 5 km / 45 min movement is
+ *   ~10 % of the inner ring's 50 km, but only ~5 % of the outer ring's
+ *   100 km — too small to reliably distinguish from sampling noise).
  * @returns {"approaching" | "stable"}
  */
-function computeRingTrend(framesSamples, unit) {
+function computeRingTrend(framesSamples, unit, ring) {
   if (!framesSamples || framesSamples.length < 2) return "stable";
   const oldest = framesSamples[framesSamples.length - 1];
   const latest = framesSamples[0];
@@ -474,10 +479,16 @@ function computeRingTrend(framesSamples, unit) {
   // ever changes (e.g. dropping the -45 frame on RainViewer hiccups).
   const spanMin = Math.abs(TARGET_OFFSETS_MIN[framesSamples.length - 1] || 0) || 45;
 
-  // Threshold tuned empirically: a band whose strongest sample shifts ≥5 km
-  // (~3 mi) inward over 45 min is moving fast enough that the next 30 min
-  // matter. Tighter and we miss real cells; looser and we trigger on noise.
-  const inwardThreshold = unit === "mi" ? 3 : 5;
+  // Inward-shift threshold tuned empirically and now ring-aware. Inner ring
+  // (5-50 km) uses 5 km / 3 mi — a band crossing this much in 45 min is
+  // moving fast enough that the next 30 min matter. Outer ring (55-100 km)
+  // uses 8 km / 5 mi — proportional to the larger radius so we don't get
+  // false positives from sampling noise on the wider ring (May 2026 retune
+  // showed only 1 outer bump in 10 h of monitoring with the inner 5-km
+  // threshold).
+  const innerThreshold = unit === "mi" ? 3 : 5;
+  const outerThreshold = unit === "mi" ? 5 : 8;
+  const inwardThreshold = ring === "outer" ? outerThreshold : innerThreshold;
   const arrivalLimitMin = 30;
 
   // Per direction: find the distance of the strongest sample in each frame.
@@ -628,18 +639,25 @@ async function getRiskLevels(lat, lon, options = {}) {
   const outerMax = outerSamples.reduce((m, s) => Math.max(m, s.intensity), 0);
 
   // Trend per ring: bump tier one notch when a band is moving inward
-  // fast enough to arrive within ~30 min (see computeRingTrend). The
-  // bump applies even from "calm" — light precipitation that's clearly
-  // moving in deserves an early heads-up.
-  const innerTrend = computeRingTrend(snapshots.map((s) => s.inner), unit);
+  // fast enough to arrive within ~30 min (see computeRingTrend). The bump
+  // is gated on the ring's overall maxIntensity ≥ 2 — at intensity 1
+  // (very light / drizzle) an "approaching" trend isn't actionable enough
+  // to warrant raising the banner tier; the AI summary still mentions
+  // light precipitation in its narrative when relevant. Past data showed
+  // ~25 % of bumps were max=1 events that read as alarmist for what was
+  // essentially drizzle.
+  const innerTrend = computeRingTrend(snapshots.map((s) => s.inner), unit, "inner");
   const outerTrend = outerPoints.length
-    ? computeRingTrend(snapshots.map((s) => s.outer), unit)
+    ? computeRingTrend(snapshots.map((s) => s.outer), unit, "outer")
     : "stable";
 
   const innerBaseLevel = RISK_LEVELS[innerMax];
   const outerBaseLevel = RISK_LEVELS[outerMax];
-  const innerLevel = innerTrend === "approaching" ? TIER_BUMP[innerBaseLevel] : innerBaseLevel;
-  const outerLevel = outerTrend === "approaching" ? TIER_BUMP[outerBaseLevel] : outerBaseLevel;
+  const BUMP_MIN_INTENSITY = 2;
+  const innerLevel = innerTrend === "approaching" && innerMax >= BUMP_MIN_INTENSITY
+    ? TIER_BUMP[innerBaseLevel] : innerBaseLevel;
+  const outerLevel = outerTrend === "approaching" && outerMax >= BUMP_MIN_INTENSITY
+    ? TIER_BUMP[outerBaseLevel] : outerBaseLevel;
 
   // Per-sample intensities ride along with the ring summary so the
   // WeatherMap can colour each visible sampling-point dot by its own
