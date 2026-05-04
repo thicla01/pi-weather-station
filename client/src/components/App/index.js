@@ -34,9 +34,17 @@ const App = () => {
   );
 
   const fontSizeZoom = { s: 0.85, m: 1.0, l: 1.15 }[fontSize] || 1.0;
+  // Panel width scales with the font-size zoom so the contents always see
+  // ~300 CSS pixels of internal layout space regardless of size. Without
+  // this, fontSize=L kept the column at a fixed 300 screen px while
+  // zooming the contents up 15 %, which made the right column of stats
+  // (precip / cloud / wind / humidity) overflow and the panel's right
+  // edge clip the trailing "%" on every value.
+  const PANEL_BASE_WIDTH = 300;
+  const panelWidthPx = Math.round(PANEL_BASE_WIDTH * fontSizeZoom);
   const gridTemplateColumns = isSmallScreen && infoPanelCollapsed
     ? "1fr 0"
-    : "auto 300px";
+    : `auto ${panelWidthPx}px`;
 
   useEffect(() => {
     const mq = window.matchMedia("(max-height: 520px)");
@@ -60,7 +68,7 @@ const App = () => {
     >
       <div
         className={styles.container}
-        style={{ gridTemplateColumns, "--info-col-width": "300px" }}
+        style={{ gridTemplateColumns, "--info-col-width": `${panelWidthPx}px` }}
       >
         <div className={styles.settingsContainer}>
           <Settings />
