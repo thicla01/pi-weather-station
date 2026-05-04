@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import axios from "axios";
 import { AppContext } from "~/AppContext";
@@ -58,14 +58,15 @@ const ECCC_REFRESH_MS = 30 * 60 * 1000; // 30 min — ECCC publishes hourly
  * @returns {JSX.Element|null} Badges row, or null when nothing to show
  */
 const UvAqiBadges = () => {
-  const { currentWeatherData, mapGeo, darkMode } = useContext(AppContext);
+  const { currentWeatherData, mapGeo, darkMode, aqhiInfo, setAqhiInfo } = useContext(AppContext);
   const { t } = useTranslation();
-  const [aqhi, setAqhi] = useState(null); // { value, category, source, stationName, stationDistanceKm } | null
+  const aqhi = aqhiInfo; // { value, category, source, kind, stationName, stationDistanceKm } | null
 
   // Poll ECCC's AQHI endpoint when the marker moves. 30-min refresh
   // matches the upstream's ~hourly publication cadence; ECCC station
   // observations don't change between API calls within that window
-  // (cached server-side too).
+  // (cached server-side too). State lives in AppContext so the Debug
+  // panel can show the chosen station + kind without refetching.
   useEffect(() => {
     if (!mapGeo) return undefined;
     let cancelled = false;
@@ -76,14 +77,14 @@ const UvAqiBadges = () => {
       });
       axios.get(`/api/air-quality?${params}`)
         .then((res) => {
-          if (!cancelled) setAqhi(res.data?.available ? res.data : null);
+          if (!cancelled) setAqhiInfo(res.data?.available ? res.data : null);
         })
-        .catch(() => { if (!cancelled) setAqhi(null); });
+        .catch(() => { if (!cancelled) setAqhiInfo(null); });
     };
     fetchAqhi();
     const interval = setInterval(fetchAqhi, ECCC_REFRESH_MS);
     return () => { cancelled = true; clearInterval(interval); };
-  }, [mapGeo]);
+  }, [mapGeo, setAqhiInfo]);
 
   const values = currentWeatherData?.data?.timelines?.[0]?.intervals?.[0]?.values || {};
   const uv = values.uvIndex;
@@ -117,7 +118,7 @@ const UvAqiBadges = () => {
           className={styles.badge}
           style={{ backgroundColor: aqiT.color }}
           title={aqhi
-            ? `${t("badges.aqiSourceEccc")} — ${aqhi.stationName} (${aqhi.stationDistanceKm} km)`
+            ? `${t("badges.aqiSourceEccc")} — ${aqhi.stationName} (${aqhi.stationDistanceKm} km, ${t(`badges.aqiKind${aqhi.kind === "forecast" ? "Forecast" : "Observation"}`)})`
             : t("badges.aqiSourceEpa")
           }
         >

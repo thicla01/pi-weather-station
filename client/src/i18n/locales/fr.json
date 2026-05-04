@@ -131,6 +131,8 @@
     "aqhi": "CAS",
     "aqiSourceEccc": "Cote air santé (Environnement Canada)",
     "aqiSourceEpa": "EPA AQI (Tomorrow.io)",
+    "aqiKindObservation": "observé",
+    "aqiKindForecast": "prévision",
     "uvLevel": {
       "low": "Faible",
       "moderate": "Modéré",
@@ -244,6 +246,7 @@
     "screenResolution": "ÉCRAN",
     "mapZoom": "ZOOM CARTE",
     "mapCoords": "COORDS CARTE",
+    "aqhiSource": "SOURCE CAS",
     "pixelRatio": "RATIO DPI",
     "powerStatus": "ALIMENTATION",
     "powerOk": "OK",

@@ -94,18 +94,57 @@ function rankStationsByDistance(stations, lat, lon) {
 }
 
 /**
- * Fetch the most recent AQHI observation for a station.
+ * Fetch the most recent AQHI value for a station, preferring real
+ * observations and falling back to the forecast bulletin when none are
+ * published. ECCC's stations are advertised as 24/7 but in practice the
+ * observation pipeline lags or stalls on some provincial networks
+ * (Quebec stations currently publish forecasts twice daily but no
+ * observations); the forecast value is still authoritative — it's the
+ * official Health Canada AQHI for that hour, just predicted rather
+ * than measured.
  *
- * @param {String} stationId Station ID (e.g. "ONT_125")
- * @returns {Promise<Object | null>}
+ * @param {String} stationId Station ID (e.g. "EHTWR")
+ * @returns {Promise<{value: Number, kind: "observation" | "forecast"} | null>}
  */
-async function fetchObservation(stationId) {
-  // ECCC tags the most recent observation per station with `latest=true`
-  // — single-record filter is more reliable than sorting by datetime
-  // across paginated results.
-  const url = `${ECCC_BASE}/aqhi-observations-realtime/items?f=json&location_id=${encodeURIComponent(stationId)}&latest=true&limit=1`;
-  const r = await axios.get(url, { timeout: TIMEOUT_MS });
-  return r.data?.features?.[0] || null;
+async function fetchAqhi(stationId) {
+  // 1. Try the observation first (latest=true gives the freshest record).
+  const obsUrl = `${ECCC_BASE}/aqhi-observations-realtime/items?f=json&location_id=${encodeURIComponent(stationId)}&latest=true&limit=1`;
+  const obsResp = await axios.get(obsUrl, { timeout: TIMEOUT_MS });
+  const obs = obsResp.data?.features?.[0];
+  if (obs) {
+    const v = obs.properties?.aqhi ?? obs.properties?.value ?? obs.properties?.aqhi_value;
+    if (v != null && !isNaN(Number(v))) {
+      return { value: Number(v), kind: "observation" };
+    }
+  }
+
+  // 2. Fall back to the forecast. Each forecast feature carries a
+  // forecast_datetime (the hour it covers); we want the one closest to
+  // "now" without being in the future. Sorting by -publication_datetime
+  // returns the most recently issued bulletin, then we walk its hourly
+  // entries to find the row matching the current hour.
+  const fcstUrl = `${ECCC_BASE}/aqhi-forecasts-realtime/items?f=json&location_id=${encodeURIComponent(stationId)}&sortby=-forecast_datetime&limit=24`;
+  const fcstResp = await axios.get(fcstUrl, { timeout: TIMEOUT_MS });
+  const fcsts = fcstResp.data?.features || [];
+  if (!fcsts.length) return null;
+  const nowMs = Date.now();
+  // Pick the forecast whose forecast_datetime is the latest one ≤ now;
+  // if every forecast is in the future (shouldn't happen but be safe),
+  // fall back to the earliest future one.
+  let bestPast = null, bestPastTs = -Infinity;
+  let bestFuture = null, bestFutureTs = Infinity;
+  for (const f of fcsts) {
+    const dt = f.properties?.forecast_datetime;
+    const v = f.properties?.aqhi ?? f.properties?.value;
+    if (!dt || v == null || isNaN(Number(v))) continue;
+    const ts = Date.parse(dt);
+    if (ts <= nowMs && ts > bestPastTs) { bestPastTs = ts; bestPast = f; }
+    if (ts > nowMs && ts < bestFutureTs) { bestFutureTs = ts; bestFuture = f; }
+  }
+  const chosen = bestPast || bestFuture;
+  if (!chosen) return null;
+  const v = chosen.properties?.aqhi ?? chosen.properties?.value;
+  return { value: Number(v), kind: "forecast" };
 }
 
 /**
@@ -199,20 +238,17 @@ async function getAirQuality(req, res) {
       return res.status(200).json({ available: true, ...cached.payload }).end();
     }
 
-    let obs;
+    let result;
     try {
-      obs = await fetchObservation(stationId);
+      result = await fetchAqhi(stationId);
     } catch {
       // Network blip on one station shouldn't block the rest.
       continue;
     }
 
-    if (!obs) continue;
+    if (!result) continue;
 
-    const rawValue = obs.properties?.aqhi
-                  ?? obs.properties?.value
-                  ?? obs.properties?.aqhi_value;
-    const value = rawValue != null ? Number(rawValue) : null;
+    const { value, kind } = result;
     const category = categoryFor(value);
     if (value == null || category == null) continue;
 
@@ -220,11 +256,12 @@ async function getAirQuality(req, res) {
       value,
       category,
       source: "ECCC",
+      kind,
       stationName: stationNameOf(station),
       stationDistanceKm: Math.round(distanceKm),
     };
     obsCache.set(stationId, { payload, expiresAt: Date.now() + OBS_TTL_MS });
-    recordServiceCall("Environment Canada (AQHI)", 200, `${stationId} aqhi=${value} (${Math.round(distanceKm)} km)`);
+    recordServiceCall("Environment Canada (AQHI)", 200, `${stationId} aqhi=${value} (${kind}, ${Math.round(distanceKm)} km)`);
     increment("eccc", "aqhi");
     return res.status(200).json({ available: true, ...payload }).end();
   }

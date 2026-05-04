@@ -131,6 +131,8 @@
     "aqhi": "AQHI",
     "aqiSourceEccc": "AQHI (Environment Canada)",
     "aqiSourceEpa": "EPA ICA (Tomorrow.io)",
+    "aqiKindObservation": "observado",
+    "aqiKindForecast": "pronóstico",
     "uvLevel": {
       "low": "Bajo",
       "moderate": "Moderado",
@@ -244,6 +246,7 @@
     "screenResolution": "PANTALLA",
     "mapZoom": "ZOOM MAPA",
     "mapCoords": "COORDS MAPA",
+    "aqhiSource": "FUENTE AQHI",
     "pixelRatio": "RATIO DPI",
     "powerStatus": "ALIMENTACIÓN",
     "powerOk": "OK",

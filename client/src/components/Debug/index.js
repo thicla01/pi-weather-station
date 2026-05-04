@@ -1170,7 +1170,7 @@ PowerStatusRow.propTypes = {
  */
 const ClientKpiSection = ({ fps, setFps, clientMetrics, setClientMetrics }) => {
   const { t } = useTranslation();
-  const { currentMapZoom, mapGeo } = useContext(AppContext);
+  const { currentMapZoom, mapGeo, aqhiInfo } = useContext(AppContext);
   const rafRef = useRef(null);
   const [coordsCopied, setCoordsCopied] = useState(false);
 
@@ -1324,6 +1324,14 @@ const ClientKpiSection = ({ fps, setFps, clientMetrics, setClientMetrics }) => {
               >
                 {coordsCopied ? t("update.copied") : t("update.copy")}
               </button>
+            </span>
+          </div>
+        )}
+        {aqhiInfo && (
+          <div className={styles.kpiItem}>
+            <span className={styles.kpiLabel}>{t("debug.aqhiSource")}</span>
+            <span className={styles.kpiValue}>
+              {aqhiInfo.stationName} — {aqhiInfo.stationDistanceKm} km — {t(`badges.aqiKind${aqhiInfo.kind === "forecast" ? "Forecast" : "Observation"}`)} — AQHI {Number(aqhiInfo.value).toFixed(1)}
             </span>
           </div>
         )}

@@ -136,6 +136,11 @@ export function AppContextProvider({ children }) {
   const [outerTrend, setOuterTrend] = useState("stable");
   const [innerMaxIntensity, setInnerMaxIntensity] = useState(0);
   const [outerMaxIntensity, setOuterMaxIntensity] = useState(0);
+  // Last AQHI payload returned by /api/air-quality (lifted from
+  // <UvAqiBadges> so the Debug panel can display the chosen station's
+  // name, distance, observation/forecast kind without refetching).
+  // null = no fetch yet, out of coverage, or upstream failure.
+  const [aqhiInfo, setAqhiInfo] = useState(null);
   const [clockTime, setClockTime] = useState("12"); // 12h or 24h time for clock
   const [animateWeatherMap, setAnimateWeatherMap] = useState(false);
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
@@ -1088,6 +1093,8 @@ export function AppContextProvider({ children }) {
     setInnerMaxIntensity,
     outerMaxIntensity,
     setOuterMaxIntensity,
+    aqhiInfo,
+    setAqhiInfo,
     animateWeatherMap,
     toggleAnimateWeatherMap,
     settingsMenuOpen,
