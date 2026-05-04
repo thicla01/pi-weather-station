@@ -79,6 +79,29 @@ Global coverage (~150 countries) of government-monitoring stations live via a fr
 
 > **Heads-up on the v2-vs-v3 trap.** Earlier roadmap text claimed OpenAQ was "no-key" — that was the v2 API. v3 (current since 2024) requires `X-API-Key` per request. Keep the per-install-key mental model when discussing AQI sources going forward.
 
+### 🌼 Pollen badge for allergy-aware users
+A fourth badge in the UV / AQI row showing tree / grass / weed / ragweed pollen levels — useful for the chunk of the audience who treat pollen counts the same way others treat AQI. Tomorrow.io exposes `treeIndex` / `grassIndex` / `weedIndex` in its Pollen data layer, but that layer is paid-only (same gate as `epaIndex` was for AQI before AirNow / OpenAQ shipped), and the kiosk owner is on the free tier — so the right path is the same as the AQI chain: free public APIs, per-install opt-in.
+
+- **Source:** [Open-Meteo Air Quality API](https://open-meteo.com/en/docs/air-quality-api) — free, no API key, returns `alder_pollen`, `birch_pollen`, `grass_pollen`, `mugwort_pollen`, `olive_pollen`, `ragweed_pollen` in grains/m³ (CAMS European scale). Coverage is solid for Europe (CAMS native) and acceptable for North America via the global GEOS-CF model — finely-resolved metro areas like Montréal and Paris read well; remote regions read worse but still better than nothing.
+- **Implementation:** new `server/pollenSources/openmeteo.js` exposing `tryPollen(lat, lon)` at the same contract shape as the AQI sources (normalised payload with per-allergen index + a worst-case category for the badge colour). New `GET /api/pollen?lat&lon` endpoint, client `<UvAqiBadges>` extends to a third badge "POLLEN" (or 4th, if we keep UV separate) gated by an opt-in toggle in Settings — pollen is seasonal and audience-specific, so default-hidden is the right floor. Reuse the click-for-details pattern from item below to surface the per-allergen breakdown when the user taps the badge.
+- **Effort:** ~2-3h once the click-for-details overlay (item below) is in — the source itself is a one-call fetch + category mapping (same shape as MELCC RSQAQ), the UI is the larger piece.
+- **Caveat:** the EPA-AQI vocabulary doesn't apply to pollen — the badge would use Open-Meteo's own scale (low / moderate / high / very high) or a translated 4-tier mapping. Worth confirming the colour scale before implementing so it doesn't visually conflict with AQI's worst-case-red coding.
+
+### 🖱️ Click-for-details overlay on badges and the AlertBanner
+Both the badges (UV / AQI / future Pollen) and the `<AlertBanner>` already carry more data than what's surfaced — gov alerts have a full `description_en/fr` + `expiresAt` server-side; AirNow and OpenAQ track all six pollutants internally but only expose the worst-case one in the badge. A unifying `<DetailsPopover>` component anchored to the clicked element, with a content slot per source type (banner = alert body + expiry; AQI = per-pollutant breakdown + station info; Pollen = per-allergen breakdown), would turn glance-only badges into glance + tap-for-details — exactly the right interaction model for a kiosk.
+
+- **Server:** `/api/air-quality` extends to optionally include the per-pollutant breakdown when the source has one (AirNow + OpenAQ; MELCC and ECCC stay single-value). Same for `/api/weather-alerts` — the description fields are already in the payload, just unused by the client today.
+- **Client:** one shared `<DetailsPopover>` shell, content components per badge type. Backdrop click + Esc to close. Keeps the design language consistent across alert types.
+- **Effort:** ~3-4h. The server change is small; the bulk is the popover shell + per-type content.
+
+### 👀 Acknowledge-and-dismiss on alerts
+"I've seen this, hide it for now" pattern. Stored as `localStorage`-keyed alert IDs with their `expiresAt`, so dismissed alerts auto-purge when they expire upstream. Two design rules need agreement before coding:
+
+- **Resurface on severity bump?** A dismissed orange-tier alert that escalates to red should re-show — losing visibility on a real escalation is the worst-case UX.
+- **Auto-resurface after N hours?** A "set-and-forget" kiosk where someone dismisses a tornado warning and the kiosk goes silent for the rest of the storm is dangerous. Suggested floor: `dismiss = hide for max(4h, until severity rises)`.
+
+The pattern composes cleanly with the click-for-details overlay above (the popover is the natural place to put the "Vu" button).
+
 ### 🌌 Astronomy companion view
 A second optional "page" in the kiosk that complements the weather/radar primary view: Earth orbiting the Sun with continuous axial-tilt animation, day-length variation over the year, sunrise/sunset arcs, and a "Today" mode showing real-time orbital angle, current axial tilt, and a countdown to the next solstice/equinox. Branched on the user's actual latitude/longitude (not the generic 48°N / 35°S the prototype hard-codes), so the day-length curve is *their* curve, not a demo.
 
