@@ -136,11 +136,16 @@ const UvAqiBadges = () => {
     ? `${t(SOURCE_LABEL_KEY[aqiSource] || "badges.aqiSourceEccc")} — ${aqi.stationName} (${aqi.stationDistanceKm} km, ${t(`badges.aqiKind${aqi.kind === "forecast" ? "Forecast" : "Observation"}`)})`
     : t("badges.aqiSourceEpa");
 
+  // Yellow "moderate" tier is light enough that the default white
+  // text drowns; switch to dark text on that tier only.
+  const uvBadgeClass = `${styles.badge} ${uvT?.label === "moderate" ? styles.badgeOnLight : ""}`;
+  const aqiBadgeClass = `${styles.badge} ${aqiCategory === "moderate" ? styles.badgeOnLight : ""}`;
+
   if (!uvT && !aqiCategory) return null;
   return (
     <div className={`${styles.row} ${darkMode ? styles.dark : styles.light}`}>
       {uvT && (
-        <div className={styles.badge} style={{ backgroundColor: uvT.color }}>
+        <div className={uvBadgeClass} style={{ backgroundColor: uvT.color }}>
           <span className={styles.label}>{t("badges.uv")}</span>
           <span className={styles.value}>{Math.round(uv)}</span>
           <span className={styles.qualifier}>{t(`badges.uvLevel.${uvT.label}`)}</span>
@@ -148,7 +153,7 @@ const UvAqiBadges = () => {
       )}
       {aqiCategory && (
         <div
-          className={styles.badge}
+          className={aqiBadgeClass}
           style={{ backgroundColor: aqiColor }}
           title={aqiTooltip}
         >

@@ -7,8 +7,9 @@
 
 .badge {
   /* Compact pill: label + numeric value + plain-language qualifier.
-     White text contrasts against every tier colour in both palettes
-     (UV and AQI both end at purple/maroon — none are pale). */
+     Default white text reads cleanly on green/orange/red/purple
+     tier backgrounds; the yellow "moderate" tier is the only pale
+     one and switches to dark text via .badgeOnLight. */
   display: inline-flex;
   align-items: baseline;
   gap: 4px;
@@ -18,6 +19,13 @@
   font-size: clamp(11px, 1vw, 13px);
   line-height: 1.2;
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.badgeOnLight {
+  /* Used for tiers whose fill is light enough that white text drowns
+     (yellow moderate). Dark grey rather than pure black so the pill
+     still reads as a coloured chip rather than a bordered box. */
+  color: #1a1a1a;
 }
 
 .label {
