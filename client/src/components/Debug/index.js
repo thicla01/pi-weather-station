@@ -44,8 +44,18 @@ const Debug = () => {
     return () => mq.removeEventListener("change", handler);
   }, []);
   // Right gutter reserved for the InfoPanel + ControlButtons. Collapsed to 0
-  // on small screens for the full-width takeover described above.
-  const rightGutter = isSmallScreen ? 0 : 320;
+  // on small screens for the full-width takeover described above. The base
+  // 300 + 20 px padding matches the App grid column at the default fontSize
+  // M, and scales with fontSize so the gutter stays in lockstep with the
+  // InfoPanel's own width (255 / 300 / 345 for S / M / L). Previously hard-
+  // coded to 320, which left Debug overlapping the InfoPanel by 25 px at L
+  // and leaving a 65 px gap at S — symmetric to the issue we fixed in CSS
+  // for the same panel, except the inline width here was overriding the CSS
+  // rule, so the CSS-only fix had no effect.
+  const PANEL_BASE_WIDTH = 300;
+  const panelWidthZoom = { s: 0.85, m: 1.0, l: 1.15 }[fontSize] || 1.0;
+  const panelWidthPx = Math.round(PANEL_BASE_WIDTH * panelWidthZoom);
+  const rightGutter = isSmallScreen ? 0 : panelWidthPx + 20;
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
