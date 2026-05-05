@@ -219,6 +219,19 @@ function getSystemInfo() {
     } catch { /* sysctl not available */ }
   }
 
+  // Last-resort hardware fallback for x86 Linux (VMware / Ubuntu desktop /
+  // openSUSE etc. where /proc/device-tree/model doesn't exist and the
+  // macOS branch above doesn't apply). os.cpus()[0].model is built-in,
+  // works on every Node platform, and returns a meaningful identifier
+  // ("Intel(R) Core(TM) i7-...") that's actually more useful than the
+  // generic "Unknown" the panel used to show.
+  if (hardware === "Unknown") {
+    try {
+      const cpu = os.cpus()?.[0]?.model;
+      if (cpu) hardware = cpu;
+    } catch { /* highly unusual platform — leave as Unknown */ }
+  }
+
   return { hardware, os: osName, hostname: os.hostname() };
 }
 
