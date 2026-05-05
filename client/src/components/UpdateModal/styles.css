@@ -176,17 +176,25 @@
 
 .cmd-row {
   display: flex;
-  align-items: center;
+  /* Top-aligned so the Copy button doesn't drift to the vertical centre when
+     the command wraps onto multiple lines (the longest variants — needsManualUpgrade
+     and serviceFileChanged — are 130-180 chars, well past the modal width). */
+  align-items: flex-start;
   gap: 6px;
 }
 
 .cmd-code {
   font-family: monospace;
   font-size: 9px;
+  line-height: 1.5;
   flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
+  min-width: 0;
+  /* Allow the command to wrap onto as many lines as it needs. The previous
+     single-line/ellipsis behaviour hid most of the recipe behind "…" — the
+     point of showing the command at all is so the user can read and verify
+     it before copying. */
+  white-space: normal;
+  overflow-wrap: anywhere;
   padding: 3px 6px;
   border-radius: 3px;
 }
