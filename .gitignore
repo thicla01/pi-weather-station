@@ -12,3 +12,5 @@ ssh.key.pub
 
 # Office lock files (created when a .pptx/.docx is open in PowerPoint/Word)
 ~$*
+# Radar prompt-compression reports (generated on-demand from Debug panel)
+report/

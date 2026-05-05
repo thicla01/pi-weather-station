@@ -13,6 +13,7 @@ const axios = require("axios").default;
 const { PNG } = require("pngjs");
 const { recordServiceCall } = require("./serviceStatus");
 const { increment } = require("./requestCounter");
+const compressionStats = require("./compressionStats");
 
 const ANALYSIS_CACHE_TTL = 5 * 60 * 1000;   // analysis text cached 5 min per location
 const TILE_CACHE_TTL = 12 * 60 * 1000;      // tile PNGs cached 12 min (RainViewer refreshes every 10 min)
@@ -300,6 +301,49 @@ async function buildSnapshot(lat, lon, framePath, points) {
 }
 
 /**
+ * "Naive full-grid" baseline formatter — always lists every direction
+ * with all its distance entries, with no short-circuit and no rollup.
+ * This is the conceptual baseline the user describes as "always 481
+ * points": the size the prompt WOULD have if we sent every sample
+ * unconditionally. The format that actually shipped before d061126
+ * also had an all-clear short-circuit, but using THAT as the baseline
+ * would credit calm-day polls with 0 % compression even though the
+ * real win of the hierarchical refactor IS to also handle the storm
+ * cases. The naive baseline is consistent across scenarios and gives
+ * intuitive numbers: ~99 % on a calm radar, dropping toward ~10 % on
+ * radar-wide systems where there's nothing to roll up.
+ *
+ * Used purely as a measurement baseline; never sent to Claude. Kept in
+ * lockstep with `formatSnapshot`'s entry/label vocabulary so the only
+ * source of length difference is the rollup logic itself.
+ *
+ * @param {Array} samples Same shape as for formatSnapshot.
+ * @param {String} label "now" / "-15 min" / "-45 min".
+ * @param {String} unit "km" or "mi".
+ * @returns {String} Naive-baseline block.
+ */
+function formatSnapshotLegacy(samples, label, unit) {
+  const byDir = new Map();
+  for (const dirName of DIRECTION_ORDER) byDir.set(dirName, []);
+  for (const s of samples) {
+    if (!byDir.has(s.direction)) byDir.set(s.direction, []);
+    byDir.get(s.direction).push(s);
+  }
+  const fmtDist = (d) => `${d}${unit}`;
+  const lines = [];
+  for (const dirName of DIRECTION_ORDER) {
+    const dirSamples = byDir.get(dirName);
+    if (!dirSamples || !dirSamples.length) continue;
+    dirSamples.sort((a, b) => a.distance - b.distance);
+    const parts = dirSamples.map(
+      (s) => `${fmtDist(s.distance)} ${INTENSITY_LABELS[s.intensity]}`,
+    );
+    lines.push(`  ${dirName.padEnd(6)} : ${parts.join(", ")}`);
+  }
+  return `${label}:\n${lines.join("\n")}`;
+}
+
+/**
  * Format a snapshot as a compact human-readable block for inclusion in a
  * prompt. Three-tier hierarchical compression versus listing every sample:
  *
@@ -505,7 +549,15 @@ async function analyzeRadar(lat, lon, options = {}) {
     try {
       const samples = await buildSnapshot(lat, lon, frame.path, points);
       const block = formatSnapshot(samples, label, unit);
-      if (block) sections.push(block);
+      if (block) {
+        sections.push(block);
+        // Run the legacy formatter alongside purely to measure the
+        // compression ratio. Cost is one extra in-memory format pass
+        // per frame (~1-5 ms); never sent to Claude. Stats live in
+        // compressionStats.js and are surfaced in the Debug panel.
+        const legacyBlock = formatSnapshotLegacy(samples, label, unit);
+        compressionStats.record(legacyBlock.length, block.length);
+      }
     } catch (err) {
       // One snapshot failed — keep going with whatever we have
       recordServiceCall("RainViewer (analyzer)", err?.response?.status || 500, `snapshot ${label} failed`);

@@ -1070,6 +1070,10 @@ const ServerKpiSection = ({ serverKpis, cpuTemp, fanRpm, fanAvailable }) => {
             <PowerStatusRow powerStatus={kpis.powerStatus} />
           )}
 
+          {kpis.radarCompression && (
+            <RadarCompressionRow stats={kpis.radarCompression} />
+          )}
+
           {kpis.responseTimes.length > 0 && (
             <>
               <div className={styles.kpiLabel} style={{ marginBottom: 4 }}>{t("debug.responseTimes")}</div>
@@ -1171,6 +1175,74 @@ PowerStatusRow.propTypes = {
     raw: PropTypes.string,
     current: PropTypes.object,
     occurred: PropTypes.object,
+  }).isRequired,
+};
+
+/**
+ * Radar prompt-compression KPI — measures the character-count reduction
+ * between the legacy "list every direction × distance" baseline and the
+ * current hierarchical compression on every radar frame the AI summary
+ * processes. Hidden until at least one measurement has been recorded
+ * (server returns null in that case).
+ *
+ * Inline export button writes the detailed Markdown report to
+ * `report/radar-compression-{timestamp}.md` on the server. Latched to a
+ * 2-second "Exporté !" confirmation, same UX as the kpi-copy button.
+ *
+ * @param {object} props
+ * @param {object} props.stats Compression stats payload — `{ count, avgPct, minPct, maxPct, startedAt }` shape returned by `compressionStats.getStats()` server-side.
+ * @returns {JSX.Element} Radar compression row
+ */
+const RadarCompressionRow = ({ stats }) => {
+  const { t } = useTranslation();
+  const [exporting, setExporting] = useState(false);
+  const [exportMsg, setExportMsg] = useState(null);
+
+  const handleExport = () => {
+    if (exporting) return;
+    setExporting(true);
+    axios.post("/api/debug/radar-compression-report")
+      .then((res) => {
+        setExportMsg(res.data?.path || t("debug.radarCompressionExported"));
+        setTimeout(() => setExportMsg(null), 4000);
+      })
+      .catch((err) => {
+        setExportMsg(`✗ ${err?.response?.data?.message || err.message || "error"}`);
+        setTimeout(() => setExportMsg(null), 4000);
+      })
+      .finally(() => setExporting(false));
+  };
+
+  return (
+    <div className={styles.kpiItem} style={{ gridColumn: "1 / -1", marginBottom: "10px" }}>
+      <span className={styles.kpiLabel}>{t("debug.radarCompression")}</span>
+      <span className={styles.kpiValue}>
+        {`${stats.avgPct.toFixed(0)} % ${t("debug.radarCompressionAvg")} · ${stats.count} ${t("debug.radarCompressionFrames")} · ${stats.minPct.toFixed(0)}-${stats.maxPct.toFixed(0)} %`}
+        <button
+          className={styles.kpiCopyBtn}
+          onClick={handleExport}
+          disabled={exporting}
+          title={t("debug.radarCompressionExport")}
+        >
+          {exporting ? "…" : t("debug.radarCompressionExport")}
+        </button>
+        {exportMsg && (
+          <span style={{ marginLeft: 8, fontSize: "0.85em", opacity: 0.8 }}>
+            {exportMsg}
+          </span>
+        )}
+      </span>
+    </div>
+  );
+};
+
+RadarCompressionRow.propTypes = {
+  stats: PropTypes.shape({
+    count: PropTypes.number.isRequired,
+    avgPct: PropTypes.number.isRequired,
+    minPct: PropTypes.number.isRequired,
+    maxPct: PropTypes.number.isRequired,
+    startedAt: PropTypes.number,
   }).isRequired,
 };
 
