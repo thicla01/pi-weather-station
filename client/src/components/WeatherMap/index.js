@@ -670,7 +670,9 @@ const WeatherMap = ({ zoom, dark }) => {
             attribution='<a href="https://www.rainviewer.com/">RainViewer</a>'
             url={`https://tilecache.rainviewer.com${mapTimestamp.path}/512/{z}/{x}/{y}/6/1_1.png`}
             opacity={dark ? radarOpacityDark : radarOpacityLight}
-            maxNativeZoom={7}
+            tileSize={512}
+            zoomOffset={-1}
+            maxNativeZoom={8}
           />
         ) : null}
         {markerIsVisible && markerPosition ? (

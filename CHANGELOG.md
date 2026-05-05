@@ -21,6 +21,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed
+- **Radar tiles now rendered at native 512 px (was downscaled to 256)** — same latent bug v2.11.0 caught on the Mapbox basemap, still present on the RainViewer overlay. The radar URL requested 512 px tiles (`/512/{z}/{x}/{y}/...`) but the `<TileLayer>` was missing the matching `tileSize={512}` and `zoomOffset={-1}` props, so Leaflet treated each PNG as a 256 px tile and downscaled it — paying the bandwidth without the resolution. Adds both props on the radar layer and bumps `maxNativeZoom` from 7 to 8 so it stays consistent with the new offset (Leaflet zoom 8 → server zoom 7, RainViewer's documented native ceiling). Visible improvement at kiosk zoom levels (≥ 8) where radar tile pixels were previously aliased.
+
 ---
 
 ## [2.12.0] - 2026-05-04
