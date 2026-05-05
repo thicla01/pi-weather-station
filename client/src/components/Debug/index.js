@@ -1283,7 +1283,7 @@ const ClientKpiSection = ({ fps, setFps, clientMetrics, setClientMetrics }) => {
       clearTimeout(timeoutId);
       if (rafRef.current) cancelAnimationFrame(rafRef.current);
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- initialization, runs once on mount
 
   const fpsClass = fps === null ? styles.kpiValue
     : fps >= 50 ? styles.kpiValueGood

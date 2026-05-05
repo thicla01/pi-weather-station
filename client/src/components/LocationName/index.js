@@ -49,10 +49,11 @@ const LocationName = () => {
  * @returns {String} Display name
  */
 const getName = (res) => {
-  // eslint-disable-next-line camelcase
-  const { city, country, state, country_code, county, region } = res.address;
-  // eslint-disable-next-line camelcase
-  if (country_code === "us") {
+  // LocationIQ's address payload uses snake_case (country_code); rename
+  // on destructure to avoid bleeding upstream conventions through the
+  // rest of the function and to keep camelcase clean in our own code.
+  const { city, country, state, country_code: countryCode, county, region } = res.address;
+  if (countryCode === "us") {
     if (city) {
       return `${city}, ${state}`;
     } else if (county) {

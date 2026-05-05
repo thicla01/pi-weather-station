@@ -19,6 +19,7 @@ const MOUSE_HIDE_STORAGE_KEY = "mouseHide";
 const FONT_SIZE_STORAGE_KEY = "fontSize";
 const HIDE_RADAR_LEGEND_STORAGE_KEY = "hideRadarLegend";
 const SKIPPED_SHA_STORAGE_KEY = "skippedSha";
+const UPDATE_CHECK_INTERVAL = 6 * 60 * 60 * 1000; // 6 hours
 
 /**
  * App context provider
@@ -381,8 +382,7 @@ export function AppContextProvider({ children }) {
       setIsLocal(res.data.isLocal);
       setRemoteSecurityEnabled(res.data.securityEnabled ?? false);
       setDebugEnabled(res.data.debugEnabled ?? false);
-    // eslint-disable-next-line no-unused-vars
-    }).catch((_err) => {
+    }).catch(() => {
       // non-critical — defaults stay (localhost assumed, security disabled)
     });
   }
@@ -394,8 +394,6 @@ export function AppContextProvider({ children }) {
     if (!debugMenuOpen) setSettingsMenuOpen(false);
     setDebugMenuOpen(!debugMenuOpen);
   }
-
-  const UPDATE_CHECK_INTERVAL = 6 * 60 * 60 * 1000; // 6 hours
 
   /**
    * Fetch /api/update-check (or /force) and propagate every relevant field
@@ -435,7 +433,7 @@ export function AppContextProvider({ children }) {
     fetchUpdateStatus();
     const interval = setInterval(fetchUpdateStatus, UPDATE_CHECK_INTERVAL);
     return () => clearInterval(interval);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [refreshUpdateCheck]);
 
   function loadStoredData() {
     const temp = window.localStorage.getItem(TEMP_UNIT_STORAGE_KEY);

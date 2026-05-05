@@ -208,7 +208,8 @@ const WeatherInfo = () => {
         console.log("error getting reverse geo api key:", err);
       });
     }
-  }, [weatherApiKey, reverseGeoApiKey]); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the AppContext getter/setter functions used in this effect are stable per provider mount but not memoized, so listing them would cause the effect to re-run on every parent render. Keying on the actual API keys is the intent.
+  }, [weatherApiKey, reverseGeoApiKey]);
 
   useEffect(() => {
     createWeatherUpdateInterval({
@@ -240,7 +241,8 @@ const WeatherInfo = () => {
       clearInterval(hourlyWeatherUpdateInterval);
       clearInterval(dailyWeatherUpdateInterval);
     };
-  }, [weatherApiKey, mapGeo]); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the interval state refs are read inside the effect to clear them, then overwritten by createWeatherUpdateInterval; listing them as deps would cause the effect to re-run every time it sets them, looping forever. Keying on the inputs that should trigger a fresh interval cycle (key + location) is the intent.
+  }, [weatherApiKey, mapGeo]);
 
   // The shell is always rendered so a single Tomorrow.io failure doesn't
   // black out everything in the panel — LocationName (LocationIQ),

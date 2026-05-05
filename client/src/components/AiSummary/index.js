@@ -122,7 +122,7 @@ AiSummary.propTypes = {
   containerRef: PropTypes.object,
 };
 
-/* eslint-disable-next-line no-empty-function */
+// eslint-disable-next-line no-empty-function -- intentional default-prop placeholder; the consumer either passes a real onToggle or the toggle UI is non-functional, both of which are valid.
 const noop = () => {};
 
 AiSummary.defaultProps = {

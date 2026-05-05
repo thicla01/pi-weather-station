@@ -535,7 +535,7 @@ const WeatherMap = ({ zoom, dark }) => {
     return () => {
       clearInterval(mapTimestampsInterval);
     };
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps -- initialization, runs once on mount
 
   const { latitude, longitude } = browserGeo || {};
 

@@ -44,12 +44,14 @@ const CurrentWeather = () => {
     AppContext
   );
   if (weatherData) {
+    // OpenWeatherMap's payload uses snake_case (wind_speed); rename on
+    // destructure to keep camelcase elsewhere in the file.
     const {
       current: {
         temp,
         humidity,
         clouds,
-        wind_speed, // eslint-disable-line camelcase
+        wind_speed: windSpeed,
         rain,
         snow,
         weather: currentWeather,
@@ -84,7 +86,7 @@ const CurrentWeather = () => {
                 <InlineIcon icon={strongWind} />
               </div>
               <div className={styles.textUnit}>
-                <div>{convertSpeed(wind_speed, speedUnit)}</div>
+                <div>{convertSpeed(windSpeed, speedUnit)}</div>
                 <div className={styles.statUnit}>
                   {" "}{speedUnitLabel(speedUnit)}
                 </div>
