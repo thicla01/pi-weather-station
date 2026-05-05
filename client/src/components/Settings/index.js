@@ -275,17 +275,21 @@ const Settings = () => {
 export default Settings;
 
 /**
- * Save button
+ * Save button — collects the key + coordinate state from the parent
+ * Settings panel and forwards it to AppContext.saveSettingsToJson on
+ * click. Closes the panel afterwards. The forwarding happens via this
+ * sub-component (rather than directly on the panel) so the click
+ * handler stays out of the form's render path.
  *
  * @param {object} props
- * @param {String} [props.mapsKey]
- * @param {String} [props.weatherKey]
- * @param {String} [props.geoKey]
- * @param {String} [props.anthropicKey]
- * @param {String} [props.airNowKey]
- * @param {String} [props.openAqKey]
- * @param {String} [props.lat]
- * @param {String} [props.lon]
+ * @param {String} [props.mapsKey] Mapbox API key, forwarded to settings.json `mapApiKey`.
+ * @param {String} [props.weatherKey] Tomorrow.io API key, forwarded as `weatherApiKey`.
+ * @param {String} [props.geoKey] LocationIQ key, forwarded as `reverseGeoApiKey`.
+ * @param {String} [props.anthropicKey] Anthropic key, forwarded as `anthropicApiKey`.
+ * @param {String} [props.airNowKey] EPA AirNow key, forwarded as `airNowApiKey`.
+ * @param {String} [props.openAqKey] OpenAQ key, forwarded as `openAqApiKey`.
+ * @param {String} [props.lat] Custom starting latitude (string).
+ * @param {String} [props.lon] Custom starting longitude (string).
  * @returns {JSX.Element} Save button
  */
 const SaveButton = ({ mapsKey, weatherKey, geoKey, anthropicKey, airNowKey, openAqKey, lat, lon }) => {
@@ -445,11 +449,11 @@ const ToggleButtons = () => {
  *
  * @param {object} props
  * @param {Array} [props.options] Array of {label, value} for variable number of buttons
- * @param {String} [props.button1Label]
- * @param {String} [props.button2Label]
+ * @param {String} [props.button1Label] Label shown on the first button when in 2-button mode.
+ * @param {String} [props.button2Label] Label shown on the second button when in 2-button mode.
  * @param {*} props.val Current selected value
- * @param {*} [props.button1Val]
- * @param {*} [props.button2Val]
+ * @param {*} [props.button1Val] Value emitted via `cb` when the first button is clicked (any equality-comparable type).
+ * @param {*} [props.button2Val] Value emitted via `cb` when the second button is clicked.
  * @param {Function} props.cb Callback when a button is clicked
  * @returns {JSX.Element} Toggle buttons
  */

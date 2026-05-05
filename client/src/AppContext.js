@@ -877,17 +877,20 @@ export function AppContextProvider({ children }) {
   }
 
   /**
-   * Saves settings to `settings.json`
+   * Saves settings to `settings.json`. Each key maps to a server-side
+   * setting whose name is intentionally different (`mapsKey` →
+   * `mapApiKey`, etc.) — the rename happens here so the rest of the
+   * client can use shorter form names.
    *
-   * @param {object} settings
-   * @param {String} [settings.mapsKey]
-   * @param {String} [settings.weatherKey]
-   * @param {String} [settings.geoKey]
-   * @param {String} [settings.anthropicKey]
-   * @param {String} [settings.airNowKey]
-   * @param {String} [settings.openAqKey]
-   * @param {String} [settings.lat]
-   * @param {String} [settings.lon]
+   * @param {object} settings User-supplied bundle of settings to persist.
+   * @param {String} [settings.mapsKey] Mapbox API key (writes `mapApiKey`).
+   * @param {String} [settings.weatherKey] Tomorrow.io API key (writes `weatherApiKey`).
+   * @param {String} [settings.geoKey] LocationIQ reverse-geocoding API key (writes `reverseGeoApiKey`).
+   * @param {String} [settings.anthropicKey] Anthropic API key for the AI summary (writes `anthropicApiKey`).
+   * @param {String} [settings.airNowKey] EPA AirNow API key (writes `airNowApiKey`); enables the US air-quality source.
+   * @param {String} [settings.openAqKey] OpenAQ API key (writes `openAqApiKey`); enables the global air-quality fallback.
+   * @param {String} [settings.lat] Custom starting latitude as a string (writes `startingLat`).
+   * @param {String} [settings.lon] Custom starting longitude as a string (writes `startingLon`).
    * @returns {Promise} Resolves when complete
    */
   function saveSettingsToJson({ mapsKey, weatherKey, geoKey, anthropicKey, airNowKey, openAqKey, lat, lon }) {

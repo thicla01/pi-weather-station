@@ -301,7 +301,7 @@ const INDICATOR_CLASS = (indicator, styles) => {
  * Provider status section — Atlassian Statuspage results for external providers
  *
  * @param {object} props
- * @param {object} props.providerStatus
+ * @param {object} props.providerStatus Snapshot returned by `/api/debug` containing `fetchedAt` (ISO timestamp of when the bundle was assembled) and `providers` (array of `{name, indicator, description, lastFetch}` per provider).
  * @returns {JSX.Element} Provider status section
  */
 const ProviderStatusSection = ({ providerStatus }) => {
@@ -989,7 +989,7 @@ ServerConfigSection.propTypes = {
  * Server KPI section — uptime, memory, cache hit rate, response times
  *
  * @param {object} props
- * @param {object} props.serverKpis
+ * @param {object} props.serverKpis Snapshot from `/api/debug` containing process metrics: uptime (seconds), memory (`heapUsed`/`heapTotal`/`rss` in bytes), cache hits/misses + ratio, per-endpoint response time aggregates, hardware model, network URLs.
  * @param {number|null} props.cpuTemp Live CPU temperature in °C
  * @param {number|null} props.fanRpm Live fan speed in raw RPM (0 valid)
  * @param {boolean|null} props.fanAvailable Whether a fan sensor is exposed

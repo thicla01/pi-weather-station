@@ -37,7 +37,7 @@ export const convertTemp = (c, units) => {
 /**
  * Convert m/s to mph
  *
- * @param {Number} ms
+ * @param {Number} ms speed in metres per second
  * @returns {Number} mph
  * @private
  */
@@ -48,7 +48,7 @@ const msToMph = (ms) => {
 /**
  * Convert m/s to km/h
  *
- * @param {Number} ms
+ * @param {Number} ms speed in metres per second
  * @returns {Number} km/h
  * @private
  */
@@ -59,7 +59,7 @@ const msToKmh = (ms) => {
 /**
  * Converts speed
  *
- * @param {Number} speed
+ * @param {Number} speed input speed in metres per second (Tomorrow.io's native unit)
  * @param {String} units `mph`, `ms` for m/s, or `kmh` for km/h
  * @returns {Number} converted speed
  */
@@ -98,7 +98,7 @@ export const speedUnitLabel = (unit) => {
 /**
  * Converts mm to inches
  *
- * @param {Number} mm
+ * @param {Number} mm length in millimetres
  * @returns {Number} inches
  * @private
  */
