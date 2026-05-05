@@ -18,7 +18,7 @@ The original Pi Weather Station (v1.x), as designed by [@elewin](https://github.
 
 ![Original layout, v1.x](https://user-images.githubusercontent.com/15202038/91359998-4625bb80-e7bb-11ea-937e-c87eede41f35.JPG)
 
-The current build (v2.11), with the indoor-temperature header block, the 45 km radar-analysis circle, the AI weather summary, user-selectable light/dark map styles, live radar opacity sliders, hardware screen-brightness control, the small-screen panel toggle, and the localhost-only debug panel:
+The current v2 layout — indoor temperature/humidity/air-quality block, AI-generated weather summary with radar movement analysis, severe-weather alert banner fed by both the radar tier and government feeds (NWS + ECCC), color-coded UV and AQI badges chained across multiple government sources (MELCC, AirNow, OpenAQ, ECCC AQHI), user-selectable light/dark map styles, hardware screen-brightness control on supported displays, small-screen panel toggle, and a localhost-only debug panel:
 
 | | |
 |---|---|
@@ -41,15 +41,7 @@ See it in action [here](https://www.youtube.com/watch?v=dvM6cyqYSw8).
 
 ## Updating
 
-For day-to-day updates, the in-app **Update** button (debug panel → notification badge) handles `git pull`, `npm install`, and the service restart automatically.
-
-> ⚠️ **Upgrading from v2.3.x or older?** The in-app updater in those releases doesn't run `npm install`, so a one-click upgrade would land new dependencies as `Cannot find module` crashes. Run the install script once instead, and you're safe to use one-click updates from then on:
->
-> ```bash
-> cd ~/pi-weather-station && git pull && bash deploy/install.sh
-> ```
->
-> The script picks up your existing `settings.json`, refreshes service files, and reinstalls dependencies cleanly. Since v2.6.3, the modal detects this case and shows the same recipe automatically.
+For day-to-day updates, the in-app **Update** button (debug panel → notification badge) handles `git pull`, `npm ci`, and the service restart automatically. If your installed version is too old for the in-app updater to handle (released before the updater learned to run `npm install`), the modal detects it and shows a one-time `bash deploy/install.sh` recipe to bootstrap before normal updates resume.
 
 # Version history
 
