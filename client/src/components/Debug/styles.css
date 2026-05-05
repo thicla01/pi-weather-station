@@ -1,6 +1,11 @@
 .container {
   height: calc(100vh - 20px);
-  width: calc(100vw - 320px);
+  /* Width tracks the InfoPanel column via the same --info-col-width custom
+     property that Settings reads, so the Debug panel stops cleanly at the
+     InfoPanel's left edge regardless of fontSize zoom (255 / 300 / 345 px
+     for S / M / L). The previous hard-coded 320 px overlapped the InfoPanel
+     by 25 px at size L and left a 65 px gap at size S. */
+  width: calc(100vw - var(--info-col-width, 300px) - 20px);
   background-color: rgba(0, 0, 0, 0.82);
   padding: 10px;
   color: #f6f6f4;
