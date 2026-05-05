@@ -417,25 +417,32 @@ app.post("/api/update", localhostOnly, (req, res) => {
         }
         console.log("[update] git pull succeeded:", pullStdout.trim());
 
-        // Always run `npm install` after the pull. It's idempotent (a few
-        // seconds when nothing changed), and it prevents the
-        // "Cannot find module 'X'" trap when an update introduces a new
-        // dependency — without this step, the post-restart server would
-        // crash-loop on the missing module.
-        console.log("[update] Running npm install (--omit=dev)…");
+        // Always run `npm ci` after the pull. Like `npm install` it's
+        // idempotent and prevents the "Cannot find module 'X'" trap on
+        // freshly-introduced dependencies, but unlike `npm install` it
+        // never rewrites package-lock.json. Lockfile drift caused by
+        // `npm install` resolving transitive deps slightly differently
+        // on different node versions has been the recurring cause of
+        // pre-flight "uncommitted local changes" failures on the next
+        // update — the kiosk owner sees an opaque rejection message
+        // referring to a file they never touched. `npm ci` is the
+        // canonical fix: install strictly from the lockfile or fail
+        // loudly if the lockfile and package.json don't agree (which
+        // would be a real problem worth surfacing anyway).
+        console.log("[update] Running npm ci (--omit=dev)…");
         exec(
-          "npm install --omit=dev --no-audit --no-fund",
+          "npm ci --omit=dev --no-audit --no-fund",
           { cwd: projectRoot, timeout: 180_000 },
           (npmErr, npmStdout, npmStderr) => {
             if (npmErr) {
-              console.error("[update] npm install failed:", npmStderr);
+              console.error("[update] npm ci failed:", npmStderr);
               return res.status(500).json({
                 error: true,
                 reason: "npm-install-failed",
-                message: `npm install failed: ${npmStderr || npmErr.message}`,
+                message: `npm ci failed: ${npmStderr || npmErr.message}`,
               });
             }
-            console.log("[update] npm install succeeded.");
+            console.log("[update] npm ci succeeded.");
             res.json({ ok: true, isSystemd: !!process.env.INVOCATION_ID });
 
             setTimeout(() => {
