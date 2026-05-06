@@ -32,18 +32,22 @@ function naturalTier(maxIntensity) {
 /**
  * Pick the i18n key for the banner based on which ring is the source of
  * the worst tier and whether that source is showing a real intensity at
- * its tier (v1 — heavy precip is actually present) or was bumped one
- * notch by the v2 trend logic (intensity below the natural threshold +
- * trend === "approaching"). The v2-bumped case gets a softer, neutral
- * wording ("précipitations approchent") because saying "précipitations
- * fortes" when the actual measured intensity is 1 (very light) would be
- * misleading — what's happening is "a band is moving in fast", not
- * "heavy rain is here".
+ * its tier (v1 — heavy precip is actually present), was bumped one notch
+ * by the v2 trend logic (intensity below the natural threshold +
+ * trend === "approaching"), or is currently moving away (trend ===
+ * "leaving"). Softening rules:
+ *   - v2-bumped → "précipitations approchent" — saying "fortes" when the
+ *     actual measured intensity is 1 would be misleading; the threat is
+ *     "a band is moving in fast", not "heavy rain is here".
+ *   - leaving → "{tier} mais s'éloignent" — the dashed-circle tier still
+ *     reflects the present intensity, but the banner copy shouldn't read
+ *     alarmist for a band already on its way out (the morning false-positive
+ *     screenshot from May 5 captured this exact case).
  *
  * @param {String|null} innerRisk
  * @param {String|null} outerRisk
- * @param {String} innerTrend "approaching" | "stable"
- * @param {String} outerTrend "approaching" | "stable"
+ * @param {String} innerTrend "approaching" | "leaving" | "stable"
+ * @param {String} outerTrend "approaching" | "leaving" | "stable"
  * @param {Number} innerMaxIntensity 0-6
  * @param {Number} outerMaxIntensity 0-6
  * @returns {{tier: String, i18nKey: String} | null} Banner state, or null when no alert needs to be shown
@@ -67,6 +71,9 @@ function getRadarAlertState(innerRisk, outerRisk, innerTrend, outerTrend, innerM
   const bumpedByV2 = sourceTrend === "approaching" && sourceLevel !== naturalTier(sourceMaxIntensity);
   if (bumpedByV2) {
     return { tier, i18nKey: "alert.approaching" };
+  }
+  if (sourceTrend === "leaving") {
+    return { tier, i18nKey: `alert.${tier}Leaving` };
   }
   // Existing wording: "near" when inner is the source, "approaching"
   // (location-based, not trend-based) when outer is.

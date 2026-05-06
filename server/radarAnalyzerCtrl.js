@@ -548,15 +548,20 @@ async function analyzeRadar(lat, lon, options = {}) {
     const label = offsetMin === 0 ? "now" : `${offsetMin} min`;
     try {
       const samples = await buildSnapshot(lat, lon, frame.path, points);
-      const block = formatSnapshot(samples, label, unit);
-      if (block) {
+      const compressed = formatSnapshot(samples, label, unit);
+      if (compressed) {
+        // Run the legacy formatter alongside the compressed one. Two roles:
+        //   1) Measure compression ratio (recorded in compressionStats).
+        //   2) Fallback target — when the hierarchical "compressed" output
+        //      is actually longer than the naive baseline (rare, but
+        //      observed: per-direction headers + sparse rollup overhead can
+        //      tip past savings on certain mid-cluttered radar geometries),
+        //      send the legacy block to Claude instead. We never pay for
+        //      the surcharge.
+        const legacy = formatSnapshotLegacy(samples, label, unit);
+        const block = compressed.length < legacy.length ? compressed : legacy;
         sections.push(block);
-        // Run the legacy formatter alongside purely to measure the
-        // compression ratio. Cost is one extra in-memory format pass
-        // per frame (~1-5 ms); never sent to Claude. Stats live in
-        // compressionStats.js and are surfaced in the Debug panel.
-        const legacyBlock = formatSnapshotLegacy(samples, label, unit);
-        compressionStats.record(legacyBlock.length, block.length);
+        compressionStats.record(legacy.length, block.length);
       }
     } catch (err) {
       // One snapshot failed — keep going with whatever we have
@@ -582,14 +587,19 @@ const TIER_BUMP = { calm: "yellow", yellow: "orange", orange: "red", red: "red" 
 
 /**
  * Compute a per-ring trend label by comparing the radial intensity profile
- * across the 3 captured frames. Returns "approaching" when the strongest-
- * intensity sample on at least one direction has shifted inward by more
- * than the unit-aware threshold over the 45-minute window AND the projected
- * arrival time at the centre is under 30 minutes; "stable" otherwise.
+ * across the 3 captured frames. Returns:
+ *   - "approaching" when at least one direction's strongest-intensity sample
+ *     shifted inward by more than the unit-aware threshold over the window
+ *     AND the projected arrival at the centre is under 30 minutes;
+ *   - "leaving" when no direction qualifies as approaching but at least one
+ *     shows the symmetric outward shift exceeding the same threshold (used
+ *     to soften AlertBanner copy when an orange/red ring is actually moving
+ *     away — the dashed-circle tier still reflects current intensity, but
+ *     the banner wording shouldn't sound alarmist for a band on its way out);
+ *   - "stable" otherwise.
  *
- * Departing bands aren't called out separately — they don't change the
- * displayed tier (the latest-frame intensity already accounts for the
- * fact that they're farther out now).
+ * "Approaching" wins ties — when some directions are coming in while others
+ * leave, the inbound ones are the safety concern.
  *
  * @param {Array<Array<{direction: String, distance: Number, intensity: Number}>>} framesSamples
  *   Per-frame samples ordered newest → oldest (snapshots[0] = now, [1] = -15, [2] = -45).
@@ -600,7 +610,7 @@ const TIER_BUMP = { calm: "yellow", yellow: "orange", orange: "red", red: "red" 
  *   fraction of the outer-ring radius (a 5 km / 45 min movement is
  *   ~10 % of the inner ring's 50 km, but only ~5 % of the outer ring's
  *   100 km — too small to reliably distinguish from sampling noise).
- * @returns {"approaching" | "stable"}
+ * @returns {"approaching" | "leaving" | "stable"}
  */
 function computeRingTrend(framesSamples, unit, ring) {
   if (!framesSamples || framesSamples.length < 2) return "stable";
@@ -634,6 +644,7 @@ function computeRingTrend(framesSamples, unit, ring) {
   // samples — a transient single-pixel bloom on one bearing won't survive
   // the per-direction shift requirement.
   const directions = [...new Set(latest.map((s) => s.direction))];
+  let leavingFound = false;
   for (const dir of directions) {
     if (dir === "C") continue; // centre point has no radial movement
     const peaks = framesSamples.map((snap) => {
@@ -651,6 +662,15 @@ function computeRingTrend(framesSamples, unit, ring) {
     const peakOld = peaks[peaks.length - 1];
     if (peakNow.distance == null || peakOld.distance == null) continue;
     const inwardShift = peakOld.distance - peakNow.distance;
+    // Symmetric outward shift on this direction → candidate "leaving".
+    // Only kept around if no direction qualifies as approaching by the
+    // end of the loop. Approaching wins ties: an orange ring with two
+    // bands, one inbound and one outbound, should still surface as a
+    // safety concern, not as a calming "moving away" message.
+    if (inwardShift <= -inwardThreshold) {
+      leavingFound = true;
+      continue;
+    }
     if (inwardShift < inwardThreshold) continue;
     // Project arrival: how long until this band reaches the centre at
     // the current inward speed?
@@ -659,7 +679,7 @@ function computeRingTrend(framesSamples, unit, ring) {
     const minutesToArrival = peakNow.distance / speedPerMin;
     if (minutesToArrival < arrivalLimitMin) return "approaching";
   }
-  return "stable";
+  return leavingFound ? "leaving" : "stable";
 }
 
 /**

@@ -159,8 +159,10 @@
   "alert": {
     "orangeNear": "Précipitations fortes sur votre zone",
     "orangeApproaching": "Précipitations fortes à proximité",
+    "orangeLeaving": "Précipitations fortes mais s'éloignent",
     "redNear": "Alerte — précipitations sévères sur votre zone",
     "redApproaching": "Alerte — précipitations sévères approchent",
+    "redLeaving": "Précipitations sévères mais s'éloignent",
     "approaching": "Précipitations approchent"
   },
   "radar": {
