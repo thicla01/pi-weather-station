@@ -18,7 +18,7 @@ const UpdateModal = () => {
     latestVersion,
     latestSha,
     updateCommits,
-    serviceFileChanged,
+    changedDeployFiles,
     needsManualUpgrade,
     saveSkippedSha,
     updateState,
@@ -40,20 +40,18 @@ const UpdateModal = () => {
   //   - needsManualUpgrade: the installed /api/update is too old (pre-v2.4.1)
   //     to run npm install — one-click would leave the post-restart server
   //     crash-looping on missing dependencies. Need install.sh to recover.
-  //   - serviceFileChanged: the systemd service file changed upstream and
-  //     can't be safely overwritten on top of user customizations.
+  //   - deployArtefactsChanged: one or more installed copies under $HOME
+  //     (start-server, the systemd unit, the launchd plist) have diverged
+  //     from upstream. The in-app updater pulls new code into the working
+  //     copy but doesn't refresh those installed copies; running install.sh
+  //     idempotently restores parity.
   // Both disable the auto-update button and show their own notice + recipe.
   // needsManualUpgrade takes precedence — install.sh handles everything,
-  // including any service file change.
+  // including any deploy/ artefact change.
+  const deployArtefactsChanged = changedDeployFiles && changedDeployFiles.length > 0;
   let cmdDisplay;
-  if (needsManualUpgrade) {
+  if (needsManualUpgrade || deployArtefactsChanged) {
     cmdDisplay = "cd ~/pi-weather-station && git pull && bash deploy/install.sh";
-  } else if (serviceFileChanged) {
-    cmdDisplay =
-      "cd ~/pi-weather-station && git pull && npm install && " +
-      "cp deploy/pi-weather-server.service ~/.config/systemd/user/ && " +
-      "systemctl --user daemon-reload && " +
-      "systemctl --user restart pi-weather-server";
   } else if (isSystemd) {
     cmdDisplay = "cd ~/pi-weather-station && git pull && systemctl --user restart pi-weather-server";
   } else {
@@ -133,11 +131,18 @@ const UpdateModal = () => {
           </div>
         )}
 
-        {/* Service file change notice — only when relevant and the
-            broader manual-upgrade notice is not already shown */}
-        {!needsManualUpgrade && serviceFileChanged && (
+        {/* Deploy/ artefact change notice — only when relevant and the
+            broader manual-upgrade notice is not already shown. Lists the
+            specific files that have diverged so the user can verify what
+            running install.sh would refresh. */}
+        {!needsManualUpgrade && deployArtefactsChanged && (
           <div className={styles.serviceFileNotice}>
-            {t("update.serviceFileChanged")}
+            {t("update.deployArtefactsChanged")}
+            <ul className={styles.deployFileList}>
+              {changedDeployFiles.map((file) => (
+                <li key={file}><code>{file}</code></li>
+              ))}
+            </ul>
           </div>
         )}
 
@@ -177,7 +182,7 @@ const UpdateModal = () => {
           <button
             className={`${styles.updateButton} ${updateState === "failed" ? styles.updateButtonFailed : ""} ${updateState === "stopped" ? styles.updateButtonStopped : ""}`}
             onClick={handleUpdate}
-            disabled={isBusy || serviceFileChanged || needsManualUpgrade}
+            disabled={isBusy || deployArtefactsChanged || needsManualUpgrade}
           >
             {updateState === "idle"        && t("update.update")}
             {updateState === "updating"    && t("update.updating")}

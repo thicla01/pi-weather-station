@@ -183,7 +183,7 @@ export function AppContextProvider({ children }) {
   const [latestVersion, setLatestVersion] = useState(null);
   const [latestSha, setLatestSha] = useState(null);
   const [updateCommits, setUpdateCommits] = useState([]);
-  const [serviceFileChanged, setServiceFileChanged] = useState(false);
+  const [changedDeployFiles, setChangedDeployFiles] = useState([]);
   const [needsManualUpgrade, setNeedsManualUpgrade] = useState(false);
   const [skippedSha, setSkippedSha] = useState(null);
   const [updateModalOpen, setUpdateModalOpen] = useState(false);
@@ -401,7 +401,7 @@ export function AppContextProvider({ children }) {
    * Fetch /api/update-check (or /force) and propagate every relevant field
    * into AppContext state. Shared by the periodic background poll and the
    * Debug panel's "Check for update" button so both call sites end up with
-   * the same set of state updates — including serviceFileChanged and
+   * the same set of state updates — including changedDeployFiles and
    * needsManualUpgrade, which UpdateModal reads to gate the Update button.
    *
    * @param {Boolean} [force] When true, hits /api/update-check/force which
@@ -416,7 +416,7 @@ export function AppContextProvider({ children }) {
       setLatestVersion(res.data.latestVersion ?? null);
       setLatestSha(res.data.latestSha ?? null);
       setUpdateCommits(res.data.commits ?? []);
-      setServiceFileChanged(Boolean(res.data.serviceFileChanged));
+      setChangedDeployFiles(Array.isArray(res.data.changedDeployFiles) ? res.data.changedDeployFiles : []);
       setNeedsManualUpgrade(Boolean(res.data.needsManualUpgrade));
       setServerPlatform(res.data.platform ?? null);
       setIsSystemd(res.data.isSystemd ?? false);
@@ -1203,7 +1203,7 @@ export function AppContextProvider({ children }) {
     setLatestSha,
     updateCommits,
     setUpdateCommits,
-    serviceFileChanged,
+    changedDeployFiles,
     needsManualUpgrade,
     refreshUpdateCheck,
     skippedSha,

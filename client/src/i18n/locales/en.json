@@ -115,7 +115,7 @@
     "feat": "New",
     "fix": "Fix",
     "perf": "Faster",
-    "serviceFileChanged": "This update changes the systemd service file. The one-click update can't safely overwrite it (your installed copy may have customizations). Run the full command above manually instead.",
+    "deployArtefactsChanged": "This update changes installed scripts or service files that the one-click button can't refresh on its own. Run the full command above on the device — `bash deploy/install.sh` is idempotent and will refresh only what has diverged:",
     "needsManualUpgrade": "Your installed version is too old for the one-click update (pre-v2.4.1, before /api/update started running npm install). The auto-update would land new dependencies as missing-module crashes. Run the full command above to upgrade safely via deploy/install.sh."
   },
   "indoor": {

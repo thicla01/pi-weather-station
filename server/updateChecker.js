@@ -5,11 +5,40 @@ const { execSync } = require("child_process");
 const path = require("path");
 
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour
-const SERVICE_FILE_REL = "deploy/pi-weather-server.service";
-const INSTALLED_SERVICE_FILE = path.join(
-  process.env.HOME || "",
-  ".config/systemd/user/pi-weather-server.service"
-);
+
+// Deploy artefacts that install.sh copies into the user's home tree on top
+// of the in-repo files. The in-app updater pulls new code into the working
+// copy with `git pull`, but it can't (and shouldn't, on its own) overwrite
+// the installed copies — those decisions sit with the user. We hash both
+// sides and surface a list of divergent files in the update modal so the
+// user can re-run `bash deploy/install.sh` to refresh them.
+//
+// Each entry is { name, deployRel, installedPath, platform }:
+//   - name: short label shown in the modal
+//   - deployRel: path relative to repo root (used to fetch from GitHub)
+//   - installedPath: absolute path of the installed copy on this machine
+//   - platform: "linux" | "darwin" | null (null = applies on every platform)
+const HOME = process.env.HOME || "";
+const DEPLOY_ARTEFACTS = [
+  {
+    name: "pi-weather-server.service",
+    deployRel: "deploy/pi-weather-server.service",
+    installedPath: path.join(HOME, ".config/systemd/user/pi-weather-server.service"),
+    platform: "linux",
+  },
+  {
+    name: "start-server",
+    deployRel: "deploy/start-server",
+    installedPath: path.join(HOME, ".local/bin/start-server"),
+    platform: "linux",
+  },
+  {
+    name: "com.pi-weather-station.plist",
+    deployRel: "deploy/com.pi-weather-station.plist",
+    installedPath: path.join(HOME, "Library/LaunchAgents/com.pi-weather-station.plist"),
+    platform: "darwin",
+  },
+];
 
 let _cache = null;
 let _cacheTime = 0;
@@ -52,17 +81,6 @@ function getRepo() {
   return "thicla01/pi-weather-station"; // fallback
 }
 
-/**
- * Compare the installed systemd service file with the upstream version that
- * would land after a `git pull`. Returns true when an update would change
- * the service file (so the user needs the manual `cp` + `daemon-reload`
- * step beyond what the in-app updater does), false when they match, and
- * null when the comparison can't be made (e.g. installed file missing,
- * remote fetch failed, or running on a non-systemd platform).
- *
- * @param {string} repo "owner/repo" form
- * @returns {Promise<boolean|null>}
- */
 // Commit that added `npm install` to /api/update (v2.4.1). Anything older
 // has the bug where one-click upgrades don't install new dependencies, so
 // the post-restart server crash-loops on `Cannot find module 'X'`. We
@@ -97,22 +115,26 @@ function checkNeedsManualUpgrade(localSha) {
   }
 }
 
-async function checkServiceFileChanged(repo) {
-  // Only meaningful when actually running under systemd user services.
-  if (!process.env.INVOCATION_ID || process.platform !== "linux") return null;
-
-  let installedHash;
+/**
+ * Hash one deploy artefact against its upstream copy on master.
+ *
+ * @param {string} repo "owner/repo" form
+ * @param {{name: string, deployRel: string, installedPath: string}} artefact
+ * @returns {Promise<{name: string, changed: boolean}|null>} null when comparison can't be made
+ *   (installed file missing, network error, etc.) — caller treats null as "skip silently".
+ */
+async function checkOneArtefact(repo, artefact) {
+  let installed;
   try {
-    const installed = fs.readFileSync(INSTALLED_SERVICE_FILE);
-    installedHash = crypto.createHash("sha256").update(installed).digest("hex");
+    installed = fs.readFileSync(artefact.installedPath);
   } catch {
-    return null; // No installed file — likely a dev install without systemd
+    return null; // Not installed on this machine — treat as not applicable
   }
 
   let upstream;
   try {
     const r = await axios.get(
-      `https://raw.githubusercontent.com/${repo}/master/${SERVICE_FILE_REL}`,
+      `https://raw.githubusercontent.com/${repo}/master/${artefact.deployRel}`,
       { timeout: 10_000, responseType: "text", transformResponse: [(d) => d] }
     );
     upstream = r.data;
@@ -120,8 +142,32 @@ async function checkServiceFileChanged(repo) {
     return null; // Network error — don't pretend to know
   }
 
+  const installedHash = crypto.createHash("sha256").update(installed).digest("hex");
   const upstreamHash = crypto.createHash("sha256").update(upstream).digest("hex");
-  return upstreamHash !== installedHash;
+  return { name: artefact.name, changed: upstreamHash !== installedHash };
+}
+
+/**
+ * Compare every installed deploy/ artefact relevant to the current platform
+ * against its upstream copy. Returns an array of names that have diverged
+ * (so the user knows to re-run `bash deploy/install.sh` after `git pull`),
+ * an empty array when everything matches, or null when no comparison was
+ * possible (no deploy/ artefacts installed, or all comparisons failed).
+ *
+ * @param {string} repo "owner/repo" form
+ * @returns {Promise<string[]|null>}
+ */
+async function checkDeployArtefactsChanged(repo) {
+  const applicable = DEPLOY_ARTEFACTS.filter(
+    (a) => !a.platform || a.platform === process.platform
+  );
+  if (applicable.length === 0) return null;
+
+  const results = await Promise.all(applicable.map((a) => checkOneArtefact(repo, a)));
+  const checked = results.filter((r) => r !== null);
+  if (checked.length === 0) return null; // Nothing was installed locally — no signal to surface
+
+  return checked.filter((r) => r.changed).map((r) => r.name);
 }
 
 /**
@@ -187,13 +233,16 @@ async function checkForUpdate() {
     // "skip" button from suppressing future genuine updates.
     const updateAvailable = shasDiffer && commits.length > 0;
 
-    // Detect changes to deploy/pi-weather-server.service that the in-app
-    // updater can't safely apply on its own (the installed file may have
-    // user customizations like ALLOW_REMOTE=true). Surfaces a notice in
-    // the modal with the manual cp + daemon-reload commands.
-    const serviceFileChanged = updateAvailable
-      ? await checkServiceFileChanged(REPO)
-      : false;
+    // Detect deploy/ artefacts the in-app updater can't refresh on its own:
+    // pi-weather-server.service in systemd-user, start-server in ~/.local/bin,
+    // and the macOS launchd plist. The updater pulls new code into the
+    // working copy with `git pull`, but the installed copies under $HOME
+    // are owned by the user and aren't auto-overwritten. When any divergence
+    // is detected, the modal lists the affected files and points the user
+    // at `bash deploy/install.sh` for the targeted refresh.
+    const changedDeployFiles = updateAvailable
+      ? await checkDeployArtefactsChanged(REPO)
+      : [];
 
     // Detect installations whose /api/update doesn't run npm install yet
     // (pre-v2.4.1). The one-click upgrade would land new dependencies as
@@ -210,7 +259,7 @@ async function checkForUpdate() {
       localSha: localSha ? localSha.slice(0, 7) : null,
       checkedAt: new Date().toISOString(),
       commits,
-      serviceFileChanged,
+      changedDeployFiles,
       needsManualUpgrade,
     };
   } catch {
