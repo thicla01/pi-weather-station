@@ -58,6 +58,38 @@ if [ -z "$BROWSER_CMD" ] || ! command -v "$BROWSER_CMD" >/dev/null 2>&1; then
     exit 1
 fi
 
+# --- 2.5. Defensive: clear stale Chromium singleton locks from hostname changes ---
+# Chromium encodes the holding process's hostname in the SingletonLock
+# symlink target (`HOSTNAME-PID`). On launch it checks the embedded
+# hostname against the current one — a legacy safeguard for shared-NFS
+# setups. If they don't match, Chromium refuses with "profile in use by
+# another computer" and exits silently (no GUI error in kiosk mode), so
+# a `sudo raspi-config` hostname change can break the kiosk with no
+# visible cause until the user opens a terminal and runs the launcher
+# manually. Only clear the lock when the embedded hostname differs from
+# the current one — a Chromium genuinely running on the same host keeps
+# its lock untouched.
+clean_orphan_chromium_lock() {
+    profile_dir="$1"
+    lock="$profile_dir/SingletonLock"
+    [ -L "$lock" ] || return 0
+    target=$(readlink "$lock" 2>/dev/null) || return 0
+    lock_host="${target%-*}"
+    if [ -n "$lock_host" ] && [ "$lock_host" != "$(hostname)" ]; then
+        echo "start-server: clearing stale Chromium lock from hostname '$lock_host' (now '$(hostname)')" >&2
+        rm -f "$lock" "$profile_dir/SingletonCookie" "$profile_dir/SingletonSocket"
+    fi
+}
+
+if [ "$BROWSER_FAMILY" = "chromium" ]; then
+    case "$(basename "$BROWSER_CMD")" in
+        chromium|chromium-browser)              clean_orphan_chromium_lock "$HOME/.config/chromium" ;;
+        google-chrome|google-chrome-stable)     clean_orphan_chromium_lock "$HOME/.config/google-chrome" ;;
+        microsoft-edge|microsoft-edge-stable)   clean_orphan_chromium_lock "$HOME/.config/microsoft-edge" ;;
+        brave-browser)                          clean_orphan_chromium_lock "$HOME/.config/BraveSoftware/Brave-Browser" ;;
+    esac
+fi
+
 # --- 3. Launch in kiosk mode with family-specific flags ------------------
 case "$BROWSER_FAMILY" in
     chromium)
