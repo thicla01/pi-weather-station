@@ -154,6 +154,19 @@ A small list of saved locations (home, chalet, work) that the user can switch be
 ### ✅ Automated tests (Jest + React Testing Library)
 There are currently no automated tests. Adding unit tests for the unit conversion functions (`services/conversions.js`) and integration tests for the key server endpoints would provide a safety net against regressions as the project grows. A GitHub Actions workflow running ESLint and the test suite on every push would complete the CI foundation.
 
+### 💸 Anthropic prompt caching for the AI summary
+The Claude Console's "Mise en cache" view flags that we're not using prompt caching today — the typical org sees 50–90 % input-cost reduction by adding a `cache_control` block to the request. For the current pi-weather-station profile, the math doesn't work out yet:
+- The stable instructions in `aiSummaryCtrl.js` are ~300 tokens; Haiku's minimum cacheable prefix is **1024 tokens**, so we'd need to triple the system prompt before any of it became cacheable.
+- The 5-minute default TTL is shorter than our **15-minute server-side response cache** (which already absorbs the bulk of the hits — same exact reply, no LLM call at all).
+- A single Pi calls the API ~once / 15 min after the response cache expires, so the prompt cache would be cold every time anyway.
+
+**When this becomes worth shipping**:
+- The fleet grows to 10+ kiosks polling in parallel (same prefix shared across them within the 5-min cache window).
+- We add a long structured system prompt (e.g. radar-classification reference, multi-shot examples) that crosses the 1024-token threshold and improves the summary quality enough to justify the addition.
+- We add an interactive "ask Claude about this radar" feature that fires multiple requests in quick succession with a shared context block — a natural cache fit.
+
+Until one of those triggers, the existing 15-minute response cache + Haiku's already-cheap pricing make this premature optimization. Not zero-value (5–10 % cost shave eventually), just dominated by the response cache today.
+
 ### 🔌 Offline mode / graceful degradation
 A service worker caching the last known weather data and the compiled bundle would allow the interface to remain functional during brief internet outages — showing stale data with a clear timestamp rather than a blank panel.
 
@@ -210,6 +223,6 @@ The three items I would prioritize above all others if returning to this project
 
 ---
 
-*Last updated: 2026-05-05 (trend-aware risk colouring v2.5 ship notes — hysteresis, leaving label, AlertBanner softening, per-direction down-weighting, bumped API field, prompt-formatter compression refactor)*
+*Last updated: 2026-05-06 (added long-term entry for Anthropic prompt caching — currently dominated by the 15-min response cache, becomes interesting if fleet grows or system prompt expands beyond 1024 tokens)*
 
 
