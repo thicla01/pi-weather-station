@@ -159,6 +159,24 @@
   color: #78350f;
 }
 
+/* List of changed deploy/ artefacts shown inside the service-file-notice
+   when the in-app updater detects the installed copies have drifted from
+   upstream. Compact bullet list — each entry is a short file basename
+   wrapped in <code>. */
+.deploy-file-list {
+  margin: 4px 0 0;
+  padding-left: 18px;
+}
+
+.deploy-file-list li {
+  margin: 1px 0;
+}
+
+.deploy-file-list code {
+  font-family: monospace;
+  font-size: 10px;
+}
+
 /* Manual command area */
 .cmd-section {
   padding: 6px 12px;
@@ -178,7 +196,7 @@
   display: flex;
   /* Top-aligned so the Copy button doesn't drift to the vertical centre when
      the command wraps onto multiple lines (the longest variants — needsManualUpgrade
-     and serviceFileChanged — are 130-180 chars, well past the modal width). */
+     and changedDeployFiles — are 130-180 chars, well past the modal width). */
   align-items: flex-start;
   gap: 6px;
 }

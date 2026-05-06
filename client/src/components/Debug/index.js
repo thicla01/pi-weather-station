@@ -100,7 +100,7 @@ const Debug = () => {
   const forceUpdateCheck = useCallback(() => {
     setCheckingUpdate(true);
     // refreshUpdateCheck(true) hits /api/update-check/force and propagates
-    // every relevant field — including serviceFileChanged and
+    // every relevant field — including changedDeployFiles and
     // needsManualUpgrade — into AppContext, so an UpdateModal already open
     // re-renders with fresh data instead of staying stuck on the stale
     // pre-refresh state.
