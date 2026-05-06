@@ -103,6 +103,42 @@ const riskCache = new Map();      // key "lat3:lon3:ext"         → { result, e
 //   5-6     → very heavy / extreme, severe (rouge)
 const RISK_LEVELS = ["calm", "yellow", "yellow", "yellow", "orange", "red", "red"];
 
+// Per-ring hysteresis on the tier-deciding intensity. Instead of using the
+// single highest sample on the ring (which lets one rogue pixel from radar
+// noise or a tile-boundary artefact decide the displayed tier), the tier is
+// computed from the N-th highest sample. Yesterday morning's screenshot
+// captured the failure mode: a single sample at intensity 4 right inside
+// the 50 km zone painted the inner ring orange even though the visible
+// cells were 80-100 km out. With N=2, that lone pixel is treated as noise:
+// the ring needs at least two samples sustaining the tier-defining
+// intensity before the colour escalates.
+//
+// Why N=2 (and not 3+ or a percentage):
+//   - Inner ring has 161 samples (1 + 16×10), outer has 320 (32×10) — at
+//     these densities, requiring just 2 samples is already a meaningful
+//     filter (1.2 % / 0.6 % of the ring) without being so strict that real
+//     compact cells get suppressed.
+//   - A real precipitation cell large enough to matter typically covers
+//     several adjacent sample points on the dense grid; if only one sample
+//     reads heavy and all neighbours read calm, that's much more likely to
+//     be sampling noise than a 5 km-wide cell sitting between samples.
+const TIER_HYSTERESIS_N = 2;
+
+/**
+ * Return the n-th highest intensity in a sample array (1-indexed: n=1 is
+ * the max, n=2 is the second-highest, etc.). Returns 0 when fewer than n
+ * samples exist or when the n-th sample's intensity is 0.
+ *
+ * @param {Array<{intensity: Number}>} samples
+ * @param {Number} n 1-based rank
+ * @returns {Number} The n-th highest intensity, or 0 when not enough samples
+ */
+function nthHighestIntensity(samples, n) {
+  if (!samples || samples.length < n) return 0;
+  const sorted = samples.map((s) => s.intensity).sort((a, b) => b - a);
+  return sorted[n - 1] || 0;
+}
+
 /**
  * Compute a destination lat/lon from a starting point, distance, and bearing.
  * Uses the standard great-circle formula; accurate enough for our 5-100 km range.
@@ -792,27 +828,46 @@ async function getRiskLevels(lat, lon, options = {}) {
   const outerSamples = latest.outer;
   const innerMax = innerSamples.reduce((m, s) => Math.max(m, s.intensity), 0);
   const outerMax = outerSamples.reduce((m, s) => Math.max(m, s.intensity), 0);
+  // Tier-deciding intensity uses the N-th highest sample (TIER_HYSTERESIS_N
+  // = 2) so a lone rogue pixel can't single-handedly escalate the ring.
+  // maxIntensity is still kept on the API response for diagnostic purposes
+  // (Debug panel surfaces it), but the colour decision below uses the
+  // hysteretic value.
+  const innerTierIntensity = nthHighestIntensity(innerSamples, TIER_HYSTERESIS_N);
+  const outerTierIntensity = nthHighestIntensity(outerSamples, TIER_HYSTERESIS_N);
 
   // Trend per ring: bump tier one notch when a band is moving inward
   // fast enough to arrive within ~30 min (see computeRingTrend). The bump
-  // is gated on the ring's overall maxIntensity ≥ 2 — at intensity 1
+  // is gated on the tier-deciding intensity ≥ 2 — at intensity 1
   // (very light / drizzle) an "approaching" trend isn't actionable enough
   // to warrant raising the banner tier; the AI summary still mentions
   // light precipitation in its narrative when relevant. Past data showed
   // ~25 % of bumps were max=1 events that read as alarmist for what was
-  // essentially drizzle.
+  // essentially drizzle. Using the hysteretic intensity here too keeps
+  // the bump gate consistent — if hysteresis says "no real cell", we
+  // shouldn't bump either.
   const innerTrend = computeRingTrend(snapshots.map((s) => s.inner), unit, "inner");
   const outerTrend = outerPoints.length
     ? computeRingTrend(snapshots.map((s) => s.outer), unit, "outer")
     : "stable";
 
-  const innerBaseLevel = RISK_LEVELS[innerMax];
-  const outerBaseLevel = RISK_LEVELS[outerMax];
+  const innerBaseLevel = RISK_LEVELS[innerTierIntensity];
+  const outerBaseLevel = RISK_LEVELS[outerTierIntensity];
   const BUMP_MIN_INTENSITY = 2;
-  const innerLevel = innerTrend === "approaching" && innerMax >= BUMP_MIN_INTENSITY
+  const innerLevel = innerTrend === "approaching" && innerTierIntensity >= BUMP_MIN_INTENSITY
     ? TIER_BUMP[innerBaseLevel] : innerBaseLevel;
-  const outerLevel = outerTrend === "approaching" && outerMax >= BUMP_MIN_INTENSITY
+  const outerLevel = outerTrend === "approaching" && outerTierIntensity >= BUMP_MIN_INTENSITY
     ? TIER_BUMP[outerBaseLevel] : outerBaseLevel;
+
+  // `bumped` is exposed directly so the AlertBanner doesn't have to
+  // reverse-engineer it from `level vs naturalTier(maxIntensity)` — that
+  // derivation breaks once hysteresis decouples the displayed tier from
+  // raw max intensity (a max=4 / tier=2 ring bumped to orange by trend
+  // would compare equal to naturalTier(max=4)=orange and the client
+  // would miss the bump). The client reads `bumped` and picks the softer
+  // "alert.approaching" wording when set.
+  const innerBumped = innerLevel !== innerBaseLevel;
+  const outerBumped = outerLevel !== outerBaseLevel;
 
   // Per-sample intensities ride along with the ring summary so the
   // WeatherMap can colour each visible sampling-point dot by its own
@@ -820,9 +875,9 @@ async function getRiskLevels(lat, lon, options = {}) {
   // {direction, distance, intensity}; the client matches them to its
   // own buildSamplingPoints output by `${direction}:${distance}` key.
   const result = {
-    inner: { level: innerLevel, maxIntensity: innerMax, trend: innerTrend, samples: innerSamples },
+    inner: { level: innerLevel, maxIntensity: innerMax, trend: innerTrend, bumped: innerBumped, samples: innerSamples },
     outer: outerPoints.length
-      ? { level: outerLevel, maxIntensity: outerMax, trend: outerTrend, samples: outerSamples }
+      ? { level: outerLevel, maxIntensity: outerMax, trend: outerTrend, bumped: outerBumped, samples: outerSamples }
       : null,
     timestamp: latest.frame.time,
   };
@@ -830,14 +885,15 @@ async function getRiskLevels(lat, lon, options = {}) {
   // Diagnostic line — every server-side risk computation gets logged with
   // the decision values so post-mortem on a "why did the banner fire then?"
   // question can use journalctl. Compact one-line format for grep-friendly
-  // analysis: include the cache key (lat:lon:radius:unit), both rings'
-  // base intensity, trend, and final (possibly bumped) level.
-  const innerBumped = innerLevel !== innerBaseLevel ? "↑" : "·";
-  const outerBumped = outerLevel !== outerBaseLevel ? "↑" : "·";
+  // analysis. Surfaces both raw max AND the hysteretic tier intensity so
+  // a "why did the banner stay quiet?" question can confirm hysteresis
+  // fired (max ≥ 4 but tier < 4 → ring stays yellow).
+  const innerBumpMark = innerBumped ? "↑" : "·";
+  const outerBumpMark = outerBumped ? "↑" : "·";
   const outerLog = outerPoints.length
-    ? `outer=${outerLevel}${outerBumped}(max=${outerMax},trend=${outerTrend})`
+    ? `outer=${outerLevel}${outerBumpMark}(max=${outerMax},tier=${outerTierIntensity},trend=${outerTrend})`
     : "outer=n/a";
-  console.log(`[risk] ${cacheKey}: inner=${innerLevel}${innerBumped}(max=${innerMax},trend=${innerTrend}) ${outerLog}`);
+  console.log(`[risk] ${cacheKey}: inner=${innerLevel}${innerBumpMark}(max=${innerMax},tier=${innerTierIntensity},trend=${innerTrend}) ${outerLog}`);
 
   riskCache.set(cacheKey, { result, expiresAt: Date.now() + ANALYSIS_CACHE_TTL });
   recordServiceCall("RainViewer (risk)", 200, "OK");

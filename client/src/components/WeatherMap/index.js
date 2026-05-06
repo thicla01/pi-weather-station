@@ -465,8 +465,8 @@ const WeatherMap = ({ zoom, dark }) => {
     setOuterRisk,
     setInnerTrend,
     setOuterTrend,
-    setInnerMaxIntensity,
-    setOuterMaxIntensity,
+    setInnerBumped,
+    setOuterBumped,
   } = useContext(AppContext);
 
   // Largest sample in each ring drives the circle radius. Multiplied by
@@ -557,8 +557,8 @@ const WeatherMap = ({ zoom, dark }) => {
       setOuterRisk(null);
       setInnerTrend("stable");
       setOuterTrend("stable");
-      setInnerMaxIntensity(0);
-      setOuterMaxIntensity(0);
+      setInnerBumped(false);
+      setOuterBumped(false);
       setRiskSamples(new Map());
       return undefined;
     }
@@ -575,8 +575,8 @@ const WeatherMap = ({ zoom, dark }) => {
           setOuterRisk(res.data?.outer?.level || null);
           setInnerTrend(res.data?.inner?.trend || "stable");
           setOuterTrend(res.data?.outer?.trend || "stable");
-          setInnerMaxIntensity(res.data?.inner?.maxIntensity ?? 0);
-          setOuterMaxIntensity(res.data?.outer?.maxIntensity ?? 0);
+          setInnerBumped(Boolean(res.data?.inner?.bumped));
+          setOuterBumped(Boolean(res.data?.outer?.bumped));
           // Build the lookup map from inner + outer samples. Same
           // direction:distance keying as buildSamplingPoints, so the
           // renderer can colour each dot in O(1).
@@ -601,7 +601,7 @@ const WeatherMap = ({ zoom, dark }) => {
       clearInterval(riskIntervalRef.current);
       riskIntervalRef.current = null;
     };
-  }, [riskFetchEnabled, mapGeo, distanceUnit, RISK_REFRESH_INTERVAL, setInnerRisk, setOuterRisk, setInnerTrend, setOuterTrend, setInnerMaxIntensity, setOuterMaxIntensity]);
+  }, [riskFetchEnabled, mapGeo, distanceUnit, RISK_REFRESH_INTERVAL, setInnerRisk, setOuterRisk, setInnerTrend, setOuterTrend, setInnerBumped, setOuterBumped]);
 
   // Radar animation: start/stop interval based on animateWeatherMap toggle.
   // Using a ref for the interval avoids recreating it on every frame tick.

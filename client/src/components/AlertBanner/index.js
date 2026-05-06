@@ -16,43 +16,35 @@ function severity(level) {
   return 0;
 }
 
-// What tier a given raw maxIntensity would map to without any v2 trend
-// bump. Mirrors the server's RISK_LEVELS array (radarAnalyzerCtrl.js):
-//   intensity 0     → calm
-//   intensity 1-3   → yellow
-//   intensity 4     → orange
-//   intensity 5-6   → red
-function naturalTier(maxIntensity) {
-  if (maxIntensity >= 5) return "red";
-  if (maxIntensity >= 4) return "orange";
-  if (maxIntensity >= 1) return "yellow";
-  return "calm";
-}
-
 /**
  * Pick the i18n key for the banner based on which ring is the source of
  * the worst tier and whether that source is showing a real intensity at
  * its tier (v1 — heavy precip is actually present), was bumped one notch
- * by the v2 trend logic (intensity below the natural threshold +
- * trend === "approaching"), or is currently moving away (trend ===
- * "leaving"). Softening rules:
- *   - v2-bumped → "précipitations approchent" — saying "fortes" when the
- *     actual measured intensity is 1 would be misleading; the threat is
+ * by the v2 trend logic, or is currently moving away. Softening rules:
+ *   - bumped (server says trend pushed the tier up) → "précipitations
+ *     approchent" — saying "fortes" when the bump came from trend rather
+ *     than sustained heavy intensity would be misleading; the threat is
  *     "a band is moving in fast", not "heavy rain is here".
  *   - leaving → "{tier} mais s'éloignent" — the dashed-circle tier still
  *     reflects the present intensity, but the banner copy shouldn't read
  *     alarmist for a band already on its way out (the morning false-positive
  *     screenshot from May 5 captured this exact case).
  *
+ * The bumped boolean comes straight from the server now — it used to be
+ * derived client-side from `level vs naturalTier(maxIntensity)`, but
+ * once hysteresis decoupled tier from raw max intensity that derivation
+ * stopped being reliable. The server already knows whether it bumped,
+ * so it just tells us.
+ *
  * @param {String|null} innerRisk
  * @param {String|null} outerRisk
  * @param {String} innerTrend "approaching" | "leaving" | "stable"
  * @param {String} outerTrend "approaching" | "leaving" | "stable"
- * @param {Number} innerMaxIntensity 0-6
- * @param {Number} outerMaxIntensity 0-6
+ * @param {Boolean} innerBumped Server flag — inner tier bumped by trend
+ * @param {Boolean} outerBumped Server flag — outer tier bumped by trend
  * @returns {{tier: String, i18nKey: String} | null} Banner state, or null when no alert needs to be shown
  */
-function getRadarAlertState(innerRisk, outerRisk, innerTrend, outerTrend, innerMaxIntensity, outerMaxIntensity) {
+function getRadarAlertState(innerRisk, outerRisk, innerTrend, outerTrend, innerBumped, outerBumped) {
   const innerSev = severity(innerRisk);
   const outerSev = severity(outerRisk);
   const maxSev = Math.max(innerSev, outerSev);
@@ -61,15 +53,8 @@ function getRadarAlertState(innerRisk, outerRisk, innerTrend, outerTrend, innerM
   const tier = maxSev === 3 ? "red" : "orange";
   const innerIsSource = innerSev === maxSev;
   const sourceTrend = innerIsSource ? innerTrend : outerTrend;
-  const sourceMaxIntensity = innerIsSource ? innerMaxIntensity : outerMaxIntensity;
-  const sourceLevel = innerIsSource ? innerRisk : outerRisk;
-  // v2 bump is when the displayed level is higher than what the raw
-  // maxIntensity would map to. trend === "approaching" is the tell, but
-  // we also check the level mismatch so a moving cell that ALREADY has
-  // real heavy intensity keeps its "fortes" wording (it's both heavy
-  // AND moving — still "fortes").
-  const bumpedByV2 = sourceTrend === "approaching" && sourceLevel !== naturalTier(sourceMaxIntensity);
-  if (bumpedByV2) {
+  const sourceBumped = innerIsSource ? innerBumped : outerBumped;
+  if (sourceBumped) {
     return { tier, i18nKey: "alert.approaching" };
   }
   if (sourceTrend === "leaving") {
@@ -113,7 +98,7 @@ const AlertBanner = () => {
   const {
     innerRisk, outerRisk,
     innerTrend, outerTrend,
-    innerMaxIntensity, outerMaxIntensity,
+    innerBumped, outerBumped,
     govAlerts,
   } = useContext(AppContext);
   const { t, i18n } = useTranslation();
@@ -136,7 +121,7 @@ const AlertBanner = () => {
   const radarState = getRadarAlertState(
     innerRisk, outerRisk,
     innerTrend, outerTrend,
-    innerMaxIntensity, outerMaxIntensity,
+    innerBumped, outerBumped,
   );
   if (!radarState) return null;
   return (

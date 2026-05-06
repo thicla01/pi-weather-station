@@ -139,16 +139,18 @@ export function AppContextProvider({ children }) {
   // "calm" | "yellow" | "orange" | "red".
   const [innerRisk, setInnerRisk] = useState(null);
   const [outerRisk, setOuterRisk] = useState(null);
-  // Raw maxIntensity + trend from each ring — lets the AlertBanner detect
-  // when a tier was bumped purely by v2 (trend === "approaching" + raw
-  // intensity below the natural threshold for the displayed tier) and
-  // soften the wording accordingly ("précipitations approchent" instead
-  // of the alarmist "précipitations fortes" when nothing heavy is
-  // actually on the ring yet).
+  // Per-ring trend ("approaching" | "leaving" | "stable") and a `bumped`
+  // flag the server emits when the displayed tier ended up higher than
+  // the base RISK_LEVELS mapping (i.e. when v2 trend logic pushed it up
+  // one notch). The AlertBanner reads `bumped` to pick the softer
+  // "alert.approaching" copy in that case — used to be derived client-
+  // side from `level vs naturalTier(maxIntensity)`, but that derivation
+  // broke once hysteresis decoupled tier from raw max intensity, so the
+  // server exposes the boolean directly.
   const [innerTrend, setInnerTrend] = useState("stable");
   const [outerTrend, setOuterTrend] = useState("stable");
-  const [innerMaxIntensity, setInnerMaxIntensity] = useState(0);
-  const [outerMaxIntensity, setOuterMaxIntensity] = useState(0);
+  const [innerBumped, setInnerBumped] = useState(false);
+  const [outerBumped, setOuterBumped] = useState(false);
   // Last AQHI payload returned by /api/air-quality (lifted from
   // <UvAqiBadges> so the Debug panel can display the chosen station's
   // name, distance, observation/forecast kind without refetching).
@@ -1144,10 +1146,10 @@ export function AppContextProvider({ children }) {
     setInnerTrend,
     outerTrend,
     setOuterTrend,
-    innerMaxIntensity,
-    setInnerMaxIntensity,
-    outerMaxIntensity,
-    setOuterMaxIntensity,
+    innerBumped,
+    setInnerBumped,
+    outerBumped,
+    setOuterBumped,
     aqhiInfo,
     setAqhiInfo,
     govAlerts,
