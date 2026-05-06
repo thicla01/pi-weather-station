@@ -91,7 +91,7 @@ similar names:
 
 | File | What it is | Where |
 |---|---|---|
-| `npm-audit.log` | Output of `npm audit` runs from `install.sh`, never updated by the running server | `<repo>/npm-audit.log` (gitignored) |
+| `npm-audit.log` | Legacy: output of `npm audit` runs from older versions of `install.sh`. Vulnerability scanning has moved to Dependabot on GitHub (`.github/dependabot.yml`); this file no longer gets updated and may be missing on fresh installs | `<repo>/npm-audit.log` (gitignored) |
 | `request-counts.json` | Daily quota counters for external APIs, not human-readable as logs | `<repo>/server/request-counts.json` (gitignored) |
 
 ## Debug panel — bottom-of-page log preview
