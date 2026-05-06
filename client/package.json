@@ -23,7 +23,7 @@
     "@iconify/icons-map": "^1.0.5",
     "@iconify/icons-wi": "^1.0.3",
     "@iconify/react": "^5.2.1",
-    "axios": "^1.14.0",
+    "axios": "^1.15.2",
     "babel-loader": "^10.1.1",
     "chart.js": "^4.5.1",
     "date-fns": "^4.1.0",
