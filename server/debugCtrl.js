@@ -483,12 +483,17 @@ async function getDebugInfo(req, res) {
   }
   if (!logFound) logs = ["Log file not available"];
 
-  // Vulnerability scan URL — points the user at the GitHub repo's Dependabot
-  // alerts page, which is the live source of truth for dependency vulns
-  // since PR #22 retired the on-device `npm audit` snapshot. Built per-fork
-  // from the same git remote that drives the in-app updater, so a fork at
-  // (say) elewin/pi-weather-station gets its own URL automatically.
-  const vulnerabilityScanUrl = `https://github.com/${getRepo()}/security/dependabot`;
+  // Vulnerability scan URL — points the user at the public list of pull
+  // requests labelled "dependencies" on the GitHub repo (open + closed,
+  // both security PRs and weekly version-update PRs). Public-facing on
+  // purpose: the actual `/security/dependabot` alerts page is private to
+  // maintainers, so a non-logged-in user (kiosk Chromium, anyone with a
+  // shared screen) would hit a 404 + login prompt. The PRs view is the
+  // best public proxy — it shows what Dependabot has actually opened and
+  // merged, which is the live indicator of dependency-vuln management
+  // since PR #22 retired the on-device `npm audit` snapshot. Built
+  // per-fork from the same git remote that drives the in-app updater.
+  const vulnerabilityScanUrl = `https://github.com/${getRepo()}/pulls?q=is%3Apr+label%3Adependencies`;
 
   const [providerStatus, connectivity, updateInfo] = await Promise.all([
     fetchProviderStatus(),

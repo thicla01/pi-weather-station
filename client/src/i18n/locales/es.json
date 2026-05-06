@@ -219,7 +219,7 @@
     "securityEvents": "EVENTOS DE SEGURIDAD",
     "noBlockedRequests": "Sin solicitudes bloqueadas",
     "vulnerabilityScan": "ANÁLISIS DE VULNERABILIDADES",
-    "vulnerabilityScanNotice": "Las vulnerabilidades de dependencias son escaneadas y parcheadas automáticamente por Dependabot en GitHub. La fuente de verdad en vivo — alertas, niveles de gravedad y PRs de seguridad pendientes — está en el repositorio:",
+    "vulnerabilityScanNotice": "Las vulnerabilidades de dependencias son escaneadas y parcheadas automáticamente por Dependabot en GitHub. La lista de PRs de dependencias abiertas y fusionadas (seguridad + actualizaciones de versión) es visible públicamente en el repositorio:",
     "notAvailable": "No disponible",
     "internet": "Internet",
     "online": "EN LÍNEA",
