@@ -18,6 +18,17 @@ const compressionStats = require("./compressionStats");
 const ANALYSIS_CACHE_TTL = 5 * 60 * 1000;   // analysis text cached 5 min per location
 const TILE_CACHE_TTL = 12 * 60 * 1000;      // tile PNGs cached 12 min (RainViewer refreshes every 10 min)
 const FETCH_TIMEOUT_MS = 8 * 1000;
+// Retry delays between fetchRadarFrames attempts. Two retries (3 total
+// attempts) with exponential backoff. Targets transient packet loss /
+// brief link spikes on marginal residential links — observed May 5 2026
+// on a Pi behind a building-to-building EAP-215 bridge where the
+// `weather-maps.json` fetch occasionally timed out for a 4-min window
+// then self-healed. The link itself was fine (0 % packet loss in 20
+// pings, ~130 ms RTT), just spike-prone. Worst case (RainViewer fully
+// down): ~26 s before we surface the 500 — non-fatal because the AI
+// summary degrades gracefully without the radar paragraph and the
+// poller retries on the 5-min cadence.
+const FETCH_RETRY_DELAYS_MS = [500, 1500];
 const ZOOM = 7;                             // RainViewer's max native zoom — best detail
 const TILE_SIZE = 512;
 const TARGET_OFFSETS_MIN = [0, -15, -45];   // now, 15 min ago, 45 min ago
@@ -217,15 +228,31 @@ function pixelToIntensity(r, g, b, a) {
 }
 
 /**
- * Fetch the latest list of past radar frames from RainViewer.
+ * Fetch the latest list of past radar frames from RainViewer. Retries
+ * up to FETCH_RETRY_DELAYS_MS.length times on transient failure, with
+ * exponential backoff between attempts. Each attempt uses the standard
+ * FETCH_TIMEOUT_MS axios timeout. Throws the last error after the final
+ * attempt fails, so the caller's existing try/catch still surfaces a
+ * 500 to the Debug panel when RainViewer is genuinely unreachable.
  *
  * @returns {Promise<Array<{time: Number, path: String}>>}
  */
 async function fetchRadarFrames() {
-  const r = await axios.get("https://api.rainviewer.com/public/weather-maps.json", {
-    timeout: FETCH_TIMEOUT_MS,
-  });
-  return r.data?.radar?.past || [];
+  let lastErr = null;
+  for (let attempt = 0; attempt <= FETCH_RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      const r = await axios.get("https://api.rainviewer.com/public/weather-maps.json", {
+        timeout: FETCH_TIMEOUT_MS,
+      });
+      return r.data?.radar?.past || [];
+    } catch (err) {
+      lastErr = err;
+      if (attempt < FETCH_RETRY_DELAYS_MS.length) {
+        await new Promise((resolve) => setTimeout(resolve, FETCH_RETRY_DELAYS_MS[attempt]));
+      }
+    }
+  }
+  throw lastErr;
 }
 
 /**
