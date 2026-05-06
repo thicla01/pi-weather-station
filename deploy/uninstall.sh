@@ -231,7 +231,37 @@ if [[ "$PLATFORM" != "Darwin" ]]; then
     fi
 fi
 
-# --- 8. Project directory (optional) ---
+# --- 8. Runtime artefacts (caches, logs, counters) ---
+# These are gitignored files regenerated automatically by the running server
+# (or left over from older install.sh runs in the case of npm-audit.log).
+# Cleaned unconditionally — they're pure derived data, no user content.
+echo ""
+echo ">> Cleaning runtime artefacts..."
+RUNTIME_FILES=(
+    "$REPO_DIR/npm-audit.log"
+    "$REPO_DIR/server.log"
+    "$REPO_DIR/server/weather-cache.json"
+    "$REPO_DIR/server/geolocation-cache.json"
+    "$REPO_DIR/server/request-counts.json"
+)
+RUNTIME_REMOVED=0
+for FILE in "${RUNTIME_FILES[@]}"; do
+    if [ -f "$FILE" ]; then
+        rm -f "$FILE"
+        echo "   $(basename "$FILE") removed."
+        RUNTIME_REMOVED=$((RUNTIME_REMOVED + 1))
+    fi
+done
+if [ -d "$REPO_DIR/report" ]; then
+    rm -rf "$REPO_DIR/report"
+    echo "   report/ directory removed."
+    RUNTIME_REMOVED=$((RUNTIME_REMOVED + 1))
+fi
+if [ "$RUNTIME_REMOVED" -eq 0 ]; then
+    echo "   Nothing to clean."
+fi
+
+# --- 9. Project directory (optional) ---
 echo ""
 read -p ">> Remove the entire project directory ($REPO_DIR)? (y/N) " -n 1 -r
 echo
