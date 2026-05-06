@@ -78,9 +78,18 @@ async function checkConnectivity() {
     return _connectivityCache;
   }
 
+  // Timeout was 3 s historically — fine on a typical residential line
+  // but too tight on marginal links (observed May 5 2026 on a Pi behind
+  // an EAP-215 building-to-building wireless bridge: 130 ms RTT to
+  // 1.1.1.1 with mdev 36 ms means a typical HTTPS HEAD takes ~800 ms,
+  // but a brief congestion spike pushed the request past 3 s and
+  // flagged the kiosk as offline for the full 60 s cache TTL — even
+  // though the user was actively mid-screen-share through the same
+  // link). 8 s gives the same fail-fast intent against a real internet
+  // outage while tolerating a 5-10× latency spike.
   const start = Date.now();
   try {
-    await axios.head("https://1.1.1.1", { timeout: 3000 });
+    await axios.head("https://1.1.1.1", { timeout: 8000 });
     _connectivityCache = { online: true, latencyMs: Date.now() - start };
   } catch {
     _connectivityCache = { online: false, latencyMs: null };
