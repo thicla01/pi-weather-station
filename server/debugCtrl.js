@@ -20,7 +20,18 @@ const PROVIDER_STATUS_APIS = [
   { name: "ipapi.co",        type: "html",                 url: "https://ipapi.co/status/"                           },
   { name: "LocationIQ",      type: "rss",                  url: "https://status.locationiq.com/rss"                  },
   { name: "Anthropic Claude", type: "statuspage-component", url: "https://status.claude.com/api/v2/components.json", componentName: "Claude API" },
+  // RainViewer hosts its public status page on Hyperping (status.rainviewer.com),
+  // which is a React SPA without a stable JSON status endpoint we can scrape
+  // the way the Statuspage.io entries above do. Fall back to an "api-ping"
+  // probe of the actual API URL the radar code uses for the frame index —
+  // semantics are slightly different (it answers "is RainViewer's API
+  // currently answering?" rather than "is RainViewer self-reporting issues?")
+  // but the result is what the kiosk owner cares about. The latency reading
+  // also surfaces slow-but-up situations (>3 s response time → minor).
+  { name: "RainViewer",      type: "api-ping",             url: "https://api.rainviewer.com/public/weather-maps.json" },
 ];
+
+const API_PING_SLOW_MS = 3000; // above this threshold the API is "responsive but slow"
 
 function parseStatuspage(name, data) {
   const { indicator, description } = data?.status ?? {};
@@ -106,6 +117,24 @@ async function fetchProviderStatus() {
 
   const results = await Promise.all(
     PROVIDER_STATUS_APIS.map(async ({ name, type, url, componentName }) => {
+      // api-ping is structurally different from the other types: latency is
+      // part of the signal and a non-2xx / unreachable result is itself the
+      // status answer (not an "unknown — couldn't fetch"). Handle it inline
+      // instead of falling through to the generic try/catch.
+      if (type === "api-ping") {
+        const start = Date.now();
+        try {
+          await axios.get(url, { timeout: 5000 });
+          const latencyMs = Date.now() - start;
+          if (latencyMs >= API_PING_SLOW_MS) {
+            return { name, indicator: "minor", description: `API responsive but slow (${latencyMs} ms)` };
+          }
+          return { name, indicator: "none", description: `API responsive (${latencyMs} ms)` };
+        } catch (err) {
+          const detail = err.code === "ECONNABORTED" ? "API timeout" : "API unreachable";
+          return { name, indicator: "major", description: detail };
+        }
+      }
       try {
         const res = await axios.get(url, { timeout: 5000 });
         if (type === "statuspage")           return parseStatuspage(name, res.data);
