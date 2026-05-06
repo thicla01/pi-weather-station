@@ -631,37 +631,38 @@ async function analyzeRadar(lat, lon, options = {}) {
 const TIER_BUMP = { calm: "yellow", yellow: "orange", orange: "red", red: "red" };
 
 /**
- * Compute a per-ring trend label by comparing the radial intensity profile
- * across the 3 captured frames. Returns:
- *   - "approaching" when at least one direction's strongest-intensity sample
- *     shifted inward by more than the unit-aware threshold over the window
- *     AND the projected arrival at the centre is under 30 minutes;
- *   - "leaving" when no direction qualifies as approaching but at least one
- *     shows the symmetric outward shift exceeding the same threshold (used
- *     to soften AlertBanner copy when an orange/red ring is actually moving
- *     away — the dashed-circle tier still reflects current intensity, but
- *     the banner wording shouldn't sound alarmist for a band on its way out);
- *   - "stable" otherwise.
+ * Compute the per-direction trend label by comparing the radial intensity
+ * profile across the captured frames. For each direction returns one of
+ *   - "approaching" — strongest-intensity sample shifted inward by more
+ *     than the unit-aware threshold over the window AND projected arrival
+ *     at the centre is under 30 minutes;
+ *   - "leaving" — strongest-intensity sample shifted outward by more than
+ *     the same threshold;
+ *   - "stable" — neither (drift below the threshold, or no signal in this
+ *     direction in either the latest or oldest frame).
  *
- * "Approaching" wins ties — when some directions are coming in while others
- * leave, the inbound ones are the safety concern.
+ * Same threshold is used for both directions of motion so the "leaving"
+ * label is held to the same evidence bar as "approaching" — same logic
+ * we already trust to bump the displayed tier.
+ *
+ * Returns an empty Map when there's not enough data (single frame, or
+ * empty oldest/latest snapshot) so callers can short-circuit cleanly.
  *
  * @param {Array<Array<{direction: String, distance: Number, intensity: Number}>>} framesSamples
  *   Per-frame samples ordered newest → oldest (snapshots[0] = now, [1] = -15, [2] = -45).
- *   Each frame's samples cover the same direction × distance grid.
- * @param {String} unit "km" or "mi" — selects the unit-aware inward-shift threshold.
- * @param {"inner" | "outer"} ring Which ring is being analysed — outer uses a
- *   slightly larger threshold because the same shift in km is a smaller
- *   fraction of the outer-ring radius (a 5 km / 45 min movement is
- *   ~10 % of the inner ring's 50 km, but only ~5 % of the outer ring's
- *   100 km — too small to reliably distinguish from sampling noise).
- * @returns {"approaching" | "leaving" | "stable"}
+ * @param {String} unit "km" or "mi" — selects the unit-aware threshold.
+ * @param {"inner" | "outer"} ring Which ring is being analysed — outer
+ *   uses a proportionally larger threshold so a 5 km drift on the 100 km
+ *   ring isn't mistaken for sampling noise (~5 % of the radius vs ~10 %
+ *   on the inner ring).
+ * @returns {Map<String, "approaching" | "leaving" | "stable">}
  */
-function computeRingTrend(framesSamples, unit, ring) {
-  if (!framesSamples || framesSamples.length < 2) return "stable";
+function computePerDirectionTrends(framesSamples, unit, ring) {
+  const map = new Map();
+  if (!framesSamples || framesSamples.length < 2) return map;
   const oldest = framesSamples[framesSamples.length - 1];
   const latest = framesSamples[0];
-  if (!oldest?.length || !latest?.length) return "stable";
+  if (!oldest?.length || !latest?.length) return map;
 
   // Spans the time window between the oldest and the latest snapshot, in
   // minutes. TARGET_OFFSETS_MIN is [0, -15, -45], so the typical span is
@@ -669,27 +670,22 @@ function computeRingTrend(framesSamples, unit, ring) {
   // ever changes (e.g. dropping the -45 frame on RainViewer hiccups).
   const spanMin = Math.abs(TARGET_OFFSETS_MIN[framesSamples.length - 1] || 0) || 45;
 
-  // Inward-shift threshold tuned empirically and now ring-aware. Inner ring
-  // (5-50 km) uses 5 km / 3 mi — a band crossing this much in 45 min is
-  // moving fast enough that the next 30 min matter. Outer ring (55-100 km)
-  // uses 8 km / 5 mi — proportional to the larger radius so we don't get
-  // false positives from sampling noise on the wider ring (May 2026 retune
-  // showed only 1 outer bump in 10 h of monitoring with the inner 5-km
-  // threshold).
+  // Inward-shift threshold tuned empirically and now ring-aware. Inner
+  // ring (5-50 km) uses 5 km / 3 mi — a band crossing this much in 45 min
+  // is moving fast enough that the next 30 min matter. Outer ring (55-
+  // 100 km) uses 8 km / 5 mi — proportional to the larger radius so we
+  // don't get false positives from sampling noise on the wider ring.
   const innerThreshold = unit === "mi" ? 3 : 5;
   const outerThreshold = unit === "mi" ? 5 : 8;
   const inwardThreshold = ring === "outer" ? outerThreshold : innerThreshold;
   const arrivalLimitMin = 30;
 
-  // Per direction: find the distance of the strongest sample in each frame.
-  // Threshold lowered to intensity ≥ 1 (very light or above) after the
-  // May 2026 overnight observation showed real approaching cells with
-  // intensity 1-3 never triggered the previous ≥ 2 threshold. The denser
-  // 16/32-direction grid lets us tolerate the extra noise from light
-  // samples — a transient single-pixel bloom on one bearing won't survive
-  // the per-direction shift requirement.
+  // Per direction: find the distance of the strongest sample in each
+  // frame (intensity ≥ 1, lowered after May 2026 retune so light-precip
+  // approaches get caught). The denser 16/32-direction grid absorbs the
+  // extra noise — a transient single-pixel bloom on one bearing won't
+  // survive the per-direction shift requirement.
   const directions = [...new Set(latest.map((s) => s.direction))];
-  let leavingFound = false;
   for (const dir of directions) {
     if (dir === "C") continue; // centre point has no radial movement
     const peaks = framesSamples.map((snap) => {
@@ -707,24 +703,84 @@ function computeRingTrend(framesSamples, unit, ring) {
     const peakOld = peaks[peaks.length - 1];
     if (peakNow.distance == null || peakOld.distance == null) continue;
     const inwardShift = peakOld.distance - peakNow.distance;
-    // Symmetric outward shift on this direction → candidate "leaving".
-    // Only kept around if no direction qualifies as approaching by the
-    // end of the loop. Approaching wins ties: an orange ring with two
-    // bands, one inbound and one outbound, should still surface as a
-    // safety concern, not as a calming "moving away" message.
+    if (inwardShift >= inwardThreshold) {
+      // Project arrival: how long until this band reaches the centre at
+      // the current inward speed?
+      const speedPerMin = inwardShift / spanMin;
+      if (speedPerMin > 0) {
+        const minutesToArrival = peakNow.distance / speedPerMin;
+        if (minutesToArrival < arrivalLimitMin) {
+          map.set(dir, "approaching");
+          continue;
+        }
+      }
+    }
     if (inwardShift <= -inwardThreshold) {
-      leavingFound = true;
+      map.set(dir, "leaving");
       continue;
     }
-    if (inwardShift < inwardThreshold) continue;
-    // Project arrival: how long until this band reaches the centre at
-    // the current inward speed?
-    const speedPerMin = inwardShift / spanMin;
-    if (speedPerMin <= 0) continue;
-    const minutesToArrival = peakNow.distance / speedPerMin;
-    if (minutesToArrival < arrivalLimitMin) return "approaching";
+    map.set(dir, "stable");
+  }
+  return map;
+}
+
+/**
+ * Collapse a per-direction trend map into a single ring-level label.
+ * Approaching wins over leaving, leaving wins over stable: an orange
+ * ring with one inbound band and one outbound band stays a safety
+ * concern, not a calming "moving away" signal.
+ *
+ * @param {Map<String, String>} perDirMap Map produced by computePerDirectionTrends
+ * @returns {"approaching" | "leaving" | "stable"}
+ */
+function summarizeRingTrend(perDirMap) {
+  if (!perDirMap || perDirMap.size === 0) return "stable";
+  let leavingFound = false;
+  for (const trend of perDirMap.values()) {
+    if (trend === "approaching") return "approaching";
+    if (trend === "leaving") leavingFound = true;
   }
   return leavingFound ? "leaving" : "stable";
+}
+
+/**
+ * Down-weight a sample's intensity by one tier when its direction is
+ * trending "leaving". Symmetric to the existing tier-bump on approaching
+ * rings: just as we treat an inbound band as more dangerous than its raw
+ * intensity suggests, we treat an outbound one as less dangerous. Used
+ * by the per-ring tier decision so a heavy sample at NE-leaving counts
+ * the same as a moderate sample at NE-stable, while an equally-heavy
+ * sample at NW-approaching keeps full weight.
+ *
+ * Caps below 0 — a sample with no precipitation stays clear regardless.
+ *
+ * @param {{direction: String, intensity: Number}} sample
+ * @param {Map<String, String>} perDirMap
+ * @returns {Number} The effective intensity for tier decisions
+ */
+function effectiveIntensityFor(sample, perDirMap) {
+  if (!sample || sample.intensity <= 0) return 0;
+  const trend = perDirMap.get(sample.direction);
+  if (trend === "leaving") return Math.max(0, sample.intensity - 1);
+  return sample.intensity;
+}
+
+/**
+ * Compact "a→A/l→L/s→S" string for the per-direction trend distribution
+ * — used in the diagnostic log so grep on "leaving" or "dirs=a" can pull
+ * the relevant samples without parsing JSON.
+ *
+ * @param {Map<String, String>} perDirMap
+ * @returns {String}
+ */
+function trendDistribution(perDirMap) {
+  let a = 0, l = 0, s = 0;
+  for (const t of perDirMap.values()) {
+    if (t === "approaching") a++;
+    else if (t === "leaving") l++;
+    else s++;
+  }
+  return `a${a}/l${l}/s${s}`;
 }
 
 /**
@@ -837,29 +893,42 @@ async function getRiskLevels(lat, lon, options = {}) {
   const outerSamples = latest.outer;
   const innerMax = innerSamples.reduce((m, s) => Math.max(m, s.intensity), 0);
   const outerMax = outerSamples.reduce((m, s) => Math.max(m, s.intensity), 0);
-  // Tier-deciding intensity uses the N-th highest sample (TIER_HYSTERESIS_N
-  // = 2) so a lone rogue pixel can't single-handedly escalate the ring.
-  // maxIntensity is still kept on the API response for diagnostic purposes
-  // (Debug panel surfaces it), but the colour decision below uses the
-  // hysteretic value.
-  const innerTierIntensity = nthHighestIntensity(innerSamples, TIER_HYSTERESIS_N);
-  const outerTierIntensity = nthHighestIntensity(outerSamples, TIER_HYSTERESIS_N);
 
-  // Trend per ring: bump tier one notch when a band is moving inward
-  // fast enough to arrive within ~30 min (see computeRingTrend). The bump
-  // is gated on the tier-deciding intensity ≥ 2 — at intensity 1
-  // (very light / drizzle) an "approaching" trend isn't actionable enough
-  // to warrant raising the banner tier; the AI summary still mentions
-  // light precipitation in its narrative when relevant. Past data showed
-  // ~25 % of bumps were max=1 events that read as alarmist for what was
-  // essentially drizzle. Using the hysteretic intensity here too keeps
-  // the bump gate consistent — if hysteresis says "no real cell", we
-  // shouldn't bump either.
-  const innerTrend = computeRingTrend(snapshots.map((s) => s.inner), unit, "inner");
-  const outerTrend = outerPoints.length
-    ? computeRingTrend(snapshots.map((s) => s.outer), unit, "outer")
-    : "stable";
+  // Per-direction trend maps drive both the ring-level trend label AND
+  // the directional-weighting refinement: a sample whose direction is
+  // trending "leaving" is downgraded one intensity tier when computing
+  // the tier-deciding intensity. Symmetric to the existing tier-bump on
+  // approaching rings — same evidence bar (the unit-aware threshold over
+  // the 45-minute window) on both sides of the inbound/outbound axis.
+  const innerDirTrends = computePerDirectionTrends(snapshots.map((s) => s.inner), unit, "inner");
+  const outerDirTrends = outerPoints.length
+    ? computePerDirectionTrends(snapshots.map((s) => s.outer), unit, "outer")
+    : new Map();
+  const innerTrend = summarizeRingTrend(innerDirTrends);
+  const outerTrend = outerPoints.length ? summarizeRingTrend(outerDirTrends) : "stable";
 
+  // Tier-deciding intensity uses the N-th highest sample
+  // (TIER_HYSTERESIS_N = 2) so a lone rogue pixel can't single-handedly
+  // escalate the ring (D, May 2026). Building on top: each sample is
+  // mapped to its effective intensity (E, May 2026) so directionally-
+  // departing cells contribute less weight than directionally-incoming
+  // ones at the same raw intensity. maxIntensity stays untouched as the
+  // diagnostic ground truth.
+  const innerEffective = innerSamples.map((s) => ({
+    ...s, intensity: effectiveIntensityFor(s, innerDirTrends),
+  }));
+  const outerEffective = outerSamples.map((s) => ({
+    ...s, intensity: effectiveIntensityFor(s, outerDirTrends),
+  }));
+  const innerTierIntensity = nthHighestIntensity(innerEffective, TIER_HYSTERESIS_N);
+  const outerTierIntensity = nthHighestIntensity(outerEffective, TIER_HYSTERESIS_N);
+
+  // Bump tier one notch when the ring trend is "approaching" and the
+  // tier-deciding (i.e. hysteretic, post-down-weighting) intensity is
+  // ≥ 2. Light-precip approaches (raw intensity 1) don't warrant raising
+  // the banner tier — the AI summary still mentions them in its
+  // narrative when relevant. Past data showed ~25 % of bumps were max=1
+  // events that read as alarmist for what was essentially drizzle.
   const innerBaseLevel = RISK_LEVELS[innerTierIntensity];
   const outerBaseLevel = RISK_LEVELS[outerTierIntensity];
   const BUMP_MIN_INTENSITY = 2;
@@ -891,18 +960,24 @@ async function getRiskLevels(lat, lon, options = {}) {
     timestamp: latest.frame.time,
   };
 
-  // Diagnostic line — every server-side risk computation gets logged with
-  // the decision values so post-mortem on a "why did the banner fire then?"
-  // question can use journalctl. Compact one-line format for grep-friendly
-  // analysis. Surfaces both raw max AND the hysteretic tier intensity so
-  // a "why did the banner stay quiet?" question can confirm hysteresis
-  // fired (max ≥ 4 but tier < 4 → ring stays yellow).
+  // Diagnostic line — every server-side risk computation gets logged
+  // with the decision values so post-mortem on a "why did the banner
+  // fire then?" question can use journalctl. Compact one-line format
+  // for grep-friendly analysis. Surfaces:
+  //   - raw max AND hysteretic tier intensity (so a "why did the banner
+  //     stay quiet?" question confirms hysteresis fired: max ≥ 4 but
+  //     tier < 4 → ring stayed yellow).
+  //   - per-direction trend distribution (so "why did the tier drop?"
+  //     can confirm the per-direction down-weighting on leaving cells:
+  //     a→2/l→4/s→10 means 2 dirs approaching, 4 leaving, 10 stable).
   const innerBumpMark = innerBumped ? "↑" : "·";
   const outerBumpMark = outerBumped ? "↑" : "·";
+  const innerDist = trendDistribution(innerDirTrends);
+  const outerDist = trendDistribution(outerDirTrends);
   const outerLog = outerPoints.length
-    ? `outer=${outerLevel}${outerBumpMark}(max=${outerMax},tier=${outerTierIntensity},trend=${outerTrend})`
+    ? `outer=${outerLevel}${outerBumpMark}(max=${outerMax},tier=${outerTierIntensity},trend=${outerTrend},dirs=${outerDist})`
     : "outer=n/a";
-  console.log(`[risk] ${cacheKey}: inner=${innerLevel}${innerBumpMark}(max=${innerMax},tier=${innerTierIntensity},trend=${innerTrend}) ${outerLog}`);
+  console.log(`[risk] ${cacheKey}: inner=${innerLevel}${innerBumpMark}(max=${innerMax},tier=${innerTierIntensity},trend=${innerTrend},dirs=${innerDist}) ${outerLog}`);
 
   riskCache.set(cacheKey, { result, expiresAt: Date.now() + ANALYSIS_CACHE_TTL });
   recordServiceCall("RainViewer (risk)", 200, "OK");
