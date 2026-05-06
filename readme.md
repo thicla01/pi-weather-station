@@ -429,7 +429,7 @@ No other environment variables are used by the server. API keys and user prefere
 
 # Contributors
 
-- [@elewin](https://github.com/elewin) — Original author
+- [@elewin](https://github.com/elewin) — Original author. Tile-rendering fixes on both the Mapbox basemap and the RainViewer radar overlay (`tileSize=512` + `zoomOffset=-1` + `maxNativeZoom=8`) were cherry-picked from his upstream [PR #76](https://github.com/elewin/pi-weather-station/pull/76) and [PR #77](https://github.com/elewin/pi-weather-station/pull/77).
 - [@aevans1987](https://github.com/aevans1987)
 - [@dagent23](https://github.com/dagent23)
 - [@klamer](https://github.com/klamer)
