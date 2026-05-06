@@ -53,7 +53,7 @@
     "globals": "^17.5.0",
     "html-loader": "^5.1.0",
     "html-webpack-plugin": "^5.6.6",
-    "postcss": "^8.5.8",
+    "postcss": "^8.5.14",
     "postcss-loader": "^8.2.1",
     "postcss-preset-env": "^10.6.1",
     "style-loader": "^3.3.4",
