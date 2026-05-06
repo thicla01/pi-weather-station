@@ -364,7 +364,7 @@ A debug panel is available on the Pi when `DEBUG=true` is set server-side. It sh
 - **Cache** — current in-memory weather cache entries with remaining TTL
 - **Logs** — last 100 lines of the server log (`/tmp/weather-server.log` on Linux, `<repo>/server.log` on macOS — see [`docs/logs.md`](docs/logs.md) for why `journalctl` is not the place to look)
 - **Security events** — blocked requests (write attempts from remote clients)
-- **npm audit** — output of the last `npm audit` run from `install.sh` (legacy; current vulnerability status is now tracked on GitHub via Dependabot — empty if `install.sh` has not been re-run since vulnerability auditing moved to Dependabot)
+- **Vulnerability scan** — links to the repo's GitHub Dependabot alerts page (the live source of truth for dependency vulnerabilities since `npm audit` was retired from `install.sh`). The URL is built per-fork so a downstream fork lands on its own Dependabot page automatically
 
 The debug button (bug icon) appears in the control bar only when `DEBUG=true` and only when the app is accessed from the Pi itself.
 

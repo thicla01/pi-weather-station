@@ -289,4 +289,4 @@ function clearCache() {
   _cacheTime = 0;
 }
 
-module.exports = { checkForUpdate, clearCache };
+module.exports = { checkForUpdate, clearCache, getRepo };
