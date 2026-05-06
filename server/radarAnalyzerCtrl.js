@@ -381,7 +381,7 @@ function formatSnapshotLegacy(samples, label, unit) {
 
 /**
  * Format a snapshot as a compact human-readable block for inclusion in a
- * prompt. Three-tier hierarchical compression versus listing every sample:
+ * prompt. Hierarchical compression versus listing every sample:
  *
  *   1. Whole radar empty → one line ("clear within Xkm").
  *   2. Radial rollup → walk inward and outward to find the largest fully-
@@ -389,15 +389,24 @@ function formatSnapshotLegacy(samples, label, unit) {
  *      only the active annulus between them. A storm 80 km away on the W
  *      side compresses to "Clear within 70km. Active 75-100km: …" without
  *      ever listing the 16 inner directions × 10 distances that are all 0.
- *   3. Per-direction rollup (Tier C) inside the active annulus → a
- *      direction with no precipitation in the annulus collapses to
- *      "DIR : clear" (one entry instead of N distance entries).
+ *   3. Per-direction rollup inside the active annulus → directions with no
+ *      precipitation in the annulus are omitted entirely (saves ~10 chars
+ *      per direction × all-clear count).
+ *   4. Within each active direction, ONLY the non-zero samples are listed
+ *      — clear distances inside an active direction are implied by the
+ *      "Active X-Y" header convention (declared explicitly in the
+ *      aiSummaryCtrl preamble so Claude reads "N : 45km light" as
+ *      "north has light precipitation at 45km AND clear precipitation at
+ *      every other sampled distance in this annulus"). Was the biggest
+ *      lever for the 0-25 % bucket of the compression-stats report:
+ *      mid-cluttered radar geometries used to emit ~5000 chars because
+ *      every direction listed all 10 of its annulus distances; with this
+ *      tier 4 they emit only the actually-precipitating samples (~30-40 %
+ *      of points on a typical varied frame).
  *
- * Storms covering the entire radar (>180°) degrade gracefully to roughly
- * the previous full-grid format (no compression possible — but those are
- * also the rare cases where the AI legitimately needs every sample).
- * Empirically the average compression is ~85% input tokens vs the previous
- * format on a typical week of polls; whole-clear days save ~99%.
+ * Storms covering the entire radar (>180°) degrade gracefully — every
+ * direction is active, and within each direction the non-zero filter still
+ * helps (active directions rarely have ALL their annulus distances above 0).
  *
  * @param {Array} samples
  * @param {String} label e.g. "now", "-15 min", "-45 min"
@@ -485,24 +494,24 @@ function formatSnapshot(samples, label, unit) {
   const activeEnd = activeDistances[activeDistances.length - 1];
   lines.push(`  Active ${fmtDist(activeStart)}-${fmtDist(activeEnd)}:`);
 
-  // Tier 3: per-direction listing inside the active annulus. Directions
-  // with no precipitation in the annulus collapse to one "clear" entry
-  // (saves ~7-10 distance entries each); directions with precipitation
-  // get the full grid so the AI can read the radial profile.
+  // Tiers 3 & 4: per-direction listing inside the active annulus.
+  // Tier 3 — fully-clear directions are omitted entirely (Claude reads
+  // their absence as "no precipitation along that bearing in the active
+  // range", per the convention declared in the aiSummaryCtrl preamble).
+  // Tier 4 — within an active direction, only non-zero samples are
+  // listed; the clear distances are implied by the same convention
+  // header. Together these are the biggest lever for the 0-25 % bucket
+  // identified in the compression-stats reports: mid-cluttered frames
+  // used to spend ~12 chars per sample × ~10 distances × ~30 directions
+  // even when most of those samples were zero.
   for (const dirName of DIRECTION_ORDER) {
     const dirSamples = byDir.get(dirName);
     if (!dirSamples || !dirSamples.length) continue;
-    const active = dirSamples.filter(
-      (s) => s.distance >= activeStart && s.distance <= activeEnd,
+    const activeNonZero = dirSamples.filter(
+      (s) => s.distance >= activeStart && s.distance <= activeEnd && s.intensity > 0,
     );
-    if (!active.length) continue;
-
-    const allDirClear = active.every((s) => s.intensity === 0);
-    if (allDirClear) {
-      lines.push(`    ${dirName.padEnd(6)} : clear`);
-      continue;
-    }
-    const parts = active.map(
+    if (!activeNonZero.length) continue;
+    const parts = activeNonZero.map(
       (s) => `${fmtDist(s.distance)} ${INTENSITY_LABELS[s.intensity]}`,
     );
     lines.push(`    ${dirName.padEnd(6)} : ${parts.join(", ")}`);

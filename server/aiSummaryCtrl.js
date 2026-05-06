@@ -338,9 +338,13 @@ async function getWeatherSummary(req, res) {
   // formatSnapshot (radarAnalyzerCtrl.js). Brief explanation in the
   // wrapper below so Claude reads "Clear within 70km" / "Clear beyond
   // 95km" / "Active 70-95km" as structural rollups rather than literal
-  // statements about specific samples.
+  // statements about specific samples, AND so the omission-based tier
+  // (only non-zero samples listed within an active annulus) is read
+  // correctly: a missing direction means that bearing is clear in the
+  // active range, and a missing distance inside a listed direction
+  // means that specific sample is clear.
   const radarSection = hasRadar
-    ? `\n\nRadar samples (16-point inner ring + 32-point outer ring around the user, intensity tiers: clear/very light/light/moderate/heavy/very heavy/extreme; "Clear within X" and "Clear beyond Y" annulus rollups omit fully-empty zones, "DIR : clear" inside an active annulus means that direction is empty in that range):\n${radarText}`
+    ? `\n\nRadar samples (16-point inner ring + 32-point outer ring around the user, intensity tiers: clear/very light/light/moderate/heavy/very heavy/extreme). Format conventions: "Clear within X" and "Clear beyond Y" mean those annulus zones contain no precipitation. Inside the "Active X-Y" zone, ONLY non-zero precipitation samples are listed — any direction not listed is clear at every sampled distance in the active range, and any distance not listed inside a listed direction is clear at that specific sample point:\n${radarText}`
     : "";
   const currentSection = hasCurrent ? `Current conditions:\n${currentLines}` : "";
   const dataPayload = [currentSection, secondSection, radarSection].filter(Boolean).join("");
