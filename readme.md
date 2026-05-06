@@ -99,8 +99,8 @@ It will:
 - Optionally configure your API keys and create `settings.json`
 - Optionally enable remote access from other machines on the network (see [Access from another machine](#access-from-another-machine))
 - Optionally enable the debug panel (see [Debug panel](#debug-panel))
-- Install all dependencies and build the client
-- Run `npm audit` after each install and automatically apply fixes if vulnerabilities are found — results are saved to `npm-audit.log`
+- Install server dependencies (`npm ci`); the React bundle ships pre-built in `client/dist/`, so the client only rebuilds if `--rebuild-client` is passed or `bundle.min.js` is missing
+- Vulnerability scanning + automatic security PRs are handled by Dependabot on GitHub (see `.github/dependabot.yml`); merged PRs propagate to every Pi via the in-app updater's `npm ci`
 - Configure and start the systemd service with log redirection to `/tmp/weather-server.log`
 - Install log rotation (`/etc/logrotate.d/weather-server`) — daily rotation, 7 days history, max 10 MB, compressed
 - Optionally enable kiosk mode — deploy `~/.local/bin/start-server` and configure your display server's autostart to launch Chromium in fullscreen automatically (default: yes). When declined, the server still starts via systemd but no autostart is configured
@@ -364,7 +364,7 @@ A debug panel is available on the Pi when `DEBUG=true` is set server-side. It sh
 - **Cache** — current in-memory weather cache entries with remaining TTL
 - **Logs** — last 100 lines of the server log (`/tmp/weather-server.log` on Linux, `<repo>/server.log` on macOS — see [`docs/logs.md`](docs/logs.md) for why `journalctl` is not the place to look)
 - **Security events** — blocked requests (write attempts from remote clients)
-- **npm audit** — output of the last `npm audit` run
+- **npm audit** — output of the last `npm audit` run from `install.sh` (legacy; current vulnerability status is now tracked on GitHub via Dependabot — empty if `install.sh` has not been re-run since vulnerability auditing moved to Dependabot)
 
 The debug button (bug icon) appears in the control bar only when `DEBUG=true` and only when the app is accessed from the Pi itself.
 

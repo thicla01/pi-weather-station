@@ -9,7 +9,7 @@
 #   Phase 1  Node.js
 #   Phase 2  Base configuration (API keys, lat/lon, remote access, debug)
 #   Phase 3  Kiosk mode + browser selection (Linux only)
-#   Phase 4  npm install + production build
+#   Phase 4  Server deps (npm ci) + optional client rebuild
 #   Phase 5  Service setup (systemd / launchd)
 #   Phase 6  Autostart (labwc / wayfire / X11 LXDE / GNOME / KDE)
 #   Phase 7  Advanced features (Sense HAT, etc.)
@@ -19,6 +19,19 @@ set -e
 
 REPO_DIR="$(cd "$(dirname "$0")/.." && pwd)"
 PLATFORM="$(uname)"
+
+# --- Parse arguments ---
+# --rebuild-client forces rebuilding the React bundle from source. Normally
+# we use the bundle.min.js committed to git, which is what every Pi receives
+# via the in-app updater. Pass this flag if you've modified client source
+# locally and need the install to pick up your changes.
+REBUILD_CLIENT=false
+while [[ $# -gt 0 ]]; do
+    case "$1" in
+        --rebuild-client) REBUILD_CLIENT=true; shift ;;
+        *) echo "Unknown argument: $1" >&2; exit 1 ;;
+    esac
+done
 
 echo "=== Pi Weather Station — Installation ==="
 echo ""
@@ -455,48 +468,35 @@ fi
 # ============================================================================
 # Phase 4 — Dependencies
 # ============================================================================
-
-AUDIT_LOG="$REPO_DIR/npm-audit.log"
-{ echo "Pi Weather Station — npm audit report"; echo "Generated: $(date)"; } > "$AUDIT_LOG"
+# Vulnerability scanning + auto-patches are handled by Dependabot on GitHub
+# (see .github/dependabot.yml). Locally we install strictly from the lockfile
+# with `npm ci` to avoid drift that would otherwise block the in-app updater
+# on the next run (it pre-flight-rejects any uncommitted change in tracked
+# files, including a re-resolved package-lock.json).
 
 echo ""
-echo ">> Installing dependencies..."
+echo ">> Installing server dependencies (npm ci)..."
 cd "$REPO_DIR"
-npm install
+npm ci --no-audit --no-fund
 
-echo ">> Running security audit (server)..."
-echo "" >> "$AUDIT_LOG"
-echo "=== Server — $(date) ===" >> "$AUDIT_LOG"
-if npm audit >> "$AUDIT_LOG" 2>&1; then
-    echo "   No vulnerabilities found."
-else
-    echo "   Vulnerabilities found — running npm audit fix..."
-    npm audit fix 2>&1 | tee -a "$AUDIT_LOG"
-    if npm audit > /dev/null 2>&1; then
-        echo "   All vulnerabilities resolved."
-    else
-        echo "   Some vulnerabilities remain — see npm-audit.log for details."
-    fi
+# The React bundle (client/dist/bundle.min.js) is committed to git, so the
+# Pi normally serves the canonical master build without rebuilding. We only
+# rebuild if --rebuild-client was passed or if the committed bundle is
+# missing (e.g. accidental deletion).
+if [[ "$REBUILD_CLIENT" == "false" && ! -f "$REPO_DIR/client/dist/bundle.min.js" ]]; then
+    echo ">> client/dist/bundle.min.js missing — rebuilding from source."
+    REBUILD_CLIENT=true
 fi
 
-cd client && npm install
-
-echo ">> Running security audit (client)..."
-echo "" >> "$AUDIT_LOG"
-echo "=== Client — $(date) ===" >> "$AUDIT_LOG"
-if npm audit >> "$AUDIT_LOG" 2>&1; then
-    echo "   No vulnerabilities found."
+if [[ "$REBUILD_CLIENT" == "true" ]]; then
+    echo ">> Building client bundle..."
+    cd "$REPO_DIR/client"
+    npm ci --no-audit --no-fund
+    npm run prod
+    cd "$REPO_DIR"
 else
-    echo "   Vulnerabilities found — running npm audit fix..."
-    npm audit fix 2>&1 | tee -a "$AUDIT_LOG"
-    if npm audit > /dev/null 2>&1; then
-        echo "   All vulnerabilities resolved."
-    else
-        echo "   Some vulnerabilities remain — see npm-audit.log for details."
-    fi
+    echo ">> Using committed client/dist/bundle.min.js (pass --rebuild-client to force a rebuild)."
 fi
-
-npm run prod && cd ..
 
 # ============================================================================
 # Phase 5 — Service setup
