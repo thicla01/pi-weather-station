@@ -402,16 +402,34 @@
 .log-line-security { color: #ff6b6b; }
 .log-line-default  { color: #ccc; }
 
-.audit-block {
+/* Vulnerability scan notice — replaces the old npm audit log dump.
+   Compact box with a sentence and a clickable URL pointing at the
+   per-fork GitHub Dependabot alerts page. */
+.vuln-scan-notice {
   background: rgba(0, 0, 0, 0.3);
-  padding: 6px;
+  padding: 8px 10px;
   font-family: monospace;
   font-size: clamp(11px, 1.0vw, 13px);
   color: #ccc;
-  max-height: clamp(200px, 25vh, 400px);
-  overflow-y: auto;
-  white-space: pre-wrap;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.vuln-scan-text {
+  margin: 0;
+  line-height: 1.4;
+}
+
+.vuln-scan-link {
+  color: #7ecfff;
+  text-decoration: underline;
   word-break: break-all;
+}
+
+.vuln-scan-link:hover,
+.vuln-scan-link:focus {
+  color: #a8defc;
 }
 
 .security-event {

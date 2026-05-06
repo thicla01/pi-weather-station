@@ -4,7 +4,7 @@ const path = require("path");
 const { execSync } = require("child_process");
 const dns = require("dns").promises;
 const axios = require("axios").default;
-const { checkForUpdate } = require("./updateChecker");
+const { checkForUpdate, getRepo } = require("./updateChecker");
 const { weatherCache, getCacheStats } = require("./proxyCtrl");
 const { summaryCache } = require("./aiSummaryCtrl");
 const { getServiceStatus } = require("./serviceStatus");
@@ -443,7 +443,7 @@ function logSecurityEvent(ip, method, url) {
 }
 
 /**
- * GET /api/debug — returns cache state, recent logs, audit summary, security events
+ * GET /api/debug — returns cache state, recent logs, vulnerability scan URL, security events
  * Always restricted to localhost.
  *
  * @param {Object} req
@@ -483,12 +483,12 @@ async function getDebugInfo(req, res) {
   }
   if (!logFound) logs = ["Log file not available"];
 
-  let audit = "npm-audit.log not found";
-  try {
-    audit = fs.readFileSync(path.join(__dirname, "../npm-audit.log"), "utf8");
-  } catch {
-    // file not found — default message applies
-  }
+  // Vulnerability scan URL — points the user at the GitHub repo's Dependabot
+  // alerts page, which is the live source of truth for dependency vulns
+  // since PR #22 retired the on-device `npm audit` snapshot. Built per-fork
+  // from the same git remote that drives the in-app updater, so a fork at
+  // (say) elewin/pi-weather-station gets its own URL automatically.
+  const vulnerabilityScanUrl = `https://github.com/${getRepo()}/security/dependabot`;
 
   const [providerStatus, connectivity, updateInfo] = await Promise.all([
     fetchProviderStatus(),
@@ -520,7 +520,7 @@ async function getDebugInfo(req, res) {
     }))
   );
 
-  return res.status(200).json({ cache, logs, audit, securityEvents, services: getServiceStatus(), counters: getCounters(), system: getSystemInfo(), network: getNetworkInfo(), providerStatus, connectivity, appVersion: getAppVersion(), serverKpis, remoteClients, updateInfo, serverConfig: getServerConfig() });
+  return res.status(200).json({ cache, logs, vulnerabilityScanUrl, securityEvents, services: getServiceStatus(), counters: getCounters(), system: getSystemInfo(), network: getNetworkInfo(), providerStatus, connectivity, appVersion: getAppVersion(), serverKpis, remoteClients, updateInfo, serverConfig: getServerConfig() });
 }
 
 /**

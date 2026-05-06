@@ -277,7 +277,7 @@ const Debug = () => {
             <SecuritySection events={data?.securityEvents} />
           </div>
           <LogsSection logs={data?.logs} />
-          <AuditSection audit={data?.audit} />
+          <VulnerabilityScanSection url={data?.vulnerabilityScanUrl} />
         </div>
       </div>
     </CSSTransition>
@@ -726,26 +726,35 @@ SecuritySection.propTypes = {
 };
 
 /**
- * Audit section
+ * Vulnerability scan section — replaces the old npm-audit.log dump (which
+ * was a snapshot from the last `install.sh` run, going stale immediately).
+ * Vulnerability scanning + automatic security PRs now live on GitHub via
+ * Dependabot (see PR #22 / `.github/dependabot.yml`); this section just
+ * points the user at the live source of truth.
  *
  * @param {object} props
- * @param {String} props.audit npm audit log content
- * @returns {JSX.Element} Audit section
+ * @param {String} [props.url] Repo-aware Dependabot alerts URL built server-side
+ * @returns {JSX.Element} Vulnerability scan section
  */
-const AuditSection = ({ audit }) => {
+const VulnerabilityScanSection = ({ url }) => {
   const { t } = useTranslation();
   return (
     <div className={styles.section}>
-      <div className={styles.sectionTitle}>{t("debug.npmAudit")}</div>
-      <div className={styles.auditBlock}>
-        {audit || <span className={styles.empty}>{t("debug.notAvailable")}</span>}
+      <div className={styles.sectionTitle}>{t("debug.vulnerabilityScan")}</div>
+      <div className={styles.vulnScanNotice}>
+        <p className={styles.vulnScanText}>{t("debug.vulnerabilityScanNotice")}</p>
+        {url && (
+          <a href={url} target="_blank" rel="noopener noreferrer" className={styles.vulnScanLink}>
+            {url}
+          </a>
+        )}
       </div>
     </div>
   );
 };
 
-AuditSection.propTypes = {
-  audit: PropTypes.string,
+VulnerabilityScanSection.propTypes = {
+  url: PropTypes.string,
 };
 
 function exportDebugCsv(data, clientMetrics, fps) {
