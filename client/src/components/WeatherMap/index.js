@@ -490,22 +490,38 @@ const RadarTimeline = ({ frames, currentIdx, onScrub, timezone, dark }) => {
         >
           ▶
         </button>
-        <input
-          ref={scrubberRef}
-          type="range"
-          min="0"
-          max={frames.length - 1}
-          step="1"
-          value={currentIdx}
-          onChange={(e) => onScrub(parseInt(e.target.value, 10))}
-          onPointerDown={handleScrubberPointerDown}
-          onPointerMove={handleScrubberPointerMove}
-          onPointerUp={handleScrubberPointerUp}
-          onPointerCancel={handleScrubberPointerUp}
-          className={styles.radarTimelineScrubber}
-          style={{ "--past-frac": pastFrac }}
-          aria-label={t("radar.timeline.scrubberAria")}
-        />
+        {/* Wrapper around the native range input so we can render the "now"
+            tick marks (small vertical hairlines above and below the visible
+            track at the past→nowcast boundary) via pseudo-elements. Pseudo-
+            elements aren't supported on <input> directly, hence the wrapper.
+            CSS variables (--past-frac, --show-now-marker) are set inline here
+            so the input inherits them, and the wrapper's ::before/::after use
+            them to position the ticks. --show-now-marker hides the ticks
+            when there are no nowcast frames (past-frac = 1, nothing past
+            "now" to mark). */}
+        <div
+          className={styles.radarTimelineScrubberWrap}
+          style={{
+            "--past-frac": pastFrac,
+            "--show-now-marker": pastFrac < 1 ? 1 : 0,
+          }}
+        >
+          <input
+            ref={scrubberRef}
+            type="range"
+            min="0"
+            max={frames.length - 1}
+            step="1"
+            value={currentIdx}
+            onChange={(e) => onScrub(parseInt(e.target.value, 10))}
+            onPointerDown={handleScrubberPointerDown}
+            onPointerMove={handleScrubberPointerMove}
+            onPointerUp={handleScrubberPointerUp}
+            onPointerCancel={handleScrubberPointerUp}
+            className={styles.radarTimelineScrubber}
+            aria-label={t("radar.timeline.scrubberAria")}
+          />
+        </div>
       </div>
     </div>
   );
