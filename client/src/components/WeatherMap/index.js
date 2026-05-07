@@ -660,6 +660,26 @@ const WeatherMap = ({ zoom, dark }) => {
   const [radarFrameIdx, setRadarFrameIdx] = useState(-1);
   const animationIntervalRef = useRef(null);
 
+  // Small-screen detection used to auto-hide the radar legend while
+  // the radar timeline is open. On the 7" Pi kiosk (height ≤ 520 px,
+  // panel deployed) the timeline's right edge ends up sliding under
+  // the legend's bottom-right block — the legend has higher z-index
+  // (1000 vs 500) so it visually masks the rightmost portion of the
+  // scrubber. Both elements are pinned to `bottom: 24px`, so there's
+  // no clean way to keep them side by side at this width. Same media
+  // query (max-height: 520px) used in App / WeatherInfo / styles.css
+  // for other small-screen behaviour.
+  const SMALL_SCREEN_MQ = "(max-height: 520px)";
+  const [isSmallScreen, setIsSmallScreen] = useState(
+    () => typeof window !== "undefined" && window.matchMedia(SMALL_SCREEN_MQ).matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(SMALL_SCREEN_MQ);
+    const handler = (e) => setIsSmallScreen(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
   // Risk levels for the dashed circles live in AppContext (see InfoPanel's
   // AlertBanner, which reads the same state to surface the alert text). We
   // only keep the polling logic here because it's gated by the same
@@ -949,7 +969,7 @@ const WeatherMap = ({ zoom, dark }) => {
             )
           : null}
       </MapContainer>
-      {mapTimestamps && !hideRadarLegend && <RadarLegend dark={dark} />}
+      {mapTimestamps && !hideRadarLegend && !(radarTimelineVisible && isSmallScreen) && <RadarLegend dark={dark} />}
       {mapTimestamps && radarTimelineVisible && (
         <RadarTimeline
           frames={mapTimestamps}
