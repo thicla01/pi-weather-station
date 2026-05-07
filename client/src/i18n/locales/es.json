@@ -172,7 +172,35 @@
     "moderate": "Moderado",
     "heavy": "Fuerte",
     "veryHeavy": "Muy fuerte",
-    "extreme": "Extremo"
+    "extreme": "Extremo",
+    "timeline": {
+      "now": "ahora",
+      "plusMin": "+{{min}} min",
+      "minusMin": "−{{min}} min",
+      "forecast": "pronóstico",
+      "speedAria": "Cambiar la velocidad de la animación del radar",
+      "scrubberAria": "Recorrer los fotogramas del radar",
+      "returnToNowAria": "Volver al fotograma actual del radar",
+      "stepBackAria": "Fotograma anterior",
+      "stepForwardAria": "Fotograma siguiente",
+      "playAria": "Iniciar la animación del radar",
+      "pauseAria": "Pausar la animación del radar"
+    }
+  },
+  "controls": {
+    "resetMapPosition": "Centrar el mapa en la ubicación actual",
+    "showMarker": "Mostrar el marcador de ubicación",
+    "hideMarker": "Ocultar el marcador de ubicación",
+    "showTimeline": "Mostrar la línea de tiempo del radar",
+    "hideTimeline": "Ocultar la línea de tiempo del radar",
+    "darkMode": "Cambiar a modo oscuro",
+    "lightMode": "Cambiar a modo claro",
+    "openSettings": "Abrir los ajustes",
+    "closeSettings": "Cerrar los ajustes",
+    "openDebug": "Abrir el panel de depuración",
+    "closeDebug": "Cerrar el panel de depuración",
+    "openUpdate": "Mostrar la ventana de actualización",
+    "closeUpdate": "Cerrar la ventana de actualización"
   },
   "debug": {
     "title": "DEPURACIÓN",

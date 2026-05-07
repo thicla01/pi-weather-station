@@ -172,7 +172,35 @@
     "moderate": "Moderate",
     "heavy": "Heavy",
     "veryHeavy": "Very heavy",
-    "extreme": "Extreme"
+    "extreme": "Extreme",
+    "timeline": {
+      "now": "now",
+      "plusMin": "+{{min}} min",
+      "minusMin": "−{{min}} min",
+      "forecast": "forecast",
+      "speedAria": "Cycle radar animation speed",
+      "scrubberAria": "Scrub through radar frames",
+      "returnToNowAria": "Return to current radar frame",
+      "stepBackAria": "Previous frame",
+      "stepForwardAria": "Next frame",
+      "playAria": "Play radar animation",
+      "pauseAria": "Pause radar animation"
+    }
+  },
+  "controls": {
+    "resetMapPosition": "Recenter map on current location",
+    "showMarker": "Show location marker",
+    "hideMarker": "Hide location marker",
+    "showTimeline": "Show radar timeline",
+    "hideTimeline": "Hide radar timeline",
+    "darkMode": "Switch to dark mode",
+    "lightMode": "Switch to light mode",
+    "openSettings": "Open settings",
+    "closeSettings": "Close settings",
+    "openDebug": "Open debug panel",
+    "closeDebug": "Close debug panel",
+    "openUpdate": "Show update modal",
+    "closeUpdate": "Close update modal"
   },
   "debug": {
     "title": "DEBUG",

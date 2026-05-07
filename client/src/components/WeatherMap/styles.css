@@ -78,3 +78,259 @@
 .light {
   color: #3a393888;
 }
+
+/* Radar animation timeline overlay — bottom-centre of the map.
+   Sits inside the map wrapper, above the Leaflet attribution strip
+   (which is itself ~16 px from the bottom). z-index high enough to
+   sit above the tile layer but the Leaflet zoom controls (top-left)
+   and the radar legend (bottom-right corner) don't overlap. */
+.radar-timeline {
+  position: absolute;
+  bottom: 24px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: clamp(280px, 45vw, 480px);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 10px 8px;
+  border-radius: 8px;
+  z-index: 500;
+  font-family: monospace;
+  font-size: clamp(11px, 1.0vw, 13px);
+  pointer-events: auto;
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  border: 1px solid;
+}
+
+.radar-timeline-dark {
+  background: rgba(20, 20, 22, 0.55);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #f6f6f4;
+}
+
+.radar-timeline-light {
+  background: rgba(245, 243, 238, 0.75);
+  border-color: rgba(0, 0, 0, 0.08);
+  color: #3a3938;
+}
+
+.radar-timeline-labels {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.radar-timeline-time {
+  font-weight: 600;
+  font-size: 1.05em;
+  letter-spacing: 0.02em;
+}
+
+.radar-timeline-offset {
+  flex: 1;
+  font-size: 0.9em;
+  opacity: 0.75;
+}
+
+.radar-timeline-forecast {
+  /* When the current frame is a nowcast (forecast) frame, the offset label
+     gets a tinted accent so the user knows the displayed radar is predicted
+     rather than observed. */
+  color: #f08200;
+  opacity: 1;
+  font-weight: 600;
+}
+
+.radar-timeline-speed {
+  background: transparent;
+  border: 1px solid currentColor;
+  color: inherit;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-family: inherit;
+  font-size: 0.95em;
+  font-weight: 600;
+  cursor: pointer;
+  min-width: 36px;
+  transition: background 0.15s, color 0.15s;
+}
+
+/* Return-to-now button — appears only when the playhead is scrubbed
+   away from the most recent past frame ("now"). Positioned between
+   the offset label and the speed cycler. Tinted amber so it draws
+   the eye, since it's a transient affordance the user actively wants
+   to find when they want to go back to live radar. */
+.radar-timeline-now {
+  background: transparent;
+  border: 1px solid #f08200;
+  color: #f08200;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-family: inherit;
+  font-size: 0.85em;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.radar-timeline-now:hover,
+.radar-timeline-now:focus {
+  background: rgba(240, 130, 0, 0.18);
+}
+
+/* Hover / focus feedback — keep the text colour intact (the previous
+   `background: currentColor` rule made the digit invisible by setting
+   background and foreground to the same value, especially noticeable
+   on touch devices where :hover sticks after tap). Use a subtle tinted
+   fill instead, per theme. */
+.radar-timeline-dark .radar-timeline-speed:hover,
+.radar-timeline-dark .radar-timeline-speed:focus {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.radar-timeline-light .radar-timeline-speed:hover,
+.radar-timeline-light .radar-timeline-speed:focus {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+/* Transport controls row — step-back, play/pause, step-forward, then
+   the scrubber filling the rest of the width. Buttons sized for touch
+   on the 7" kiosk screen (~32 px square minimum) and disabled-styled
+   at the timeline boundaries so a tap on a no-op button is silently
+   ignored without a visual change. */
+.radar-timeline-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.radar-timeline-step,
+.radar-timeline-play {
+  background: transparent;
+  border: 1px solid currentColor;
+  color: inherit;
+  border-radius: 4px;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  padding: 0;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.radar-timeline-step {
+  width: 28px;
+  height: 24px;
+  font-size: 0.75em;
+}
+
+.radar-timeline-play {
+  width: 32px;
+  height: 24px;
+  font-size: 0.85em;
+  font-weight: 600;
+}
+
+.radar-timeline-step:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.radar-timeline-dark .radar-timeline-step:not(:disabled):hover,
+.radar-timeline-dark .radar-timeline-step:not(:disabled):focus,
+.radar-timeline-dark .radar-timeline-play:hover,
+.radar-timeline-dark .radar-timeline-play:focus {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.radar-timeline-light .radar-timeline-step:not(:disabled):hover,
+.radar-timeline-light .radar-timeline-step:not(:disabled):focus,
+.radar-timeline-light .radar-timeline-play:hover,
+.radar-timeline-light .radar-timeline-play:focus {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+/* Active "playing" state — solid amber fill so the play/pause toggle
+   has a visually distinct on-state, matching the nowcast accent
+   colour used elsewhere in the bar (return-to-now button, scrubber
+   right-half gradient). */
+.radar-timeline-play-active {
+  background: #f08200;
+  border-color: #f08200;
+  color: #fff;
+}
+
+.radar-timeline-play-active:hover,
+.radar-timeline-play-active:focus {
+  background: #d57600;
+}
+
+/* Scrubber — native range input styled to a thin bar with two-tone
+   track (past on the left, nowcast on the right). The split point is
+   driven by the --past-pct CSS variable set inline by the component. */
+.radar-timeline-scrubber {
+  -webkit-appearance: none;
+  appearance: none;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 6px;
+  border-radius: 3px;
+  background: linear-gradient(
+    to right,
+    #888 0%,
+    #888 var(--past-pct, 100%),
+    #f08200 var(--past-pct, 100%),
+    #f08200 100%
+  );
+  outline: none;
+  cursor: pointer;
+  margin: 0 0 0 6px;
+}
+
+.radar-timeline-scrubber::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #3a3938;
+  cursor: grab;
+  margin-top: 0;
+}
+
+.radar-timeline-scrubber:active::-webkit-slider-thumb {
+  cursor: grabbing;
+  background: #f0e600;
+}
+
+.radar-timeline-scrubber::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: #fff;
+  border: 2px solid #3a3938;
+  cursor: grab;
+}
+
+/* Compact small-screen variant: drop the time-string verbosity by
+   tightening padding and shrinking the speed button to keep the bar
+   from competing with the InfoPanel-collapse toggle on the right. */
+@media (max-height: 520px) {
+  .radar-timeline {
+    bottom: 16px;
+    width: clamp(220px, 50vw, 360px);
+    padding: 4px 8px 6px;
+  }
+  .radar-timeline-speed {
+    min-width: 30px;
+    padding: 1px 6px;
+    font-size: 0.85em;
+  }
+}

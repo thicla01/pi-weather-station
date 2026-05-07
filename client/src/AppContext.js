@@ -166,6 +166,54 @@ export function AppContextProvider({ children }) {
   const [govAlerts, setGovAlerts] = useState([]);
   const [clockTime, setClockTime] = useState("12"); // 12h or 24h time for clock
   const [animateWeatherMap, setAnimateWeatherMap] = useState(false);
+  // Radar animation playback speed multiplier — 1× / 2× / 4× cycling.
+  // Drives the per-frame interval in WeatherMap (MAP_CYCLE_RATE / radarSpeed).
+  // Lives in context so the new RadarTimeline overlay can read and write it
+  // independently of the rest of WeatherMap. Persisted to localStorage so the
+  // setting survives reloads — useful for users who consistently prefer a
+  // faster scrub.
+  const [radarSpeed, setRadarSpeed] = useState(() => {
+    if (typeof window === "undefined") return 1;
+    const stored = parseInt(window.localStorage.getItem("radarSpeed"), 10);
+    return [1, 2, 4].includes(stored) ? stored : 1;
+  });
+  const cycleRadarSpeed = useCallback(() => {
+    setRadarSpeed((prev) => {
+      const next = prev === 1 ? 2 : prev === 2 ? 4 : 1;
+      try { window.localStorage.setItem("radarSpeed", String(next)); } catch { /* localStorage may be unavailable */ }
+      return next;
+    });
+  }, []);
+  // NOTE: radarFrameIdx (the current playback position in the timeline)
+  // intentionally lives in WeatherMap local state, not here. Hoisting it
+  // to context made every animation tick re-render all ~50 AppContext
+  // consumers — which queued button-click handlers behind a flood of
+  // re-renders and made the play/pause toggle take 1-2 seconds to react.
+  // Only WeatherMap and its child RadarTimeline need the value, and the
+  // child receives it via props, so context offers no benefit here.
+  // Whether the radar timeline overlay is visible. Persisted to
+  // localStorage as a layout preference (like darkMode, fontSize) so a
+  // user who prefers a clean map sees their choice survive reloads.
+  // Default true so first-time users see the timeline. Hiding the
+  // timeline also pauses any ongoing animation — see toggle below.
+  const [radarTimelineVisible, setRadarTimelineVisible] = useState(() => {
+    if (typeof window === "undefined") return true;
+    const stored = window.localStorage.getItem("radarTimelineVisible");
+    return stored === null ? true : stored === "true";
+  });
+  const toggleRadarTimelineVisible = useCallback(() => {
+    setRadarTimelineVisible((prev) => {
+      const next = !prev;
+      try { window.localStorage.setItem("radarTimelineVisible", String(next)); } catch { /* localStorage may be unavailable */ }
+      // Hiding the timeline also stops animation — the user has no UI
+      // to control playback while it's hidden, so leaving the radar
+      // ticking through frames in the background would be confusing.
+      // Showing the timeline doesn't auto-start animation; the user
+      // explicitly hits play if they want it.
+      if (!next) setAnimateWeatherMap(false);
+      return next;
+    });
+  }, []);
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
   const [customLat, setCustomLat] = useState(null);
   const [customLon, setCustomLon] = useState(null);
@@ -1155,6 +1203,10 @@ export function AppContextProvider({ children }) {
     govAlerts,
     animateWeatherMap,
     toggleAnimateWeatherMap,
+    radarSpeed,
+    cycleRadarSpeed,
+    radarTimelineVisible,
+    toggleRadarTimelineVisible,
     settingsMenuOpen,
     setSettingsMenuOpen,
     toggleSettingsMenuOpen,
