@@ -166,6 +166,30 @@ export function AppContextProvider({ children }) {
   const [govAlerts, setGovAlerts] = useState([]);
   const [clockTime, setClockTime] = useState("12"); // 12h or 24h time for clock
   const [animateWeatherMap, setAnimateWeatherMap] = useState(false);
+  // Radar animation playback speed multiplier — 1× / 2× / 4× cycling.
+  // Drives the per-frame interval in WeatherMap (MAP_CYCLE_RATE / radarSpeed).
+  // Lives in context so the new RadarTimeline overlay can read and write it
+  // independently of the rest of WeatherMap. Persisted to localStorage so the
+  // setting survives reloads — useful for users who consistently prefer a
+  // faster scrub.
+  const [radarSpeed, setRadarSpeed] = useState(() => {
+    if (typeof window === "undefined") return 1;
+    const stored = parseInt(window.localStorage.getItem("radarSpeed"), 10);
+    return [1, 2, 4].includes(stored) ? stored : 1;
+  });
+  const cycleRadarSpeed = useCallback(() => {
+    setRadarSpeed((prev) => {
+      const next = prev === 1 ? 2 : prev === 2 ? 4 : 1;
+      try { window.localStorage.setItem("radarSpeed", String(next)); } catch { /* localStorage may be unavailable */ }
+      return next;
+    });
+  }, []);
+  // Current playback position inside the radar timeline. -1 means "no
+  // explicit position — let WeatherMap's animation effect default to the
+  // most recent past frame". The RadarTimeline overlay sets this when the
+  // user scrubs; the animation effect reads it as the starting index when
+  // animation begins, and writes back as it ticks through frames.
+  const [radarFrameIdx, setRadarFrameIdx] = useState(-1);
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
   const [customLat, setCustomLat] = useState(null);
   const [customLon, setCustomLon] = useState(null);
@@ -1155,6 +1179,10 @@ export function AppContextProvider({ children }) {
     govAlerts,
     animateWeatherMap,
     toggleAnimateWeatherMap,
+    radarSpeed,
+    cycleRadarSpeed,
+    radarFrameIdx,
+    setRadarFrameIdx,
     settingsMenuOpen,
     setSettingsMenuOpen,
     toggleSettingsMenuOpen,

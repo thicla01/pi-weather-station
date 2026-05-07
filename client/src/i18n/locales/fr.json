@@ -172,7 +172,15 @@
     "moderate": "Modéré",
     "heavy": "Fort",
     "veryHeavy": "Très fort",
-    "extreme": "Extrême"
+    "extreme": "Extrême",
+    "timeline": {
+      "now": "maintenant",
+      "plusMin": "+{{min}} min",
+      "minusMin": "−{{min}} min",
+      "forecast": "prévision",
+      "speedAria": "Changer la vitesse de l'animation radar",
+      "scrubberAria": "Parcourir les images radar"
+    }
   },
   "debug": {
     "title": "DÉBOGAGE",

@@ -313,6 +313,101 @@ RadarLegend.propTypes = {
   dark: PropTypes.bool,
 };
 
+const RADAR_SPEED_LABELS = { 1: "1×", 2: "2×", 4: "4×" };
+
+/**
+ * Radar animation timeline overlay — bottom-centre of the map. Surfaces
+ * the playhead (current frame), a scrubber slider, and a speed cycler
+ * (1× / 2× / 4×). The slider track is split into past and nowcast halves
+ * via a CSS gradient so the user can see at a glance where the present
+ * moment sits inside the available frames. Absolute-positioned over the
+ * map; auto-hides when no frames are loaded so it doesn't show up as an
+ * empty bar on initial mount or during a network blip.
+ *
+ * @param {object} props
+ * @param {Array} props.frames Combined past+nowcast frame list from RainViewer
+ * @param {number} props.currentIdx Resolved index into `frames`
+ * @param {Function} props.onScrub Called with the new index when user scrubs
+ * @param {String} props.timezone IANA timezone for the time-of-day label
+ * @param {Boolean} props.dark
+ * @returns {JSX.Element|null} Timeline overlay
+ */
+const RadarTimeline = ({ frames, currentIdx, onScrub, timezone, dark }) => {
+  const { t } = useTranslation();
+  const { radarSpeed, cycleRadarSpeed } = useContext(AppContext);
+
+  if (!frames || frames.length === 0) return null;
+  const frame = frames[currentIdx];
+  if (!frame) return null;
+
+  // Build the time labels. "Now" is wall-clock at the kiosk; the frame
+  // offset compares against it in minutes (negative for past frames,
+  // positive for nowcast). Round to the nearest minute so a 9-minute
+  // -aged frame doesn't read as -8.97 min.
+  const nowSec = Math.floor(Date.now() / 1000);
+  const offsetMin = Math.round((frame.time - nowSec) / 60);
+  const timeStr = new Date(frame.time * 1000).toLocaleTimeString(undefined, {
+    hour: "2-digit",
+    minute: "2-digit",
+    timeZone: timezone || undefined,
+  });
+  let offsetStr;
+  if (Math.abs(offsetMin) < 1)      offsetStr = t("radar.timeline.now");
+  else if (offsetMin > 0)           offsetStr = t("radar.timeline.plusMin", { min: offsetMin });
+  else                              offsetStr = t("radar.timeline.minusMin", { min: -offsetMin });
+
+  // Past portion of the slider track, expressed as a percentage of the
+  // total range, so the gradient colour split visually matches where
+  // the past→nowcast boundary sits.
+  const lastPastIdx = frames.reduce(
+    (acc, f, i) => (f.kind === "past" ? i : acc),
+    -1
+  );
+  const pastPct = lastPastIdx >= 0 && frames.length > 1
+    ? Math.round((lastPastIdx / (frames.length - 1)) * 100)
+    : 100;
+
+  const isNowcast = frame.kind === "nowcast";
+
+  return (
+    <div className={`${styles.radarTimeline} ${dark ? styles.radarTimelineDark : styles.radarTimelineLight}`}>
+      <div className={styles.radarTimelineLabels}>
+        <span className={styles.radarTimelineTime}>{timeStr}</span>
+        <span className={`${styles.radarTimelineOffset} ${isNowcast ? styles.radarTimelineForecast : ""}`}>
+          {isNowcast ? t("radar.timeline.forecast") + " · " : ""}{offsetStr}
+        </span>
+        <button
+          type="button"
+          onClick={cycleRadarSpeed}
+          className={styles.radarTimelineSpeed}
+          aria-label={t("radar.timeline.speedAria")}
+        >
+          {RADAR_SPEED_LABELS[radarSpeed] || `${radarSpeed}×`}
+        </button>
+      </div>
+      <input
+        type="range"
+        min="0"
+        max={frames.length - 1}
+        step="1"
+        value={currentIdx}
+        onChange={(e) => onScrub(parseInt(e.target.value, 10))}
+        className={styles.radarTimelineScrubber}
+        style={{ "--past-pct": `${pastPct}%` }}
+        aria-label={t("radar.timeline.scrubberAria")}
+      />
+    </div>
+  );
+};
+
+RadarTimeline.propTypes = {
+  frames: PropTypes.array,
+  currentIdx: PropTypes.number,
+  onScrub: PropTypes.func.isRequired,
+  timezone: PropTypes.string,
+  dark: PropTypes.bool,
+};
+
 /**
  * Handles map click events from inside the MapContainer context
  *
@@ -441,10 +536,14 @@ const WeatherMap = ({ zoom, dark }) => {
     setPanToCoords,
     browserGeo,
     mapGeo,
+    mapTimezone,
     mapApiKey,
     getMapApiKey,
     markerIsVisible,
     animateWeatherMap,
+    radarSpeed,
+    radarFrameIdx,
+    setRadarFrameIdx,
     infoPanelCollapsed,
     hideRadarLegend,
     aiSummaryAvailable,
@@ -491,7 +590,11 @@ const WeatherMap = ({ zoom, dark }) => {
 
   const [mapTimestamps, setMapTimestamps] = useState(null);
   const [mapTimestamp, setMapTimestamp] = useState(null);
-  const [currentMapTimestampIdx, setCurrentMapTimestampIdx] = useState(0);
+  // Single source of truth for the current frame is `radarFrameIdx` in
+  // AppContext (so the new RadarTimeline overlay can read and write it
+  // independently). Local clamping below ensures we always read a valid
+  // index regardless of what the context holds — -1 (initial) maps to
+  // the most recent past frame, out-of-range maps to the last frame.
   const animationIntervalRef = useRef(null);
 
   // Risk levels for the dashed circles live in AppContext (see InfoPanel's
@@ -538,6 +641,25 @@ const WeatherMap = ({ zoom, dark }) => {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- initialization, runs once on mount
 
   const { latitude, longitude } = browserGeo || {};
+
+  // Resolve the radarFrameIdx (which may be -1 = "default to latest past
+  // frame") into a concrete index of the loaded `mapTimestamps` array.
+  // Centralised so both the tile renderer and the animation effect read
+  // the same value. The "latest past frame" default is the index of the
+  // last `kind: "past"` entry — putting playhead there means the user
+  // initially sees current radar (not the first past frame, which is 90
+  // minutes old).
+  const lastPastIdx = useMemo(() => {
+    if (!mapTimestamps || mapTimestamps.length === 0) return 0;
+    let idx = -1;
+    mapTimestamps.forEach((f, i) => { if (f.kind === "past") idx = i; });
+    return idx >= 0 ? idx : mapTimestamps.length - 1;
+  }, [mapTimestamps]);
+  const currentMapTimestampIdx = useMemo(() => {
+    if (!mapTimestamps || mapTimestamps.length === 0) return 0;
+    if (radarFrameIdx < 0 || radarFrameIdx >= mapTimestamps.length) return lastPastIdx;
+    return radarFrameIdx;
+  }, [radarFrameIdx, mapTimestamps, lastPastIdx]);
 
   // Keep the displayed timestamp in sync with the current index
   useEffect(() => {
@@ -604,7 +726,9 @@ const WeatherMap = ({ zoom, dark }) => {
   }, [riskFetchEnabled, mapGeo, distanceUnit, RISK_REFRESH_INTERVAL, setInnerRisk, setOuterRisk, setInnerTrend, setOuterTrend, setInnerBumped, setOuterBumped]);
 
   // Radar animation: start/stop interval based on animateWeatherMap toggle.
-  // Using a ref for the interval avoids recreating it on every frame tick.
+  // Per-frame interval is MAP_CYCLE_RATE / radarSpeed so 1× / 2× / 4× cycling
+  // from the timeline's speed selector takes effect immediately. Using a ref
+  // for the interval avoids recreating it on every frame tick.
   useEffect(() => {
     if (animationIntervalRef.current) {
       clearInterval(animationIntervalRef.current);
@@ -613,13 +737,20 @@ const WeatherMap = ({ zoom, dark }) => {
 
     if (mapTimestamps && animateWeatherMap) {
       animationIntervalRef.current = setInterval(() => {
-        setCurrentMapTimestampIdx((prev) =>
-          prev + 1 >= mapTimestamps.length ? 0 : prev + 1
-        );
-      }, MAP_CYCLE_RATE);
-    } else if (mapTimestamps) {
-      // When animation is off, show the most recent frame
-      setCurrentMapTimestampIdx(mapTimestamps.length - 1);
+        setRadarFrameIdx((prev) => {
+          // Advance from the resolved current index — which collapses
+          // -1 (uninitialised) and out-of-range values into a valid one
+          // — so a fresh play after a scrub or a frame-list reload
+          // always picks up at the right position.
+          const start = prev < 0 || prev >= mapTimestamps.length ? lastPastIdx : prev;
+          return start + 1 >= mapTimestamps.length ? 0 : start + 1;
+        });
+      }, MAP_CYCLE_RATE / radarSpeed);
+    } else if (mapTimestamps && radarFrameIdx < 0) {
+      // Initial state with animation off: anchor playhead at the latest
+      // past frame so the user sees current radar by default. Once the
+      // user scrubs or starts animation, we leave radarFrameIdx alone.
+      setRadarFrameIdx(lastPastIdx);
     }
 
     return () => {
@@ -628,7 +759,7 @@ const WeatherMap = ({ zoom, dark }) => {
         animationIntervalRef.current = null;
       }
     };
-  }, [animateWeatherMap, mapTimestamps]);
+  }, [animateWeatherMap, mapTimestamps, radarSpeed, lastPastIdx, radarFrameIdx, setRadarFrameIdx]);
 
   if (!hasVal(latitude) || !hasVal(longitude) || !zoom || !mapApiKey) {
     return (
@@ -734,6 +865,15 @@ const WeatherMap = ({ zoom, dark }) => {
           : null}
       </MapContainer>
       {mapTimestamps && !hideRadarLegend && <RadarLegend dark={dark} />}
+      {mapTimestamps && (
+        <RadarTimeline
+          frames={mapTimestamps}
+          currentIdx={currentMapTimestampIdx}
+          onScrub={setRadarFrameIdx}
+          timezone={mapTimezone}
+          dark={dark}
+        />
+      )}
     </div>
   );
 };
@@ -780,17 +920,22 @@ function hasVal(i) {
 }
 
 /**
- * Get timestamps for weather map
+ * Fetches the RainViewer frame index and returns past + nowcast frames as
+ * a single time-ordered array, with each frame tagged `kind: "past" | "nowcast"`.
+ * The nowcast frames (3 entries, every 10 min into the future) are RainViewer's
+ * short-range precipitation forecast — surfacing them in the timeline lets the
+ * user scrub past the present moment to see what's expected to drift in next.
  *
- * @returns {Promise} Promise of timestamps
+ * @returns {Promise<Array<{time: number, path: string, kind: "past"|"nowcast"}>>} Combined past + nowcast frames in time order.
  */
 function getMapTimestamps() {
   return new Promise((resolve, reject) => {
     axios
       .get("https://api.rainviewer.com/public/weather-maps.json")
       .then((res) => {
-        const frames = res.data.radar.past;
-        resolve(frames);
+        const past = (res.data?.radar?.past ?? []).map((f) => ({ ...f, kind: "past" }));
+        const nowcast = (res.data?.radar?.nowcast ?? []).map((f) => ({ ...f, kind: "nowcast" }));
+        resolve([...past, ...nowcast]);
       })
       .catch((err) => {
         reject(err);

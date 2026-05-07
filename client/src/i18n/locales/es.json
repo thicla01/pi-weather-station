@@ -172,7 +172,15 @@
     "moderate": "Moderado",
     "heavy": "Fuerte",
     "veryHeavy": "Muy fuerte",
-    "extreme": "Extremo"
+    "extreme": "Extremo",
+    "timeline": {
+      "now": "ahora",
+      "plusMin": "+{{min}} min",
+      "minusMin": "−{{min}} min",
+      "forecast": "pronóstico",
+      "speedAria": "Cambiar la velocidad de la animación del radar",
+      "scrubberAria": "Recorrer los fotogramas del radar"
+    }
   },
   "debug": {
     "title": "DEPURACIÓN",

@@ -172,7 +172,15 @@
     "moderate": "Moderate",
     "heavy": "Heavy",
     "veryHeavy": "Very heavy",
-    "extreme": "Extreme"
+    "extreme": "Extreme",
+    "timeline": {
+      "now": "now",
+      "plusMin": "+{{min}} min",
+      "minusMin": "−{{min}} min",
+      "forecast": "forecast",
+      "speedAria": "Cycle radar animation speed",
+      "scrubberAria": "Scrub through radar frames"
+    }
   },
   "debug": {
     "title": "DEBUG",
