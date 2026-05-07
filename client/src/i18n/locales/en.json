@@ -247,7 +247,7 @@
     "securityEvents": "SECURITY EVENTS",
     "noBlockedRequests": "No blocked requests",
     "vulnerabilityScan": "VULNERABILITY SCAN",
-    "vulnerabilityScanNotice": "Dependency vulnerabilities are scanned and patched automatically by Dependabot on GitHub. The live source of truth — alerts, severities, and open security PRs — is on the repo:",
+    "vulnerabilityScanNotice": "Dependency vulnerabilities are scanned and patched automatically by Dependabot on GitHub. The list of open and merged dependency PRs (security + version updates) is publicly visible on the repo:",
     "notAvailable": "Not available",
     "internet": "Internet",
     "online": "ONLINE",
