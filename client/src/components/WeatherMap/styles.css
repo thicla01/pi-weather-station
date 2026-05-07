@@ -148,12 +148,14 @@
   border: 1px solid currentColor;
   color: inherit;
   border-radius: 4px;
-  padding: 2px 8px;
+  padding: 4px 10px;
   font-family: inherit;
   font-size: 0.95em;
   font-weight: 600;
   cursor: pointer;
-  min-width: 36px;
+  min-width: 44px;
+  min-height: 32px;
+  touch-action: manipulation;
   transition: background 0.15s, color 0.15s;
 }
 
@@ -167,12 +169,14 @@
   border: 1px solid #f08200;
   color: #f08200;
   border-radius: 4px;
-  padding: 2px 8px;
+  padding: 4px 10px;
   font-family: inherit;
   font-size: 0.85em;
   font-weight: 600;
   cursor: pointer;
   white-space: nowrap;
+  min-height: 32px;
+  touch-action: manipulation;
   transition: background 0.15s;
 }
 
@@ -198,13 +202,17 @@
 
 /* Transport controls row — step-back, play/pause, step-forward, then
    the scrubber filling the rest of the width. Buttons sized for touch
-   on the 7" kiosk screen (~32 px square minimum) and disabled-styled
+   targets ≥ 36 px (Apple HIG advises 44 px, but the bar floats over
+   the radar map and the 36/40 px hybrid keeps the overlay compact
+   while still being comfortable on a 10" touchscreen). Disabled-styled
    at the timeline boundaries so a tap on a no-op button is silently
-   ignored without a visual change. */
+   ignored without a visual change. `touch-action: manipulation` kills
+   the 300 ms tap delay and disables double-tap-to-zoom hijacking the
+   button taps. */
 .radar-timeline-controls {
   display: flex;
   align-items: center;
-  gap: 4px;
+  gap: 6px;
   margin-top: 2px;
 }
 
@@ -221,19 +229,20 @@
   justify-content: center;
   flex: 0 0 auto;
   padding: 0;
+  touch-action: manipulation;
   transition: background 0.15s, opacity 0.15s;
 }
 
 .radar-timeline-step {
-  width: 28px;
-  height: 24px;
-  font-size: 0.75em;
+  width: 36px;
+  height: 36px;
+  font-size: 0.85em;
 }
 
 .radar-timeline-play {
-  width: 32px;
-  height: 24px;
-  font-size: 0.85em;
+  width: 40px;
+  height: 36px;
+  font-size: 1em;
   font-weight: 600;
 }
 
@@ -271,16 +280,25 @@
   background: #d57600;
 }
 
-/* Scrubber — native range input styled to a thin bar with two-tone
-   track (past on the left, nowcast on the right). The split point is
-   driven by the --past-pct CSS variable set inline by the component. */
+/* Scrubber — native range input styled to a two-tone track (past on
+   the left, nowcast on the right). The split point is driven by the
+   --past-pct CSS variable set inline by the component. Track and thumb
+   sized for finger taps on the 10" kiosk touchscreen — 10 px track for
+   easier tap-to-seek, 28 px thumb so the user can actually grab and
+   drag it. `touch-action: manipulation` removes the 300 ms tap delay
+   and avoids double-tap zoom interfering with seeks. The right margin
+   is intentionally larger than the left so the thumb at the max value
+   (rightmost frame) isn't flush against the timeline container's edge
+   — at that position the left side has the step-forward button as a
+   visual escape, but the right side runs straight into the container
+   border, leaving no finger margin to grab the thumb. */
 .radar-timeline-scrubber {
   -webkit-appearance: none;
   appearance: none;
   flex: 1 1 auto;
   min-width: 0;
-  height: 6px;
-  border-radius: 3px;
+  height: 10px;
+  border-radius: 5px;
   background: linear-gradient(
     to right,
     #888 0%,
@@ -290,17 +308,19 @@
   );
   outline: none;
   cursor: pointer;
-  margin: 0 0 0 6px;
+  margin: 0 12px 0 6px;
+  touch-action: manipulation;
 }
 
 .radar-timeline-scrubber::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 14px;
-  height: 14px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   background: #fff;
   border: 2px solid #3a3938;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
   cursor: grab;
   margin-top: 0;
 }
@@ -311,17 +331,19 @@
 }
 
 .radar-timeline-scrubber::-moz-range-thumb {
-  width: 14px;
-  height: 14px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   background: #fff;
   border: 2px solid #3a3938;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
   cursor: grab;
 }
 
-/* Compact small-screen variant: drop the time-string verbosity by
-   tightening padding and shrinking the speed button to keep the bar
-   from competing with the InfoPanel-collapse toggle on the right. */
+/* Compact small-screen variant for the 7" Pi kiosk (≤ 520 px height):
+   tighten padding and shrink controls a notch so the bar doesn't fight
+   for space with the InfoPanel-collapse toggle on the right. Touch
+   targets stay ≥ 32 px square — still finger-friendly on the 7". */
 @media (max-height: 520px) {
   .radar-timeline {
     bottom: 16px;
@@ -329,8 +351,34 @@
     padding: 4px 8px 6px;
   }
   .radar-timeline-speed {
-    min-width: 30px;
-    padding: 1px 6px;
+    min-width: 36px;
+    min-height: 28px;
+    padding: 2px 8px;
     font-size: 0.85em;
+  }
+  .radar-timeline-now {
+    min-height: 28px;
+    padding: 2px 8px;
+  }
+  .radar-timeline-step {
+    width: 32px;
+    height: 32px;
+  }
+  .radar-timeline-play {
+    width: 36px;
+    height: 32px;
+  }
+  .radar-timeline-scrubber {
+    height: 8px;
+    border-radius: 4px;
+    margin: 0 8px 0 6px;
+  }
+  .radar-timeline-scrubber::-webkit-slider-thumb {
+    width: 24px;
+    height: 24px;
+  }
+  .radar-timeline-scrubber::-moz-range-thumb {
+    width: 24px;
+    height: 24px;
   }
 }
