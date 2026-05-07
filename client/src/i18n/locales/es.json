@@ -179,7 +179,8 @@
       "minusMin": "−{{min}} min",
       "forecast": "pronóstico",
       "speedAria": "Cambiar la velocidad de la animación del radar",
-      "scrubberAria": "Recorrer los fotogramas del radar"
+      "scrubberAria": "Recorrer los fotogramas del radar",
+      "returnToNowAria": "Volver al fotograma actual del radar"
     }
   },
   "debug": {

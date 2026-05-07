@@ -179,7 +179,8 @@
       "minusMin": "−{{min}} min",
       "forecast": "forecast",
       "speedAria": "Cycle radar animation speed",
-      "scrubberAria": "Scrub through radar frames"
+      "scrubberAria": "Scrub through radar frames",
+      "returnToNowAria": "Return to current radar frame"
     }
   },
   "debug": {

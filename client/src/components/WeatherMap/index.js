@@ -340,6 +340,15 @@ const RadarTimeline = ({ frames, currentIdx, onScrub, timezone, dark }) => {
   const frame = frames[currentIdx];
   if (!frame) return null;
 
+  // Index of the most recent past frame — that's the playhead's "home"
+  // position (where it sits on initial mount). Used to expose a quick
+  // "return to now" affordance when the user has scrubbed elsewhere.
+  const lastPastIdx = frames.reduce(
+    (acc, f, i) => (f.kind === "past" ? i : acc),
+    -1
+  );
+  const atNow = currentIdx === lastPastIdx;
+
   // Build the time labels. "Now" is wall-clock at the kiosk; the frame
   // offset compares against it in minutes (negative for past frames,
   // positive for nowcast). Round to the nearest minute so a 9-minute
@@ -359,10 +368,6 @@ const RadarTimeline = ({ frames, currentIdx, onScrub, timezone, dark }) => {
   // Past portion of the slider track, expressed as a percentage of the
   // total range, so the gradient colour split visually matches where
   // the past→nowcast boundary sits.
-  const lastPastIdx = frames.reduce(
-    (acc, f, i) => (f.kind === "past" ? i : acc),
-    -1
-  );
   const pastPct = lastPastIdx >= 0 && frames.length > 1
     ? Math.round((lastPastIdx / (frames.length - 1)) * 100)
     : 100;
@@ -376,6 +381,17 @@ const RadarTimeline = ({ frames, currentIdx, onScrub, timezone, dark }) => {
         <span className={`${styles.radarTimelineOffset} ${isNowcast ? styles.radarTimelineForecast : ""}`}>
           {isNowcast ? t("radar.timeline.forecast") + " · " : ""}{offsetStr}
         </span>
+        {!atNow && lastPastIdx >= 0 && (
+          <button
+            type="button"
+            onClick={() => onScrub(lastPastIdx)}
+            className={styles.radarTimelineNow}
+            aria-label={t("radar.timeline.returnToNowAria")}
+            title={t("radar.timeline.returnToNowAria")}
+          >
+            ⟲ {t("radar.timeline.now")}
+          </button>
+        )}
         <button
           type="button"
           onClick={cycleRadarSpeed}

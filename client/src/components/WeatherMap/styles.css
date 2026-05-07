@@ -157,6 +157,30 @@
   transition: background 0.15s, color 0.15s;
 }
 
+/* Return-to-now button — appears only when the playhead is scrubbed
+   away from the most recent past frame ("now"). Positioned between
+   the offset label and the speed cycler. Tinted amber so it draws
+   the eye, since it's a transient affordance the user actively wants
+   to find when they want to go back to live radar. */
+.radar-timeline-now {
+  background: transparent;
+  border: 1px solid #f08200;
+  color: #f08200;
+  border-radius: 4px;
+  padding: 2px 8px;
+  font-family: inherit;
+  font-size: 0.85em;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: background 0.15s;
+}
+
+.radar-timeline-now:hover,
+.radar-timeline-now:focus {
+  background: rgba(240, 130, 0, 0.18);
+}
+
 /* Hover / focus feedback — keep the text colour intact (the previous
    `background: currentColor` rule made the digit invisible by setting
    background and foreground to the same value, especially noticeable
