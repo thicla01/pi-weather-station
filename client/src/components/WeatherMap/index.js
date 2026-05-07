@@ -594,8 +594,6 @@ const WeatherMap = ({ zoom, dark }) => {
     markerIsVisible,
     animateWeatherMap,
     radarSpeed,
-    radarFrameIdx,
-    setRadarFrameIdx,
     infoPanelCollapsed,
     hideRadarLegend,
     aiSummaryAvailable,
@@ -642,11 +640,15 @@ const WeatherMap = ({ zoom, dark }) => {
 
   const [mapTimestamps, setMapTimestamps] = useState(null);
   const [mapTimestamp, setMapTimestamp] = useState(null);
-  // Single source of truth for the current frame is `radarFrameIdx` in
-  // AppContext (so the new RadarTimeline overlay can read and write it
-  // independently). Local clamping below ensures we always read a valid
-  // index regardless of what the context holds — -1 (initial) maps to
-  // the most recent past frame, out-of-range maps to the last frame.
+  // Current playback position in the timeline. -1 = "use the most recent
+  // past frame" (initial mount). Kept as local state — earlier we tried
+  // hoisting it to AppContext for theoretical centralisation, but every
+  // animation tick (1× per second at 1× speed) then re-rendered all of
+  // AppContext's ~50 consumers, which queued button-click handlers
+  // behind a flood of re-renders and made the play/pause button take
+  // 1-2 s to react. RadarTimeline is rendered by us and receives the
+  // index via props, so context buys nothing.
+  const [radarFrameIdx, setRadarFrameIdx] = useState(-1);
   const animationIntervalRef = useRef(null);
 
   // Risk levels for the dashed circles live in AppContext (see InfoPanel's
@@ -798,11 +800,6 @@ const WeatherMap = ({ zoom, dark }) => {
           return start + 1 >= mapTimestamps.length ? 0 : start + 1;
         });
       }, MAP_CYCLE_RATE / radarSpeed);
-    } else if (mapTimestamps && radarFrameIdx < 0) {
-      // Initial state with animation off: anchor playhead at the latest
-      // past frame so the user sees current radar by default. Once the
-      // user scrubs or starts animation, we leave radarFrameIdx alone.
-      setRadarFrameIdx(lastPastIdx);
     }
 
     return () => {
@@ -811,7 +808,22 @@ const WeatherMap = ({ zoom, dark }) => {
         animationIntervalRef.current = null;
       }
     };
-  }, [animateWeatherMap, mapTimestamps, radarSpeed, lastPastIdx, radarFrameIdx, setRadarFrameIdx]);
+    // radarFrameIdx is intentionally NOT in the deps — the function
+    // updater inside setInterval reads the latest value via React's
+    // closure over `prev`, so we don't need to recreate the interval
+    // on every frame tick. Including it would clear and re-create the
+    // interval every second, which previously starved button clicks.
+  }, [animateWeatherMap, mapTimestamps, radarSpeed, lastPastIdx]);
+
+  // Initial mount: anchor the playhead at the most recent past frame
+  // once the timestamps load, so the first paint shows current radar
+  // (not the 90-min-old first historical frame). One-shot — once the
+  // user scrubs or starts animation, radarFrameIdx is no longer < 0.
+  useEffect(() => {
+    if (mapTimestamps && radarFrameIdx < 0) {
+      setRadarFrameIdx(lastPastIdx);
+    }
+  }, [mapTimestamps, lastPastIdx, radarFrameIdx]);
 
   if (!hasVal(latitude) || !hasVal(longitude) || !zoom || !mapApiKey) {
     return (

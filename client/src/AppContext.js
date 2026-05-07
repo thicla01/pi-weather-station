@@ -184,12 +184,13 @@ export function AppContextProvider({ children }) {
       return next;
     });
   }, []);
-  // Current playback position inside the radar timeline. -1 means "no
-  // explicit position — let WeatherMap's animation effect default to the
-  // most recent past frame". The RadarTimeline overlay sets this when the
-  // user scrubs; the animation effect reads it as the starting index when
-  // animation begins, and writes back as it ticks through frames.
-  const [radarFrameIdx, setRadarFrameIdx] = useState(-1);
+  // NOTE: radarFrameIdx (the current playback position in the timeline)
+  // intentionally lives in WeatherMap local state, not here. Hoisting it
+  // to context made every animation tick re-render all ~50 AppContext
+  // consumers — which queued button-click handlers behind a flood of
+  // re-renders and made the play/pause toggle take 1-2 seconds to react.
+  // Only WeatherMap and its child RadarTimeline need the value, and the
+  // child receives it via props, so context offers no benefit here.
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
   const [customLat, setCustomLat] = useState(null);
   const [customLon, setCustomLon] = useState(null);
@@ -1181,8 +1182,6 @@ export function AppContextProvider({ children }) {
     toggleAnimateWeatherMap,
     radarSpeed,
     cycleRadarSpeed,
-    radarFrameIdx,
-    setRadarFrameIdx,
     settingsMenuOpen,
     setSettingsMenuOpen,
     toggleSettingsMenuOpen,
