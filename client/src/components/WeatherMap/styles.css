@@ -92,7 +92,10 @@
   width: clamp(280px, 45vw, 480px);
   display: flex;
   flex-direction: column;
-  gap: 4px;
+  /* Gap bumped from 4 px to 8 px so a finger reaching for the scrubber but
+     drifting upward by a few pixels doesn't accidentally land on the speed
+     or "Now" buttons that live in the labels row above. */
+  gap: 8px;
   padding: 6px 10px 8px;
   border-radius: 8px;
   z-index: 500;
@@ -213,7 +216,10 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-top: 2px;
+  /* Bumped from 2 px to 4 px (combined with the parent's gap bump from 4 → 8)
+     to put more vertical breathing room between the labels row and the
+     transport row, reducing fat-finger taps that drift into the wrong row. */
+  margin-top: 4px;
 }
 
 .radar-timeline-step,
@@ -305,14 +311,98 @@
    Thumb 32 px (was 28) for a slightly more generous grab target now
    that the layout has settled. `touch-action: manipulation` removes
    the 300 ms tap delay and avoids double-tap zoom interfering. */
-.radar-timeline-scrubber {
+/* Scrubber wrapper — sized identically to the input so the layout doesn't
+   shift, but provides a positioning context for the "now" tick marks
+   rendered as ::before / ::after pseudo-elements at the past→nowcast
+   boundary. The ticks stay visible regardless of the thumb's current
+   position (the colour gradient on the track is otherwise hidden by the
+   thumb when the playhead sits exactly on "now"). The wrapper also owns
+   the --thumb-w / --track-h CSS variables so both the input (track + thumb
+   sizing) and the wrapper (tick positioning + spacing) stay in sync. */
+.radar-timeline-scrubber-wrap {
   --thumb-w: 32px;
-  -webkit-appearance: none;
-  appearance: none;
+  --track-h: 10px;
+  position: relative;
   flex: 1 1 auto;
   min-width: 0;
-  height: 10px;
-  border-radius: 5px;
+  /* Margin bumped from 6 px to 12 px so the leftmost-frame thumb sits with
+     finger-room between it and the step-forward button rather than visually
+     touching it — the previous spacing had the thumb's left edge almost
+     against the button's right edge at value=min, leaving no margin for a
+     missed tap. */
+  margin-left: 12px;
+  display: flex;
+  align-items: center;
+  /* Stacking context so the tick pseudo-elements can sit above the input. */
+  isolation: isolate;
+}
+
+/* Vertical "now" hairline ticks at the past→nowcast boundary. Two ticks
+   (top + bottom) render outside the visible track band so the marker stays
+   readable even when the thumb covers the boundary — which is exactly when
+   the gradient transition becomes invisible. Coloured with the same amber
+   accent as the nowcast portion of the gradient and the return-to-now
+   button, tying the visual language together. pointer-events: none so taps
+   on the marker zone fall through to the input behind. --show-now-marker
+   set to 0 by the JSX when there are no nowcast frames (past-frac = 1)
+   makes the ticks fade out entirely — no point marking "now" if the entire
+   track is past. */
+.radar-timeline-scrubber-wrap::before,
+.radar-timeline-scrubber-wrap::after {
+  content: "";
+  position: absolute;
+  /* Same calc as the gradient stops in .radar-timeline-scrubber so the
+     ticks line up exactly with the colour transition. */
+  left: calc(var(--thumb-w) / 2 + var(--past-frac, 1) * (100% - var(--thumb-w)));
+  width: 2px;
+  height: 6px;
+  background: #f08200;
+  border-radius: 1px;
+  transform: translateX(-1px);
+  pointer-events: none;
+  z-index: 2;
+  opacity: calc(var(--show-now-marker, 0) * 0.85);
+}
+.radar-timeline-scrubber-wrap::before { top: 2px; }
+.radar-timeline-scrubber-wrap::after  { bottom: 2px; }
+
+/* Scrubber — native range input styled to a two-tone track (past on
+   the left, nowcast on the right). The split point is driven by the
+   --past-frac CSS variable (0 to 1) inherited from the wrapper, and
+   the gradient uses a calc() expression that accounts for the input's
+   horizontal padding so the colour break visually lands exactly where
+   the thumb sits at the past→nowcast boundary.
+
+   Why the horizontal padding: native range inputs render the thumb's
+   *centre* at the value's position in the trackable range. At value=min
+   the thumb's centre is at the input's left content-edge, and the
+   thumb's left half extends *outside* the input element — which is
+   visible (Chrome doesn't clip a styled thumb) but **not interactive**
+   (only the half overlapping the input element is grabbable). Same
+   problem mirrored at value=max. Padding equal to the thumb radius
+   insets the trackable range so the thumb is fully within the input
+   element at both extremes (full hit area), with the visible gradient
+   still spanning the input's full width via calc().
+
+   Why the input height equals the full thumb size (was 10 px): on the
+   7" / 10" touchscreen kiosks, field testing after the horizontal
+   padding fix still showed ~20 % missed grabs — finger landing slightly
+   above or below the 10 px-tall track fell outside the input element
+   entirely. Bumping the input's box-height to match --thumb-w gives the
+   user a full thumb-diameter vertical hit zone (32 / 24 px instead of
+   10 / 8 px) while keeping the visible track at its original height via
+   `background-size: 100% var(--track-h)` centered. The track end-caps
+   are no longer rounded (the input's border-radius applied to the now-
+   transparent box around the track), but at 10 px the cap shape is
+   barely visible behind the 32 px thumb anyway. `touch-action:
+   manipulation` removes the 300 ms tap delay and avoids double-tap
+   zoom interfering. */
+.radar-timeline-scrubber {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 100%;
+  min-width: 0;
+  height: var(--thumb-w);
   box-sizing: border-box;
   padding: 0 calc(var(--thumb-w) / 2);
   background: linear-gradient(
@@ -321,11 +411,20 @@
     #888 calc(var(--thumb-w) / 2 + var(--past-frac, 1) * (100% - var(--thumb-w))),
     #f08200 calc(var(--thumb-w) / 2 + var(--past-frac, 1) * (100% - var(--thumb-w))),
     #f08200 100%
-  );
+  ) no-repeat center / 100% var(--track-h);
   outline: none;
   cursor: pointer;
-  margin: 0 0 0 6px;
+  margin: 0;
   touch-action: manipulation;
+}
+
+/* Defensive: Firefox renders its own ::-moz-range-track on top of the
+   input's background by default. Force it transparent so the input's
+   gradient remains the visible track. */
+.radar-timeline-scrubber::-moz-range-track {
+  background: transparent;
+  border: 0;
+  height: var(--track-h);
 }
 
 .radar-timeline-scrubber::-webkit-slider-thumb {
@@ -384,10 +483,11 @@
     width: 36px;
     height: 32px;
   }
-  .radar-timeline-scrubber {
+  .radar-timeline-scrubber-wrap {
     --thumb-w: 24px;
-    height: 8px;
-    border-radius: 4px;
-    margin: 0 0 0 6px;
+    --track-h: 8px;
+    /* Match the default-size 12 px margin-left bump so the leftmost-frame
+       thumb stays clear of the step-forward button on the 7" kiosk too. */
+    margin-left: 12px;
   }
 }
