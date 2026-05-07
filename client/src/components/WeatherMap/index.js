@@ -375,12 +375,15 @@ const RadarTimeline = ({ frames, currentIdx, onScrub, timezone, dark }) => {
   else if (offsetMin > 0)           offsetStr = t("radar.timeline.plusMin", { min: offsetMin });
   else                              offsetStr = t("radar.timeline.minusMin", { min: -offsetMin });
 
-  // Past portion of the slider track, expressed as a percentage of the
-  // total range, so the gradient colour split visually matches where
-  // the past→nowcast boundary sits.
-  const pastPct = lastPastIdx >= 0 && frames.length > 1
-    ? Math.round((lastPastIdx / (frames.length - 1)) * 100)
-    : 100;
+  // Past portion of the slider track, expressed as a unitless fraction
+  // (0 to 1), so the gradient colour split can be aligned in CSS with
+  // the thumb's travel range using a calc() that accounts for the
+  // input's horizontal padding (the padding insets the thumb at the
+  // extremes so it stays fully within the input's hit area — see
+  // styles.css for the full explanation).
+  const pastFrac = lastPastIdx >= 0 && frames.length > 1
+    ? lastPastIdx / (frames.length - 1)
+    : 1;
 
   const isNowcast = frame.kind === "nowcast";
 
@@ -449,7 +452,7 @@ const RadarTimeline = ({ frames, currentIdx, onScrub, timezone, dark }) => {
           value={currentIdx}
           onChange={(e) => onScrub(parseInt(e.target.value, 10))}
           className={styles.radarTimelineScrubber}
-          style={{ "--past-pct": `${pastPct}%` }}
+          style={{ "--past-frac": pastFrac }}
           aria-label={t("radar.timeline.scrubberAria")}
         />
       </div>

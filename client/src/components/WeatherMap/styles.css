@@ -282,41 +282,57 @@
 
 /* Scrubber — native range input styled to a two-tone track (past on
    the left, nowcast on the right). The split point is driven by the
-   --past-pct CSS variable set inline by the component. Track and thumb
-   sized for finger taps on the 10" kiosk touchscreen — 10 px track for
-   easier tap-to-seek, 28 px thumb so the user can actually grab and
-   drag it. `touch-action: manipulation` removes the 300 ms tap delay
-   and avoids double-tap zoom interfering with seeks. The right margin
-   is intentionally larger than the left so the thumb at the max value
-   (rightmost frame) isn't flush against the timeline container's edge
-   — at that position the left side has the step-forward button as a
-   visual escape, but the right side runs straight into the container
-   border, leaving no finger margin to grab the thumb. */
+   --past-frac CSS variable (0 to 1) set inline by the component, and
+   the gradient uses a calc() expression that accounts for the input's
+   horizontal padding so the colour break visually lands exactly where
+   the thumb sits at the past→nowcast boundary.
+
+   Why the padding: native range inputs render the thumb's *centre* at
+   the value's position in the trackable range. At value=min that
+   means the thumb's centre is at the input's left content-edge, and
+   the thumb's left half extends *outside* the input element — which
+   is visible (Chrome doesn't clip a styled thumb) but **not
+   interactive** (only the half overlapping the input element is
+   grabbable). Same problem mirrored at value=max. The reported
+   symptom on the 10" touchscreen — "the slider is hard to grab when
+   the cursor is fully to the right or fully to the left" — was
+   exactly that: half the thumb was decorative, the user only had
+   half the area to land their finger on. Padding equal to the thumb
+   radius insets the trackable range so the thumb is fully within the
+   input element at both extremes (full hit area), with the visible
+   gradient still spanning the input's full width via calc().
+
+   Thumb 32 px (was 28) for a slightly more generous grab target now
+   that the layout has settled. `touch-action: manipulation` removes
+   the 300 ms tap delay and avoids double-tap zoom interfering. */
 .radar-timeline-scrubber {
+  --thumb-w: 32px;
   -webkit-appearance: none;
   appearance: none;
   flex: 1 1 auto;
   min-width: 0;
   height: 10px;
   border-radius: 5px;
+  box-sizing: border-box;
+  padding: 0 calc(var(--thumb-w) / 2);
   background: linear-gradient(
     to right,
-    #888 0%,
-    #888 var(--past-pct, 100%),
-    #f08200 var(--past-pct, 100%),
+    #888 0,
+    #888 calc(var(--thumb-w) / 2 + var(--past-frac, 1) * (100% - var(--thumb-w))),
+    #f08200 calc(var(--thumb-w) / 2 + var(--past-frac, 1) * (100% - var(--thumb-w))),
     #f08200 100%
   );
   outline: none;
   cursor: pointer;
-  margin: 0 12px 0 6px;
+  margin: 0 0 0 6px;
   touch-action: manipulation;
 }
 
 .radar-timeline-scrubber::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 28px;
-  height: 28px;
+  width: var(--thumb-w);
+  height: var(--thumb-w);
   border-radius: 50%;
   background: #fff;
   border: 2px solid #3a3938;
@@ -331,8 +347,8 @@
 }
 
 .radar-timeline-scrubber::-moz-range-thumb {
-  width: 28px;
-  height: 28px;
+  width: var(--thumb-w);
+  height: var(--thumb-w);
   border-radius: 50%;
   background: #fff;
   border: 2px solid #3a3938;
@@ -369,16 +385,9 @@
     height: 32px;
   }
   .radar-timeline-scrubber {
+    --thumb-w: 24px;
     height: 8px;
     border-radius: 4px;
-    margin: 0 8px 0 6px;
-  }
-  .radar-timeline-scrubber::-webkit-slider-thumb {
-    width: 24px;
-    height: 24px;
-  }
-  .radar-timeline-scrubber::-moz-range-thumb {
-    width: 24px;
-    height: 24px;
+    margin: 0 0 0 6px;
   }
 }
