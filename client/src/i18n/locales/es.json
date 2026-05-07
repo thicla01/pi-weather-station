@@ -187,6 +187,10 @@
       "pauseAria": "Pausar la animación del radar"
     }
   },
+  "controls": {
+    "showTimeline": "Mostrar la línea de tiempo del radar",
+    "hideTimeline": "Ocultar la línea de tiempo del radar"
+  },
   "debug": {
     "title": "DEPURACIÓN",
     "loading": "CARGANDO...",

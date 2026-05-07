@@ -187,6 +187,10 @@
       "pauseAria": "Mettre en pause l'animation radar"
     }
   },
+  "controls": {
+    "showTimeline": "Afficher la chronologie radar",
+    "hideTimeline": "Masquer la chronologie radar"
+  },
   "debug": {
     "title": "DÉBOGAGE",
     "loading": "CHARGEMENT...",

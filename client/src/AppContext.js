@@ -191,6 +191,29 @@ export function AppContextProvider({ children }) {
   // re-renders and made the play/pause toggle take 1-2 seconds to react.
   // Only WeatherMap and its child RadarTimeline need the value, and the
   // child receives it via props, so context offers no benefit here.
+  // Whether the radar timeline overlay is visible. Persisted to
+  // localStorage as a layout preference (like darkMode, fontSize) so a
+  // user who prefers a clean map sees their choice survive reloads.
+  // Default true so first-time users see the timeline. Hiding the
+  // timeline also pauses any ongoing animation — see toggle below.
+  const [radarTimelineVisible, setRadarTimelineVisible] = useState(() => {
+    if (typeof window === "undefined") return true;
+    const stored = window.localStorage.getItem("radarTimelineVisible");
+    return stored === null ? true : stored === "true";
+  });
+  const toggleRadarTimelineVisible = useCallback(() => {
+    setRadarTimelineVisible((prev) => {
+      const next = !prev;
+      try { window.localStorage.setItem("radarTimelineVisible", String(next)); } catch { /* localStorage may be unavailable */ }
+      // Hiding the timeline also stops animation — the user has no UI
+      // to control playback while it's hidden, so leaving the radar
+      // ticking through frames in the background would be confusing.
+      // Showing the timeline doesn't auto-start animation; the user
+      // explicitly hits play if they want it.
+      if (!next) setAnimateWeatherMap(false);
+      return next;
+    });
+  }, []);
   const [settingsMenuOpen, setSettingsMenuOpen] = useState(false);
   const [customLat, setCustomLat] = useState(null);
   const [customLon, setCustomLon] = useState(null);
@@ -1182,6 +1205,8 @@ export function AppContextProvider({ children }) {
     toggleAnimateWeatherMap,
     radarSpeed,
     cycleRadarSpeed,
+    radarTimelineVisible,
+    toggleRadarTimelineVisible,
     settingsMenuOpen,
     setSettingsMenuOpen,
     toggleSettingsMenuOpen,

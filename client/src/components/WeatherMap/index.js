@@ -594,6 +594,7 @@ const WeatherMap = ({ zoom, dark }) => {
     markerIsVisible,
     animateWeatherMap,
     radarSpeed,
+    radarTimelineVisible,
     infoPanelCollapsed,
     hideRadarLegend,
     aiSummaryAvailable,
@@ -929,7 +930,7 @@ const WeatherMap = ({ zoom, dark }) => {
           : null}
       </MapContainer>
       {mapTimestamps && !hideRadarLegend && <RadarLegend dark={dark} />}
-      {mapTimestamps && (
+      {mapTimestamps && radarTimelineVisible && (
         <RadarTimeline
           frames={mapTimestamps}
           currentIdx={currentMapTimestampIdx}

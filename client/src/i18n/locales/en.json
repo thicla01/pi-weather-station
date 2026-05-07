@@ -187,6 +187,10 @@
       "pauseAria": "Pause radar animation"
     }
   },
+  "controls": {
+    "showTimeline": "Show radar timeline",
+    "hideTimeline": "Hide radar timeline"
+  },
   "debug": {
     "title": "DEBUG",
     "loading": "LOADING...",
