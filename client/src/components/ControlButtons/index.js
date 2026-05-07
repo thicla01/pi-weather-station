@@ -45,10 +45,18 @@ const ControlButtons = () => {
         darkMode ? styles.dark : styles.light
       } ${!mouseHide ? styles.showMouse : ""}`}
     >
-      <div onClick={resetMapPosition}>
+      <div
+        onClick={resetMapPosition}
+        title={t("controls.resetMapPosition")}
+        aria-label={t("controls.resetMapPosition")}
+      >
         <InlineIcon icon={locationArrow} />
       </div>
-      <div onClick={toggleMarker}>
+      <div
+        onClick={toggleMarker}
+        title={t(markerIsVisible ? "controls.hideMarker" : "controls.showMarker")}
+        aria-label={t(markerIsVisible ? "controls.hideMarker" : "controls.showMarker")}
+      >
         <InlineIcon
           icon={markerIsVisible ? roundLocationOff : roundLocationOn}
         />
@@ -65,12 +73,18 @@ const ControlButtons = () => {
       >
         <InlineIcon icon={timelineIcon} />
       </div>
-      <div onClick={() => setDarkMode(!darkMode)}>
+      <div
+        onClick={() => setDarkMode(!darkMode)}
+        title={t(darkMode ? "controls.lightMode" : "controls.darkMode")}
+        aria-label={t(darkMode ? "controls.lightMode" : "controls.darkMode")}
+      >
         <InlineIcon icon={contrastIcon} />
       </div>
       <div
         onClick={toggleSettingsMenuOpen}
         className={`${settingsMenuOpen ? styles.buttonDown : ""}`}
+        title={t(settingsMenuOpen ? "controls.closeSettings" : "controls.openSettings")}
+        aria-label={t(settingsMenuOpen ? "controls.closeSettings" : "controls.openSettings")}
       >
         <InlineIcon icon={sharpSettings} />
       </div>
@@ -78,6 +92,8 @@ const ControlButtons = () => {
         <div
           onClick={toggleDebugMenuOpen}
           className={`${debugMenuOpen ? styles.buttonDown : ""}`}
+          title={t(debugMenuOpen ? "controls.closeDebug" : "controls.openDebug")}
+          aria-label={t(debugMenuOpen ? "controls.closeDebug" : "controls.openDebug")}
         >
           <InlineIcon icon={bugIcon} />
         </div>
@@ -86,6 +102,8 @@ const ControlButtons = () => {
         <div
           onClick={() => setUpdateModalOpen(!updateModalOpen)}
           className={`${styles.updateButton} ${updateModalOpen ? styles.buttonDown : ""}`}
+          title={t(updateModalOpen ? "controls.closeUpdate" : "controls.openUpdate")}
+          aria-label={t(updateModalOpen ? "controls.closeUpdate" : "controls.openUpdate")}
         >
           <InlineIcon icon={upgradeIcon} />
           <span className={styles.updateBadge} />

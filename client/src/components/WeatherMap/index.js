@@ -339,6 +339,7 @@ const RadarTimeline = ({ frames, currentIdx, onScrub, timezone, dark }) => {
     cycleRadarSpeed,
     animateWeatherMap,
     toggleAnimateWeatherMap,
+    clockTime,
   } = useContext(AppContext);
 
   if (!frames || frames.length === 0) return null;
@@ -360,9 +361,13 @@ const RadarTimeline = ({ frames, currentIdx, onScrub, timezone, dark }) => {
   // -aged frame doesn't read as -8.97 min.
   const nowSec = Math.floor(Date.now() / 1000);
   const offsetMin = Math.round((frame.time - nowSec) / 60);
+  // Honour the user's 12h/24h preference from Settings — toLocaleTimeString
+  // would otherwise pick the locale's default, which produced "22:30" on a
+  // French-Canadian browser regardless of the kiosk's clock setting.
   const timeStr = new Date(frame.time * 1000).toLocaleTimeString(undefined, {
     hour: "2-digit",
     minute: "2-digit",
+    hour12: clockTime === "12",
     timeZone: timezone || undefined,
   });
   let offsetStr;
@@ -825,6 +830,18 @@ const WeatherMap = ({ zoom, dark }) => {
       setRadarFrameIdx(lastPastIdx);
     }
   }, [mapTimestamps, lastPastIdx, radarFrameIdx]);
+
+  // When the timeline overlay is hidden, snap the playhead back to the
+  // most recent past frame so the user is never left looking at a stale
+  // historical frame or a forecast frame they had been scrubbing
+  // through. The toggleRadarTimelineVisible callback in AppContext also
+  // pauses any running animation, so the combination is "hide the bar
+  // and show me current radar."
+  useEffect(() => {
+    if (!radarTimelineVisible && mapTimestamps) {
+      setRadarFrameIdx(lastPastIdx);
+    }
+  }, [radarTimelineVisible, mapTimestamps, lastPastIdx]);
 
   if (!hasVal(latitude) || !hasVal(longitude) || !zoom || !mapApiKey) {
     return (

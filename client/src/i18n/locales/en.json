@@ -188,8 +188,19 @@
     }
   },
   "controls": {
+    "resetMapPosition": "Recenter map on current location",
+    "showMarker": "Show location marker",
+    "hideMarker": "Hide location marker",
     "showTimeline": "Show radar timeline",
-    "hideTimeline": "Hide radar timeline"
+    "hideTimeline": "Hide radar timeline",
+    "darkMode": "Switch to dark mode",
+    "lightMode": "Switch to light mode",
+    "openSettings": "Open settings",
+    "closeSettings": "Close settings",
+    "openDebug": "Open debug panel",
+    "closeDebug": "Close debug panel",
+    "openUpdate": "Show update modal",
+    "closeUpdate": "Close update modal"
   },
   "debug": {
     "title": "DEBUG",
