@@ -10,6 +10,15 @@ import UpdateModal from "~/components/UpdateModal";
 
 import "!style-loader!css-loader!./overrides.css";
 
+// Breakpoint for offering an InfoPanel-collapse toggle. Covers both the
+// 7" Pi kiosk (~480 px height) and the 10" Pi touchscreen (1280×800,
+// height = 800 px) — both benefit from a way to free up the radar map
+// view on demand. Most desktop monitors (1080+ px) stay above this and
+// won't see the toggle. Decoupled from the `(max-height: 520px)` query
+// used in WeatherInfo / WeatherMap, which controls a denser layout (chart
+// tabs, compact timeline) and shouldn't trigger at 800 px.
+const PANEL_TOGGLE_MQ = "(max-height: 820px)";
+
 /**
  * Main component
  *
@@ -29,8 +38,8 @@ const App = () => {
     defaultMapZoom,
   } = useContext(AppContext);
 
-  const [isSmallScreen, setIsSmallScreen] = useState(
-    () => window.matchMedia("(max-height: 520px)").matches
+  const [canCollapsePanel, setCanCollapsePanel] = useState(
+    () => window.matchMedia(PANEL_TOGGLE_MQ).matches
   );
 
   const fontSizeZoom = { s: 0.85, m: 1.0, l: 1.15 }[fontSize] || 1.0;
@@ -42,16 +51,25 @@ const App = () => {
   // edge clip the trailing "%" on every value.
   const PANEL_BASE_WIDTH = 300;
   const panelWidthPx = Math.round(PANEL_BASE_WIDTH * fontSizeZoom);
-  const gridTemplateColumns = isSmallScreen && infoPanelCollapsed
+  const gridTemplateColumns = canCollapsePanel && infoPanelCollapsed
     ? "1fr 0"
     : `auto ${panelWidthPx}px`;
 
   useEffect(() => {
-    const mq = window.matchMedia("(max-height: 520px)");
-    const handler = (e) => setIsSmallScreen(e.matches);
+    const mq = window.matchMedia(PANEL_TOGGLE_MQ);
+    const handler = (e) => {
+      setCanCollapsePanel(e.matches);
+      // If the viewport grew past the breakpoint while the panel was
+      // collapsed (e.g. user attached an external monitor mid-session),
+      // restore the panel — otherwise it stays hidden with no toggle to
+      // bring it back.
+      if (!e.matches) {
+        setInfoPanelCollapsed(false);
+      }
+    };
     mq.addEventListener("change", handler);
     return () => mq.removeEventListener("change", handler);
-  }, []);
+  }, [setInfoPanelCollapsed]);
 
   useEffect(() => {
     getCustomLatLon();
@@ -81,7 +99,7 @@ const App = () => {
           } ${darkMode ? "map-dark-mode" : ""}`}
         >
           <WeatherMap zoom={defaultMapZoom} dark={darkMode} />
-          {isSmallScreen && (
+          {canCollapsePanel && (
             <button
               className={`${styles.panelToggle} ${darkMode ? styles.panelToggleDark : styles.panelToggleLight}`}
               onClick={() => setInfoPanelCollapsed(!infoPanelCollapsed)}

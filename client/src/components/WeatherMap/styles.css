@@ -284,9 +284,14 @@
    the left, nowcast on the right). The split point is driven by the
    --past-pct CSS variable set inline by the component. Track and thumb
    sized for finger taps on the 10" kiosk touchscreen — 10 px track for
-   easier tap-to-seek, 24 px thumb so the user can actually grab and
+   easier tap-to-seek, 28 px thumb so the user can actually grab and
    drag it. `touch-action: manipulation` removes the 300 ms tap delay
-   and avoids double-tap zoom interfering with seeks. */
+   and avoids double-tap zoom interfering with seeks. The right margin
+   is intentionally larger than the left so the thumb at the max value
+   (rightmost frame) isn't flush against the timeline container's edge
+   — at that position the left side has the step-forward button as a
+   visual escape, but the right side runs straight into the container
+   border, leaving no finger margin to grab the thumb. */
 .radar-timeline-scrubber {
   -webkit-appearance: none;
   appearance: none;
@@ -303,15 +308,15 @@
   );
   outline: none;
   cursor: pointer;
-  margin: 0 0 0 6px;
+  margin: 0 12px 0 6px;
   touch-action: manipulation;
 }
 
 .radar-timeline-scrubber::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   background: #fff;
   border: 2px solid #3a3938;
@@ -326,8 +331,8 @@
 }
 
 .radar-timeline-scrubber::-moz-range-thumb {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border-radius: 50%;
   background: #fff;
   border: 2px solid #3a3938;
@@ -366,13 +371,14 @@
   .radar-timeline-scrubber {
     height: 8px;
     border-radius: 4px;
+    margin: 0 8px 0 6px;
   }
   .radar-timeline-scrubber::-webkit-slider-thumb {
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
   }
   .radar-timeline-scrubber::-moz-range-thumb {
-    width: 20px;
-    height: 20px;
+    width: 24px;
+    height: 24px;
   }
 }

@@ -43,7 +43,12 @@
   border-left: none !important;
 }
 
-/* Panel toggle button (small screens only) */
+/* Panel toggle button — shown on the 7" Pi kiosk and the 10" Pi
+   touchscreen (any viewport ≤ 820 px tall). Edge-tab shape (narrow,
+   tall) so it's visible at a glance but doesn't eat horizontal space
+   off the radar map. `touch-action: manipulation` removes the 300 ms
+   tap delay and double-tap zoom, same rationale as the radar timeline
+   controls. */
 .panel-toggle {
   position: absolute;
   right: 0;
@@ -59,6 +64,7 @@
   font-size: 16px;
   cursor: pointer;
   padding: 0;
+  touch-action: manipulation;
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
 }
