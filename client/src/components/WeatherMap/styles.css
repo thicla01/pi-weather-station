@@ -157,19 +157,19 @@
   transition: background 0.15s, color 0.15s;
 }
 
-.radar-timeline-speed:hover,
-.radar-timeline-speed:focus {
-  background: currentColor;
-}
-
+/* Hover / focus feedback — keep the text colour intact (the previous
+   `background: currentColor` rule made the digit invisible by setting
+   background and foreground to the same value, especially noticeable
+   on touch devices where :hover sticks after tap). Use a subtle tinted
+   fill instead, per theme. */
 .radar-timeline-dark .radar-timeline-speed:hover,
 .radar-timeline-dark .radar-timeline-speed:focus {
-  color: #14141699;
+  background: rgba(255, 255, 255, 0.12);
 }
 
 .radar-timeline-light .radar-timeline-speed:hover,
 .radar-timeline-light .radar-timeline-speed:focus {
-  color: #f5f3ee;
+  background: rgba(0, 0, 0, 0.08);
 }
 
 /* Scrubber — native range input styled to a thin bar with two-tone
