@@ -342,6 +342,52 @@ const RadarTimeline = ({ frames, currentIdx, onScrub, timezone, dark }) => {
     clockTime,
   } = useContext(AppContext);
 
+  // Manual pointer-event handling on the scrubber input. Native
+  // <input type="range"> on touch devices is heuristic-driven — Chrome
+  // tries to decide whether a touchstart on the thumb is the start of
+  // a drag or a tap-on-track, and the heuristic is fragile enough on
+  // the Pi kiosk's touchscreen that quick taps often miss. Field
+  // observation: holding the finger longer on the thumb makes the
+  // success rate jump from ~20 % to ~80 %, which is the smoking gun
+  // — Chrome wants more dwell time before committing to drag mode.
+  // Override by capturing pointerdown ourselves and updating the
+  // value directly from the touch x-coordinate. setPointerCapture
+  // ensures subsequent moves stick to this element even when the
+  // finger drifts off the input. e.preventDefault() suppresses the
+  // native input's own touch handling so the two don't fight.
+  // onChange is preserved for keyboard accessibility (arrow keys
+  // still tab-navigate and step through frames natively). Mouse
+  // works through the same pointer-event path since Chrome unifies
+  // mouse and touch into pointer events.
+  const scrubberRef = useRef(null);
+  const updateFromClientX = useCallback((clientX) => {
+    const el = scrubberRef.current;
+    if (!el || !frames || frames.length < 2) return;
+    const rect = el.getBoundingClientRect();
+    const cs = window.getComputedStyle(el);
+    const padLeft = parseFloat(cs.paddingLeft) || 0;
+    const padRight = parseFloat(cs.paddingRight) || 0;
+    const trackable = Math.max(1, rect.width - padLeft - padRight);
+    const xRel = clientX - rect.left - padLeft;
+    const frac = Math.max(0, Math.min(1, xRel / trackable));
+    onScrub(Math.round(frac * (frames.length - 1)));
+  }, [frames, onScrub]);
+  const handleScrubberPointerDown = useCallback((e) => {
+    if (e.button > 0) return;
+    e.preventDefault();
+    e.currentTarget.setPointerCapture(e.pointerId);
+    updateFromClientX(e.clientX);
+  }, [updateFromClientX]);
+  const handleScrubberPointerMove = useCallback((e) => {
+    if (!e.currentTarget.hasPointerCapture(e.pointerId)) return;
+    updateFromClientX(e.clientX);
+  }, [updateFromClientX]);
+  const handleScrubberPointerUp = useCallback((e) => {
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId);
+    }
+  }, []);
+
   if (!frames || frames.length === 0) return null;
   const frame = frames[currentIdx];
   if (!frame) return null;
@@ -445,12 +491,17 @@ const RadarTimeline = ({ frames, currentIdx, onScrub, timezone, dark }) => {
           ▶
         </button>
         <input
+          ref={scrubberRef}
           type="range"
           min="0"
           max={frames.length - 1}
           step="1"
           value={currentIdx}
           onChange={(e) => onScrub(parseInt(e.target.value, 10))}
+          onPointerDown={handleScrubberPointerDown}
+          onPointerMove={handleScrubberPointerMove}
+          onPointerUp={handleScrubberPointerUp}
+          onPointerCancel={handleScrubberPointerUp}
           className={styles.radarTimelineScrubber}
           style={{ "--past-frac": pastFrac }}
           aria-label={t("radar.timeline.scrubberAria")}
