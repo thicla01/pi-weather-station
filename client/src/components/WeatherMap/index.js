@@ -500,11 +500,8 @@ const RadarTimeline = ({ frames, currentIdx, onScrub, timezone, dark }) => {
             when there are no nowcast frames (past-frac = 1, nothing past
             "now" to mark). */}
         <div
-          className={styles.radarTimelineScrubberWrap}
-          style={{
-            "--past-frac": pastFrac,
-            "--show-now-marker": pastFrac < 1 ? 1 : 0,
-          }}
+          className={`${styles.radarTimelineScrubberWrap} ${pastFrac < 1 ? styles.radarTimelineScrubberWrapWithNow : ""}`}
+          style={{ "--past-frac": pastFrac }}
         >
           <input
             ref={scrubberRef}

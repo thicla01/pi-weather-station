@@ -343,28 +343,34 @@
    the gradient transition becomes invisible. Coloured with the same amber
    accent as the nowcast portion of the gradient and the return-to-now
    button, tying the visual language together. pointer-events: none so taps
-   on the marker zone fall through to the input behind. --show-now-marker
-   set to 0 by the JSX when there are no nowcast frames (past-frac = 1)
-   makes the ticks fade out entirely — no point marking "now" if the entire
-   track is past. */
-.radar-timeline-scrubber-wrap::before,
-.radar-timeline-scrubber-wrap::after {
+   on the marker zone fall through to the input behind. The ticks render
+   only when the wrapper has the .with-now modifier class (added by JSX
+   when there are nowcast frames available — no point marking "now" if
+   the entire track is past).
+
+   Sized 3 × 8 px (wider/taller than a single hairline) and given a
+   subtle white border so they stand out against both the gray-past and
+   amber-nowcast portions of the track regardless of which colour they
+   sit on. z-index: 3 to render above the input element. */
+.radar-timeline-scrubber-wrap-with-now::before,
+.radar-timeline-scrubber-wrap-with-now::after {
   content: "";
   position: absolute;
   /* Same calc as the gradient stops in .radar-timeline-scrubber so the
      ticks line up exactly with the colour transition. */
   left: calc(var(--thumb-w) / 2 + var(--past-frac, 1) * (100% - var(--thumb-w)));
-  width: 2px;
-  height: 6px;
+  width: 3px;
+  height: 8px;
   background: #f08200;
-  border-radius: 1px;
-  transform: translateX(-1px);
+  border: 1px solid rgba(255, 255, 255, 0.85);
+  box-sizing: content-box;
+  border-radius: 2px;
+  transform: translateX(-2px);
   pointer-events: none;
-  z-index: 2;
-  opacity: calc(var(--show-now-marker, 0) * 0.85);
+  z-index: 3;
 }
-.radar-timeline-scrubber-wrap::before { top: 2px; }
-.radar-timeline-scrubber-wrap::after  { bottom: 2px; }
+.radar-timeline-scrubber-wrap-with-now::before { top: 1px; }
+.radar-timeline-scrubber-wrap-with-now::after  { bottom: 1px; }
 
 /* Scrubber — native range input styled to a two-tone track (past on
    the left, nowcast on the right). The split point is driven by the
