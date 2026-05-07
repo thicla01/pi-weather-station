@@ -196,13 +196,89 @@
   background: rgba(0, 0, 0, 0.08);
 }
 
+/* Transport controls row — step-back, play/pause, step-forward, then
+   the scrubber filling the rest of the width. Buttons sized for touch
+   on the 7" kiosk screen (~32 px square minimum) and disabled-styled
+   at the timeline boundaries so a tap on a no-op button is silently
+   ignored without a visual change. */
+.radar-timeline-controls {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-top: 2px;
+}
+
+.radar-timeline-step,
+.radar-timeline-play {
+  background: transparent;
+  border: 1px solid currentColor;
+  color: inherit;
+  border-radius: 4px;
+  font-family: inherit;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  padding: 0;
+  transition: background 0.15s, opacity 0.15s;
+}
+
+.radar-timeline-step {
+  width: 28px;
+  height: 24px;
+  font-size: 0.75em;
+}
+
+.radar-timeline-play {
+  width: 32px;
+  height: 24px;
+  font-size: 0.85em;
+  font-weight: 600;
+}
+
+.radar-timeline-step:disabled {
+  opacity: 0.3;
+  cursor: not-allowed;
+}
+
+.radar-timeline-dark .radar-timeline-step:not(:disabled):hover,
+.radar-timeline-dark .radar-timeline-step:not(:disabled):focus,
+.radar-timeline-dark .radar-timeline-play:hover,
+.radar-timeline-dark .radar-timeline-play:focus {
+  background: rgba(255, 255, 255, 0.12);
+}
+
+.radar-timeline-light .radar-timeline-step:not(:disabled):hover,
+.radar-timeline-light .radar-timeline-step:not(:disabled):focus,
+.radar-timeline-light .radar-timeline-play:hover,
+.radar-timeline-light .radar-timeline-play:focus {
+  background: rgba(0, 0, 0, 0.08);
+}
+
+/* Active "playing" state — solid amber fill so the play/pause toggle
+   has a visually distinct on-state, matching the nowcast accent
+   colour used elsewhere in the bar (return-to-now button, scrubber
+   right-half gradient). */
+.radar-timeline-play-active {
+  background: #f08200;
+  border-color: #f08200;
+  color: #fff;
+}
+
+.radar-timeline-play-active:hover,
+.radar-timeline-play-active:focus {
+  background: #d57600;
+}
+
 /* Scrubber — native range input styled to a thin bar with two-tone
    track (past on the left, nowcast on the right). The split point is
    driven by the --past-pct CSS variable set inline by the component. */
 .radar-timeline-scrubber {
   -webkit-appearance: none;
   appearance: none;
-  width: 100%;
+  flex: 1 1 auto;
+  min-width: 0;
   height: 6px;
   border-radius: 3px;
   background: linear-gradient(
@@ -214,7 +290,7 @@
   );
   outline: none;
   cursor: pointer;
-  margin: 2px 0;
+  margin: 0 0 0 6px;
 }
 
 .radar-timeline-scrubber::-webkit-slider-thumb {

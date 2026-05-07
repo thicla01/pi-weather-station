@@ -180,7 +180,11 @@
       "forecast": "prévision",
       "speedAria": "Changer la vitesse de l'animation radar",
       "scrubberAria": "Parcourir les images radar",
-      "returnToNowAria": "Revenir à l'image radar actuelle"
+      "returnToNowAria": "Revenir à l'image radar actuelle",
+      "stepBackAria": "Image précédente",
+      "stepForwardAria": "Image suivante",
+      "playAria": "Lancer l'animation radar",
+      "pauseAria": "Mettre en pause l'animation radar"
     }
   },
   "debug": {

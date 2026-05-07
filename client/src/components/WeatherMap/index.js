@@ -334,7 +334,12 @@ const RADAR_SPEED_LABELS = { 1: "1×", 2: "2×", 4: "4×" };
  */
 const RadarTimeline = ({ frames, currentIdx, onScrub, timezone, dark }) => {
   const { t } = useTranslation();
-  const { radarSpeed, cycleRadarSpeed } = useContext(AppContext);
+  const {
+    radarSpeed,
+    cycleRadarSpeed,
+    animateWeatherMap,
+    toggleAnimateWeatherMap,
+  } = useContext(AppContext);
 
   if (!frames || frames.length === 0) return null;
   const frame = frames[currentIdx];
@@ -401,17 +406,48 @@ const RadarTimeline = ({ frames, currentIdx, onScrub, timezone, dark }) => {
           {RADAR_SPEED_LABELS[radarSpeed] || `${radarSpeed}×`}
         </button>
       </div>
-      <input
-        type="range"
-        min="0"
-        max={frames.length - 1}
-        step="1"
-        value={currentIdx}
-        onChange={(e) => onScrub(parseInt(e.target.value, 10))}
-        className={styles.radarTimelineScrubber}
-        style={{ "--past-pct": `${pastPct}%` }}
-        aria-label={t("radar.timeline.scrubberAria")}
-      />
+      <div className={styles.radarTimelineControls}>
+        <button
+          type="button"
+          onClick={() => onScrub(Math.max(0, currentIdx - 1))}
+          disabled={currentIdx <= 0}
+          className={styles.radarTimelineStep}
+          aria-label={t("radar.timeline.stepBackAria")}
+          title={t("radar.timeline.stepBackAria")}
+        >
+          ◀
+        </button>
+        <button
+          type="button"
+          onClick={toggleAnimateWeatherMap}
+          className={`${styles.radarTimelinePlay} ${animateWeatherMap ? styles.radarTimelinePlayActive : ""}`}
+          aria-label={t(animateWeatherMap ? "radar.timeline.pauseAria" : "radar.timeline.playAria")}
+          title={t(animateWeatherMap ? "radar.timeline.pauseAria" : "radar.timeline.playAria")}
+        >
+          {animateWeatherMap ? "⏸" : "▶"}
+        </button>
+        <button
+          type="button"
+          onClick={() => onScrub(Math.min(frames.length - 1, currentIdx + 1))}
+          disabled={currentIdx >= frames.length - 1}
+          className={styles.radarTimelineStep}
+          aria-label={t("radar.timeline.stepForwardAria")}
+          title={t("radar.timeline.stepForwardAria")}
+        >
+          ▶
+        </button>
+        <input
+          type="range"
+          min="0"
+          max={frames.length - 1}
+          step="1"
+          value={currentIdx}
+          onChange={(e) => onScrub(parseInt(e.target.value, 10))}
+          className={styles.radarTimelineScrubber}
+          style={{ "--past-pct": `${pastPct}%` }}
+          aria-label={t("radar.timeline.scrubberAria")}
+        />
+      </div>
     </div>
   );
 };

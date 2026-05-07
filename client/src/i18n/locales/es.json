@@ -180,7 +180,11 @@
       "forecast": "pronóstico",
       "speedAria": "Cambiar la velocidad de la animación del radar",
       "scrubberAria": "Recorrer los fotogramas del radar",
-      "returnToNowAria": "Volver al fotograma actual del radar"
+      "returnToNowAria": "Volver al fotograma actual del radar",
+      "stepBackAria": "Fotograma anterior",
+      "stepForwardAria": "Fotograma siguiente",
+      "playAria": "Iniciar la animación del radar",
+      "pauseAria": "Pausar la animación del radar"
     }
   },
   "debug": {

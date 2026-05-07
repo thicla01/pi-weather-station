@@ -180,7 +180,11 @@
       "forecast": "forecast",
       "speedAria": "Cycle radar animation speed",
       "scrubberAria": "Scrub through radar frames",
-      "returnToNowAria": "Return to current radar frame"
+      "returnToNowAria": "Return to current radar frame",
+      "stepBackAria": "Previous frame",
+      "stepForwardAria": "Next frame",
+      "playAria": "Play radar animation",
+      "pauseAria": "Pause radar animation"
     }
   },
   "debug": {
