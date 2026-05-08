@@ -48,6 +48,25 @@ After a configurable period of inactivity, the display would transition to a min
 - **Bonus shipped alongside (not strictly trend-aware):** the radar prompt formatter dropped from ~5000 chars to ~2600 (62 % compression vs ~25 % before) by listing only non-zero samples within the active annulus and omitting fully-clear directions entirely. Claude reads the new convention via an updated preamble in `aiSummaryCtrl`. Compression-stats reports went from ~43 % of frames in the 0-25 % bucket to 100 % in the 50-75 % bucket immediately after the change.
 - **What's still tunable:** the inward-shift thresholds (5 km / 8 km) and `TIER_HYSTERESIS_N = 2` are empirical. Tighter and we miss real cells; looser and we trigger on noise. Re-tune if the observed false-positive rate climbs again.
 
+### 🇨🇦 Environment Canada radar source as an alternative to RainViewer
+Today's radar layer pulls 256×256 PNG tiles from RainViewer's CDN, which works globally but isn't optimal for the Quebec/Montreal-heavy fleet (7 Pis as of 2026-05-07). RainViewer's North American composite is downstream of the same MSC GeoMet feed that ECCC publishes directly, with extra latency and a ~10-min cadence. Two reasons to consider a Canadian-fleet switch:
+
+- **Authority + freshness:** MSC GeoMet updates every **6 minutes** and is the source of truth (32 Canadian sites + the NA composite). RainViewer's tiles are 1-2 frames behind by the time they hit the kiosk.
+- **Snow/rain separation:** MSC offers a dedicated `Radar_1km_SfcPrecipType` layer that distinguishes precipitation type — useful at the freezing line where RainViewer's intensity-only encoding can't tell.
+
+**Trade-offs that make this not an obvious win:**
+- **Different protocol.** MSC publishes via WMS (`geo.weather.gc.ca/geomet`) and OGC API (`api.weather.gc.ca`), not pre-rendered tile URLs. The Leaflet side is simple (`L.tileLayer.wms()` instead of `L.tileLayer()`), but it shifts rendering load to a server-side that may have less aggressive caching than RainViewer's CDN.
+- **Custom pixel encoding.** [`server/radarAnalyzerCtrl.js`](server/radarAnalyzerCtrl.js) decodes RainViewer's intensity-encoded palette pixel-by-pixel to feed the tier/trend/AlertBanner pipeline. Migrating that to MSC requires either re-decoding their dBZ palette, or (cleaner) switching to MSC's OGC API Coverages for raw precipitation-rate values — a few hours of work, not a find-and-replace.
+- **Shorter history window.** MSC keeps ~3 hours of frames; the 45-min trend computation (now / -15 min / -45 min) fits but loses head-room compared to RainViewer's similar span.
+- **No documented nowcast.** RainViewer ships 3 short-range forecast frames (`radar.nowcast`) that drive the timeline scrubber's amber "+10 / +20 / +30 min" portion. MSC has extrapolation layers but their frame count and prediction horizon aren't documented the same way; the timeline UX would need a fallback story for ECCC users.
+- **No API key needed**, attribution required (*"Canadian radar data was provided courtesy of Environment Canada"*).
+
+**Suggested phased approach:**
+
+- **Phase A — overlay-only opt-in (~30-45 min):** add a `radarSource` preference (`rainviewer` (default) / `eccc`) in Settings → Advanced. When `eccc`, the Leaflet layer uses `L.tileLayer.wms()` against `geo.weather.gc.ca/geomet` with `RADAR_1KM_RRAI` (rain) — winter-time snow swap is a stretch goal. **The server-side analyzer keeps using RainViewer regardless**, so tier/trend/alerts stay on the same data path. Bonus: 6-min visual freshness on the kiosk's view of "what's happening right now". Risk: low — purely visual, easy to revert.
+
+- **Phase B — analyzer port (~3-4 h, deferred):** rework `radarAnalyzerCtrl.js` to consume MSC's OGC API Coverages endpoint for raw precipitation-rate values, with automatic source-selection (ECCC for users in Canada per `req.ip` geolocation, RainViewer everywhere else). Trend window shrinks to fit MSC's 3-hour history; nowcast frames either drop entirely or pull from RainViewer in a hybrid (TBD). **Phase B should only be tackled after Phase A has proven the visual layer works smoothly on the Canadian kiosks for at least a few weeks of varied weather** — the user-visible benefit (snow/rain separation, marginally better trend authority) needs to be evidenced before committing to a refactor of the pipeline that powers every alert decision.
+
 ### ➡️ Precipitation motion arrows on the radar (utility to validate before building)
 Overlay arrows on the radar tile layer showing the general direction precipitation is moving in each part of the visible area — the same kind of vector field that MétéoMédia / The Weather Network displays on their app. The 13 RainViewer frames the analyzer already pulls (10 historical at 10-min intervals + 3 nowcast) carry implicit motion: a band that sat 50 km west three frames ago and now sits at the marker has a known velocity. Surfacing that as arrows turns "is this storm going to hit me?" from a multi-second mental computation into a glance.
 
@@ -248,6 +267,6 @@ The three items I would prioritize above all others if returning to this project
 
 ---
 
-*Last updated: 2026-05-07 (added two technical-debt entries surfaced by a local test of eslint-plugin-react-hooks v7: a Date.now()-during-render bug in WeatherMap, a self-recursive useCallback in WeatherInfo, and the broader set-state-in-effect refactor cluster that gates a future v7+ upgrade)*
+*Last updated: 2026-05-07 (added a medium-term entry for an Environment Canada radar source alternative to RainViewer — Phase A overlay-only opt-in is the natural fit for one session, Phase B analyzer port is deferred behind real-world Phase A validation on the Canadian fleet)*
 
 
