@@ -42,6 +42,8 @@ const Settings = () => {
     saveMouseHide,
     hideRadarLegend,
     saveHideRadarLegend,
+    radarSource,
+    saveRadarSource,
     darkModeAuto,
     saveDarkModeAuto,
     isLocal,
@@ -213,6 +215,17 @@ const Settings = () => {
                   button1Val={true}
                   button2Val={false}
                   cb={saveMouseHide}
+                />
+              </div>
+              <div>
+                <div className={styles.label}>{t("settings.radarSource")}</div>
+                <ToggleButton
+                  button1Label={t("settings.radarSourceRainviewer")}
+                  button2Label={t("settings.radarSourceEccc")}
+                  val={radarSource}
+                  button1Val={"rainviewer"}
+                  button2Val={"eccc"}
+                  cb={saveRadarSource}
                 />
               </div>
               <div>
