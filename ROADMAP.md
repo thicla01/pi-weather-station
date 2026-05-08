@@ -203,6 +203,31 @@ Without tests, every change to shared utilities or server middleware carries an 
 ### 🗂️ `AppContext.js` size and responsibility
 `AppContext.js` currently holds all global state: settings, units, geolocation, dark mode, font size, panel state, and all update functions. As the project grows, this single file becomes harder to navigate and reason about. Splitting it into focused context providers (e.g. `SettingsContext`, `WeatherContext`, `UIContext`) would improve maintainability without changing any observable behaviour.
 
+### 🪤 Two React anti-patterns surfaced by the React Compiler
+Discovered 2026-05-07 when test-running `eslint-plugin-react-hooks@7.x` locally. Both are pre-existing bugs the v5 plugin doesn't catch:
+
+- **`Math.floor(Date.now() / 1000)` called during render** in [`WeatherMap/index.js:408`](client/src/components/WeatherMap/index.js:408). The value feeds the timeline label computation and is consumed by downstream `useMemo` blocks — calling it during render makes those memos effectively non-stable (every render produces a fresh `nowSec`, defeating the memoisation). Fix: store `nowSec` in a `useState` with a `setInterval` ticking once per minute (or once per 10 s to match the radar frame cadence), so the value only changes on a real time tick rather than on every parent re-render.
+
+- **Self-recursive `useCallback` reference before declaration** in [`WeatherInfo/index.js:91-98`](client/src/components/WeatherInfo/index.js:91). `restartCycle` calls itself inside its own `setTimeout` callback, which the compiler flags as a TDZ access. Works at runtime (the closure resolves at timer fire, not at definition), but is fragile and confusing. Fix: replace with a `useRef` that holds the latest scheduling function, or restructure as a `useEffect` that re-arms its own timeout on each tick.
+
+Neither is a production bug today — both have been running on the deployed kiosk for months — but they're real fragility that will bite when we eventually touch those components. Worth fixing in a small dedicated PR rather than under the cover of an unrelated change.
+
+### 🛠️ React Compiler readiness — `set-state-in-effect` cluster
+The same `eslint-plugin-react-hooks@7.x` test surfaced **13 instances** of the new `set-state-in-effect` rule across:
+
+- `WeatherMap/index.js` (8 sites — radar frame index initialisation, scrubber state resets, sample-cache invalidation)
+- `App/index.js` (1 site)
+- `WeatherInfo/index.js` (1 site — chart auto-cycle)
+- `weatherCharts/HourlyChart/index.js` (1 site — chart data derivation from props)
+- `weatherCharts/DailyChart/index.js` (1 site — same pattern as HourlyChart)
+
+Most are the legitimate "compute derived state from props on change" pattern, which the React docs (and the new rule) recommend replacing with either:
+- direct computation during render (when the cost is low), or
+- `useMemo` / `useReducer` for expensive derivations, or
+- a state-lifting refactor when the dependency truly belongs to the parent.
+
+This is the gating debt for upgrading `eslint-plugin-react-hooks` past v6. The v5 plugin we're pinned to is still maintained, so there's no urgency — but if we ever want the v7+ improvements (skip-non-React-files perf, better Flow typing, ESLint v10 compat), the 13 sites need a coordinated refactor. Estimate: half-day session, with regression risk concentrated on the radar scrubber (which we just stabilised through PRs #33-#49).
+
 ### ✅ ~~Service-file customizations should live in a systemd drop-in, not the main unit~~ — **resolved in v2.8.1**
 `install.sh` and `toggle-remote.sh` now write `ALLOW_REMOTE=true` into a drop-in (`pi-weather-server.service.d/local.conf`) instead of editing the main service file. The canonical `deploy/pi-weather-server.service` stays a clean upstream mirror, and the in-app updater's `serviceFileChanged` warning only fires on real upstream changes. `toggle-remote.sh` migrates legacy installs by re-commenting the leftover line on the next toggle.
 
@@ -223,6 +248,6 @@ The three items I would prioritize above all others if returning to this project
 
 ---
 
-*Last updated: 2026-05-06 (added long-term entry for Anthropic prompt caching — currently dominated by the 15-min response cache, becomes interesting if fleet grows or system prompt expands beyond 1024 tokens)*
+*Last updated: 2026-05-07 (added two technical-debt entries surfaced by a local test of eslint-plugin-react-hooks v7: a Date.now()-during-render bug in WeatherMap, a self-recursive useCallback in WeatherInfo, and the broader set-state-in-effect refactor cluster that gates a future v7+ upgrade)*
 
 
