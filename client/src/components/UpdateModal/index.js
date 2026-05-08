@@ -112,6 +112,7 @@ const UpdateModal = () => {
                 <span className={`${styles.badge} ${
                   commit.type === "feat" ? styles.badgeFeat
                   : commit.type === "perf" ? styles.badgePerf
+                  : commit.type === "deps" ? styles.badgeDeps
                   : styles.badgeFix
                 }`}>
                   {t(`update.${commit.type}`)}

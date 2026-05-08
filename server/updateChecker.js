@@ -201,11 +201,16 @@ async function checkForUpdate() {
 
     // Fetch the commits between current and latest, then keep only those that
     // are user-visible changes (conventional `feat:` / `fix:` / `perf:`
-    // prefixes). Other commit types — `docs:`, `chore:`, `refactor:`, etc.
-    // — are infrastructure and don't warrant a notification on their own.
+    // prefixes, plus `chore(deps):` for dependency upgrades). Other commit
+    // types — `docs:`, plain `chore:`, `refactor:`, etc. — are infrastructure
+    // and don't warrant a notification on their own.
     // `perf:` was added after a token-compression commit on the radar prompt
     // didn't trigger an update notification on remote Pis: cost reduction is
     // exactly the kind of change the kiosk owner wants to know about.
+    // `chore(deps):` was added after the 2026-05-07 Dependabot batch (express
+    // 4 → 5, body-parser 1 → 2, plus minor groups) silently failed to surface
+    // an update on a fleet of 7 Pis: dependency upgrades carry security
+    // patches and warrant a notification of their own.
     let commits = [];
     if (shasDiffer && localSha) {
       try {
@@ -216,9 +221,12 @@ async function checkForUpdate() {
         commits = compareRes.data.commits
           .map((c) => {
             const firstLine = c.commit.message.split("\n")[0];
-            const match = firstLine.match(/^(feat|fix|perf)(?:\(.+?\))?:\s*(.+)/);
+            const match = firstLine.match(/^(feat|fix|perf|chore\(deps\))(?:\(.+?\))?:\s*(.+)/);
             if (!match) return null;
-            return { type: match[1], message: match[2] };
+            // Normalise the literal `chore(deps)` capture to a short `deps`
+            // token so the client-side badge keys stay simple.
+            const type = match[1] === "chore(deps)" ? "deps" : match[1];
+            return { type, message: match[2] };
           })
           .filter(Boolean)
           .reverse(); // most recent first
