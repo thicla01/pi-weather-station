@@ -9,6 +9,7 @@ import React, {
 import {
   MapContainer,
   TileLayer,
+  WMSTileLayer,
   AttributionControl,
   Marker,
   Circle,
@@ -667,6 +668,7 @@ const WeatherMap = ({ zoom, dark }) => {
     animateWeatherMap,
     radarSpeed,
     radarTimelineVisible,
+    radarSource,
     infoPanelCollapsed,
     hideRadarLegend,
     aiSummaryAvailable,
@@ -965,7 +967,26 @@ const WeatherMap = ({ zoom, dark }) => {
           zoomOffset={-1}
           maxZoom={20}
         />
-        {mapTimestamp ? (
+        {radarSource === "eccc" ? (
+          // Environment Canada radar (RADAR_1KM_RRAI = rain precipitation rate
+          // at 1 km, NA composite). 6-min update cadence vs RainViewer's ~10
+          // min, dedicated authority for the Canadian fleet. No time-dimension
+          // here — Phase A surfaces only the current frame; the timeline
+          // scrubber and animation are hidden when this source is active.
+          // Attribution per ECCC terms of use: "Canadian radar data was
+          // provided courtesy of Environment Canada".
+          <WMSTileLayer
+            attribution='Radar courtesy <a href="https://www.canada.ca/en/environment-climate-change.html">Environment Canada</a>'
+            url="https://geo.weather.gc.ca/geomet"
+            params={{
+              layers: "RADAR_1KM_RRAI",
+              format: "image/png",
+              transparent: true,
+              version: "1.3.0",
+            }}
+            opacity={dark ? radarOpacityDark : radarOpacityLight}
+          />
+        ) : mapTimestamp ? (
           <TileLayer
             attribution='<a href="https://www.rainviewer.com/">RainViewer</a>'
             url={`https://tilecache.rainviewer.com${mapTimestamp.path}/512/{z}/{x}/{y}/6/1_1.png`}
@@ -1033,8 +1054,12 @@ const WeatherMap = ({ zoom, dark }) => {
             )
           : null}
       </MapContainer>
-      {mapTimestamps && !hideRadarLegend && !(radarTimelineVisible && isSmallScreen) && <RadarLegend dark={dark} />}
-      {mapTimestamps && radarTimelineVisible && (
+      {/* Legend + timeline are RainViewer-specific (the legend's colour
+          scale matches RainViewer's intensity-encoded palette, and the
+          timeline drives RainViewer's frame URLs). Hidden entirely when
+          radarSource is ECCC — Phase A doesn't bring scrubbing across. */}
+      {mapTimestamps && radarSource === "rainviewer" && !hideRadarLegend && !(radarTimelineVisible && isSmallScreen) && <RadarLegend dark={dark} />}
+      {mapTimestamps && radarSource === "rainviewer" && radarTimelineVisible && (
         <RadarTimeline
           frames={mapTimestamps}
           currentIdx={currentMapTimestampIdx}

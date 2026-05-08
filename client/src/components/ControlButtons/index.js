@@ -27,6 +27,7 @@ const ControlButtons = () => {
     toggleMarker,
     radarTimelineVisible,
     toggleRadarTimelineVisible,
+    radarSource,
     toggleSettingsMenuOpen,
     settingsMenuOpen,
     mouseHide,
@@ -64,15 +65,19 @@ const ControlButtons = () => {
       {/* Toggles visibility of the radar timeline overlay over the
           map. Replaces the previous standalone play/stop control —
           play/pause now lives in the timeline itself, and this button
-          gives the user an escape hatch when they want a clean map. */}
-      <div
-        onClick={toggleRadarTimelineVisible}
-        className={`${radarTimelineVisible ? styles.buttonDown : ""}`}
-        title={t(radarTimelineVisible ? "controls.hideTimeline" : "controls.showTimeline")}
-        aria-label={t(radarTimelineVisible ? "controls.hideTimeline" : "controls.showTimeline")}
-      >
-        <InlineIcon icon={timelineIcon} />
-      </div>
+          gives the user an escape hatch when they want a clean map.
+          Hidden when radarSource is ECCC (the timeline scrubber drives
+          RainViewer frame URLs and has no equivalent on the WMS layer). */}
+      {radarSource === "rainviewer" && (
+        <div
+          onClick={toggleRadarTimelineVisible}
+          className={`${radarTimelineVisible ? styles.buttonDown : ""}`}
+          title={t(radarTimelineVisible ? "controls.hideTimeline" : "controls.showTimeline")}
+          aria-label={t(radarTimelineVisible ? "controls.hideTimeline" : "controls.showTimeline")}
+        >
+          <InlineIcon icon={timelineIcon} />
+        </div>
+      )}
       <div
         onClick={() => setDarkMode(!darkMode)}
         title={t(darkMode ? "controls.lightMode" : "controls.darkMode")}

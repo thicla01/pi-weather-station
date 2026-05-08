@@ -18,6 +18,8 @@ const CLOCK_UNIT_STORAGE_KEY = "clockTime";
 const MOUSE_HIDE_STORAGE_KEY = "mouseHide";
 const FONT_SIZE_STORAGE_KEY = "fontSize";
 const HIDE_RADAR_LEGEND_STORAGE_KEY = "hideRadarLegend";
+const RADAR_SOURCE_STORAGE_KEY = "radarSource";
+const RADAR_SOURCE_VALUES = ["rainviewer", "eccc"];
 const SKIPPED_SHA_STORAGE_KEY = "skippedSha";
 const UPDATE_CHECK_INTERVAL = 6 * 60 * 60 * 1000; // 6 hours
 
@@ -219,6 +221,13 @@ export function AppContextProvider({ children }) {
   const [customLon, setCustomLon] = useState(null);
   const [mouseHide, setMouseHide] = useState(false);
   const [hideRadarLegend, setHideRadarLegend] = useState(false);
+  // Visual radar source on the map. "rainviewer" (default) keeps the existing
+  // CDN-cached PNG tiles + timeline scrubber; "eccc" swaps to Environment
+  // Canada's WMS for fresher (6-min) Canadian-authority radar at the cost of
+  // the timeline (ECCC's WMS time-dimension support is a Phase B item). The
+  // server-side radar analyzer always uses RainViewer regardless — this
+  // setting only affects the visible tile layer.
+  const [radarSource, setRadarSource] = useState("rainviewer");
   const [infoPanelCollapsed, setInfoPanelCollapsed] = useState(false);
   const [fontSize, setFontSize] = useState("m"); // s, m, l
   const [sunriseTime, setSunriseTime] = useState(null);
@@ -274,6 +283,17 @@ export function AppContextProvider({ children }) {
     }
     setHideRadarLegend(newState);
     window.localStorage.setItem(HIDE_RADAR_LEGEND_STORAGE_KEY, newState);
+  }
+
+  /**
+   * Save radar source preference (rainviewer | eccc).
+   *
+   * @param {string} newVal
+   */
+  function saveRadarSource(newVal) {
+    if (!RADAR_SOURCE_VALUES.includes(newVal)) return;
+    setRadarSource(newVal);
+    window.localStorage.setItem(RADAR_SOURCE_STORAGE_KEY, newVal);
   }
 
   /**
@@ -514,6 +534,11 @@ export function AppContextProvider({ children }) {
       console.log("hideRadarLegend", e);
     }
     setHideRadarLegend(!!hideRadarLegend);
+
+    const storedRadarSource = window.localStorage.getItem(RADAR_SOURCE_STORAGE_KEY);
+    if (RADAR_SOURCE_VALUES.includes(storedRadarSource)) {
+      setRadarSource(storedRadarSource);
+    }
 
     const savedSkippedSha = window.localStorage.getItem(SKIPPED_SHA_STORAGE_KEY);
     if (savedSkippedSha) setSkippedSha(savedSkippedSha);
@@ -1233,6 +1258,8 @@ export function AppContextProvider({ children }) {
     saveMouseHide,
     hideRadarLegend,
     saveHideRadarLegend,
+    radarSource,
+    saveRadarSource,
     infoPanelCollapsed,
     setInfoPanelCollapsed,
     fontSize,
