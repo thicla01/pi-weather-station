@@ -15,7 +15,7 @@
     "body-parser": "^2.2.2",
     "express": "^4.22.1",
     "express-rate-limit": "^8.5.1",
-    "open": "^10.2.0",
+    "open": "^11.0.0",
     "pngjs": "^7.0.0"
   },
   "devDependencies": {
