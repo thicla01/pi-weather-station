@@ -176,6 +176,20 @@
   pointer-events: none;
 }
 
+/* Fade-out / ghost-click absorber: applied for 350 ms after the stage
+   drops from > 0 to 0. Two purposes: (1) gives the wake transition a
+   smooth visual fade instead of a hard cut, (2) keeps the overlay's
+   <div> mounted with pointer-events: auto so the synthetic click that
+   follows the wake pointerdown lands here (and is stopPropagation'd in
+   the React onClick handler) rather than reaching the WeatherMap
+   underneath. The opacity transition matches the duration of the
+   click-absorb window. */
+.fading-out {
+  opacity: 0;
+  pointer-events: auto;
+  transition: opacity 350ms ease;
+}
+
 /* ---------- stage 2 anti-burn-in dot ---------- */
 .pixel {
   position: fixed;

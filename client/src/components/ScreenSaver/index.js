@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useState } from "react";
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
@@ -157,7 +157,36 @@ const ScreenSaver = ({ stage }) => {
     };
   }, [lastCellRef]);
 
-  if (stage === 0) return null;
+  // Ghost-click absorption on wake. The chain we need to defeat:
+  //   1. user touches the screen → pointerdown
+  //   2. window-level idle hook listener fires markActive → setStage(0)
+  //   3. React re-renders → <ScreenSaver/> would normally unmount
+  //   4. pointerup → synthetic click event fires AFTER unmount
+  //   5. click reaches whatever's now at the touch position (the
+  //      WeatherMap), which interprets it as click-to-set-new-location
+  //
+  // Fix: when stage drops from > 0 to 0, keep the overlay mounted as
+  // a fully-transparent click-absorber for 350 ms (one frame longer
+  // than the fade transition itself, comfortably long enough for the
+  // ghost click to land on us instead of the map). During that window
+  // the root <div> still has pointer-events: auto (via .fading-out)
+  // and an onClick handler that stops propagation, so nothing bubbles
+  // through to Leaflet's MapClickHandler.
+  const [fadingOut, setFadingOut] = useState(false);
+  const prevStageRef = useRef(stage);
+  useEffect(() => {
+    let timeout;
+    if (prevStageRef.current > 0 && stage === 0) {
+      setFadingOut(true);
+      timeout = setTimeout(() => setFadingOut(false), 350);
+    }
+    prevStageRef.current = stage;
+    return () => {
+      if (timeout) clearTimeout(timeout);
+    };
+  }, [stage]);
+
+  if (stage === 0 && !fadingOut) return null;
 
   // Variant + stage classes composed onto the root. The mock keeps the
   // base variant active when stage 2 layers on top so the dot picks the
@@ -216,11 +245,23 @@ const ScreenSaver = ({ stage }) => {
   const condStr = condKey ? i18n.t(condKey) : "";
   const glyph = code !== undefined ? weatherGlyph(code) : "☁";
 
+  // The fadingOut class is applied when we're holding the overlay
+  // mounted in transparent absorber mode. Stops the post-wake ghost
+  // click from reaching Leaflet's map handler.
+  const fadingClass = fadingOut ? styles.fadingOut : "";
+  // Belt-and-braces: also stop propagation on the root onClick. If for
+  // any reason the click happens to fire on us (rather than be absorbed
+  // by the fade overlay), it's still cancelled here.
+  const swallowClick = (e) => {
+    e.stopPropagation();
+  };
+
   return (
     <div
-      className={`${styles.screenSaver} ${variantClass} ${stage2Class}`}
+      className={`${styles.screenSaver} ${variantClass} ${stage2Class} ${fadingClass}`}
       role="presentation"
       aria-hidden="true"
+      onClick={swallowClick}
     >
       <main className={styles.stage}>
         <div className={styles.date}>{dateStr}</div>
