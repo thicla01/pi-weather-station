@@ -53,9 +53,18 @@
 }
 
 .night-red {
+  /* All three text elements share the same red rather than splitting
+     into a brighter time value (#ff6644 in the original spec) and
+     deeper date/footer value (#cc4422). On the actual kiosk display
+     the saturation jump between the two reads as a hue shift
+     (brick → orange) rather than as a luminance hierarchy — and the
+     hierarchy is already carried by font size (XXL vs small) and
+     weight (200 vs 400), so colour doesn't need to do that work too.
+     Bonus: the time now matches the stage-2 anti-burn-in dot, so the
+     two stages share one accent colour. */
   --bg:   #0a0808;
   --date: #cc4422;
-  --time: #ff6644;
+  --time: #cc4422;
   --foot: #cc4422;
   --dot:  #cc4422;
 }

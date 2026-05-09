@@ -27,9 +27,14 @@
   }
 
   body.night-red {
+    /* Unified red across all three text elements (originally split into
+       date/footer #cc4422 + time #ff6644 for hierarchy). On the kiosk
+       display the saturation jump between the two reds read as a hue
+       shift rather than luminance — hierarchy is now carried by font
+       size + weight only. */
     --bg:   #0a0808;
     --date: #cc4422;
-    --time: #ff6644;
+    --time: #cc4422;
     --foot: #cc4422;
     --dot:  #cc4422;
   }
