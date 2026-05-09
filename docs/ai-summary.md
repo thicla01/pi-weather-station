@@ -1,0 +1,357 @@
+# AI Summary — how it works
+
+The InfoPanel's `AI SUMMARY` block is a 1-3 paragraph natural-language
+description of the user's current weather, the next forecast period, and
+what the radar around them is doing. It's powered by Claude (Anthropic API,
+Haiku 4.5 today) and refreshed every 15 minutes.
+
+This document explains exactly which pieces of work happen on the Pi and
+which happen on Anthropic's servers, how data flows between them, and how
+to handle a model upgrade.
+
+---
+
+## 30-second mental model
+
+```
+                  ┌──────────────────────── on the Pi ───────────────────────┐    ┌──── Anthropic ────┐
+                  │                                                          │    │                   │
+                  │   Tomorrow.io (cached) ──┐                                │    │                   │
+                  │                          │                                │    │                   │
+                  │   RainViewer tiles ──────┤   prompt assembly + caching   │ →→→ │  Claude Haiku 4.5 │ →→→ summary text
+                  │   (cached)               │   (server/aiSummaryCtrl.js)    │    │                   │
+                  │                          │                                │    │                   │
+                  │   user settings ─────────┘                                │    │                   │
+                  │                                                          │    │                   │
+                  └──────────────────────────────────────────────────────────┘    └───────────────────┘
+```
+
+**Everything except the LLM call itself runs on the Pi.** Tomorrow.io and
+RainViewer fetches, the radar pixel sampling, the unit conversions, the
+prompt assembly, the cache, the per-language formatting — all local. Only
+the assembled prompt goes off-device, and only the resulting text comes
+back. The Pi never relays raw user data, location history, or accumulated
+state to Anthropic — each request stands alone.
+
+---
+
+## What runs locally on the Pi
+
+### 1. The HTTP endpoint and the cache
+
+`GET /api/weather-summary` is the single entry point, routed in
+`server/index.js` and handled by `server/aiSummaryCtrl.js`.
+
+The first thing the controller does is look up an in-process cache keyed
+by `lat:lon:lang:period:tempUnit:speedUnit:distanceUnit`. The TTL is
+**15 minutes** (`SUMMARY_CACHE_TTL`). A cache hit is returned immediately
+with no upstream call — so a kiosk that polls every 15 minutes only ever
+makes one Claude request per cache window per location, regardless of how
+many browser clients are connected.
+
+The cache key includes the user's unit preferences because the prompt — and
+therefore the response — is unit-specific. Toggling between °F and °C
+invalidates the matching cache entry the first time the new key is hit.
+
+### 2. Source-data assembly (no LLM involved)
+
+The controller pulls three independent inputs from the **shared
+server-side weather cache** (`server/proxyCtrl.js`) and the **radar
+analyzer** (`server/radarAnalyzerCtrl.js`):
+
+- **Current conditions** — Tomorrow.io `current` payload. Falls back to
+  a direct Tomorrow.io fetch if the shared cache is empty (cold boot).
+  Fields used: temperature, humidity, windSpeed,
+  precipitationProbability, weatherCode, cloudCover.
+- **Period forecast** — picked dynamically from `localHour`:
+  - morning / afternoon → tonight's evening (18 h–21 h) from hourly data
+  - evening → overnight (21 h–05 h) from hourly data
+  - night → tomorrow from daily data
+  Averages temperature and wind across the window; takes max precipitation
+  probability.
+- **Radar analysis** (optional, opt-in via `advanced.ai.radarAnalysisEnabled`,
+  default on) — see the next section.
+
+All three sections are independent. If one fails (Tomorrow.io throttled,
+RainViewer down, etc.), the prompt still gets the others and Claude is
+told explicitly which piece is missing so it doesn't hallucinate values.
+
+### 3. Radar pixel sampling — the most local-CPU-heavy part
+
+`server/radarAnalyzerCtrl.js` does all of this on the Pi:
+
+1. Fetches the **RainViewer frame index** (`weather-maps.json`) to discover
+   the latest 3 timestamps it should compare (now / -15 min / -45 min).
+2. Computes which **256×256 PNG tiles** at zoom 6 cover the user's
+   location plus the surrounding 100 km radius.
+3. Fetches each unique `(framePath, tileX, tileY)` PNG from RainViewer's
+   `tilecache.rainviewer.com` CDN. Tile cache: 12 minutes
+   (`TILE_CACHE_TTL`). Many tiles are shared across the 3 timestamps and
+   across users at nearby locations, so the cache hit rate is high.
+4. Decodes each PNG via `pngjs` (no native dependency).
+5. For each of **161 sampling points** (1 centre + 16 directions × 10
+   distances on the inner ring 5–50 km) — or **481 points** when
+   `advanced.ai.extendedRadius` is on (adds 32 directions × 10 distances
+   on the outer ring 55–100 km) — converts lat/lon to pixel coordinates
+   and reads the RGB value.
+6. Maps each RGB → an **intensity tier** (`clear / very light / light /
+   moderate / heavy / very heavy / extreme`) using the RainViewer palette
+   convention. A 3×3 max-pool around each probe absorbs anti-aliasing
+   edges so a single border pixel doesn't misclassify a tile boundary.
+7. Compresses the resulting grid into a compact textual format
+   (`formatSnapshot`) — only non-zero samples within the active annulus
+   are listed; "Clear within X km" and "Clear beyond Y km" describe the
+   surrounding empty zones in one phrase each. This compression dropped
+   the radar block from ~5000 to ~2600 chars (62% reduction) and is what
+   keeps the Anthropic call cheap.
+8. Caches the formatted snapshot for 5 minutes (`ANALYSIS_CACHE_TTL`)
+   keyed by `lat:lon:radiusTag:unit:FORMAT_VERSION`.
+
+### 4. Unit conversions
+
+Tomorrow.io's source values are always metric (°C, m/s). The client passes
+the user's preferred display units (`tempUnit`, `speedUnit`, `distanceUnit`)
+and `aiSummaryCtrl` converts them locally before they enter the prompt.
+Conversion helpers:
+
+- `fmtTemp(c, unit)` → `"53°F"` / `"12°C"` / `"285 K"`
+- `fmtSpeed(ms, unit)` → `"11 mph"` / `"5 m/s"` / `"18 km/h"`
+- distances in the radar block: km when `distanceUnit = "km"`, miles
+  otherwise
+
+The prompt also carries an explicit instruction to Claude: *"use {unit
+name} for temperatures and {unit name} for wind speeds"* and *"Match the
+unit symbols exactly as shown in the data below — do not convert."* This
+defends against the model regressing to its locale-default units.
+
+### 5. Localization
+
+`lang` (one of `en` / `fr` / `es`) is passed in the query string, mapped
+through `LANG_NAMES`, and emitted in the prompt as *"Write a weather
+summary in {English/French/Spanish} ..."*. The radar paragraph carries
+extra wording so its label (`"Analyse radar : "` in French, translated
+appropriately for the other two) lands consistently.
+
+### 6. Prompt assembly
+
+The final prompt is assembled deterministically from the three sections,
+the unit instruction, and the per-paragraph instructions. Paragraph
+numbering is dynamic — if the period section is unavailable, "the third
+paragraph" becomes "the second paragraph" automatically, so Claude's
+output stays coherent regardless of which inputs are missing.
+
+When **all three sections fail to produce content**, the controller
+returns 503 immediately without calling Claude. The client uses that
+to hide the AI banner gracefully rather than show a perpetual spinner.
+
+---
+
+## What runs at Anthropic
+
+**One thing**, only when there's a cache miss: the assembled prompt is
+sent via `client.messages.create()` from the
+[`@anthropic-ai/sdk`](https://github.com/anthropics/anthropic-sdk-node)
+package, with these parameters:
+
+```js
+const message = await client.messages.create({
+  model: "claude-haiku-4-5-20251001",
+  max_tokens: radarText ? 280 : 150,
+  temperature: 0,
+  messages: [{ role: "user", content: prompt }],
+});
+```
+
+The model returns text, the controller trims it, stores it in the cache
+keyed by the user's preferences, and returns it to the client.
+
+**What the API call carries:**
+
+- the assembled prompt (current conditions, period forecast, radar text)
+- approximate latitude / longitude **only as embedded in the radar
+  text** ("Active 5–25 km NE: ...") — never as raw coordinates with a
+  user identifier
+- the language preference
+
+**What the API call does not carry:**
+
+- no user identifier of any kind
+- no IP address (handled by Anthropic's infrastructure, not by the
+  prompt)
+- no historical context — each call is fully stateless
+- no other user's data
+- no API keys other than the one the user configured in
+  `settings.anthropicApiKey`
+
+**Cost characteristics**:
+
+- One call per location per 15-minute cache window. A kiosk left on
+  24/7 makes at most 24 × 4 = 96 calls/day, less when the cache is
+  hit by other clients (multi-browser sessions share the cache).
+- Prompt size depends heavily on whether `extendedRadius` is on:
+  the radar block accounts for ~70 % of input tokens. With the
+  default settings (radar on, inner ring only) the order of
+  magnitude is ~1000-1500 input tokens + ~200 output tokens per
+  call. The actual call count per kiosk is visible in the Debug
+  panel's **Quotas → Anthropic** stripe; for token-level cost
+  visibility, see the project's Anthropic Console dashboard.
+- Failure mode: any non-200 response (rate limit, key invalid,
+  network timeout) returns 500 to the client, which displays a
+  discreet fallback in the UI without retrying.
+
+---
+
+## What happens when a newer model replaces Haiku 4.5?
+
+The model identifier `"claude-haiku-4-5-20251001"` lives in **exactly one
+place**: line 362 of `server/aiSummaryCtrl.js`. To upgrade to a future
+model the only mandatory change is that string.
+
+```js
+// Today:
+model: "claude-haiku-4-5-20251001",
+
+// Hypothetical Haiku 5 release:
+model: "claude-haiku-5-20260301",
+```
+
+That's it for the *minimum* upgrade. The SDK contract for
+`messages.create({ model, max_tokens, temperature, messages })` is
+stable across model versions, so no other code has to change.
+
+Things that **might** be worth re-tuning per model upgrade, but are not
+required for the upgrade to work:
+
+- **`max_tokens`** (currently 280 with radar / 150 without). A model with
+  a different verbosity tendency might want a different budget. If the
+  output starts getting truncated mid-sentence, bump it.
+- **`temperature: 0`**. Set deterministic by design so the same inputs
+  produce the same summary (better for caching). If a future model
+  benefits from a touch of variation, this can be raised.
+- **Prompt wording**. The instructions ("Be concise and conversational",
+  "Reply with plain text only — no title, no markdown") have been
+  tuned against Haiku 4.5's tendencies. A successor might respect them
+  out of the gate, or might need a nudge.
+- **Per-paragraph max length** ("2-3 sentences", "1-2 sentences",
+  "1-3 sentences"). Same logic — empirical, kept conservative.
+
+All of those tunables are obvious from reading `aiSummaryCtrl.js` end to
+end. There's no hidden state, no version-conditional branches, no model
+fingerprinting.
+
+**What does NOT need to change on a model upgrade:**
+
+- The Anthropic SDK version (we pin a recent major in `package.json`,
+  but the API surface for `messages.create` is stable)
+- The cache key shape, the cache TTL, the request counter integration
+- The prompt template structure (paragraph slots, unit instruction,
+  language clause)
+- The radar analyzer (it doesn't know or care about the model)
+- The client UI (it consumes plain text)
+
+**What COULD need to change with a much-future model release:**
+
+- If Anthropic releases new SDK methods that supersede `messages.create`
+  (e.g., something stateful, something with retrieval), we might
+  rewrite to use them. But until then, the current call works on every
+  Claude model from 3.5 onward without modification.
+- If a new model *requires* a parameter we don't currently send (e.g.
+  `system` instead of in-prompt instructions), one line changes.
+
+The recommended upgrade procedure is:
+
+1. Bump the model string locally, deploy to one Pi.
+2. Watch for a few hours: does the summary stay coherent? Does the
+   `Analyse radar :` label still land in French / Spanish? Are
+   paragraphs the right length?
+3. If yes, ship the change to the rest of the fleet via the normal
+   commit + in-app `Update` flow.
+4. If output drifts (verbosity, label translation, formatting), tune
+   `max_tokens` / wording / temperature in that order.
+
+---
+
+## Settings that affect the AI summary
+
+All under `advanced.ai.*` in `settings.json`, exposed in **Settings →
+Advanced settings → AI weather summary**:
+
+| Setting | Default | What it does |
+|---|---|---|
+| `radarAnalysisEnabled` | `true` | When `false`, the third paragraph is skipped entirely. The analyzer is short-circuited server-side, no RainViewer tiles fetched, no tokens spent on the radar block. |
+| `extendedRadius` | `false` | When `true`, samples the outer ring (32 directions × 10 distances, 55-100 km / 33-60 mi). Triples the sample count (161 → 481), bumps prompt size ~30%, and lets Claude reason about cells further out. |
+| `showSamplingPoints` | `false` | Purely client-side render flag — no impact on the prompt. |
+
+The **API key** (`anthropicApiKey`) lives at the top level of
+`settings.json`, not under `advanced`. When it's missing or blank, the
+endpoint returns 503 and the client hides the AI block entirely — no
+spinner, no error, just no banner.
+
+---
+
+## Caching layers, in order
+
+Walking from the user's tap to Anthropic, the caches that can absorb the
+load are:
+
+1. **Browser cache** — none. The client always re-issues
+   `GET /api/weather-summary` on a 15-minute interval and on certain
+   user actions (location pan, settings change).
+2. **`summaryCache` in `aiSummaryCtrl.js`** — 15 min TTL. First line of
+   defense. A hit returns the cached text, never touches the network.
+3. **`weatherCache` in `proxyCtrl.js`** (shared with the rest of the
+   weather endpoints) — 15 min for current, 30 min for hourly, 30 min
+   for daily. The AI summary reuses the same entries the rest of the
+   app already populated.
+4. **`tileCache` in `radarAnalyzerCtrl.js`** — 12 min per tile PNG.
+   Shared with `getRiskLevels` (the inner/outer ring colouring), so a
+   typical poll cycle on a kiosk hits the cache for every tile.
+5. **`analysisCache` in `radarAnalyzerCtrl.js`** — 5 min for the formatted
+   text. Shorter than the summary cache so radar context can refresh
+   inside a single summary cache window if needed.
+6. **Anthropic** — Claude.
+
+A typical "all caches warm" call returns in 1-3 ms (the cache lookup +
+JSON serialisation). A "cold path with Claude" returns in 600-2000 ms
+(Tomorrow.io fetch + RainViewer fetches + PNG decode + Claude). A "warm
+data, cold summary" returns in 400-1200 ms (Claude only).
+
+---
+
+## Where to look in the code
+
+| File | Purpose |
+|---|---|
+| `server/index.js` | Routes `/api/weather-summary` to `getWeatherSummary` |
+| `server/aiSummaryCtrl.js` | Prompt assembly, Claude call, summary cache |
+| `server/radarAnalyzerCtrl.js` | RainViewer fetch, PNG decode, sampling, formatting |
+| `server/proxyCtrl.js` | Shared weather cache (Tomorrow.io payloads) |
+| `client/src/components/AiSummary/index.js` | Polling + display |
+| `client/src/components/Settings/AdvancedSettings/index.js` | Settings UI for `advanced.ai.*` |
+| `docs/api.md` | Endpoint reference (request params, error codes) |
+
+---
+
+## Privacy posture
+
+The AI summary makes outbound calls to two third parties:
+
+- **RainViewer** — public radar tile CDN, no API key, no user identifier.
+  Standard CDN log retention applies.
+- **Anthropic** — uses the user's own `anthropicApiKey`. The call carries
+  the assembled prompt only. Anthropic's API
+  [data-handling policies](https://docs.anthropic.com/en/docs/legal/data-protection)
+  apply to that single inference call. No conversation history, no
+  retention beyond what their default policy specifies.
+
+Tomorrow.io fetches do not happen as part of the AI summary path
+specifically — they happen as part of the regular weather endpoints, and
+the AI summary just reads from the cache they populate.
+
+The summary feature can be **disabled entirely** in two ways:
+
+1. Leave `anthropicApiKey` empty → endpoint returns 503, client hides
+   the banner, no Anthropic call ever happens.
+2. Set `advanced.ai.radarAnalysisEnabled: false` → keeps the AI summary
+   but drops the radar paragraph (no RainViewer pixel sampling for
+   the summary; the rest of the radar layer is unaffected).
