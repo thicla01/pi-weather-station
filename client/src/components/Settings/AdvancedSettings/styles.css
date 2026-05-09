@@ -83,6 +83,29 @@
   margin-top: 0.15em;
 }
 
+/* Native <select> styled to match the rest of the Advanced settings
+   chrome — same border treatment as InlineToggle so the row alignment
+   feels consistent. Used by the Sleep mode dropdowns (delay before
+   stage 1, delay between stage 1 and stage 2). Stays a native control
+   so platform behaviour (touch wheel on iOS, keyboard navigation on
+   desktop, accessibility) comes for free. */
+.select {
+  background: rgba(0, 0, 0, 0.3);
+  color: inherit;
+  border: 1px solid rgba(255, 255, 255, 0.3);
+  border-radius: 3px;
+  padding: 0.3em 0.5em;
+  font-family: inherit;
+  font-size: 0.85em;
+  cursor: pointer;
+  min-height: 2em;
+}
+
+.select:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 .read-only-notice {
   /* Warm amber-orange — reads as "attention" rather than the previous
      muted gold, while keeping the same transparent treatment so it

@@ -7,6 +7,7 @@ These are **prototypes**, not production code. Each file is a self-contained HTM
 ## Files
 
 - **`solstices-equinoxes.html`** — companion astronomy visualisation. Earth + Sun + tilt + day length, with continuous orbital animation and a "Today" mode showing real-time orbital angle / countdown to the next event. Designed in French; full i18n is part of the integration work. See ROADMAP → "Astronomy companion view".
+- **`sleep-mode.html`** — sleep-mode / screensaver visual reference, design A "Loom Sand". Three colour variants (day / night-cream / night-red) and stage-2 anti-burn-in dot. Demo includes corner switchers for variant + locale (FR/EN/ES) — both stripped from the React port. Ported in v2.12.0; see ROADMAP → "Sleep mode / screensaver". The React port lives at `client/src/components/ScreenSaver/`.
 
 ## Adding new references
 

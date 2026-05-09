@@ -1,0 +1,402 @@
+<!doctype html>
+<html lang="fr-CA">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Sleep mode — weather station</title>
+<style>
+  /* ---------- tokens ---------- */
+  :root {
+    --serif: ui-serif, Georgia, "Times New Roman", serif;
+    --sans:  ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+    /* day (default) */
+    --bg:     #f3eee7;
+    --date:   #6a635a;
+    --time:   #1a1816;
+    --foot:   #6a635a;
+    --dot:    transparent;
+  }
+
+  body.night-cream {
+    --bg:   #1a1816;
+    --date: #8a8479;
+    --time: #f3eee7;
+    --foot: #8a8479;
+    --dot:  #6a6a6a;
+  }
+
+  body.night-red {
+    /* Unified red across all three text elements (originally split into
+       date/footer #cc4422 + time #ff6644 for hierarchy). On the kiosk
+       display the saturation jump between the two reds read as a hue
+       shift rather than luminance — hierarchy is now carried by font
+       size + weight only. */
+    --bg:   #0a0808;
+    --date: #cc4422;
+    --time: #cc4422;
+    --foot: #cc4422;
+    --dot:  #cc4422;
+  }
+
+  body.stage2 {
+    --bg:   #000;
+    --date: transparent;
+    --time: transparent;
+    --foot: transparent;
+    /* in stage 2 we ALWAYS want a dot — pick the right colour for the
+       current night sub-mode; default to a soft grey for day-stage2 too */
+    --dot:  #6a6a6a;
+  }
+  body.stage2.night-red { --dot: #cc4422; }
+
+  /* ---------- page ---------- */
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  html, body {
+    width: 100%;
+    height: 100%;
+    overflow: hidden;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--time);
+    font-family: var(--sans);
+    transition: background-color 300ms ease, color 300ms ease;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    /* tiny safety: never let any selection highlights flash on touch */
+    -webkit-user-select: none;
+            user-select: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+
+  /* ---------- main idle layout (stage 1) ---------- */
+  .stage {
+    position: fixed;
+    inset: 0;
+    display: grid;
+    grid-template-rows: 1fr auto auto auto 1fr;
+    justify-items: center;
+    align-items: center;
+    padding: 6vmin 8vmin;
+    /* generous, paper-like vertical rhythm via the rows above */
+  }
+
+  .date {
+    grid-row: 2;
+    font-family: var(--serif);
+    font-weight: 400;
+    font-style: italic;
+    letter-spacing: 0.005em;
+    color: var(--date);
+    /* clamp on viewport min — works at 800×480 and 1280×800 */
+    font-size: clamp(20px, 4.2vmin, 44px);
+    line-height: 1.1;
+    transition: color 300ms ease, opacity 300ms ease;
+    text-align: center;
+    /* small breathing space below */
+    margin-bottom: clamp(12px, 3.2vmin, 36px);
+  }
+
+  .time {
+    grid-row: 3;
+    font-family: var(--sans);
+    font-weight: 200;
+    color: var(--time);
+    /* ~25–30% of viewport height; vmin keeps it sane on the 800×480 panel */
+    font-size: clamp(120px, 30vmin, 360px);
+    line-height: 0.9;
+    letter-spacing: -0.04em;
+    /* tabular figures so 1, 4, 7 don't make the digits dance every minute */
+    font-variant-numeric: tabular-nums;
+    font-feature-settings: "tnum" 1;
+    transition: color 300ms ease, opacity 300ms ease;
+    text-align: center;
+    white-space: nowrap;
+  }
+
+  .footer {
+    grid-row: 4;
+    font-family: var(--sans);
+    font-weight: 400;
+    color: var(--foot);
+    font-size: clamp(14px, 2.4vmin, 24px);
+    letter-spacing: 0.01em;
+    line-height: 1.3;
+    margin-top: clamp(14px, 3.6vmin, 40px);
+    transition: color 300ms ease, opacity 300ms ease;
+    text-align: center;
+  }
+
+  .footer .dot-sep {
+    display: inline-block;
+    margin: 0 0.6em;
+    opacity: 0.6;
+  }
+
+  .footer .icon {
+    /* Unicode emoji icon — keep it tonally calm */
+    margin-right: 0.4em;
+    font-size: 1.05em;
+    /* on red-night mode emoji can look too colourful; tone it down */
+    filter: none;
+  }
+
+  body.night-red .footer .icon,
+  body.night-cream .footer .icon {
+    /* desaturate the emoji a touch so it doesn't fight the typography */
+    filter: saturate(0.4);
+  }
+  body.night-red .footer .icon {
+    filter: saturate(0) brightness(0.95);
+  }
+
+  /* hide content in stage 2 */
+  body.stage2 .date,
+  body.stage2 .time,
+  body.stage2 .footer {
+    opacity: 0;
+    pointer-events: none;
+  }
+
+  /* ---------- stage 2 anti-burn-in dot ---------- */
+  .pixel {
+    position: fixed;
+    width: 4px;
+    height: 4px;
+    background: var(--dot);
+    border-radius: 0;
+    /* stage1 dot is always invisible */
+    opacity: 0;
+    transition: opacity 300ms ease, background-color 300ms ease;
+    /* positioned by JS via inline left/top */
+    left: 50%;
+    top: 50%;
+  }
+  body.stage2 .pixel { opacity: 1; }
+
+  /* ---------- demo-only variant switcher (corner) ---------- */
+  .switcher {
+    position: fixed;
+    bottom: 10px;
+    display: flex;
+    gap: 4px;
+    z-index: 10;
+    font-family: var(--sans);
+    font-size: 11px;
+    opacity: 0.35;
+    transition: opacity 200ms ease;
+  }
+  .switcher.variants { right: 10px; }
+  .switcher.langs    { left: 10px;  }
+  .switcher:hover { opacity: 1; }
+  .switcher button {
+    appearance: none;
+    background: rgba(127,127,127,0.15);
+    color: inherit;
+    border: 1px solid rgba(127,127,127,0.25);
+    padding: 4px 8px;
+    cursor: pointer;
+    font: inherit;
+    border-radius: 2px;
+  }
+  .switcher button.active {
+    background: rgba(127,127,127,0.35);
+    border-color: rgba(127,127,127,0.5);
+  }
+  body.stage2 .switcher { opacity: 0.15; }
+  body.stage2 .switcher:hover { opacity: 0.8; }
+
+  /* hide cursor on the kiosk feel — but keep visible on hover of switcher */
+  body { cursor: none; }
+  .switcher, .switcher * { cursor: pointer; }
+</style>
+</head>
+<body class="day">
+
+  <main class="stage" aria-hidden="true">
+    <div class="date" id="date">vendredi 1 mai</div>
+    <div class="time" id="time">20:14</div>
+    <div class="footer" id="footer">
+      <span class="icon">☁</span>7&nbsp;°C<span class="dot-sep">·</span>Majoritairement nuageux
+    </div>
+  </main>
+
+  <div class="pixel" id="pixel"></div>
+
+  <!-- DEMO-ONLY: variant switcher. Removed in React port. -->
+  <nav class="switcher variants" aria-label="Demo variant switcher">
+    <button data-variant="day"          class="active">Day</button>
+    <button data-variant="night-cream">Night cream</button>
+    <button data-variant="night-red">Night red</button>
+    <button data-variant="stage2">Stage 2</button>
+  </nav>
+
+  <!-- DEMO-ONLY: language switcher. Removed in React port. -->
+  <nav class="switcher langs" aria-label="Demo language switcher">
+    <button data-locale="en-US">EN</button>
+    <button data-locale="fr-CA" class="active">FR</button>
+    <button data-locale="es-ES">ES</button>
+  </nav>
+
+<script>
+(() => {
+  'use strict';
+
+  // ---------- variant switching ----------
+  const body = document.body;
+  const variants = ['day', 'night-cream', 'night-red'];
+  const buttons  = document.querySelectorAll('.switcher button');
+
+  function setVariant(v) {
+    // remove all known modes
+    body.classList.remove('day', 'night-cream', 'night-red', 'stage2');
+    if (v === 'stage2') {
+      // keep last non-stage2 base mode so dot picks correct colour
+      body.classList.add(window.__lastBase || 'day');
+      body.classList.add('stage2');
+      placeDot(true); // immediate placement on entering stage 2
+    } else {
+      body.classList.add(v);
+      window.__lastBase = v;
+    }
+    buttons.forEach(b => b.classList.toggle('active', b.dataset.variant === v));
+  }
+
+  buttons.forEach(b => b.addEventListener('click', () => setVariant(b.dataset.variant)));
+
+  // ---------- live clock & date ----------
+  const dateEl = document.getElementById('date');
+  const timeEl = document.getElementById('time');
+
+  // Locale primary: fr-CA. The demo switcher (bottom-left) flips this
+  // at runtime; in the React port it's set once via prop / config.
+  let LOCALE = 'fr-CA';
+
+  // Footer copy per locale — temp + condition. Static mock data.
+  const FOOTER = {
+    'fr-CA': { icon: '\u2601', body: '7\u00a0\u00b0C', cond: 'Majoritairement nuageux' },
+    'en-US': { icon: '\u2601', body: '45\u00a0\u00b0F', cond: 'Mostly cloudy' },
+    'es-ES': { icon: '\u2601', body: '7\u00a0\u00b0C', cond: 'Mayormente nublado' }
+  };
+
+  const footEl = document.getElementById('footer');
+  function renderFooter() {
+    const f = FOOTER[LOCALE] || FOOTER['fr-CA'];
+    footEl.innerHTML =
+      '<span class="icon">' + f.icon + '</span>' +
+      f.body +
+      '<span class="dot-sep">\u00b7</span>' +
+      f.cond;
+  }
+
+  function pad2(n) { return n < 10 ? '0' + n : '' + n; }
+
+  function formatDate(d) {
+    // "vendredi 1 mai" — weekday + day + month, no comma, no year.
+    // Intl handles fr-CA / en-US / es-ES variants cleanly.
+    try {
+      const parts = new Intl.DateTimeFormat(LOCALE, {
+        weekday: 'long', day: 'numeric', month: 'long'
+      }).formatToParts(d);
+      // Re-assemble without commas and without padded zeros.
+      let out = '';
+      for (const p of parts) {
+        if (p.type === 'literal') {
+          // strip commas, collapse to single space
+          out += p.value.replace(/,/g, ' ').replace(/\s+/g, ' ');
+        } else {
+          out += p.value;
+        }
+      }
+      return out.trim();
+    } catch (e) {
+      // fallback
+      return d.toDateString();
+    }
+  }
+
+  function formatTime(d) {
+    return pad2(d.getHours()) + ':' + pad2(d.getMinutes());
+  }
+
+  function tick() {
+    const now = new Date();
+    timeEl.textContent = formatTime(now);
+    dateEl.textContent = formatDate(now);
+  }
+  function applyLocale(loc) {
+    LOCALE = loc;
+    document.documentElement.lang = loc;
+    renderFooter();
+    tick();
+    document.querySelectorAll('.switcher.langs button').forEach(b =>
+      b.classList.toggle('active', b.dataset.locale === loc));
+  }
+  document.querySelectorAll('.switcher.langs button').forEach(b =>
+    b.addEventListener('click', () => applyLocale(b.dataset.locale)));
+
+  renderFooter();
+  tick();
+  // align to next minute then tick every minute
+  const msToNextMinute = 60_000 - (Date.now() % 60_000);
+  setTimeout(() => {
+    tick();
+    setInterval(tick, 60_000);
+  }, msToNextMinute);
+
+  // ---------- stage 2 anti-burn-in dot ----------
+  // 5×5 grid, inset slightly from the edges so the dot never sits
+  // right on the bezel. Re-position every 5 minutes; never reuse the
+  // previous cell.
+  const pixel = document.getElementById('pixel');
+  const GRID = 5;
+  const INSET = 0.08; // 8% margin on each side
+  let lastCell = -1;
+
+  function placeDot() {
+    const w = window.innerWidth;
+    const h = window.innerHeight;
+
+    let cell;
+    do {
+      cell = Math.floor(Math.random() * GRID * GRID);
+    } while (cell === lastCell && GRID * GRID > 1);
+    lastCell = cell;
+
+    const col = cell % GRID;
+    const row = Math.floor(cell / GRID);
+
+    // distribute cells across the inset region
+    const usableW = w * (1 - 2 * INSET);
+    const usableH = h * (1 - 2 * INSET);
+    const stepX = usableW / (GRID - 1);
+    const stepY = usableH / (GRID - 1);
+
+    const x = Math.round(w * INSET + col * stepX) - 2; // centre 4px dot
+    const y = Math.round(h * INSET + row * stepY) - 2;
+
+    pixel.style.left = x + 'px';
+    pixel.style.top  = y + 'px';
+  }
+  placeDot();
+
+  // Re-place every 5 minutes; this interval runs always, but the dot is
+  // only visible when body has .stage2.
+  setInterval(placeDot, 5 * 60 * 1000);
+  window.addEventListener('resize', placeDot);
+
+  // ---------- demo nicety ----------
+  // Press keys 1/2/3/4 to cycle variants (handy on the touchscreen
+  // mock when the buttons are too small).
+  window.addEventListener('keydown', (e) => {
+    const map = { '1':'day', '2':'night-cream', '3':'night-red', '4':'stage2' };
+    if (map[e.key]) setVariant(map[e.key]);
+  });
+})();
+</script>
+
+</body>
+</html>

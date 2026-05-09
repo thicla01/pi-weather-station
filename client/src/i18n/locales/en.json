@@ -50,7 +50,21 @@
       "extendedRadius": "Extended radius",
       "extendedRadiusHint": "Roughly doubles the sampling radius (50 → 100 km, or 30 → 60 mi depending on the distance unit). Adds the outer ring (32 directions × 10 distances) for longer-range storm tracking.",
       "showSamplingPoints": "Show sampling points on map",
-      "showSamplingPointsHint": "Displays a small dot at every position the AI summary samples on the radar."
+      "showSamplingPointsHint": "Displays a small dot at every position the AI summary samples on the radar.",
+      "sleepGroup": "Sleep mode",
+      "sleepEnabled": "Enable sleep mode",
+      "sleepEnabledHint": "After a period of inactivity, fades to a minimal full-screen clock at reduced brightness. Touch or move the cursor to wake.",
+      "sleepStage1Delay": "Inactivity before sleep",
+      "sleepStage1DelayHint": "How long with no touch / mouse / keyboard input before the screensaver fades in.",
+      "sleepStage1Brightness": "Sleep brightness",
+      "sleepStage1BrightnessHint": "Hardware brightness applied while the screensaver is showing the clock. Hidden on devices without a backlight.",
+      "sleepStage2Enabled": "Black-screen stage",
+      "sleepStage2EnabledHint": "After a further delay, switch to a black screen with a tiny moving dot to prevent LCD burn-in. Brightness drops to its floor.",
+      "sleepStage2Delay": "Black-screen delay",
+      "sleepStage2DelayHint": "Time after the screensaver appears before switching to the black-screen stage.",
+      "sleepNightMode": "Red text at night",
+      "sleepNightModeHint": "When dark mode is active, use red-tinted text instead of cream. Long-wavelength red light has minimal impact on melatonin — friendlier in a bedroom or hallway visible at night.",
+      "sleepMinutes": "{{count}} min"
     }
   },
   "weather": {

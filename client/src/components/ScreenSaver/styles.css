@@ -1,0 +1,217 @@
+/* Sleep-mode / screensaver — port of docs/design-references/sleep-mode.html.
+   Kept structurally close to the mock so visual diffs are easy to audit:
+   same CSS custom-property tokens, same selector specificity ladder, same
+   transition timings. The only structural change is the wrapping
+   .screen-saver root (the mock uses <body>; we can't take over <body> in a
+   React app, so the root carries the variant + stage classes instead). */
+
+/* ---------- token defaults (day) ---------- */
+.screen-saver {
+  /* Composed onto a fixed-position root so it covers the entire viewport
+     without disturbing the layout grid below it. z-index 9000 stays well
+     above InfoPanel / WeatherMap / overlays but leaves room for any
+     emergency dialog the future might add. */
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+
+  --serif: ui-serif, Georgia, "Times New Roman", serif;
+  --sans:  ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* day (default) */
+  --bg:     #f3eee7;
+  --date:   #6a635a;
+  --time:   #1a1816;
+  --foot:   #6a635a;
+  --dot:    transparent;
+
+  background: var(--bg);
+  color: var(--time);
+  font-family: var(--sans);
+  transition: background-color 300ms ease, color 300ms ease;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  -webkit-user-select: none;
+          user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  /* Cursor hidden for the kiosk feel — matches the mock. The native
+     mouseHide setting elsewhere in the app already hides the cursor on
+     the InfoPanel/WeatherMap, so this just continues that aesthetic. */
+  cursor: none;
+}
+
+/* ---------- variant overrides ---------- */
+.night-cream {
+  --bg:   #1a1816;
+  --date: #8a8479;
+  --time: #f3eee7;
+  --foot: #8a8479;
+  --dot:  #6a6a6a;
+}
+
+.night-red {
+  /* All three text elements share the same red rather than splitting
+     into a brighter time value (#ff6644 in the original spec) and
+     deeper date/footer value (#cc4422). On the actual kiosk display
+     the saturation jump between the two reads as a hue shift
+     (brick → orange) rather than as a luminance hierarchy — and the
+     hierarchy is already carried by font size (XXL vs small) and
+     weight (200 vs 400), so colour doesn't need to do that work too.
+     Bonus: the time now matches the stage-2 anti-burn-in dot, so the
+     two stages share one accent colour. */
+  --bg:   #0a0808;
+  --date: #cc4422;
+  --time: #cc4422;
+  --foot: #cc4422;
+  --dot:  #cc4422;
+}
+
+/* Stage 2 — text fades to transparent, dot becomes visible. The mock
+   composes this with the active night sub-mode so the dot picks up the
+   right colour automatically; matched here via the cascading `--dot`
+   value which the variant classes already set. Day-stage2 falls back
+   to the soft grey defined inline below. */
+.stage2 {
+  --bg:   #000;
+  --date: transparent;
+  --time: transparent;
+  --foot: transparent;
+  --dot:  #6a6a6a;
+}
+.stage2.night-red { --dot: #cc4422; }
+
+/* ---------- main idle layout (stage 1) ---------- */
+.stage {
+  position: fixed;
+  inset: 0;
+  display: grid;
+  /* 1fr / auto / auto / auto / 1fr: blank stretchers top + bottom push the
+     date / time / footer triplet to the visual centre with paper-like
+     vertical rhythm regardless of viewport height. */
+  grid-template-rows: 1fr auto auto auto 1fr;
+  justify-items: center;
+  align-items: center;
+  padding: 6vmin 8vmin;
+}
+
+.date {
+  grid-row: 2;
+  font-family: var(--serif);
+  font-weight: 400;
+  /* Italic gives the date the editorial feel of the mock — paired with
+     the ultra-thin sans on the time below to create the
+     "considered" / "Loom Sand" character. */
+  font-style: italic;
+  letter-spacing: 0.005em;
+  color: var(--date);
+  /* clamp on viewport min — works at 800×480 and 1280×800 */
+  font-size: clamp(20px, 4.2vmin, 44px);
+  line-height: 1.1;
+  transition: color 300ms ease, opacity 300ms ease;
+  text-align: center;
+  margin-bottom: clamp(12px, 3.2vmin, 36px);
+}
+
+.time {
+  grid-row: 3;
+  font-family: var(--sans);
+  font-weight: 200;
+  color: var(--time);
+  /* ~25–30 % of viewport height; vmin keeps it sane on the 800×480 panel. */
+  font-size: clamp(120px, 30vmin, 360px);
+  line-height: 0.9;
+  letter-spacing: -0.04em;
+  /* Tabular figures so 1, 4, 7 don't make the digits dance every minute. */
+  font-variant-numeric: tabular-nums;
+  font-feature-settings: "tnum" 1;
+  transition: color 300ms ease, opacity 300ms ease;
+  text-align: center;
+  white-space: nowrap;
+}
+
+.footer {
+  grid-row: 4;
+  font-family: var(--sans);
+  font-weight: 400;
+  color: var(--foot);
+  font-size: clamp(14px, 2.4vmin, 24px);
+  letter-spacing: 0.01em;
+  line-height: 1.3;
+  margin-top: clamp(14px, 3.6vmin, 40px);
+  transition: color 300ms ease, opacity 300ms ease;
+  text-align: center;
+}
+
+.dot-sep {
+  display: inline-block;
+  margin: 0 0.6em;
+  opacity: 0.6;
+}
+
+.icon {
+  /* Field feedback at ~3 ft from a 10" 1280×800 panel: at the mock's
+     1.05em the glyph reads as a tiny smudge — a kiosk meant to be
+     glanceable from across the room needs the weather indicator to be
+     the second-most-visible element after the time itself. Bumped to
+     2em, with vertical-align: -0.15em to keep the larger glyph
+     visually centred on the smaller text baseline (without it the
+     icon would sit a touch high on the cap-height line). margin-right
+     widened proportionally so the temperature value isn't cramped
+     against the icon. */
+  margin-right: 0.5em;
+  font-size: 2em;
+  vertical-align: -0.15em;
+  filter: none;
+  transition: filter 300ms ease;
+}
+
+/* Desaturate the emoji glyph in night modes so it doesn't fight the
+   monochrome typography. Night-red goes further (0 saturation + slight
+   brightness reduction) so a colour-laden emoji like ⛅ doesn't punch
+   through the otherwise monochrome red treatment. */
+.night-cream .icon { filter: saturate(0.4); }
+.night-red .icon   { filter: saturate(0) brightness(0.95); }
+
+/* Stage 2: hide the text content via opacity (transitions cleanly via the
+   color: transparent on the tokens above + opacity on the children). The
+   pixel takes over visually. */
+.stage2 .date,
+.stage2 .time,
+.stage2 .footer {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Fade-out / ghost-click absorber: applied for 350 ms after the stage
+   drops from > 0 to 0. Two purposes: (1) gives the wake transition a
+   smooth visual fade instead of a hard cut, (2) keeps the overlay's
+   <div> mounted with pointer-events: auto so the synthetic click that
+   follows the wake pointerdown lands here (and is stopPropagation'd in
+   the React onClick handler) rather than reaching the WeatherMap
+   underneath. The opacity transition matches the duration of the
+   click-absorb window. */
+.fading-out {
+  opacity: 0;
+  pointer-events: auto;
+  transition: opacity 350ms ease;
+}
+
+/* ---------- stage 2 anti-burn-in dot ---------- */
+.pixel {
+  position: fixed;
+  width: 4px;
+  height: 4px;
+  background: var(--dot);
+  border-radius: 0;
+  /* In stage 1 the dot is invisible; opacity flips on the parent's
+     stage2 class. */
+  opacity: 0;
+  transition: opacity 300ms ease, background-color 300ms ease;
+  /* Position is set inline by the React component (left/top pixels). */
+  left: 50%;
+  top: 50%;
+}
+.stage2 .pixel { opacity: 1; }

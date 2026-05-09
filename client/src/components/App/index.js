@@ -1,4 +1,5 @@
-import React, { useEffect, useContext, useState } from "react";
+import React, { useEffect, useContext, useState, useRef } from "react";
+import axios from "axios";
 import styles from "./styles.css";
 import { AppContext } from "~/AppContext";
 
@@ -7,6 +8,8 @@ import InfoPanel from "~/components/InfoPanel";
 import Settings from "~/components/Settings";
 import Debug from "~/components/Debug";
 import UpdateModal from "~/components/UpdateModal";
+import ScreenSaver from "~/components/ScreenSaver";
+import useIdleDetection from "~/hooks/useIdleDetection";
 
 import "!style-loader!css-loader!./overrides.css";
 
@@ -36,7 +39,70 @@ const App = () => {
     setInfoPanelCollapsed,
     fontSize,
     defaultMapZoom,
+    sleepEnabled,
+    sleepStage1Delay,
+    sleepStage1Brightness,
+    sleepStage2Enabled,
+    sleepStage2Delay,
+    brightnessAvailable,
+    brightnessPercent,
+    brightnessMinPercent,
   } = useContext(AppContext);
+
+  // Idle detection drives the screensaver. The hook is a no-op when
+  // sleepEnabled is false (no listeners attached, stage stays 0), so the
+  // cost is zero for users who haven't opted in.
+  const { stage } = useIdleDetection({
+    enabled: sleepEnabled,
+    stage1Delay: sleepStage1Delay,
+    stage2Enabled: sleepStage2Enabled,
+    stage2Delay: sleepStage2Delay,
+  });
+
+  // Hardware-brightness orchestration on stage transitions.
+  //
+  // Entering stage 1 → save the user's current brightness, apply the
+  //   sleep-mode dim level (POST /api/brightness).
+  // Entering stage 2 → drop further to the hardware floor.
+  // Returning to stage 0 → restore the saved value.
+  //
+  // The save/restore pair is wrapped in a ref so React's state updates
+  // (which would otherwise race with the API call) don't interfere. Calls
+  // are best-effort: failure (HDMI monitor, no backlight driver, write
+  // permission missing) is silently ignored — the screensaver visual
+  // still renders correctly without the hardware dim.
+  const brightnessBeforeSleepRef = useRef(null);
+  useEffect(() => {
+    if (!brightnessAvailable) return undefined;
+    if (stage === 1) {
+      // Capture the current value once on entry into stage 1, then
+      // dim. If the user changes brightness while stage 1 is active
+      // (e.g. by swiping in from a wake event), we deliberately don't
+      // re-capture — restoring on wake puts us back to whatever was
+      // active at sleep onset, which is the principle-of-least-surprise
+      // behaviour.
+      if (brightnessBeforeSleepRef.current === null) {
+        brightnessBeforeSleepRef.current = brightnessPercent;
+      }
+      axios.post("/api/brightness", { percent: sleepStage1Brightness })
+        .catch(() => undefined);
+    } else if (stage === 2) {
+      axios.post("/api/brightness", { percent: brightnessMinPercent })
+        .catch(() => undefined);
+    } else {
+      // stage 0 — restore. Nothing to do if we never dimmed.
+      if (brightnessBeforeSleepRef.current !== null) {
+        const restoreTo = brightnessBeforeSleepRef.current;
+        brightnessBeforeSleepRef.current = null;
+        axios.post("/api/brightness", { percent: restoreTo })
+          .catch(() => undefined);
+      }
+    }
+    return undefined;
+    // brightnessPercent intentionally NOT in the deps — it's read once via
+    // the ref on stage-1 entry; including it would re-trigger the dim API
+    // call every time the user nudged the brightness slider.
+  }, [stage, brightnessAvailable, sleepStage1Brightness, brightnessMinPercent]); // eslint-disable-line react-hooks/exhaustive-deps -- brightnessPercent intentionally omitted, see comment above
 
   const [canCollapsePanel, setCanCollapsePanel] = useState(
     () => window.matchMedia(PANEL_TOGGLE_MQ).matches
@@ -115,6 +181,10 @@ const App = () => {
           <InfoPanel />
         </div>
       </div>
+      {/* Sleep-mode overlay — rendered outside the main grid so it
+          covers everything (settings, debug, info panel) when active.
+          Stage 0 = unmounted entirely. */}
+      <ScreenSaver stage={stage} />
     </div>
   );
 };

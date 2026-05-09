@@ -114,6 +114,13 @@ const AdvancedSettings = ({ readOnly }) => {
     brightnessPercent,
     brightnessMinPercent,
     setBrightnessLive,
+    sleepEnabled,
+    sleepStage1Delay,
+    sleepStage1Brightness,
+    sleepStage2Enabled,
+    sleepStage2Delay,
+    sleepNightMode,
+    saveAdvancedSleepFlag,
   } = useContext(AppContext);
   const [open, setOpen] = useState(false);
   const sectionRef = useRef(null);
@@ -325,6 +332,130 @@ const AdvancedSettings = ({ readOnly }) => {
               readOnly={readOnly}
             />
           </div>
+
+          {/* ──────────────── Sleep mode group ────────────────
+              Two-stage screensaver. Stage 1 fades to a minimal clock at
+              reduced brightness after sleepStage1Delay; stage 2 (optional)
+              switches to a black screen with anti-burn-in dot at the
+              brightness floor after a further sleepStage2Delay. Sub-controls
+              only render when the parent toggle is on, to keep the section
+              compact. */}
+          <div className={styles.groupLabel} style={{ marginTop: "1em" }}>
+            {t("settings.advanced.sleepGroup")}
+          </div>
+
+          <div className={styles.row}>
+            <div className={styles.rowLabel}>
+              {t("settings.advanced.sleepEnabled")}
+              <span className={styles.rowHint}>
+                {t("settings.advanced.sleepEnabledHint")}
+              </span>
+            </div>
+            <InlineToggle
+              value={sleepEnabled}
+              onChange={(v) => saveAdvancedSleepFlag("enabled", v)}
+              onLabel={t("settings.on")}
+              offLabel={t("settings.off")}
+              readOnly={readOnly}
+            />
+          </div>
+
+          {sleepEnabled && (
+            <>
+              <div className={styles.row}>
+                <div className={styles.rowLabel}>
+                  {t("settings.advanced.sleepStage1Delay")}
+                  <span className={styles.rowHint}>
+                    {t("settings.advanced.sleepStage1DelayHint")}
+                  </span>
+                </div>
+                <select
+                  className={styles.select}
+                  value={sleepStage1Delay}
+                  disabled={readOnly}
+                  onChange={(e) => saveAdvancedSleepFlag("stage1Delay", parseInt(e.target.value, 10))}
+                >
+                  {[1, 2, 5, 10, 15, 30].map((m) => (
+                    <option key={m} value={m}>{t("settings.advanced.sleepMinutes", { count: m })}</option>
+                  ))}
+                </select>
+              </div>
+
+              {brightnessAvailable && (
+                <div className={styles.row}>
+                  <div className={styles.rowLabel}>
+                    {t("settings.advanced.sleepStage1Brightness")}
+                    <span className={styles.rowHint}>
+                      {t("settings.advanced.sleepStage1BrightnessHint")}
+                    </span>
+                  </div>
+                  <RangeSlider
+                    value={sleepStage1Brightness}
+                    onChange={(v) => saveAdvancedSleepFlag("stage1Brightness", Math.round(v))}
+                    min={brightnessMinPercent}
+                    max={100}
+                    step={5}
+                    disabled={readOnly}
+                    formatValue={(v) => `${Math.round(v)}%`}
+                    ariaLabel={t("settings.advanced.sleepStage1Brightness")}
+                  />
+                </div>
+              )}
+
+              <div className={styles.row}>
+                <div className={styles.rowLabel}>
+                  {t("settings.advanced.sleepStage2Enabled")}
+                  <span className={styles.rowHint}>
+                    {t("settings.advanced.sleepStage2EnabledHint")}
+                  </span>
+                </div>
+                <InlineToggle
+                  value={sleepStage2Enabled}
+                  onChange={(v) => saveAdvancedSleepFlag("stage2Enabled", v)}
+                  onLabel={t("settings.on")}
+                  offLabel={t("settings.off")}
+                  readOnly={readOnly}
+                />
+              </div>
+
+              {sleepStage2Enabled && (
+                <div className={styles.row}>
+                  <div className={styles.rowLabel}>
+                    {t("settings.advanced.sleepStage2Delay")}
+                    <span className={styles.rowHint}>
+                      {t("settings.advanced.sleepStage2DelayHint")}
+                    </span>
+                  </div>
+                  <select
+                    className={styles.select}
+                    value={sleepStage2Delay}
+                    disabled={readOnly}
+                    onChange={(e) => saveAdvancedSleepFlag("stage2Delay", parseInt(e.target.value, 10))}
+                  >
+                    {[5, 10, 20, 30, 60].map((m) => (
+                      <option key={m} value={m}>{t("settings.advanced.sleepMinutes", { count: m })}</option>
+                    ))}
+                  </select>
+                </div>
+              )}
+
+              <div className={styles.row}>
+                <div className={styles.rowLabel}>
+                  {t("settings.advanced.sleepNightMode")}
+                  <span className={styles.rowHint}>
+                    {t("settings.advanced.sleepNightModeHint")}
+                  </span>
+                </div>
+                <InlineToggle
+                  value={sleepNightMode}
+                  onChange={(v) => saveAdvancedSleepFlag("nightMode", v)}
+                  onLabel={t("settings.on")}
+                  offLabel={t("settings.off")}
+                  readOnly={readOnly}
+                />
+              </div>
+            </>
+          )}
         </div>
       )}
     </div>

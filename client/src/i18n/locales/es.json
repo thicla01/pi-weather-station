@@ -50,7 +50,21 @@
       "extendedRadius": "Radio extendido",
       "extendedRadiusHint": "Duplica aproximadamente el radio de muestreo (50 → 100 km, o 30 → 60 mi según la unidad de distancia). Añade el anillo exterior (32 direcciones × 10 distancias) para seguir células de tormenta más lejos.",
       "showSamplingPoints": "Mostrar puntos de muestreo",
-      "showSamplingPointsHint": "Muestra un pequeño punto en cada posición que el resumen IA muestrea en el radar."
+      "showSamplingPointsHint": "Muestra un pequeño punto en cada posición que el resumen IA muestrea en el radar.",
+      "sleepGroup": "Modo reposo",
+      "sleepEnabled": "Activar modo reposo",
+      "sleepEnabledHint": "Tras un periodo de inactividad, transición a un reloj a pantalla completa con brillo reducido. Toca o mueve el ratón para despertar.",
+      "sleepStage1Delay": "Inactividad antes del reposo",
+      "sleepStage1DelayHint": "Tiempo sin interacción (táctil, ratón, teclado) antes de que aparezca el salvapantallas.",
+      "sleepStage1Brightness": "Brillo en reposo",
+      "sleepStage1BrightnessHint": "Brillo de hardware aplicado mientras se muestra el reloj. Oculto en dispositivos sin backlight.",
+      "sleepStage2Enabled": "Etapa pantalla negra",
+      "sleepStage2EnabledHint": "Tras un retraso adicional, pasa a una pantalla negra con un pequeño punto en movimiento para evitar el burn-in del LCD. Brillo al mínimo.",
+      "sleepStage2Delay": "Retraso pantalla negra",
+      "sleepStage2DelayHint": "Tiempo después de aparecer el reloj antes de pasar a la etapa de pantalla negra.",
+      "sleepNightMode": "Texto rojo de noche",
+      "sleepNightModeHint": "Cuando el modo oscuro está activo, usa texto rojo en lugar de crema. La luz roja de longitud de onda larga tiene impacto mínimo en la melatonina — más amable en un dormitorio o pasillo visible de noche.",
+      "sleepMinutes": "{{count}} min"
     }
   },
   "weather": {
