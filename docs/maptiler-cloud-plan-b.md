@@ -21,7 +21,7 @@ ad-hoc testing is possible without further setup.
 | **Static maps** | (separate endpoint, paid tier+) | Single composite PNG | Mapbox Static Images |
 | **Forward geocoding** | `https://api.maptiler.com/geocoding/{query}.json?key=...` | GeoJSON FeatureCollection | LocationIQ search |
 | **Reverse geocoding** | `https://api.maptiler.com/geocoding/{lon},{lat}.json?key=...` | GeoJSON FeatureCollection | LocationIQ reverse |
-| **IP geolocation** | `https://api.maptiler.com/geolocation/ip.json?key=...` | `{lat, lon, city, region, country, timezone, ...}` | ipapi.co |
+| **IP geolocation** | `https://api.maptiler.com/geolocation/ip.json?key=...` | `{latitude, longitude, city, region, region_code, country, country_code, country_languages, timezone, country_bounds, continent, continent_code, eu, postal}` | ipapi.co |
 
 All endpoints share the same `?key=API_KEY` authentication pattern — no
 JWT, no signed-URL dance, no per-request expiry. Drop-in friendly.
@@ -127,6 +127,77 @@ The project doesn't use static map images (we render Leaflet client-side
 from raster tiles), vector tiles (we use raster), or elevation. If a
 future feature needs any of these, MapTiler offers them — Mapbox does
 too. Not a deciding factor either way.
+
+## PoC findings (May 2026 — empirical validation with a real key)
+
+The maintainer's 20-character free-tier key was tested live against the
+three services we'd potentially want. Results:
+
+**IP geolocation** (`/geolocation/ip.json`)
+- Coordinates returned for the test caller: 45.50884 / -73.58781
+  (Montréal — same accuracy as ipapi.co, no degradation)
+- `timezone` field returned directly (`America/Toronto`) — confirms we
+  could remove the client-side `tz-lookup` dependency if we switched
+- Documentation listed a `languages` field; the actual response field
+  is **`country_languages`** (e.g. `["en", "fr"]`). Doc nit, harmless.
+- Bonus fields not useful for us but free: `country_bounds`,
+  `continent_code`, `region_code`, `eu`, `postal`.
+
+**Reverse geocoding** (`/geocoding/{lon},{lat}.json`)
+- Default response (no `language=` parameter) returns the locally-
+  appropriate language — for Montréal, French place names with proper
+  accents (`"Montréal, Québec"`). This is smarter than LocationIQ
+  which always defaults to English without a language param.
+- **Real architectural advantage uncovered:** `language=fr,en,es`
+  returns all three languages simultaneously in a single call,
+  exposed as parallel fields:
+  ```
+  text_fr / text_en / text_es
+  place_name_fr / place_name_en / place_name_es
+  ```
+  With LocationIQ, supporting three languages requires three
+  separate API calls (or accepting stale data on language switch).
+  With MapTiler, the client can fetch once and switch languages
+  instantly. **This alone is a meaningful UX win** if we ever
+  migrate.
+- Up to 10 results per call (`limit` parameter), 5 by default. We
+  only use the first feature, so the limit is irrelevant.
+
+**Raster tiles** (`/maps/{style}/256/{z}/{x}/{y}.png`)
+- All four documented styles (`streets-v4`, `base-v4`, `outdoor-v4`,
+  `hybrid-v4`) returned valid PNG 256×256 at zoom 7 over Montréal.
+- File sizes: 15–22 KB per tile, all 8-bit colormap (slightly more
+  compact than Mapbox's typical RGB encoding).
+- Visual comparison vs Mapbox `streets-v12` at the same coordinates:
+  - **`streets-v4`** is the closest equivalent in label density and
+    road network rendering, but the palette is **more pastel /
+    desaturated** than `streets-v12`'s warmer green-beige. Switching
+    would require re-tuning the cream `rgb(238, 236, 232)` panel
+    background — the current value would clash with the cooler
+    palette.
+  - **`base-v4`** is too sparse for a weather kiosk — minimal road
+    labelling, no spatial reference for the user. Not a candidate.
+  - **`outdoor-v4`** is the genuinely interesting one — surfaces
+    lake names, terrain features, and outdoor POIs that Mapbox
+    doesn't expose on its free tier. **Real differentiator** for
+    users in rural / cottage / mountain settings, and Mapbox has no
+    free-tier equivalent. Worth shipping as a 5ᵗʰ option in the
+    Advanced settings style picker rather than a replacement for
+    `streets-v12`.
+  - **`hybrid-v4`** (satellite + labels) is technically functional
+    but the radar overlay would compete with the satellite imagery,
+    and many users find satellite basemaps fatiguing for daily use.
+    Niche.
+
+**Verdict shifts from the documentation pass:**
+- The "we'd probably never need this" stance from the initial doc is
+  wrong on one specific point: **`outdoor-v4` is a real new
+  capability**, not just a parallel to existing tiles. Adding it as
+  an *option* (not a replacement) is now a candidate medium-term
+  enhancement — captured as a separate ROADMAP entry.
+- For everything else (IP geo, geocoding, `streets-v4`, `base-v4`,
+  `hybrid-v4`), the verdict stands: don't migrate today, the path
+  is documented if needed.
 
 ## When would switching make sense?
 

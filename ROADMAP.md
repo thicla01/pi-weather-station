@@ -69,6 +69,19 @@ Today's radar layer pulls 256×256 PNG tiles from RainViewer's CDN, which works 
 
 - **Phase B — analyzer port (~3-4 h, deferred):** rework `radarAnalyzerCtrl.js` to consume MSC's OGC API Coverages endpoint for raw precipitation-rate values, with automatic source-selection (ECCC for users in Canada per `req.ip` geolocation, RainViewer everywhere else). Trend window shrinks to fit MSC's 3-hour history; nowcast frames either drop entirely or pull from RainViewer in a hybrid (TBD). **Phase B should only be tackled after Phase A has proven the visual layer works smoothly on the Canadian kiosks for at least a few weeks of varied weather** — the user-visible benefit (snow/rain separation, marginally better trend authority) needs to be evidenced before committing to a refactor of the pipeline that powers every alert decision.
 
+### 🏔️ MapTiler `outdoor-v4` as a 5ᵗʰ map style option
+Visual PoC against the maintainer's free-tier MapTiler key (May 2026, see [`maptiler-cloud-plan-b.md`](maptiler-cloud-plan-b.md) for full details) flagged `outdoor-v4` as a genuine new capability rather than a parallel to existing tiles. It surfaces lake names, terrain features, and outdoor POIs that Mapbox doesn't expose on its free tier — useful for users in rural / cottage / mountain settings (e.g. Laurentides, Estrie) where the radar is the secondary concern and the basemap itself is the primary spatial reference.
+
+The integration is incremental, not a migration:
+- Add `mapTilerApiKey` to the optional API-key set (alongside Anthropic / AirNow / OpenAQ patterns; prompted by `install.sh`)
+- Server `proxyCtrl.js` grows a second tile-source selector (`mapbox` (default) / `maptiler`) with its own `ALLOWED_STYLES` and the matching upstream URL — keys still kept off the client
+- Settings → Advanced → Display gets a new `mapStyle` value (5ᵗʰ option after `streets-v12` / `light-v10` / `light-v11` / `dark-v10` / `dark-v11`): `outdoor-v4`. The light/dark toggle becomes irrelevant for this option since `outdoor-v4` doesn't have a dark variant — UI gracefully hides the dark/light split when this style is active.
+- Cream `--light-panel-bg-rgb` may need a third value tuned against `outdoor-v4`'s palette (the current cream is calibrated against `streets-v12`'s warm green-beige); empirical pass when the option ships.
+
+Effort estimate ~2-3 h. Free tier covers the fleet comfortably (100k tile requests / month, our usage is ~30k for 7 Pis). Free tier forbids commercial use, which is fine for the project's hobbyist scope; document this in the new option's Settings hint so it's not a surprise.
+
+The other MapTiler styles tested in the PoC (`streets-v4`, `base-v4`, `hybrid-v4`) are not worth shipping individually — they're either redundant with what Mapbox already gives us or too sparse / niche for the kiosk use case.
+
 ### ➡️ Precipitation motion arrows on the radar (utility to validate before building)
 Overlay arrows on the radar tile layer showing the general direction precipitation is moving in each part of the visible area — the same kind of vector field that MétéoMédia / The Weather Network displays on their app. The 13 RainViewer frames the analyzer already pulls (10 historical at 10-min intervals + 3 nowcast) carry implicit motion: a band that sat 50 km west three frames ago and now sits at the marker has a known velocity. Surfacing that as arrows turns "is this storm going to hit me?" from a multi-second mental computation into a glance.
 
