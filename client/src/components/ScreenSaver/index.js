@@ -8,42 +8,86 @@ import { AppContext } from "~/AppContext";
 
 const DATE_FNS_LOCALES = { fr, es, en: enUS };
 
-// Anti-burn-in: in stage 2 we render one tiny dot that shifts to a new
-// position on a 5×5 grid every 5 minutes. Visiting all 25 cells in a
-// pseudo-random order takes ~2 hours, after which we rotate the
-// sequence so successive cycles don't repeat the same trail. The grid
-// positions are expressed as 0..1 fractions of viewport width / height
-// inset by 10 % from each edge so the dot never sits flush against the
-// bezel (where it would fight with the touch frame on the 7" Pi).
-const ANTI_BURNIN_GRID = (() => {
-  const cells = [];
-  for (let r = 0; r < 5; r++) {
-    for (let c = 0; c < 5; c++) {
-      cells.push([0.1 + (c / 4) * 0.8, 0.1 + (r / 4) * 0.8]);
-    }
+// Anti-burn-in: in stage 2 a single 4 px dot rides a 5×5 grid, repositioned
+// every 5 minutes. The mock distributes cells across an inset region (8 %
+// margin from each edge) so the dot never sits flush against the bezel
+// where it would fight with the touch frame on the 7" Pi. We pick a fresh
+// cell each tick, refusing to repeat the previous one (`lastIdx !== prev`).
+const GRID = 5;
+const INSET = 0.08;
+const ANTI_BURNIN_INTERVAL_MS = 5 * 60 * 1000;
+
+/**
+ * Map a Tomorrow.io weather code to a calm Unicode glyph for the screensaver
+ * footer. The mock uses ☁ as the reference; this keeps the same monochrome,
+ * single-character feel across conditions rather than reaching for emoji
+ * (which render inconsistently across systems and clash with the typography).
+ *
+ * @param {Number} code Tomorrow.io weather code
+ * @returns {String} Single-character Unicode glyph
+ */
+function weatherGlyph(code) {
+  if (code === 1000 || code === 1100) return "☀"; // ☀ clear / mostly clear
+  if (code === 1101) return "⛅"; // ⛅ partly cloudy
+  if (code === 1001 || code === 1102 || code === 2000 || code === 2100) return "☁"; // ☁ cloudy / fog
+  if ([4000, 4001, 4200, 4201, 6000, 6001, 6200, 6201].includes(code)) return "☂"; // ☂ rain / freezing rain
+  if ([5000, 5001, 5100, 5101, 7000, 7101, 7102].includes(code)) return "❄"; // ❄ snow / ice pellets
+  if (code === 8000) return "⚡"; // ⚡ thunderstorm
+  return "☁"; // default cloudy
+}
+
+/**
+ * Map a Tomorrow.io weather code to the matching i18n key for the condition
+ * label. Mirrors the mapping in CurrentWeather/index.js but stays local here
+ * to avoid pulling in the full icon-loading machinery.
+ *
+ * @param {Number} code Tomorrow.io weather code
+ * @returns {String} i18n key under "weather.*"
+ */
+function conditionKey(code) {
+  switch (code) {
+    case 6201: return "weather.heavyFreezingRain";
+    case 6001: return "weather.freezingRain";
+    case 6200: return "weather.lightFreezingRain";
+    case 6000: return "weather.freezingDrizzle";
+    case 7101: return "weather.heavyIcePellets";
+    case 7000: return "weather.icePellets";
+    case 7102: return "weather.lightIcePellets";
+    case 5101: return "weather.heavySnow";
+    case 5000: return "weather.snow";
+    case 5100: return "weather.lightSnow";
+    case 5001: return "weather.flurries";
+    case 8000: return "weather.thunderStorm";
+    case 4201: return "weather.heavyRain";
+    case 4001: return "weather.rain";
+    case 4200: return "weather.lightRain";
+    case 4000: return "weather.drizzle";
+    case 2100: return "weather.lightFog";
+    case 2000: return "weather.fog";
+    case 1001: return "weather.cloudy";
+    case 1102: return "weather.mostlyCloudy";
+    case 1101: return "weather.partlyCloudy";
+    case 1100: return "weather.mostlyClear";
+    case 1000: return "weather.clear";
+    case 3001: return "weather.wind";
+    case 3000: return "weather.lightWind";
+    case 3002: return "weather.strongWind";
+    default: return "";
   }
-  return cells;
-})();
-const ANTI_BURNIN_INTERVAL_MS = 5 * 60 * 1000; // 5 min between repositions
+}
 
 /**
  * Fullscreen screensaver / sleep-mode overlay.
  *
- * Two stages, driven by the parent (App) via the `stage` prop:
- *   - 1: stylish minimal clock + date + weather, dimmed brightness
- *   - 2: black screen with a single moving dot to prevent LCD burn-in
+ * Single DOM tree shared by stages 1 and 2 — class names on the root drive
+ * the visual differences (`stage2` hides text via opacity, dot via opacity:1)
+ * so the transition between stages is smooth (300 ms ease cross-fade) and
+ * matches the design mock at `docs/design-references/sleep-mode.html`.
  *
- * Visuals are intentionally restrained — this is the screensaver scaffold
- * built before the Claude Design HTML mock arrives. Once the mock is in
- * `docs/design-references/sleep-mode.html`, the markup and CSS here will
- * be replaced with a faithful port. The stage transitions, idle detection
- * wiring and dim-brightness logic don't change either way, so the
- * scaffold lets the feature be tested end-to-end now.
- *
- * Colour variants:
+ * Three colour variants:
  *   - day:         when the app is in light mode
- *   - night-cream: when in dark mode and sleepNightMode is OFF
- *   - night-red:   when in dark mode and sleepNightMode is ON
+ *   - night-cream: dark mode + sleepNightMode off (cream on anthracite)
+ *   - night-red:   dark mode + sleepNightMode on  (red on near-black)
  *
  * @param {object} props
  * @param {number} props.stage 1 (clock visible) or 2 (black with dot)
@@ -60,75 +104,78 @@ const ScreenSaver = ({ stage }) => {
     mapTimezone,
   } = useContext(AppContext);
 
-  // Live wall clock — re-renders every 30 s. Dropping below 30 s would
-  // be wasted re-renders since we only display HH:mm; aligning to the
-  // top of the next minute would be marginally cleaner but the cost
-  // (one setTimeout chain instead of one setInterval) isn't worth it.
+  // Live wall clock — re-renders every 30 s. Aligned to the next minute on
+  // first mount so the displayed time flips at the same instant as the
+  // wall clock the user might have nearby.
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 30 * 1000);
-    return () => clearInterval(id);
+    let interval;
+    const msToNextMinute = 60_000 - (Date.now() % 60_000);
+    const timeout = setTimeout(() => {
+      setNow(new Date());
+      interval = setInterval(() => setNow(new Date()), 60_000);
+    }, msToNextMinute);
+    return () => {
+      clearTimeout(timeout);
+      if (interval) clearInterval(interval);
+    };
   }, []);
 
-  // Anti-burn-in dot position — updates every 5 min in stage 2. The
-  // sequence array is built once per mount via Fisher-Yates so each
-  // session walks the 25 grid cells in a different order; the index
-  // resets when stage 2 ends, so the next entry into stage 2 starts
-  // fresh rather than where it left off (which would defeat the
-  // anti-burn-in intent if the user wakes and re-enters quickly).
-  const [dotIdx, setDotIdx] = useState(0);
-  const dotSequence = useMemo(() => {
-    const arr = ANTI_BURNIN_GRID.map((_, i) => i);
-    for (let i = arr.length - 1; i > 0; i--) {
-      const j = Math.floor(Math.random() * (i + 1));
-      [arr[i], arr[j]] = [arr[j], arr[i]];
-    }
-    return arr;
-  }, []);
+  // Anti-burn-in dot position — recomputed every 5 min. Position is a
+  // {left, top} pair in CSS pixels relative to the viewport, refusing to
+  // repeat the previous cell. We re-shuffle on viewport resize so the
+  // 8 % inset always lands inside the new bounds.
+  const [dotPos, setDotPos] = useState({ left: 0, top: 0 });
+  const lastCellRef = useMemo(() => ({ current: -1 }), []);
   useEffect(() => {
-    if (stage !== 2) {
-      setDotIdx(0);
-      return undefined;
+    function placeDot() {
+      const w = window.innerWidth;
+      const h = window.innerHeight;
+      let cell;
+      do {
+        cell = Math.floor(Math.random() * GRID * GRID);
+      } while (cell === lastCellRef.current && GRID * GRID > 1);
+      lastCellRef.current = cell;
+      const col = cell % GRID;
+      const row = Math.floor(cell / GRID);
+      const usableW = w * (1 - 2 * INSET);
+      const usableH = h * (1 - 2 * INSET);
+      const stepX = usableW / (GRID - 1);
+      const stepY = usableH / (GRID - 1);
+      // Centre the 4 px dot on the grid cell rather than top-left aligning
+      // it (otherwise it'd appear shifted up-left by 2 px from the math).
+      const x = Math.round(w * INSET + col * stepX) - 2;
+      const y = Math.round(h * INSET + row * stepY) - 2;
+      setDotPos({ left: x, top: y });
     }
-    const id = setInterval(() => {
-      setDotIdx((i) => (i + 1) % dotSequence.length);
-    }, ANTI_BURNIN_INTERVAL_MS);
-    return () => clearInterval(id);
-  }, [stage, dotSequence.length]);
+    placeDot();
+    const id = setInterval(placeDot, ANTI_BURNIN_INTERVAL_MS);
+    window.addEventListener("resize", placeDot);
+    return () => {
+      clearInterval(id);
+      window.removeEventListener("resize", placeDot);
+    };
+  }, [lastCellRef]);
 
   if (stage === 0) return null;
 
-  // Stage 2: black screen with a single moving dot. The dot colour mirrors
-  // the night-mode preference (red in night-red mode, dim grey otherwise)
-  // so the same melatonin-friendly principle applies even with content
-  // hidden.
-  if (stage === 2) {
-    const cell = dotSequence[dotIdx % dotSequence.length];
-    const [xFrac, yFrac] = ANTI_BURNIN_GRID[cell];
-    const isNightRed = darkMode && sleepNightMode;
-    return (
-      <div className={styles.stage2} role="presentation" aria-hidden="true">
-        <span
-          className={`${styles.dot} ${isNightRed ? styles.dotRed : styles.dotGrey}`}
-          style={{ left: `${xFrac * 100}vw`, top: `${yFrac * 100}vh` }}
-        />
-      </div>
-    );
-  }
+  // Variant + stage classes composed onto the root. The mock keeps the
+  // base variant active when stage 2 layers on top so the dot picks the
+  // correct (red vs grey) colour from the still-present night-red /
+  // night-cream class.
+  const variantClass = !darkMode
+    ? styles.day
+    : sleepNightMode
+      ? styles.nightRed
+      : styles.nightCream;
+  const stage2Class = stage === 2 ? styles.stage2 : "";
 
-  // Stage 1: clock + date + weather. Variant class on the root div drives
-  // the colour scheme (day / night-cream / night-red) entirely via CSS.
-  let variant;
-  if (!darkMode) variant = styles.dayVariant;
-  else if (sleepNightMode) variant = styles.nightRedVariant;
-  else variant = styles.nightCreamVariant;
-
+  // Date formatted via date-fns with the locale-specific pattern from i18n
+  // (`dateFormat` key — "cccc d LLLL" for fr → "vendredi 1 mai"). Reusing
+  // the same key the rest of the app uses keeps the screensaver
+  // typographically consistent with the InfoPanel header.
   const lang = (i18n && i18n.language ? i18n.language.slice(0, 2) : "en");
   const locale = DATE_FNS_LOCALES[lang] || enUS;
-  // dateFormat key in each locale json gives the locale-specific pattern
-  // (e.g. "cccc d LLLL" for fr → "vendredi 1 mai"). Reusing the same key
-  // the rest of the app uses keeps the screensaver typographically
-  // consistent with the InfoPanel header.
   let dateStr;
   try {
     const pattern = i18n.t("dateFormat") || "EEEE, MMMM d";
@@ -136,9 +183,9 @@ const ScreenSaver = ({ stage }) => {
   } catch {
     dateStr = now.toLocaleDateString();
   }
-  // 24-hour vs 12-hour follows the Settings preference, with a small twist:
-  // since the clock here is the centrepiece, leading zeros on the hour
-  // (08:14 vs 8:14) feel more deliberate, so we always pad the hour.
+
+  // Time format follows the user's Settings preference. Using
+  // toLocaleTimeString keeps the AM/PM marker locale-aware in 12 h mode.
   const timeStr = now.toLocaleTimeString(undefined, {
     hour: "2-digit",
     minute: "2-digit",
@@ -146,14 +193,12 @@ const ScreenSaver = ({ stage }) => {
     timeZone: mapTimezone || undefined,
   });
 
-  // Footer line: temperature. Pulled from the same source the rest of
-  // the app uses — no extra fetch. Falls back to nothing if data hasn't
-  // loaded yet (cold boot, network blip). Condition wording is added
-  // once the design mock is in place; for now the bare temperature line
-  // keeps the scaffolding clean.
+  // Footer: weather glyph + temperature + condition. Falls back gracefully
+  // when no weather payload is loaded yet (cold boot, network blip).
   const values = currentWeatherData?.data?.timelines?.[0]?.intervals?.[0]?.values;
   const tempC = values?.temperature;
-  let footerLine = "";
+  const code = values?.weatherCode;
+  let tempPart = "";
   if (typeof tempC === "number") {
     let tempVal = tempC;
     let tempUnitStr = "°C";
@@ -164,14 +209,35 @@ const ScreenSaver = ({ stage }) => {
       tempVal = tempC + 273.15;
       tempUnitStr = "K";
     }
-    footerLine = `${Math.round(tempVal)}${tempUnitStr}`;
+    // \u00a0 = non-breaking space, matching the mock's "7\u00a0°C"
+    tempPart = `${Math.round(tempVal)}\u00a0${tempUnitStr}`;
   }
+  const condKey = code !== undefined ? conditionKey(code) : "";
+  const condStr = condKey ? i18n.t(condKey) : "";
+  const glyph = code !== undefined ? weatherGlyph(code) : "☁";
 
   return (
-    <div className={`${styles.stage1} ${variant}`} role="presentation" aria-hidden="true">
-      <div className={styles.date}>{dateStr}</div>
-      <div className={styles.time}>{timeStr}</div>
-      {footerLine ? <div className={styles.footer}>{footerLine}</div> : null}
+    <div
+      className={`${styles.screenSaver} ${variantClass} ${stage2Class}`}
+      role="presentation"
+      aria-hidden="true"
+    >
+      <main className={styles.stage}>
+        <div className={styles.date}>{dateStr}</div>
+        <div className={styles.time}>{timeStr}</div>
+        {(tempPart || condStr) ? (
+          <div className={styles.footer}>
+            <span className={styles.icon}>{glyph}</span>
+            {tempPart}
+            {tempPart && condStr ? <span className={styles.dotSep}>·</span> : null}
+            {condStr}
+          </div>
+        ) : null}
+      </main>
+      <div
+        className={styles.pixel}
+        style={{ left: `${dotPos.left}px`, top: `${dotPos.top}px` }}
+      />
     </div>
   );
 };
