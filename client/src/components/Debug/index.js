@@ -482,6 +482,21 @@ const SERVICE_ORDER = [
   "Environment Canada (severe weather alerts)",
 ];
 
+/**
+ * Services panel section — renders the per-service "last call" status
+ * stripe (one row per upstream: Tomorrow.io, Mapbox, LocationIQ, etc.)
+ * with HTTP code, timestamp, and a free-form comment from the server's
+ * recordServiceCall() helper. Entries are ordered by SERVICE_ORDER (the
+ * canonical display order), with any unknown service names appended
+ * after — that way a newly-added upstream shows up at the bottom even
+ * if SERVICE_ORDER hasn't been updated to include it yet.
+ *
+ * @param {object} props Component props
+ * @param {object} [props.services] Map of service name to
+ *   `{ status, lastCallAt, comment }` payload. Empty / undefined →
+ *   render the "no calls yet" placeholder.
+ * @returns {JSX.Element} Services section
+ */
 const ServicesSection = ({ services }) => {
   const { t } = useTranslation();
   const entries = services

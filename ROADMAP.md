@@ -222,8 +222,11 @@ A service worker caching the last known weather data and the compiled bundle wou
 
 These are known weaknesses in the current codebase that do not affect functionality today but will slow down development or increase the risk of regressions if left unaddressed as the project grows.
 
-### 📋 JSDoc and PropTypes coverage
-Most React components have a JSDoc block, but parameter descriptions and `PropTypes` declarations are incomplete on several components. ESLint rules `jsdoc/require-param` and `jsdoc/require-returns-description` surface the gaps at build time. A full audit and fill-in pass would make the codebase self-documenting and catch prop misuse earlier.
+### ✅ ~~JSDoc and PropTypes coverage on React components~~ — **resolved May 2026**
+Audited via a regex pass over `client/src/`. All 54 top-level PascalCase symbols (components, exported helpers) carry a JSDoc block. PropTypes is declared on every component that takes props; the three components flagged as "missing PropTypes" by the audit (`HourlyChart`, `DailyChart`, `WeatherInfo`) take no props at all — they read everything from context — so PropTypes would have nothing to validate. ESLint rules `jsdoc/require-param` / `jsdoc/require-returns-description` continue to surface any future regression at build time.
+
+### 📋 JSDoc coverage on server-side helpers (smaller, separate)
+~24 % of server-side helpers lack a JSDoc block (~39/165 as of May 2026 — `proxyCtrl`'s cache helpers, `debugCtrl`'s parsers, several `aiSummaryCtrl` cache lookups, validators in `indoorTempCtrl`, etc.). Most are short internal helpers where JSDoc would only state the obvious (`isValidTemperature(c)`, `getCacheKey(lat, lon)`), so this isn't urgent. The bigger ones (`replaceSettings`, `fetchProviderStatus`, `parseStatuspage`, `getNetworkInfo`) would benefit from a JSDoc block describing their failure modes and side effects — incremental fill-in pass when touching those files for other reasons is the pragmatic approach. No need for a dedicated audit session.
 
 ### 🔕 `eslint-disable-line` comments
 Several `useEffect` hooks carry `// eslint-disable-line react-hooks/exhaustive-deps` comments to silence dependency warnings rather than restructure the logic. Each suppression is a hidden assumption about which dependencies are safe to omit. These should be reviewed one by one: either the dependency array should be corrected, or the suppression should be replaced with a documented `useRef`-based workaround that makes the intent explicit.
