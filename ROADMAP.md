@@ -157,6 +157,23 @@ The current brightness slider (v2.10.x) only works on devices that expose a back
 - **Client**: zero changes — the API contract (`GET /api/brightness` returns `{available, percent, ...}`, `POST` accepts `{percent}`) is back-end-agnostic.
 - **Validation**: required before merging — some monitors advertise DDC/CI but implement it incorrectly. Test on the actual ED-MONITOR-101C unit before shipping.
 
+### 🖥️🖥️ Dual-monitor kiosk (per-screen target + two-instance display)
+A Pi 4B / 5 with two HDMI outputs can drive two screens, but the current `start-server` launcher assumes a single primary display and lets the compositor pick which one. Two related capabilities to bring under the project's autostart machinery:
+
+- **Pick which monitor the kiosk lands on** — useful when one HDMI is the kiosk display and the other is a developer monitor or a second app's screen. Setting shape: a `KIOSK_MONITOR=HDMI-A-2` line in `~/.config/pi-weather-station/browser.conf` next to the existing `BROWSER_CMD` / `BROWSER_FAMILY`. `start-server` resolves the named output via `wlr-randr --json` (Wayland — the default on Pi OS Bookworm/Trixie with labwc) or `xrandr --listmonitors` (X11, older deployments), translates to `--window-position=X,Y --window-size=W,H`, and passes those to Chromium / Firefox.
+
+- **Two kiosk instances, one per screen** — for setups where both screens display the weather kiosk (mirror or different views). Two technical gotchas:
+  - **Chromium singleton lock** — by default the second `chromium --kiosk` invocation just signals the first instance and doesn't open a new window. Workaround: distinct `--user-data-dir=$HOME/.config/chromium-screen{1,2}` per process so each gets its own `SingletonLock`. The hostname-aware lock cleanup that v2.10.x added to `start-server` needs to apply per-profile.
+  - **Wayland window-positioning is best-effort** — the compositor has the last word. labwc and wayfire honour `--window-position` reliably; some others ignore it and require compositor-level rules (`labwc-window-rules` etc.). On X11 it's deterministic.
+
+**UX setting shape**: `KIOSK_MONITOR_MODE` = `single` (default, today's behaviour) / `mirror` (same URL on both screens) / `dual-view` (two screens, two URLs — e.g. `?view=current` and `?view=radar`). `dual-view` would compose with the existing small-screen layout adaptations: a `?view=radar` query param could hide the InfoPanel and let the radar fill the screen, mirroring what the InfoPanel-collapse toggle already does on small screens.
+
+**Hardware floor**: Pi 4B 4 GB+ minimum for two Chromium instances. Pi 3B+ / Zero are not viable for 24/7 dual-kiosk.
+
+**Effort**: ~3-5 h proper, mostly bash/systemd plumbing in `start-server` + `install.sh` + `browser.conf` schema + a small client query-param handler for `dual-view`. Risk concentrated on the Wayland-positioning compatibility check across the labwc / wayfire / lxsession variants Pi OS ships.
+
+> Origin: 2026-05-07 question from the user about dual-monitor support. No active deployment depends on this today; capture for the moment a 2-screen Pi shows up in the fleet.
+
 ---
 
 ## Long term — if the project grows
@@ -271,6 +288,6 @@ The three items I would prioritize above all others if returning to this project
 
 ---
 
-*Last updated: 2026-05-07 (added a medium-term entry for an Environment Canada radar source alternative to RainViewer — Phase A overlay-only opt-in is the natural fit for one session, Phase B analyzer port is deferred behind real-world Phase A validation on the Canadian fleet)*
+*Last updated: 2026-05-07 (added a medium-term entry for dual-monitor kiosk support — pick which screen the kiosk lands on + optionally drive two screens with one Chromium instance per output; ~3-5 h, gated on a Wayland-positioning sanity check across labwc/wayfire variants)*
 
 
