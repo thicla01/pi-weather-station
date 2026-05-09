@@ -177,11 +177,12 @@
   "alert": {
     "orangeNear": "Precipitación fuerte en su zona",
     "orangeApproaching": "Precipitación fuerte en las cercanías",
+    "orangeIntensifying": "Precipitación fuerte intensificándose",
     "orangeLeaving": "Precipitación fuerte alejándose",
     "redNear": "Alerta — Precipitación severa en su zona",
     "redApproaching": "Alerta — Precipitación severa acercándose",
-    "redLeaving": "Precipitación severa alejándose",
-    "approaching": "Precipitación acercándose"
+    "redIntensifying": "Alerta — Precipitación severa intensificándose",
+    "redLeaving": "Precipitación severa alejándose"
   },
   "radar": {
     "legend": "RADAR",
