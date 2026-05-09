@@ -1037,18 +1037,13 @@ export function AppContextProvider({ children }) {
   }
 
   /**
-   * Persist a single advanced.ai.* flag to settings.json.
-   * Toggles save instantly on click — no separate Save button — and update
-   * local state on success so the UI reflects the new value immediately.
+   * Helper: build the current advanced.sleep.* subtree as it lives in
+   * settings.json. Used by every saveAdvanced*Flag helper so the full
+   * tree is always written (the server's settingsCtrl uses the whole
+   * `advanced` blob — partial writes would clobber unrelated branches).
    *
-   * @param {String} key one of "extendedRadius", "showSamplingPoints"
-   * @param {Boolean} value new value
-   * @returns {Promise} Resolves when saved
+   * @returns {object} Sleep subtree mirroring `advanced.sleep` in settings.json
    */
-  // Helper: build the current advanced.sleep.* subtree as it lives in
-  // settings.json. Used by every saveAdvanced*Flag helper so the full
-  // tree is always written (the server's settingsCtrl uses the whole
-  // `advanced` blob — partial writes would clobber unrelated branches).
   function buildSleepSubtree() {
     return {
       enabled: sleepEnabled,
@@ -1060,6 +1055,15 @@ export function AppContextProvider({ children }) {
     };
   }
 
+  /**
+   * Persist a single advanced.ai.* flag to settings.json.
+   * Toggles save instantly on click — no separate Save button — and update
+   * local state on success so the UI reflects the new value immediately.
+   *
+   * @param {String} key one of "radarAnalysisEnabled", "extendedRadius", "showSamplingPoints"
+   * @param {Boolean} value new value
+   * @returns {Promise} Resolves when saved
+   */
   function saveAdvancedAiFlag(key, value) {
     const nextAi = {
       radarAnalysisEnabled,
