@@ -143,8 +143,18 @@
 }
 
 .icon {
-  margin-right: 0.4em;
-  font-size: 1.05em;
+  /* Field feedback at ~3 ft from a 10" 1280×800 panel: at the mock's
+     1.05em the glyph reads as a tiny smudge — a kiosk meant to be
+     glanceable from across the room needs the weather indicator to be
+     the second-most-visible element after the time itself. Bumped to
+     2em, with vertical-align: -0.15em to keep the larger glyph
+     visually centred on the smaller text baseline (without it the
+     icon would sit a touch high on the cap-height line). margin-right
+     widened proportionally so the temperature value isn't cramped
+     against the icon. */
+  margin-right: 0.5em;
+  font-size: 2em;
+  vertical-align: -0.15em;
   filter: none;
   transition: filter 300ms ease;
 }
