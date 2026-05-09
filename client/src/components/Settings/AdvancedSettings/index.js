@@ -119,7 +119,6 @@ const AdvancedSettings = ({ readOnly }) => {
     sleepStage1Brightness,
     sleepStage2Enabled,
     sleepStage2Delay,
-    sleepStage2Brightness,
     sleepNightMode,
     saveAdvancedSleepFlag,
   } = useContext(AppContext);
@@ -437,33 +436,6 @@ const AdvancedSettings = ({ readOnly }) => {
                       <option key={m} value={m}>{t("settings.advanced.sleepMinutes", { count: m })}</option>
                     ))}
                   </select>
-                </div>
-              )}
-
-              {/* Stage-2 brightness slider — only meaningful when stage 2
-                  is enabled AND a backlight is exposed. Range 0-50 %
-                  (vs the stage-1 slider's MIN_PERCENT-100 %): default 0 %
-                  is the typical use case (full backlight off for LCD-bleed
-                  mitigation), upper bound capped at 50 % since anything
-                  brighter belongs in stage 1. */}
-              {sleepStage2Enabled && brightnessAvailable && (
-                <div className={styles.row}>
-                  <div className={styles.rowLabel}>
-                    {t("settings.advanced.sleepStage2Brightness")}
-                    <span className={styles.rowHint}>
-                      {t("settings.advanced.sleepStage2BrightnessHint")}
-                    </span>
-                  </div>
-                  <RangeSlider
-                    value={sleepStage2Brightness}
-                    onChange={(v) => saveAdvancedSleepFlag("stage2Brightness", Math.round(v))}
-                    min={0}
-                    max={50}
-                    step={5}
-                    disabled={readOnly}
-                    formatValue={(v) => (v === 0 ? t("settings.off") : `${Math.round(v)}%`)}
-                    ariaLabel={t("settings.advanced.sleepStage2Brightness")}
-                  />
                 </div>
               )}
 
