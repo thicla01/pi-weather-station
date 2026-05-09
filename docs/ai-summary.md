@@ -44,7 +44,7 @@ Anthropic API key to function.
 | Feature | What it does | LLM involvement |
 |---|---|---|
 | **AlertBanner** (red/orange banner above the current weather) | Picks one of `alert.redNear` / `redApproaching` / `redIntensifying` / `redLeaving` / `orangeNear` / etc. based on the radar-derived risk tier and trend, OR surfaces a government alert from NWS / ECCC. Pure local computation + i18n key lookup. | **None.** Server-side `getRiskLevels` reads the same RainViewer tiles the AI analyzer reads (shared `tileCache`), classifies them into a tier, computes the trend, and returns it as JSON. The client picks the wording. |
-| **Inner / outer dashed circles on the map** (50 km / 100 km) | Same data as the AlertBanner. The circle colour follows the same risk tier. | **None.** Client just renders Leaflet circles with the colour coming from `/api/radar-risk`. |
+| **Inner / outer dashed circles on the map** (50 km / 100 km) | Same data as the AlertBanner. The circle colour follows the same risk tier. When no Anthropic key is configured, the calm-tier circle is rendered with reduced opacity and a sparser dash pattern to signal "analysis zone present, AI narrative absent" — coloured tiers stay loud regardless. | **None.** Client just renders Leaflet circles with the colour coming from `/api/radar-risk`. |
 | **Radar tile colours themselves** | RainViewer-encoded intensity, no post-processing. | **None.** Pure CDN tiles. |
 | **Government weather alerts** (frost advisory, severe thunderstorm watch, etc.) | Polled every 10 min from NWS or Environment Canada XML feeds. | **None.** The Pi pulls the official feed, parses, and shows the title verbatim. |
 | **Forecast charts** (24 h / 5 day) | Tomorrow.io payload rendered via Chart.js. | **None.** |
