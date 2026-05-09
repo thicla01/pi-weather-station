@@ -177,11 +177,12 @@
   "alert": {
     "orangeNear": "Heavy precipitation in your area",
     "orangeApproaching": "Heavy precipitation nearby",
+    "orangeIntensifying": "Heavy precipitation intensifying",
     "orangeLeaving": "Heavy precipitation moving away",
     "redNear": "Alert — Severe precipitation in your area",
     "redApproaching": "Alert — Severe precipitation approaching",
-    "redLeaving": "Severe precipitation moving away",
-    "approaching": "Precipitation approaching"
+    "redIntensifying": "Alert — Severe precipitation intensifying",
+    "redLeaving": "Severe precipitation moving away"
   },
   "radar": {
     "legend": "RADAR",

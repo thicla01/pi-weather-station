@@ -17,6 +17,35 @@ function severity(level) {
 }
 
 /**
+ * True when the user's current weather code reports active precipitation —
+ * rain, snow, freezing rain, ice pellets, or thunderstorm. Used to choose
+ * "intensifying" wording over "approaching" wording when the trend-bump
+ * fires while precipitation is already falling at the location (otherwise
+ * the banner reads as a contradiction: "approaching" while the user can
+ * see rain on the radar tile right under the marker, on the chart, and
+ * out the window).
+ *
+ * Tomorrow.io codes — see https://docs.tomorrow.io/reference/data-layers-weather-codes
+ *   4000-4201  drizzle / rain (light, moderate, heavy)
+ *   5000-5101  snow / flurries
+ *   6000-6201  freezing rain / drizzle
+ *   7000-7102  ice pellets
+ *   8000       thunderstorm
+ *
+ * @param {Number|undefined} weatherCode Current Tomorrow.io weather code
+ * @returns {Boolean} True iff the code indicates active precipitation
+ */
+function isCurrentlyPrecipitating(weatherCode) {
+  if (typeof weatherCode !== "number") return false;
+  if (weatherCode >= 4000 && weatherCode <= 4201) return true;
+  if (weatherCode >= 5000 && weatherCode <= 5101) return true;
+  if (weatherCode >= 6000 && weatherCode <= 6201) return true;
+  if (weatherCode >= 7000 && weatherCode <= 7102) return true;
+  if (weatherCode === 8000) return true;
+  return false;
+}
+
+/**
  * Pick the i18n key for the banner based on which ring is the source of
  * the worst tier and whether that source is showing a real intensity at
  * its tier (v1 — heavy precip is actually present), was bumped one notch
@@ -42,9 +71,14 @@ function severity(level) {
  * @param {String} outerTrend "approaching" | "leaving" | "stable"
  * @param {Boolean} innerBumped Server flag — inner tier bumped by trend
  * @param {Boolean} outerBumped Server flag — outer tier bumped by trend
+ * @param {Boolean} currentlyPrecipitating Whether Tomorrow.io reports
+ *   active precipitation right now at the user's location. Disambiguates
+ *   the bumped-tier wording: "approaching" when the user is dry and a
+ *   severe band is moving in, "intensifying" when they're already in
+ *   precipitation and a worse band is moving in.
  * @returns {{tier: String, i18nKey: String} | null} Banner state, or null when no alert needs to be shown
  */
-function getRadarAlertState(innerRisk, outerRisk, innerTrend, outerTrend, innerBumped, outerBumped) {
+function getRadarAlertState(innerRisk, outerRisk, innerTrend, outerTrend, innerBumped, outerBumped, currentlyPrecipitating) {
   const innerSev = severity(innerRisk);
   const outerSev = severity(outerRisk);
   const maxSev = Math.max(innerSev, outerSev);
@@ -55,7 +89,20 @@ function getRadarAlertState(innerRisk, outerRisk, innerTrend, outerTrend, innerB
   const sourceTrend = innerIsSource ? innerTrend : outerTrend;
   const sourceBumped = innerIsSource ? innerBumped : outerBumped;
   if (sourceBumped) {
-    return { tier, i18nKey: "alert.approaching" };
+    // The bump means the analyzer raised the tier one notch because a
+    // more severe band is approaching from elsewhere. Two distinct
+    // user contexts to differentiate:
+    //   - currently dry → "approaching" reads naturally
+    //   - currently wet → "intensifying" — saying "approaching" while
+    //     rain is falling at the marker is a contradiction (observed
+    //     in the May 9 St. Louis screenshot: red ring + bumped, user
+    //     in 98%-prob rain, banner read "Precipitation approaching"
+    //     with rain visibly hammering the area on the radar). The new
+    //     "intensifying" wording is semantically accurate (the bump
+    //     does signal "things are about to get worse") and matches
+    //     what the user is actually experiencing.
+    const variant = currentlyPrecipitating ? "Intensifying" : "Approaching";
+    return { tier, i18nKey: `alert.${tier}${variant}` };
   }
   if (sourceTrend === "leaving") {
     return { tier, i18nKey: `alert.${tier}Leaving` };
@@ -100,6 +147,7 @@ const AlertBanner = () => {
     innerTrend, outerTrend,
     innerBumped, outerBumped,
     govAlerts,
+    currentWeatherData,
   } = useContext(AppContext);
   const { t, i18n } = useTranslation();
 
@@ -118,10 +166,12 @@ const AlertBanner = () => {
     );
   }
 
+  const weatherCode = currentWeatherData?.data?.timelines?.[0]?.intervals?.[0]?.values?.weatherCode;
   const radarState = getRadarAlertState(
     innerRisk, outerRisk,
     innerTrend, outerTrend,
     innerBumped, outerBumped,
+    isCurrentlyPrecipitating(weatherCode),
   );
   if (!radarState) return null;
   return (
