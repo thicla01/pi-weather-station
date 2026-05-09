@@ -78,6 +78,12 @@ export function AppContextProvider({ children }) {
   const [radarAnalysisEnabled, setRadarAnalysisEnabled] = useState(true);
   const [extendedRadarRadius, setExtendedRadarRadius] = useState(false);
   const [showSamplingPoints, setShowSamplingPoints] = useState(false);
+  // Calm-day fast path — when current conditions are clearly benign (no
+  // active precipitation, low precip probability, period forecast also
+  // clear), the server skips the Claude call entirely and returns a
+  // templated summary. Default on; opt-out via Advanced settings → AI
+  // weather summary → "Calm-day fast path".
+  const [calmDayFastPath, setCalmDayFastPath] = useState(true);
   // Display sub-tree (advanced.display.* in settings.json).
   // lightModeStyle / darkModeStyle drive the Mapbox style for each theme.
   // For light mode, the panel background tint also follows via the
@@ -623,6 +629,9 @@ export function AppContextProvider({ children }) {
               }
               setExtendedRadarRadius(Boolean(advancedAi.extendedRadius));
               setShowSamplingPoints(Boolean(advancedAi.showSamplingPoints));
+              if (advancedAi.calmDayFastPath !== undefined) {
+                setCalmDayFastPath(Boolean(advancedAi.calmDayFastPath));
+              }
             }
             const advancedDisplay = res.advanced && res.advanced.display;
             if (advancedDisplay) {
@@ -1060,7 +1069,7 @@ export function AppContextProvider({ children }) {
    * Toggles save instantly on click — no separate Save button — and update
    * local state on success so the UI reflects the new value immediately.
    *
-   * @param {String} key one of "radarAnalysisEnabled", "extendedRadius", "showSamplingPoints"
+   * @param {String} key one of "radarAnalysisEnabled", "extendedRadius", "showSamplingPoints", "calmDayFastPath"
    * @param {Boolean} value new value
    * @returns {Promise} Resolves when saved
    */
@@ -1069,6 +1078,7 @@ export function AppContextProvider({ children }) {
       radarAnalysisEnabled,
       extendedRadius: extendedRadarRadius,
       showSamplingPoints,
+      calmDayFastPath,
       [key]: value,
     };
     const nextDisplay = { lightModeStyle, darkModeStyle, radarOpacityLight, radarOpacityDark };
@@ -1078,6 +1088,7 @@ export function AppContextProvider({ children }) {
         if (key === "radarAnalysisEnabled") setRadarAnalysisEnabled(value);
         if (key === "extendedRadius") setExtendedRadarRadius(value);
         if (key === "showSamplingPoints") setShowSamplingPoints(value);
+        if (key === "calmDayFastPath") setCalmDayFastPath(value);
       });
   }
 
@@ -1095,6 +1106,7 @@ export function AppContextProvider({ children }) {
       radarAnalysisEnabled,
       extendedRadius: extendedRadarRadius,
       showSamplingPoints,
+      calmDayFastPath,
     };
     return axios
       .patch("/setting", { key: "advanced", val: { ai: nextAi, display: nextDisplay, sleep: buildSleepSubtree() } })
@@ -1124,6 +1136,7 @@ export function AppContextProvider({ children }) {
       radarAnalysisEnabled,
       extendedRadius: extendedRadarRadius,
       showSamplingPoints,
+      calmDayFastPath,
     };
     const nextDisplay = { lightModeStyle, darkModeStyle, radarOpacityLight, radarOpacityDark };
     return axios
@@ -1268,6 +1281,7 @@ export function AppContextProvider({ children }) {
     radarAnalysisEnabled,
     extendedRadarRadius,
     showSamplingPoints,
+    calmDayFastPath,
     saveAdvancedAiFlag,
     lightModeStyle,
     darkModeStyle,

@@ -102,6 +102,7 @@ const AdvancedSettings = ({ readOnly }) => {
     radarAnalysisEnabled,
     extendedRadarRadius,
     showSamplingPoints,
+    calmDayFastPath,
     saveAdvancedAiFlag,
     lightModeStyle,
     darkModeStyle,
@@ -327,6 +328,22 @@ const AdvancedSettings = ({ readOnly }) => {
             <InlineToggle
               value={showSamplingPoints}
               onChange={(v) => saveAdvancedAiFlag("showSamplingPoints", v)}
+              onLabel={t("settings.on")}
+              offLabel={t("settings.off")}
+              readOnly={readOnly}
+            />
+          </div>
+
+          <div className={styles.row}>
+            <div className={styles.rowLabel}>
+              {t("settings.advanced.calmDayFastPath")}
+              <span className={styles.rowHint}>
+                {t("settings.advanced.calmDayFastPathHint")}
+              </span>
+            </div>
+            <InlineToggle
+              value={calmDayFastPath}
+              onChange={(v) => saveAdvancedAiFlag("calmDayFastPath", v)}
               onLabel={t("settings.on")}
               offLabel={t("settings.off")}
               readOnly={readOnly}

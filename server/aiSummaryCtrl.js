@@ -73,6 +73,105 @@ const WEATHER_CODE_LABELS = {
   8000: "Thunderstorm",
 };
 
+// Per-language condition descriptors used by the calm-day fast path. Only
+// includes the codes that count as "calm" — anything raining / snowing /
+// thunderstorming routes through Claude as before. Translated phrases are
+// written to drop into the template directly without further inflection.
+const CALM_COND_BY_LANG = {
+  en: {
+    1000: "clear sky", 1100: "mostly clear sky", 1101: "partly cloudy sky",
+    1102: "mostly cloudy sky", 1001: "overcast sky",
+    2000: "fog", 2100: "light fog",
+    3000: "light wind", 3001: "wind", 3002: "strong wind",
+  },
+  fr: {
+    1000: "ciel dégagé", 1100: "ciel majoritairement dégagé", 1101: "ciel partiellement nuageux",
+    1102: "ciel majoritairement nuageux", 1001: "ciel couvert",
+    2000: "brouillard", 2100: "brume légère",
+    3000: "vent léger", 3001: "vent soutenu", 3002: "vent fort",
+  },
+  es: {
+    1000: "cielo despejado", 1100: "cielo mayormente despejado", 1101: "cielo parcialmente nublado",
+    1102: "cielo mayormente nublado", 1001: "cielo cubierto",
+    2000: "niebla", 2100: "niebla ligera",
+    3000: "viento ligero", 3001: "viento", 3002: "viento fuerte",
+  },
+};
+
+/**
+ * Decide whether the conditions are "calm and stable" enough to skip the
+ * Claude call and emit a templated summary instead. Three checks, ALL must
+ * be true:
+ *   1. Current weather code is benign (no active precipitation in the
+ *      4xxx-8000 range).
+ *   2. Current precipitation probability is below 20 %.
+ *   3. The forthcoming period's max precipitation probability (if known)
+ *      is below 20 %.
+ *
+ * When these hold, the summary's content boils down to "current numbers
+ * + nothing notable expected" — which a template can render with full
+ * fidelity, no LLM call needed.
+ *
+ * @param {Object} values Tomorrow.io current-conditions values (may be empty)
+ * @param {Number|null} periodMaxPrecip Max precipitation probability across
+ *   the forecast window, or null when unavailable
+ * @returns {Boolean} True if the calm-day fast path applies
+ */
+function isCalmStableState(values, periodMaxPrecip) {
+  if (!values || values.temperature === undefined) return false;
+  const code = values.weatherCode;
+  // 4xxx (rain/drizzle) → 8000 (thunderstorm) cover all active precipitation
+  // codes Tomorrow.io emits. Anything in this range disqualifies the fast
+  // path because the summary needs to describe what's happening — Claude
+  // adds real value by interpreting it.
+  if (typeof code === "number" && code >= 4000 && code <= 8000) return false;
+  if (typeof values.precipitationProbability === "number" && values.precipitationProbability >= 20) return false;
+  if (typeof periodMaxPrecip === "number" && periodMaxPrecip >= 20) return false;
+  return true;
+}
+
+/**
+ * Build a templated summary for the calm-day fast path. Uses the same
+ * data the prompt would have included — current temperature, condition,
+ * humidity, wind — rendered through a per-language template. No LLM call.
+ *
+ * The template intentionally omits the per-period label (no "tonight at
+ * 21h" mention) because that adds a translation surface for marginal
+ * value — when conditions are calm and stable, "no precipitation
+ * expected" without a time qualifier reads cleanly.
+ *
+ * @param {Object} opts
+ * @param {String} opts.lang "en" / "fr" / "es"
+ * @param {Object} opts.values Tomorrow.io current-conditions values
+ * @param {String} opts.tempUnit "f" / "c" / "k"
+ * @param {String} opts.speedUnit "mph" / "kmh" / "ms"
+ * @returns {String} Single-paragraph summary, 1-2 sentences
+ */
+function buildCalmDayTemplate({ lang, values, tempUnit, speedUnit }) {
+  const temp     = fmtTemp(values.temperature, tempUnit);
+  const cond     = (CALM_COND_BY_LANG[lang] || CALM_COND_BY_LANG.en)[values.weatherCode];
+  const humidity = values.humidity !== undefined ? `${Math.round(values.humidity)}%` : null;
+  const wind     = fmtSpeed(values.windSpeed, speedUnit);
+
+  if (lang === "fr") {
+    const condClause = cond ? ` avec un ${cond}` : "";
+    const humidityClause = humidity ? ` et ${humidity} d'humidité` : "";
+    const windClause = wind ? ` Vent à ${wind}.` : "";
+    return `Actuellement, il fait ${temp}${condClause}${humidityClause}.${windClause} Aucune précipitation n'est prévue à court terme.`;
+  }
+  if (lang === "es") {
+    const condClause = cond ? ` con ${cond}` : "";
+    const humidityClause = humidity ? ` y ${humidity} de humedad` : "";
+    const windClause = wind ? ` Viento a ${wind}.` : "";
+    return `Actualmente ${temp}${condClause}${humidityClause}.${windClause} No se prevén precipitaciones a corto plazo.`;
+  }
+  // en (default)
+  const condClause = cond ? ` with ${cond}` : "";
+  const humidityClause = humidity ? ` and ${humidity} humidity` : "";
+  const windClause = wind ? ` Wind at ${wind}.` : "";
+  return `Currently ${temp}${condClause}${humidityClause}.${windClause} No precipitation expected in the near term.`;
+}
+
 function getWeatherFromSharedCache(lat, lon) {
   const key = `current:${lat.toFixed(4)}:${lon.toFixed(4)}`;
   const entry = weatherCache[key];
@@ -231,6 +330,11 @@ async function getWeatherSummary(req, res) {
   // Second paragraph — period determines what we show and which data we use
   let secondSection = "";
   let secondPeriodLabel = "";
+  // Tracked alongside secondSection so the calm-day fast path can decide
+  // whether the upcoming period is "calm" (max precipitation probability
+  // below the threshold) without re-parsing the section text. Stays null
+  // when no period forecast is available.
+  let periodMaxPrecip = null;
 
   const hourlyData = getHourlyFromSharedCache(lat, lon);
 
@@ -243,6 +347,7 @@ async function getWeatherSummary(req, res) {
         `- Max precipitation probability: ${forecast.maxPrecip}%\n` +
         `- Average wind: ${fmtSpeed(forecast.avgWind, speedUnit)}`;
       secondPeriodLabel = "tonight's evening (18h–21h)";
+      periodMaxPrecip = forecast.maxPrecip;
     }
   } else if (period === "evening" && ts21 && ts05tomorrow) {
     // Soir → cette nuit (21h–5h)
@@ -253,6 +358,7 @@ async function getWeatherSummary(req, res) {
         `- Max precipitation probability: ${forecast.maxPrecip}%\n` +
         `- Average wind: ${fmtSpeed(forecast.avgWind, speedUnit)}`;
       secondPeriodLabel = "tonight overnight (21h–5h)";
+      periodMaxPrecip = forecast.maxPrecip;
     }
   }
 
@@ -261,6 +367,9 @@ async function getWeatherSummary(req, res) {
     const dailyData = getDailyFromSharedCache(lat, lon);
     const tomorrowValues = dailyData?.data?.timelines?.[0]?.intervals?.[1]?.values || null;
     if (tomorrowValues) {
+      if (typeof tomorrowValues.precipitationProbability === "number") {
+        periodMaxPrecip = tomorrowValues.precipitationProbability;
+      }
       const tTemp   = fmtTemp(tomorrowValues.temperature, tempUnit);
       const tWind   = fmtSpeed(tomorrowValues.windSpeed, speedUnit);
       const tPrecip = tomorrowValues.precipitationProbability !== undefined ? `${Math.round(tomorrowValues.precipitationProbability)}%` : null;
@@ -272,6 +381,24 @@ async function getWeatherSummary(req, res) {
       secondSection = `\n\nTomorrow's forecast:\n${tLines}`;
       secondPeriodLabel = "tomorrow";
     }
+  }
+
+  // Calm-day fast path — when current conditions are clearly benign and the
+  // forecast period shows no incoming precipitation, the LLM doesn't add
+  // useful narration over a templated rendering of the same numbers. Skip
+  // Claude (and the radar analyzer fetch that would feed it) and return a
+  // localised template directly. Saves one full Anthropic call per cache
+  // window on calm days. Default on, opt-out via advanced.ai.calmDayFastPath.
+  // The radar analyzer call is also skipped here because nothing in its
+  // output would change a calm-tier conclusion — saves the tile fetches and
+  // PNG decode too.
+  const calmFastPathEnabled = (settings?.advanced?.ai?.calmDayFastPath) !== false;
+  if (calmFastPathEnabled && isCalmStableState(values, periodMaxPrecip)) {
+    const summary = buildCalmDayTemplate({ lang, values, tempUnit, speedUnit });
+    summaryCache[cacheKey] = { summary, expiresAt: Date.now() + SUMMARY_CACHE_TTL };
+    recordServiceCall("Claude (AI summary)", 200, "calm-day fast path (no LLM call)");
+    // Deliberately NOT incrementing the Anthropic counter — no API call was made.
+    return res.status(200).json({ summary }).end();
   }
 
   // Radar analysis — fetched in parallel with the prompt assembly. Any failure

@@ -51,6 +51,8 @@
       "extendedRadiusHint": "Double approximativement le rayon d'échantillonnage (50 → 100 km, ou 30 → 60 mi selon l'unité de distance). Ajoute l'anneau extérieur (32 directions × 10 distances) pour suivre les cellules plus loin.",
       "showSamplingPoints": "Afficher les points d'échantillonnage",
       "showSamplingPointsHint": "Affiche un petit point à chaque position que le résumé IA échantillonne sur le radar.",
+      "calmDayFastPath": "Voie rapide journée calme",
+      "calmDayFastPathHint": "Quand les conditions courantes sont clairement bénignes (aucune précipitation, faible probabilité à venir), saute l'appel Claude et émet plutôt un résumé templaté. Économise des tokens Anthropic sur les journées calmes sans perte de qualité — Claude est toujours appelé dès qu'il se passe quelque chose. Désactive si tu préfères toujours la version générée par IA.",
       "sleepGroup": "Veille",
       "sleepEnabled": "Activer le mode veille",
       "sleepEnabledHint": "Après une période d'inactivité, fond enchaîné vers une horloge plein écran avec luminosité réduite. Touche ou bouge la souris pour réveiller.",
