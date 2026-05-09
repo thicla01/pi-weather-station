@@ -186,6 +186,8 @@ Returns sunrise and sunset times for the given coordinates (via sunrise-sunset.o
 
 ## AI Weather Summary
 
+> See [`docs/ai-summary.md`](ai-summary.md) for the end-to-end feature reference: how the prompt is assembled locally vs what runs at Anthropic, the five-layer cache cascade, the privacy posture, and the model-upgrade procedure. The endpoint surface below is just the HTTP contract.
+
 ### `GET /api/weather-summary`
 Returns an AI-generated weather summary powered by Claude Haiku (Anthropic). Returns HTTP 503 if no Anthropic API key is configured — the client silently hides the feature in that case.
 
