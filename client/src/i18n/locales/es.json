@@ -51,6 +51,8 @@
       "extendedRadiusHint": "Duplica aproximadamente el radio de muestreo (50 → 100 km, o 30 → 60 mi según la unidad de distancia). Añade el anillo exterior (32 direcciones × 10 distancias) para seguir células de tormenta más lejos.",
       "showSamplingPoints": "Mostrar puntos de muestreo",
       "showSamplingPointsHint": "Muestra un pequeño punto en cada posición que el resumen IA muestrea en el radar.",
+      "calmDayFastPath": "Ruta rápida día tranquilo",
+      "calmDayFastPathHint": "Cuando las condiciones actuales son claramente benignas (sin precipitación ahora, poca probabilidad próximamente), salta la llamada a Claude y emite un resumen plantillado. Ahorra tokens de Anthropic en días tranquilos sin pérdida de calidad — Claude se sigue llamando cuando hay algo interesante. Desactiva si prefieres siempre la versión generada por IA.",
       "sleepGroup": "Modo reposo",
       "sleepEnabled": "Activar modo reposo",
       "sleepEnabledHint": "Tras un periodo de inactividad, transición a un reloj a pantalla completa con brillo reducido. Toca o mueve el ratón para despertar.",

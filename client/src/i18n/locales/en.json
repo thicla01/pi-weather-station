@@ -51,6 +51,8 @@
       "extendedRadiusHint": "Roughly doubles the sampling radius (50 → 100 km, or 30 → 60 mi depending on the distance unit). Adds the outer ring (32 directions × 10 distances) for longer-range storm tracking.",
       "showSamplingPoints": "Show sampling points on map",
       "showSamplingPointsHint": "Displays a small dot at every position the AI summary samples on the radar.",
+      "calmDayFastPath": "Calm-day fast path",
+      "calmDayFastPathHint": "When current conditions are clearly benign (no precipitation now, low chance ahead), skip the Claude call and emit a templated summary instead. Saves Anthropic tokens on quiet days with no quality loss — Claude is still called whenever something interesting is happening. Turn off if you'd rather always get the natural-language version.",
       "sleepGroup": "Sleep mode",
       "sleepEnabled": "Enable sleep mode",
       "sleepEnabledHint": "After a period of inactivity, fades to a minimal full-screen clock at reduced brightness. Touch or move the cursor to wake.",
