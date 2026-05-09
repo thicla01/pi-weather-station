@@ -112,12 +112,6 @@ export function AppContextProvider({ children }) {
   const [sleepStage1Brightness, setSleepStage1Brightness] = useState(30); // percent
   const [sleepStage2Enabled, setSleepStage2Enabled] = useState(true);
   const [sleepStage2Delay, setSleepStage2Delay] = useState(20); // minutes (after stage 1)
-  // Stage-2 brightness — defaults to 0 (backlight fully off, primary use
-  // case is mitigating LCD backlight bleed in dark rooms). Allowed range
-  // 0-50 % so the user can pick a small glow if their backlight driver
-  // refuses 0 OR if they want a dim "still alive" indicator at night.
-  // Sent with `allowOff: true` to bypass the API's 10 % floor.
-  const [sleepStage2Brightness, setSleepStage2Brightness] = useState(0);
   const [sleepNightMode, setSleepNightMode] = useState(true);
   const [darkMode, setDarkMode] = useState(true);
   // When darkModeAuto is on, an interval flips darkMode at sunrise /
@@ -664,9 +658,6 @@ export function AppContextProvider({ children }) {
               if (typeof advancedSleep.stage2Delay === "number") {
                 setSleepStage2Delay(advancedSleep.stage2Delay);
               }
-              if (typeof advancedSleep.stage2Brightness === "number") {
-                setSleepStage2Brightness(advancedSleep.stage2Brightness);
-              }
               if (typeof advancedSleep.nightMode === "boolean") {
                 setSleepNightMode(advancedSleep.nightMode);
               }
@@ -1060,7 +1051,6 @@ export function AppContextProvider({ children }) {
       stage1Brightness: sleepStage1Brightness,
       stage2Enabled: sleepStage2Enabled,
       stage2Delay: sleepStage2Delay,
-      stage2Brightness: sleepStage2Brightness,
       nightMode: sleepNightMode,
     };
   }
@@ -1124,7 +1114,7 @@ export function AppContextProvider({ children }) {
    * branches.
    *
    * @param {String} key one of "enabled", "stage1Delay", "stage1Brightness",
-   *   "stage2Enabled", "stage2Delay", "stage2Brightness", "nightMode"
+   *   "stage2Enabled", "stage2Delay", "nightMode"
    * @param {*} value new value (boolean for toggles, number for delays/brightness)
    * @returns {Promise} Resolves when saved
    */
@@ -1144,7 +1134,6 @@ export function AppContextProvider({ children }) {
         if (key === "stage1Brightness") setSleepStage1Brightness(value);
         if (key === "stage2Enabled") setSleepStage2Enabled(value);
         if (key === "stage2Delay") setSleepStage2Delay(value);
-        if (key === "stage2Brightness") setSleepStage2Brightness(value);
         if (key === "nightMode") setSleepNightMode(value);
       });
   }
@@ -1296,7 +1285,6 @@ export function AppContextProvider({ children }) {
     sleepStage1Brightness,
     sleepStage2Enabled,
     sleepStage2Delay,
-    sleepStage2Brightness,
     sleepNightMode,
     saveAdvancedSleepFlag,
     setMapPosition,

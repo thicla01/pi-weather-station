@@ -44,7 +44,6 @@ const App = () => {
     sleepStage1Brightness,
     sleepStage2Enabled,
     sleepStage2Delay,
-    sleepStage2Brightness,
     brightnessAvailable,
     brightnessPercent,
     brightnessMinPercent,
@@ -88,13 +87,17 @@ const App = () => {
       axios.post("/api/brightness", { percent: sleepStage1Brightness })
         .catch(() => undefined);
     } else if (stage === 2) {
-      // Stage 2 sends sleepStage2Brightness with allowOff: true so the
-      // server bypasses its 10 % MIN_PERCENT floor — the user opted into
-      // sleep mode explicitly, and 0 % is the default value (backlight
-      // fully off, which is the cleanest LCD-bleed mitigation). Users
-      // who want a small "still alive" glow can dial it up to 5-50 %
-      // via the Sleep mode → "Stage 2 brightness" slider.
-      axios.post("/api/brightness", { percent: sleepStage2Brightness, allowOff: true })
+      // Stage 2 always writes brightness 0 with allowOff: true so the
+      // server bypasses its 10 % MIN_PERCENT floor. On panels that
+      // honour 0, the backlight goes fully off (cleanest anti-burn-in
+      // and bleed mitigation). On panels whose driver clamps internally
+      // (some industrial all-in-ones, e.g. ED-HMI3010), the hardware
+      // floor takes over — same end result either way, no user knob is
+      // useful in between because the floor is hardware-bound. Earlier
+      // iteration exposed a `sleepStage2Brightness` slider; field
+      // testing showed it added UI clutter without buying anything, so
+      // it was removed.
+      axios.post("/api/brightness", { percent: 0, allowOff: true })
         .catch(() => undefined);
     } else {
       // stage 0 — restore. Nothing to do if we never dimmed.
@@ -109,7 +112,7 @@ const App = () => {
     // brightnessPercent intentionally NOT in the deps — it's read once via
     // the ref on stage-1 entry; including it would re-trigger the dim API
     // call every time the user nudged the brightness slider.
-  }, [stage, brightnessAvailable, sleepStage1Brightness, sleepStage2Brightness, brightnessMinPercent]); // eslint-disable-line react-hooks/exhaustive-deps -- brightnessPercent intentionally omitted, see comment above
+  }, [stage, brightnessAvailable, sleepStage1Brightness, brightnessMinPercent]); // eslint-disable-line react-hooks/exhaustive-deps -- brightnessPercent intentionally omitted, see comment above
 
   const [canCollapsePanel, setCanCollapsePanel] = useState(
     () => window.matchMedia(PANEL_TOGGLE_MQ).matches
