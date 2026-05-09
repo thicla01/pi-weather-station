@@ -51,10 +51,14 @@ See [CHANGELOG.md](./CHANGELOG.md) for full release notes per version, and the
 [GitHub Releases](https://github.com/thicla01/pi-weather-station/releases) page
 for tagged releases.
 
-> **v1 → v2 note:** v2 switched from the ClimaCell API to Tomorrow.io. If you
-> have a ClimaCell API v3 key and want to keep using it, use
+> **v1 → v2 note:** v2 switched from the ClimaCell API to Tomorrow.io after
+> ClimaCell rebranded to Tomorrow.io in late 2020 and retired its v3 API
+> shortly after. The historical
 > [Pi Weather Station v1](https://github.com/elewin/pi-weather-station/releases/tag/v1.0)
-> instead.
+> tag remains available as an archive of the original upstream fork by
+> [@elewin](https://github.com/elewin), but **its weather calls no longer
+> respond** — the v3 endpoints have been shut down for years, so v1 starts
+> up but never gets data. Use v2 (this branch).
 
 # Setup
 
