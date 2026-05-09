@@ -62,6 +62,8 @@
       "sleepStage2EnabledHint": "Tras un retraso adicional, pasa a una pantalla negra con un pequeño punto en movimiento para evitar el burn-in del LCD. Brillo al mínimo.",
       "sleepStage2Delay": "Retraso pantalla negra",
       "sleepStage2DelayHint": "Tiempo después de aparecer el reloj antes de pasar a la etapa de pantalla negra.",
+      "sleepStage2Brightness": "Brillo pantalla negra",
+      "sleepStage2BrightnessHint": "Brillo de hardware durante la etapa de pantalla negra. Por defecto 0, apaga totalmente el backlight — la mitigación más limpia para el sangrado de backlight LCD en habitaciones oscuras. El tacto despierta la pantalla al instante. Sube a 5-50 % si tu driver rechaza 0 o quieres un destello tenue de \"sigue activo\".",
       "sleepNightMode": "Texto rojo de noche",
       "sleepNightModeHint": "Cuando el modo oscuro está activo, usa texto rojo en lugar de crema. La luz roja de longitud de onda larga tiene impacto mínimo en la melatonina — más amable en un dormitorio o pasillo visible de noche.",
       "sleepMinutes": "{{count}} min"

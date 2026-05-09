@@ -62,6 +62,8 @@
       "sleepStage2EnabledHint": "Après un délai supplémentaire, passe à un écran noir avec un petit point qui se déplace pour éviter le burn-in LCD. Luminosité au plancher.",
       "sleepStage2Delay": "Délai écran noir",
       "sleepStage2DelayHint": "Délai après l'apparition de l'horloge avant le passage à l'écran noir.",
+      "sleepStage2Brightness": "Luminosité écran noir",
+      "sleepStage2BrightnessHint": "Luminosité matérielle pendant le stade écran noir. Par défaut 0, ce qui éteint complètement le rétroéclairage — la solution la plus propre contre le « backlight bleed » LCD en chambre sombre. Le tactile réveille l'écran instantanément. Monte à 5-50 % si ton driver refuse 0 ou si tu veux une lueur discrète « toujours vivant ».",
       "sleepNightMode": "Texte rouge la nuit",
       "sleepNightModeHint": "Quand le mode sombre est actif, utilise un texte rouge au lieu du beige. La lumière rouge à grande longueur d'onde a un impact minimal sur la mélatonine — plus indulgent dans une chambre ou un couloir visible la nuit.",
       "sleepMinutes": "{{count}} min"

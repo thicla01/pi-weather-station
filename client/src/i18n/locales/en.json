@@ -62,6 +62,8 @@
       "sleepStage2EnabledHint": "After a further delay, switch to a black screen with a tiny moving dot to prevent LCD burn-in. Brightness drops to its floor.",
       "sleepStage2Delay": "Black-screen delay",
       "sleepStage2DelayHint": "Time after the screensaver appears before switching to the black-screen stage.",
+      "sleepStage2Brightness": "Black-screen brightness",
+      "sleepStage2BrightnessHint": "Hardware brightness during the black-screen stage. Default 0 turns the backlight fully off — the cleanest mitigation for LCD backlight bleed in dark rooms. Touch wakes the display instantly. Bump to 5-50% if your backlight driver refuses 0 or you want a faint \"still alive\" glow.",
       "sleepNightMode": "Red text at night",
       "sleepNightModeHint": "When dark mode is active, use red-tinted text instead of cream. Long-wavelength red light has minimal impact on melatonin — friendlier in a bedroom or hallway visible at night.",
       "sleepMinutes": "{{count}} min"

@@ -59,6 +59,13 @@ Creates or overwrites `settings.json` with the provided body.
   - `advanced.display.darkModeStyle` (string) — Mapbox basemap style used in dark mode. One of `dark-v10` (default — classic Mapbox dark, higher contrast) or `dark-v11` (modern variant with a flatter palette). The dark grey panel background is identical for both options.
   - `advanced.display.radarOpacityLight` (number, 0.05–1.0) — opacity of the RainViewer radar layer over the light-mode basemap. Defaults to `0.7`. Lower values let the basemap show through; higher values make rain bands stand out.
   - `advanced.display.radarOpacityDark` (number, 0.05–1.0) — same control for dark mode. Defaults to `0.3` (lower because the dark basemap makes radar colours pop naturally — too high and they look saturated).
+  - `advanced.sleep.enabled` (boolean) — master toggle for the sleep-mode / screensaver feature. Defaults to `false` (existing installs see no change). When `true`, the idle hook attaches input listeners and arms the two-stage timer described below.
+  - `advanced.sleep.stage1Delay` (number, minutes) — inactivity threshold before stage 1 (clock screensaver) appears. Defaults to `10`.
+  - `advanced.sleep.stage1Brightness` (number, 10–100) — hardware brightness applied during stage 1. Defaults to `30`. Honoured only on devices with an exposed backlight (sysfs `/sys/class/backlight/*`); silently ignored otherwise.
+  - `advanced.sleep.stage2Enabled` (boolean) — whether to ever transition into stage 2 (black screen with anti-burn-in dot). Defaults to `true` (so the default sleep flow walks all the way to the black-screen stage).
+  - `advanced.sleep.stage2Delay` (number, minutes) — additional delay after stage 1 before stage 2 kicks in. Defaults to `20` (so total time-to-black at defaults is `stage1Delay + stage2Delay = 30` min).
+  - `advanced.sleep.stage2Brightness` (number, 0–50) — hardware brightness during stage 2. Defaults to `0` (backlight fully off, the cleanest mitigation for LCD backlight bleed in dark rooms). Sent to `POST /api/brightness` with `allowOff: true` so the server bypasses its 10% safety floor for this specific transition. Capped at 50% in the client UI since anything brighter belongs in stage 1.
+  - `advanced.sleep.nightMode` (boolean) — when dark mode is active, switches the screensaver palette from cream-on-anthracite to red-on-near-black. Defaults to `true` (long-wavelength red has minimal impact on melatonin, friendlier for a kiosk visible from a bedroom).
 
 ---
 
@@ -574,10 +581,10 @@ Reports the current screen-brightness state. The client uses this on mount to de
 ---
 
 ### `POST /api/brightness`
-Sets the screen brightness in percent (0–100). Floors at `minPercent` (10%) to prevent accidental black screens.
+Sets the screen brightness in percent (0–100). Floors at `minPercent` (10%) by default to prevent accidental black screens. The sleep-mode stage-2 path bypasses this floor by passing `allowOff: true` — it explicitly turns the backlight off as the cleanest mitigation for LCD backlight bleed.
 
 - **Access:** 🔒 Localhost only — brightness physically affects the device's screen, no value changing it from a remote client
-- **Body:** `{ "percent": <number> }`
+- **Body:** `{ "percent": <number>, "allowOff"?: <boolean> }` — `allowOff: true` lowers the floor from `minPercent` to 0 for this single write. The slider in Settings does not pass it; only the sleep-mode stage-2 transition does.
 - **Response on success:** `{ "ok": true, "percent": <clamped>, "raw": <int>, "max": <int> }`
 - **Errors:**
   - `400` — `{ error: "Body must be { percent: <number> }" }` or `invalid-percent`
