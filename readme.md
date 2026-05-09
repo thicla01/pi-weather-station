@@ -287,7 +287,7 @@ The script will automatically remove the systemd service, `~/.local/bin/start-se
 By default the server only accepts connections from `localhost` (127.0.0.1).
 
 When remote access is enabled (`ALLOW_REMOTE=true`), the following applies:
-- All API calls (Tomorrow.io, Mapbox, LocationIQ, sunrise-sunset.org) are **proxied through the server** — keys are never visible in client-side request URLs or third-party server logs. Remote clients receive only a boolean (configured/not configured) from `GET /settings` — actual key values are never sent over the network.
+- All upstream API calls are **proxied through the server** — keys are never visible in client-side request URLs or third-party server logs. Remote clients receive only a boolean (configured / not configured) from `GET /settings` — actual key values are never sent over the network. Proxied upstreams include: weather (Tomorrow.io), map tiles (Mapbox), reverse geocoding (LocationIQ), AI summary (Anthropic), air quality (EPA AirNow, OpenAQ, MELCC RSQA, RSQAQ, ECCC AQHI), severe-weather alerts (NWS for US, ECCC for Canada), radar tiles (RainViewer), sunrise/sunset (Sunrise-Sunset.org), and default geolocation (ipapi.co).
 - Unit and display preferences (temperature, speed, clock format, etc.) work from any device.
 - Settings writes (API keys, coordinates) are **always restricted to the Pi itself**. To change settings remotely, use an SSH tunnel instead (see below).
 
