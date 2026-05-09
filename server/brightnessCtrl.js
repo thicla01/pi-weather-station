@@ -53,19 +53,28 @@ function readBrightness() {
 }
 
 /**
- * Write a new brightness in percent. Floors at MIN_PERCENT to prevent
- * accidental black screens.
+ * Write a new brightness in percent. Floors at MIN_PERCENT by default to
+ * prevent accidental black screens (someone yanking the slider to 0
+ * during normal use and thinking the display is broken). The sleep-mode
+ * stage-2 path needs to bypass this floor: a fully-off backlight is the
+ * cleanest mitigation for LCD backlight bleed and there's no risk of
+ * mistaking it for a fault since the user explicitly opted in via the
+ * sleep-mode settings.
  *
  * @param {Number} percent 0-100
+ * @param {Object} [opts]
+ * @param {Boolean} [opts.allowOff] When true, lower bound becomes 0 instead
+ *   of MIN_PERCENT. Used by the sleep-mode stage-2 transition.
  * @returns {Object} {ok, percent, raw, max, error?}
  */
-function writeBrightness(percent) {
+function writeBrightness(percent, opts = {}) {
   const dev = getDevicePath();
   if (!dev) return { ok: false, error: "no-device" };
   if (typeof percent !== "number" || !Number.isFinite(percent)) {
     return { ok: false, error: "invalid-percent" };
   }
-  const clamped = Math.max(MIN_PERCENT, Math.min(100, percent));
+  const floor = opts.allowOff ? 0 : MIN_PERCENT;
+  const clamped = Math.max(floor, Math.min(100, percent));
   let max;
   try {
     max = parseInt(fs.readFileSync(path.join(dev, "max_brightness"), "utf8"), 10);
@@ -97,17 +106,20 @@ function getBrightness(req, res) {
 }
 
 /**
- * POST /api/brightness — body { percent: 0-100 }. Floors at MIN_PERCENT.
+ * POST /api/brightness — body { percent: 0-100, allowOff?: boolean }.
+ * Floors at MIN_PERCENT by default; pass allowOff: true to allow values
+ * below MIN_PERCENT (down to 0). Used by the sleep-mode stage-2 path
+ * which intentionally turns the backlight off for LCD-bleed mitigation.
  *
  * @param {Object} req
  * @param {Object} res
  */
 function setBrightness(req, res) {
-  const { percent } = req.body || {};
+  const { percent, allowOff } = req.body || {};
   if (typeof percent !== "number") {
     return res.status(400).json({ error: "Body must be { percent: <number> }" }).end();
   }
-  const result = writeBrightness(percent);
+  const result = writeBrightness(percent, { allowOff: allowOff === true });
   if (!result.ok) {
     const status = result.error === "no-device" ? 503
                  : result.error === "no-write-permission" ? 403
