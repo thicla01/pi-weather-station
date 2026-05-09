@@ -104,8 +104,9 @@ analyzer** (`server/radarAnalyzerCtrl.js`):
   - night → tomorrow from daily data
   Averages temperature and wind across the window; takes max precipitation
   probability.
-- **Radar analysis** (optional, opt-in via `advanced.ai.radarAnalysisEnabled`,
-  default on) — see the next section.
+- **Radar analysis** (toggleable via `advanced.ai.radarAnalysisEnabled`,
+  default on; turn off to skip the third paragraph and save Anthropic
+  tokens — see the next section).
 
 All three sections are independent. If one fails (Tomorrow.io throttled,
 RainViewer down, etc.), the prompt still gets the others and Claude is
@@ -313,7 +314,7 @@ Advanced settings → AI weather summary**:
 
 | Setting | Default | What it does |
 |---|---|---|
-| `radarAnalysisEnabled` | `true` | When `false`, the third paragraph is skipped entirely. The analyzer is short-circuited server-side, no RainViewer tiles fetched, no tokens spent on the radar block. |
+| `radarAnalysisEnabled` | `true` | Cost-management knob for the LLM-narrated portion of the radar feature. When `false`: (a) the AI summary's third paragraph is skipped entirely — analyzer short-circuited server-side, no Anthropic tokens spent on the radar block; (b) the dashed sampling-zone circles disappear from the map. **The rain-alert banner is unaffected** — it uses the same risk data computed locally and keeps firing for severe / heavy precipitation regardless of this setting (since v2026-05-09 — see PR #68 for the decoupling rationale). |
 | `extendedRadius` | `false` | When `true`, samples the outer ring (32 directions × 10 distances, 55-100 km / 33-60 mi). Triples the sample count (161 → 481), bumps prompt size ~30%, and lets Claude reason about cells further out. |
 | `showSamplingPoints` | `false` | Purely client-side render flag — no impact on the prompt. |
 
@@ -383,10 +384,37 @@ Tomorrow.io fetches do not happen as part of the AI summary path
 specifically — they happen as part of the regular weather endpoints, and
 the AI summary just reads from the cache they populate.
 
-The summary feature can be **disabled entirely** in two ways:
+The AI portion can be **disabled in three different shapes** — pick the
+one that matches your concern:
 
-1. Leave `anthropicApiKey` empty → endpoint returns 503, client hides
-   the banner, no Anthropic call ever happens.
-2. Set `advanced.ai.radarAnalysisEnabled: false` → keeps the AI summary
-   but drops the radar paragraph (no RainViewer pixel sampling for
-   the summary; the rest of the radar layer is unaffected).
+1. **No AI at all** — leave `anthropicApiKey` empty. The endpoint returns
+   503, the client hides the AI summary banner entirely, no Anthropic
+   call ever happens. The deterministic surfaces (rain-alert banner,
+   dashed analysis-zone circles in their subdued styling, government
+   alerts) keep working from local computation.
+2. **AI for current conditions / forecast period only — no radar
+   narration** — set `advanced.ai.radarAnalysisEnabled: false`. The
+   third paragraph is skipped, no RainViewer pixel sampling for the
+   summary path, no Anthropic tokens spent on the radar block. The
+   first two paragraphs (current conditions + period forecast) keep
+   generating. The rain-alert banner is unaffected — it uses the same
+   risk data computed by `/api/radar-risk`, which runs independently
+   of this setting.
+3. **Reduce frequency** — there's no per-user knob for this, but the
+   server-side `SUMMARY_CACHE_TTL` (15 min) and the client polling
+   interval (also 15 min) can be lengthened in code if a deployment
+   wants fewer calls per hour. Doubling the cache TTL roughly halves
+   the call rate at low end (a 30 min TTL drops 96 calls/day to 48).
+
+### Behaviour matrix across the AI / radar settings
+
+| Configuration | AI summary paragraphs 1+2 | AI summary paragraph 3 (radar narration) | Dashed analysis-zone circles | Rain-alert banner |
+|---|:---:|:---:|:---:|:---:|
+| No `anthropicApiKey` | ❌ | ❌ | ✅ subdued | ✅ |
+| Key + `radarAnalysisEnabled: true` (default) | ✅ | ✅ | ✅ full contrast | ✅ |
+| Key + `radarAnalysisEnabled: false` | ✅ | ❌ | ❌ | ✅ |
+
+The "subdued" treatment in the no-key case lowers the calm-tier ring's
+opacity (0.85 → 0.35) and switches to a sparser dash pattern (`6 6` →
+`3 9`); coloured tiers (yellow / orange / red) keep their full
+contrast — alerts need to stay loud regardless of AI availability.
