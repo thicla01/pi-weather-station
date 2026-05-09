@@ -46,7 +46,7 @@
       "brightnessHint": "Atenuación del hardware de la pantalla conectada. Mínimo 10 % para mantener la pantalla legible. Oculto en dispositivos que no exponen backlight (monitores HDMI, overlay kernel ausente, etc.).",
       "aiGroup": "Resumen meteo IA",
       "radarAnalysisEnabled": "Análisis radar",
-      "radarAnalysisEnabledHint": "Añade el tercer párrafo «Análisis radar» al resumen IA, muestreando las teselas RainViewer alrededor de tu posición. Desactiva para omitir completamente este análisis.",
+      "radarAnalysisEnabledHint": "Genera el tercer párrafo «Análisis radar» del resumen IA y muestra los círculos de la zona de muestreo en el mapa (50 km / 100 km punteados). Desactiva para reducir el consumo de tokens Anthropic. El banner de alerta de lluvia usa los mismos datos de riesgo calculados localmente y permanece activo.",
       "extendedRadius": "Radio extendido",
       "extendedRadiusHint": "Duplica aproximadamente el radio de muestreo (50 → 100 km, o 30 → 60 mi según la unidad de distancia). Añade el anillo exterior (32 direcciones × 10 distancias) para seguir células de tormenta más lejos.",
       "showSamplingPoints": "Mostrar puntos de muestreo",

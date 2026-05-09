@@ -46,7 +46,7 @@
       "brightnessHint": "Hardware-level dimming of the connected screen. Floors at 10% to keep the display readable. Hidden on devices that don't expose a backlight (HDMI monitors, no kernel overlay, etc.).",
       "aiGroup": "AI weather summary",
       "radarAnalysisEnabled": "Radar analysis",
-      "radarAnalysisEnabledHint": "Adds the third \"Radar analysis\" paragraph to the AI summary, sampled from RainViewer tiles around your location. Turn off to skip the analysis entirely.",
+      "radarAnalysisEnabledHint": "Generates the third \"Radar analysis\" paragraph in the AI summary and shows the sampling-zone circles on the map (50 km / 100 km dashed). Turn off to reduce Anthropic token usage. The rain-alert banner uses the same risk data computed locally and is unaffected.",
       "extendedRadius": "Extended radius",
       "extendedRadiusHint": "Roughly doubles the sampling radius (50 → 100 km, or 30 → 60 mi depending on the distance unit). Adds the outer ring (32 directions × 10 distances) for longer-range storm tracking.",
       "showSamplingPoints": "Show sampling points on map",

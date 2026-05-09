@@ -199,10 +199,16 @@ const RING_OUTLINE_EXTRA_WEIGHT = 2;    // outline extends ~1 px on each side of
  *
  * @param {String|null} risk Risk level, or null when not yet loaded
  * @param {Boolean} dark Dark-mode flag
+ * @param {Boolean} [aiOff] When true, the AI summary is unavailable
+ *   (no Anthropic key). Calm-tier rings are rendered with reduced
+ *   opacity and a sparser dash pattern to signal "analysis zone
+ *   present, AI narrative absent". Coloured tiers (yellow / orange /
+ *   red) intentionally ignore this flag — alerts need to be loud
+ *   regardless of the AI's availability.
  * @returns {Array<object>} Ordered list of pathOptions; render in order
  *   so the coloured stroke sits on top of the outline.
  */
-function buildRingLayers(risk, dark) {
+function buildRingLayers(risk, dark, aiOff = false) {
   const overlay = risk && RING_RISK_STYLE[dark ? "dark" : "light"][risk];
   const baseDash = "6 6";
   // Calm / not yet loaded — single neutral ring, theme-aware.
@@ -210,8 +216,14 @@ function buildRingLayers(risk, dark) {
     return [{
       color: dark ? "#a8a097" : "#3a3938",
       weight: 2,
-      opacity: 0.85,
-      dashArray: baseDash,
+      // Subdued treatment when AI is off: opacity dropped from 0.85
+      // to 0.35 and the dash made sparser ("3 9" gives short marks
+      // with wide gaps, reading as a faint guide line). The zone is
+      // still locatable but visually recedes, so users without an
+      // Anthropic key understand the AlertBanner driving them is
+      // computed locally rather than narrated by Claude.
+      opacity: aiOff ? 0.35 : 0.85,
+      dashArray: aiOff ? "3 9" : baseDash,
       fill: false,
     }];
   }
@@ -256,10 +268,11 @@ function buildRingLayers(risk, dark) {
  * @param {Number} props.radius Circle radius in metres
  * @param {String|null} props.risk Risk level, or null when not yet loaded
  * @param {Boolean} props.dark Dark-mode flag
+ * @param {Boolean} [props.aiOff] AI summary unavailable — see buildRingLayers
  * @returns {JSX.Element} One or two stacked Circles
  */
-const RiskRing = ({ center, radius, risk, dark }) => {
-  const layers = buildRingLayers(risk, dark);
+const RiskRing = ({ center, radius, risk, dark, aiOff }) => {
+  const layers = buildRingLayers(risk, dark, aiOff);
   return (
     <>
       {layers.map((opts, i) => (
@@ -274,6 +287,7 @@ RiskRing.propTypes = {
   radius: PropTypes.number.isRequired,
   risk: PropTypes.string,
   dark: PropTypes.bool,
+  aiOff: PropTypes.bool,
 };
 
 const RADAR_LEGEND_ITEMS = [
@@ -821,7 +835,13 @@ const WeatherMap = ({ zoom, dark }) => {
   // colour the dashed circles by intensity. Gated by the same conditions
   // as the circles themselves — fetching when the rings aren't visible
   // would be wasted work.
-  const riskFetchEnabled = aiSummaryAvailable && radarAnalysisEnabled && Boolean(mapGeo);
+  // The risk fetch is intentionally NOT gated on aiSummaryAvailable. The
+  // /api/radar-risk endpoint is purely deterministic — RainViewer tile
+  // sampling + tier classification, no LLM call — so the AlertBanner and
+  // dashed circles it feeds are useful even without an Anthropic key. The
+  // AI summary's third paragraph is the only Claude-dependent surface,
+  // and that's gated server-side in aiSummaryCtrl.js.
+  const riskFetchEnabled = radarAnalysisEnabled && Boolean(mapGeo);
   useEffect(() => {
     if (!riskFetchEnabled) {
       setInnerRisk(null);
@@ -1008,13 +1028,13 @@ const WeatherMap = ({ zoom, dark }) => {
             so curious users can see exactly what the analyzer reads. Inner
             ring is always 16 directions × 10 distances; outer ring is 32
             directions × 10 distances when extendedRadius is on. */}
-        {aiSummaryAvailable && radarAnalysisEnabled && markerPosition ? (
-          <RiskRing center={markerPosition} radius={innerRadiusMeters} risk={innerRisk} dark={dark} />
+        {radarAnalysisEnabled && markerPosition ? (
+          <RiskRing center={markerPosition} radius={innerRadiusMeters} risk={innerRisk} dark={dark} aiOff={!aiSummaryAvailable} />
         ) : null}
-        {aiSummaryAvailable && radarAnalysisEnabled && markerPosition && extendedRadarRadius ? (
-          <RiskRing center={markerPosition} radius={outerRadiusMeters} risk={outerRisk} dark={dark} />
+        {radarAnalysisEnabled && markerPosition && extendedRadarRadius ? (
+          <RiskRing center={markerPosition} radius={outerRadiusMeters} risk={outerRisk} dark={dark} aiOff={!aiSummaryAvailable} />
         ) : null}
-        {aiSummaryAvailable && radarAnalysisEnabled && markerPosition && showSamplingPoints
+        {radarAnalysisEnabled && markerPosition && showSamplingPoints
           ? buildSamplingPoints(markerPosition, extendedRadarRadius, distanceUnit).map(
               ({ position, key }, idx) => {
                 // Each dot picks its colour from the sample's own intensity.

@@ -46,7 +46,7 @@
       "brightnessHint": "Atténuation matérielle de l'écran connecté. Plancher à 10 % pour garder l'écran lisible. Masqué sur les appareils qui n'exposent pas de backlight (moniteurs HDMI, overlay kernel manquant, etc.).",
       "aiGroup": "Résumé météo IA",
       "radarAnalysisEnabled": "Analyse radar",
-      "radarAnalysisEnabledHint": "Ajoute le troisième paragraphe « Analyse radar » au résumé IA, à partir des tuiles RainViewer autour de ta position. Désactive pour omettre complètement cette analyse.",
+      "radarAnalysisEnabledHint": "Génère le 3e paragraphe « Analyse radar » du résumé IA et affiche les cercles de la zone d'échantillonnage sur la carte (50 km / 100 km pointillés). Désactive pour réduire la consommation de tokens Anthropic. La bannière d'alerte de pluie utilise les mêmes données de risque calculées localement et reste active.",
       "extendedRadius": "Rayon étendu",
       "extendedRadiusHint": "Double approximativement le rayon d'échantillonnage (50 → 100 km, ou 30 → 60 mi selon l'unité de distance). Ajoute l'anneau extérieur (32 directions × 10 distances) pour suivre les cellules plus loin.",
       "showSamplingPoints": "Afficher les points d'échantillonnage",
