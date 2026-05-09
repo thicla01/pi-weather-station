@@ -35,6 +35,41 @@ state to Anthropic — each request stands alone.
 
 ---
 
+## What is NOT part of the AI summary
+
+A few features on the same screen look related but **do not** involve any
+LLM call. None of them go through Anthropic. None of them require an
+Anthropic API key to function.
+
+| Feature | What it does | LLM involvement |
+|---|---|---|
+| **AlertBanner** (red/orange banner above the current weather) | Picks one of `alert.redNear` / `redApproaching` / `redIntensifying` / `redLeaving` / `orangeNear` / etc. based on the radar-derived risk tier and trend, OR surfaces a government alert from NWS / ECCC. Pure local computation + i18n key lookup. | **None.** Server-side `getRiskLevels` reads the same RainViewer tiles the AI analyzer reads (shared `tileCache`), classifies them into a tier, computes the trend, and returns it as JSON. The client picks the wording. |
+| **Inner / outer dashed circles on the map** (50 km / 100 km) | Same data as the AlertBanner. The circle colour follows the same risk tier. | **None.** Client just renders Leaflet circles with the colour coming from `/api/radar-risk`. |
+| **Radar tile colours themselves** | RainViewer-encoded intensity, no post-processing. | **None.** Pure CDN tiles. |
+| **Government weather alerts** (frost advisory, severe thunderstorm watch, etc.) | Polled every 10 min from NWS or Environment Canada XML feeds. | **None.** The Pi pulls the official feed, parses, and shows the title verbatim. |
+| **Forecast charts** (24 h / 5 day) | Tomorrow.io payload rendered via Chart.js. | **None.** |
+| **Indoor temperature, UV, AQHI badges** | Polled from Homebridge / EPA AirNow / OpenAQ / MELCC / ECCC. | **None.** |
+
+**The only LLM-involved part of the entire app is the AI summary block
+itself** — the 1-3 paragraph natural-language text that appears below
+the charts when the user expands the AI summary section. Everything
+else on the screen is computed locally on the Pi from the same data
+sources.
+
+The reason the AlertBanner sometimes feels "AI-like" is that it shares
+the radar pixel data with the AI summary's third paragraph: when severe
+precipitation is approaching, *both* fire — one as a coloured banner
+above the current conditions, the other as a textual description in
+the AI summary. They draw the same conclusion from the same data, but
+the banner does it via deterministic rules in
+`server/radarAnalyzerCtrl.js` and `client/src/components/AlertBanner/`,
+while the AI summary phrases it in natural language via Claude. The
+banner works perfectly even when the AI summary is disabled (no
+Anthropic key) — the user just doesn't get the natural-language
+narrative alongside it.
+
+---
+
 ## What runs locally on the Pi
 
 ### 1. The HTTP endpoint and the cache
