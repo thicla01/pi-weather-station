@@ -270,12 +270,21 @@ if [ "$CONFIGURE_SETTINGS" = "yes" ]; then
     echo "   Press Enter to leave a field empty."
     echo ""
 
-    read -p "   Tomorrow.io API key (weatherApiKey) : " WEATHER_KEY
-    read -p "   Mapbox API key (mapApiKey)           : " MAP_KEY
-    read -p "   LocationIQ API key (optional)        : " GEO_KEY
-    read -p "   Anthropic API key (optional)         : " ANTHROPIC_KEY
-    read -p "   Starting latitude                    : " LAT
-    read -p "   Starting longitude                   : " LON
+    read -p "   Tomorrow.io API key (weatherApiKey)         : " WEATHER_KEY
+    read -p "   Mapbox API key (mapApiKey)                  : " MAP_KEY
+    read -p "   LocationIQ API key (optional)               : " GEO_KEY
+    read -p "   Anthropic API key (optional)                : " ANTHROPIC_KEY
+    # Air-quality sources are both optional. AirNow covers the US only
+    # (sign up free at https://docs.airnowapi.org/account/request/);
+    # OpenAQ covers the rest of the world as a fallback (sign up free
+    # at https://explore.openaq.org/register). Either, both, or neither
+    # can be left empty — the air-quality controller silently no-ops
+    # for the sources that aren't configured and falls back to the
+    # remaining ones (MELCC for Quebec, ECCC AQHI for Canada-wide).
+    read -p "   AirNow API key (US air quality, optional)   : " AIRNOW_KEY
+    read -p "   OpenAQ API key (global, optional)           : " OPENAQ_KEY
+    read -p "   Starting latitude                           : " LAT
+    read -p "   Starting longitude                          : " LON
 
     WEATHER_KEY=${WEATHER_KEY:-key}
     MAP_KEY=${MAP_KEY:-key}
@@ -288,12 +297,14 @@ data = {
     'mapApiKey':     sys.argv[2],
     'reverseGeoApiKey': sys.argv[3],
     'anthropicApiKey': sys.argv[4] if sys.argv[4] else None,
-    'startingLat':   sys.argv[5] if sys.argv[5] else None,
-    'startingLon':   sys.argv[6] if sys.argv[6] else None,
+    'airNowApiKey':  sys.argv[5] if sys.argv[5] else None,
+    'openAqApiKey':  sys.argv[6] if sys.argv[6] else None,
+    'startingLat':   sys.argv[7] if sys.argv[7] else None,
+    'startingLon':   sys.argv[8] if sys.argv[8] else None,
 }
 data = {k: v for k, v in data.items() if v is not None}
 print(json.dumps(data, indent=2))
-" "$WEATHER_KEY" "$MAP_KEY" "$GEO_KEY" "$ANTHROPIC_KEY" "$LAT" "$LON" > "$REPO_DIR/settings.json"
+" "$WEATHER_KEY" "$MAP_KEY" "$GEO_KEY" "$ANTHROPIC_KEY" "$AIRNOW_KEY" "$OPENAQ_KEY" "$LAT" "$LON" > "$REPO_DIR/settings.json"
     echo ">> settings.json created."
 else
     if [ ! -f "$REPO_DIR/settings.json" ]; then
