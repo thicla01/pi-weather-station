@@ -1,0 +1,125 @@
+/* Stage 1 — full-viewport overlay, content centered. Variant classes
+   on this element drive the colour palette via CSS custom properties
+   so the JSX stays free of inline colour logic. Pointer-events stay
+   active so any tap reaches the underlying activity listeners that
+   the idle hook attached to window — the screensaver itself doesn't
+   need its own click handler. */
+.stage1 {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4vh;
+  background: var(--ss-bg);
+  color: var(--ss-text);
+  pointer-events: auto;
+  /* Smooth fade-in so the transition from the live UI doesn't jar.
+     Same duration as the existing AiSummary slide-up to keep the
+     app's animation language consistent. */
+  animation: ss-fade-in 350ms ease-out;
+}
+
+@keyframes ss-fade-in {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* Day variant — warm cream background, deep anthracite text, soft
+   warm grey for date/footer. The "Loom Sand" direction. */
+.day-variant {
+  --ss-bg: #f3eee7;
+  --ss-text: #1a1816;
+  --ss-muted: #6a635a;
+}
+
+/* Night-cream variant — inverted version of day, used when dark mode
+   is on but the night-mode toggle is off. */
+.night-cream-variant {
+  --ss-bg: #1a1816;
+  --ss-text: #f3eee7;
+  --ss-muted: #8a8479;
+}
+
+/* Night-red variant — sleep-friendly red on near-black. Long-wavelength
+   red light has minimal impact on melatonin via melanopsin receptors,
+   the same principle astronomers and pilots rely on for night vision /
+   night-shift lighting. */
+.night-red-variant {
+  --ss-bg: #0a0808;
+  --ss-text: #ff6644;
+  --ss-muted: #cc4422;
+}
+
+.date {
+  /* Serif typeface for the date — paired with the ultra-thin sans on
+     the time below. System serif stack avoids any web-font payload. */
+  font-family: ui-serif, Georgia, "Times New Roman", serif;
+  font-size: clamp(1.4rem, 3.2vh, 2.6rem);
+  font-weight: 400;
+  letter-spacing: 0.02em;
+  color: var(--ss-muted);
+  text-transform: lowercase;
+}
+
+.time {
+  /* The single dominant element — clamp picks a size between 8 rem on
+     a 480 px display and ~16 rem on a 1280 px one. Weight 200 is the
+     thin variant that gives the digit shapes the airy feel of the
+     "Loom Sand" reference; system fonts ship the weight on every
+     platform we care about (Inter / SF / Segoe / Roboto). */
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: clamp(6rem, 25vh, 16rem);
+  font-weight: 200;
+  letter-spacing: -0.02em;
+  line-height: 0.9;
+  color: var(--ss-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.footer {
+  font-family: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  font-size: clamp(0.95rem, 2.2vh, 1.4rem);
+  font-weight: 400;
+  letter-spacing: 0.04em;
+  color: var(--ss-muted);
+}
+
+/* Stage 2 — solid black with a single moving dot. The dot's exact
+   coordinates are set inline by the component (one of 25 grid cells,
+   re-positioned every 5 minutes). Background is pure black to let the
+   LCD backlight floor — set to its hardware minimum at the brightness
+   API level — do most of the dimming work. */
+.stage2 {
+  position: fixed;
+  inset: 0;
+  z-index: 9000;
+  background: #000;
+  pointer-events: auto;
+  animation: ss-fade-in 350ms ease-out;
+}
+
+.dot {
+  position: absolute;
+  width: 4px;
+  height: 4px;
+  border-radius: 50%;
+  /* Translate so the cell's fractional coordinate refers to the dot's
+     centre rather than its top-left corner. Otherwise the dot would
+     appear shifted up-left by 2 px from where the grid math says it
+     should be. */
+  transform: translate(-50%, -50%);
+  /* Smooth crossfade when the position changes — without this the dot
+     flickers each time the 5-minute timer fires. */
+  transition: left 800ms ease-in-out, top 800ms ease-in-out;
+}
+
+.dot-grey {
+  background: #6a6a6a;
+}
+
+.dot-red {
+  background: #cc4422;
+}

@@ -50,7 +50,21 @@
       "extendedRadius": "Rayon étendu",
       "extendedRadiusHint": "Double approximativement le rayon d'échantillonnage (50 → 100 km, ou 30 → 60 mi selon l'unité de distance). Ajoute l'anneau extérieur (32 directions × 10 distances) pour suivre les cellules plus loin.",
       "showSamplingPoints": "Afficher les points d'échantillonnage",
-      "showSamplingPointsHint": "Affiche un petit point à chaque position que le résumé IA échantillonne sur le radar."
+      "showSamplingPointsHint": "Affiche un petit point à chaque position que le résumé IA échantillonne sur le radar.",
+      "sleepGroup": "Veille",
+      "sleepEnabled": "Activer le mode veille",
+      "sleepEnabledHint": "Après une période d'inactivité, fond enchaîné vers une horloge plein écran avec luminosité réduite. Touche ou bouge la souris pour réveiller.",
+      "sleepStage1Delay": "Inactivité avant veille",
+      "sleepStage1DelayHint": "Délai sans interaction (tactile, souris, clavier) avant que l'économiseur n'apparaisse.",
+      "sleepStage1Brightness": "Luminosité en veille",
+      "sleepStage1BrightnessHint": "Luminosité matérielle appliquée pendant que l'horloge est affichée. Masqué sur les appareils sans backlight.",
+      "sleepStage2Enabled": "Stade écran noir",
+      "sleepStage2EnabledHint": "Après un délai supplémentaire, passe à un écran noir avec un petit point qui se déplace pour éviter le burn-in LCD. Luminosité au plancher.",
+      "sleepStage2Delay": "Délai écran noir",
+      "sleepStage2DelayHint": "Délai après l'apparition de l'horloge avant le passage à l'écran noir.",
+      "sleepNightMode": "Texte rouge la nuit",
+      "sleepNightModeHint": "Quand le mode sombre est actif, utilise un texte rouge au lieu du beige. La lumière rouge à grande longueur d'onde a un impact minimal sur la mélatonine — plus indulgent dans une chambre ou un couloir visible la nuit.",
+      "sleepMinutes": "{{count}} min"
     }
   },
   "weather": {

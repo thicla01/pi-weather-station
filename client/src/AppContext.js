@@ -98,6 +98,21 @@ export function AppContextProvider({ children }) {
   const [brightnessPercent, setBrightnessPercent] = useState(null);
   const [brightnessAvailable, setBrightnessAvailable] = useState(false);
   const [brightnessMinPercent, setBrightnessMinPercent] = useState(10);
+  // Sleep mode (advanced.sleep.* in settings.json). Two-stage screensaver:
+  // stage 1 fades to a stylish minimal clock at reduced brightness after
+  // sleepStage1Delay minutes of inactivity; stage 2 (optional) goes to a
+  // black screen with an anti-burn-in moving dot at minimum brightness
+  // after another sleepStage2Delay minutes. sleepNightMode flips the stage-1
+  // colour palette to a red-tinted variant in dark mode (long-wavelength red
+  // doesn't suppress melatonin via melanopsin receptors — same reason
+  // astronomers and pilots use red lighting at night). All defaults OFF
+  // so existing installs see no change.
+  const [sleepEnabled, setSleepEnabled] = useState(false);
+  const [sleepStage1Delay, setSleepStage1Delay] = useState(10); // minutes
+  const [sleepStage1Brightness, setSleepStage1Brightness] = useState(30); // percent
+  const [sleepStage2Enabled, setSleepStage2Enabled] = useState(true);
+  const [sleepStage2Delay, setSleepStage2Delay] = useState(20); // minutes (after stage 1)
+  const [sleepNightMode, setSleepNightMode] = useState(true);
   const [darkMode, setDarkMode] = useState(true);
   // When darkModeAuto is on, an interval flips darkMode at sunrise /
   // sunset based on AppContext's sunriseTime / sunsetTime. Manual taps
@@ -624,6 +639,29 @@ export function AppContextProvider({ children }) {
                 setRadarOpacityDark(advancedDisplay.radarOpacityDark);
               }
             }
+            // Sleep mode (advanced.sleep.*). All optional — fall back to
+            // defaults already declared in useState if absent or malformed.
+            const advancedSleep = res.advanced && res.advanced.sleep;
+            if (advancedSleep) {
+              if (typeof advancedSleep.enabled === "boolean") {
+                setSleepEnabled(advancedSleep.enabled);
+              }
+              if (typeof advancedSleep.stage1Delay === "number") {
+                setSleepStage1Delay(advancedSleep.stage1Delay);
+              }
+              if (typeof advancedSleep.stage1Brightness === "number") {
+                setSleepStage1Brightness(advancedSleep.stage1Brightness);
+              }
+              if (typeof advancedSleep.stage2Enabled === "boolean") {
+                setSleepStage2Enabled(advancedSleep.stage2Enabled);
+              }
+              if (typeof advancedSleep.stage2Delay === "number") {
+                setSleepStage2Delay(advancedSleep.stage2Delay);
+              }
+              if (typeof advancedSleep.nightMode === "boolean") {
+                setSleepNightMode(advancedSleep.nightMode);
+              }
+            }
           }
           resolve(res);
         })
@@ -1007,6 +1045,21 @@ export function AppContextProvider({ children }) {
    * @param {Boolean} value new value
    * @returns {Promise} Resolves when saved
    */
+  // Helper: build the current advanced.sleep.* subtree as it lives in
+  // settings.json. Used by every saveAdvanced*Flag helper so the full
+  // tree is always written (the server's settingsCtrl uses the whole
+  // `advanced` blob — partial writes would clobber unrelated branches).
+  function buildSleepSubtree() {
+    return {
+      enabled: sleepEnabled,
+      stage1Delay: sleepStage1Delay,
+      stage1Brightness: sleepStage1Brightness,
+      stage2Enabled: sleepStage2Enabled,
+      stage2Delay: sleepStage2Delay,
+      nightMode: sleepNightMode,
+    };
+  }
+
   function saveAdvancedAiFlag(key, value) {
     const nextAi = {
       radarAnalysisEnabled,
@@ -1016,7 +1069,7 @@ export function AppContextProvider({ children }) {
     };
     const nextDisplay = { lightModeStyle, darkModeStyle, radarOpacityLight, radarOpacityDark };
     return axios
-      .patch("/setting", { key: "advanced", val: { ai: nextAi, display: nextDisplay } })
+      .patch("/setting", { key: "advanced", val: { ai: nextAi, display: nextDisplay, sleep: buildSleepSubtree() } })
       .then(() => {
         if (key === "radarAnalysisEnabled") setRadarAnalysisEnabled(value);
         if (key === "extendedRadius") setExtendedRadarRadius(value);
@@ -1040,12 +1093,44 @@ export function AppContextProvider({ children }) {
       showSamplingPoints,
     };
     return axios
-      .patch("/setting", { key: "advanced", val: { ai: nextAi, display: nextDisplay } })
+      .patch("/setting", { key: "advanced", val: { ai: nextAi, display: nextDisplay, sleep: buildSleepSubtree() } })
       .then(() => {
         if (key === "lightModeStyle") setLightModeStyle(value);
         if (key === "darkModeStyle") setDarkModeStyle(value);
         if (key === "radarOpacityLight") setRadarOpacityLight(value);
         if (key === "radarOpacityDark") setRadarOpacityDark(value);
+      });
+  }
+
+  /**
+   * Persist a single advanced.sleep.* flag. Same instant-save pattern as
+   * saveAdvancedAiFlag / saveAdvancedDisplayFlag — toggles flip immediately
+   * on click. Builds the full advanced tree (ai + display + sleep with the
+   * one key overridden) so the server-side write doesn't clobber unrelated
+   * branches.
+   *
+   * @param {String} key one of "enabled", "stage1Delay", "stage1Brightness",
+   *   "stage2Enabled", "stage2Delay", "nightMode"
+   * @param {*} value new value (boolean for toggles, number for delays/brightness)
+   * @returns {Promise} Resolves when saved
+   */
+  function saveAdvancedSleepFlag(key, value) {
+    const nextSleep = { ...buildSleepSubtree(), [key]: value };
+    const nextAi = {
+      radarAnalysisEnabled,
+      extendedRadius: extendedRadarRadius,
+      showSamplingPoints,
+    };
+    const nextDisplay = { lightModeStyle, darkModeStyle, radarOpacityLight, radarOpacityDark };
+    return axios
+      .patch("/setting", { key: "advanced", val: { ai: nextAi, display: nextDisplay, sleep: nextSleep } })
+      .then(() => {
+        if (key === "enabled") setSleepEnabled(value);
+        if (key === "stage1Delay") setSleepStage1Delay(value);
+        if (key === "stage1Brightness") setSleepStage1Brightness(value);
+        if (key === "stage2Enabled") setSleepStage2Enabled(value);
+        if (key === "stage2Delay") setSleepStage2Delay(value);
+        if (key === "nightMode") setSleepNightMode(value);
       });
   }
 
@@ -1191,6 +1276,13 @@ export function AppContextProvider({ children }) {
     brightnessPercent,
     brightnessMinPercent,
     setBrightnessLive,
+    sleepEnabled,
+    sleepStage1Delay,
+    sleepStage1Brightness,
+    sleepStage2Enabled,
+    sleepStage2Delay,
+    sleepNightMode,
+    saveAdvancedSleepFlag,
     setMapPosition,
     resetMapPosition,
     panToCoords,
