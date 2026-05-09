@@ -10,11 +10,11 @@ Items are organized by theme and annotated with an estimated impact (for the pri
 
 These items reuse data or infrastructure already in place and can be implemented in a single session.
 
-### 🌡️ UV index and air quality (AQI)
-Both fields (`uvIndex`, `epaIndex`) are already present in the Tomorrow.io hourly payload — no new API key or endpoint required. A small row below the current weather block would surface this information without cluttering the layout.
+### ✅ ~~UV index and air quality (AQI)~~ — **shipped May 2026**
+Both surfaces ended up far richer than the original "row below the current weather block" idea. UV badge reads from Tomorrow.io's `uvIndex` field. AQI badge chains through five government sources by proximity — MELCC RSQA Montreal first, RSQAQ provincial Quebec next, ECCC AQHI Canada-wide, EPA AirNow for the US, and OpenAQ as the global fallback — each with its own provider's threshold colour scale. The two badges sit in a colour-coded row under the wind/precipitation block in the InfoPanel; either or both hide when the source returns no useful coverage at the user's coordinates. AirNow and OpenAQ keys are optional (`airNowApiKey` / `openAqApiKey` in `settings.json`, prompted by `install.sh`).
 
-### 🌓 Automatic dark / light mode at sunrise and sunset
-The app already fetches precise sunrise and sunset times. Switching the color theme automatically at those moments is a natural extension — a `setInterval` check every minute against the stored times would be sufficient.
+### ✅ ~~Automatic dark / light mode at sunrise and sunset~~ — **shipped April 2026**
+`darkModeAuto` setting in the Settings panel. When enabled, an interval check flips `darkMode` at sunrise and sunset based on the same sunrise-sunset.org data the rest of the app uses. Manual taps on the dark/light toggle disable auto mode for that session (override pattern — user wins). Persisted in `localStorage`; default OFF so existing installs aren't surprised by sudden theme switches.
 
 ### 💡 ~~Screen brightness control~~ ✅ Shipped in v2.11.0
 Manual brightness slider in Advanced settings, backed by `/sys/class/backlight/*/brightness`. Hidden when no backlight is exposed (HDMI monitors, x86, missing kernel overlay). `install.sh` provisions the `dtoverlay=rpi-backlight` line and a udev rule so the `pi` user can write to the sysfs node. Automatic dim-at-night is still open — see the dark/light auto-switch item above for the analogous mechanism.
@@ -27,19 +27,17 @@ Manual brightness slider in Advanced settings, backed by `/sys/class/backlight/*
 
 These items require new logic or UI work but remain well within the scope of the project.
 
-### 📡 Radar animation (play / pause / speed)
-RainViewer exposes multiple historical and forecast frames via its API. The WeatherMap component already uses RainViewer tiles. Adding a timeline control bar below the map — with play, pause, and frame scrubbing — would turn the static radar into a proper storm-tracking tool, which is arguably the most useful feature a weather kiosk can offer.
+### ✅ ~~Radar animation (play / pause / speed)~~ — **shipped May 2026**
+Full RadarTimeline overlay component embedded in WeatherMap: floating bar at the bottom of the map with date/offset labels, return-to-now button, speed cycler (1× / 2× / 4×), step-back / play-pause / step-forward transport controls, and a touch-friendly scrubber that walks past + nowcast frames from the RainViewer index. Multiple iterations refined the touchscreen UX: thumb hit-area expanded to full thumb-diameter vertical, padding inset of `var(--thumb-w)/2` to keep the thumb fully grabbable at both extremes, dwell-time-free pointer-event handlers (Chromium's heuristic was eating quick taps on the kiosk), legend auto-hide when the timeline collides with it on small screens, ghost-click absorber on close so the WeatherMap doesn't reposition the marker. "Now" tick markers (top + bottom of the input wrapper at the past→nowcast colour boundary) stay visible regardless of where the thumb is parked. Visible directly under the map when the timeline toggle in ControlButtons is active.
 
-> **UX inspiration** — [Weather Underground's WunderMap](https://www.wunderground.com/wundermap) has particularly polished light/dark base maps and a clean layer-opacity slider. Worth a look when designing the radar timeline + layer controls (their public API is no longer free, so this is purely visual reference, not a data source).
+### ✅ ~~Sleep mode / screensaver — design A "Loom Sand"~~ — **shipped May 2026**
+Two-stage screensaver, opt-in via Settings → Advanced → Sleep mode. After `sleepStage1Delay` minutes of inactivity, the display fades to a fullscreen minimal clock (italic serif date, ultra-thin sans-serif weight 200 time with tabular numerals, footer with weather glyph + temperature + condition) at a configurable dimmed brightness. After a further `sleepStage2Delay` minutes, switches to a black screen with a single 4 px dot that repositions on a 5×5 grid every 5 minutes for LCD anti-burn-in, hardware brightness floored to 0 (with `allowOff: true` bypass on `POST /api/brightness`). Three colour variants: day (cream + anthracite), night-cream (anthracite + cream), night-red (`#0a0808` + `#cc4422`, unified on field-test feedback after the original two-shade `#ff6644` time vs `#cc4422` date read as a hue shift on real panels). Idle wake on `pointermove` / `pointerdown` / `touchstart` / `keydown` / `wheel`. Brightness orchestration silently no-ops on devices without a backlight. 350 ms transparent grace period on wake to absorb the synthetic click that would otherwise reach the WeatherMap. Visual reference at `docs/design-references/sleep-mode.html`; React port at `client/src/components/ScreenSaver/`.
 
-### 😴 Sleep mode / screensaver — **in progress (May 2026)**
-**v1 — "Loom Sand" design A (in flight on the `claude/screensaver` branch).** Two-stage screensaver. After `sleepStage1Delay` minutes of inactivity, the display fades to a fullscreen minimal clock (date in serif, time in ultra-thin sans-serif weight 200, footer with current temperature) at a configurable dimmed brightness. After a further `sleepStage2Delay` minutes, switches to a black screen with a single 4 px dot that repositions on a 5×5 grid every 5 minutes for LCD anti-burn-in, with hardware brightness floored to its minimum. Three colour variants: day (cream + anthracite), night-cream (anthracite + cream), night-red (#0a0808 + #ff6644). The night-red variant is melatonin-friendly — long-wavelength red light has minimal impact on melanopsin receptors, the same principle astronomers and pilots rely on for night vision. Settings live in a new "Sleep mode" group inside Advanced settings (`sleepEnabled` / `sleepStage1Delay` / `sleepStage1Brightness` / `sleepStage2Enabled` / `sleepStage2Delay` / `sleepNightMode`). Idle detection wakes on `pointermove` / `pointerdown` / `touchstart` / `keydown` / `wheel`. Brightness orchestration is best-effort — silently no-ops on devices without a backlight (HDMI monitors).
-
-**Design B / C — backlog.** Further visual identities can be added behind a settings selector once v1 has shipped and we've gathered preferences:
+**Design B / C — backlog.** Further visual identities could be added behind a settings selector if user demand emerges:
 - **B — "Editorial / Magazine"** : asymmetric layout, time large left, date + weather column right, accent rule.
 - **C — "Always-On (watchOS)"** : pure-black centred minimalist, weather chip top-left, indoor chip top-right.
 
-Mock-up workflow: each design starts as a standalone HTML file in `docs/design-references/sleep-mode-<variant>.html` (built in [Claude Design](https://claude.ai/design)) before any React work, so the visual is validated before the port.
+Mock-up workflow if revisited: each new design starts as a standalone HTML file in `docs/design-references/sleep-mode-<variant>.html` (built in [Claude Design](https://claude.ai/design)) before any React work, so the visual is validated before the port.
 
 ### ✅ ~~Trend-aware radar-risk colouring~~ — **shipped May 2026**
 - **v2 (initial — early May 2026):** `getRiskLevels` fetches the 3-frame sequence (now / -15 min / -45 min) and bumps the ring tier one notch when at least one direction's strongest sample has shifted inward by ≥5 km (≥3 mi) on the inner ring or ≥8 km (≥5 mi) on the outer over the 45-min window AND projected arrival at the centre is < 30 min. Snapshots fetched in parallel; most tile reads hit the shared cache populated by the AI-summary analyzer.
@@ -140,12 +138,13 @@ Both the badges (UV / AQI / future Pollen) and the `<AlertBanner>` already carry
 
 The pattern composes cleanly with the click-for-details overlay above (the popover is the natural place to put the "Vu" button).
 
-### 🌌 Astronomy companion view
-A second optional "page" in the kiosk that complements the weather/radar primary view: Earth orbiting the Sun with continuous axial-tilt animation, day-length variation over the year, sunrise/sunset arcs, and a "Today" mode showing real-time orbital angle, current axial tilt, and a countdown to the next solstice/equinox. Branched on the user's actual latitude/longitude (not the generic 48°N / 35°S the prototype hard-codes), so the day-length curve is *their* curve, not a demo.
+### 🌙 Moon phase + upcoming solstice/equinox marker
+A small inline addition to the InfoPanel rather than a dedicated astronomy view: a moon-phase glyph (🌑 → 🌕 → 🌘) shown alongside the existing sunrise/sunset row, plus a transient mini-marker that surfaces the next solstice or equinox **only when within ~14 days of it** (e.g. *"Spring equinox in 8 days"*). Both computed locally — no API, no token cost, no quota.
 
-Accessed via a new ControlButtons icon that toggles between the radar view and the astronomy view; the InfoPanel and clock area stay shared. Almost zero new server work — the data is purely astronomical (date + lat/lon → math), and the existing `sunriseTime` / `sunsetTime` from sunrise-sunset.org are already there to cross-check.
+- **Moon phase** : Conway's lunar-age approximation (~5 lines of math) → fraction 0-1 → choose one of 8 Unicode glyphs. Accuracy: ±1 day, easily good enough for a casual readout. Refresh once per UTC day (the phase moves slowly — no need for the polling cadence used elsewhere).
+- **Solstice/equinox upcoming** : Meeus chapter 27 formulas for the four annual events (March equinox, June solstice, September equinox, December solstice) — accurate to within seconds for any year in the 1000-3000 range. Compute the next one at startup, hide the marker outside the 14-day window, surface it as a small italic line under the existing sunrise/sunset row when inside.
 
-> **Design-first.** A working visual prototype already exists at [`docs/design-references/solstices-equinoxes.html`](design-references/solstices-equinoxes.html) (saved May 2026, produced via [Claude Design](https://claude.ai/design)). Open it directly in a browser — that file is the source of truth for the visual identity. The integration work is to port the React-in-HTML to a proper component (CSS Modules, JSDoc + PropTypes, full i18n EN/FR/ES — the prototype is French-only), plus wire it to the user's real location, plus add the toggle button. Probably one full session.
+The full "Earth orbiting the Sun, day-length curve, axial-tilt animation" companion view originally scoped here feels too rich for the weather-station InfoPanel — better as a separate companion app rather than a competing view inside the main one. The visual prototype at [`docs/design-references/solstices-equinoxes.html`](design-references/solstices-equinoxes.html) (saved May 2026 via [Claude Design](https://claude.ai/design)) stays in the repo as a reference for that future spinoff.
 
 ### 🌡️ Local GPIO sensors (DHT22 / BME280)
 This is the item that most clearly differentiates a Pi weather station from any commercial weather app. Connecting a temperature and humidity sensor directly to the Pi's GPIO pins would allow the app to display the **actual conditions in the room** alongside the external forecast. A lightweight server-side poller (every 30 seconds) reading from the sensor via a Node.js GPIO library would feed a new panel section or a prominent badge on the CurrentWeather block. No external API call, no quota, no latency.
@@ -229,8 +228,8 @@ Most React components have a JSDoc block, but parameter descriptions and `PropTy
 ### 🔕 `eslint-disable-line` comments
 Several `useEffect` hooks carry `// eslint-disable-line react-hooks/exhaustive-deps` comments to silence dependency warnings rather than restructure the logic. Each suppression is a hidden assumption about which dependencies are safe to omit. These should be reviewed one by one: either the dependency array should be corrected, or the suppression should be replaced with a documented `useRef`-based workaround that makes the intent explicit.
 
-### 📄 Version history duplicated between `readme.md` and `CHANGELOG.md`
-The full version history exists in both files. `readme.md` should keep only the last two or three releases for quick reference, with a link to `CHANGELOG.md` for the full history. Keeping both in sync manually is error-prone.
+### ✅ ~~Version history duplicated between `readme.md` and `CHANGELOG.md`~~ — **resolved May 2026**
+`readme.md` no longer carries any per-version section. The "Version history" block now contains a 3-line pointer to `CHANGELOG.md` and the GitHub Releases page, plus a short v1 → v2 ClimaCell note for users who land on the readme with an old API key. The matching policy line in `CLAUDE.md` was updated from "the existing ones will be trimmed over time" (an aspirational instruction nobody acted on) to "no per-version highlight sections in the readme at all" — explicit and enforceable.
 
 ### 🧪 No automated tests
 There are no unit or integration tests. The highest-value starting points would be:
