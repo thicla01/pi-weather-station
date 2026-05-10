@@ -132,12 +132,19 @@ function pickGovBanner(govAlerts) {
 }
 
 /**
- * Persistent text alert banner shown in the InfoPanel. A government
- * alert from NWS or ECCC outranks the radar-derived tier — when one is
- * active at orange/red severity, its localized title plus a source
- * badge ("NWS" / "ECCC") replaces the radar wording. Otherwise the
- * radar-tier banner from the original logic still drives the display.
- * Hidden when neither source has anything to surface.
+ * Persistent text alert banner shown in the InfoPanel. Every banner
+ * carries a leading source badge so the user can distinguish between
+ * authoritative government alerts and the project's own radar-derived
+ * detection:
+ *   - "ECCC" — Environment and Climate Change Canada (official Canadian alerts)
+ *   - "NWS"  — US National Weather Service (official US alerts)
+ *   - "RADAR" — derived locally from RainViewer pixel analysis via radarAnalyzerCtrl
+ *
+ * A government alert outranks the radar-derived tier — when one is
+ * active at orange/red severity, its localized title with the gov
+ * source badge replaces the radar wording. Otherwise the radar-tier
+ * banner with the RADAR badge surfaces. Hidden when neither source has
+ * anything to surface.
  *
  * @returns {JSX.Element|null} Banner, or null when no alert is active
  */
@@ -176,6 +183,7 @@ const AlertBanner = () => {
   if (!radarState) return null;
   return (
     <div className={`${styles.banner} ${styles[radarState.tier]}`}>
+      <span className={styles.sourceBadge}>RADAR</span>
       {t(radarState.i18nKey)}
     </div>
   );
