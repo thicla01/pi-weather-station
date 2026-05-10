@@ -775,9 +775,56 @@ function computePerDirectionTrends(framesSamples, unit, ring) {
       peakNow, peakOld, peakMid,
     });
 
-    map.set(dir, { trend, peakIntensityNow, confidence });
+    map.set(dir, {
+      trend,
+      peakIntensityNow,
+      peakDistanceNow: peakNow.distance,
+      inwardShift,
+      confidence,
+    });
   }
   return map;
+}
+
+/**
+ * Build the per-direction vector array surfaced through getRiskLevels for
+ * the client's optional arrow overlay. Stable directions are filtered out
+ * — drawing an arrow on a band that isn't moving is visual noise. Each
+ * entry includes everything the client needs to anchor and draw the
+ * arrow:
+ *   - direction (label, e.g. "WNW") — looked up against the client's own
+ *     bearing tables to position the anchor on the map.
+ *   - peakDistance (in user's distance units) — anchor distance from the
+ *     centre. The peak sample's lat/lon is computed client-side via the
+ *     same offsetLatLon helper used for the dot overlay.
+ *   - peakIntensity (0-6, RainViewer scale) — drives arrow stroke colour
+ *     so a moderate-trending band reads differently from a heavy one.
+ *   - magnitude (positive km/mi) — absolute inward shift over the trend
+ *     window. Arrow length scales with this so a 30 km/h band reads
+ *     visually heavier than a 5 km drift.
+ *   - trend ("approaching" | "leaving") — drives arrow direction (toward
+ *     centre vs away from it).
+ *   - confidence (0-100) — drives arrow opacity so the user sees how
+ *     sure the analyzer is about each direction.
+ *
+ * @param {Map<String, {trend: String, peakIntensityNow: Number, peakDistanceNow: Number, inwardShift: Number, confidence: Number}>} perDirMap
+ * @returns {Array<{direction: String, peakDistance: Number, peakIntensity: Number, magnitude: Number, trend: String, confidence: Number}>}
+ */
+function directionVectorsFromMap(perDirMap) {
+  const out = [];
+  for (const [direction, entry] of perDirMap) {
+    if (!entry || entry.trend === "stable") continue;
+    if (entry.peakDistanceNow == null) continue;
+    out.push({
+      direction,
+      peakDistance: entry.peakDistanceNow,
+      peakIntensity: entry.peakIntensityNow,
+      magnitude: Math.abs(entry.inwardShift),
+      trend: entry.trend,
+      confidence: entry.confidence,
+    });
+  }
+  return out;
 }
 
 /**
@@ -1078,17 +1125,24 @@ async function getRiskLevels(lat, lon, options = {}) {
   // intensity (same tier mapping as the ring stroke). Each sample is
   // {direction, distance, intensity}; the client matches them to its
   // own buildSamplingPoints output by `${direction}:${distance}` key.
+  const innerDirectionVectors = directionVectorsFromMap(innerDirTrends);
+  const outerDirectionVectors = outerPoints.length
+    ? directionVectorsFromMap(outerDirTrends)
+    : [];
+
   const result = {
     inner: {
       level: innerLevel, maxIntensity: innerMax,
       trend: innerTrend, trendConfidence: innerTrendConfidence,
       bumped: innerBumped, samples: innerSamples,
+      directionVectors: innerDirectionVectors,
     },
     outer: outerPoints.length
       ? {
         level: outerLevel, maxIntensity: outerMax,
         trend: outerTrend, trendConfidence: outerTrendConfidence,
         bumped: outerBumped, samples: outerSamples,
+        directionVectors: outerDirectionVectors,
       }
       : null,
     timestamp: latest.frame.time,

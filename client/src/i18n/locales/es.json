@@ -198,6 +198,8 @@
     "heavy": "Fuerte",
     "veryHeavy": "Muy fuerte",
     "extreme": "Extremo",
+    "showDirectionArrows": "Mostrar flechas de dirección",
+    "hideDirectionArrows": "Ocultar flechas de dirección",
     "timeline": {
       "now": "ahora",
       "plusMin": "+{{min}} min",
