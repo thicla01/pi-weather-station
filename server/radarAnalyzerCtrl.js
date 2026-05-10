@@ -658,15 +658,34 @@ async function analyzeRadar(lat, lon, options = {}) {
 const TIER_BUMP = { calm: "yellow", yellow: "orange", orange: "red", red: "red" };
 
 /**
- * Compute the per-direction trend label by comparing the radial intensity
- * profile across the captured frames. For each direction returns one of
- *   - "approaching" — strongest-intensity sample shifted inward by more
- *     than the unit-aware threshold over the window AND projected arrival
- *     at the centre is under 30 minutes;
- *   - "leaving" — strongest-intensity sample shifted outward by more than
- *     the same threshold;
- *   - "stable" — neither (drift below the threshold, or no signal in this
- *     direction in either the latest or oldest frame).
+ * Compute the per-direction trend, peak intensity, and confidence score by
+ * comparing the radial intensity profile across the captured frames. For
+ * each direction returns:
+ *   - trend — one of:
+ *       "approaching" — strongest-intensity sample shifted inward by more
+ *         than the unit-aware threshold over the window AND projected
+ *         arrival at the centre is under 60 minutes (widened from 30 in
+ *         May 2026 after the Sorel false-leaving case where a very heavy
+ *         band 50 km out approaching at ~50 km/h had ETA 57 min and was
+ *         classified "stable", letting a weak dispersing band on the
+ *         opposite bearing dictate the ring summary).
+ *       "leaving" — strongest-intensity sample shifted outward by more
+ *         than the same threshold.
+ *       "stable" — neither (drift below the threshold, or no signal in
+ *         this direction in either the latest or oldest frame).
+ *   - peakIntensityNow — the strongest sample's intensity in the latest
+ *     frame for this direction. Used by `summarizeRingTrend` to weight by
+ *     intensity (the band that defines the ring's tier dictates the ring
+ *     trend, not a weak band on a different bearing).
+ *   - confidence — 0-100 score of how strongly the data supports the
+ *     trend label. Built from three factors (max 100):
+ *       (a) magnitude of inward shift relative to threshold (up to 60),
+ *       (b) monotonicity — does the mid frame agree with the direction?
+ *           (up to 25),
+ *       (c) intensity persistence — both endpoints ≥ 2 (light precip or
+ *           stronger), so the band is real, not transient noise (up to 15).
+ *     For "stable", confidence = inverse of evidence for movement
+ *     (1 − |shift|/threshold).
  *
  * Same threshold is used for both directions of motion so the "leaving"
  * label is held to the same evidence bar as "approaching" — same logic
@@ -682,7 +701,7 @@ const TIER_BUMP = { calm: "yellow", yellow: "orange", orange: "red", red: "red" 
  *   uses a proportionally larger threshold so a 5 km drift on the 100 km
  *   ring isn't mistaken for sampling noise (~5 % of the radius vs ~10 %
  *   on the inner ring).
- * @returns {Map<String, "approaching" | "leaving" | "stable">}
+ * @returns {Map<String, {trend: String, peakIntensityNow: Number, confidence: Number}>}
  */
 function computePerDirectionTrends(framesSamples, unit, ring) {
   const map = new Map();
@@ -705,7 +724,7 @@ function computePerDirectionTrends(framesSamples, unit, ring) {
   const innerThreshold = unit === "mi" ? 3 : 5;
   const outerThreshold = unit === "mi" ? 5 : 8;
   const inwardThreshold = ring === "outer" ? outerThreshold : innerThreshold;
-  const arrivalLimitMin = 30;
+  const arrivalLimitMin = 60;
 
   // Per direction: find the distance of the strongest sample in each
   // frame (intensity ≥ 1, lowered after May 2026 retune so light-precip
@@ -728,46 +747,121 @@ function computePerDirectionTrends(framesSamples, unit, ring) {
     });
     const peakNow = peaks[0];
     const peakOld = peaks[peaks.length - 1];
-    if (peakNow.distance == null || peakOld.distance == null) continue;
+    const peakMid = peaks.length >= 3 ? peaks[1] : null;
+    const peakIntensityNow = peakNow.intensity;
+
+    // No signal at either endpoint → record as stable with full confidence
+    // (we're confident there's nothing happening here).
+    if (peakNow.distance == null || peakOld.distance == null) {
+      map.set(dir, { trend: "stable", peakIntensityNow, confidence: 100 });
+      continue;
+    }
+
     const inwardShift = peakOld.distance - peakNow.distance;
+    let trend = "stable";
     if (inwardShift >= inwardThreshold) {
       // Project arrival: how long until this band reaches the centre at
       // the current inward speed?
       const speedPerMin = inwardShift / spanMin;
-      if (speedPerMin > 0) {
-        const minutesToArrival = peakNow.distance / speedPerMin;
-        if (minutesToArrival < arrivalLimitMin) {
-          map.set(dir, "approaching");
-          continue;
-        }
+      if (speedPerMin > 0 && peakNow.distance / speedPerMin < arrivalLimitMin) {
+        trend = "approaching";
       }
+    } else if (inwardShift <= -inwardThreshold) {
+      trend = "leaving";
     }
-    if (inwardShift <= -inwardThreshold) {
-      map.set(dir, "leaving");
-      continue;
-    }
-    map.set(dir, "stable");
+
+    const confidence = computeTrendConfidence({
+      trend, inwardShift, threshold: inwardThreshold,
+      peakNow, peakOld, peakMid,
+    });
+
+    map.set(dir, { trend, peakIntensityNow, confidence });
   }
   return map;
 }
 
 /**
- * Collapse a per-direction trend map into a single ring-level label.
- * Approaching wins over leaving, leaving wins over stable: an orange
- * ring with one inbound band and one outbound band stays a safety
- * concern, not a calming "moving away" signal.
+ * Score how strongly the per-direction data supports the assigned trend
+ * label. Returns 0-100. Three factors for "approaching"/"leaving":
+ *   (a) magnitude — |inwardShift| relative to threshold, up to 60 pts
+ *       at 2× threshold.
+ *   (b) monotonicity — when a mid frame is available and its peak distance
+ *       lies between old and now in the expected direction, +25 pts.
+ *   (c) intensity persistence — both endpoint peaks ≥ 2 (i.e. light precip
+ *       or stronger, not single-pixel noise), +15 pts.
+ * For "stable", confidence is the inverse of evidence-for-movement
+ * (1 − min(1, |shift|/threshold)) so a direction sitting well below the
+ * threshold reads as "definitely stable" while a direction right at the
+ * threshold but blocked by the ETA gate reads as "barely stable".
  *
- * @param {Map<String, String>} perDirMap Map produced by computePerDirectionTrends
- * @returns {"approaching" | "leaving" | "stable"}
+ * @param {Object} input
+ * @param {String} input.trend Assigned trend label
+ * @param {Number} input.inwardShift Signed shift (positive = approaching)
+ * @param {Number} input.threshold Unit-aware threshold for this ring
+ * @param {Object} input.peakNow {intensity, distance} for the latest frame
+ * @param {Object} input.peakOld {intensity, distance} for the oldest frame
+ * @param {Object|null} input.peakMid {intensity, distance} or null
+ * @returns {Number} Confidence score, 0-100
+ */
+function computeTrendConfidence({ trend, inwardShift, threshold, peakNow, peakOld, peakMid }) {
+  if (trend === "stable") {
+    const ratio = Math.min(1, Math.abs(inwardShift) / threshold);
+    return Math.round((1 - ratio) * 100);
+  }
+  let score = 0;
+  // (a) Magnitude — at threshold = 30 pts, at 2× threshold = 60 pts, capped.
+  const magnitudeRatio = Math.abs(inwardShift) / threshold;
+  score += Math.min(60, magnitudeRatio * 30);
+  // (b) Monotonicity — does the mid frame confirm direction?
+  if (peakMid && peakMid.distance != null) {
+    const monotonic = trend === "approaching"
+      ? (peakMid.distance < peakOld.distance && peakMid.distance > peakNow.distance)
+      : (peakMid.distance > peakOld.distance && peakMid.distance < peakNow.distance);
+    if (monotonic) score += 25;
+  }
+  // (c) Intensity persistence — both endpoints have light-or-stronger precip
+  if (peakNow.intensity >= 2 && peakOld.intensity >= 2) score += 15;
+  return Math.min(100, Math.round(score));
+}
+
+/**
+ * Collapse a per-direction trend map into a single ring-level label
+ * weighted by intensity. The dominant direction (highest peakIntensityNow)
+ * dictates the ring's trend — same band that drives the displayed tier.
+ * Tie-breaker on equal intensity: approaching > leaving > stable.
+ *
+ * Why intensity-weighted? Before May 2026 the rule was "any approaching
+ * wins, then any leaving wins, else stable". This let a weak dispersing
+ * band on one bearing override an intense stable/approaching band on
+ * another (Sorel case: WNW very-heavy at 45 km classified stable due to
+ * the old 30-min ETA gate, while a SW light band moving outward flipped
+ * the ring summary to "leaving" — banner read "Précipitations sévères
+ * mais s'éloignent" while the very-heavy threat sat on the doorstep).
+ * Intensity weighting closes that loophole: the band that defines the
+ * tier also dictates the trend.
+ *
+ * Also returns the chosen direction's confidence score (0-100), so the
+ * banner / debug surface can hedge wording when the data only weakly
+ * supports the label.
+ *
+ * @param {Map<String, {trend: String, peakIntensityNow: Number, confidence: Number}>} perDirMap
+ *   Map produced by computePerDirectionTrends
+ * @returns {{trend: String, confidence: Number}} Ring-level trend + confidence
  */
 function summarizeRingTrend(perDirMap) {
-  if (!perDirMap || perDirMap.size === 0) return "stable";
-  let leavingFound = false;
-  for (const trend of perDirMap.values()) {
-    if (trend === "approaching") return "approaching";
-    if (trend === "leaving") leavingFound = true;
+  if (!perDirMap || perDirMap.size === 0) return { trend: "stable", confidence: 0 };
+  const trendRank = { approaching: 2, leaving: 1, stable: 0 };
+  let dominant = null;
+  for (const entry of perDirMap.values()) {
+    if (!dominant) { dominant = entry; continue; }
+    if (entry.peakIntensityNow > dominant.peakIntensityNow) {
+      dominant = entry;
+    } else if (entry.peakIntensityNow === dominant.peakIntensityNow
+        && trendRank[entry.trend] > trendRank[dominant.trend]) {
+      dominant = entry;
+    }
   }
-  return leavingFound ? "leaving" : "stable";
+  return { trend: dominant.trend, confidence: dominant.confidence };
 }
 
 /**
@@ -787,8 +881,8 @@ function summarizeRingTrend(perDirMap) {
  */
 function effectiveIntensityFor(sample, perDirMap) {
   if (!sample || sample.intensity <= 0) return 0;
-  const trend = perDirMap.get(sample.direction);
-  if (trend === "leaving") return Math.max(0, sample.intensity - 1);
+  const entry = perDirMap.get(sample.direction);
+  if (entry?.trend === "leaving") return Math.max(0, sample.intensity - 1);
   return sample.intensity;
 }
 
@@ -802,7 +896,8 @@ function effectiveIntensityFor(sample, perDirMap) {
  */
 function trendDistribution(perDirMap) {
   let a = 0, l = 0, s = 0;
-  for (const t of perDirMap.values()) {
+  for (const entry of perDirMap.values()) {
+    const t = entry?.trend;
     if (t === "approaching") a++;
     else if (t === "leaving") l++;
     else s++;
@@ -931,8 +1026,12 @@ async function getRiskLevels(lat, lon, options = {}) {
   const outerDirTrends = outerPoints.length
     ? computePerDirectionTrends(snapshots.map((s) => s.outer), unit, "outer")
     : new Map();
-  const innerTrend = summarizeRingTrend(innerDirTrends);
-  const outerTrend = outerPoints.length ? summarizeRingTrend(outerDirTrends) : "stable";
+  const innerSummary = summarizeRingTrend(innerDirTrends);
+  const outerSummary = outerPoints.length ? summarizeRingTrend(outerDirTrends) : { trend: "stable", confidence: 0 };
+  const innerTrend = innerSummary.trend;
+  const outerTrend = outerSummary.trend;
+  const innerTrendConfidence = innerSummary.confidence;
+  const outerTrendConfidence = outerSummary.confidence;
 
   // Tier-deciding intensity uses the N-th highest sample
   // (TIER_HYSTERESIS_N = 2) so a lone rogue pixel can't single-handedly
@@ -980,9 +1079,17 @@ async function getRiskLevels(lat, lon, options = {}) {
   // {direction, distance, intensity}; the client matches them to its
   // own buildSamplingPoints output by `${direction}:${distance}` key.
   const result = {
-    inner: { level: innerLevel, maxIntensity: innerMax, trend: innerTrend, bumped: innerBumped, samples: innerSamples },
+    inner: {
+      level: innerLevel, maxIntensity: innerMax,
+      trend: innerTrend, trendConfidence: innerTrendConfidence,
+      bumped: innerBumped, samples: innerSamples,
+    },
     outer: outerPoints.length
-      ? { level: outerLevel, maxIntensity: outerMax, trend: outerTrend, bumped: outerBumped, samples: outerSamples }
+      ? {
+        level: outerLevel, maxIntensity: outerMax,
+        trend: outerTrend, trendConfidence: outerTrendConfidence,
+        bumped: outerBumped, samples: outerSamples,
+      }
       : null,
     timestamp: latest.frame.time,
   };
@@ -1002,9 +1109,9 @@ async function getRiskLevels(lat, lon, options = {}) {
   const innerDist = trendDistribution(innerDirTrends);
   const outerDist = trendDistribution(outerDirTrends);
   const outerLog = outerPoints.length
-    ? `outer=${outerLevel}${outerBumpMark}(max=${outerMax},tier=${outerTierIntensity},trend=${outerTrend},dirs=${outerDist})`
+    ? `outer=${outerLevel}${outerBumpMark}(max=${outerMax},tier=${outerTierIntensity},trend=${outerTrend}@${outerTrendConfidence}%,dirs=${outerDist})`
     : "outer=n/a";
-  console.log(`[risk] ${cacheKey}: inner=${innerLevel}${innerBumpMark}(max=${innerMax},tier=${innerTierIntensity},trend=${innerTrend},dirs=${innerDist}) ${outerLog}`);
+  console.log(`[risk] ${cacheKey}: inner=${innerLevel}${innerBumpMark}(max=${innerMax},tier=${innerTierIntensity},trend=${innerTrend}@${innerTrendConfidence}%,dirs=${innerDist}) ${outerLog}`);
 
   riskCache.set(cacheKey, { result, expiresAt: Date.now() + ANALYSIS_CACHE_TTL });
   recordServiceCall("RainViewer (risk)", 200, "OK");

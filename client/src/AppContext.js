@@ -174,6 +174,12 @@ export function AppContextProvider({ children }) {
   const [outerTrend, setOuterTrend] = useState("stable");
   const [innerBumped, setInnerBumped] = useState(false);
   const [outerBumped, setOuterBumped] = useState(false);
+  // Confidence score (0-100) for each ring's trend label. Surfaced from
+  // the server's intensity-weighted summarizeRingTrend so consumers (debug
+  // panel, future banner-hedging logic, AI-summary prompt) can hedge
+  // wording when the data only weakly supports the chosen trend.
+  const [innerTrendConfidence, setInnerTrendConfidence] = useState(0);
+  const [outerTrendConfidence, setOuterTrendConfidence] = useState(0);
   // Last AQHI payload returned by /api/air-quality (lifted from
   // <UvAqiBadges> so the Debug panel can display the chosen station's
   // name, distance, observation/forecast kind without refetching).
@@ -1333,6 +1339,10 @@ export function AppContextProvider({ children }) {
     setInnerBumped,
     outerBumped,
     setOuterBumped,
+    innerTrendConfidence,
+    setInnerTrendConfidence,
+    outerTrendConfidence,
+    setOuterTrendConfidence,
     aqhiInfo,
     setAqhiInfo,
     govAlerts,

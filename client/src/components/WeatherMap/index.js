@@ -705,6 +705,8 @@ const WeatherMap = ({ zoom, dark }) => {
     setOuterTrend,
     setInnerBumped,
     setOuterBumped,
+    setInnerTrendConfidence,
+    setOuterTrendConfidence,
   } = useContext(AppContext);
 
   // Largest sample in each ring drives the circle radius. Multiplied by
@@ -850,6 +852,8 @@ const WeatherMap = ({ zoom, dark }) => {
       setOuterTrend("stable");
       setInnerBumped(false);
       setOuterBumped(false);
+      setInnerTrendConfidence(0);
+      setOuterTrendConfidence(0);
       setRiskSamples(new Map());
       return undefined;
     }
@@ -868,6 +872,8 @@ const WeatherMap = ({ zoom, dark }) => {
           setOuterTrend(res.data?.outer?.trend || "stable");
           setInnerBumped(Boolean(res.data?.inner?.bumped));
           setOuterBumped(Boolean(res.data?.outer?.bumped));
+          setInnerTrendConfidence(Number(res.data?.inner?.trendConfidence) || 0);
+          setOuterTrendConfidence(Number(res.data?.outer?.trendConfidence) || 0);
           // Build the lookup map from inner + outer samples. Same
           // direction:distance keying as buildSamplingPoints, so the
           // renderer can colour each dot in O(1).
