@@ -192,29 +192,8 @@
   line-height: 1.3;
 }
 
-/* External link to the upstream source landing page. Kept understated
-   (small, italic, opacity < 1) so it doesn't pull attention away from
-   the actual alert body, but still reads as a clickable link. The "›"
-   suffix in the text is the only graphic affordance — we don't render
-   the full URL, per the user's "il ne faudrait pas que le lien
-   apparaisse avec un URL interminable" requirement. */
-.link {
-  display: inline-block;
-  font-size: clamp(12px, 1.0vw, 14px);
-  font-weight: 500;
-  text-decoration: underline;
-  opacity: 0.75;
-  transition: opacity 0.15s;
-}
-
-.dark .link {
-  color: rgba(252, 211, 77, 0.95);
-}
-
-.light .link {
-  color: rgba(146, 64, 14, 0.95);
-}
-
-.link:hover {
-  opacity: 1;
-}
+/* (External text link removed May 2026 — kiosk users can't navigate
+   back from an external page without a keyboard, and even on desktop
+   the link landed users on an upstream page they'd then have to
+   manage themselves. Replaced by the QR-only footer above; both
+   audiences scan the QR with their phone instead.) */

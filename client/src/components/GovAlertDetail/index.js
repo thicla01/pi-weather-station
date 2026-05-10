@@ -93,7 +93,6 @@ const GovAlertDetail = () => {
 
   const title = t("govAlertDetail.title", { source });
   const linkHref = (SOURCE_LINKS[source] && SOURCE_LINKS[source][lang]) || SOURCE_LINKS.ECCC[lang];
-  const linkLabel = t("govAlertDetail.linkLabel", { source });
 
   const toggleExpanded = () => setExpanded((prev) => !prev);
 
@@ -132,18 +131,22 @@ const GovAlertDetail = () => {
                   <p key={i} className={styles.text}>{paragraph}</p>
                 ))}
               </div>
-              {/* Footer: QR code + link. The QR is the primary
-                  affordance on the kiosk — scanning with a phone keeps
-                  the user from getting trapped on the external page
-                  with no way back (no keyboard, no browser chrome).
-                  The text link stays as a parallel option for users
-                  accessing the kiosk via SSH tunnel from a desktop
-                  where clicking is fine. SVG QR renders crisp at any
-                  size, no external network needed. */}
+              {/* Footer: QR code only. An earlier iteration paired a
+                  text link alongside the QR for SSH-tunnel desktop
+                  users, but even on desktop the link risked landing
+                  the user on an external page they then had to
+                  navigate back from — and on the kiosk itself it was
+                  a one-way trap (no browser chrome, no keyboard).
+                  Maintainer call May 2026: "on devrait peut-être
+                  juste garder le QR code". The QR is universal:
+                  kiosk users scan with their phone, desktop users
+                  can scan from screen with phone or extract via
+                  right-click → Save Image As. SVG renders crisp at
+                  any size, no external network needed. */}
               <div className={styles.footer}>
                 <QRCodeSVG
                   value={linkHref}
-                  size={80}
+                  size={96}
                   bgColor={darkMode ? "transparent" : "#ffffff"}
                   fgColor={darkMode ? "#fcd34d" : "#92400e"}
                   marginSize={1}
@@ -152,14 +155,6 @@ const GovAlertDetail = () => {
                 />
                 <div className={styles.footerText}>
                   <span className={styles.qrCaption}>{t("govAlertDetail.qrCaption")}</span>
-                  <a
-                    href={linkHref}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className={styles.link}
-                  >
-                    {linkLabel} ›
-                  </a>
                 </div>
               </div>
             </>
