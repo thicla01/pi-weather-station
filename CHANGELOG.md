@@ -21,6 +21,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed
+- **WeatherMap: arrow-toggle button now uses a proper Leaflet control** — initial implementation rendered the toggle as an absolutely-positioned `<button>` at z-index 1000, which looked correct but caught no clicks: every tap on the button propagated through to the map underneath, registering as a "select new location" action instead of toggling the overlay. Replaced with `ArrowToggleControl`, a thin component that uses Leaflet's `L.control` + `L.DomEvent.disableClickPropagation` so the toggle behaves like the built-in zoom +/- buttons (same styling base, same event handling, same topleft stack). The control is created once on mount; subsequent prop changes (active state, tooltip text) are reflected onto the existing DOM element via a separate effect to avoid tearing it down on every toggle.
+
 ### Added
 - **WeatherMap: optional direction-arrow overlay** — small toggle button below Leaflet's zoom +/- controls (top-left corner of the map) flips an SVG arrow overlay on/off. Each arrow corresponds to a direction the analyzer has classified as `approaching` or `leaving`; stable directions are filtered out server-side because drawing arrows on bands that aren't moving would be pure visual noise. Arrow visuals encode three pieces of information at once:
   - **Position** — anchored at the peak sample's lat/lon (computed client-side via `offsetLatLon` from the peak distance + the bearing for that direction; same math the dot overlay already uses).
