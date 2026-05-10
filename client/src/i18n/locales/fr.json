@@ -195,7 +195,6 @@
   },
   "govAlertDetail": {
     "title": "Détails alerte {{source}}",
-    "linkLabel": "Voir toutes les alertes {{source}}",
     "noDetail": "Aucun détail additionnel fourni pour cette alerte.",
     "qrCaption": "Scannez pour ouvrir sur votre téléphone"
   },
