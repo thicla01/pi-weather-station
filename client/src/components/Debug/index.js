@@ -754,12 +754,82 @@ SecuritySection.propTypes = {
  * @param {Array} [props.snapshots] Recent snapshot entries from the server
  * @returns {JSX.Element} Section
  */
+/**
+ * Format a single snapshot as plain text for clipboard copy. Multi-line
+ * radarText and summary are preserved (newlines kept). The header line
+ * mirrors the rendered <summary>.
+ *
+ * @param {Object} s Snapshot entry
+ * @returns {String} Plain-text rendering
+ */
+const formatSnapshotForCopy = (s) => {
+  const header = `[${new Date(s.ts).toLocaleString()}] ${s.lat?.toFixed(4)}, ${s.lon?.toFixed(4)} · ${s.lang} · ${s.source}`;
+  return `${header}\n\n--- Radar text passed to Claude ---\n${s.radarText}\n\n--- Resulting summary ---\n${s.summary}\n`;
+};
+
+/**
+ * Trigger a download of the given content as a file. Used for the
+ * section-level JSON export.
+ *
+ * @param {String} filename Suggested filename
+ * @param {String} content File contents (UTF-8 text)
+ * @param {String} mime MIME type (defaults to application/json)
+ */
+const downloadTextFile = (filename, content, mime = "application/json") => {
+  const blob = new Blob([content], { type: `${mime};charset=utf-8` });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+};
+
 const RadarSnapshotsSection = ({ snapshots }) => {
   const { t } = useTranslation();
+  // Per-snapshot "copied!" feedback — keyed by index, cleared after 1.5s.
+  // Lives in component state because a single shared flag would race when
+  // the user clicks multiple Copy buttons in quick succession.
+  const [copiedIndex, setCopiedIndex] = useState(null);
+
+  const handleCopy = useCallback(async (s, i) => {
+    try {
+      await navigator.clipboard.writeText(formatSnapshotForCopy(s));
+      setCopiedIndex(i);
+      setTimeout(() => setCopiedIndex((current) => (current === i ? null : current)), 1500);
+    } catch {
+      // Clipboard API requires a secure context and user gesture; both are
+      // satisfied here (localhost = secure, click = gesture). The catch is
+      // just defensive — leave the button silent on failure.
+    }
+  }, []);
+
+  const handleExportJson = useCallback(() => {
+    const payload = JSON.stringify(snapshots, null, 2);
+    const stamp = new Date().toISOString().slice(0, 19).replace(/:/g, "-");
+    downloadTextFile(`radar-snapshots-${stamp}.json`, payload);
+  }, [snapshots]);
+
+  const hasAny = Array.isArray(snapshots) && snapshots.length > 0;
+
   return (
     <div className={styles.section}>
-      <div className={styles.sectionTitle}>{t("debug.radarSnapshots")}</div>
-      {!snapshots || snapshots.length === 0 ? (
+      <div className={styles.sectionTitleRow}>
+        <div className={styles.sectionTitle}>{t("debug.radarSnapshots")}</div>
+        {hasAny && (
+          <button
+            type="button"
+            className={styles.radarSnapshotExportButton}
+            onClick={handleExportJson}
+            title={t("debug.radarSnapshotExportTitle")}
+          >
+            {t("debug.radarSnapshotExport")}
+          </button>
+        )}
+      </div>
+      {!hasAny ? (
         <div className={styles.empty}>{t("debug.noRadarSnapshots")}</div>
       ) : (
         snapshots.map((s, i) => (
@@ -774,6 +844,13 @@ const RadarSnapshotsSection = ({ snapshots }) => {
               <span className={styles.radarSnapshotSource}>{s.source}</span>
             </summary>
             <div className={styles.radarSnapshotBody}>
+              <button
+                type="button"
+                className={styles.radarSnapshotCopyButton}
+                onClick={() => handleCopy(s, i)}
+              >
+                {copiedIndex === i ? t("debug.radarSnapshotCopied") : t("debug.radarSnapshotCopy")}
+              </button>
               <div className={styles.radarSnapshotLabel}>{t("debug.radarSnapshotInput")}</div>
               <pre className={styles.radarSnapshotPre}>{s.radarText}</pre>
               <div className={styles.radarSnapshotLabel}>{t("debug.radarSnapshotOutput")}</div>
