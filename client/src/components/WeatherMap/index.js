@@ -157,9 +157,18 @@ function buildArrowPath(center, bearing, peakDistance, magnitude, trend, kmPerUn
     : peakDistance + arrowLen;
   const head = offsetLatLon(centerLat, centerLng, headDistance * kmPerUnit, bearing);
   // V-shape arrowhead: two short wings angled 30° from the line at the
-  // head, pointing back toward the tail.
+  // head, pointing BACK toward the tail. The wings should open opposite
+  // to the direction of motion so the V reads as a normal arrow tip
+  // (apex forward, legs trailing). Direction of motion:
+  //   - approaching: tail far → head near = inward (bearing + 180)
+  //     → wings should trail outward (bearing).
+  //   - leaving: tail near → head far = outward (bearing)
+  //     → wings should trail inward (bearing + 180).
+  // The previous implementation had this inverted, which placed the
+  // wings forward of the head and made arrows read like Y-shapes —
+  // user reported "j'ai de la difficulté à interpréter les flèches".
   const wingLen = arrowLen * 0.25;
-  const wingBearing = (trend === "approaching" ? bearing + 180 : bearing) % 360;
+  const wingBearing = (trend === "approaching" ? bearing : bearing + 180) % 360;
   const leftWing = offsetLatLon(head.lat, head.lon, wingLen * kmPerUnit, (wingBearing - 30 + 360) % 360);
   const rightWing = offsetLatLon(head.lat, head.lon, wingLen * kmPerUnit, (wingBearing + 30) % 360);
   return [
