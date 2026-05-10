@@ -62,15 +62,19 @@
   margin-bottom: 4px;
 }
 
-/* Inner scroll wrapper for long ECCC descriptions. Capped at ~30 % of the
-   viewport so a single verbose warning (e.g. SK rainfall warning with 5
-   paragraphs of advice) can't push the location/temperature/charts off
-   the bottom edge of the InfoPanel — the rest of the panel stays
-   reachable, and the source link beneath stays visible. min-height
-   keeps short descriptions from collapsing to nothing; max-height caps
-   the worst case. Touch-momentum scroll for the kiosk display. */
+/* Inner scroll wrapper for long ECCC descriptions. Cap raised to ~65 %
+   of viewport (May 2026 follow-up) per maintainer direction: "lorsqu'il
+   y a une alerte gouvernementale et que l'on veut lire le détails, il
+   me semble normal de prendre toute la place disponible. Pour retourner
+   avec les informations météo, on collapse." So expanded mode is
+   reading-first — let the body take a big chunk of the panel, squeeze
+   the weather-info area below (it stays scrollable via its own
+   overflow-y: auto), and the user collapses the section when they want
+   the weather UI back. The cap is still there for the truly absurd
+   case but won't trip on typical ECCC descriptions. Inner scrollbar +
+   touch momentum stay for those edge cases. */
 .scroll-area {
-  max-height: clamp(120px, 30vh, 320px);
+  max-height: clamp(180px, 65vh, 560px);
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding-right: 4px; /* small breathing room so the scrollbar doesn't overlap text */
@@ -115,6 +119,52 @@
   opacity: 0.7;
 }
 
+/* Footer row: QR code (left) + caption text + link (right). The QR is
+   the primary kiosk affordance — scanning with a phone keeps the user
+   from getting trapped on the external page with no keyboard to
+   navigate back (the kiosk launcher disables browser chrome). The text
+   link stays as a parallel option for users accessing the kiosk via
+   SSH tunnel from a desktop browser, where clicking works fine.
+   Flex-row with the QR's intrinsic size on the left and the text
+   column flowing to fill the rest. */
+.footer {
+  display: flex;
+  gap: 12px;
+  align-items: center;
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(245, 158, 11, 0.25);
+}
+
+.qr {
+  flex-shrink: 0;
+  border-radius: 4px;
+  padding: 2px;
+  background-color: rgba(255, 255, 255, 0.04);
+}
+
+.dark .qr {
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+.light .qr {
+  background-color: #ffffff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.1);
+}
+
+.footer-text {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 0; /* allow text to wrap inside the flex item */
+}
+
+.qr-caption {
+  font-size: clamp(11px, 0.95vw, 13px);
+  opacity: 0.75;
+  line-height: 1.3;
+}
+
 /* External link to the upstream source landing page. Kept understated
    (small, italic, opacity < 1) so it doesn't pull attention away from
    the actual alert body, but still reads as a clickable link. The "›"
@@ -123,7 +173,6 @@
    apparaisse avec un URL interminable" requirement. */
 .link {
   display: inline-block;
-  margin-top: 4px;
   font-size: clamp(12px, 1.0vw, 14px);
   font-weight: 500;
   text-decoration: underline;

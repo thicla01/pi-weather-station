@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
 import chevronUp from "@iconify/icons-carbon/chevron-up";
 import chevronDown from "@iconify/icons-carbon/chevron-down";
+import { QRCodeSVG } from "qrcode.react";
 import { AppContext } from "~/AppContext";
 import styles from "./styles.css";
 
@@ -15,11 +16,18 @@ import styles from "./styles.css";
 // permalinks that match the JSON API IDs, and (b) keeping the link
 // generic means we never accidentally send the user's lat/lon to the
 // destination as a query parameter.
+//
+// First-pass URLs targeted /warnings/index_X.html paths but those return
+// 404 on the current ECCC site (user-reported May 2026 on a kiosk
+// landing on a 404 page with no way to navigate back). Switched to the
+// `/canada_X.html` national overview pages which are stable, include a
+// clickable map highlighting provinces with active warnings, and let
+// the user drill down naturally to their region.
 const SOURCE_LINKS = {
   ECCC: {
-    fr: "https://meteo.gc.ca/warnings/index_f.html",
-    en: "https://weather.gc.ca/warnings/index_e.html",
-    es: "https://weather.gc.ca/warnings/index_e.html",
+    fr: "https://meteo.gc.ca/canada_f.html",
+    en: "https://weather.gc.ca/canada_e.html",
+    es: "https://weather.gc.ca/canada_e.html",
   },
   NWS: {
     fr: "https://www.weather.gov/",
@@ -124,14 +132,36 @@ const GovAlertDetail = () => {
                   <p key={i} className={styles.text}>{paragraph}</p>
                 ))}
               </div>
-              <a
-                href={linkHref}
-                target="_blank"
-                rel="noopener noreferrer"
-                className={styles.link}
-              >
-                {linkLabel} ›
-              </a>
+              {/* Footer: QR code + link. The QR is the primary
+                  affordance on the kiosk — scanning with a phone keeps
+                  the user from getting trapped on the external page
+                  with no way back (no keyboard, no browser chrome).
+                  The text link stays as a parallel option for users
+                  accessing the kiosk via SSH tunnel from a desktop
+                  where clicking is fine. SVG QR renders crisp at any
+                  size, no external network needed. */}
+              <div className={styles.footer}>
+                <QRCodeSVG
+                  value={linkHref}
+                  size={80}
+                  bgColor={darkMode ? "transparent" : "#ffffff"}
+                  fgColor={darkMode ? "#fcd34d" : "#92400e"}
+                  marginSize={1}
+                  level="M"
+                  className={styles.qr}
+                />
+                <div className={styles.footerText}>
+                  <span className={styles.qrCaption}>{t("govAlertDetail.qrCaption")}</span>
+                  <a
+                    href={linkHref}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className={styles.link}
+                  >
+                    {linkLabel} ›
+                  </a>
+                </div>
+              </div>
             </>
           ) : (
             <p className={`${styles.text} ${styles.empty}`}>
