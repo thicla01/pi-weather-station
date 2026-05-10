@@ -199,6 +199,76 @@ three services we'd potentially want. Results:
   `hybrid-v4`), the verdict stands: don't migrate today, the path
   is documented if needed.
 
+## Additional exploration notes (May 2026)
+
+A second pass via the public MapTiler maps gallery
+([`maptiler.com/maps/`](https://www.maptiler.com/maps/)) surfaced a few
+more details worth recording:
+
+- **Active style catalogue.** All the explored styles
+  (`streets-v4`, `base-v4`, `outdoor-v4`, `hybrid-v4`) carry a "new"
+  tag in the gallery — MapTiler refreshed its style line-up recently,
+  which is a positive signal for a Plan B (the catalogue is being
+  maintained, not abandoned).
+- **At continental zoom, `streets-v4` reads cleanly.** Quebec /
+  Montréal / Trois-Rivières / Ottawa / Toronto / Albany / Boston
+  labels are all legible at zoom ~5-6 with the typical kiosk-distance
+  legibility we'd want. Province / state borders are present but
+  discreet (good — not visually noisy).
+- **Style gallery filter** ("Popular" dropdown in the gallery sidebar)
+  hints at additional style categories beyond the four PoC'd. If
+  someone ever needs a style not covered above, the gallery is the
+  place to look first — every style there inherits the same
+  `https://api.maptiler.com/maps/{slug}/...` pattern as our four.
+- **Custom-styled maps under your account.** The "USE THIS MAP"
+  button in the gallery exposes a customisation workflow: tweak
+  colours / fonts / labels and host the result under your account
+  with its own slug. Useful if we ever wanted to tune `outdoor-v4`'s
+  palette specifically against the kiosk's cream panel
+  (`rgb(238, 236, 232)`) instead of relying on its default colours.
+  Not a priority; flagged as an option if visual tuning becomes a
+  requirement.
+- **URL conveniences.** The gallery's URL carries
+  `lang=auto&mode=2d&position={zoom}/{lat}/{lon}`, which gives a
+  shareable preview link for any style at a specific viewport — handy
+  when comparing across people or sessions, e.g. *"check the kiosk
+  area in `outdoor-v4`: [link]"*.
+
+## MapTiler Weather (evaluated separately, ruled out)
+
+MapTiler also publishes a weather product
+([`maptiler.com/weather/`](https://www.maptiler.com/weather/)) covering
+six layers — temperature, wind, radar, precipitation, cloud cover,
+pressure — included in the same Cloud free tier. **It is not a fit for
+our use case** for two reasons:
+
+1. **Update cadence is 6 hours** ("Data in hourly intervals, updated
+   every 6 hours"). Our radar pipeline polls RainViewer every 5
+   minutes for tile updates and runs `/api/radar-risk` analyses every
+   5 minutes on top of that. Substituting a 6-hour-stale source
+   would silently turn the radar from "what's happening right now"
+   into "what was happening six hours ago" — the wrong direction.
+   Spatial resolution is also worse (28 km vs RainViewer's
+   sub-kilometre tiles), which would smear typical Quebec storm
+   cells (5-15 km wide) into invisible noise.
+2. **SDK-only access.** The weather layers are exposed exclusively
+   through the MapTiler SDK / MapLibre. There are no public tile-URL
+   templates we could plug into Leaflet's `L.tileLayer()` the way we
+   do with RainViewer's `tilecache.rainviewer.com/...`. Integrating
+   would mean either swapping the entire map-rendering layer
+   (multi-week refactor) or running both SDKs side-by-side
+   (complexity / conflicts) or reverse-engineering tile URLs
+   (probable ToS violation, fragile).
+
+Where MapTiler Weather *could* be a good fit: a separate "5-day
+forecast visualisation" companion app, where 6-hour cadence is fine
+and the SDK lock-in is a feature rather than a constraint. Not in
+scope for the current weather kiosk.
+
+**Recorded so future-us doesn't repeat the evaluation.** Tomorrow.io
++ RainViewer remain the right combination for our real-time radar
+use case.
+
 ## When would switching make sense?
 
 **Stay on current providers if**:
