@@ -17,17 +17,29 @@ import styles from "./styles.css";
 // generic means we never accidentally send the user's lat/lon to the
 // destination as a query parameter.
 //
-// First-pass URLs targeted /warnings/index_X.html paths but those return
-// 404 on the current ECCC site (user-reported May 2026 on a kiosk
-// landing on a 404 page with no way to navigate back). Switched to the
-// `/canada_X.html` national overview pages which are stable, include a
-// clickable map highlighting provinces with active warnings, and let
-// the user drill down naturally to their region.
+// URL evolution:
+//   - First pass: /warnings/index_X.html — those return 404 on the
+//     current ECCC site (user-reported May 2026 on a kiosk landing on
+//     a 404 page with no way to navigate back).
+//   - Second pass: /canada_X.html (national overview) — stable but
+//     dropped the user on the national map, requiring them to drill
+//     down manually to their region.
+//   - Current: /index_X.html#alerttable — the home page with the
+//     fragment anchor that scrolls directly to the alerts table.
+//     ECCC's home page uses IP/browser geolocation to detect the
+//     visitor's region, so the alerts shown match where the phone is
+//     when the QR is scanned (which on a kiosk is typically right at
+//     the kiosk's location). Coordinate query parameters are NOT
+//     appended deliberately — (a) ECCC's static HTML shows no
+//     evidence of reading lat/lon from the URL, and (b) sending the
+//     user's exact location to an external destination as URL params
+//     would leak in server logs / referrers and violates our privacy
+//     posture (see CLAUDE.md → user_privacy in the system prompt).
 const SOURCE_LINKS = {
   ECCC: {
-    fr: "https://meteo.gc.ca/canada_f.html",
-    en: "https://weather.gc.ca/canada_e.html",
-    es: "https://weather.gc.ca/canada_e.html",
+    fr: "https://meteo.gc.ca/index_f.html#alerttable",
+    en: "https://weather.gc.ca/index_e.html#alerttable",
+    es: "https://weather.gc.ca/index_e.html#alerttable",
   },
   NWS: {
     fr: "https://www.weather.gov/",
