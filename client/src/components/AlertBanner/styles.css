@@ -33,6 +33,51 @@
   background-color: #e60000;
 }
 
+/* Yellow tier — only ever reached when cycling through gov alerts that
+   include a minor severity (frost advisories, special marine, etc.). The
+   SHOW gate still requires at least one orange/red active, so a yellow-
+   only situation never renders the banner. Mustard tone (yellow-700) keeps
+   white text readable; lighter yellows would need a black foreground. */
+.yellow {
+  background-color: #ca8a04;
+}
+
+/* Cyclable banner — only when multiple gov alerts are active. Adds a
+   pointer cursor + subtle hover lift so kiosk users sense it's tappable
+   without needing extra chrome. Touch devices get the same affordance via
+   the +N badge geometry. */
+.banner-cyclable {
+  cursor: pointer;
+  user-select: none;
+  transition: filter 0.12s ease;
+}
+
+.banner-cyclable:hover {
+  filter: brightness(1.08);
+}
+
+.banner-cyclable:focus-visible {
+  outline: 2px solid rgba(255, 255, 255, 0.8);
+  outline-offset: 2px;
+}
+
+/* +N counter pill next to the source badge. Same geometry family as
+   .source-badge (matches the RADAR / ECCC / NWS style so the three pills
+   read as a uniform row), with a slightly darker translucent fill to
+   distinguish "count of other alerts" from "source name". */
+.cycle-badge {
+  display: inline-block;
+  background-color: rgba(0, 0, 0, 0.25);
+  color: #ffffff;
+  font-size: 0.78em;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 2px 7px;
+  margin-right: 8px;
+  border-radius: 3px;
+  vertical-align: 1px;
+}
+
 /* Government source badge ("NWS" / "ECCC") shown next to the alert title
    when the banner is driven by an official government feed rather than the
    radar tier. Pill-shaped, semi-transparent white background so it reads

@@ -190,7 +190,8 @@
     "redApproachingHedged": "Precipitación severa parece estar acercándose",
     "redLeavingHedged": "Precipitación severa parece estar alejándose",
     "orangeDrifting": "Precipitación fuerte desplazándose en su zona",
-    "redDrifting": "Precipitación severa desplazándose en su zona"
+    "redDrifting": "Precipitación severa desplazándose en su zona",
+    "cycleAria": "Toque para recorrer las {{count}} alertas activas"
   },
   "radar": {
     "legend": "RADAR",
