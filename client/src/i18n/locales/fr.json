@@ -188,7 +188,9 @@
     "redIntensifying": "Alerte — précipitations sévères qui s'intensifient",
     "redLeaving": "Précipitations sévères mais s'éloignent",
     "redApproachingHedged": "Précipitations sévères qui semblent s'approcher",
-    "redLeavingHedged": "Précipitations sévères qui semblent s'éloigner"
+    "redLeavingHedged": "Précipitations sévères qui semblent s'éloigner",
+    "orangeDrifting": "Précipitations fortes en mouvement autour de vous",
+    "redDrifting": "Précipitations sévères en mouvement autour de vous"
   },
   "radar": {
     "legend": "RADAR",

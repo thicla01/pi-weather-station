@@ -150,9 +150,13 @@ function buildArrowPath(center, bearing, peakDistance, magnitude, trend, kmPerUn
   const scale = Math.max(0.4, Math.min(1.5, magnitude / 20));
   const arrowLen = halfPeak * scale;
   // Tail anchored at the peak sample; head offset by arrowLen along the
-  // bearing toward (approaching) or away from (leaving) the centre.
+  // bearing toward (approaching/drifting) or away from (leaving) the
+  // centre. Drifting bands are technically moving inward — they just
+  // didn't pass the ETA gate — so geometrically they look like
+  // approaching arrows. The colour distinguishes them.
+  const inward = trend === "approaching" || trend === "drifting";
   const tail = offsetLatLon(centerLat, centerLng, peakDistance * kmPerUnit, bearing);
-  const headDistance = trend === "approaching"
+  const headDistance = inward
     ? Math.max(0, peakDistance - arrowLen)
     : peakDistance + arrowLen;
   const head = offsetLatLon(centerLat, centerLng, headDistance * kmPerUnit, bearing);
@@ -168,7 +172,7 @@ function buildArrowPath(center, bearing, peakDistance, magnitude, trend, kmPerUn
   // wings forward of the head and made arrows read like Y-shapes —
   // user reported "j'ai de la difficulté à interpréter les flèches".
   const wingLen = arrowLen * 0.25;
-  const wingBearing = (trend === "approaching" ? bearing : bearing + 180) % 360;
+  const wingBearing = (inward ? bearing : bearing + 180) % 360;
   const leftWing = offsetLatLon(head.lat, head.lon, wingLen * kmPerUnit, (wingBearing - 30 + 360) % 360);
   const rightWing = offsetLatLon(head.lat, head.lon, wingLen * kmPerUnit, (wingBearing + 30) % 360);
   return [
@@ -180,12 +184,14 @@ function buildArrowPath(center, bearing, peakDistance, magnitude, trend, kmPerUn
   ];
 }
 
-// Stroke colour by trend. Approaching uses a warm hue (alarm-leaning)
-// and leaving a cool hue (relaxed) — independent of the dashed-circle
+// Stroke colour by trend. Approaching uses a warm hue (alarm-leaning),
+// leaving a cool hue (relaxed), and drifting an amber middle hue —
+// "movement detected, not urgent". All independent of the dashed-circle
 // tier colour so the arrows don't blend into the ring they sit on.
 const ARROW_COLOR = {
   approaching: { dark: "#f87171", light: "#dc2626" }, // red-400 / red-600
   leaving: { dark: "#60a5fa", light: "#2563eb" },     // blue-400 / blue-600
+  drifting: { dark: "#fbbf24", light: "#d97706" },    // amber-400 / amber-700
 };
 
 function buildSamplingPoints(center, extended, unit) {

@@ -188,7 +188,9 @@
     "redIntensifying": "Alert — Severe precipitation intensifying",
     "redLeaving": "Severe precipitation moving away",
     "redApproachingHedged": "Severe precipitation appears to be approaching",
-    "redLeavingHedged": "Severe precipitation appears to be moving away"
+    "redLeavingHedged": "Severe precipitation appears to be moving away",
+    "orangeDrifting": "Heavy precipitation drifting around you",
+    "redDrifting": "Severe precipitation drifting around you"
   },
   "radar": {
     "legend": "RADAR",
