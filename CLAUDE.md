@@ -146,6 +146,14 @@ These rules apply to every change, regardless of size. They exist to keep the co
 - Named constants for all intervals, thresholds, and repeated literals — define them at the top of the file (e.g. `const REFRESH_INTERVAL = 15 * 60 * 1000`)
 - No hardcoded pixel values shared between components — use CSS custom properties (e.g. `--info-col-width`) so a single change propagates everywhere
 
+### Alert banners — always identify the source
+- **Every alert banner must carry a leading source badge** so the user can tell at a glance whether the alert is authoritative (government feed) or derived locally. Existing tags:
+  - `ECCC` — Environment and Climate Change Canada (official Canadian alerts)
+  - `NWS` — US National Weather Service (official US alerts)
+  - `RADAR` — derived from RainViewer pixel analysis via `radarAnalyzerCtrl`
+- When introducing a new banner-producing source, **assign it a short uppercase tag (3-5 chars)** following the same visual convention. Honest about origin (`AQI`, `SENSE`, `CLAUDE`, etc.); avoid vague labels like `LOCAL` or `AUTO`. Document the new tag in this file and in the JSDoc of `AlertBanner/index.js`.
+- All banner badges share the `styles.sourceBadge` CSS class — reuse it, don't fork.
+
 ### Server
 - All outbound HTTP calls must include `{ timeout: 10_000 }` — no exceptions
 - New endpoints must be protected by the appropriate middleware (`localhostOnly`, `apiLimiter`, or `tileLimiter`) before being shipped
