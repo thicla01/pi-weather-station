@@ -699,7 +699,16 @@ const ArrowToggleControl = ({ active, onToggle, titleOn, titleOff }) => {
       link.href = "#";
       link.setAttribute("role", "button");
       link.innerHTML = "↗";
+      // The default `.leaflet-touch .leaflet-bar a` rule sets the cell to
+      // 30×30 with a 22 px glyph — calibrated for `+` and `−`, which fill
+      // their cell much more aggressively than the unicode arrow ↗
+      // (U+2197). At 22 px the arrow visibly reads as smaller than the
+      // adjacent zoom buttons. Bumping the glyph to 26 px and setting an
+      // explicit line-height pulls it back to visual parity with +/−
+      // without changing the cell geometry.
       link.style.fontWeight = "bold";
+      link.style.fontSize = "26px";
+      link.style.lineHeight = "30px";
       // Stop click + scroll propagation so taps on this control don't
       // bubble down to the MapClickHandler (which would re-centre the
       // map and "select a new location").
