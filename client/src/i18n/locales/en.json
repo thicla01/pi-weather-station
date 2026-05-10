@@ -181,10 +181,14 @@
     "orangeApproaching": "Heavy precipitation nearby",
     "orangeIntensifying": "Heavy precipitation intensifying",
     "orangeLeaving": "Heavy precipitation moving away",
+    "orangeApproachingHedged": "Heavy precipitation appears to be approaching",
+    "orangeLeavingHedged": "Heavy precipitation appears to be moving away",
     "redNear": "Alert — Severe precipitation in your area",
     "redApproaching": "Alert — Severe precipitation approaching",
     "redIntensifying": "Alert — Severe precipitation intensifying",
-    "redLeaving": "Severe precipitation moving away"
+    "redLeaving": "Severe precipitation moving away",
+    "redApproachingHedged": "Severe precipitation appears to be approaching",
+    "redLeavingHedged": "Severe precipitation appears to be moving away"
   },
   "radar": {
     "legend": "RADAR",

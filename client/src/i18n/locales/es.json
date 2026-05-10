@@ -181,10 +181,14 @@
     "orangeApproaching": "Precipitación fuerte en las cercanías",
     "orangeIntensifying": "Precipitación fuerte intensificándose",
     "orangeLeaving": "Precipitación fuerte alejándose",
+    "orangeApproachingHedged": "Precipitación fuerte parece estar acercándose",
+    "orangeLeavingHedged": "Precipitación fuerte parece estar alejándose",
     "redNear": "Alerta — Precipitación severa en su zona",
     "redApproaching": "Alerta — Precipitación severa acercándose",
     "redIntensifying": "Alerta — Precipitación severa intensificándose",
-    "redLeaving": "Precipitación severa alejándose"
+    "redLeaving": "Precipitación severa alejándose",
+    "redApproachingHedged": "Precipitación severa parece estar acercándose",
+    "redLeavingHedged": "Precipitación severa parece estar alejándose"
   },
   "radar": {
     "legend": "RADAR",

@@ -181,10 +181,14 @@
     "orangeApproaching": "Précipitations fortes à proximité",
     "orangeIntensifying": "Précipitations fortes qui s'intensifient",
     "orangeLeaving": "Précipitations fortes mais s'éloignent",
+    "orangeApproachingHedged": "Précipitations fortes qui semblent s'approcher",
+    "orangeLeavingHedged": "Précipitations fortes qui semblent s'éloigner",
     "redNear": "Alerte — précipitations sévères sur votre zone",
     "redApproaching": "Alerte — précipitations sévères approchent",
     "redIntensifying": "Alerte — précipitations sévères qui s'intensifient",
-    "redLeaving": "Précipitations sévères mais s'éloignent"
+    "redLeaving": "Précipitations sévères mais s'éloignent",
+    "redApproachingHedged": "Précipitations sévères qui semblent s'approcher",
+    "redLeavingHedged": "Précipitations sévères qui semblent s'éloigner"
   },
   "radar": {
     "legend": "RADAR",

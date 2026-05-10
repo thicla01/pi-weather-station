@@ -78,7 +78,46 @@ function isCurrentlyPrecipitating(weatherCode) {
  *   precipitation and a worse band is moving in.
  * @returns {{tier: String, i18nKey: String} | null} Banner state, or null when no alert needs to be shown
  */
-function getRadarAlertState(innerRisk, outerRisk, innerTrend, outerTrend, innerBumped, outerBumped, currentlyPrecipitating) {
+// Confidence buckets used to soften wording and colour the confidence pill.
+// Thresholds tuned around the natural breakpoints in computeTrendConfidence:
+//   - high (≥70) typically means inward shift well above threshold AND
+//     monotonic across the mid frame AND intensity persistence;
+//   - mid (40-69) usually means one of those three factors is missing;
+//   - low (<40) means the data only barely supports the label, often a
+//     direction sitting near the unit-aware threshold.
+const CONFIDENCE_HIGH = 70;
+const CONFIDENCE_MID = 40;
+function confidenceBucket(c) {
+  if (c >= CONFIDENCE_HIGH) return "high";
+  if (c >= CONFIDENCE_MID) return "mid";
+  return "low";
+}
+
+/**
+ * Pick the i18n key + confidence bucket for the banner. Adds two layers
+ * on top of the original logic:
+ *   1. The trend-derived wording can be softened ("Hedged" suffix) when
+ *      confidence sits in the middle bucket — the data points the right
+ *      way but doesn't overwhelm the threshold.
+ *   2. When confidence is below the low cutoff, the trend label is
+ *      considered too weak to drive the wording at all and we fall back
+ *      to the position-only wording (`Near` / `Approaching` by ring),
+ *      same as if no trend signal had been computed. The banner still
+ *      shows up — the tier is real — but doesn't claim a movement
+ *      direction it isn't sure of.
+ *
+ * @param {String|null} innerRisk
+ * @param {String|null} outerRisk
+ * @param {String} innerTrend
+ * @param {String} outerTrend
+ * @param {Boolean} innerBumped
+ * @param {Boolean} outerBumped
+ * @param {Number} innerTrendConfidence 0-100
+ * @param {Number} outerTrendConfidence 0-100
+ * @param {Boolean} currentlyPrecipitating
+ * @returns {{tier: String, i18nKey: String, confidence: Number, confidenceBucket: String} | null}
+ */
+function getRadarAlertState(innerRisk, outerRisk, innerTrend, outerTrend, innerBumped, outerBumped, innerTrendConfidence, outerTrendConfidence, currentlyPrecipitating) {
   const innerSev = severity(innerRisk);
   const outerSev = severity(outerRisk);
   const maxSev = Math.max(innerSev, outerSev);
@@ -88,6 +127,11 @@ function getRadarAlertState(innerRisk, outerRisk, innerTrend, outerTrend, innerB
   const innerIsSource = innerSev === maxSev;
   const sourceTrend = innerIsSource ? innerTrend : outerTrend;
   const sourceBumped = innerIsSource ? innerBumped : outerBumped;
+  const confidence = Math.max(0, Math.min(100, Math.round(
+    innerIsSource ? innerTrendConfidence : outerTrendConfidence,
+  )));
+  const bucket = confidenceBucket(confidence);
+
   if (sourceBumped) {
     // The bump means the analyzer raised the tier one notch because a
     // more severe band is approaching from elsewhere. Two distinct
@@ -100,17 +144,34 @@ function getRadarAlertState(innerRisk, outerRisk, innerTrend, outerTrend, innerB
     //     with rain visibly hammering the area on the radar). The new
     //     "intensifying" wording is semantically accurate (the bump
     //     does signal "things are about to get worse") and matches
-    //     what the user is actually experiencing.
+    //     what the user is actually experiencing. Bumped wording is not
+    //     hedged — the bump itself already encodes "the analyzer thinks
+    //     this is real enough to escalate the tier".
     const variant = currentlyPrecipitating ? "Intensifying" : "Approaching";
-    return { tier, i18nKey: `alert.${tier}${variant}` };
+    return { tier, i18nKey: `alert.${tier}${variant}`, confidence, confidenceBucket: bucket };
   }
+
+  if (bucket === "low") {
+    // Trend signal too weak to claim a direction — fall back to
+    // position-only wording (same as the no-bump, stable path).
+    const i18nKey = `alert.${tier}${innerIsSource ? "Near" : "Approaching"}`;
+    return { tier, i18nKey, confidence, confidenceBucket: bucket };
+  }
+
   if (sourceTrend === "leaving") {
-    return { tier, i18nKey: `alert.${tier}Leaving` };
+    const suffix = bucket === "mid" ? "LeavingHedged" : "Leaving";
+    return { tier, i18nKey: `alert.${tier}${suffix}`, confidence, confidenceBucket: bucket };
   }
+
+  if (sourceTrend === "approaching") {
+    const suffix = bucket === "mid" ? "ApproachingHedged" : "Approaching";
+    return { tier, i18nKey: `alert.${tier}${suffix}`, confidence, confidenceBucket: bucket };
+  }
+
   // Existing wording: "near" when inner is the source, "approaching"
   // (location-based, not trend-based) when outer is.
   const i18nKey = `alert.${tier}${innerIsSource ? "Near" : "Approaching"}`;
-  return { tier, i18nKey };
+  return { tier, i18nKey, confidence, confidenceBucket: bucket };
 }
 
 /**
@@ -153,6 +214,7 @@ const AlertBanner = () => {
     innerRisk, outerRisk,
     innerTrend, outerTrend,
     innerBumped, outerBumped,
+    innerTrendConfidence, outerTrendConfidence,
     govAlerts,
     currentWeatherData,
   } = useContext(AppContext);
@@ -178,12 +240,21 @@ const AlertBanner = () => {
     innerRisk, outerRisk,
     innerTrend, outerTrend,
     innerBumped, outerBumped,
+    innerTrendConfidence, outerTrendConfidence,
     isCurrentlyPrecipitating(weatherCode),
   );
   if (!radarState) return null;
+  // Confidence pill colour follows the bucket: green (high) → yellow (mid)
+  // → orange (low). Saturation is intentionally bumped above the banner
+  // background's so the low-confidence orange pill stays distinguishable
+  // on the orange-tier banner. CSS class is composed (`confidenceBadge` +
+  // `confidenceHigh|Mid|Low`) so the base pill geometry stays in one
+  // place and only the colour changes per bucket.
+  const confidenceClass = `${styles.confidenceBadge} ${styles[`confidence${radarState.confidenceBucket.charAt(0).toUpperCase()}${radarState.confidenceBucket.slice(1)}`]}`;
   return (
     <div className={`${styles.banner} ${styles[radarState.tier]}`}>
       <span className={styles.sourceBadge}>RADAR</span>
+      <span className={confidenceClass}>{radarState.confidence}%</span>
       {t(radarState.i18nKey)}
     </div>
   );
