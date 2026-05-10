@@ -575,7 +575,7 @@ async function getWeatherSummary(req, res) {
     if (slot === "current") return `The ${which} paragraph covers current conditions (2-3 sentences).`;
     if (slot === "period")  return `The ${which} paragraph covers ${secondPeriodLabel} (1-2 sentences).`;
     if (slot === "radar") {
-      return `The ${which} paragraph MUST start with the literal label "Analyse radar : " (in ${language === "French" ? "French — keep this exact wording" : `${language}, translated as appropriate`}) and describe where precipitation is right now relative to the user, whether it is approaching, and an estimated arrival time if a band is moving toward them. Use the radar snapshots below to reason about movement. 1-3 sentences.`;
+      return `The ${which} paragraph MUST start with the literal label "Analyse radar : " (in ${language === "French" ? "French — keep this exact wording" : `${language}, translated as appropriate`}) and describe ONLY what the radar shows right now relative to the user: where precipitation currently is, whether it is approaching based on movement between the three radar snapshots, and an estimated arrival time if a band is genuinely moving toward them. Do NOT reference the period forecast (paragraph ${paragraphSlots.indexOf("period") + 1 || "above"} already covers that) — the radar paragraph is strictly about radar observations. If the radar shows no precipitation in the surveyed annulus, say so plainly without speculating about future conditions. 1-3 sentences.`;
     }
     return "";
   }).join(" ");
