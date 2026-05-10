@@ -382,6 +382,17 @@ app.post("/api/update", localhostOnly, (req, res) => {
       );
     }
 
+    // Auto-discard local edits to the npm lockfiles before the dirty-tree
+    // check. `npm install` rewrites these on the device and the resulting
+    // drift is a recurring cause of `git pull --ff-only` failures during
+    // upgrade (k5map case, May 2026: blocked from v2.2.5 → v2.12.0 by a
+    // stale package-lock.json that npm install had quietly modified). The
+    // lockfiles are 100 % auto-generated — nobody hand-edits them — so a
+    // silent revert is safe. Errors are tolerated (file may already be
+    // clean or absent in a partial clone). The next `npm ci` after the
+    // pull regenerates them deterministically from the upstream copy.
+    exec("git checkout HEAD -- package-lock.json client/package-lock.json", { cwd: projectRoot, timeout: 5_000 }, () => {
+
     // --untracked-files=no skips files with `??` prefix (not in git's index).
     // Untracked files cannot conflict with `git pull --ff-only` — they live
     // outside git's view entirely. Without this flag, harmless backups like
@@ -462,6 +473,7 @@ app.post("/api/update", localhostOnly, (req, res) => {
         );
       });
     });
+    });  // close lockfile-discard callback
   });
 });
 

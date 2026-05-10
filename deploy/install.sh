@@ -46,9 +46,35 @@ echo ""
 # subsequently `cp` to ~/.local/bin and ~/.config/systemd/user, which is
 # the actually-confusing failure mode.)
 cd "$REPO_DIR"
+
+# Auto-discard local edits to the npm lockfiles before any git operation.
+# `npm install` rewrites these on every device run and the resulting drift
+# is a recurring cause of `git pull --ff-only` failures during upgrade
+# (k5map case, May 2026: blocked from v2.2.5 → v2.12.0 by a stale
+# package-lock.json that npm install had quietly modified months earlier).
+# Both lockfiles are 100 % auto-generated; nobody hand-edits them, so a
+# silent `git checkout HEAD -- <file>` is a safe defensive reset. Errors
+# are tolerated (the file may not exist on a partial clone, or already be
+# clean — both are fine to ignore here).
+git checkout HEAD -- package-lock.json client/package-lock.json 2>/dev/null || true
+
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 case "$CURRENT_BRANCH" in
     master)
+        # Already on master — sync with origin so `npm ci` etc. below
+        # picks up the latest. Pre-v2.13.0 installs only pulled when
+        # switching FROM another branch, leaving "I'm on master and I
+        # ran install.sh from an older copy" stuck on stale code.
+        echo ">> On master — syncing with origin..."
+        git pull --ff-only || {
+            echo ">> WARNING: git pull --ff-only failed."
+            echo "   Most likely cause: local changes to a tracked file"
+            echo "   other than the npm lockfiles. Run \`git status\` to see"
+            echo "   which files, then either commit/stash them or revert"
+            echo "   with \`git checkout HEAD -- <file>\` and rerun this script."
+            exit 1
+        }
+        echo ""
         ;;
     feat/*|fix/*)
         echo ">> Running from development branch '$CURRENT_BRANCH' — staying put."
@@ -58,7 +84,7 @@ case "$CURRENT_BRANCH" in
     *)
         echo ">> Switching from '$CURRENT_BRANCH' to 'master'..."
         git checkout master
-        git pull
+        git pull --ff-only
         echo ""
         ;;
 esac
