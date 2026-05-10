@@ -6,7 +6,7 @@ const dns = require("dns").promises;
 const axios = require("axios").default;
 const { checkForUpdate, getRepo } = require("./updateChecker");
 const { weatherCache, getCacheStats } = require("./proxyCtrl");
-const { summaryCache } = require("./aiSummaryCtrl");
+const { summaryCache, getRecentRadarSnapshots } = require("./aiSummaryCtrl");
 const { getServiceStatus } = require("./serviceStatus");
 const { getCounters } = require("./requestCounter");
 const { getResponseTimeStats } = require("./responseTimer");
@@ -525,7 +525,7 @@ async function getDebugInfo(req, res) {
     }))
   );
 
-  return res.status(200).json({ cache, logs, vulnerabilityScanUrl, securityEvents, services: getServiceStatus(), counters: getCounters(), system: getSystemInfo(), network: getNetworkInfo(), providerStatus, connectivity, appVersion: getAppVersion(), serverKpis, remoteClients, updateInfo, serverConfig: getServerConfig() });
+  return res.status(200).json({ cache, logs, vulnerabilityScanUrl, securityEvents, services: getServiceStatus(), counters: getCounters(), system: getSystemInfo(), network: getNetworkInfo(), providerStatus, connectivity, appVersion: getAppVersion(), serverKpis, remoteClients, updateInfo, serverConfig: getServerConfig(), radarSnapshots: getRecentRadarSnapshots() });
 }
 
 /**
