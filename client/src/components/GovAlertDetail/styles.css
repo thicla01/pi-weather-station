@@ -62,6 +62,35 @@
   margin-bottom: 4px;
 }
 
+/* Inner scroll wrapper for long ECCC descriptions. Capped at ~30 % of the
+   viewport so a single verbose warning (e.g. SK rainfall warning with 5
+   paragraphs of advice) can't push the location/temperature/charts off
+   the bottom edge of the InfoPanel — the rest of the panel stays
+   reachable, and the source link beneath stays visible. min-height
+   keeps short descriptions from collapsing to nothing; max-height caps
+   the worst case. Touch-momentum scroll for the kiosk display. */
+.scroll-area {
+  max-height: clamp(120px, 30vh, 320px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-right: 4px; /* small breathing room so the scrollbar doesn't overlap text */
+  scrollbar-width: thin;
+  scrollbar-color: rgba(245, 158, 11, 0.5) transparent;
+}
+
+/* WebKit scrollbar styling — match the amber accent of the section
+   border so the scroll indicator reads as part of the same visual unit. */
+.scroll-area::-webkit-scrollbar {
+  width: 6px;
+}
+.scroll-area::-webkit-scrollbar-track {
+  background: transparent;
+}
+.scroll-area::-webkit-scrollbar-thumb {
+  background-color: rgba(245, 158, 11, 0.5);
+  border-radius: 3px;
+}
+
 .text {
   font-family: "Rubik", sans-serif;
   font-size: clamp(13px, 1.2vw, 16px);

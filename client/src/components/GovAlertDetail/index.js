@@ -111,9 +111,19 @@ const GovAlertDetail = () => {
         <div className={styles.body}>
           {description ? (
             <>
-              {description.split(/\n\n+/).map((paragraph, i) => (
-                <p key={i} className={styles.text}>{paragraph}</p>
-              ))}
+              {/* Scroll area caps the body height so a long ECCC text
+                  (some warnings ship 400+ chars with multiple paragraphs)
+                  doesn't push everything else in the InfoPanel off the
+                  bottom edge — and crucially keeps the source-link below
+                  reachable. Capped via clamp() so short descriptions
+                  display in full without an unnecessary inner scrollbar,
+                  while long ones get an inner scroll. Touch-scrolling
+                  momentum enabled for the kiosk's touchscreen. */}
+              <div className={styles.scrollArea}>
+                {description.split(/\n\n+/).map((paragraph, i) => (
+                  <p key={i} className={styles.text}>{paragraph}</p>
+                ))}
+              </div>
               <a
                 href={linkHref}
                 target="_blank"
