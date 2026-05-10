@@ -154,6 +154,12 @@ These rules apply to every change, regardless of size. They exist to keep the co
 - When introducing a new banner-producing source, **assign it a short uppercase tag (3-5 chars)** following the same visual convention. Honest about origin (`AQI`, `SENSE`, `CLAUDE`, etc.); avoid vague labels like `LOCAL` or `AUTO`. Document the new tag in this file and in the JSDoc of `AlertBanner/index.js`.
 - All banner badges share the `styles.sourceBadge` CSS class — reuse it, don't fork.
 
+### Gov-alert detail section — reading-first UX
+- `GovAlertDetail` (collapsible under `AlertBanner`) is **collapsed by default**. Expanded mode is for reading, not glancing.
+- When expanded, the description body is capped at ~65 vh — high enough that most ECCC/NWS descriptions display in one read, with internal scroll for the rare verbose case. This is intentional: the maintainer's direction is "lorsqu'il y a une alerte gouvernementale et que l'on veut lire les détails, il me semble normal de prendre toute la place disponible. Pour retourner avec les informations météo, on collapse." Translation: when the user has chosen to read a gov alert, they get the screen real estate. The weather info area below still scrolls internally; if it gets squeezed too small, the user collapses the alert detail.
+- **External links from the kiosk are kiosk-hostile** — Chromium in kiosk mode has no browser chrome, no easy way back. Prefer **QR codes that point to the same URL** so the user reads on their phone instead of getting trapped on the external page. `GovAlertDetail`'s footer pairs a QR code with the text link: the QR is the kiosk-primary affordance, the text link stays as a parallel option for SSH-tunnel desktop users. Use `qrcode.react` (`QRCodeSVG`) — SVG renders crisp at any size and needs no network.
+- External link targets must be **stable, vendor-curated landing pages** — not deep links to specific alerts via opaque IDs. ECCC's JSON-API IDs don't map to public URL slugs, and the per-alert URLs would 404 the moment the alert expires upstream. Use root or national-overview pages (`meteo.gc.ca/canada_f.html`, `weather.gc.ca/canada_e.html`, `weather.gov/`). Never include lat/lon as query parameters to external destinations (privacy: see `<user_privacy>` in the system prompt).
+
 ### Server
 - All outbound HTTP calls must include `{ timeout: 10_000 }` — no exceptions
 - New endpoints must be protected by the appropriate middleware (`localhostOnly`, `apiLimiter`, or `tileLimiter`) before being shipped
