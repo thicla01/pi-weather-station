@@ -18,6 +18,7 @@ import {
   useMap,
   useMapEvents,
 } from "react-leaflet";
+import L from "leaflet";
 import PropTypes from "prop-types";
 import { AppContext } from "~/AppContext";
 import { useTranslation } from "react-i18next";
@@ -658,6 +659,95 @@ MapResizer.propTypes = {
 };
 
 /**
+ * Direction-arrow toggle rendered as a proper Leaflet control so it
+ * inherits the same DOM styling and event handling as the built-in
+ * zoom +/- buttons. The first version of this toggle was a plain
+ * absolutely-positioned <button> at z-index 1000, which looked right
+ * but propagated clicks straight through to the Leaflet map underneath
+ * — the user kept "selecting a new location" instead of toggling the
+ * overlay (caught immediately during validation).
+ *
+ * `L.control` is created once on mount; subsequent prop changes are
+ * reflected onto the existing DOM element via a separate effect to
+ * avoid tearing down and re-adding the control on every toggle.
+ *
+ * @param {Object} props
+ * @param {Boolean} props.active Whether the arrow overlay is currently on
+ * @param {Function} props.onToggle Click handler — toggles `active`
+ * @param {String} props.titleOn Tooltip when active (i.e. "Hide …")
+ * @param {String} props.titleOff Tooltip when inactive ("Show …")
+ * @returns {null} Renders nothing — the control is added to the map
+ *   imperatively through Leaflet's API.
+ */
+const ArrowToggleControl = ({ active, onToggle, titleOn, titleOff }) => {
+  const map = useMap();
+  const linkRef = useRef(null);
+  const onToggleRef = useRef(onToggle);
+  // Latest handler always called via ref so the once-mounted Leaflet
+  // listener doesn't capture a stale closure.
+  onToggleRef.current = onToggle;
+
+  useEffect(() => {
+    const control = L.control({ position: "topleft" });
+    control.onAdd = () => {
+      // .leaflet-bar + .leaflet-control gives us the same border, shadow,
+      // and rounded corners as the zoom buttons. The <a> inside is
+      // styled by Leaflet's default .leaflet-bar a rule (white bg,
+      // hover state, 30 px square).
+      const container = L.DomUtil.create("div", "leaflet-bar leaflet-control");
+      const link = L.DomUtil.create("a", "", container);
+      link.href = "#";
+      link.setAttribute("role", "button");
+      link.innerHTML = "↗";
+      link.style.fontWeight = "bold";
+      // Stop click + scroll propagation so taps on this control don't
+      // bubble down to the MapClickHandler (which would re-centre the
+      // map and "select a new location").
+      L.DomEvent.disableClickPropagation(container);
+      L.DomEvent.disableScrollPropagation(container);
+      L.DomEvent.on(link, "click", (e) => {
+        L.DomEvent.preventDefault(e);
+        L.DomEvent.stopPropagation(e);
+        onToggleRef.current?.();
+      });
+      linkRef.current = link;
+      return container;
+    };
+    control.addTo(map);
+    return () => {
+      control.remove();
+      linkRef.current = null;
+    };
+  }, [map]);
+
+  // Reflect prop changes onto the existing DOM element. Avoids
+  // re-creating the control on every toggle (which would lose its
+  // place in the topleft stack and flash the +/- buttons next to it).
+  useEffect(() => {
+    const link = linkRef.current;
+    if (!link) return;
+    link.title = active ? titleOn : titleOff;
+    link.setAttribute("aria-pressed", String(active));
+    if (active) {
+      link.style.backgroundColor = "#2563eb";
+      link.style.color = "#fff";
+    } else {
+      link.style.backgroundColor = "";
+      link.style.color = "";
+    }
+  }, [active, titleOn, titleOff]);
+
+  return null;
+};
+
+ArrowToggleControl.propTypes = {
+  active: PropTypes.bool,
+  onToggle: PropTypes.func.isRequired,
+  titleOn: PropTypes.string.isRequired,
+  titleOff: PropTypes.string.isRequired,
+};
+
+/**
  * Pans the map when panToCoords changes
  *
  * @param {object} props
@@ -1069,6 +1159,14 @@ const WeatherMap = ({ zoom, dark }) => {
         <MapZoomTracker onZoomChange={setCurrentMapZoom} />
         <ZoomLevelHandler zoomToLevel={zoomToLevel} setZoomToLevel={setZoomToLevel} />
         <MapResizer infoPanelCollapsed={infoPanelCollapsed} />
+        {radarAnalysisEnabled ? (
+          <ArrowToggleControl
+            active={showDirectionArrows}
+            onToggle={toggleDirectionArrows}
+            titleOn={t("radar.hideDirectionArrows")}
+            titleOff={t("radar.showDirectionArrows")}
+          />
+        ) : null}
         <AttributionControl position={"bottomleft"} />
         <TileLayer
           attribution={MAPBOX_ATTRIBUTION}
@@ -1201,24 +1299,6 @@ const WeatherMap = ({ zoom, dark }) => {
             })
           : null}
       </MapContainer>
-      {/* Direction-arrow toggle — sits below Leaflet's default zoom controls
-          at the top-left of the map. Off by default for a clean kiosk view;
-          activates the per-direction trend arrow overlay built from
-          /api/radar-risk's directionVectors payload. State persisted in
-          localStorage by the AppContext callback so power users debugging
-          a kiosk get the arrows back after a reload. Hidden when radar
-          analysis is off (no data to show). */}
-      {radarAnalysisEnabled && markerPosition ? (
-        <button
-          type="button"
-          className={`${styles.arrowToggle} ${showDirectionArrows ? styles.arrowToggleActive : ""}`}
-          onClick={toggleDirectionArrows}
-          aria-pressed={showDirectionArrows}
-          title={t(showDirectionArrows ? "radar.hideDirectionArrows" : "radar.showDirectionArrows")}
-        >
-          <span aria-hidden="true">↗</span>
-        </button>
-      ) : null}
       {/* Legend + timeline are RainViewer-specific (the legend's colour
           scale matches RainViewer's intensity-encoded palette, and the
           timeline drives RainViewer's frame URLs). Hidden entirely when
