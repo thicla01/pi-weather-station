@@ -1,4 +1,4 @@
-import React, { useContext, useState, useMemo, useEffect, useCallback } from "react";
+import React, { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { AppContext } from "~/AppContext";
 import styles from "./styles.css";
@@ -220,6 +220,8 @@ const AlertBanner = () => {
     innerBumped, outerBumped,
     innerTrendConfidence, outerTrendConfidence,
     govAlerts,
+    govAlertIdx,
+    cycleGovAlert,
     currentWeatherData,
   } = useContext(AppContext);
   const { t, i18n } = useTranslation();
@@ -232,6 +234,9 @@ const AlertBanner = () => {
   //   - `allGovAlerts` — the entire array, used for cycling. Once the
   //     banner is up because a severe alert is active, the user can
   //     tap to see the minor ones too in the same context.
+  // govAlertIdx and cycleGovAlert live in AppContext so the new
+  // GovAlertDetail section stays in lockstep with the banner's
+  // current alert (tap banner → both update together).
   const allGovAlerts = useMemo(
     () => (Array.isArray(govAlerts) ? govAlerts : []),
     [govAlerts]
@@ -240,20 +245,6 @@ const AlertBanner = () => {
     () => allGovAlerts.some((a) => a?.tier === "red" || a?.tier === "orange"),
     [allGovAlerts]
   );
-
-  const [govAlertIdx, setGovAlertIdx] = useState(0);
-  // Reset cycle position when the underlying list shrinks (alert
-  // expired, new payload with fewer entries). Keeps the displayed
-  // index always in range without throwing or showing stale text.
-  useEffect(() => {
-    if (govAlertIdx >= allGovAlerts.length && allGovAlerts.length > 0) {
-      setGovAlertIdx(0);
-    }
-  }, [allGovAlerts.length, govAlertIdx]);
-
-  const cycleGovAlert = useCallback(() => {
-    setGovAlertIdx((prev) => (allGovAlerts.length > 0 ? (prev + 1) % allGovAlerts.length : 0));
-  }, [allGovAlerts.length]);
 
   if (hasEligibleGovAlert && allGovAlerts.length > 0) {
     const safeIdx = govAlertIdx % allGovAlerts.length;

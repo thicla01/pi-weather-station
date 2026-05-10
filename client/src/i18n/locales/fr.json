@@ -193,6 +193,11 @@
     "redDrifting": "Précipitations sévères en mouvement autour de vous",
     "cycleAria": "Toucher pour faire défiler les {{count}} alertes actives"
   },
+  "govAlertDetail": {
+    "title": "Détails alerte {{source}}",
+    "linkLabel": "Voir toutes les alertes {{source}}",
+    "noDetail": "Aucun détail additionnel fourni pour cette alerte."
+  },
   "radar": {
     "legend": "RADAR",
     "veryLight": "Très léger",

@@ -193,6 +193,11 @@
     "redDrifting": "Precipitación severa desplazándose en su zona",
     "cycleAria": "Toque para recorrer las {{count}} alertas activas"
   },
+  "govAlertDetail": {
+    "title": "Detalle alerta {{source}}",
+    "linkLabel": "Ver todas las alertas {{source}}",
+    "noDetail": "No se proporcionó detalle adicional para esta alerta."
+  },
   "radar": {
     "legend": "RADAR",
     "veryLight": "Muy ligero",

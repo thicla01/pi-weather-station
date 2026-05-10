@@ -214,6 +214,26 @@ export function AppContextProvider({ children }) {
   // cadence the roadmap specified — alerts don't change minute-to-
   // minute and the upstreams already cache aggressively.
   const [govAlerts, setGovAlerts] = useState([]);
+  // Cycle index shared between AlertBanner (taps cycle the banner content)
+  // and GovAlertDetail (the description section that mirrors the banner's
+  // currently-displayed alert). Lives in context so the two components
+  // stay in sync without prop-drilling or a duplicate state machine. The
+  // cycleGovAlert callback wraps the modulo and the bounds check so
+  // callers don't need to know the list length.
+  const [govAlertIdx, setGovAlertIdx] = useState(0);
+  const cycleGovAlert = useCallback(() => {
+    setGovAlertIdx((prev) => {
+      const len = Array.isArray(govAlerts) ? govAlerts.length : 0;
+      return len > 0 ? (prev + 1) % len : 0;
+    });
+  }, [govAlerts]);
+  // Reset cycle when the alert list shrinks (an alert expired, a new
+  // payload landed with fewer entries). Otherwise the index could point
+  // past the end and render the wrong description.
+  useEffect(() => {
+    const len = Array.isArray(govAlerts) ? govAlerts.length : 0;
+    if (len > 0 && govAlertIdx >= len) setGovAlertIdx(0);
+  }, [govAlerts, govAlertIdx]);
   const [clockTime, setClockTime] = useState("12"); // 12h or 24h time for clock
   const [animateWeatherMap, setAnimateWeatherMap] = useState(false);
   // Radar animation playback speed multiplier — 1× / 2× / 4× cycling.
@@ -1373,6 +1393,8 @@ export function AppContextProvider({ children }) {
     aqhiInfo,
     setAqhiInfo,
     govAlerts,
+    govAlertIdx,
+    cycleGovAlert,
     animateWeatherMap,
     toggleAnimateWeatherMap,
     radarSpeed,
