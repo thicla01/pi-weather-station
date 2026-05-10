@@ -170,7 +170,14 @@ function isCalmStableState(values, periodMaxPrecip, radarText) {
   // adds real value by interpreting it.
   if (typeof code === "number" && code >= 4000 && code <= 8000) return false;
   if (typeof values.precipitationProbability === "number" && values.precipitationProbability >= 20) return false;
-  if (typeof periodMaxPrecip === "number" && periodMaxPrecip >= 20) return false;
+  // Period precip gate — must have an actual numeric value to clear the gate.
+  // When periodMaxPrecip is null (Tomorrow.io hourly/daily cache miss for the
+  // relevant interval), we don't know whether the forecast is calm, so we
+  // refuse the fast path rather than render a 2-paragraph template with a
+  // silently-dropped paragraph 2. Defer to Claude — slightly more expensive,
+  // always correct.
+  if (typeof periodMaxPrecip !== "number") return false;
+  if (periodMaxPrecip >= 20) return false;
   if (!isRadarClear(radarText)) return false;
   return true;
 }
@@ -572,8 +579,8 @@ async function getWeatherSummary(req, res) {
 
   const instructions = paragraphSlots.map((slot, i) => {
     const which = ordinal(i);
-    if (slot === "current") return `The ${which} paragraph covers current conditions (2-3 sentences).`;
-    if (slot === "period")  return `The ${which} paragraph covers ${secondPeriodLabel} (1-2 sentences).`;
+    if (slot === "current") return `The ${which} paragraph covers current conditions ONLY (2-3 sentences) — do NOT add a closing sentence about the upcoming forecast; that belongs in its own paragraph.`;
+    if (slot === "period")  return `The ${which} paragraph is a STANDALONE paragraph about ${secondPeriodLabel} (1-2 sentences) — it MUST be separated from the current-conditions paragraph by a blank line and must not be merged into another paragraph as a trailing sentence, even if its content is short.`;
     if (slot === "radar") {
       return `The ${which} paragraph MUST start with the literal label "Analyse radar : " (in ${language === "French" ? "French — keep this exact wording" : `${language}, translated as appropriate`}) and describe ONLY what the radar shows right now relative to the user: where precipitation currently is, whether it is approaching based on movement between the three radar snapshots, and an estimated arrival time if a band is genuinely moving toward them. Do NOT reference the period forecast (paragraph ${paragraphSlots.indexOf("period") + 1 || "above"} already covers that) — the radar paragraph is strictly about radar observations. If the radar shows no precipitation in the surveyed annulus, say so plainly without speculating about future conditions. 1-3 sentences.`;
     }
@@ -604,7 +611,7 @@ async function getWeatherSummary(req, res) {
 
   const distanceUnitInstruction = distanceUnit === "mi" ? "miles" : "km";
   const prompt =
-    `Write a weather summary in ${language} with ${paragraphWord}. ${instructions}${missingNote} ` +
+    `Write a weather summary in ${language} with ${paragraphWord}, separated by a single blank line (\\n\\n). Each paragraph MUST stand on its own — never merge content that belongs to a different paragraph as a trailing sentence. ${instructions}${missingNote} ` +
     `Throughout your response, ${unitInstruction(tempUnit, speedUnit)}, and ${distanceUnitInstruction} for distances. Match the unit symbols exactly as shown in the data below — do not convert. ` +
     `Be concise and conversational. Reply with plain text only — no title, no markdown, no labels before each paragraph (except the radar label described above).\n\n` +
     `${dataPayload}`;
