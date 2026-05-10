@@ -198,6 +198,8 @@
     "heavy": "Heavy",
     "veryHeavy": "Very heavy",
     "extreme": "Extreme",
+    "showDirectionArrows": "Show direction arrows",
+    "hideDirectionArrows": "Hide direction arrows",
     "timeline": {
       "now": "now",
       "plusMin": "+{{min}} min",

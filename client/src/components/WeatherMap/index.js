@@ -14,6 +14,7 @@ import {
   Marker,
   Circle,
   CircleMarker,
+  Polyline,
   useMap,
   useMapEvents,
 } from "react-leaflet";
@@ -104,6 +105,78 @@ const BEARING_TO_DIR_INNER = Object.fromEntries(
 const BEARING_TO_DIR_OUTER = Object.fromEntries(
   OUTER_BEARINGS.map((b, i) => [b, i % 2 === 0 ? COMPASS_16[i / 2] : b.toString()])
 );
+
+// Reverse direction-name → bearing maps so the arrow renderer can place
+// each arrow at the right azimuth. Server's directionVectors only
+// carries the label; the lat/lon position is computed client-side via
+// offsetLatLon, same approach as buildSamplingPoints.
+const DIR_INNER_TO_BEARING = Object.fromEntries(
+  Object.entries(BEARING_TO_DIR_INNER).map(([b, d]) => [d, Number(b)])
+);
+const DIR_OUTER_TO_BEARING = Object.fromEntries(
+  Object.entries(BEARING_TO_DIR_OUTER).map(([b, d]) => [d, Number(b)])
+);
+
+/**
+ * Build the polyline points for a single direction arrow. Anchors the
+ * tail at the peak sample (peakDistance along the bearing) and points
+ * the head toward the centre when the band is approaching, away from
+ * the centre when leaving. The head includes a small V (~30° wing
+ * angle) so the direction reads even at a glance on a busy radar map.
+ *
+ * Length scales with magnitude (clamped 0.4× to 1.5× of half the peak
+ * distance) so a fast-moving band reads visually heavier than a small
+ * drift, but a single long arrow can't cross the entire ring and
+ * obscure other arrows. All distances are in the user's distance unit
+ * for the offsetLatLon math; result is an array of [lat, lng] pairs
+ * suitable for direct use as Polyline `positions`.
+ *
+ * @param {Array<Number>} center [lat, lng] pair (the user's location)
+ * @param {Number} bearing Bearing of this direction in degrees from north
+ * @param {Number} peakDistance Distance to the peak sample, in user units
+ * @param {Number} magnitude Inward shift over the trend window, in user units
+ * @param {String} trend "approaching" | "leaving"
+ * @param {Number} kmPerUnit Conversion factor for offsetLatLon
+ * @returns {Array<Array<Number>>} Polyline positions [[lat,lng], ...]
+ */
+function buildArrowPath(center, bearing, peakDistance, magnitude, trend, kmPerUnit) {
+  const [centerLat, centerLng] = center;
+  // Arrow length: between 0.4× and 1.5× of half the peak distance, with
+  // magnitude (inward shift over 45 min) driving the scaling. A 5 km
+  // shift on a 100 km outer ring gets a short arrow; a 40 km shift gets
+  // a long one. Lower bound keeps tiny shifts visible at all.
+  const halfPeak = peakDistance * 0.5;
+  const scale = Math.max(0.4, Math.min(1.5, magnitude / 20));
+  const arrowLen = halfPeak * scale;
+  // Tail anchored at the peak sample; head offset by arrowLen along the
+  // bearing toward (approaching) or away from (leaving) the centre.
+  const tail = offsetLatLon(centerLat, centerLng, peakDistance * kmPerUnit, bearing);
+  const headDistance = trend === "approaching"
+    ? Math.max(0, peakDistance - arrowLen)
+    : peakDistance + arrowLen;
+  const head = offsetLatLon(centerLat, centerLng, headDistance * kmPerUnit, bearing);
+  // V-shape arrowhead: two short wings angled 30° from the line at the
+  // head, pointing back toward the tail.
+  const wingLen = arrowLen * 0.25;
+  const wingBearing = (trend === "approaching" ? bearing + 180 : bearing) % 360;
+  const leftWing = offsetLatLon(head.lat, head.lon, wingLen * kmPerUnit, (wingBearing - 30 + 360) % 360);
+  const rightWing = offsetLatLon(head.lat, head.lon, wingLen * kmPerUnit, (wingBearing + 30) % 360);
+  return [
+    [tail.lat, tail.lon],
+    [head.lat, head.lon],
+    [leftWing.lat, leftWing.lon],
+    [head.lat, head.lon],
+    [rightWing.lat, rightWing.lon],
+  ];
+}
+
+// Stroke colour by trend. Approaching uses a warm hue (alarm-leaning)
+// and leaving a cool hue (relaxed) — independent of the dashed-circle
+// tier colour so the arrows don't blend into the ring they sit on.
+const ARROW_COLOR = {
+  approaching: { dark: "#f87171", light: "#dc2626" }, // red-400 / red-600
+  leaving: { dark: "#60a5fa", light: "#2563eb" },     // blue-400 / blue-600
+};
 
 function buildSamplingPoints(center, extended, unit) {
   const [centerLat, centerLng] = center;
@@ -669,6 +742,7 @@ ZoomLevelHandler.propTypes = {
  */
 const WeatherMap = ({ zoom, dark }) => {
   const MAP_CLICK_DEBOUNCE_TIME = 200; //ms
+  const { t } = useTranslation();
   const {
     setMapPosition,
     panToCoords,
@@ -707,6 +781,12 @@ const WeatherMap = ({ zoom, dark }) => {
     setOuterBumped,
     setInnerTrendConfidence,
     setOuterTrendConfidence,
+    setInnerDirectionVectors,
+    setOuterDirectionVectors,
+    showDirectionArrows,
+    toggleDirectionArrows,
+    innerDirectionVectors,
+    outerDirectionVectors,
   } = useContext(AppContext);
 
   // Largest sample in each ring drives the circle radius. Multiplied by
@@ -854,6 +934,8 @@ const WeatherMap = ({ zoom, dark }) => {
       setOuterBumped(false);
       setInnerTrendConfidence(0);
       setOuterTrendConfidence(0);
+      setInnerDirectionVectors([]);
+      setOuterDirectionVectors([]);
       setRiskSamples(new Map());
       return undefined;
     }
@@ -874,6 +956,8 @@ const WeatherMap = ({ zoom, dark }) => {
           setOuterBumped(Boolean(res.data?.outer?.bumped));
           setInnerTrendConfidence(Number(res.data?.inner?.trendConfidence) || 0);
           setOuterTrendConfidence(Number(res.data?.outer?.trendConfidence) || 0);
+          setInnerDirectionVectors(Array.isArray(res.data?.inner?.directionVectors) ? res.data.inner.directionVectors : []);
+          setOuterDirectionVectors(Array.isArray(res.data?.outer?.directionVectors) ? res.data.outer.directionVectors : []);
           // Build the lookup map from inner + outer samples. Same
           // direction:distance keying as buildSamplingPoints, so the
           // renderer can colour each dot in O(1).
@@ -1079,7 +1163,62 @@ const WeatherMap = ({ zoom, dark }) => {
               }
             )
           : null}
+        {radarAnalysisEnabled && markerPosition && showDirectionArrows
+          ? [
+              ...innerDirectionVectors.map((v) => ({ ...v, _ring: "inner" })),
+              ...outerDirectionVectors.map((v) => ({ ...v, _ring: "outer" })),
+            ].map((v, idx) => {
+              const bearingMap = v._ring === "inner" ? DIR_INNER_TO_BEARING : DIR_OUTER_TO_BEARING;
+              const bearing = bearingMap[v.direction];
+              if (bearing == null) return null;
+              const path = buildArrowPath(
+                markerPosition, bearing, v.peakDistance, v.magnitude, v.trend,
+                KM_PER_UNIT[distanceUnit],
+              );
+              const baseColor = (ARROW_COLOR[v.trend] || ARROW_COLOR.approaching)[dark ? "dark" : "light"];
+              // Opacity reflects confidence — the user sees at a glance which
+              // arrows are well-supported by the data and which are tentative.
+              // Floor at 0.25 so even low-confidence arrows stay visible
+              // (they're already filtered to non-stable directions, so we
+              // want to surface them; we just want them visually "softer").
+              const opacity = Math.max(0.25, Math.min(1, (v.confidence || 0) / 100));
+              // Stroke weight scales gently with peak intensity so heavier
+              // bands read as thicker arrows. Cap at 4 px to avoid clutter.
+              const weight = Math.min(4, 1.5 + (v.peakIntensity || 0) * 0.4);
+              return (
+                <Polyline
+                  key={`arrow-${v._ring}-${v.direction}-${idx}`}
+                  positions={path}
+                  pathOptions={{
+                    color: baseColor,
+                    weight,
+                    opacity,
+                    lineCap: "round",
+                    lineJoin: "round",
+                  }}
+                />
+              );
+            })
+          : null}
       </MapContainer>
+      {/* Direction-arrow toggle — sits below Leaflet's default zoom controls
+          at the top-left of the map. Off by default for a clean kiosk view;
+          activates the per-direction trend arrow overlay built from
+          /api/radar-risk's directionVectors payload. State persisted in
+          localStorage by the AppContext callback so power users debugging
+          a kiosk get the arrows back after a reload. Hidden when radar
+          analysis is off (no data to show). */}
+      {radarAnalysisEnabled && markerPosition ? (
+        <button
+          type="button"
+          className={`${styles.arrowToggle} ${showDirectionArrows ? styles.arrowToggleActive : ""}`}
+          onClick={toggleDirectionArrows}
+          aria-pressed={showDirectionArrows}
+          title={t(showDirectionArrows ? "radar.hideDirectionArrows" : "radar.showDirectionArrows")}
+        >
+          <span aria-hidden="true">↗</span>
+        </button>
+      ) : null}
       {/* Legend + timeline are RainViewer-specific (the legend's colour
           scale matches RainViewer's intensity-encoded palette, and the
           timeline drives RainViewer's frame URLs). Hidden entirely when

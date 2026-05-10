@@ -198,6 +198,8 @@
     "heavy": "Fort",
     "veryHeavy": "Très fort",
     "extreme": "Extrême",
+    "showDirectionArrows": "Afficher les flèches de direction",
+    "hideDirectionArrows": "Masquer les flèches de direction",
     "timeline": {
       "now": "maintenant",
       "plusMin": "+{{min}} min",

@@ -497,3 +497,47 @@
     margin-left: 12px;
   }
 }
+
+/* Direction-arrow toggle — sits below the default Leaflet zoom controls
+   at the top-left of the map. Sized and styled to match the zoom +/-
+   buttons so the trio reads as a single control stack. The
+   `.arrow-toggle-active` modifier flips background to a coloured fill so
+   the user sees at a glance whether arrows are on. Pointer-events on the
+   button only (z-index above the map tiles); no pointer-events on the
+   wrapper since this is a single button, not a group. */
+.arrow-toggle {
+  position: absolute;
+  top: 80px; /* below Leaflet's default zoom +/- (each ~30px tall, gap, etc.) */
+  left: 10px;
+  width: 30px;
+  height: 30px;
+  background-color: #fff;
+  color: #333;
+  border: 2px solid rgba(0, 0, 0, 0.2);
+  border-radius: 4px;
+  font-size: 18px;
+  font-weight: bold;
+  line-height: 1;
+  cursor: pointer;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  user-select: none;
+  box-shadow: 0 1px 5px rgba(0, 0, 0, 0.65);
+}
+
+.arrow-toggle:hover {
+  background-color: #f4f4f4;
+}
+
+.arrow-toggle-active {
+  background-color: #2563eb;
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.4);
+}
+
+.arrow-toggle-active:hover {
+  background-color: #1d4ed8;
+}

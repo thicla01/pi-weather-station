@@ -180,6 +180,27 @@ export function AppContextProvider({ children }) {
   // wording when the data only weakly supports the chosen trend.
   const [innerTrendConfidence, setInnerTrendConfidence] = useState(0);
   const [outerTrendConfidence, setOuterTrendConfidence] = useState(0);
+  // Per-direction vectors surfaced from /api/radar-risk for the optional
+  // arrow overlay on the map. Each entry: { direction, peakDistance,
+  // peakIntensity, magnitude, trend, confidence }. Stable directions are
+  // already filtered server-side so the array is "actionable directions
+  // only". Empty by default; populated by the WeatherMap fetcher.
+  const [innerDirectionVectors, setInnerDirectionVectors] = useState([]);
+  const [outerDirectionVectors, setOuterDirectionVectors] = useState([]);
+  // Toggle for the arrow overlay. Persisted in localStorage so power users
+  // who keep arrows on while debugging don't have to re-enable on every
+  // reload. Default OFF — kiosk view should stay clean.
+  const [showDirectionArrows, setShowDirectionArrows] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("showDirectionArrows") === "true";
+  });
+  const toggleDirectionArrows = useCallback(() => {
+    setShowDirectionArrows((prev) => {
+      const next = !prev;
+      try { window.localStorage.setItem("showDirectionArrows", String(next)); } catch { /* localStorage may be unavailable */ }
+      return next;
+    });
+  }, []);
   // Last AQHI payload returned by /api/air-quality (lifted from
   // <UvAqiBadges> so the Debug panel can display the chosen station's
   // name, distance, observation/forecast kind without refetching).
@@ -1343,6 +1364,12 @@ export function AppContextProvider({ children }) {
     setInnerTrendConfidence,
     outerTrendConfidence,
     setOuterTrendConfidence,
+    innerDirectionVectors,
+    setInnerDirectionVectors,
+    outerDirectionVectors,
+    setOuterDirectionVectors,
+    showDirectionArrows,
+    toggleDirectionArrows,
     aqhiInfo,
     setAqhiInfo,
     govAlerts,
