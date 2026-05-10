@@ -275,6 +275,7 @@ const Debug = () => {
             <CacheSection cache={data?.cache} />
             <RemoteClientsSection clients={data?.remoteClients} />
             <SecuritySection events={data?.securityEvents} />
+            <RadarSnapshotsSection snapshots={data?.radarSnapshots} />
           </div>
           <LogsSection logs={data?.logs} />
           <VulnerabilityScanSection url={data?.vulnerabilityScanUrl} />
@@ -741,6 +742,63 @@ SecuritySection.propTypes = {
 };
 
 /**
+ * Recent radar-snapshot section — shows the exact `radarText` block the
+ * AI-summary controller passed to Claude (or to the calm-day fast-path
+ * template) along with the resulting summary, so a maintainer can
+ * compare what the analyzer detected against what the narrative said.
+ * Useful when a summary's radar paragraph seems to disagree with what
+ * the user sees on the radar map. Snapshots are kept in a server-side
+ * ring buffer (capped at 10), newest first.
+ *
+ * @param {Object} props
+ * @param {Array} [props.snapshots] Recent snapshot entries from the server
+ * @returns {JSX.Element} Section
+ */
+const RadarSnapshotsSection = ({ snapshots }) => {
+  const { t } = useTranslation();
+  return (
+    <div className={styles.section}>
+      <div className={styles.sectionTitle}>{t("debug.radarSnapshots")}</div>
+      {!snapshots || snapshots.length === 0 ? (
+        <div className={styles.empty}>{t("debug.noRadarSnapshots")}</div>
+      ) : (
+        snapshots.map((s, i) => (
+          <details className={styles.radarSnapshot} key={i}>
+            <summary className={styles.radarSnapshotHeader}>
+              <span className={styles.radarSnapshotTime}>{new Date(s.ts).toLocaleString()}</span>
+              {" — "}
+              <span className={styles.radarSnapshotLoc}>{s.lat?.toFixed(2)}, {s.lon?.toFixed(2)}</span>
+              {" · "}
+              <span className={styles.radarSnapshotLang}>{s.lang}</span>
+              {" · "}
+              <span className={styles.radarSnapshotSource}>{s.source}</span>
+            </summary>
+            <div className={styles.radarSnapshotBody}>
+              <div className={styles.radarSnapshotLabel}>{t("debug.radarSnapshotInput")}</div>
+              <pre className={styles.radarSnapshotPre}>{s.radarText}</pre>
+              <div className={styles.radarSnapshotLabel}>{t("debug.radarSnapshotOutput")}</div>
+              <pre className={styles.radarSnapshotPre}>{s.summary}</pre>
+            </div>
+          </details>
+        ))
+      )}
+    </div>
+  );
+};
+
+RadarSnapshotsSection.propTypes = {
+  snapshots: PropTypes.arrayOf(PropTypes.shape({
+    ts: PropTypes.number,
+    lat: PropTypes.number,
+    lon: PropTypes.number,
+    lang: PropTypes.string,
+    source: PropTypes.string,
+    radarText: PropTypes.string,
+    summary: PropTypes.string,
+  })),
+};
+
+/**
  * Vulnerability scan section — replaces the old npm-audit.log dump (which
  * was a snapshot from the last `install.sh` run, going stale immediately).
  * Vulnerability scanning + automatic security PRs now live on GitHub via
@@ -918,6 +976,25 @@ function exportDebugCsv(data, clientMetrics, fps) {
     rows.push([q("METHOD"), q("URL"), q("IP"), q("TIME")]);
     data.securityEvents.forEach((e) => {
       rows.push([q(e.method), q(e.url), q(e.ip), q(e.time)]);
+    });
+  }
+
+  // Radar Snapshots — flatten radarText/summary onto single lines so each
+  // snapshot fits one CSV row. Newlines in the source are joined with " | ".
+  if (data?.radarSnapshots?.length > 0) {
+    section("RADAR SNAPSHOTS");
+    rows.push([q("TIME"), q("LAT"), q("LON"), q("LANG"), q("SOURCE"), q("RADAR INPUT"), q("SUMMARY")]);
+    data.radarSnapshots.forEach((s) => {
+      const flat = (str) => (str || "").replace(/\r?\n/g, " | ");
+      rows.push([
+        q(new Date(s.ts).toLocaleString()),
+        q(s.lat?.toFixed(4)),
+        q(s.lon?.toFixed(4)),
+        q(s.lang),
+        q(s.source),
+        q(flat(s.radarText)),
+        q(flat(s.summary)),
+      ]);
     });
   }
 

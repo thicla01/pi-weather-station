@@ -610,3 +610,67 @@
   color: #888;
   font-style: italic;
 }
+
+.radar-snapshot {
+  margin: 4px 0;
+  padding: 6px 8px;
+  background: rgba(255, 255, 255, 0.03);
+  border-radius: 3px;
+  border-left: 2px solid rgba(96, 165, 250, 0.5);
+}
+
+.radar-snapshot-header {
+  cursor: pointer;
+  font-size: clamp(10px, 0.85vw, 12px);
+  color: #ccc;
+  user-select: none;
+}
+
+.radar-snapshot-time {
+  color: #fbbf24;
+  font-weight: bold;
+}
+
+.radar-snapshot-loc {
+  color: #888;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+.radar-snapshot-lang {
+  color: #60a5fa;
+  text-transform: uppercase;
+  font-weight: bold;
+}
+
+.radar-snapshot-source {
+  color: #a78bfa;
+  font-style: italic;
+}
+
+.radar-snapshot-body {
+  margin-top: 6px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(255, 255, 255, 0.05);
+}
+
+.radar-snapshot-label {
+  font-size: clamp(9px, 0.75vw, 11px);
+  font-weight: bold;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: #999;
+  margin: 4px 0 2px;
+}
+
+.radar-snapshot-pre {
+  margin: 0 0 4px;
+  padding: 6px 8px;
+  background: rgba(0, 0, 0, 0.3);
+  border-radius: 3px;
+  font-family: ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: clamp(9px, 0.8vw, 11px);
+  color: #ddd;
+  white-space: pre-wrap;
+  word-break: break-word;
+  line-height: 1.4;
+}

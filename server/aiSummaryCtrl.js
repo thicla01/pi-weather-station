@@ -9,6 +9,27 @@ const { analyzeRadar } = require("./radarAnalyzerCtrl");
 const SUMMARY_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 const summaryCache = {};
 
+// Ring buffer of the most recent radar snapshots that fed an AI summary,
+// surfaced through the debug panel so a maintainer can compare what the
+// analyzer reported against what Claude (or the fast-path template) said
+// in the resulting summary. Useful when a summary's narrative seems to
+// disagree with what the radar map visually shows — the snapshot captures
+// the exact text Claude received. Capped at RADAR_SNAPSHOT_BUFFER so it
+// never grows unbounded; oldest entries are evicted FIFO. Localhost-only
+// (gated by debugCtrl middleware) — radar text is not user-sensitive but
+// keeping it inside the debug perimeter avoids surprising remote leaks.
+const RADAR_SNAPSHOT_BUFFER = 10;
+const recentRadarSnapshots = [];
+function pushRadarSnapshot(entry) {
+  recentRadarSnapshots.unshift({ ...entry, ts: Date.now() });
+  if (recentRadarSnapshots.length > RADAR_SNAPSHOT_BUFFER) {
+    recentRadarSnapshots.length = RADAR_SNAPSHOT_BUFFER;
+  }
+}
+function getRecentRadarSnapshots() {
+  return recentRadarSnapshots.slice();
+}
+
 const LANG_NAMES = { en: "English", fr: "French", es: "Spanish" };
 
 // ── Unit conversion helpers ───────────────────────────────────────────────
@@ -547,6 +568,11 @@ async function getWeatherSummary(req, res) {
       radarAvailable: radarEnabled,
     });
     summaryCache[cacheKey] = { summary, expiresAt: Date.now() + SUMMARY_CACHE_TTL };
+    pushRadarSnapshot({
+      lat, lon, lang, source: "fast-path",
+      radarText: radarText || "(radar disabled)",
+      summary,
+    });
     recordServiceCall("Claude (AI summary)", 200, "calm-day fast path (no LLM call)");
     // Deliberately NOT incrementing the Anthropic counter — no API call was made.
     return res.status(200).json({ summary }).end();
@@ -626,6 +652,11 @@ async function getWeatherSummary(req, res) {
     });
     const summary = message.content[0].text.trim();
     summaryCache[cacheKey] = { summary, expiresAt: Date.now() + SUMMARY_CACHE_TTL };
+    pushRadarSnapshot({
+      lat, lon, lang, source: "claude",
+      radarText: hasRadar ? radarText : "(no radar block in prompt)",
+      summary,
+    });
     recordServiceCall("Claude (AI summary)", 200, "OK");
     increment("anthropic", "summary");
     return res.status(200).json({ summary }).end();
@@ -636,4 +667,4 @@ async function getWeatherSummary(req, res) {
   }
 }
 
-module.exports = { getWeatherSummary, summaryCache };
+module.exports = { getWeatherSummary, summaryCache, getRecentRadarSnapshots };
