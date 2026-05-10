@@ -13,6 +13,20 @@
   margin-top: 6px;
   padding-left: 10px;
   border-left: 2px solid rgba(245, 158, 11, 0.7); /* amber-500, matches the alert visual family */
+  /* Cap the entire section so it never pushes the footer (QR + link)
+     below the InfoPanel's visible viewport. Calculation: viewport
+     height minus the panel's other fixed pieces — clock (clamp peak
+     115 px), AlertBanner (~70 px when wrapped), Controls (40 px),
+     container padding (20 px), plus a small breathing buffer (~30 px).
+     With the cap in place, the inner flex column lets the scrollArea
+     grow into the available space while keeping the footer pinned at
+     the bottom — the user scrolls inside the text, and the
+     "Scannez pour ouvrir" / "Voir toutes les alertes" footer stays
+     visible no matter how long the ECCC body is. */
+  max-height: calc(100vh - 280px);
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
 }
 
 .toggle-button {
@@ -60,21 +74,30 @@
 .body {
   margin-top: 6px;
   margin-bottom: 4px;
+  /* Flex column inside the capped container so the scrollArea below
+     can grow to fill the available space (flex:1) while the footer
+     stays at its natural height. min-height:0 is critical: without
+     it, the inner overflow:auto on scrollArea is ignored because
+     flex children default to min-height:auto = content height. */
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
 }
 
-/* Inner scroll wrapper for long ECCC descriptions. Cap raised to ~65 %
-   of viewport (May 2026 follow-up) per maintainer direction: "lorsqu'il
-   y a une alerte gouvernementale et que l'on veut lire le détails, il
-   me semble normal de prendre toute la place disponible. Pour retourner
-   avec les informations météo, on collapse." So expanded mode is
-   reading-first — let the body take a big chunk of the panel, squeeze
-   the weather-info area below (it stays scrollable via its own
-   overflow-y: auto), and the user collapses the section when they want
-   the weather UI back. The cap is still there for the truly absurd
-   case but won't trip on typical ECCC descriptions. Inner scrollbar +
-   touch momentum stay for those edge cases. */
+/* Inner scroll for the description paragraphs. No max-height here — the
+   parent .container caps the whole section; this .scrollArea is just
+   `flex:1` inside the body so it takes whatever space remains after
+   the footer. That means: short descriptions just fit, long ones scroll
+   inside, and the footer below always stays visible. min-height:0 lets
+   the flex parent actually shrink to enable the overflow.
+   (Previous iterations used a fixed clamp() which kept clipping the
+   footer below the viewport — maintainer report May 2026: "on prend
+   toute la place disponible mais on ne peut pas aller vers le bas".) */
 .scroll-area {
-  max-height: clamp(180px, 65vh, 560px);
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   padding-right: 4px; /* small breathing room so the scrollbar doesn't overlap text */
@@ -134,6 +157,10 @@
   margin-top: 10px;
   padding-top: 8px;
   border-top: 1px solid rgba(245, 158, 11, 0.25);
+  /* flex-shrink:0 keeps the footer (QR + link) at its natural height
+     when the scrollArea above is competing for space. Without this,
+     the QR would shrink below readable size on tall messages. */
+  flex-shrink: 0;
 }
 
 .qr {
