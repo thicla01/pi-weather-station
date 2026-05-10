@@ -2,7 +2,7 @@ const Anthropic = require("@anthropic-ai/sdk");
 const axios = require("axios").default;
 const { getSettingsData } = require("./settingsCtrl");
 const { weatherCache } = require("./proxyCtrl");
-const { recordServiceCall } = require("./serviceStatus");
+const { recordServiceCall, getServiceStatus } = require("./serviceStatus");
 const { increment } = require("./requestCounter");
 const { analyzeRadar } = require("./radarAnalyzerCtrl");
 
@@ -539,16 +539,42 @@ async function getWeatherSummary(req, res) {
   // path's third paragraph. Any failure is non-fatal — fast path proceeds
   // assuming clear, regular path drops the third paragraph.
   let radarText = null;
+  // Captured reason when the radar block ends up missing from the AI
+  // prompt — surfaced through the debug-panel snapshot so post-mortem
+  // diagnosis is one place instead of three (snapshot + service status
+  // + log file). Set when the catch fires (analyzeRadar threw) OR when
+  // analyzeRadar returns null (which happens silently inside the
+  // function on RainViewer hiccups; the underlying status was already
+  // logged via recordServiceCall, so we read it back here).
+  let radarUnavailableReason = null;
   const aiSettings = settings?.advanced?.ai || {};
   const radarEnabled = aiSettings.radarAnalysisEnabled !== false; // default true
-  if (radarEnabled) {
+  if (!radarEnabled) {
+    radarUnavailableReason = "radar analysis disabled in settings";
+  } else {
     try {
       radarText = await analyzeRadar(lat, lon, {
         extendedRadius: Boolean(aiSettings.extendedRadius),
         distanceUnit,
       });
-    } catch {
+    } catch (err) {
       radarText = null;
+      radarUnavailableReason = `analyzer threw: ${err?.message || "unknown error"}`;
+      console.warn(`[ai-summary] analyzeRadar threw at ${lat},${lon}: ${err?.message || err}`);
+    }
+    if (!radarText && !radarUnavailableReason) {
+      // analyzeRadar returned null without throwing. Internal failures
+      // (RainViewer 502, no frames, etc.) are recorded by the analyzer
+      // via recordServiceCall before the early-return — read that
+      // entry back to surface the actual cause in the snapshot.
+      const status = getServiceStatus()?.["RainViewer (analyzer)"];
+      if (status && status.status && status.status !== 200) {
+        radarUnavailableReason = `RainViewer ${status.status}: ${status.comment || "no detail"}`;
+      } else if (status?.comment) {
+        radarUnavailableReason = status.comment;
+      } else {
+        radarUnavailableReason = "analyzer returned null (no recorded status)";
+      }
     }
   }
 
@@ -570,7 +596,7 @@ async function getWeatherSummary(req, res) {
     summaryCache[cacheKey] = { summary, expiresAt: Date.now() + SUMMARY_CACHE_TTL };
     pushRadarSnapshot({
       lat, lon, lang, source: "fast-path",
-      radarText: radarText || "(radar disabled)",
+      radarText: radarText || `(radar unavailable: ${radarUnavailableReason || "unknown"})`,
       summary,
     });
     recordServiceCall("Claude (AI summary)", 200, "calm-day fast path (no LLM call)");
@@ -654,7 +680,9 @@ async function getWeatherSummary(req, res) {
     summaryCache[cacheKey] = { summary, expiresAt: Date.now() + SUMMARY_CACHE_TTL };
     pushRadarSnapshot({
       lat, lon, lang, source: "claude",
-      radarText: hasRadar ? radarText : "(no radar block in prompt)",
+      radarText: hasRadar
+        ? radarText
+        : `(no radar block in prompt — ${radarUnavailableReason || "reason unknown"})`,
       summary,
     });
     recordServiceCall("Claude (AI summary)", 200, "OK");
