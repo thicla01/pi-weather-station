@@ -190,7 +190,8 @@
     "redApproachingHedged": "Severe precipitation appears to be approaching",
     "redLeavingHedged": "Severe precipitation appears to be moving away",
     "orangeDrifting": "Heavy precipitation drifting around you",
-    "redDrifting": "Severe precipitation drifting around you"
+    "redDrifting": "Severe precipitation drifting around you",
+    "cycleAria": "Tap to cycle through {{count}} active alerts"
   },
   "radar": {
     "legend": "RADAR",
