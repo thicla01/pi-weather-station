@@ -765,6 +765,16 @@ function computePerDirectionTrends(framesSamples, unit, ring) {
       const speedPerMin = inwardShift / spanMin;
       if (speedPerMin > 0 && peakNow.distance / speedPerMin < arrivalLimitMin) {
         trend = "approaching";
+      } else {
+        // Significant inward shift but the band is too slow / too far to
+        // project an arrival within arrivalLimitMin. Surface as "drifting"
+        // so the banner can communicate "movement detected, no clear ETA"
+        // rather than collapsing back to "stable" — which paired with the
+        // confidence-on-stable formula gave a misleading 0% pill on a
+        // visibly-moving system (Stratford case, May 2026: user sat in
+        // heavy precip with bands drifting around them, banner read 0%
+        // confidence "in your area").
+        trend = "drifting";
       }
     } else if (inwardShift <= -inwardThreshold) {
       trend = "leaving";
@@ -897,7 +907,10 @@ function computeTrendConfidence({ trend, inwardShift, threshold, peakNow, peakOl
  */
 function summarizeRingTrend(perDirMap) {
   if (!perDirMap || perDirMap.size === 0) return { trend: "stable", confidence: 0 };
-  const trendRank = { approaching: 2, leaving: 1, stable: 0 };
+  // Tie-break order on equal peak intensity: approaching wins first
+  // (clear inward motion + ETA), then drifting (clear motion, no ETA),
+  // then leaving (clear outward motion), then stable.
+  const trendRank = { approaching: 3, drifting: 2, leaving: 1, stable: 0 };
   let dominant = null;
   for (const entry of perDirMap.values()) {
     if (!dominant) { dominant = entry; continue; }

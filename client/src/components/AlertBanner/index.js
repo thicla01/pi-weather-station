@@ -151,6 +151,16 @@ function getRadarAlertState(innerRisk, outerRisk, innerTrend, outerTrend, innerB
     return { tier, i18nKey: `alert.${tier}${variant}`, confidence, confidenceBucket: bucket };
   }
 
+  if (sourceTrend === "drifting") {
+    // Movement detected but ETA gate failed — the band is moving
+    // inward, just not fast enough to project arrival in <60 min.
+    // Always show the drifting wording regardless of bucket: the whole
+    // point of introducing this label was to surface "motion detected,
+    // ETA unclear" instead of collapsing back to position-only on the
+    // low-confidence fallback. The confidence pill carries the nuance.
+    return { tier, i18nKey: `alert.${tier}Drifting`, confidence, confidenceBucket: bucket };
+  }
+
   if (bucket === "low") {
     // Trend signal too weak to claim a direction — fall back to
     // position-only wording (same as the no-bump, stable path).
