@@ -5,6 +5,7 @@ import IndoorTemperature from "~/components/IndoorTemperature";
 import WeatherInfo from "~/components/WeatherInfo";
 import ControlButtons from "~/components/ControlButtons";
 import AlertBanner from "~/components/AlertBanner";
+import GovAlertDetail from "~/components/GovAlertDetail";
 import useDragScroll from "~/hooks/useDragScroll";
 import styles from "./styles.css";
 
@@ -26,6 +27,7 @@ const InfoPanel = () => {
         </div>
         <div className={styles.alertArea}>
           <AlertBanner />
+          <GovAlertDetail />
         </div>
         <div className={styles.weatherInfoContainer} ref={(el) => { weatherInfoRef(el); infoPanelScrollRef.current = el; }}>
           <WeatherInfo />

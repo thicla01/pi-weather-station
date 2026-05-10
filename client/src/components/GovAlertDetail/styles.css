@@ -1,0 +1,115 @@
+/* Visual language mirrors AiSummary so the two sections feel like
+   siblings — italic body text, same chevron family, same colour
+   adapt-to-mode. Differences:
+   - Left border uses an amber tone (rather than AiSummary's cool blue)
+     to signal "this is alert detail", visually paired with the warning
+     banners above it.
+   - Header is rendered as a centered toggle button (chevron on both
+     sides + label) so a tap anywhere on it expands/collapses — easier
+     to hit on the kiosk touchscreen than a small chevron-only target.
+   - Body is hidden by default; the section starts collapsed so the
+     info-panel stays uncluttered when a gov alert is active. */
+.container {
+  margin-top: 6px;
+  padding-left: 10px;
+  border-left: 2px solid rgba(245, 158, 11, 0.7); /* amber-500, matches the alert visual family */
+}
+
+.toggle-button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  padding: 4px 8px;
+  border-radius: 3px;
+  cursor: pointer;
+  transition: opacity 0.15s;
+  white-space: nowrap;
+  width: 100%;
+}
+
+.toggle-button:active {
+  opacity: 0.5;
+}
+
+.toggle-button-dark {
+  color: inherit;
+}
+
+.toggle-button-light {
+  color: inherit;
+}
+
+.label {
+  font-family: "Rubik", sans-serif;
+  font-size: clamp(11px, 1.0vw, 14px);
+  font-weight: 500;
+  letter-spacing: 0.08em;
+  opacity: 0.65;
+  text-transform: uppercase;
+}
+
+.chevron-left,
+.chevron-right {
+  font-size: clamp(13px, 1.1vw, 16px);
+  opacity: 0.55;
+}
+
+.body {
+  margin-top: 6px;
+  margin-bottom: 4px;
+}
+
+.text {
+  font-family: "Rubik", sans-serif;
+  font-size: clamp(13px, 1.2vw, 16px);
+  line-height: 1.5;
+  margin: 0 0 6px 0;
+}
+
+.dark .text {
+  color: rgba(252, 211, 77, 0.95); /* amber-300 ish */
+}
+
+.light .text {
+  color: rgba(146, 64, 14, 0.95); /* amber-800 ish */
+}
+
+.text:last-child {
+  margin-bottom: 0;
+}
+
+.empty {
+  font-style: italic;
+  opacity: 0.7;
+}
+
+/* External link to the upstream source landing page. Kept understated
+   (small, italic, opacity < 1) so it doesn't pull attention away from
+   the actual alert body, but still reads as a clickable link. The "›"
+   suffix in the text is the only graphic affordance — we don't render
+   the full URL, per the user's "il ne faudrait pas que le lien
+   apparaisse avec un URL interminable" requirement. */
+.link {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: clamp(12px, 1.0vw, 14px);
+  font-weight: 500;
+  text-decoration: underline;
+  opacity: 0.75;
+  transition: opacity 0.15s;
+}
+
+.dark .link {
+  color: rgba(252, 211, 77, 0.95);
+}
+
+.light .link {
+  color: rgba(146, 64, 14, 0.95);
+}
+
+.link:hover {
+  opacity: 1;
+}

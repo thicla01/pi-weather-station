@@ -193,6 +193,11 @@
     "redDrifting": "Severe precipitation drifting around you",
     "cycleAria": "Tap to cycle through {{count}} active alerts"
   },
+  "govAlertDetail": {
+    "title": "{{source}} alert detail",
+    "linkLabel": "View all {{source}} alerts",
+    "noDetail": "No additional detail provided for this alert."
+  },
   "radar": {
     "legend": "RADAR",
     "veryLight": "Very light",
