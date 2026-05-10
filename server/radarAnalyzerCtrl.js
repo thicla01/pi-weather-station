@@ -757,6 +757,29 @@ function computePerDirectionTrends(framesSamples, unit, ring) {
       continue;
     }
 
+    // Require meaningful precipitation (≥ light tier, intensity 2) at BOTH
+    // endpoints for any non-stable trend classification. A wisp at
+    // intensity 1 (very light) that drifts a few km between frames is
+    // sampling noise, not a "moving band". Even worse, a band that
+    // INTENSIFIES IN PLACE — peakOld at intensity 1 (95 km), peakNow at
+    // intensity 4 (65 km) — would otherwise be flagged drifting because
+    // the highest-intensity sample shifted inward, even though no actual
+    // motion happened. Observed live on a Beauce-Sartigan kiosk where
+    // orange "drifting" arrows appeared in NNE / 281.25° directions
+    // because of exactly that intensification-in-place pattern. Solution:
+    // both endpoints must show real precipitation for trend logic to
+    // apply.
+    if (peakNow.intensity < 2 || peakOld.intensity < 2) {
+      map.set(dir, {
+        trend: "stable",
+        peakIntensityNow,
+        peakDistanceNow: peakNow.distance,
+        inwardShift: 0,
+        confidence: 100,
+      });
+      continue;
+    }
+
     const inwardShift = peakOld.distance - peakNow.distance;
     let trend = "stable";
     if (inwardShift >= inwardThreshold) {
@@ -870,8 +893,12 @@ function computeTrendConfidence({ trend, inwardShift, threshold, peakNow, peakOl
   const magnitudeRatio = Math.abs(inwardShift) / threshold;
   score += Math.min(60, magnitudeRatio * 30);
   // (b) Monotonicity — does the mid frame confirm direction?
+  // Approaching and drifting both move inward (head closer than tail);
+  // leaving moves outward. The mid frame should sit between the old and
+  // now positions in the expected direction.
   if (peakMid && peakMid.distance != null) {
-    const monotonic = trend === "approaching"
+    const inward = trend === "approaching" || trend === "drifting";
+    const monotonic = inward
       ? (peakMid.distance < peakOld.distance && peakMid.distance > peakNow.distance)
       : (peakMid.distance > peakOld.distance && peakMid.distance < peakNow.distance);
     if (monotonic) score += 25;
