@@ -47,16 +47,22 @@ echo ""
 # the actually-confusing failure mode.)
 cd "$REPO_DIR"
 
-# Auto-discard local edits to the npm lockfiles before any git operation.
-# `npm install` rewrites these on every device run and the resulting drift
-# is a recurring cause of `git pull --ff-only` failures during upgrade
-# (k5map case, May 2026: blocked from v2.2.5 → v2.12.0 by a stale
-# package-lock.json that npm install had quietly modified months earlier).
-# Both lockfiles are 100 % auto-generated; nobody hand-edits them, so a
-# silent `git checkout HEAD -- <file>` is a safe defensive reset. Errors
-# are tolerated (the file may not exist on a partial clone, or already be
-# clean — both are fine to ignore here).
-git checkout HEAD -- package-lock.json client/package-lock.json 2>/dev/null || true
+# Auto-discard local edits to all auto-generated tracked artifacts before
+# any git operation. `npm install` rewrites the lockfiles; a previous
+# `--rebuild-client` run regenerates client/dist/*.bundle.min.js and
+# friends. Both are recurring causes of `git pull --ff-only` failures
+# during upgrade:
+#   - k5map case 1 (May 2026, v2.2.5 → v2.12.0): blocked by a stale
+#     package-lock.json that an earlier npm install had modified.
+#   - k5map case 2 (May 2026, v2.2.5 → v2.13.x with the lockfile fix
+#     applied): same trap on client/dist/bundle.min.js, blocked again.
+# All of these files are 100 % auto-generated (lockfiles by npm/npm ci,
+# dist files by webpack via `npm run prod`); nobody hand-edits them, so
+# a silent `git checkout HEAD -- <pathspec>` is a safe defensive reset.
+# The next `git pull` writes the upstream versions back, and `npm ci`
+# regenerates the lockfiles deterministically. Errors are tolerated
+# (file may not exist on a partial clone, or already be clean).
+git checkout HEAD -- package-lock.json client/package-lock.json client/dist 2>/dev/null || true
 
 CURRENT_BRANCH=$(git rev-parse --abbrev-ref HEAD)
 case "$CURRENT_BRANCH" in
