@@ -382,16 +382,22 @@ app.post("/api/update", localhostOnly, (req, res) => {
       );
     }
 
-    // Auto-discard local edits to the npm lockfiles before the dirty-tree
-    // check. `npm install` rewrites these on the device and the resulting
-    // drift is a recurring cause of `git pull --ff-only` failures during
-    // upgrade (k5map case, May 2026: blocked from v2.2.5 → v2.12.0 by a
-    // stale package-lock.json that npm install had quietly modified). The
-    // lockfiles are 100 % auto-generated — nobody hand-edits them — so a
-    // silent revert is safe. Errors are tolerated (file may already be
-    // clean or absent in a partial clone). The next `npm ci` after the
-    // pull regenerates them deterministically from the upstream copy.
-    exec("git checkout HEAD -- package-lock.json client/package-lock.json", { cwd: projectRoot, timeout: 5_000 }, () => {
+    // Auto-discard local edits to ALL auto-generated tracked artifacts
+    // before the dirty-tree check. Two recurring sources of drift, both
+    // observed live with k5map upgrades:
+    //   1. Lockfiles — `npm install` rewrites package-lock.json and
+    //      client/package-lock.json on the device (May 2026 v2.2.5 →
+    //      v2.12.0 case).
+    //   2. Client dist — a `--rebuild-client` install.sh run, or any
+    //      `npm run prod` invoked on the device, rewrites
+    //      client/dist/bundle.min.js (and chunked siblings like
+    //      1.bundle.min.js, plus the LICENSE.txt). Observed live on the
+    //      v2.2.5 → v2.13.x retry, same upgrade flow as before.
+    // All of these are 100 % auto-generated (lockfiles by npm/npm ci,
+    // dist files by webpack); nobody hand-edits them. Silent revert is
+    // safe. Errors tolerated (file may be clean / absent). After the
+    // pull, `npm ci` regenerates the lockfiles from the upstream copy.
+    exec("git checkout HEAD -- package-lock.json client/package-lock.json client/dist", { cwd: projectRoot, timeout: 5_000 }, () => {
 
     // --untracked-files=no skips files with `??` prefix (not in git's index).
     // Untracked files cannot conflict with `git pull --ff-only` — they live
