@@ -23,7 +23,7 @@
     "@iconify/icons-map": "^1.0.5",
     "@iconify/icons-material-symbols": "^1.2.58",
     "@iconify/icons-wi": "^1.0.3",
-    "@iconify/react": "^5.2.1",
+    "@iconify/react": "^6.0.2",
     "axios": "^1.16.0",
     "babel-loader": "^10.1.1",
     "chart.js": "^4.5.1",
