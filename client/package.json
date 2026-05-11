@@ -50,7 +50,7 @@
     "eslint": "^9.39.4",
     "eslint-plugin-jsdoc": "^50.8.0",
     "eslint-plugin-react": "^7.37.5",
-    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-hooks": "^6.1.1",
     "eslint-webpack-plugin": "^4.2.0",
     "globals": "^17.6.0",
     "html-loader": "^5.1.0",
