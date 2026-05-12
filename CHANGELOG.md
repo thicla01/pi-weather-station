@@ -21,6 +21,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+---
+
+## [2.13.0] - 2026-05-11
+
 ### Fixed
 - **Upgrade no longer blocked by stale `client/dist/` files** — second case of the same trap that earlier hit npm lockfiles (k5map, May 2026, v2.2.5 → v2.13.x). After the lockfile auto-discard landed in PR #90, the same user hit it again on `client/dist/bundle.min.js` — the compiled React bundle, also committed to git so Pis don't rebuild. Webpack output (the main bundle + chunked siblings + `bundle.min.js.LICENSE.txt`) gets regenerated on every PR upstream, and if a Pi had once run `npm run prod` locally (e.g. an old `--rebuild-client` install.sh invocation), the local copy drifts from upstream and `git pull --ff-only` refuses with "Your local changes to the following files would be overwritten by merge: client/dist/bundle.min.js". Extended the auto-discard list in both upgrade paths (`POST /api/update` in-app updater + `deploy/install.sh`) to also cover `client/dist`. Same rationale as the lockfile case: nobody hand-edits these files, they're 100 % auto-generated, and the next `git pull` writes the upstream copies back. Targeted `client/dist` as a directory pathspec so all current AND future generated files inside (chunked bundles, LICENSE, etc.) are covered automatically without enumerating each one.
 
