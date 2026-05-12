@@ -18,7 +18,19 @@ The original Pi Weather Station (v1.x), as designed by [@elewin](https://github.
 
 ![Original layout, v1.x](https://user-images.githubusercontent.com/15202038/91359998-4625bb80-e7bb-11ea-937e-c87eede41f35.JPG)
 
-The current v2 layout — indoor temperature/humidity/air-quality block, AI-generated weather summary with radar movement analysis, severe-weather alert banner fed by both the radar tier and government feeds (NWS + ECCC) with a leading source badge (`RADAR` / `ECCC` / `NWS`) so the user can tell at a glance where the alert came from, optional confidence pill on radar-derived banners (green / amber / red), tap-to-cycle through multiple active gov alerts, a collapsible "alert detail" section under the banner with a QR code that opens the upstream alerts page on the user's phone (kiosk-safe: no risk of getting trapped on an external page), optional direction-arrow overlay on the map showing per-bearing motion of nearby precipitation bands (toggle button in the top-left near the zoom controls), color-coded UV and AQI badges chained across multiple government sources (MELCC, AirNow, OpenAQ, ECCC AQHI), user-selectable light/dark map styles, hardware screen-brightness control on supported displays, opt-in sleep mode / screensaver with melatonin-friendly red night palette, small-screen panel toggle, and a localhost-only debug panel:
+The current v2 layout includes:
+
+- **Indoor sensors block** — temperature / humidity / air quality from Homebridge, displayed next to the clock.
+- **AI-generated weather summary** powered by Claude, with a radar-movement paragraph describing nearby precipitation.
+- **Severe-weather alert banner** — fed by NWS (US) and ECCC (Canada) plus a local radar-derived tier. Every banner carries a leading `RADAR` / `ECCC` / `NWS` source badge so the origin is unambiguous; RADAR banners get an optional confidence pill (green / amber / red), and a tap cycles through multiple active government alerts.
+- **Gov-alert detail section** — collapsible block under the banner with the alert's full description and a QR code that opens the upstream alerts page on the user's phone (kiosk-safe: no risk of getting trapped on an external page).
+- **Direction-arrow overlay** on the map (optional, toggled from a button near the zoom controls) — shows per-bearing motion of nearby precipitation bands.
+- **UV and AQI badges** chained across multiple government sources (MELCC for Quebec, AirNow for the US, OpenAQ as a global fallback, ECCC AQHI Canada-wide).
+- **Light / dark map styles**, user-selectable from settings.
+- **Hardware screen-brightness control** on supported displays.
+- **Opt-in sleep mode / screensaver** with a melatonin-friendly red night palette.
+- **Small-screen panel toggle** for compact 5–7" displays.
+- **Localhost-only debug panel** with KPIs, service status, quota counters, radar snapshots, and logs.
 
 | | |
 |---|---|
