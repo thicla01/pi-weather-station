@@ -56,7 +56,7 @@ Government air-quality and severe-weather data is pulled from public endpoints t
 
 These public sources are used as automatic fallbacks: the air-quality block prefers a configured AirNow / OpenAQ key when available and falls back to the government feeds based on the user's location; alert banners pull from NWS or ECCC depending on whether the user's point falls inside a US or Canadian alert polygon.
 
-See it in action [here](https://www.youtube.com/watch?v=dvM6cyqYSw8).
+See the **original v1** in action in [this video](https://www.youtube.com/watch?v=dvM6cyqYSw8) by [@elewin](https://github.com/elewin), the author of the original project this fork is based on. The video predates the v2 layout shown in the screenshots above (no AI summary, no alert banner, no QR-coded alert detail, etc.) but gives a feel for the kiosk concept and the touchscreen interaction model that this fork built on.
 
 > Be mindful of the plan limits for your API keys and understand the terms of each provider, as scrolling around the map and selecting different locations will incur API calls for every location. Additionally, the weather station will periodically make additional API calls to get weather updates throughout the day. All weather (Tomorrow.io), map tile (Mapbox), reverse geocoding (LocationIQ), AI summary (Anthropic), and air-quality (AirNow / OpenAQ) calls are proxied through the server — multiple browser clients share the same quota rather than each consuming it independently. Weather responses are cached server-side, further reducing API usage.
 
