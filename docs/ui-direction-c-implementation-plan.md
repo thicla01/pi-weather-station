@@ -262,7 +262,33 @@ tag + key field + what-it-unlocks copy).
 - [ ] **Section 3 · Avancé** — collapsible, default closed. Houses lightModeStyle,
   darkModeStyle, default map zoom, calmDayFastPath, extendedRadius,
   radarAnalysisEnabled, showSamplingPoints, AND the four `advancedSleep`
-  params (stage1Delay, stage1Brightness, stage2Enabled, stage2Delay).
+  params (see below).
+- [ ] **Sleep timer range — extended for non-interactive contexts.**
+  Use case raised by the maintainer: a kiosk in a non-interactive context
+  (workshop / saddlery / shop window / 24/7 wall display) where the user has
+  no touchscreen, no keyboard, no mouse to wake the screen. The previous
+  caps (60 / 120 min) were too short for this case. New caps and named
+  presets:
+  - `stage1Delay`: dropdown with presets `1 min · 5 · 10 · 15 · 30 · 1 h ·
+    2 h · 3 h · Jamais`. `Jamais` is implemented as `null` (the timer never
+    enters sleep mode — the screen stays at full brightness 24/7).
+  - `stage1Brightness`: slider `10-100 %` (unchanged).
+  - `stage2Enabled`: toggle on/off (unchanged).
+  - `stage2Delay`: dropdown with presets `5 min · 10 · 15 · 30 · 1 h ·
+    2 h · 3 h`.
+
+  Defaults remain `10 + 20` min (the v2 defaults) — only the achievable
+  range grows.
+
+  Documented use-case combinations the Settings copy can hint at:
+
+  | Context | stage1Delay | stage1Brightness | stage2Enabled |
+  |---|---|---|---|
+  | Kitchen / living room | 10 min | 30 % | true |
+  | Office desk (interactive) | 30 min | 50 % | true |
+  | Saddlery / shop window | 3 h or `Jamais` | 80-100 % | false |
+  | 24/7 LCD wall display | `Jamais` | 100 % | false |
+  | 24/7 OLED wall display | 2 h | 70 % | true |
 - [ ] **Section 4 · Expérimental** — collapsible, default closed. Empty-state
   copy: *« Aucune fonctionnalité expérimentale active. »* Hosts the
   `experimentalUiC` toggle during the transition (will be removed in Phase 10).
