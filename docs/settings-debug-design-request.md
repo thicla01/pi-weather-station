@@ -141,6 +141,161 @@ understand what to configure first.
 
 ---
 
+## Information architecture for Settings — proposed 4-section structure
+
+The maintainer's preferred grouping for the Settings panel: **four sections**,
+organised by **who can change what from where**. Please use this as the
+starting structure (Claude Design is free to propose variants on the visual
+treatment of each section, but the categorisation itself is locked in).
+
+### Section 1 · **Préférences** (always actionable, everywhere)
+
+Stored in browser `localStorage`. Each viewer has their own preferences,
+isolated — a remote user changing their font size doesn't affect the kiosk's
+display. No access restriction.
+
+Contents:
+
+- Language (EN / FR / ES)
+- Font size (S / M / L)
+- Dark mode (auto / on / off)
+- Clock format (12 h / 24 h)
+- Units: temperature (°F / °C / K), speed (mph / m/s / km/h), length (in / mm),
+  distance (mi / km)
+- Hide mouse cursor
+- Hide radar legend
+
+### Section 2 · **Configuration & API keys** (local edit only, readable everywhere)
+
+Stored in server-side `settings.json`. **Writes are localhost-only** (the
+maintainer must be on the Pi itself, either directly or via SSH tunnel).
+Reads are allowed remotely — with **API key values masked** to prevent
+leakage over the network.
+
+Contents:
+
+- API keys (all 6 — each with a **Required** or **Optional** badge):
+  - Mapbox · *Required* — map tiles
+  - Tomorrow.io · *Required* — weather data
+  - LocationIQ · *Optional* — reverse geocoding (location name lookup)
+  - Anthropic · *Optional* — AI weather summary
+  - EPA AirNow · *Optional* — US air-quality data
+  - OpenAQ · *Optional* — global air-quality fallback
+- Custom coordinates (latitude / longitude) — overrides IP-based geolocation
+- Radar source (RainViewer / ECCC)
+- Indoor temperature (Homebridge integration: host, port, username, password,
+  sensorName)
+- Screen brightness (hardware-controlled on supported displays)
+
+**Remote behaviour** for this section:
+
+- API key fields show **status pills** instead of the actual value:
+  - Green ✓ **Configured** when the server has a non-empty value
+  - Grey ○ **Not configured** when empty
+  - Optionally red ✕ **Invalid** if we add value validation
+- Coordinates and other text fields render as **read-only text** (visible
+  but uneditable)
+- Toggles render as their current state but **disabled**
+- An amber notice at the top of the section reads:
+  *« Connexion distante détectée. Pour modifier ces paramètres, ouvrez un
+  tunnel SSH depuis votre poste. »* (FR) / *« Remote connection detected.
+  To change these settings, open an SSH tunnel from your local machine. »* (EN)
+- The link in the amber notice points to the README's "Access from another
+  machine" section.
+
+### Section 3 · **Avancé** (collapsible, default closed, local edit only)
+
+Same access semantics as Section 2 (server-side `settings.json`, localhost-only
+writes). Hidden behind a collapsible disclosure so a typical user isn't
+overwhelmed. The maintainer expands when tuning.
+
+Contents (existing groups + new ones from Direction C):
+
+- **Display:** Mapbox light style variant, Mapbox dark style variant, default
+  map zoom level
+- **AI:** calm-day fast path, extended radius (50 + 100 km vs 50 km only),
+  radar analysis enabled, show sampling points overlay
+- **Sleep mode** *(new in Direction C):* stage 1 delay, stage 1 brightness,
+  stage 2 enabled, stage 2 delay (these were exposed in the SettingsOverlay
+  prototype already)
+
+### Section 4 · **Expérimental** (collapsible, default closed, future)
+
+Reserved for feature flags that gate opt-in beta functionality. Empty today —
+but please design the section's empty state so it doesn't look broken when
+nothing is inside.
+
+Suggested empty-state copy:
+
+*« Aucune fonctionnalité expérimentale active. Les nouvelles fonctionnalités
+en cours de validation apparaîtront ici, désactivées par défaut. »* (FR)
+
+*« No experimental features active. New features under validation will
+appear here, disabled by default. »* (EN)
+
+The next experimental flag we know is coming: `experimentalUiC` — the toggle
+that will progressively activate Direction C during its multi-PR implementation
+cycle. So the section's affordances (toggle, hint, "what does this do" copy)
+will be exercised soon.
+
+---
+
+## Remote access semantics — complete mapping
+
+The kiosk supports two modes of access:
+
+1. **Local** — user is on the Pi itself (DSI touchscreen or a browser on the
+   Pi's own desktop). All read + write operations succeed.
+2. **Remote** — user reaches the kiosk via `ALLOW_REMOTE=true` from another
+   device on the LAN (e.g. SSH tunnel `ssh -L 8443:localhost:8443 pi@…`,
+   or a direct connection if `ALLOW_REMOTE=true`).
+
+The redesign must honour this access matrix:
+
+| Surface | Local | Remote |
+|---|---|---|
+| Preferences (Section 1) | Edit | Edit (own localStorage) |
+| API keys (Section 2) | Edit + see values | See **status pills only** (Configured / Not configured) |
+| Other server config (Section 2) | Edit | Read-only display |
+| Advanced (Section 3) | Edit | Read-only display (whole section dimmed) |
+| Experimental (Section 4) | Edit | Read-only display |
+| Debug button in BottomDock | Visible *only when* `DEBUG=true` | **Never visible** (security) |
+| `/api/debug` endpoint | 200 | 403 |
+| `/api/update` endpoint | 200 | 403 |
+
+The amber notice that explains the read-only state on remote should appear
+**once** at the top of Section 2 — not duplicated in every section, but the
+visual "disabled" state should be consistent across Sections 2-4.
+
+---
+
+## Debug button — placement and visibility
+
+The Debug button lives in the **BottomDock** (the row of controls at the
+bottom of the InfoPanel, designed in Direction C). It opens the Debug panel
+when tapped.
+
+Rules:
+
+- **Visible only when `DEBUG=true`** (server env var, set via
+  `bash deploy/toggle-debug.sh`)
+- **AND only on local access** — never visible to remote clients, regardless
+  of the env var
+- **Styling consistent with Direction C BottomDock** — icon (bug glyph),
+  label "Debug" below, 44 × 44 px minimum touch target, active state with
+  accent underline when the Debug panel is open
+
+The current BottomDock from the Direction C prototype already has placeholder
+slots; the Debug button should be the **rightmost slot** (closest to the
+gear / Settings button) so the maintainer reaches it naturally when
+troubleshooting.
+
+When the Debug panel is open, the Debug button in the dock should show its
+**active state** (accent-coloured icon + label, 2 px underline) — consistent
+with how other dock buttons indicate their open state.
+
+---
+
 ## Open questions / explore options
 
 For each panel, please propose **2-3 distinct directions** so we can compare:
