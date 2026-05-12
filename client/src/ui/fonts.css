@@ -1,0 +1,54 @@
+/* Geist + Geist Mono font-face declarations for UI Direction C.
+ *
+ * Files self-hosted under `./fonts/` (originally lifted from Vercel's
+ * `geist` npm package, SIL Open Font License). We did not keep the npm
+ * dependency because that package's `exports` field is Next.js-specific
+ * and blocks webpack from resolving the raw woff2 paths. Self-hosting
+ * the four files we actually need is simpler and removes the
+ * Next.js coupling.
+ *
+ * We only wire the three weights actually used by the Ambient Layers
+ * surface — Regular (body), Medium (labels, hero captions), Bold (hero
+ * temperature). Loading every weight would push the bundle by ~250 KB
+ * for no visible benefit; the kiosk renders a fixed visual language.
+ *
+ * `font-display: swap` lets the OS fallback render immediately so there
+ * is no FOUC on the Pi's first paint. The swap to Geist happens within
+ * one paint cycle once the woff2 lands.
+ *
+ * webpack resolves the `url(...)` paths via the `asset/resource` rule
+ * (see `webpack.config.js`), emitting each woff2 with a content hash
+ * for long-lived cache headers.
+ */
+
+@font-face {
+  font-family: "Geist";
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+  src: url("./fonts/Geist-Regular.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Geist";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./fonts/Geist-Medium.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Geist";
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+  src: url("./fonts/Geist-Bold.woff2") format("woff2");
+}
+
+@font-face {
+  font-family: "Geist Mono";
+  font-style: normal;
+  font-weight: 500;
+  font-display: swap;
+  src: url("./fonts/GeistMono-Medium.woff2") format("woff2");
+}

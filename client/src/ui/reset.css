@@ -1,0 +1,54 @@
+/* Lightweight CSS reset, scoped to the Ambient Layers root.
+ *
+ * Intentionally NOT a global reset — the v2 layout has its own legacy
+ * styling that we don't want to disturb during the rollout. Everything
+ * in this file is scoped under `.ambientRoot` so it only applies when
+ * the experimental UI is mounted. Phase 10 (release) drops the scope
+ * and promotes this to a real app-wide reset once v2 is retired.
+ *
+ * Targets just the things that bite us on Pi-class hardware:
+ *   - box-sizing globally (the single biggest source of off-by-one
+ *     layout bugs in the v2 code)
+ *   - margin zero on heading + paragraph + figure so slab spacing comes
+ *     from layout containers, never inherited browser defaults
+ *   - button reset (kiosk doesn't want the OS chrome on touch targets)
+ *   - tap-highlight removal (Chromium on Pi flashes a grey rect on every
+ *     touch by default, which is awful on the kiosk)
+ *   - prevent iOS-style font-size bumps if anyone ever runs this in a
+ *     mobile browser (cheap safety net)
+ */
+
+.ambientRoot,
+.ambientRoot *,
+.ambientRoot *::before,
+.ambientRoot *::after {
+  box-sizing: border-box;
+}
+
+.ambientRoot h1,
+.ambientRoot h2,
+.ambientRoot h3,
+.ambientRoot h4,
+.ambientRoot h5,
+.ambientRoot h6,
+.ambientRoot p,
+.ambientRoot figure,
+.ambientRoot blockquote {
+  margin: 0;
+}
+
+.ambientRoot button {
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.ambientRoot {
+  -webkit-tap-highlight-color: transparent;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
