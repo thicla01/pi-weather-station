@@ -50,7 +50,15 @@ See it in action [here](https://www.youtube.com/watch?v=dvM6cyqYSw8).
 
 ## Updating
 
-For day-to-day updates, the in-app **Update** button (debug panel → notification badge) handles `git pull`, `npm ci`, and the service restart automatically. If your installed version is too old for the in-app updater to handle (released before the updater learned to run `npm install`), the modal detects it and shows a one-time `bash deploy/install.sh` recipe to bootstrap before normal updates resume.
+For day-to-day updates, the in-app updater handles `git pull`, `npm ci`, and the service restart automatically. The flow:
+
+1. When a new release is available on GitHub, the **update icon** in the bottom control bar of the InfoPanel shows a small red notification badge.
+2. Tapping the icon opens a modal listing the new commits since the installed version, with an **Update** button at the bottom.
+3. The Update button triggers the upgrade and restarts the service. The kiosk reloads to the new version automatically.
+
+If your installed version is too old for the in-app updater to handle (released before the updater learned to run `npm install`, i.e. older than v2.4.1), the modal detects it and shows a one-time `bash deploy/install.sh` recipe to bootstrap before normal updates resume.
+
+The Debug panel (localhost-only, see further below) has a separate **Check for update** button that forces a fresh fetch from GitHub when you don't want to wait for the 1-hour update-check cache to expire — useful right after a release lands and you want to confirm the device sees it.
 
 # Version history
 
