@@ -165,6 +165,12 @@ These rules apply to every change, regardless of size. They exist to keep the co
 - New endpoints must be protected by the appropriate middleware (`localhostOnly`, `apiLimiter`, or `tileLimiter`) before being shipped
 - Never read `settings.json` directly from a controller — always go through `settingsCtrl.getSettings()`
 
+### Tests
+- Live in `test/<area>.test.js` and run via `npm test` (Node's built-in `node --test` runner — no test deps).
+- The current suite covers the radar trend pipeline (`test/radarTrend.test.js`) — the live cases that shaped v2.13 (Sorel approaching, Stratford drifting, Beauce-Sartigan intensification-in-place) are encoded as regression tests so the next refactor of `computePerDirectionTrends` / `summarizeRingTrend` / `computeTrendConfidence` doesn't silently break them.
+- When tweaking the trend thresholds, ETA gate, or intensity rules, **run `npm test` before pushing** — the existing assertions encode the empirical thresholds that came out of live debugging.
+- Internal helpers tested via the `__test` export on the controller (e.g. `radarAnalyzerCtrl.__test`) — keeps the public surface clean while letting tests reach the pure-function helpers.
+
 ### Documentation hygiene
 - `CHANGELOG.md` is the single source of truth for version history — do not add per-version highlight sections to `readme.md`. The readme points to `CHANGELOG.md` and the GitHub Releases page; that's enough.
 - `ROADMAP.md` technical debt section must be updated when a debt item is resolved or a new one is identified
