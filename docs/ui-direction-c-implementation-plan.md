@@ -53,7 +53,9 @@ flag is flipped at v3.0.0.
 by the flag. No big-bang merge. The user toggles the flag on a dev Pi to test
 each phase as it lands.
 
-**Estimated effort:** ~12-15 evening sessions over 3-4 weeks at normal pace.
+**Estimated effort:** ~14-17 evening sessions over ~4 weeks at normal pace.
+(Includes the Settings + Debug panel refresh shipped as a separate Claude Design
+package in May 2026, integrated here as Phases 8 and 9.)
 
 ---
 
@@ -164,9 +166,12 @@ Goal: implement the >800px layout (HD monitor and bigger).
 
 ---
 
-## Phase 5 — Sleep mode + Settings (≈ 3h)
+## Phase 5 — Sleep mode (≈ 2h)
 
-Goal: integrate the new sleep-mode palette system and the Settings overlay.
+Goal: integrate the new sleep-mode palette system. The Settings panel itself
+is deferred to **Phase 8** (full Settings refresh — own Claude Design package);
+during Phase 5, sleep-mode configuration continues to ride on the existing v2
+Settings panel via the `advancedSleep.*` fields already in `settings.json`.
 
 - [ ] `AmbientSleep` — single component, picks palette by `timeOfDay`.
   - `day`: cream
@@ -177,16 +182,12 @@ Goal: integrate the new sleep-mode palette system and the Settings overlay.
   matched to `timeOfDay`.
 - [ ] Transition timer: `stage1Delay` minutes idle → `sleep`, then `stage2Delay`
   more minutes → `sleep-stage2`. Wake on any input.
-- [ ] `SettingsOverlay` — restructured into Display / Sleep / Map sections:
-  - **Display**: font size S/M/L, theme override (day/dusk/night auto-select),
-    brightness slider (POST /api/brightness).
-  - **Sleep**: stage1Delay (1-60), stage1Brightness (10-100%), stage2Enabled toggle,
-    stage2Delay (5-120).
-  - **Map**: showSamplePoints toggle, extendedRadius toggle, calmDayFastPath toggle.
 - [ ] Connect to existing `/api/brightness` endpoint (already in v2).
-- [ ] Persist all settings to existing `settings.json` schema.
+- [ ] Settings continue to live in the legacy v2 panel via `advancedSleep.*`
+  — no UI work here.
 
-**Deliverable:** PR #7. Sleep mode + Settings work end-to-end.
+**Deliverable:** PR #7. Sleep mode renders correctly under Direction C; the
+v2 Settings panel still pilots the four `advancedSleep` params.
 
 ---
 
@@ -227,20 +228,109 @@ Goal: integrate v2 user-facing features and polish before release.
   off by default; benchmarks confirm or relax).
 - [ ] **Visual regression** — capture screenshots of key states (calm/rain/severe,
   day/dusk/night/nightRed, hybrid on/off) for the README update.
-- [ ] **Remove the experimentalUiC flag** — C becomes the only layout.
-  - Delete the `<CurrentLayout />` branch.
-  - Delete the v2 layout components no longer referenced.
-  - Strip the flag from settings.json schema.
-- [ ] **Cleanup** — delete deprecated CSS / JS files from the v2 layout.
+- [ ] **Remove the experimentalUiC flag** — *moved to Phase 10 (release)*
+  so the flag is still live through the Settings + Debug refresh phases.
+- [ ] **Cleanup** — delete unused tokens, prune dead code paths from the
+  Direction C codebase as it stabilises.
 
-**Deliverable:** PR #9-#10. Master is now Direction C only.
+**Deliverable:** PR #9. Direction C stable, ready for the panel refreshes.
 
 ---
 
-## Phase 8 — Release v3.0.0
+## Phase 8 — Settings panel refresh (≈ 4h)
+
+Goal: replace the legacy v2 Settings overlay with the new 4-section structure
+delivered by Claude Design (package `NzSzPtOReHNfiDZzxJMWQA`, see
+`docs/settings-debug-design-request.md`). Recommended variant for API keys:
+**variant B (tight list)** with one row per provider (status dot + name + tier
+tag + key field + what-it-unlocks copy).
+
+- [ ] `SettingsPanel` — main container, replaces existing `Settings/index.js`.
+  Imports the 4 section components below.
+- [ ] **Section 1 · Préférences** — language, fontSize (S/M/L), darkMode auto/on/off,
+  clockTime (12/24), units (temperature/speed/length/distance), hideMouse,
+  hideRadarLegend. Always editable, even on remote (all stored in
+  `localStorage`).
+- [ ] **Section 2 · Configuration & API keys** — variant B layout:
+  - One row per provider: status dot (✓ green / ○ neutral / ✕ red) · name +
+    `REQUIRED` or `OPTIONAL` uppercase tag · key field · description copy.
+  - Below: custom coordinates (lat/lon), radar source toggle, Homebridge fields,
+    brightness slider.
+  - Lock icon `⚿` next to the section heading.
+  - Amber notice + `READ-ONLY` pill at the top when on remote; key fields
+    render as status pills only, no editable values.
+- [ ] **Section 3 · Avancé** — collapsible, default closed. Houses lightModeStyle,
+  darkModeStyle, default map zoom, calmDayFastPath, extendedRadius,
+  radarAnalysisEnabled, showSamplingPoints, AND the four `advancedSleep`
+  params (stage1Delay, stage1Brightness, stage2Enabled, stage2Delay).
+- [ ] **Section 4 · Expérimental** — collapsible, default closed. Empty-state
+  copy: *« Aucune fonctionnalité expérimentale active. »* Hosts the
+  `experimentalUiC` toggle during the transition (will be removed in Phase 10).
+- [ ] **Remote read-only state** — section 2's amber notice; sections 3-4 dimmed
+  to ~65% opacity, controls disabled; Save footer hidden entirely.
+- [ ] Onboarding overlay (deferred to a future PR, not blocking) — when zero
+  required keys are configured, show variant C (disclose-style) as a one-time
+  first-install overlay. Skip for now; ship variant B for everyone.
+- [ ] Cut over from the legacy `Settings/index.js` and `AdvancedSettings/index.js`
+  files (preserve them in git history; remove from the import tree).
+- [ ] All new strings (~30) translated EN/FR/ES.
+
+**Deliverable:** PR #10. New Settings panel live behind `experimentalUiC` flag.
+Legacy v2 panel removed.
+
+---
+
+## Phase 9 — Debug panel refresh (≈ 4h)
+
+Goal: replace the legacy v2 Debug overlay with the task-focused navigation
+delivered by Claude Design (same package). Recommended variant: **variant A
+(vertical tab rail)** with the 12 existing sections grouped into 5 task
+buckets (Server / Client / Services / Storage / About).
+
+- [ ] `DebugPanel` — main container, replaces existing `Debug/index.js`.
+  Holds the rail nav + the active bucket's content area.
+- [ ] **Rail navigation** — vertical column on the left, 5 bucket tabs:
+  - **Server** · ServerConfig, ServerKPI, Logs
+  - **Client** · ClientKPI, RemoteClients, Security
+  - **Services** · Provider statuspages, Last service calls, Quotas
+  - **Storage** · In-memory cache, Radar snapshots
+  - **About** · Vulnerability scan
+  - Active tab lit with accent colour + accent-coloured left border.
+  - Rail width: 64 px on 7", 92 px on HD.
+- [ ] Per-bucket content area renders the relevant sections **expanded by
+  default** (no double accordion — once the user picks a bucket, everything
+  inside is visible at a glance).
+- [ ] **Per-section affordances** preserved — Copy / Export CSV / Export JSON /
+  Refresh / Flush buttons sit inline in each section header, right-aligned
+  in mono uppercase style.
+- [ ] **Power-user search overlay** — keyboard shortcut `/` opens a search
+  input over the rail; typing filters sections across all buckets. Off by
+  default; the rail nav is the primary affordance.
+- [ ] Sticky panel header — version + commit + branch + hardware + URLs +
+  online status. Stays visible across bucket switches.
+- [ ] Action row — Refresh / Export CSV / Check for update — kept above the
+  bucket content but rendered as compact buttons in the rail header area.
+- [ ] Cut over from the legacy `Debug/index.js` (preserve in git history;
+  remove from the import tree).
+- [ ] All new strings translated EN/FR/ES.
+- [ ] Fix the stale code comment in `debug-panel.jsx` line ~3 (says
+  "4 task buckets" but should say "5").
+
+**Deliverable:** PR #11. New Debug panel live behind `experimentalUiC` flag.
+Legacy v2 panel removed.
+
+---
+
+## Phase 10 — Release v3.0.0
 
 Goal: ship the major version bump.
 
+- [ ] **Final flag removal** — strip `experimentalUiC` from `settings.json`
+  schema, AppContext, and the conditional in `App.js`. Direction C becomes
+  unconditional.
+- [ ] **Legacy code purge** — delete the legacy `CurrentLayout`,
+  `Settings/index.js`, `AdvancedSettings/index.js`, and `Debug/index.js`
+  files that were preserved through the cycle.
 - [ ] Update `package.json`: `version: "2.13.x"` → `"3.0.0"`.
 - [ ] Rewrite README's "About the version numbers" section to reflect v3 (no longer mentions v2.13).
 - [ ] Replace screenshots in README with v3 captures (multiple themes, scenarios).
@@ -302,6 +392,22 @@ Goal: ship the major version bump.
 - **Prototype:** `project/Pi Weather Station - Prototype.html` — interactive with Tweaks panel.
 - **Comparison canvas:** `project/Pi Weather Station - Designs.html` — Direction C focus,
   A/B archived.
+
+### Settings + Debug refresh package (Phases 8-9)
+
+- **Design package:** `NzSzPtOReHNfiDZzxJMWQA`
+  (download via `curl -L https://api.anthropic.com/v1/design/h/NzSzPtOReHNfiDZzxJMWQA`).
+- **Design brief:** `docs/settings-debug-design-request.md` (in this repo).
+- **Design notes:** `DESIGN-NOTES.md` §12-13 inside the package.
+- **Key files:**
+  - `project/lib/settings-panel.jsx` — Settings 4-section + 3 API-key variants.
+    Recommendation: **variant B (tight list)**.
+  - `project/lib/debug-panel.jsx` — Debug rail nav + 3 nav variants.
+    Recommendation: **variant A (vertical tab rail)**.
+  - `project/lib/admin-data.jsx` — mock data for Settings/Debug scenarios.
+- **Prototype:** `project/Pi Weather Station - Settings & Debug Prototype.html`.
+- **Canvas:** `project/Pi Weather Station - Settings & Debug.html` (3×3 variant
+  grid + edge cases).
 
 ---
 
