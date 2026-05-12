@@ -121,16 +121,28 @@ Each gets its own visual storybook entry and unit tests.
 
 Files: `client/src/components/ambient/` (new directory).
 
-- [ ] `SourceBadge` — RADAR/ECCC/NWS pill.
-- [ ] `ConfidencePill` — `[NN%]` with bucket colour (green ≥70 / amber 40-69 / red <40).
-- [ ] `AlertBanner` — supports cycling (+N), source badge, confidence pill,
-  tap-to-open detail.
-- [ ] `AlertDetailInline` — collapsible section, scroll-area + pinned QR footer,
-  `max-height: calc(100vh - 280px)` cap, `flex: 1; min-height: 0` chain.
-- [ ] `QrCode` — wrapper around `qrcode.react` (already in deps), 96×96 default.
-- [ ] `IndoorBlock` — temp/humidity/AQ trio when Homebridge configured.
-- [ ] `RadarTimeline` — play/pause + scrubber, mirrors current v2 timeline.
-- [ ] Unit tests for each component using Node's native `node:test` (existing convention).
+- [x] `SourceBadge` — RADAR/ECCC/NWS pill.
+- [x] `ConfidencePill` — `[NN%]` with bucket colour (green ≥70 / amber 40-69 / red <40).
+- [x] `AlertBanner` — slab-style with left-edge severity strip; supports
+  cycling (+N), source badge, confidence pill. Pure logic extracted to
+  `ui/alertLogic.js` so both the v2 banner and the Direction C variant
+  render off the same state machine.
+- [x] `AlertDetailInline` — collapsible section, scroll-area + pinned QR
+  footer. `max-height: calc(100vh - 280px)` cap + flex chain preserved
+  from the v2 incident notes (PR #103).
+- [x] `QrCode` — wrapper around `qrcode.react` (already in deps), 96×96
+  default. Palette-aware fg/bg.
+- [x] `IndoorBlock` — temp/humidity/AQ trio when Homebridge configured.
+  Stale data fades the slab instead of v2's alarming red dot.
+- [ ] `RadarTimeline` — **deferred to Phase 3.** It currently lives
+  inline inside `WeatherMap` (a 1099-line file). The clean moment to
+  extract is when Phase 3's `LayoutPi` decides where to anchor the
+  timeline (bottom-left of the map area); doing it earlier would mean
+  guessing the anchor twice.
+- [x] Unit tests via Node's native `node:test`: 16 tests for
+  `ui/hybrid.js` (confidenceBucket boundaries + hybridLevel severity
+  precedence), 18 tests for `ui/alertLogic.js` (SHOW gate, bumped vs
+  drifting, confidence softening, source-ring selection).
 
 **Deliverable:** PR #3-#4 (split if needed for review size). Shared components
 available, tested, ready to be composed into layouts.
@@ -142,6 +154,12 @@ available, tested, ready to be composed into layouts.
 Goal: implement the small-screen layout (800×480 and similar). This is the most
 sensitive target — the official Pi 7" touchscreen most users have.
 
+- [ ] **`RadarTimeline` (carried over from Phase 2)** — extract the
+  scrubber + play/pause currently inlined inside `WeatherMap`. Define
+  its own component file under `components/ambient/RadarTimeline/`,
+  consume the radar frame state from AppContext, render against the
+  warm-grey palette. Anchor it bottom-left of the map area as part of
+  this phase's layout work.
 - [ ] `LayoutPi` — split 70/30 grid with `mapW = w - colW`, collapsible right
   column, full-width 52px dock.
 - [ ] `HeroCompact` — combined location + temperature + description + wind in
