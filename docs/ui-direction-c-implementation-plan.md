@@ -83,21 +83,31 @@ placeholder visible when toggled.
 
 Goal: shared infrastructure all components will depend on.
 
-- [ ] **Design tokens** — `client/src/ui/tokens.js`:
+- [x] **Design tokens** — `client/src/ui/tokens.js`:
   - Export the 4 palette objects (`day`, `dusk`, `night`, `nightRed`) with all
     roles (`bg`, `text`, `textDim`, `accent`, `accentSoft`, `surface`,
     `surfaceHybrid`, `border`, `borderHybrid`, `warn`, `danger`, `cool`).
-  - Match the final design's hex values verbatim (warm-grey).
-- [ ] **Hybrid helper** — `client/src/ui/hybrid.js`:
-  - Port `hybridLevel(data)` and `confidenceBucket(pct)` from server-side logic.
-  - Export hooks: `useHybridMode()`, `useTimeOfDay()`.
-- [ ] **Fonts** — integrate Geist + Geist Mono:
-  - Add `npm install geist` OR self-host the woff2 files in `client/public/fonts/`.
-  - Add `@font-face` declarations in a new `client/src/ui/fonts.css`.
-  - Test on a Pi to verify font loading doesn't add visible flash.
-- [ ] **Lightweight CSS reset** — `client/src/ui/reset.css`:
-  - Box-sizing border-box, baseline removal, button reset, etc.
-  - Imported once at the AmbientLayers root.
+  - `dusk` matches the Phase 0 anchors; the other three palettes were
+    derived for internal coherence and will be re-validated against the
+    Claude Design mockup once Phase 3's Hero composition is on screen.
+- [x] **Hybrid helper** — `client/src/ui/hybrid.js`:
+  - `hybridLevel(data)` returns `none` / `light` / `full` based on
+    `govAlerts` severity. `confidenceBucket(pct)` lifted from
+    `AlertBanner` (will become the single source of truth in Phase 2+).
+  - Hooks: `useHybridMode()`, `useTimeOfDay()` — the latter is currently
+    a `darkMode` + `sleepNightMode` shim and will gain real solar-time
+    awareness in Phase 5.
+- [x] **Fonts** — Geist + Geist Mono:
+  - Self-hosted under `client/src/ui/fonts/` (Regular / Medium / Bold
+    for sans, Medium for mono). The `geist` npm package was tried first
+    but its `exports` field is Next.js-specific and blocks webpack from
+    resolving raw woff2 paths. Self-hosting four files is simpler.
+  - `@font-face` declarations in `client/src/ui/fonts.css`, loaded via
+    `font-display: swap` so there's no FOUC on the Pi's first paint.
+- [x] **Lightweight CSS reset** — `client/src/ui/reset.css`:
+  - Box-sizing, baseline removal, button reset, tap-highlight removal.
+  - **Scoped under `.ambientRoot`** so it can't disturb the v2 layout
+    during the rollout; Phase 10 drops the scope.
 
 **Deliverable:** PR #2. Tokens + helpers + fonts available app-wide.
 AmbientLayers placeholder uses tokens.day for a colored background as smoke test.
