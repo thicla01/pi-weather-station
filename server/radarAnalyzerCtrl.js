@@ -1213,4 +1213,13 @@ async function getRiskLevels(lat, lon, options = {}) {
   return result;
 }
 
-module.exports = { analyzeRadar, getRiskLevels };
+module.exports = {
+  analyzeRadar, getRiskLevels,
+  // Exported for regression testing only — internal helpers, not part
+  // of the public surface. See test/radarTrend.test.js.
+  __test: {
+    computePerDirectionTrends,
+    summarizeRingTrend,
+    computeTrendConfidence,
+  },
+};

@@ -21,6 +21,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- **Minimal test suite for the radar trend pipeline** — first automated tests on the project. `test/radarTrend.test.js` encodes the three live cases that shaped the v2.13 trend overhaul (Sorel approaching, Stratford drifting, Beauce-Sartigan intensification-in-place) as regression assertions, plus coverage of `summarizeRingTrend` intensity-weighted tie-breaks and `computeTrendConfidence` scoring. 12 assertions, ~140 ms total. Runs via `npm test` using Node's built-in `node --test` runner — no test framework dependency. Internal helpers exposed via a `__test` export on `radarAnalyzerCtrl` so the public surface stays clean. New `### Tests` section added to `CLAUDE.md` documenting the convention.
+
+### Changed
+- **README mentions v2.13 alert features in the layout description** — the screenshot caption block now calls out the leading source badge (`RADAR` / `ECCC` / `NWS`), the optional confidence pill (green / amber / red), tap-to-cycle through multiple gov alerts, the collapsible alert-detail section with the kiosk-safe QR code, and the optional direction-arrow overlay on the map. Debug-panel feature list grew an entry for the new "Radar snapshots" section (last 10 AI-summary radar payloads + per-snapshot Copy + section-level Export JSON + inline failure-reason capture).
+
 ---
 
 ## [2.13.0] - 2026-05-11
