@@ -5,6 +5,7 @@
    enable it. */
 
 .container {
+  position: relative;
   width: 100%;
   height: 100dvh;
   display: flex;
@@ -63,4 +64,15 @@
   border-radius: 3px;
   margin: 0 4px;
   color: #d8d4cc;
+}
+
+/* Phase 0 escape hatch — float ControlButtons in the bottom-right so
+   the Settings gear (and dark-mode / debug / update icons) remain
+   reachable while the placeholder is showing. Phase 8 replaces this
+   with the redesigned BottomDock. */
+.controlsDock {
+  position: absolute;
+  right: 16px;
+  bottom: 16px;
+  z-index: 10;
 }

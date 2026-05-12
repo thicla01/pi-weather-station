@@ -1,5 +1,6 @@
 import React from "react";
 import styles from "./styles.css";
+import ControlButtons from "~/components/ControlButtons";
 
 /**
  * Placeholder for Direction C — Ambient Layers.
@@ -30,6 +31,14 @@ const AmbientLayers = () => (
         <code className={styles.code}>Direction C UI preview</code>
         off in Settings → Advanced (visible only when DEBUG=true).
       </div>
+    </div>
+    {/* Phase 0 escape hatch — ControlButtons normally lives inside the
+        v2 InfoPanel, which is unmounted while the experimental flag is
+        on. Render it here so the user can still reach Settings (and the
+        toggle to switch back) until Phase 8 introduces the redesigned
+        BottomDock. */}
+    <div className={styles.controlsDock}>
+      <ControlButtons />
     </div>
   </div>
 );
