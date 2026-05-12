@@ -1,0 +1,33 @@
+/* BottomDock — slab pinned at the bottom of the LayoutPi screen.
+ *
+ * The inner ControlButtons component brings its own flex layout for
+ * the icons; this wrapper just gives it a uniform background, padding,
+ * and a top border so the dock reads as separate from the content
+ * above it. Touch-friendly height: 52px target (44px icon + 8px
+ * padding above/below). */
+
+.dock {
+  background-color: var(--c-surface);
+  border-top: 1px solid var(--c-border);
+  padding: 8px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 52px;
+  color: var(--c-text);
+}
+
+/* Reach into the existing ControlButtons markup to bring its colour
+ * scheme in line with the warm-grey tokens. The component's own CSS
+ * paints the icons against the v2 colour palette; without these
+ * overrides the icons read in v2 cream/anthracite rather than the
+ * Direction C accent. Scoped under .dock so v2 ControlButtons usage
+ * elsewhere is untouched. */
+.dock :global(svg) {
+  color: var(--c-text);
+}
+
+.dock :global(div):hover :global(svg),
+.dock :global(div):focus-visible :global(svg) {
+  color: var(--c-accent);
+}
