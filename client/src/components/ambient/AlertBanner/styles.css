@@ -1,0 +1,77 @@
+/* Direction C AlertBanner — slab-style with left-edge severity strip.
+ *
+ * The strip is the visual "loud" element; the rest of the banner stays
+ * calm against the warm-grey surface. This is deliberately different
+ * from v2's full-banner colour wash — at kiosk distance the strip is
+ * just as visible as the full wash, but reading the title back is
+ * easier without competing against a saturated background. */
+
+.banner {
+  position: relative;
+  background-color: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  padding: 12px 14px 12px 18px;
+  color: var(--c-text);
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+}
+
+/* Severity strip — absolute-positioned along the left edge so the slab
+ * itself stays a uniform colour. 4px wide on touchscreen, comfortably
+ * visible at a glance without dominating the slab. */
+.banner::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background-color: var(--c-cool); /* default for unknown tiers */
+}
+
+.tier-orange::before {
+  background-color: var(--c-warn);
+}
+
+.tier-red::before {
+  background-color: var(--c-danger);
+}
+
+.chips {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-bottom: 6px;
+}
+
+.title {
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.4;
+}
+
+.cyclable {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cyclable:hover,
+.cyclable:focus-visible {
+  background-color: var(--c-surface-hybrid);
+  outline: none;
+}
+
+/* "+N" cycle indicator — same pill family as SourceBadge so the chip
+ * row reads as a coherent cluster, but tinted with the active accent
+ * to nudge the eye toward "this is interactive". */
+.cycleBadge {
+  display: inline-block;
+  background-color: var(--c-accent-soft);
+  color: var(--c-accent);
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.4px;
+  padding: 2px 7px;
+  border-radius: 3px;
+  vertical-align: 1px;
+}

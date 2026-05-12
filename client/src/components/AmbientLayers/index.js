@@ -6,6 +6,9 @@ import { useTimeOfDay, useHybridMode } from "~/ui/hybrid";
 import SourceBadge from "~/components/ambient/SourceBadge";
 import ConfidencePill from "~/components/ambient/ConfidencePill";
 import QrCode from "~/components/ambient/QrCode";
+import AmbientAlertBanner from "~/components/ambient/AlertBanner";
+import AlertDetailInline from "~/components/ambient/AlertDetailInline";
+import IndoorBlock from "~/components/ambient/IndoorBlock";
 
 // Global stylesheets — fonts (@font-face declarations) and the
 // scoped CSS reset. Imported via raw style-loader so they emit
@@ -95,6 +98,16 @@ const AmbientLayers = () => {
         </div>
         <div className={styles.smokeRow}>
           <QrCode value="https://github.com/thicla01/pi-weather-station" title="Project repo" />
+        </div>
+        {/* Phase 2b smoke test — the three composite slabs render in
+            their proper place against the warm-grey surface. Show-gate
+            logic still applies: AlertBanner / AlertDetailInline only
+            appear when a real alert is active, IndoorBlock only when
+            Homebridge is configured. */}
+        <div className={styles.compositeStack}>
+          <AmbientAlertBanner />
+          <AlertDetailInline />
+          <IndoorBlock />
         </div>
         <div className={styles.footer}>
           To return to the v2 layout, toggle

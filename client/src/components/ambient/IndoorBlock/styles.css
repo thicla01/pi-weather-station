@@ -1,0 +1,83 @@
+/* IndoorBlock — slab grouping indoor temp + humidity + AQ.
+ *
+ * Layout: stacked label / hero temperature / meta row. The slab uses
+ * the standard warm-grey surface; nothing here is loud unless the
+ * reading is stale (in which case the whole slab fades). */
+
+.slab {
+  background-color: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  color: var(--c-text);
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
+}
+
+.label {
+  font-size: 11px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  color: var(--c-text-dim);
+  margin-bottom: 4px;
+}
+
+.tempRow {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-bottom: 8px;
+}
+
+.tempValue {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 28px;
+  font-weight: 500;
+  letter-spacing: -0.5px;
+  line-height: 1;
+}
+
+.tempUnit {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--c-text-dim);
+}
+
+.meta {
+  display: flex;
+  gap: 14px;
+  flex-wrap: wrap;
+  font-size: 13px;
+}
+
+.metaItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--c-text-dim);
+}
+
+/* AQ status dot — coloured fill scaled to the active palette's
+ * semantic tokens. The five AQ buckets follow the Homebridge
+ * `homebridge-air-quality-sensor` convention. */
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background-color: var(--c-text-dim);
+}
+
+.aq-1 { background-color: #4ade80; }              /* excellent → green */
+.aq-2 { background-color: var(--c-accent); }      /* good → accent */
+.aq-3 { background-color: var(--c-warn); }        /* fair → warn */
+.aq-4 { background-color: var(--c-danger); }      /* inferior → danger */
+.aq-5 { background-color: var(--c-danger); filter: brightness(0.7); } /* poor */
+
+/* Stale data — slab fades to half opacity but stays visible so the
+ * user can see the last good reading. v2 used a red dot indicator;
+ * Direction C uses opacity for calmer signalling — the kiosk runs
+ * 24/7 and we don't want stale sensor data to look alarming. */
+.stale {
+  opacity: 0.5;
+}
