@@ -66,7 +66,10 @@
       "sleepStage2DelayHint": "Délai après l'apparition de l'horloge avant le passage à l'écran noir. Le rétroéclairage descend à zéro (dans la mesure où le panneau l'accepte).",
       "sleepNightMode": "Texte rouge la nuit",
       "sleepNightModeHint": "Quand le mode sombre est actif, utilise un texte rouge au lieu du beige. La lumière rouge à grande longueur d'onde a un impact minimal sur la mélatonine — plus indulgent dans une chambre ou un couloir visible la nuit.",
-      "sleepMinutes": "{{count}} min"
+      "sleepMinutes": "{{count}} min",
+      "experimentalGroup": "Expérimental",
+      "experimentalUiC": "Aperçu interface Direction C",
+      "experimentalUiCHint": "Bascule vers la nouvelle interface Ambient Layers (aperçu v3.0.0). Visible seulement lorsque DEBUG est activé, pendant le cycle de développement. Désactivé par défaut — l'interface v2 reste la production par défaut tant que le cycle ne s'est pas stabilisé."
     }
   },
   "weather": {

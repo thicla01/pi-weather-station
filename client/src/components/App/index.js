@@ -5,6 +5,7 @@ import { AppContext } from "~/AppContext";
 
 import WeatherMap from "~/components/WeatherMap";
 import InfoPanel from "~/components/InfoPanel";
+import AmbientLayers from "~/components/AmbientLayers";
 import Settings from "~/components/Settings";
 import Debug from "~/components/Debug";
 import UpdateModal from "~/components/UpdateModal";
@@ -47,6 +48,7 @@ const App = () => {
     brightnessAvailable,
     brightnessPercent,
     brightnessMinPercent,
+    experimentalUiC,
   } = useContext(AppContext);
 
   // Idle detection drives the screensaver. The hook is a no-op when
@@ -160,15 +162,26 @@ const App = () => {
         mouseHide ? styles.hideMouse : ""
       }`}
     >
+      {/* Phase 0 of the v3.0.0 UI refresh — when the experimental flag
+          is on, render the new Ambient Layers entry point (today a
+          placeholder; Phase 1+ will fill it in). Settings, Debug, and
+          UpdateModal stay mounted in both layouts so the flag is
+          toggleable from inside the experimental UI too. The legacy
+          WeatherMap + InfoPanel grid is preserved unchanged in the
+          else branch so the v2 experience survives across the cycle.
+          See `docs/ui-direction-c-implementation-plan.md`. */}
+      <div className={styles.settingsContainer}>
+        <Settings />
+        <Debug />
+      </div>
+      <UpdateModal />
+      {experimentalUiC ? (
+        <AmbientLayers />
+      ) : (
       <div
         className={styles.container}
         style={{ gridTemplateColumns, "--info-col-width": `${panelWidthPx}px` }}
       >
-        <div className={styles.settingsContainer}>
-          <Settings />
-          <Debug />
-        </div>
-        <UpdateModal />
         <div
           className={`${styles.weatherMap} map-container ${
             mouseHide ? "map-mouse-hide" : ""
@@ -191,6 +204,7 @@ const App = () => {
           <InfoPanel />
         </div>
       </div>
+      )}
       {/* Sleep-mode overlay — rendered outside the main grid so it
           covers everything (settings, debug, info panel) when active.
           Stage 0 = unmounted entirely. */}

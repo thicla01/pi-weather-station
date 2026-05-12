@@ -84,6 +84,16 @@ export function AppContextProvider({ children }) {
   // templated summary. Default on; opt-out via Advanced settings → AI
   // weather summary → "Calm-day fast path".
   const [calmDayFastPath, setCalmDayFastPath] = useState(true);
+  // Experimental sub-tree (advanced.experimental.* in settings.json).
+  // Hosts feature flags for opt-in beta functionality. The first inhabitant
+  // is `experimentalUiC` — toggles the new Direction C UI placeholder
+  // (later: the full Ambient Layers composition). Default off so existing
+  // installs see the v2 layout unchanged until the cycle stabilises and
+  // the flag is flipped at v3.0.0. Toggle exposed in Advanced settings,
+  // gated by DEBUG=true during the development phase (May-June 2026),
+  // and surfaced for everyone once Phase 8 (Settings panel refresh) lands.
+  // See `docs/ui-direction-c-implementation-plan.md` for the full rollout.
+  const [experimentalUiC, setExperimentalUiC] = useState(false);
   // Display sub-tree (advanced.display.* in settings.json).
   // lightModeStyle / darkModeStyle drive the Mapbox style for each theme.
   // For light mode, the panel background tint also follows via the
@@ -680,6 +690,15 @@ export function AppContextProvider({ children }) {
                 setCalmDayFastPath(Boolean(advancedAi.calmDayFastPath));
               }
             }
+            // Experimental sub-tree — opt-in feature flags. The first
+            // one is experimentalUiC (Direction C UI preview, Phase 0+
+            // of the v3.0.0 rollout). Defaults to false; ignored unless
+            // present in the payload. See
+            // `docs/ui-direction-c-implementation-plan.md`.
+            const advancedExperimental = res.advanced && res.advanced.experimental;
+            if (advancedExperimental) {
+              setExperimentalUiC(Boolean(advancedExperimental.uiC));
+            }
             const advancedDisplay = res.advanced && res.advanced.display;
             if (advancedDisplay) {
               if (advancedDisplay.lightModeStyle) {
@@ -1129,8 +1148,9 @@ export function AppContextProvider({ children }) {
       [key]: value,
     };
     const nextDisplay = { lightModeStyle, darkModeStyle, radarOpacityLight, radarOpacityDark };
+    const nextExperimental = { uiC: experimentalUiC };
     return axios
-      .patch("/setting", { key: "advanced", val: { ai: nextAi, display: nextDisplay, sleep: buildSleepSubtree() } })
+      .patch("/setting", { key: "advanced", val: { ai: nextAi, display: nextDisplay, sleep: buildSleepSubtree(), experimental: nextExperimental } })
       .then(() => {
         if (key === "radarAnalysisEnabled") setRadarAnalysisEnabled(value);
         if (key === "extendedRadius") setExtendedRadarRadius(value);
@@ -1155,8 +1175,9 @@ export function AppContextProvider({ children }) {
       showSamplingPoints,
       calmDayFastPath,
     };
+    const nextExperimental = { uiC: experimentalUiC };
     return axios
-      .patch("/setting", { key: "advanced", val: { ai: nextAi, display: nextDisplay, sleep: buildSleepSubtree() } })
+      .patch("/setting", { key: "advanced", val: { ai: nextAi, display: nextDisplay, sleep: buildSleepSubtree(), experimental: nextExperimental } })
       .then(() => {
         if (key === "lightModeStyle") setLightModeStyle(value);
         if (key === "darkModeStyle") setDarkModeStyle(value);
@@ -1186,8 +1207,9 @@ export function AppContextProvider({ children }) {
       calmDayFastPath,
     };
     const nextDisplay = { lightModeStyle, darkModeStyle, radarOpacityLight, radarOpacityDark };
+    const nextExperimental = { uiC: experimentalUiC };
     return axios
-      .patch("/setting", { key: "advanced", val: { ai: nextAi, display: nextDisplay, sleep: nextSleep } })
+      .patch("/setting", { key: "advanced", val: { ai: nextAi, display: nextDisplay, sleep: nextSleep, experimental: nextExperimental } })
       .then(() => {
         if (key === "enabled") setSleepEnabled(value);
         if (key === "stage1Delay") setSleepStage1Delay(value);
@@ -1195,6 +1217,36 @@ export function AppContextProvider({ children }) {
         if (key === "stage2Enabled") setSleepStage2Enabled(value);
         if (key === "stage2Delay") setSleepStage2Delay(value);
         if (key === "nightMode") setSleepNightMode(value);
+      });
+  }
+
+  /**
+   * Persist a single advanced.experimental.* flag. Same instant-save
+   * pattern as the other saveAdvanced*Flag helpers — toggles flip
+   * immediately and write the full advanced tree so unrelated branches
+   * aren't clobbered.
+   *
+   * Phase 0 of the v3.0.0 rollout (see
+   * `docs/ui-direction-c-implementation-plan.md`). Today the only key
+   * is `uiC`; future experimental flags land alongside.
+   *
+   * @param {String} key one of "uiC"
+   * @param {Boolean} value new value
+   * @returns {Promise} Resolves when saved
+   */
+  function saveAdvancedExperimentalFlag(key, value) {
+    const nextExperimental = { uiC: experimentalUiC, [key]: value };
+    const nextAi = {
+      radarAnalysisEnabled,
+      extendedRadius: extendedRadarRadius,
+      showSamplingPoints,
+      calmDayFastPath,
+    };
+    const nextDisplay = { lightModeStyle, darkModeStyle, radarOpacityLight, radarOpacityDark };
+    return axios
+      .patch("/setting", { key: "advanced", val: { ai: nextAi, display: nextDisplay, sleep: buildSleepSubtree(), experimental: nextExperimental } })
+      .then(() => {
+        if (key === "uiC") setExperimentalUiC(value);
       });
   }
 
@@ -1348,6 +1400,8 @@ export function AppContextProvider({ children }) {
     sleepStage2Delay,
     sleepNightMode,
     saveAdvancedSleepFlag,
+    experimentalUiC,
+    saveAdvancedExperimentalFlag,
     setMapPosition,
     resetMapPosition,
     panToCoords,

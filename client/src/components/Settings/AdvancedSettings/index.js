@@ -122,6 +122,9 @@ const AdvancedSettings = ({ readOnly }) => {
     sleepStage2Delay,
     sleepNightMode,
     saveAdvancedSleepFlag,
+    experimentalUiC,
+    saveAdvancedExperimentalFlag,
+    debugEnabled,
   } = useContext(AppContext);
   const [open, setOpen] = useState(false);
   const sectionRef = useRef(null);
@@ -466,6 +469,35 @@ const AdvancedSettings = ({ readOnly }) => {
                 <InlineToggle
                   value={sleepNightMode}
                   onChange={(v) => saveAdvancedSleepFlag("nightMode", v)}
+                  onLabel={t("settings.on")}
+                  offLabel={t("settings.off")}
+                  readOnly={readOnly}
+                />
+              </div>
+            </>
+          )}
+
+          {/* Experimental group — DEBUG=true only during the v3.0.0
+              rollout (Phase 0+). Once Phase 8 (Settings refresh) lands,
+              this group migrates into the new "Expérimental" section
+              and becomes visible to all local users. Hidden entirely
+              for remote and for production kiosks until then.
+              See `docs/ui-direction-c-implementation-plan.md`. */}
+          {debugEnabled && (
+            <>
+              <div className={styles.groupLabel} style={{ marginTop: "1em" }}>
+                {t("settings.advanced.experimentalGroup")}
+              </div>
+              <div className={styles.row}>
+                <div className={styles.rowLabel}>
+                  {t("settings.advanced.experimentalUiC")}
+                  <span className={styles.rowHint}>
+                    {t("settings.advanced.experimentalUiCHint")}
+                  </span>
+                </div>
+                <InlineToggle
+                  value={experimentalUiC}
+                  onChange={(v) => saveAdvancedExperimentalFlag("uiC", v)}
                   onLabel={t("settings.on")}
                   offLabel={t("settings.off")}
                   readOnly={readOnly}
