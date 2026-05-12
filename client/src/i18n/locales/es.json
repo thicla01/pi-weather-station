@@ -66,7 +66,10 @@
       "sleepStage2DelayHint": "Tiempo después de aparecer el reloj antes de pasar a la etapa de pantalla negra. El backlight baja a cero (en la medida que el panel lo acepte).",
       "sleepNightMode": "Texto rojo de noche",
       "sleepNightModeHint": "Cuando el modo oscuro está activo, usa texto rojo en lugar de crema. La luz roja de longitud de onda larga tiene impacto mínimo en la melatonina — más amable en un dormitorio o pasillo visible de noche.",
-      "sleepMinutes": "{{count}} min"
+      "sleepMinutes": "{{count}} min",
+      "experimentalGroup": "Experimental",
+      "experimentalUiC": "Vista previa interfaz Dirección C",
+      "experimentalUiCHint": "Cambia a la nueva interfaz Ambient Layers (vista previa v3.0.0). Visible solo cuando DEBUG está activado, durante el ciclo de desarrollo. Desactivada por defecto — la interfaz v2 sigue siendo la predeterminada hasta que el ciclo se estabilice."
     }
   },
   "weather": {

@@ -66,7 +66,10 @@
       "sleepStage2DelayHint": "Time after the screensaver appears before switching to the black-screen stage. The backlight is dropped fully off (where the panel allows it).",
       "sleepNightMode": "Red text at night",
       "sleepNightModeHint": "When dark mode is active, use red-tinted text instead of cream. Long-wavelength red light has minimal impact on melatonin — friendlier in a bedroom or hallway visible at night.",
-      "sleepMinutes": "{{count}} min"
+      "sleepMinutes": "{{count}} min",
+      "experimentalGroup": "Experimental",
+      "experimentalUiC": "Direction C UI preview",
+      "experimentalUiCHint": "Switch to the new Ambient Layers interface (v3.0.0 preview). Visible only when DEBUG is on, during the rollout cycle. Off by default — the v2 interface stays the production default until the cycle stabilises."
     }
   },
   "weather": {
