@@ -66,14 +66,29 @@ See [CHANGELOG.md](./CHANGELOG.md) for full release notes per version, and the
 [GitHub Releases](https://github.com/thicla01/pi-weather-station/releases) page
 for tagged releases.
 
-> **v1 → v2 note:** v2 switched from the ClimaCell API to Tomorrow.io after
-> ClimaCell rebranded to Tomorrow.io in late 2020 and retired its v3 API
-> shortly after. The historical
-> [Pi Weather Station v1](https://github.com/elewin/pi-weather-station/releases/tag/v1.0)
-> tag remains available as an archive of the original upstream fork by
-> [@elewin](https://github.com/elewin), but **its weather calls no longer
-> respond** — the v3 endpoints have been shut down for years, so v1 starts
-> up but never gets data. Use v2 (this branch).
+> **About the version numbers:** Two active repositories share the same origin:
+>
+> - [**elewin/pi-weather-station**](https://github.com/elewin/pi-weather-station)
+>   — the original repository, currently at **v3.x**
+>   (development resumed in 2026 after a multi-year hiatus).
+> - **This fork**
+>   ([thicla01](https://github.com/thicla01/pi-weather-station))
+>   — actively developed since 2026, currently at **v2.13.x**.
+>   All the v2 features described in the screenshots above
+>   (AI summary, severe-alert banners with cycling, direction-arrow
+>   overlay, RADAR confidence pill, gov-alert detail section with
+>   QR code, etc.) were built in this fork.
+>
+> Version numbers don't map between the two — @elewin's line reaches
+> v3.x on its track, this fork extended the v2.x line forward
+> independently.
+>
+> The historical
+> [v1 tag](https://github.com/elewin/pi-weather-station/releases/tag/v1.0)
+> in either repo predates Tomorrow.io and **no longer fetches weather**
+> — ClimaCell (the predecessor API) retired its v3 endpoints in late
+> 2020 after rebranding to Tomorrow.io. Pick whichever fork matches the
+> features you want.
 
 # Setup
 
