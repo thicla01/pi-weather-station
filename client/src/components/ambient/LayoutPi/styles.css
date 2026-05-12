@@ -1,0 +1,59 @@
+/* LayoutPi — orchestrates the Pi 7"/10" composition.
+ *
+ * CSS Grid with three rows × two columns:
+ *   row 1 (1fr):    map | rail  ← the visible work area
+ *   row 2 (auto):   dock spans both columns  ← controls
+ *
+ * The rail width scales with viewport: 300px on smaller Pi screens,
+ * 340px when there's room. The map fills the remaining space and
+ * goes edge-to-edge inside its cell so the radar always feels
+ * full-bleed even when the rail is visible. */
+
+.layout {
+  display: grid;
+  grid-template-columns: 1fr 300px;
+  grid-template-rows: 1fr auto;
+  width: 100%;
+  height: 100dvh;
+  background-color: var(--c-bg);
+  color: var(--c-text);
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+}
+
+@media (min-width: 1280px) {
+  .layout {
+    grid-template-columns: 1fr 340px;
+  }
+}
+
+.mapArea {
+  position: relative;
+  grid-column: 1;
+  grid-row: 1;
+  background-color: var(--c-bg);
+  overflow: hidden;
+}
+
+/* The rail is the right column. Scrolls internally if its contents
+ * grow past the row height — long ECCC alerts can stack with indoor
+ * data on a 7" screen and we'd rather scroll than truncate. Padding
+ * gives the slabs breathing room without depending on each component
+ * to bring its own outer margin. */
+.rail {
+  grid-column: 2;
+  grid-row: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 12px;
+  overflow-y: auto;
+  border-left: 1px solid var(--c-border);
+  background-color: var(--c-bg);
+}
+
+/* BottomDock cell spans both columns. */
+.layout > :last-child {
+  grid-column: 1 / -1;
+  grid-row: 2;
+}

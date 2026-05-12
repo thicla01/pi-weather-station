@@ -1,117 +1,15 @@
-/* Phase 1 placeholder styles. Driven by CSS custom properties mirrored
- * from `~/ui/tokens.js` — switch palettes in `useTimeOfDay()` and this
- * surface follows along without any change to the component.
- *
- * The card layout will be replaced wholesale in Phase 2+ (real Ambient
- * Layers composition); these rules exist to prove the foundation is
- * wired correctly. */
+/* Root container for the Direction C surface. Just a flex root that
+ * lets LayoutPi (and eventually LayoutDesktop) fill the viewport and
+ * pulls in the active palette via CSS custom properties set by the
+ * inline style. All visual treatment lives in the layout/component
+ * stylesheets — this file intentionally stays minimal. */
 
 .container {
   position: relative;
   width: 100%;
   height: 100dvh;
-  display: flex;
-  align-items: center;
-  justify-content: center;
   background-color: var(--c-bg);
   color: var(--c-text);
   font-family: "Geist", system-ui, -apple-system, sans-serif;
-  padding: 24px;
-}
-
-.card {
-  max-width: 520px;
-  padding: 32px;
-  background-color: var(--c-surface);
-  border: 1px solid var(--c-border);
-  border-left: 4px solid var(--c-accent);
-  border-radius: 12px;
-}
-
-.title {
-  font-size: 22px;
-  font-weight: 700;
-  letter-spacing: -0.3px;
-  margin-bottom: 4px;
-}
-
-.subtitle {
-  font-size: 12px;
-  font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 1.2px;
-  color: var(--c-text-dim);
-  margin-bottom: 24px;
-}
-
-.body {
-  font-size: 14px;
-  font-weight: 400;
-  line-height: 1.55;
-  margin-bottom: 20px;
-}
-
-.swatchRow {
-  display: flex;
-  gap: 10px;
-  margin-bottom: 24px;
-}
-
-.swatch {
-  width: 32px;
-  height: 32px;
-  border-radius: 6px;
-  border: 1px solid var(--c-border);
-}
-
-.swatchOutline {
-  border: 1px solid var(--c-border-hybrid);
-}
-
-/* Smoke-test row for Phase 2a atomic components — flex with gap so
- * SourceBadge / ConfidencePill / QrCode line up cleanly regardless of
- * intrinsic size. Removed once the real Hero composition takes over. */
-.smokeRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  flex-wrap: wrap;
-  margin-bottom: 16px;
-}
-
-/* Composite slabs stack vertically with a small gap so each one can
- * be eyeballed on its own. Replaced wholesale by Phase 3's real layout. */
-.compositeStack {
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
-  margin-bottom: 16px;
-}
-
-.footer {
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--c-text-dim);
-  border-top: 1px solid var(--c-border);
-  padding-top: 16px;
-}
-
-.code {
-  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  font-size: 11px;
-  font-weight: 500;
-  background-color: var(--c-accent-soft);
-  padding: 1px 6px;
-  border-radius: 3px;
-  margin: 0 4px;
-  color: var(--c-text);
-}
-
-/* Floating ControlButtons dock — see comment in AmbientLayers/index.js.
- * Removed by Phase 8 when the redesigned BottomDock ships. */
-.controlsDock {
-  position: absolute;
-  right: 16px;
-  bottom: 16px;
-  z-index: 10;
+  overflow: hidden;
 }

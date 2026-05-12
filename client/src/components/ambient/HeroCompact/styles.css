@@ -1,0 +1,73 @@
+/* HeroCompact — anchors the right rail. Big temperature numeral
+ * paired with the weather icon; location above, description below.
+ * The numeral is in Geist Mono so the right-aligned digits stay
+ * column-locked when the temperature flips between e.g. 7° and 14°
+ * (without mono, the kerning between '7' and '1'+'4' nudges the
+ * unit label sideways — distracting at kiosk distance). */
+
+.slab {
+  background-color: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: 10px;
+  padding: 16px 18px 14px 18px;
+  color: var(--c-text);
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
+}
+
+.empty {
+  min-height: 110px;
+}
+
+.location {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--c-text-dim);
+  margin-bottom: 8px;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+}
+
+/* The internal LocationName component brings its own pin icon — keep
+ * its container inline so it doesn't break the row alignment. */
+.location > div { display: inline-flex; align-items: center; gap: 4px; }
+
+.tempRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.tempBlock {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+}
+
+.tempValue {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 56px;
+  font-weight: 500;
+  letter-spacing: -1.5px;
+  line-height: 1;
+}
+
+.tempUnit {
+  font-size: 22px;
+  font-weight: 500;
+  color: var(--c-text-dim);
+}
+
+.iconBlock {
+  font-size: 56px;
+  color: var(--c-accent);
+  line-height: 1;
+  flex-shrink: 0;
+}
+
+.description {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--c-text);
+  margin-top: 8px;
+}
