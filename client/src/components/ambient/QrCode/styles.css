@@ -1,0 +1,12 @@
+/* QrCode — kiosk-friendly QR wrapper.
+ *
+ * The flex container keeps the SVG square and centred regardless of
+ * the parent's intrinsic alignment, and gives us a place to add a
+ * border or padding later without changing the SVG itself. */
+
+.wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  line-height: 0;
+}

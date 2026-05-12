@@ -68,6 +68,17 @@
   border: 1px solid var(--c-border-hybrid);
 }
 
+/* Smoke-test row for Phase 2a atomic components — flex with gap so
+ * SourceBadge / ConfidencePill / QrCode line up cleanly regardless of
+ * intrinsic size. Removed once the real Hero composition takes over. */
+.smokeRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+
 .footer {
   font-size: 12px;
   line-height: 1.5;

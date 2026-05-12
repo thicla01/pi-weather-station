@@ -3,6 +3,9 @@ import styles from "./styles.css";
 import ControlButtons from "~/components/ControlButtons";
 import { getPalette } from "~/ui/tokens";
 import { useTimeOfDay, useHybridMode } from "~/ui/hybrid";
+import SourceBadge from "~/components/ambient/SourceBadge";
+import ConfidencePill from "~/components/ambient/ConfidencePill";
+import QrCode from "~/components/ambient/QrCode";
 
 // Global stylesheets — fonts (@font-face declarations) and the
 // scoped CSS reset. Imported via raw style-loader so they emit
@@ -77,6 +80,21 @@ const AmbientLayers = () => {
           <span className={styles.swatch} style={{ background: palette.danger }} title="danger" />
           <span className={styles.swatch} style={{ background: palette.cool }} title="cool" />
           <span className={`${styles.swatch} ${styles.swatchOutline}`} style={{ background: palette.surface }} title="surface" />
+        </div>
+        {/* Phase 2a smoke test — verify the three atomic components
+            (SourceBadge, ConfidencePill, QrCode) render correctly
+            against the active palette. Replaced wholesale in Phase 3
+            when these get composed into the real Hero / AlertBanner. */}
+        <div className={styles.smokeRow}>
+          <SourceBadge source="RADAR" />
+          <SourceBadge source="ECCC" />
+          <SourceBadge source="NWS" />
+          <ConfidencePill confidence={85} />
+          <ConfidencePill confidence={55} />
+          <ConfidencePill confidence={25} />
+        </div>
+        <div className={styles.smokeRow}>
+          <QrCode value="https://github.com/thicla01/pi-weather-station" title="Project repo" />
         </div>
         <div className={styles.footer}>
           To return to the v2 layout, toggle

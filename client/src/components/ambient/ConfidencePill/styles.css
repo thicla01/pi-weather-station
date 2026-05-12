@@ -1,0 +1,39 @@
+/* ConfidencePill — bucket-coloured percentage pill.
+ *
+ * Mirrors SourceBadge's geometry on purpose so the two stack into a
+ * single chip-cluster. Bucket colours come from the active palette:
+ *   - high  → accent-soft (warm amber tint, calm "things are fine")
+ *   - mid   → warn at low alpha
+ *   - low   → danger at low alpha
+ * The low-alpha pattern keeps the pill integrated with the slab
+ * surface rather than punching out of it. */
+
+.pill {
+  display: inline-block;
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.4px;
+  padding: 2px 7px;
+  border-radius: 3px;
+  vertical-align: 1px;
+  color: var(--c-text);
+}
+
+.bucket-high {
+  background-color: var(--c-accent-soft);
+}
+
+.bucket-mid {
+  /* warn at ~35 % alpha via colour-mix; falls back to plain warn for
+     browsers that don't support colour-mix (Chromium ≥ 111, Firefox
+     ≥ 113 — both newer than the Pi's Bullseye floor, so the fallback
+     is real and necessary). */
+  background-color: var(--c-warn);
+  background-color: color-mix(in srgb, var(--c-warn) 35%, transparent);
+}
+
+.bucket-low {
+  background-color: var(--c-danger);
+  background-color: color-mix(in srgb, var(--c-danger) 35%, transparent);
+}
