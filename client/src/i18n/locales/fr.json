@@ -246,7 +246,8 @@
     "openDebug": "Ouvrir le panneau de débogage",
     "closeDebug": "Fermer le panneau de débogage",
     "openUpdate": "Afficher la fenêtre de mise à jour",
-    "closeUpdate": "Fermer la fenêtre de mise à jour"
+    "closeUpdate": "Fermer la fenêtre de mise à jour",
+    "updateAvailableRemote": "Mise à jour disponible — connectez-vous en local pour installer"
   },
   "debug": {
     "title": "DÉBOGAGE",

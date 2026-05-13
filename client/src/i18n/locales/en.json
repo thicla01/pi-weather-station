@@ -246,7 +246,8 @@
     "openDebug": "Open debug panel",
     "closeDebug": "Close debug panel",
     "openUpdate": "Show update modal",
-    "closeUpdate": "Close update modal"
+    "closeUpdate": "Close update modal",
+    "updateAvailableRemote": "Update available — connect locally to install"
   },
   "debug": {
     "title": "DEBUG",

@@ -54,6 +54,28 @@
   position: relative;
 }
 
+/* Remote-viewer variant of the update indicator. No pointer cursor,
+ * reduced opacity, and an active state that explicitly does not
+ * change on press — communicates "you're seeing this for awareness,
+ * not as a button you can press from here". */
+.update-button-remote {
+  opacity: 0.65;
+  cursor: default;
+}
+
+.show-mouse .update-button-remote {
+  cursor: not-allowed;
+}
+
+/* Neutralise the press feedback so the remote indicator doesn't look
+ * pressable. Higher specificity than the `.container.dark > div:active`
+ * rule above via the explicit class-chain, and !important as a belt-
+ * and-braces in case the container variant gets restyled later. */
+.container.dark > div.update-button-remote:active,
+.container.light > div.update-button-remote:active {
+  background: inherit !important;
+}
+
 .update-badge {
   position: absolute;
   top: 6px;
