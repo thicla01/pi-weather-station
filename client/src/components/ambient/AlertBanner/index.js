@@ -84,7 +84,14 @@ const AlertBanner = () => {
           <SourceBadge source={currentAlert.source} />
           {cyclable && <span className={styles.cycleBadge}>+{extras}</span>}
         </div>
-        <div className={styles.title}>{title}</div>
+        <div
+          className={styles.title}
+          data-source={currentAlert.source}
+          data-tier={currentAlert.tier}
+          style={{ color: "lime", fontSize: "18px", fontWeight: "bold", minHeight: "30px" }}
+        >
+          GOV-DEBUG[{currentAlert.source}/{currentAlert.tier}]: {title || "(empty title)"}
+        </div>
       </div>
     );
   }
