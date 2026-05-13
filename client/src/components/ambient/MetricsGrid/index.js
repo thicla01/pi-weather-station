@@ -65,7 +65,7 @@ const MetricsGrid = () => {
         icon={leafIcon}
         value={aqi != null ? aqi : "—"}
         unit=""
-        label={aqiCategory ? t(`badges.aqiCategory.${aqiCategory}`) : t("metrics.aqi")}
+        label={aqiCategory ? t(`badges.aqiLevel.${aqiCategory}`) : t("metrics.aqi")}
       />
     </div>
   );
