@@ -1,0 +1,202 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Pi Weather Station — Designs (C focus)</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&family=JetBrains+Mono:wght@300;400;500&family=Geist:wght@200;300;400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  html, body { margin: 0; padding: 0; background: #f0eee9; font-family: Geist, system-ui, sans-serif; }
+  * { box-sizing: border-box; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="lib/data.jsx"></script>
+<script type="text/babel" src="lib/icons.jsx"></script>
+<script type="text/babel" src="lib/map-bg.jsx"></script>
+<script type="text/babel" src="lib/c-components.jsx"></script>
+<script type="text/babel" src="lib/direction-c-ambient.jsx"></script>
+<script type="text/babel" src="lib/direction-a-ops.jsx"></script>
+<script type="text/babel" src="lib/direction-b-atlas.jsx"></script>
+
+<script type="text/babel">
+function Designs() {
+  return (
+    <DesignCanvas minScale={0.06} maxScale={2}>
+
+      <DCSection id="overview" title="Pi Weather Station · Direction C (refined)"
+        subtitle="Direction C — Ambient Layers — retained with refinements per maintainer feedback. New 800×480 split layout, severity-triggered hybrid instrumentation mode, opaque slabs (no backdrop-filter blur on Pi 4), and the full v2 feature set: multi-alert cycling, source badges, confidence pills, alert-detail overlay with QR, direction arrows, 50/100 km rings, radar timeline, indoor block, and night-red sleep palette. See DESIGN-NOTES.md for the full rationale.">
+      </DCSection>
+
+      {/* ────────────────────────────────────────────────────────────────
+          7″ Pi — primary target, new split 70/30 layout
+      ──────────────────────────────────────────────────────────────── */}
+      <DCSection id="pi-7" title="7″ Pi · 800×480 · primary target"
+        subtitle="Split layout (~70/30): map on the left, info column right, BottomDock full-width below. Chevron on the map's right edge collapses the panel to give the radar full width.">
+
+        <DCArtboard id="pi-calm" label="Calm — no alerts" width={800} height={480}>
+          <AmbientLayers size="800x480" scenario="calm" timeOfDay="day"/>
+        </DCArtboard>
+
+        <DCArtboard id="pi-rain" label="Rain · hybrid auto-triggered" width={800} height={480}>
+          <AmbientLayers size="800x480" scenario="rain" timeOfDay="day"/>
+        </DCArtboard>
+
+        <DCArtboard id="pi-severe" label="Severe · hybrid red + multi-alert (+2)" width={800} height={480}>
+          <AmbientLayers size="800x480" scenario="severe" timeOfDay="day"/>
+        </DCArtboard>
+
+        <DCArtboard id="pi-collapsed" label="Collapsed · radar full-width + floating alert" width={800} height={480}>
+          <AmbientLayers size="800x480" scenario="severe" timeOfDay="day" collapsed={true}/>
+        </DCArtboard>
+
+        <DCArtboard id="pi-arrows" label="Direction arrows + 100 km extended radius" width={800} height={480}>
+          <AmbientLayers size="800x480" scenario="rain" timeOfDay="day"
+            showDirectionArrows={true} extendedRadius={true}/>
+        </DCArtboard>
+
+        <DCArtboard id="pi-samples" label="Sample points (debug)" width={800} height={480}>
+          <AmbientLayers size="800x480" scenario="rain" timeOfDay="day"
+            showSamplePoints={true}/>
+        </DCArtboard>
+      </DCSection>
+
+      {/* ────────────────────────────────────────────────────────────────
+          Overlays in action — alert detail, settings
+      ──────────────────────────────────────────────────────────────── */}
+      <DCSection id="overlays" title="Overlays · alert detail, AI summary, settings"
+        subtitle="Banners are tappable. Single alert opens detail; multi-alert cycles (+N badge), the ▸ chevron opens detail. Detail overlay is scroll-internal with a QR code footer for kiosks.">
+
+        <DCArtboard id="pi-alert-detail" label="Alert detail · QR for kiosk" width={800} height={480}>
+          <AmbientLayers size="800x480" scenario="severe" timeOfDay="day" alertDetailOpen={0}/>
+        </DCArtboard>
+
+        <DCArtboard id="pi-settings" label="Settings · brightness, debug toggles" width={800} height={480}>
+          <AmbientLayers size="800x480" scenario="rain" timeOfDay="day" showSettings={true}/>
+        </DCArtboard>
+      </DCSection>
+
+      {/* ────────────────────────────────────────────────────────────────
+          Time-of-day palettes
+      ──────────────────────────────────────────────────────────────── */}
+      <DCSection id="palettes" title="Time-of-day palettes"
+        subtitle="Adaptive: day cream → dusk warm → night dim → night-red melatonin-safe. The map base and slab surfaces shift together so contrast stays consistent.">
+
+        <DCArtboard id="tod-day" label="Day · cream paper" width={800} height={480}>
+          <AmbientLayers size="800x480" scenario="rain" timeOfDay="day"/>
+        </DCArtboard>
+
+        <DCArtboard id="tod-dusk" label="Dusk · warm amber" width={800} height={480}>
+          <AmbientLayers size="800x480" scenario="rain" timeOfDay="dusk"/>
+        </DCArtboard>
+
+        <DCArtboard id="tod-night" label="Night · dim warm" width={800} height={480}>
+          <AmbientLayers size="800x480" scenario="rain" timeOfDay="night"/>
+        </DCArtboard>
+
+        <DCArtboard id="tod-nightred" label="Night-Red · melatonin-safe" width={800} height={480}>
+          <AmbientLayers size="800x480" scenario="rain" timeOfDay="nightRed"/>
+        </DCArtboard>
+      </DCSection>
+
+      {/* ────────────────────────────────────────────────────────────────
+          Sleep mode states
+      ──────────────────────────────────────────────────────────────── */}
+      <DCSection id="sleep" title="Sleep mode · 4 palettes + stage 2 burn-in protection"
+        subtitle="Sleep mode shares the timeOfDay palette. Stage 2 (after extended idle) drops to a single drifting pixel for OLED burn-in protection — still red on the night-red palette so a glance from bed isn't disruptive.">
+
+        <DCArtboard id="sleep-day" label="Sleep · day cream" width={800} height={480}>
+          <AmbientLayers size="800x480" scenario="rain" timeOfDay="day" mode="sleep"/>
+        </DCArtboard>
+
+        <DCArtboard id="sleep-night" label="Sleep · night dim" width={800} height={480}>
+          <AmbientLayers size="800x480" scenario="rain" timeOfDay="night" mode="sleep"/>
+        </DCArtboard>
+
+        <DCArtboard id="sleep-nightred" label="Sleep · night-red (bedside)" width={800} height={480}>
+          <AmbientLayers size="800x480" scenario="rain" timeOfDay="nightRed" mode="sleep"/>
+        </DCArtboard>
+
+        <DCArtboard id="sleep-stage2" label="Stage 2 · drifting pixel (burn-in)" width={800} height={480}>
+          <AmbientLayers size="800x480" scenario="rain" timeOfDay="night" mode="sleep-stage2"/>
+        </DCArtboard>
+
+        <DCArtboard id="sleep-stage2-red" label="Stage 2 · night-red" width={800} height={480}>
+          <AmbientLayers size="800x480" scenario="rain" timeOfDay="nightRed" mode="sleep-stage2"/>
+        </DCArtboard>
+      </DCSection>
+
+      {/* ────────────────────────────────────────────────────────────────
+          Other screen sizes — same layout system scales up
+      ──────────────────────────────────────────────────────────────── */}
+      <DCSection id="other-sizes" title="Other screen sizes"
+        subtitle="HD and Full HD use a right-rail layout. The hero band sits at the top, the rail holds metrics + forecast + indoor + AI, and the radar timeline anchors the bottom-left of the map area.">
+
+        <DCArtboard id="hd-day" label="HD · 1366×768 · day · rain" width={1366} height={768}>
+          <AmbientLayers size="1366x768" scenario="rain" timeOfDay="day"/>
+        </DCArtboard>
+
+        <DCArtboard id="hd-severe" label="HD · severe · hybrid red" width={1366} height={768}>
+          <AmbientLayers size="1366x768" scenario="severe" timeOfDay="day"/>
+        </DCArtboard>
+
+        <DCArtboard id="fhd-night" label="Full HD · 1920×1080 · night · severe" width={1920} height={1080}>
+          <AmbientLayers size="1920x1080" scenario="severe" timeOfDay="night"/>
+        </DCArtboard>
+      </DCSection>
+
+      {/* ────────────────────────────────────────────────────────────────
+          Hybrid mode — calm vs hybrid red, side-by-side
+      ──────────────────────────────────────────────────────────────── */}
+      <DCSection id="hybrid-compare" title="Hybrid mode comparison"
+        subtitle="On calm scenarios, layout is pure C (ambient). When severity escalates, critical slabs gain a left tier-strip, critical numerals shift to Geist Mono, and opacity bumps. No A/B toggle — auto.">
+
+        <DCArtboard id="hyb-off" label="Calm · hybrid OFF (pure C)" width={800} height={480}>
+          <AmbientLayers size="800x480" scenario="calm" timeOfDay="day" hybridForce="off"/>
+        </DCArtboard>
+
+        <DCArtboard id="hyb-amber" label="Rain · hybrid amber" width={800} height={480}>
+          <AmbientLayers size="800x480" scenario="rain" timeOfDay="day" hybridForce="auto"/>
+        </DCArtboard>
+
+        <DCArtboard id="hyb-red" label="Severe · hybrid red" width={800} height={480}>
+          <AmbientLayers size="800x480" scenario="severe" timeOfDay="day" hybridForce="auto"/>
+        </DCArtboard>
+      </DCSection>
+
+      {/* ────────────────────────────────────────────────────────────────
+          Inspirations archive — A and B retained for reference
+      ──────────────────────────────────────────────────────────────── */}
+      <DCSection id="inspirations" title="Inspirations · A & B (archived)"
+        subtitle="Not in scope for v2 implementation. Kept here as visual references for any future direction discussion — the hybrid mode borrows A's mono-numeric typography and severity strips.">
+
+        <DCArtboard id="insp-a" label="A · Ops Console (reference only)" width={800} height={480}>
+          <OpsConsole size="800x480" scenario="severe"/>
+        </DCArtboard>
+
+        <DCArtboard id="insp-b" label="B · Editorial Atlas (reference only)" width={800} height={480}>
+          <EditorialAtlas size="800x480" scenario="rain"/>
+        </DCArtboard>
+      </DCSection>
+
+      <DCPostIt top={140} right={120} rotate={-3} width={240}>
+        <strong>Prototype + notes →</strong><br/>
+        <a href="Pi Weather Station — Prototype.html" style={{color:'#5a4a2a'}}>Live prototype</a> · <a href="DESIGN-NOTES.md" style={{color:'#5a4a2a'}}>DESIGN-NOTES.md</a>
+      </DCPostIt>
+
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<Designs/>);
+</script>
+</body>
+</html>

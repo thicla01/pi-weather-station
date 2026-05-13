@@ -1,0 +1,193 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Pi Weather Station — Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&family=JetBrains+Mono:wght@300;400;500&family=Geist:wght@200;300;400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  html, body { margin: 0; padding: 0; background: #0a0a0a; font-family: Geist, system-ui, sans-serif; overflow: hidden; height: 100%; }
+  * { box-sizing: border-box; }
+  #root { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; }
+  .device-frame {
+    position: relative; background: #1a1612; border-radius: 20px; padding: 18px;
+    box-shadow: 0 30px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04);
+  }
+  .device-screen { position: relative; overflow: hidden; border-radius: 6px; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.4); }
+  .device-label {
+    position: absolute; bottom: -28px; left: 0; right: 0; text-align: center;
+    font-family: "Geist Mono", monospace; font-size: 10px; letter-spacing: 2px;
+    color: #5a5550; text-transform: uppercase;
+  }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="lib/data.jsx"></script>
+<script type="text/babel" src="lib/icons.jsx"></script>
+<script type="text/babel" src="lib/map-bg.jsx"></script>
+<script type="text/babel" src="lib/c-components.jsx"></script>
+<script type="text/babel" src="lib/direction-c-ambient.jsx"></script>
+
+<script type="text/babel">
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "size": "1920x1080",
+  "scenario": "severe",
+  "timeOfDay": "day",
+  "sleepMode": "off",
+  "collapsed": false,
+  "hybridForce": "auto",
+  "showDirectionArrows": false,
+  "showSamplePoints": false,
+  "extendedRadius": true,
+  "showFrame": true,
+  "radarTimelineFrame": 0.75,
+  "radarPlaying": false
+}/*EDITMODE-END*/;
+
+const SIZE_SPECS = {
+  '800x480':   { w: 800,  h: 480,  label: "7″ Raspberry Pi · 800×480" },
+  '1366x768':  { w: 1366, h: 768,  label: "HD monitor · 1366×768" },
+  '1920x1080': { w: 1920, h: 1080, label: "Full HD · 1920×1080" },
+};
+
+function App() {
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [tickNow, setTickNow] = React.useState(0);
+  const [viewport, setViewport] = React.useState({ w: window.innerWidth, h: window.innerHeight });
+  const [showSettings, setShowSettings] = React.useState(false);
+  const [alertIdx, setAlertIdx] = React.useState(0);
+  const [alertDetailOpen, setAlertDetailOpen] = React.useState(null);
+
+  React.useEffect(() => {
+    const id = setInterval(() => setTickNow((n) => n + 1), 1000);
+    return () => clearInterval(id);
+  }, []);
+
+  React.useEffect(() => {
+    const onR = () => setViewport({ w: window.innerWidth, h: window.innerHeight });
+    window.addEventListener('resize', onR);
+    return () => window.removeEventListener('resize', onR);
+  }, []);
+
+  const spec = SIZE_SPECS[t.size] || SIZE_SPECS['800x480'];
+  const mode = t.sleepMode === 'off' ? 'normal'
+              : t.sleepMode === 'stage2' ? 'sleep-stage2'
+              : 'sleep';
+
+  const frameW = spec.w + (t.showFrame ? 36 : 0);
+  const frameH = spec.h + (t.showFrame ? 36 : 0);
+  const margin = 140;
+  const scale = Math.min(1, (viewport.w - margin) / frameW, (viewport.h - margin) / frameH);
+
+  return (
+    <React.Fragment>
+      <div style={{ transform: `scale(${scale})`, transformOrigin: 'center center', transition: 'transform 0.25s ease' }}>
+        <div className={t.showFrame ? 'device-frame' : ''} style={t.showFrame ? {} : { padding: 0, background: 'transparent', boxShadow: 'none' }}>
+          <div className="device-screen" style={{ width: spec.w, height: spec.h }}>
+            <AmbientLayers
+              size={t.size}
+              scenario={t.scenario}
+              mode={mode}
+              timeOfDay={t.timeOfDay}
+              tickNow={tickNow}
+              collapsed={t.collapsed}
+              onToggleCollapsed={() => setTweak('collapsed', !t.collapsed)}
+              hybridForce={t.hybridForce}
+              showDirectionArrows={t.showDirectionArrows}
+              showSamplePoints={t.showSamplePoints}
+              extendedRadius={t.extendedRadius}
+              radarTimelineFrame={t.radarTimelineFrame}
+              radarPlaying={t.radarPlaying}
+              showSettings={showSettings}
+              onToggleSettings={() => setShowSettings(!showSettings)}
+              alertDetailOpen={alertDetailOpen}
+              onOpenAlertDetail={(i) => setAlertDetailOpen(i)}
+              onCloseAlertDetail={() => setAlertDetailOpen(null)}
+              alertIdx={alertIdx}
+              onCycleAlert={() => setAlertIdx((i) => i + 1)}
+            />
+          </div>
+          {t.showFrame && <div className="device-label">{spec.label}</div>}
+        </div>
+      </div>
+
+      <TweaksPanel title="Tweaks" defaultPosition={{ right: 24, bottom: 24 }}>
+        <TweakSection label="Screen size">
+          <TweakSelect value={t.size} onChange={(v) => setTweak('size', v)}
+            options={Object.entries(SIZE_SPECS).map(([k, v]) => ({ value: k, label: v.label }))}/>
+        </TweakSection>
+
+        <TweakSection label="Scenario">
+          <TweakRadio value={t.scenario} onChange={(v) => { setTweak('scenario', v); setAlertIdx(0); }}
+            options={[
+              { value: 'calm', label: 'Calm' },
+              { value: 'rain', label: 'Rain' },
+              { value: 'severe', label: 'Severe' },
+            ]}/>
+        </TweakSection>
+
+        <TweakSection label="Time of day">
+          <TweakSelect value={t.timeOfDay} onChange={(v) => setTweak('timeOfDay', v)}
+            options={[
+              { value: 'day', label: 'Day (cream)' },
+              { value: 'dusk', label: 'Dusk (warm)' },
+              { value: 'night', label: 'Night (dim)' },
+              { value: 'nightRed', label: 'Night-Red (melatonin-safe)' },
+            ]}/>
+        </TweakSection>
+
+        <TweakSection label="Sleep mode">
+          <TweakRadio value={t.sleepMode} onChange={(v) => setTweak('sleepMode', v)}
+            options={[
+              { value: 'off', label: 'Off' },
+              { value: 'on', label: 'Sleep' },
+              { value: 'stage2', label: 'Stage 2' },
+            ]}/>
+        </TweakSection>
+
+        <TweakSection label="Hybrid instrumentation"
+          subtitle="Auto = severity-triggered (red/amber/rain+high-confidence). Force on/off for comparison.">
+          <TweakRadio value={t.hybridForce} onChange={(v) => setTweak('hybridForce', v)}
+            options={[
+              { value: 'auto', label: 'Auto' },
+              { value: 'on', label: 'On' },
+              { value: 'off', label: 'Off' },
+            ]}/>
+        </TweakSection>
+
+        <TweakSection label="Layout (7″ Pi)">
+          <TweakToggle label="Collapse info panel (radar full-screen)" value={t.collapsed} onChange={(v) => setTweak('collapsed', v)}/>
+        </TweakSection>
+
+        <TweakSection label="Map overlays">
+          <TweakToggle label="Direction arrows (motion)" value={t.showDirectionArrows} onChange={(v) => setTweak('showDirectionArrows', v)}/>
+          <TweakToggle label="100 km ring → red (extended)" value={t.extendedRadius} onChange={(v) => setTweak('extendedRadius', v)}/>
+          <TweakToggle label="Sample points (debug)" value={t.showSamplePoints} onChange={(v) => setTweak('showSamplePoints', v)}/>
+        </TweakSection>
+
+        <TweakSection label="Radar timeline">
+          <TweakSlider label="Frame" min={0} max={1} step={0.05}
+            value={t.radarTimelineFrame} onChange={(v) => setTweak('radarTimelineFrame', v)}/>
+          <TweakToggle label="Playing" value={t.radarPlaying} onChange={(v) => setTweak('radarPlaying', v)}/>
+        </TweakSection>
+
+        <TweakSection label="Display">
+          <TweakToggle label="Device frame" value={t.showFrame} onChange={(v) => setTweak('showFrame', v)}/>
+        </TweakSection>
+      </TweaksPanel>
+    </React.Fragment>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>

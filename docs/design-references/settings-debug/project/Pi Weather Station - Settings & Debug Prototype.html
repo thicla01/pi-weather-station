@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Pi Weather Station — Settings & Debug · Prototype</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=Geist:wght@200;300;400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  html, body { margin: 0; padding: 0; background: #0a0a0a; font-family: Geist, system-ui, sans-serif; overflow: hidden; height: 100%; }
+  * { box-sizing: border-box; }
+  #root { width: 100vw; height: 100vh; display: flex; align-items: center; justify-content: center; }
+  .device-frame { position: relative; background: #1a1612; border-radius: 20px; padding: 18px; box-shadow: 0 30px 80px rgba(0,0,0,0.5), 0 0 0 1px rgba(255,255,255,0.04); }
+  .device-screen { position: relative; overflow: hidden; border-radius: 6px; box-shadow: inset 0 0 0 1px rgba(0,0,0,0.4); }
+  .device-label { position: absolute; bottom: -28px; left: 0; right: 0; text-align: center; font-family: "Geist Mono", monospace; font-size: 10px; letter-spacing: 2px; color: #5a5550; text-transform: uppercase; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="tweaks-panel.jsx"></script>
+<script type="text/babel" src="lib/data.jsx"></script>
+<script type="text/babel" src="lib/icons.jsx"></script>
+<script type="text/babel" src="lib/map-bg.jsx"></script>
+<script type="text/babel" src="lib/c-components.jsx"></script>
+<script type="text/babel" src="lib/direction-c-ambient.jsx"></script>
+<script type="text/babel" src="lib/admin-data.jsx"></script>
+<script type="text/babel" src="lib/settings-panel.jsx"></script>
+<script type="text/babel" src="lib/debug-panel.jsx"></script>
+
+<script type="text/babel">
+const TWEAK_DEFAULTS = /*EDITMODE-BEGIN*/{
+  "panel": "settings",
+  "size": "800x480",
+  "timeOfDay": "night",
+  "lang": "fr",
+  "remote": false,
+  "settingsScenario": "configured",
+  "keysVariant": "list",
+  "debugScenario": "healthy",
+  "navVariant": "rail",
+  "showFrame": true
+}/*EDITMODE-END*/;
+
+const SIZE_SPECS = {
+  '800x480':   { w: 800,  h: 480,  label: "7″ Raspberry Pi · 800×480" },
+  '1366x768':  { w: 1366, h: 768,  label: "HD monitor · 1366×768" },
+  '1920x1080': { w: 1920, h: 1080, label: "Full HD · 1920×1080" },
+};
+
+function App() {
+  const [t, setTweak] = useTweaks(TWEAK_DEFAULTS);
+  const [viewport, setViewport] = React.useState({ w: window.innerWidth, h: window.innerHeight });
+
+  React.useEffect(() => {
+    const onR = () => setViewport({ w: window.innerWidth, h: window.innerHeight });
+    window.addEventListener('resize', onR);
+    return () => window.removeEventListener('resize', onR);
+  }, []);
+
+  const spec = SIZE_SPECS[t.size] || SIZE_SPECS['800x480'];
+  const frameW = spec.w + (t.showFrame ? 36 : 0);
+  const frameH = spec.h + (t.showFrame ? 36 : 0);
+  const margin = 140;
+  const scale = Math.min(1, (viewport.w - margin) / frameW, (viewport.h - margin) / frameH);
+
+  return (
+    <React.Fragment>
+      <div style={{ transform: `scale(${scale})`, transformOrigin: 'center center', transition: 'transform 0.25s ease' }}>
+        <div className={t.showFrame ? 'device-frame' : ''} style={t.showFrame ? {} : { padding: 0, background: 'transparent', boxShadow: 'none' }}>
+          <div className="device-screen" style={{ width: spec.w, height: spec.h }}>
+            {t.panel === 'settings' ? (
+              <SettingsPanel
+                timeOfDay={t.timeOfDay} size={t.size}
+                keysVariant={t.keysVariant} scenario={t.settingsScenario}
+                remote={t.remote} lang={t.lang}/>
+            ) : (
+              <DebugPanel
+                timeOfDay={t.timeOfDay} size={t.size}
+                navVariant={t.navVariant} scenario={t.debugScenario}/>
+            )}
+          </div>
+          {t.showFrame && <div className="device-label">{spec.label} · {t.panel}</div>}
+        </div>
+      </div>
+
+      <TweaksPanel title="Tweaks" defaultPosition={{ right: 24, bottom: 24 }}>
+        <TweakSection label="Panel">
+          <TweakRadio value={t.panel} onChange={(v) => setTweak('panel', v)}
+            options={[{ value: 'settings', label: 'Settings' }, { value: 'debug', label: 'Debug' }]}/>
+        </TweakSection>
+
+        <TweakSection label="Screen size">
+          <TweakSelect value={t.size} onChange={(v) => setTweak('size', v)}
+            options={Object.entries(SIZE_SPECS).map(([k, v]) => ({ value: k, label: v.label }))}/>
+        </TweakSection>
+
+        <TweakSection label="Time of day · palette">
+          <TweakSelect value={t.timeOfDay} onChange={(v) => setTweak('timeOfDay', v)}
+            options={[
+              { value: 'day', label: 'Day (cream)' },
+              { value: 'dusk', label: 'Dusk (warm)' },
+              { value: 'night', label: 'Night (dim)' },
+              { value: 'nightRed', label: 'Night-Red (bedside)' },
+            ]}/>
+        </TweakSection>
+
+        {t.panel === 'settings' && (
+          <React.Fragment>
+            <TweakSection label="API keys arrangement"
+              subtitle="A · cards = highest visual weight, best for first install. B · list = densest, recommended for steady state. C · disclose = required visible, optional collapsed.">
+              <TweakRadio value={t.keysVariant} onChange={(v) => setTweak('keysVariant', v)}
+                options={[
+                  { value: 'cards', label: 'A · Cards' },
+                  { value: 'list', label: 'B · List' },
+                  { value: 'disclose', label: 'C · Disclose' },
+                ]}/>
+            </TweakSection>
+
+            <TweakSection label="Scenario">
+              <TweakRadio value={t.settingsScenario} onChange={(v) => setTweak('settingsScenario', v)}
+                options={[
+                  { value: 'configured', label: 'All set' },
+                  { value: 'partial', label: 'Req only' },
+                  { value: 'empty', label: 'Empty' },
+                ]}/>
+            </TweakSection>
+
+            <TweakSection label="Access mode" subtitle="Toggles read-only state · masks API key values · shows amber notice.">
+              <TweakToggle label="Remote (SSH tunnel)" value={t.remote} onChange={(v) => setTweak('remote', v)}/>
+            </TweakSection>
+
+            <TweakSection label="Language">
+              <TweakRadio value={t.lang} onChange={(v) => setTweak('lang', v)}
+                options={[{ value: 'en', label: 'EN' }, { value: 'fr', label: 'FR' }]}/>
+            </TweakSection>
+          </React.Fragment>
+        )}
+
+        {t.panel === 'debug' && (
+          <React.Fragment>
+            <TweakSection label="Navigation pattern"
+              subtitle="A · rail = always-visible task buckets, recommended. B · pager = chip-bar above content, touch-first. C · search = keyword filter + accordion, power user.">
+              <TweakRadio value={t.navVariant} onChange={(v) => setTweak('navVariant', v)}
+                options={[
+                  { value: 'rail', label: 'A · Rail' },
+                  { value: 'pager', label: 'B · Pager' },
+                  { value: 'search', label: 'C · Search' },
+                ]}/>
+            </TweakSection>
+
+            <TweakSection label="Scenario">
+              <TweakSelect value={t.debugScenario} onChange={(v) => setTweak('debugScenario', v)}
+                options={[
+                  { value: 'healthy', label: 'Healthy (everything green)' },
+                  { value: 'quota-near', label: 'Quota near limit (AirNow 94%)' },
+                  { value: 'security', label: 'Security event (blocked POST)' },
+                  { value: 'stale', label: 'Stale provider statuspage' },
+                ]}/>
+            </TweakSection>
+          </React.Fragment>
+        )}
+
+        <TweakSection label="Display">
+          <TweakToggle label="Device frame" value={t.showFrame} onChange={(v) => setTweak('showFrame', v)}/>
+        </TweakSection>
+      </TweaksPanel>
+    </React.Fragment>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
