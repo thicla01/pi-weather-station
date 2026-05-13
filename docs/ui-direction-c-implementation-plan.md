@@ -221,18 +221,26 @@ is deferred to **Phase 8** (full Settings refresh — own Claude Design package)
 during Phase 5, sleep-mode configuration continues to ride on the existing v2
 Settings panel via the `advancedSleep.*` fields already in `settings.json`.
 
-- [ ] `AmbientSleep` — single component, picks palette by `timeOfDay`.
-  - `day`: cream
-  - `dusk`: warm-grey
-  - `night`: dark warm-grey
-  - `nightRed`: long-wavelength red (melatonin-friendly, preserved from v2.13)
-- [ ] Stage 2 burn-in protection — single drifting 2×2 pixel on black, colour
-  matched to `timeOfDay`.
-- [ ] Transition timer: `stage1Delay` minutes idle → `sleep`, then `stage2Delay`
-  more minutes → `sleep-stage2`. Wake on any input.
-- [ ] Connect to existing `/api/brightness` endpoint (already in v2).
-- [ ] Settings continue to live in the legacy v2 panel via `advancedSleep.*`
-  — no UI work here.
+- [x] `AmbientSleep` — handled by refactoring the existing v2
+  `ScreenSaver` to read its palette decision from `useTimeOfDay()`
+  rather than directly from `darkMode` + `sleepNightMode`. The v2
+  ScreenSaver was already palette-aware, battle-tested for the
+  ghost-click absorption and the anti-burn-in dot — replacing it
+  wholesale would have been risky for limited gain.
+  - `day`: cream (default)
+  - `dusk`: warm-grey cream-on-anthracite (renamed from `night-cream`)
+  - `night`: aliased to `dusk` for now — will differentiate visually
+    once Phase 5+ wires real solar position into `useTimeOfDay()`
+  - `nightRed`: long-wavelength red (unchanged from v2.13)
+- [x] Stage 2 burn-in protection — already correct in the v2
+  ScreenSaver (4 px dot on 5×5 grid, repositioned every 5 min, colour
+  picks up from the active variant's `--dot` token).
+- [x] Transition timer — `useIdleDetection` hook drives stage 1 / 2 /
+  wake on any input, already in v2.
+- [x] `/api/brightness` connection — already wired in `App/index.js`
+  for stage transitions.
+- [x] Settings continue to live in the legacy v2 panel via
+  `advancedSleep.*` — no UI work in this phase.
 
 **Deliverable:** PR #7. Sleep mode renders correctly under Direction C; the
 v2 Settings panel still pilots the four `advancedSleep` params.

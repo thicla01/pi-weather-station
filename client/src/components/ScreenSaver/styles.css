@@ -44,7 +44,15 @@
 }
 
 /* ---------- variant overrides ---------- */
-.night-cream {
+/* dusk — formerly `.night-cream`, renamed in Phase 5 to align with the
+ * Direction C palette key (`useTimeOfDay()` returns "dusk" for the
+ * darkMode + non-night-red branch). Token values match the v2.13
+ * cream-on-anthracite treatment so the visual is unchanged for users
+ * who haven't enabled the experimental UI — only the class name moves
+ * to the shared vocabulary. Future Phase 5+ work splits this into a
+ * truly distinct `.night` variant once `useTimeOfDay()` becomes
+ * solar-position-aware. */
+.dusk {
   --bg:   #1a1816;
   --date: #8a8479;
   --time: #f3eee7;
@@ -172,7 +180,7 @@
    monochrome typography. Night-red goes further (0 saturation + slight
    brightness reduction) so a colour-laden emoji like ⛅ doesn't punch
    through the otherwise monochrome red treatment. */
-.night-cream .icon { filter: saturate(0.4); }
+.dusk .icon { filter: saturate(0.4); }
 .night-red .icon   { filter: saturate(0) brightness(0.95); }
 
 /* Stage 2: hide the text content via opacity (transitions cleanly via the
