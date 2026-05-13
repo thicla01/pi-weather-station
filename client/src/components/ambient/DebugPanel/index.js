@@ -4,6 +4,8 @@ import React, { useContext, useEffect, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
 import closeSharp from "@iconify/icons-ion/close-sharp";
+import refreshIcon from "@iconify/icons-carbon/restart";
+import upgradeIcon from "@iconify/icons-carbon/upgrade";
 import axios from "axios";
 import { AppContext } from "~/AppContext";
 import { getPalette } from "~/ui/tokens";
@@ -57,7 +59,9 @@ const DebugPanel = () => {
     setDebugMenuOpen,
     isLocal,
     debugEnabled,
+    refreshUpdateCheck,
   } = useContext(AppContext);
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
   const [bucket, setBucket] = useState("server");
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -113,14 +117,48 @@ const DebugPanel = () => {
     <div className={styles.overlay} role="dialog" aria-modal="true" style={cssVars}>
       <div className={styles.header}>
         <div className={styles.title}>{t("debug.title", { defaultValue: "Debug" })}</div>
-        <button
-          type="button"
-          className={styles.closeButton}
-          onClick={() => setDebugMenuOpen(false)}
-          aria-label={t("controls.closeDebug")}
-        >
-          <InlineIcon icon={closeSharp} />
-        </button>
+        <div className={styles.headerActions}>
+          <button
+            type="button"
+            className={styles.actionButton}
+            onClick={fetchDebug}
+            disabled={loading}
+          >
+            <InlineIcon icon={refreshIcon} />
+            <span>{loading
+              ? t("debug.loading", { defaultValue: "Loading…" })
+              : t("debug.refresh", { defaultValue: "Refresh" })}</span>
+          </button>
+          <button
+            type="button"
+            className={styles.actionButton}
+            disabled={checkingUpdate || typeof refreshUpdateCheck !== "function"}
+            onClick={() => {
+              if (typeof refreshUpdateCheck !== "function") return;
+              setCheckingUpdate(true);
+              Promise.resolve(refreshUpdateCheck(true))
+                .catch((err) => console.warn("[DebugPanel] update check failed", err))
+                .finally(() => {
+                  setCheckingUpdate(false);
+                  // Re-fetch /api/debug so the new updateInfo lands in the About bucket.
+                  fetchDebug();
+                });
+            }}
+          >
+            <InlineIcon icon={upgradeIcon} />
+            <span>{checkingUpdate
+              ? t("debug.checking", { defaultValue: "Checking…" })
+              : t("debug.checkUpdate", { defaultValue: "Check update" })}</span>
+          </button>
+          <button
+            type="button"
+            className={styles.closeButton}
+            onClick={() => setDebugMenuOpen(false)}
+            aria-label={t("controls.closeDebug")}
+          >
+            <InlineIcon icon={closeSharp} />
+          </button>
+        </div>
       </div>
 
       <div className={styles.body}>

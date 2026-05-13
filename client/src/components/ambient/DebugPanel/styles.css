@@ -37,6 +37,42 @@
   color: var(--c-accent);
 }
 
+.headerActions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.actionButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+  background-color: var(--c-accent-soft);
+  border: 1px solid var(--c-border);
+  border-radius: 4px;
+  color: var(--c-text);
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.actionButton:hover:not(:disabled),
+.actionButton:focus-visible {
+  background-color: var(--c-surface-hybrid);
+  color: var(--c-accent);
+  outline: none;
+}
+
+.actionButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .closeButton {
   background: transparent;
   border: 0;
