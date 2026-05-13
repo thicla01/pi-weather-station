@@ -107,8 +107,6 @@
     "hourlyForecastFailed": "Impossible d'obtenir les prévisions sur 24 heures"
   },
   "charts": {
-    "24hours": "24 heures",
-    "5days": "5 jours",
     "5dayTemp": "Temp. 5 jours / Précipitations",
     "5dayWind": "Vent 5 jours / Précipitations ({{unit}})",
     "24hourTemp": "Temp. 24 heures / Précipitations",

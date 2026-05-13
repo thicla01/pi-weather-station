@@ -37,7 +37,7 @@ const ChartTabs = () => {
           className={`${styles.tab} ${tab === "hourly" ? styles.active : ""}`}
           onClick={() => setTab("hourly")}
         >
-          {t("charts.24hours", { defaultValue: "24 hours" })}
+          {t("charts.tab24h", { defaultValue: "24 hours" })}
         </button>
         <button
           type="button"
@@ -46,7 +46,7 @@ const ChartTabs = () => {
           className={`${styles.tab} ${tab === "daily" ? styles.active : ""}`}
           onClick={() => setTab("daily")}
         >
-          {t("charts.5days", { defaultValue: "5 days" })}
+          {t("charts.tab5d", { defaultValue: "5 days" })}
         </button>
       </div>
       <div className={styles.chartArea}>

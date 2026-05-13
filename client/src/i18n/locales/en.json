@@ -107,8 +107,6 @@
     "hourlyForecastFailed": "Cannot get 24 hour weather forecast"
   },
   "charts": {
-    "24hours": "24 hours",
-    "5days": "5 days",
     "5dayTemp": "5 Day Temp / Precipitation",
     "5dayWind": "5 Day Wind Speed / Precipitation ({{unit}})",
     "24hourTemp": "24 Hour Temp / Precipitation",
