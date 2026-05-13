@@ -14,7 +14,8 @@
   padding: 12px 14px 12px 18px;
   color: var(--c-text);
   font-family: "Geist", system-ui, -apple-system, sans-serif;
-  overflow: hidden;
+  /* overflow: hidden removed — was suspected of clipping wrapped title
+   * lines. Diagnostic to confirm. */
 }
 
 /* Severity strip — absolute-positioned along the left edge so the slab
