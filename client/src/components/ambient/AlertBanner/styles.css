@@ -14,8 +14,13 @@
   padding: 12px 14px 12px 18px;
   color: var(--c-text);
   font-family: "Geist", system-ui, -apple-system, sans-serif;
-  /* overflow: hidden removed — was suspected of clipping wrapped title
-   * lines. Diagnostic to confirm. */
+  /* No `overflow: hidden` here — the original variant of this rule had
+   * one to keep the severity strip's left corners from poking out of
+   * the slab's rounded edges, but it had a nasty side-effect: long
+   * alert titles wrapping to a second line had that second line
+   * silently clipped (the slab itself was constrained by some flex
+   * interaction we couldn't pin down). The strip now carries its own
+   * border-radius via `::before`, so we don't need the overflow gate. */
 }
 
 /* Severity strip — absolute-positioned along the left edge so the slab
@@ -26,6 +31,11 @@
   position: absolute;
   inset: 0 auto 0 0;
   width: 4px;
+  /* Match the parent's left-side radius so the strip's corners stay
+   * flush against the slab's rounded edges. Without this the strip
+   * had square corners that poked outside the banner (visible only
+   * before we relied on `overflow: hidden` to clip them). */
+  border-radius: 8px 0 0 8px;
   background-color: var(--c-cool); /* default for unknown tiers */
 }
 

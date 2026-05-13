@@ -84,14 +84,7 @@ const AlertBanner = () => {
           <SourceBadge source={currentAlert.source} />
           {cyclable && <span className={styles.cycleBadge}>+{extras}</span>}
         </div>
-        <div
-          className={styles.title}
-          data-source={currentAlert.source}
-          data-tier={currentAlert.tier}
-          style={{ color: "lime", fontSize: "18px", fontWeight: "bold", minHeight: "30px" }}
-        >
-          GOV-DEBUG[{currentAlert.source}/{currentAlert.tier}]: {title || "(empty title)"}
-        </div>
+        <div className={styles.title}>{title}</div>
       </div>
     );
   }
@@ -112,15 +105,7 @@ const AlertBanner = () => {
         <SourceBadge source="RADAR" />
         <ConfidencePill confidence={radarState.confidence} />
       </div>
-      <div
-        className={styles.title}
-        data-i18n-key={radarState.i18nKey}
-        data-tier={radarState.tier}
-        data-bucket={radarState.confidenceBucket}
-        style={{ color: "lime", fontSize: "18px", fontWeight: "bold", minHeight: "30px" }}
-      >
-        DEBUG[{String(radarState.i18nKey)}]:{" "}{t(radarState.i18nKey) || "(empty translation)"}
-      </div>
+      <div className={styles.title}>{t(radarState.i18nKey)}</div>
     </div>
   );
 };
