@@ -138,15 +138,17 @@
   background-color: color-mix(in srgb, var(--c-accent-soft) 60%, transparent);
 }
 
-/* Focus — a thin outline ring inside the tab's padding. Distinct
- * from pressed (which uses background + left strip) so users can't
- * mistake a tabbed-into-but-not-pressed button for an active one.
- * This was the source of the bug a user spotted: a previously
- * pressed-then-unpressed tab kept its accent-soft background via
- * :focus-visible, looking identical to a pressed neighbour. */
+/* Focus — a dashed outline OUTSIDE the tab's box. The dash pattern +
+ * positive offset makes it visually unambiguous as a keyboard-focus
+ * indicator, not a pressed state (which uses an inset background +
+ * left strip). User repro'd a case where pressing then unpressing a
+ * tab via mouse left it looking pinned because the inset solid
+ * outline read as an inset "card border" = pressed treatment.
+ * Belt-and-braces with the onMouseDown blur in the React handler:
+ * mouse clicks drop focus, keyboard nav keeps it. */
 .railButton:focus-visible {
-  outline: 1.5px solid var(--c-accent);
-  outline-offset: -3px;
+  outline: 2px dashed var(--c-accent);
+  outline-offset: 2px;
   background-color: transparent;
 }
 
@@ -156,12 +158,12 @@
 }
 
 /* When a button is BOTH pressed AND focused, keep the pressed
- * background and let the outline ring overlay it — both pieces of
- * information stay visible without conflicting. */
+ * background and overlay the dashed outline — both signals stay
+ * visible without one being mistaken for the other. */
 .railButtonActive:focus-visible {
   background-color: var(--c-accent-soft);
-  outline: 1.5px solid var(--c-accent);
-  outline-offset: -3px;
+  outline: 2px dashed var(--c-accent);
+  outline-offset: 2px;
 }
 
 .railButtonActive::before {

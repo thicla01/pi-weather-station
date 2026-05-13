@@ -186,7 +186,15 @@ const DebugPanel = () => {
                 type="button"
                 aria-pressed={isActive}
                 className={`${styles.railButton} ${isActive ? styles.railButtonActive : ""}`}
-                onClick={() => toggleBucket(b.id)}
+                onClick={(e) => {
+                  toggleBucket(b.id);
+                  // Drop focus after a mouse / touch activation so the
+                  // tab doesn't keep `:focus-visible` styling that
+                  // could be misread as "pressed". Keyboard users
+                  // (Space / Enter) keep focus naturally because
+                  // those keypresses re-fire `:focus-visible`.
+                  e.currentTarget.blur();
+                }}
               >
                 <span className={styles.railIcon}>{b.icon}</span>
                 <span className={styles.railLabel}>{b.label}</span>
