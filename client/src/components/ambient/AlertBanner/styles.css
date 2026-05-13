@@ -44,9 +44,12 @@
 }
 
 .title {
+  display: block;
+  min-height: 20px;
   font-size: 14px;
   font-weight: 500;
   line-height: 1.4;
+  color: var(--c-text);
 }
 
 .cyclable {

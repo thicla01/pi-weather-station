@@ -43,6 +43,12 @@
 .rail {
   grid-column: 2;
   grid-row: 1;
+  /* min-height: 0 is load-bearing — without it the grid cell expands
+   * to fit content and `overflow-y: auto` never engages, so the
+   * AiSummaryInline (and bottom of ChartTabs) silently scrolls below
+   * the viewport with no visible scrollbar. CSS grid + flex children
+   * stack defaults to "shrink to content" not "constrain to cell". */
+  min-height: 0;
   display: flex;
   flex-direction: column;
   gap: 10px;
