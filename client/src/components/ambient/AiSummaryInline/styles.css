@@ -51,25 +51,42 @@
   /* Cap the summary body height so long Claude responses (the 3rd
    * "Analyse radar" paragraph can run 200+ words during active
    * weather) get their own scroll area inside the slab instead of
-   * pushing the rail's scroll past the viewport bottom. The cap is
-   * intentionally short — the AI summary stays at-a-glance content,
-   * and the user can scroll inside for the rest. */
-  max-height: 320px;
-  overflow-y: auto;
+   * pushing the rail's scroll past the viewport bottom.
+   *
+   * The cap is responsive (`min(30vh, 280px)`) for a concrete reason:
+   * the slab is the *last* child in the rail's flex column, and on
+   * a 13" laptop / Mac kiosk at 1280×800 with HeroBand + MetricsGrid
+   * + ChartTabs above it, the rail has ~210 px of vertical space
+   * left for the slab. A fixed 320 px cap (the previous value)
+   * pushed the body's bottom — and its scrollbar — *below* the rail's
+   * visible viewport, so the user saw the truncated text but no
+   * affordance to scroll. Anchoring on `vh` keeps the entire slab
+   * inside the rail no matter the screen height.
+   *
+   * `overflow-y: scroll` (not auto) keeps the scrollbar visible at
+   * all times — the affordance is the whole point. `overscroll-
+   * behavior: contain` stops mousewheel/swipe leak into the rail
+   * once the body hits its top/bottom, so the user can scroll the
+   * AI text without accidentally scrolling the rail behind it. */
+  max-height: min(30vh, 280px);
+  overflow-y: scroll;
+  overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
-  /* Subtle scrollbar so the overflow affordance is visible without
-   * stealing focus from the prose. */
   scrollbar-width: thin;
-  scrollbar-color: var(--c-border) transparent;
+  scrollbar-color: var(--c-text-dim) transparent;
 }
 
 .body::-webkit-scrollbar {
-  width: 6px;
+  width: 8px;
 }
 
 .body::-webkit-scrollbar-thumb {
-  background-color: var(--c-border);
-  border-radius: 3px;
+  background-color: var(--c-text-dim);
+  border-radius: 4px;
+}
+
+.body::-webkit-scrollbar-thumb:hover {
+  background-color: var(--c-text);
 }
 
 .text {
