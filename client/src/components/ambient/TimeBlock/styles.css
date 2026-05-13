@@ -1,0 +1,53 @@
+/* TimeBlock — date / time / sunrise-sunset slab.
+ *
+ * Time numeral takes the visual weight (Geist Mono, large, accent
+ * colour). Date is a small caps caption above; sun row is a pair of
+ * dim chips below. */
+
+.slab {
+  background-color: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: 10px;
+  padding: 12px 14px;
+  color: var(--c-text);
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
+}
+
+.date {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.8px;
+  color: var(--c-text-dim);
+  margin-bottom: 2px;
+}
+
+.time {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 40px;
+  font-weight: 500;
+  letter-spacing: -1px;
+  line-height: 1;
+  color: var(--c-text);
+}
+
+.amPm {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--c-text-dim);
+  margin-left: 6px;
+  vertical-align: 8px;
+}
+
+.sunRow {
+  display: flex;
+  gap: 14px;
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--c-text-dim);
+}
+
+.sunChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}

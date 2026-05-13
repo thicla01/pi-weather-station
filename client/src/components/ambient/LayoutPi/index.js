@@ -2,10 +2,13 @@ import React, { useContext } from "react";
 import { AppContext } from "~/AppContext";
 import WeatherMap from "~/components/WeatherMap";
 import HeroCompact from "~/components/ambient/HeroCompact";
+import TimeBlock from "~/components/ambient/TimeBlock";
 import MetricsGrid from "~/components/ambient/MetricsGrid";
 import AlertBanner from "~/components/ambient/AlertBanner";
 import AlertDetailInline from "~/components/ambient/AlertDetailInline";
 import IndoorBlock from "~/components/ambient/IndoorBlock";
+import ChartTabs from "~/components/ambient/ChartTabs";
+import AiSummaryInline from "~/components/ambient/AiSummaryInline";
 import BottomDock from "~/components/ambient/BottomDock";
 import styles from "./styles.css";
 
@@ -42,11 +45,14 @@ const LayoutPi = () => {
         <WeatherMap zoom={defaultMapZoom} dark={darkMode} />
       </div>
       <aside className={styles.rail}>
+        <TimeBlock />
         <HeroCompact />
         <AlertBanner />
         <AlertDetailInline />
         <MetricsGrid />
         <IndoorBlock />
+        <ChartTabs />
+        <AiSummaryInline />
       </aside>
       <BottomDock />
     </div>

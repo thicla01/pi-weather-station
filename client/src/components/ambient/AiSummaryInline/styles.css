@@ -1,0 +1,62 @@
+/* AiSummaryInline — collapsible AI weather summary slab.
+ *
+ * Default state expanded so the user sees the summary on first load
+ * (most useful content, motivates the feature). Chevron flips
+ * direction when collapsed; collapsed state preserves slab height so
+ * the surrounding layout doesn't jump. */
+
+.slab {
+  background-color: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: 10px;
+  color: var(--c-text);
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+}
+
+.toggle {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  padding: 10px 14px;
+  background-color: transparent;
+  border: 0;
+  cursor: pointer;
+  color: var(--c-text-dim);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.toggle:hover,
+.toggle:focus-visible {
+  color: var(--c-text);
+  outline: none;
+}
+
+.label {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+}
+
+.chevron {
+  font-size: 16px;
+  flex-shrink: 0;
+}
+
+.body {
+  padding: 4px 14px 14px 14px;
+  border-top: 1px solid var(--c-border);
+}
+
+.text {
+  font-size: 13px;
+  line-height: 1.55;
+  margin-top: 10px;
+  margin-bottom: 0;
+}
+
+.text:first-child {
+  margin-top: 12px;
+}
