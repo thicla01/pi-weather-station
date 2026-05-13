@@ -130,16 +130,38 @@
   position: relative;
 }
 
-.railButton:hover,
-.railButton:focus-visible {
+/* Hover — momentary, only present while pointer is over the tab.
+ * No persistent background so it can't be confused with the pressed
+ * state. */
+.railButton:hover {
   color: var(--c-text);
-  background-color: var(--c-accent-soft);
-  outline: none;
+  background-color: color-mix(in srgb, var(--c-accent-soft) 60%, transparent);
+}
+
+/* Focus — a thin outline ring inside the tab's padding. Distinct
+ * from pressed (which uses background + left strip) so users can't
+ * mistake a tabbed-into-but-not-pressed button for an active one.
+ * This was the source of the bug a user spotted: a previously
+ * pressed-then-unpressed tab kept its accent-soft background via
+ * :focus-visible, looking identical to a pressed neighbour. */
+.railButton:focus-visible {
+  outline: 1.5px solid var(--c-accent);
+  outline-offset: -3px;
+  background-color: transparent;
 }
 
 .railButtonActive {
   color: var(--c-text);
   background-color: var(--c-accent-soft);
+}
+
+/* When a button is BOTH pressed AND focused, keep the pressed
+ * background and let the outline ring overlay it — both pieces of
+ * information stay visible without conflicting. */
+.railButtonActive:focus-visible {
+  background-color: var(--c-accent-soft);
+  outline: 1.5px solid var(--c-accent);
+  outline-offset: -3px;
 }
 
 .railButtonActive::before {
