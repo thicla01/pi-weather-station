@@ -14,6 +14,12 @@ import { useTimeOfDay } from "~/ui/hybrid";
 import { exportDebugCsv } from "~/components/Debug";
 import styles from "./styles.css";
 
+// Persists the user's pinned-bucket selection across close/reopen
+// and full reloads (service restart on the kiosk, hard refresh in
+// browser). Stored as a JSON array of bucket ids — same shape as
+// the activeBuckets Set, just serialisable.
+const ACTIVE_BUCKETS_STORAGE_KEY = "pi-weather-debug-active-buckets";
+
 /**
  * Direction C Debug panel — port of the Claude Design canvas at
  * `docs/design-references/settings-debug/project/lib/debug-panel.jsx`
@@ -68,9 +74,41 @@ const DebugPanel = () => {
   // pin its section on screen; press again to unpin. Multiple
   // sections can stack vertically — handy for cross-bucket
   // debugging (e.g. Server KPI side-by-side with the Services
-  // quota board when chasing a slow endpoint). Default: just
-  // Server, same as a fresh open.
-  const [activeBuckets, setActiveBuckets] = useState(() => new Set(["server"]));
+  // quota board when chasing a slow endpoint).
+  //
+  // Persisted to localStorage so the chosen set survives both close/
+  // reopen cycles AND full page reloads (service restart, browser
+  // refresh on the kiosk). Falls back to just `server` on first run
+  // or when the stored value is missing / corrupt. Filtered against
+  // the current BUCKETS list so a renamed bucket from an old build
+  // doesn't leave us with an unrenderable id pinned. */
+  const [activeBuckets, setActiveBuckets] = useState(() => {
+    const fallback = new Set(["server"]);
+    if (typeof window === "undefined") return fallback;
+    try {
+      const raw = window.localStorage.getItem(ACTIVE_BUCKETS_STORAGE_KEY);
+      if (!raw) return fallback;
+      const arr = JSON.parse(raw);
+      if (!Array.isArray(arr) || arr.length === 0) return fallback;
+      const known = new Set(BUCKETS.map((b) => b.id));
+      const valid = arr.filter((id) => known.has(id));
+      return valid.length > 0 ? new Set(valid) : fallback;
+    } catch {
+      return fallback;
+    }
+  });
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    try {
+      window.localStorage.setItem(
+        ACTIVE_BUCKETS_STORAGE_KEY,
+        JSON.stringify(Array.from(activeBuckets)),
+      );
+    } catch {
+      // Quota exceeded or storage disabled — silently drop the write;
+      // the in-memory state still works for the current session.
+    }
+  }, [activeBuckets]);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
