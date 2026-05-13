@@ -108,13 +108,17 @@ const AmbientLayers = () => {
     "--c-danger": palette.danger,
     "--c-cool": palette.cool,
     "--c-strip-color": stripColor,
-    // `zoom` scales the entire subtree; `height` compensates so the
-    // internal 100dvh references still cover the viewport when the
-    // root is zoomed up (1.15) or down (0.85). Same trick the v2
-    // info-container uses to keep the layout viewport-correct under
-    // font-size scaling.
-    zoom: fontSizeZoom,
-    height: `calc(100dvh / ${fontSizeZoom})`,
+    // Note: a previous Phase 7 iteration applied `zoom` here to scale
+    // the entire tree by `fontSizeZoom`. That broke positioning of
+    // absolute-positioned children (mapArea, BottomDock) because the
+    // 100dvh references inside the layout no longer matched the zoomed
+    // root. v2 applies `zoom` only to its info-container (the right
+    // column), not the whole page — that's the pattern Direction C
+    // needs to adopt. Deferred to a follow-up: scale slabs / rails via
+    // a different mechanism (per-rail zoom or CSS font-size cascade)
+    // so the map stays at native resolution.
+    // The fontSizeZoom is still computed above for future use; for now
+    // we expose it via the `data-font-size` attribute only.
   };
 
   return (
