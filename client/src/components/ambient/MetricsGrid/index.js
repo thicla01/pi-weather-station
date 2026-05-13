@@ -47,25 +47,25 @@ const MetricsGrid = () => {
         icon={strongWind}
         value={windSpeed != null ? convertSpeed(windSpeed, speedUnit) : "—"}
         unit={speedUnitLabel(speedUnit)}
-        label={t("currentWeather.wind")}
+        label={t("metrics.wind")}
       />
       <Cell
         icon={humidityAlt}
         value={humidity != null ? Math.round(humidity) : "—"}
         unit="%"
-        label={t("currentWeather.humidity")}
+        label={t("metrics.humidity")}
       />
       <Cell
         icon={sunIcon}
         value={uvIndex != null ? Math.round(uvIndex) : "—"}
         unit=""
-        label="UV"
+        label={t("metrics.uv")}
       />
       <Cell
         icon={leafIcon}
         value={aqi != null ? aqi : "—"}
         unit=""
-        label={aqiCategory ? t(`badges.aqiCategory.${aqiCategory}`) : "AQI"}
+        label={aqiCategory ? t(`badges.aqiCategory.${aqiCategory}`) : t("metrics.aqi")}
       />
     </div>
   );

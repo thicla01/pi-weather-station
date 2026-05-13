@@ -151,6 +151,12 @@
       "5": "Poor"
     }
   },
+  "metrics": {
+    "wind": "Wind",
+    "humidity": "Humidity",
+    "uv": "UV",
+    "aqi": "AQI"
+  },
   "badges": {
     "uv": "UV",
     "aqi": "AQI",

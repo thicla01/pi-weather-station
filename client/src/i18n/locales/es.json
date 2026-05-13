@@ -151,6 +151,12 @@
       "5": "Muy mala"
     }
   },
+  "metrics": {
+    "wind": "Viento",
+    "humidity": "Humedad",
+    "uv": "UV",
+    "aqi": "ICA"
+  },
   "badges": {
     "uv": "UV",
     "aqi": "ICA",

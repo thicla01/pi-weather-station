@@ -151,6 +151,12 @@
       "5": "Très mauvaise"
     }
   },
+  "metrics": {
+    "wind": "Vent",
+    "humidity": "Humidité",
+    "uv": "UV",
+    "aqi": "IQA"
+  },
   "badges": {
     "uv": "UV",
     "aqi": "AQI",
