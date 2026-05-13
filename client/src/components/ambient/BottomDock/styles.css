@@ -11,10 +11,20 @@
   border-top: 1px solid var(--c-border);
   padding: 8px 14px;
   display: flex;
-  align-items: center;
-  justify-content: center;
+  align-items: stretch;
   min-height: 52px;
   color: var(--c-text);
+}
+
+/* ControlButtons brings its own `display: flex; justify-content:
+ * space-evenly` and expects to fill its parent's width. Stretching
+ * here (instead of centring) lets the icons spread across the full
+ * dock width on desktop instead of clustering in the middle with
+ * empty rails on either side. The inner component limits its own
+ * height via the v2 styles so we don't need a fixed height here. */
+.dock > :first-child {
+  flex: 1;
+  min-width: 0;
 }
 
 /* Reach into the existing ControlButtons markup to bring its colour
