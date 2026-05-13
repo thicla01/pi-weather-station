@@ -29,6 +29,15 @@
 .mapArea {
   position: absolute;
   inset: 0 0 var(--c-dock-height) 0;
+  /* z-index: 0 is load-bearing — it forces .mapArea into its own
+   * stacking context so Leaflet's internal panes (z-index up to 1000
+   * on its `.leaflet-top`/`.leaflet-bottom` controls) stay contained
+   * inside the map area. Without it, Leaflet's high-z-index controls
+   * leak up to the parent .layout stacking context and overlay the
+   * HeroBand and right rail (which sit at z-index 10 — far below
+   * Leaflet's 1000). User-visible symptom: HeroBand and rail
+   * completely invisible despite being in the DOM. */
+  z-index: 0;
   background-color: var(--c-bg);
   overflow: hidden;
 }
