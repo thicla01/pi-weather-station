@@ -355,6 +355,52 @@
   color: var(--c-text-dim);
 }
 
+/* Value text is selectable only when explicitly opted in — keeps
+ * accidental selection out of the way on touchscreens while still
+ * letting users copy coordinates / IDs via Ctrl+C when they need it.
+ * Default `.fieldValue` inherits the slab's user-select: none rule. */
+.fieldValueSelectable {
+  user-select: text;
+  -webkit-user-select: text;
+  cursor: text;
+}
+
+.fieldTrailing {
+  margin-left: auto;
+  display: inline-flex;
+  align-items: center;
+}
+
+.copyButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 8px;
+  background-color: var(--c-accent-soft);
+  border: 1px solid var(--c-border);
+  border-radius: 3px;
+  color: var(--c-text);
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 9px;
+  font-weight: 500;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.copyButton:hover:not(:disabled),
+.copyButton:focus-visible {
+  background-color: var(--c-surface-hybrid);
+  color: var(--c-accent);
+  outline: none;
+}
+
+.copyButton:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
 /* ── Segmented control ──────────────────────────────────────────── */
 
 .seg {

@@ -319,14 +319,20 @@ const SectionConfig = ({ ctx, lang, remote }) => {
           value={customLat != null ? customLat : "—"}
           unit="°"
           mono
-          disabled={remote}
+          selectable
+          trailing={(customLat != null && customLon != null) ? (
+            <CopyButton
+              label={lang === "fr" ? "Copier" : "Copy"}
+              value={`${customLat}, ${customLon}`}
+            />
+          ) : null}
         />
         <Field
           label="Longitude"
           value={customLon != null ? customLon : "—"}
           unit="°"
           mono
-          disabled={remote}
+          selectable
         />
         <Seg
           label={lang === "fr" ? "Source radar" : "Radar source"}
@@ -564,15 +570,53 @@ const Toggle = ({ label, value, onChange, disabled, sub }) => (
   </label>
 );
 
-const Field = ({ label, value, unit, mono, disabled }) => (
+const Field = ({ label, value, unit, mono, disabled, selectable, trailing }) => (
   <div className={`${styles.field} ${disabled ? styles.fieldDisabled : ""}`}>
     <div className={styles.fieldLabel}>{label}</div>
     <div className={styles.fieldBox}>
-      <span className={`${styles.fieldValue} ${mono ? styles.fieldValueMono : ""}`}>{value}</span>
+      <span
+        className={`${styles.fieldValue} ${mono ? styles.fieldValueMono : ""} ${selectable ? styles.fieldValueSelectable : ""}`}
+      >
+        {value}
+      </span>
       {unit ? <span className={styles.fieldUnit}>{unit}</span> : null}
+      {trailing ? <span className={styles.fieldTrailing}>{trailing}</span> : null}
     </div>
   </div>
 );
+
+/**
+ * Small inline button that copies `value` to the clipboard. Renders
+ * a transient "Copied!" affirmation on success.
+ *
+ * @param {object} props
+ * @param {string} props.value — text to copy
+ * @param {string} props.label — button label when idle
+ * @returns {JSX.Element}
+ */
+const CopyButton = ({ value, label }) => {
+  const [copied, setCopied] = React.useState(false);
+  const onCopy = () => {
+    if (!navigator.clipboard || !value) return;
+    navigator.clipboard.writeText(value)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      })
+      .catch((err) => console.warn("[settings] clipboard write failed", err));
+  };
+  return (
+    <button
+      type="button"
+      className={styles.copyButton}
+      onClick={onCopy}
+      disabled={!value}
+      title={value ? `Copy "${value}"` : "Nothing to copy"}
+    >
+      {copied ? (label === "Copier" ? "Copié !" : "Copied!") : label}
+    </button>
+  );
+};
 
 const Seg = ({ label, options, value, onChange, disabled }) => (
   <div className={`${styles.seg} ${disabled ? styles.segDisabled : ""}`}>
