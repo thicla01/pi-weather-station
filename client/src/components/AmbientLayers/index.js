@@ -51,7 +51,9 @@ const AmbientLayers = () => {
   const palette = getPalette(tod);
   const { level: hybridLevelValue } = useHybridMode();
   const { fontSize } = useContext(AppContext);
-  const fontSizeZoom = FONT_SIZE_ZOOM[fontSize] || 1.0;
+  // FONT_SIZE_ZOOM kept in the module for the future fix — the
+  // attribute hook is below.
+  const fontSizeKey = fontSize && FONT_SIZE_ZOOM[fontSize] ? fontSize : "m";
 
   // Initialise from the current viewport — SSR not in play here, so
   // window is always defined at first render.
@@ -128,7 +130,7 @@ const AmbientLayers = () => {
       data-palette={tod}
       data-hybrid={hybridLevelValue}
       data-layout={isDesktop ? "desktop" : "pi"}
-      data-font-size={fontSize || "m"}
+      data-font-size={fontSizeKey}
     >
       {isDesktop ? <LayoutDesktop /> : <LayoutPi />}
     </div>
