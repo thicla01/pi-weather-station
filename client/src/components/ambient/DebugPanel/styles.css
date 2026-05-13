@@ -202,6 +202,14 @@
 
 .bucket {
   max-width: 880px;
+  /* Establishes a container query context — the internal grids
+   * inside the bucket (quotas, KV pairs) can then react to the
+   * bucket's actual width rather than the viewport. Important
+   * because in the multi-column .stack a bucket can land in a
+   * narrow column (~570 px) or, when it's the only tall item, in
+   * effectively the full pane width (~1100 px). Viewport media
+   * queries can't tell those apart. */
+  container-type: inline-size;
 }
 
 /* ── Multi-select stack ───────────────────────────────────────── */
@@ -321,13 +329,24 @@
 .gridQuota {
   display: grid;
   grid-template-columns: 1fr;
-  gap: 12px;
+  gap: 10px;
 }
 
-@media (min-width: 640px) {
-  .gridQuota {
-    grid-template-columns: 1fr 1fr;
-  }
+/* Container queries: respond to the bucket's actual width, not the
+ * viewport. When Services sits alone in a wide column, the quota
+ * cards densify so the bucket doesn't dominate the vertical space
+ * of its own column and the multi-column stack can balance heights
+ * better. */
+@container (min-width: 460px) {
+  .gridQuota { grid-template-columns: repeat(2, 1fr); }
+}
+
+@container (min-width: 700px) {
+  .gridQuota { grid-template-columns: repeat(3, 1fr); }
+}
+
+@container (min-width: 920px) {
+  .gridQuota { grid-template-columns: repeat(4, 1fr); }
 }
 
 /* ── KV row ────────────────────────────────────────────────────── */
