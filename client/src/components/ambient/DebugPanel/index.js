@@ -189,68 +189,97 @@ const BucketContent = ({ bucket, data }) => {
 // Bucket renderers — each shows the most representative section(s)
 // ───────────────────────────────────────────────────────────────────
 
-const BucketServer = ({ data }) => (
-  <div className={styles.bucket}>
-    <SectionTitle title="Server config" />
-    <div className={styles.gridTwo}>
-      <KV k="version"  v={`${data.version || "?"} · ${data.commit || "?"}`} />
-      <KV k="hostname" v={data.hostname || "?"} />
-      <KV k="os"       v={data.osVersion || "?"} />
-      <KV k="node"     v={data.nodeVersion || "?"} />
-      <KV k="port"     v={`HTTPS :${data.port || "?"}`} />
-      <KV k="env"      v={data.nodeEnv || "?"} />
-      <KV k="DEBUG"    v={<Tag kind={data.debug ? "ok" : "neutral"}>{data.debug ? "TRUE" : "FALSE"}</Tag>} />
-      <KV k="ALLOW_REMOTE" v={<Tag kind={data.allowRemote ? "warn" : "neutral"}>{data.allowRemote ? "TRUE" : "FALSE"}</Tag>} />
-    </div>
+const BucketServer = ({ data }) => {
+  const v = data.appVersion || {};
+  const sys = data.system || {};
+  const net = data.network || {};
+  const cfg = data.serverConfig || {};
+  const kpis = data.serverKpis || {};
+  const mem = kpis.memory || {};
+  return (
+    <div className={styles.bucket}>
+      <SectionTitle title="Server config" />
+      <div className={styles.gridTwo}>
+        <KV k="version"  v={`${v.name || "?"} v${v.version || "?"} · ${v.commit || "?"}`} />
+        <KV k="hostname" v={sys.hostname || "?"} />
+        <KV k="hardware" v={sys.hardware || "?"} />
+        <KV k="os"       v={sys.os || "?"} />
+        <KV k="branch"   v={v.branch || "?"} />
+        <KV k="network"  v={`${net.protocol || "?"}://localhost:${net.port || "?"}`} />
+        <KV k="DEBUG"    v={<Tag kind={cfg.debug ? "ok" : "neutral"}>{cfg.debug ? "TRUE" : "FALSE"}</Tag>} />
+        <KV k="ALLOW_REMOTE" v={<Tag kind={cfg.allowRemote ? "warn" : "neutral"}>{cfg.allowRemote ? "TRUE" : "FALSE"}</Tag>} />
+      </div>
 
-    <SectionTitle title="Server KPI" gap />
-    <div className={styles.gridTwo}>
-      <KV k="uptime"     v={formatUptime(data.uptime)} />
-      <KV k="heap used"  v={`${formatMb(data.memory?.heapUsed)} MB`} />
-      <KV k="heap total" v={`${formatMb(data.memory?.heapTotal)} MB`} />
-      <KV k="rss"        v={`${formatMb(data.memory?.rss)} MB`} />
-      <KV k="cpu temp"   v={data.cpuTempC != null ? `${data.cpuTempC.toFixed(1)} °C` : "—"} />
-      <KV k="fan rpm"    v={data.fanRpm != null ? data.fanRpm.toLocaleString() : "—"} />
-    </div>
+      <SectionTitle title="Server KPI" gap />
+      <div className={styles.gridTwo}>
+        <KV k="uptime"     v={kpis.uptimeSec != null ? formatUptime(kpis.uptimeSec) : "—"} />
+        <KV k="heap used"  v={mem.heapUsedMb != null ? `${mem.heapUsedMb} MB` : "—"} />
+        <KV k="heap total" v={mem.heapTotalMb != null ? `${mem.heapTotalMb} MB` : "—"} />
+        <KV k="rss"        v={mem.rssMb != null ? `${mem.rssMb} MB` : "—"} />
+        <KV k="cpu temp"   v={kpis.cpuTempC != null ? `${kpis.cpuTempC.toFixed(1)} °C` : "—"} />
+        <KV k="fan rpm"    v={kpis.fanRpm != null ? kpis.fanRpm.toLocaleString() : "—"} />
+        <KV k="cache hits" v={kpis.cache?.hits != null ? kpis.cache.hits.toLocaleString() : "—"} />
+        <KV k="cache rate" v={kpis.cache?.rate != null ? `${kpis.cache.rate}%` : "—"} />
+      </div>
 
-    <div className={styles.deferNote}>
-      Logs section lands in Phase 9b — the v2 Debug overlay still
-      surfaces them in the meantime (toggle Direction C off to access).
+      {Array.isArray(kpis.responseTimes) && kpis.responseTimes.length > 0 ? (
+        <>
+          <SectionTitle title="Response times" gap />
+          <div className={styles.list}>
+            {kpis.responseTimes.slice(0, 10).map((r, i) => (
+              <div key={i} className={styles.row}>
+                <span className={styles.rowName}>{r.endpoint}</span>
+                <span className={styles.rowDim}>{r.count} req</span>
+                <span className={styles.rowMono}>{r.avgMs} ms avg</span>
+              </div>
+            ))}
+          </div>
+        </>
+      ) : null}
+
+      <div className={styles.deferNote}>
+        Logs section lands in Phase 9b — toggle Direction C off to see
+        them in the v2 Debug overlay in the meantime.
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const BucketClient = ({ data }) => {
-  const remoteCount = Array.isArray(data.remoteClients) ? data.remoteClients.length : 0;
-  const securityCount = Array.isArray(data.securityEvents) ? data.securityEvents.length : 0;
+  const clients = Array.isArray(data.remoteClients) ? data.remoteClients : [];
+  const events = Array.isArray(data.securityEvents) ? data.securityEvents : [];
   return (
     <div className={styles.bucket}>
       <SectionTitle title="Remote clients" />
-      {remoteCount === 0 ? (
+      {clients.length === 0 ? (
         <div className={styles.emptyNote}>No remote clients tracked yet.</div>
       ) : (
         <div className={styles.list}>
-          {data.remoteClients.slice(0, 10).map((c, i) => (
+          {clients.slice(0, 10).map((c, i) => (
             <div key={i} className={styles.row}>
-              <span className={styles.rowMono}>{c.ip}</span>
-              <span className={styles.rowDim}>{c.firstSeen} → {c.lastSeen}</span>
-              <span>{c.requests} req</span>
+              <span className={styles.rowMono}>{c.ip || c.address || "?"}</span>
+              <span className={styles.rowDim}>
+                {c.firstSeen ? new Date(c.firstSeen).toLocaleTimeString() : "?"}
+                {" → "}
+                {c.lastSeen ? new Date(c.lastSeen).toLocaleTimeString() : "?"}
+              </span>
+              <span>{c.requestCount ?? c.requests ?? 0} req</span>
             </div>
           ))}
         </div>
       )}
 
       <SectionTitle title="Security events" gap />
-      {securityCount === 0 ? (
+      {events.length === 0 ? (
         <div className={styles.emptyNote}>No security events.</div>
       ) : (
         <div className={styles.list}>
-          {data.securityEvents.slice(0, 10).map((s, i) => (
+          {events.slice(0, 10).map((s, i) => (
             <div key={i} className={styles.row}>
               <Tag kind="err">BLOCKED</Tag>
-              <span className={styles.rowMono}>{s.ip}</span>
-              <span>{s.method} {s.path}</span>
-              <span className={styles.rowDim}>{s.reason}</span>
+              <span className={styles.rowMono}>{s.ip || "?"}</span>
+              <span>{s.method || ""} {s.path || s.url || ""}</span>
+              <span className={styles.rowDim}>{s.reason || s.message || ""}</span>
             </div>
           ))}
         </div>
@@ -260,95 +289,145 @@ const BucketClient = ({ data }) => {
 };
 
 const BucketServices = ({ data }) => {
-  const quotas = data.requestCounts || data.quotas || {};
-  const entries = Object.entries(quotas);
+  const providers = data.providerStatus?.providers || [];
+  const services = data.services || {};
+  const counters = data.counters || {};
+  const counterEntries = Object.entries(counters);
   return (
     <div className={styles.bucket}>
-      <SectionTitle title="API quotas" />
-      {entries.length === 0 ? (
-        <div className={styles.emptyNote}>No quota data available.</div>
+      <SectionTitle title="Provider statuspages" />
+      {providers.length === 0 ? (
+        <div className={styles.emptyNote}>No provider status available.</div>
       ) : (
-        <div className={styles.gridQuota}>
-          {entries.slice(0, 12).map(([service, info]) => {
-            // v2 shape: requestCounts[service] = { count, dailyMax? }
-            const used = typeof info === "number" ? info : info?.count || 0;
-            const cap = typeof info === "object" ? (info?.dailyMax || info?.cap || 0) : 0;
-            return (
-              <div key={service} className={styles.quotaItem}>
-                <div className={styles.quotaName}>{service}</div>
-                {cap > 0 ? (
-                  <QuotaBar used={used} cap={cap} />
-                ) : (
-                  <div className={styles.rowMono}>{used.toLocaleString()}</div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
-
-      <SectionTitle title="Service health" gap />
-      {data.servicesStatus ? (
         <div className={styles.list}>
-          {Object.entries(data.servicesStatus).slice(0, 10).map(([name, info]) => (
-            <div key={name} className={styles.row}>
-              <Tag kind={info?.lastSuccess ? "ok" : "warn"}>{info?.lastSuccess ? "OK" : "STALE"}</Tag>
-              <span className={styles.rowName}>{name}</span>
-              <span className={styles.rowDim}>{info?.lastChecked || "—"}</span>
+          {providers.map((p, i) => (
+            <div key={i} className={styles.row}>
+              <Tag kind={
+                p.indicator === "none" ? "ok"
+                  : p.indicator === "minor" ? "warn"
+                    : "err"
+              }>{(p.indicator || "?").toUpperCase()}</Tag>
+              <span className={styles.rowName}>{p.name}</span>
+              <span className={styles.rowDim}>{p.description}</span>
             </div>
           ))}
         </div>
+      )}
+
+      <SectionTitle title="Recent service calls" gap />
+      {Object.keys(services).length === 0 ? (
+        <div className={styles.emptyNote}>No service activity yet.</div>
       ) : (
-        <div className={styles.emptyNote}>No service status snapshot.</div>
+        <div className={styles.list}>
+          {Object.entries(services).slice(0, 10).map(([name, info]) => (
+            <div key={name} className={styles.row}>
+              <Tag kind={info?.status === "ok" ? "ok" : info?.status === "warn" ? "warn" : "err"}>
+                {(info?.status || "?").toUpperCase()}
+              </Tag>
+              <span className={styles.rowName}>{name}</span>
+              <span className={styles.rowDim}>{info?.comment || ""}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <SectionTitle title="API quotas" gap />
+      {counterEntries.length === 0 ? (
+        <div className={styles.emptyNote}>No quota data tracked yet.</div>
+      ) : (
+        <div className={styles.gridQuota}>
+          {counterEntries.flatMap(([service, info]) => {
+            const quotas = info.quotas || {};
+            const endpoints = Object.entries(info.endpoints || {});
+            return endpoints.slice(0, 4).map(([ep, c]) => {
+              // Pick the most relevant window — day if exposed, else hour.
+              const used = c.day ?? c.hour ?? c.month ?? 0;
+              const cap = quotas.day ?? quotas.hour ?? quotas.month ?? 0;
+              return (
+                <div key={`${service}-${ep}`} className={styles.quotaItem}>
+                  <div className={styles.quotaName}>{service} · {ep}</div>
+                  {cap > 0 ? (
+                    <QuotaBar used={used} cap={cap} />
+                  ) : (
+                    <div className={styles.rowMono}>{Number(used).toLocaleString()} reqs</div>
+                  )}
+                </div>
+              );
+            });
+          })}
+        </div>
       )}
     </div>
   );
 };
 
-const BucketStorage = ({ data }) => (
-  <div className={styles.bucket}>
-    <SectionTitle title="In-memory caches" />
-    {data.cacheStats ? (
+const BucketStorage = ({ data }) => {
+  const cache = Array.isArray(data.cache) ? data.cache : [];
+  const kpis = data.serverKpis || {};
+  return (
+    <div className={styles.bucket}>
+      <SectionTitle title="Cache stats" />
       <div className={styles.gridTwo}>
-        {Object.entries(data.cacheStats).map(([cache, stats]) => (
-          <KV
-            key={cache}
-            k={cache}
-            v={typeof stats === "object"
-              ? `${stats.size ?? "?"} entries · ${stats.hitRate != null ? `${stats.hitRate}%` : ""}`
-              : String(stats)}
-          />
-        ))}
+        <KV k="hits"     v={kpis.cache?.hits != null ? kpis.cache.hits.toLocaleString() : "—"} />
+        <KV k="misses"   v={kpis.cache?.misses != null ? kpis.cache.misses.toLocaleString() : "—"} />
+        <KV k="hit rate" v={kpis.cache?.rate != null ? `${kpis.cache.rate}%` : "—"} />
+        <KV k="entries"  v={cache.length.toLocaleString()} />
       </div>
-    ) : (
-      <div className={styles.emptyNote}>No cache data exposed.</div>
-    )}
 
-    <div className={styles.deferNote}>
-      Radar snapshots section lands in Phase 9b.
-    </div>
-  </div>
-);
+      <SectionTitle title="Cache entries" gap />
+      {cache.length === 0 ? (
+        <div className={styles.emptyNote}>Cache is empty.</div>
+      ) : (
+        <div className={styles.list}>
+          {cache.slice(0, 12).map((e, i) => (
+            <div key={i} className={styles.row}>
+              <span className={styles.rowMono}>{e.key}</span>
+              <span className={styles.rowDim}>
+                {e.expired ? "EXPIRED" : `TTL ${e.expiresIn ?? "?"}s`}
+              </span>
+            </div>
+          ))}
+        </div>
+      )}
 
-const BucketAbout = ({ data }) => (
-  <div className={styles.bucket}>
-    <SectionTitle title="About this build" />
-    <div className={styles.gridTwo}>
-      <KV k="version" v={data.version || "?"} />
-      <KV k="commit"  v={data.commit || "?"} />
-      <KV k="branch"  v={data.branch || "?"} />
-      <KV k="updated" v={data.lastUpdateCheck || "—"} />
-      <KV k="repo"    v="github.com/thicla01/pi-weather-station" />
-      <KV k="license" v="MIT" />
+      <div className={styles.deferNote}>
+        Radar snapshots section lands in Phase 9b.
+      </div>
     </div>
+  );
+};
 
-    <div className={styles.deferNote}>
-      Vulnerability scan section lands in Phase 9b — until then, run
-      <code> npm audit </code>
-      on the device.
+const BucketAbout = ({ data }) => {
+  const v = data.appVersion || {};
+  const u = data.updateInfo || {};
+  return (
+    <div className={styles.bucket}>
+      <SectionTitle title="About this build" />
+      <div className={styles.gridTwo}>
+        <KV k="name"    v={v.name || "?"} />
+        <KV k="version" v={v.version || "?"} />
+        <KV k="commit"  v={v.commit || "?"} />
+        <KV k="branch"  v={v.branch || "?"} />
+        <KV k="repo"    v="github.com/thicla01/pi-weather-station" />
+        <KV k="license" v="MIT" />
+      </div>
+
+      <SectionTitle title="Update check" gap />
+      <div className={styles.gridTwo}>
+        <KV k="local sha"   v={u.localSha || "—"} />
+        <KV k="latest sha"  v={u.latestSha || "—"} />
+        <KV k="latest ver"  v={u.latestVersion || "—"} />
+        <KV k="available"   v={<Tag kind={u.updateAvailable ? "warn" : "ok"}>{u.updateAvailable ? "YES" : "UP-TO-DATE"}</Tag>} />
+      </div>
+
+      <div className={styles.deferNote}>
+        Vulnerability scan section lands in Phase 9b — until then, run
+        <code> npm audit </code>
+        on the device.
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 // ───────────────────────────────────────────────────────────────────
 // Tiny atoms — KV, Tag, QuotaBar, SectionTitle
@@ -388,11 +467,6 @@ const SectionTitle = ({ title, gap }) => (
 // ───────────────────────────────────────────────────────────────────
 // Format helpers
 // ───────────────────────────────────────────────────────────────────
-
-function formatMb(bytes) {
-  if (bytes == null) return "—";
-  return (bytes / 1024 / 1024).toFixed(0);
-}
 
 function formatUptime(sec) {
   if (sec == null) return "—";
