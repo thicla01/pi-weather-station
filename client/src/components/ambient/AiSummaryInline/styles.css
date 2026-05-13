@@ -48,6 +48,28 @@
 .body {
   padding: 4px 14px 14px 14px;
   border-top: 1px solid var(--c-border);
+  /* Cap the summary body height so long Claude responses (the 3rd
+   * "Analyse radar" paragraph can run 200+ words during active
+   * weather) get their own scroll area inside the slab instead of
+   * pushing the rail's scroll past the viewport bottom. The cap is
+   * intentionally short — the AI summary stays at-a-glance content,
+   * and the user can scroll inside for the rest. */
+  max-height: 320px;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  /* Subtle scrollbar so the overflow affordance is visible without
+   * stealing focus from the prose. */
+  scrollbar-width: thin;
+  scrollbar-color: var(--c-border) transparent;
+}
+
+.body::-webkit-scrollbar {
+  width: 6px;
+}
+
+.body::-webkit-scrollbar-thumb {
+  background-color: var(--c-border);
+  border-radius: 3px;
 }
 
 .text {
