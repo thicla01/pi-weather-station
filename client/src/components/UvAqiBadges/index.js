@@ -90,7 +90,7 @@ function formatValueForScale(scale, value) {
  * @returns {JSX.Element|null} Badges row, or null when nothing to show
  */
 const UvAqiBadges = () => {
-  const { currentWeatherData, mapGeo, darkMode, aqhiInfo } = useContext(AppContext);
+  const { currentWeatherData, darkMode, aqhiInfo } = useContext(AppContext);
   const { t } = useTranslation();
   const aqi = aqhiInfo; // { value, category, source, scale, kind, stationName, stationDistanceKm } | null
 
