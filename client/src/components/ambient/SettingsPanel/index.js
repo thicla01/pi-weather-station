@@ -3,7 +3,7 @@
  * this file. Their shapes are documented via JSDoc on the exported
  * SettingsPanel; declaring PropTypes for every helper adds ~80 lines
  * of boilerplate for components no other file imports. */
-import React, { useContext, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
 import closeSharp from "@iconify/icons-ion/close-sharp";
@@ -265,23 +265,103 @@ const SectionConfig = ({ ctx, lang, remote }) => {
     customLat, customLon,
     radarSource, saveRadarSource,
     brightnessPercent, brightnessAvailable,
+    saveSettingsToJson,
   } = ctx;
 
-  // The 6 providers in display order. Matches the design package's
-  // ADMIN.PROVIDERS array but with the actual settings-key mapping
-  // wired up so the row reflects real configuration state.
+  // Draft state for every server-side field that the user can edit.
+  // Initial values come from AppContext (the current persisted
+  // settings.json); changes accumulate locally until the user hits
+  // Save. This matches the v2 pattern where keys + coords were
+  // committed as a single batch via /settings PUT — partial commits
+  // would risk leaving the server in a half-configured state where
+  // e.g. the new Tomorrow.io key was saved but the old AirNow key
+  // never got the chance to be flushed.
+  const [draft, setDraft] = useState({
+    mapApiKey: mapApiKey || "",
+    weatherApiKey: weatherApiKey || "",
+    reverseGeoApiKey: reverseGeoApiKey || "",
+    anthropicApiKey: anthropicApiKey || "",
+    airNowApiKey: airNowApiKey || "",
+    openAqApiKey: openAqApiKey || "",
+    customLat: customLat != null ? String(customLat) : "",
+    customLon: customLon != null ? String(customLon) : "",
+  });
+  const [saveState, setSaveState] = useState("idle"); // idle | saving | saved | error
+  const [saveError, setSaveError] = useState(null);
+
+  // Re-sync the draft whenever AppContext sends us fresh persisted
+  // values (e.g. after a save round-trips successfully). Only sync
+  // when the draft is clean for that field — never clobber the user's
+  // in-flight edits.
+  useEffect(() => {
+    setDraft((prev) => ({
+      mapApiKey: prev.mapApiKey === "" ? (mapApiKey || "") : prev.mapApiKey,
+      weatherApiKey: prev.weatherApiKey === "" ? (weatherApiKey || "") : prev.weatherApiKey,
+      reverseGeoApiKey: prev.reverseGeoApiKey === "" ? (reverseGeoApiKey || "") : prev.reverseGeoApiKey,
+      anthropicApiKey: prev.anthropicApiKey === "" ? (anthropicApiKey || "") : prev.anthropicApiKey,
+      airNowApiKey: prev.airNowApiKey === "" ? (airNowApiKey || "") : prev.airNowApiKey,
+      openAqApiKey: prev.openAqApiKey === "" ? (openAqApiKey || "") : prev.openAqApiKey,
+      customLat: prev.customLat === "" ? (customLat != null ? String(customLat) : "") : prev.customLat,
+      customLon: prev.customLon === "" ? (customLon != null ? String(customLon) : "") : prev.customLon,
+    }));
+  }, [mapApiKey, weatherApiKey, reverseGeoApiKey, anthropicApiKey, airNowApiKey, openAqApiKey, customLat, customLon]);
+
+  const isDirty = (
+    draft.mapApiKey !== (mapApiKey || "") ||
+    draft.weatherApiKey !== (weatherApiKey || "") ||
+    draft.reverseGeoApiKey !== (reverseGeoApiKey || "") ||
+    draft.anthropicApiKey !== (anthropicApiKey || "") ||
+    draft.airNowApiKey !== (airNowApiKey || "") ||
+    draft.openAqApiKey !== (openAqApiKey || "") ||
+    draft.customLat !== (customLat != null ? String(customLat) : "") ||
+    draft.customLon !== (customLon != null ? String(customLon) : "")
+  );
+
+  const updateDraft = (key) => (value) => {
+    setDraft((prev) => ({ ...prev, [key]: value }));
+    if (saveState === "saved") setSaveState("idle");
+    if (saveState === "error") {
+      setSaveState("idle");
+      setSaveError(null);
+    }
+  };
+
+  const onSave = () => {
+    if (!isDirty || typeof saveSettingsToJson !== "function" || remote) return;
+    setSaveState("saving");
+    setSaveError(null);
+    saveSettingsToJson({
+      mapsKey: draft.mapApiKey,
+      weatherKey: draft.weatherApiKey,
+      geoKey: draft.reverseGeoApiKey,
+      anthropicKey: draft.anthropicApiKey,
+      airNowKey: draft.airNowApiKey,
+      openAqKey: draft.openAqApiKey,
+      lat: draft.customLat,
+      lon: draft.customLon,
+    })
+      .then(() => {
+        setSaveState("saved");
+        setTimeout(() => setSaveState("idle"), 2500);
+      })
+      .catch((err) => {
+        setSaveError(err?.response?.data?.error || err?.message || "Save failed");
+        setSaveState("error");
+      });
+  };
+
   const providers = [
-    { id: "mapApiKey", name: "Mapbox", tier: "required", value: mapApiKey,
+    { id: "mapApiKey", name: "Mapbox", tier: "required",
       unlocks: lang === "fr" ? "Tuiles de carte + styles" : "Map tiles + styles" },
-    { id: "weatherApiKey", name: "Tomorrow.io", tier: "required", value: weatherApiKey,
+    { id: "weatherApiKey", name: "Tomorrow.io", tier: "required",
       unlocks: lang === "fr" ? "Prévisions horaires + 5 jours" : "Hourly + daily forecast" },
-    { id: "reverseGeoApiKey", name: "LocationIQ", tier: "optional", value: reverseGeoApiKey,
+    { id: "reverseGeoApiKey", name: "LocationIQ", tier: "optional",
       unlocks: lang === "fr" ? "Géocodage inverse · nom de lieu" : "Reverse geocoding · place name" },
-    { id: "anthropicApiKey", name: "Anthropic", tier: "optional", value: anthropicApiKey,
+    { id: "anthropicApiKey", name: "Anthropic", tier: "optional",
       unlocks: lang === "fr" ? "Résumé météo IA (Claude Haiku)" : "AI weather summary (Claude Haiku)" },
-    { id: "airNowApiKey", name: "EPA AirNow", tier: "optional", value: airNowApiKey,
+    { id: "airNowApiKey", name: "EPA AirNow", tier: "optional",
       unlocks: lang === "fr" ? "Indice qualité d'air US (AQI)" : "US air-quality index (AQI)" },
-    { id: "openAqApiKey", name: "OpenAQ", tier: "optional", value: openAqApiKey,
+    { id: "openAqApiKey", name: "OpenAQ", tier: "optional",
       unlocks: lang === "fr" ? "Repli qualité d'air mondial" : "Global air-quality fallback" },
   ];
 
@@ -308,32 +388,63 @@ const SectionConfig = ({ ctx, lang, remote }) => {
       <div className={styles.subhead}>
         {lang === "fr" ? "Clés API" : "API keys"}
       </div>
-      <ApiKeysList providers={providers} remote={remote} />
+      <ApiKeysList
+        providers={providers}
+        remote={remote}
+        draft={draft}
+        onChange={updateDraft}
+      />
 
       <div className={`${styles.subhead} ${styles.subheadGap}`}>
         {lang === "fr" ? "Localisation & matériel" : "Location & hardware"}
       </div>
       <div className={styles.grid4}>
-        <Field
-          label={lang === "fr" ? "Latitude" : "Latitude"}
-          value={customLat != null ? customLat : "—"}
-          unit="°"
-          mono
-          selectable
-          trailing={(customLat != null && customLon != null) ? (
-            <CopyButton
-              label={lang === "fr" ? "Copier" : "Copy"}
-              value={`${customLat}, ${customLon}`}
-            />
-          ) : null}
-        />
-        <Field
-          label="Longitude"
-          value={customLon != null ? customLon : "—"}
-          unit="°"
-          mono
-          selectable
-        />
+        {remote ? (
+          <Field
+            label={lang === "fr" ? "Latitude" : "Latitude"}
+            value={customLat != null ? customLat : "—"}
+            unit="°"
+            mono
+            selectable
+            trailing={(customLat != null && customLon != null) ? (
+              <CopyButton
+                label={lang === "fr" ? "Copier" : "Copy"}
+                value={`${customLat}, ${customLon}`}
+              />
+            ) : null}
+          />
+        ) : (
+          <EditableField
+            label={lang === "fr" ? "Latitude" : "Latitude"}
+            value={draft.customLat}
+            unit="°"
+            mono
+            onChange={updateDraft("customLat")}
+            trailing={(customLat != null && customLon != null) ? (
+              <CopyButton
+                label={lang === "fr" ? "Copier" : "Copy"}
+                value={`${customLat}, ${customLon}`}
+              />
+            ) : null}
+          />
+        )}
+        {remote ? (
+          <Field
+            label="Longitude"
+            value={customLon != null ? customLon : "—"}
+            unit="°"
+            mono
+            selectable
+          />
+        ) : (
+          <EditableField
+            label="Longitude"
+            value={draft.customLon}
+            unit="°"
+            mono
+            onChange={updateDraft("customLon")}
+          />
+        )}
         <Seg
           label={lang === "fr" ? "Source radar" : "Radar source"}
           options={[{ v: "rainviewer", l: "RainViewer" }, { v: "eccc", l: "ECCC" }]}
@@ -353,6 +464,26 @@ const SectionConfig = ({ ctx, lang, remote }) => {
           <div />
         )}
       </div>
+
+      {!remote ? (
+        <div className={styles.saveBar}>
+          <button
+            type="button"
+            className={styles.saveButton}
+            onClick={onSave}
+            disabled={!isDirty || saveState === "saving"}
+          >
+            {saveState === "saving"
+              ? (lang === "fr" ? "Enregistrement…" : "Saving…")
+              : saveState === "saved"
+                ? (lang === "fr" ? "✓ Enregistré" : "✓ Saved")
+                : (lang === "fr" ? "Enregistrer" : "Save changes")}
+          </button>
+          {saveState === "error" && saveError ? (
+            <span className={styles.saveError}>{saveError}</span>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 };
@@ -682,10 +813,11 @@ const RemoteNotice = ({ lang }) => (
   </div>
 );
 
-const ApiKeysList = ({ providers, remote }) => (
+const ApiKeysList = ({ providers, remote, draft, onChange }) => (
   <div className={styles.apiList}>
     {providers.map((p) => {
-      const status = p.value ? "configured" : "empty";
+      const value = draft ? draft[p.id] || "" : "";
+      const status = value ? "configured" : "empty";
       return (
         <div key={p.id} className={styles.apiRow}>
           <StatusDot status={status} />
@@ -699,9 +831,15 @@ const ApiKeysList = ({ providers, remote }) => (
                 {status === "configured" ? "✓ Configured" : "○ Not configured"}
               </Pill>
             ) : (
-              <span className={styles.apiKeyMasked}>
-                {p.value ? maskKey(p.value) : "—"}
-              </span>
+              <input
+                type="text"
+                className={styles.apiKeyInput}
+                value={value}
+                placeholder="—"
+                spellCheck={false}
+                autoComplete="off"
+                onChange={(e) => onChange && onChange(p.id)(e.target.value)}
+              />
             )}
           </div>
           <span className={styles.apiUnlocks} title={p.unlocks}>{p.unlocks}</span>
@@ -711,9 +849,36 @@ const ApiKeysList = ({ providers, remote }) => (
   </div>
 );
 
-function maskKey(value) {
-  if (!value || value.length < 10) return "•".repeat(8);
-  return `${value.slice(0, 4)}…${value.slice(-4)}`;
-}
+/**
+ * Editable variant of Field for the lat/lon inputs. Visually matches
+ * Field's box but lets the user type. Falls back to read-only Field
+ * when not editable.
+ *
+ * @param {object} props
+ * @param {string} props.label
+ * @param {string} props.value
+ * @param {string} [props.unit]
+ * @param {boolean} [props.mono]
+ * @param {Function} props.onChange — called with raw string value
+ * @param {JSX.Element} [props.trailing]
+ * @returns {JSX.Element}
+ */
+const EditableField = ({ label, value, unit, mono, onChange, trailing }) => (
+  <div className={styles.field}>
+    <div className={styles.fieldLabel}>{label}</div>
+    <div className={styles.fieldBox}>
+      <input
+        type="text"
+        className={`${styles.fieldInput} ${mono ? styles.fieldValueMono : ""}`}
+        value={value}
+        spellCheck={false}
+        autoComplete="off"
+        onChange={(e) => onChange(e.target.value)}
+      />
+      {unit ? <span className={styles.fieldUnit}>{unit}</span> : null}
+      {trailing ? <span className={styles.fieldTrailing}>{trailing}</span> : null}
+    </div>
+  </div>
+);
 
 export default SettingsPanel;

@@ -544,6 +544,80 @@
   letter-spacing: 0.4px;
 }
 
+.apiKeyInput {
+  width: 100%;
+  background-color: var(--c-bg);
+  border: 1px solid var(--c-border);
+  border-radius: 3px;
+  padding: 3px 6px;
+  color: var(--c-text);
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10px;
+  letter-spacing: 0.4px;
+}
+
+.apiKeyInput:focus {
+  outline: none;
+  border-color: var(--c-accent);
+  background-color: var(--c-surface);
+}
+
+.fieldInput {
+  flex: 1;
+  min-width: 0;
+  background-color: transparent;
+  border: 0;
+  padding: 0;
+  color: var(--c-text);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.fieldInput:focus {
+  outline: none;
+}
+
+.saveBar {
+  margin-top: 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.saveButton {
+  background-color: var(--c-accent);
+  color: #ffffff;
+  border: 0;
+  padding: 8px 18px;
+  border-radius: 4px;
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.saveButton:hover:not(:disabled),
+.saveButton:focus-visible {
+  filter: brightness(1.1);
+  outline: none;
+}
+
+.saveButton:disabled {
+  background-color: var(--c-accent-soft);
+  color: var(--c-text-dim);
+  cursor: default;
+}
+
+.saveError {
+  font-size: 11px;
+  color: var(--c-danger);
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
 .apiUnlocks {
   font-size: 10px;
   color: var(--c-text-dim);
