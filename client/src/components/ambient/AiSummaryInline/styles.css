@@ -113,7 +113,14 @@
   background-color: var(--c-text);
 }
 
-.text {
+/* Prefix `.body` on both `.text` rules to escape the global
+ * `.ambientRoot p { margin: 0 }` reset. That reset has specificity
+ * (0,1,1) — class + element — which beats a bare `.text` selector
+ * at (0,1,0); the result was that `margin-top: 16px` silently never
+ * applied and the user saw all "paragraphs" with line-spacing-only
+ * gaps. `.body .text` lands at (0,2,0) so it wins, without needing
+ * !important. */
+.body .text {
   font-size: 13px;
   line-height: 1.55;
   /* 16 px gap between paragraphs reads as a proper paragraph break.
@@ -126,7 +133,7 @@
   margin-bottom: 0;
 }
 
-.text:first-child {
+.body .text:first-child {
   /* No top margin on the first paragraph — the slab body already
    * provides 4 px of padding-top, which is enough breathing room
    * below the toggle's border-bottom without the previous 12 px
