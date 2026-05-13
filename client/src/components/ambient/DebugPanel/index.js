@@ -168,22 +168,64 @@ const BUCKETS = [
 ];
 
 /**
- * Per-bucket dispatcher. Each bucket renders its representative
- * section(s) directly. Full multi-section coverage lands in Phase 9b.
+ * Per-bucket dispatcher, wrapped in an error boundary so a render
+ * crash in one bucket doesn't take down the whole panel (or worse,
+ * unmount the App root and leave the user staring at a black screen).
  *
  * @param {object} props
  * @param {string} props.bucket — active bucket id
  * @param {object} props.data — payload from /api/debug
  * @returns {JSX.Element}
  */
-const BucketContent = ({ bucket, data }) => {
-  if (bucket === "server")   return <BucketServer data={data} />;
-  if (bucket === "client")   return <BucketClient data={data} />;
-  if (bucket === "services") return <BucketServices data={data} />;
-  if (bucket === "storage")  return <BucketStorage data={data} />;
-  if (bucket === "about")    return <BucketAbout data={data} />;
-  return null;
-};
+const BucketContent = ({ bucket, data }) => (
+  <BucketErrorBoundary bucket={bucket}>
+    {bucket === "server"   ? <BucketServer data={data} /> :
+     bucket === "client"   ? <BucketClient data={data} /> :
+     bucket === "services" ? <BucketServices data={data} /> :
+     bucket === "storage"  ? <BucketStorage data={data} /> :
+     bucket === "about"    ? <BucketAbout data={data} /> :
+                             null}
+  </BucketErrorBoundary>
+);
+
+/**
+ * Localised React error boundary — keeps a render crash inside the
+ * bucket pane instead of letting it propagate up and unmount the
+ * whole DebugPanel (or the App). The user sees a recoverable error
+ * message and can switch to a different bucket.
+ */
+class BucketErrorBoundary extends React.Component {
+  constructor(props) {
+    super(props);
+    this.state = { error: null };
+  }
+  static getDerivedStateFromError(error) {
+    return { error };
+  }
+  componentDidUpdate(prev) {
+    // Reset the error state when the user picks a different bucket so
+    // the new pane gets a chance to render.
+    if (prev.bucket !== this.props.bucket && this.state.error) {
+      this.setState({ error: null });
+    }
+  }
+  componentDidCatch(error, info) {
+    // Surface the crash details to the console so the developer can
+    // pick them up via the v2 Debug overlay or remote DevTools.
+    console.error("[DebugPanel] bucket render crashed", this.props.bucket, error, info);
+  }
+  render() {
+    if (this.state.error) {
+      return (
+        <div className={styles.errorBox}>
+          {`Render error in "${this.props.bucket}" bucket — switch to another tab to recover.`}
+          <div className={styles.errorMessage}>{String(this.state.error.message || this.state.error)}</div>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
 
 // ───────────────────────────────────────────────────────────────────
 // Bucket renderers — each shows the most representative section(s)
@@ -337,11 +379,31 @@ const BucketServices = ({ data }) => {
       ) : (
         <div className={styles.gridQuota}>
           {counterEntries.flatMap(([service, info]) => {
-            const quotas = info.quotas || {};
-            const endpoints = Object.entries(info.endpoints || {});
+            // Defensive: `info` may be null, missing `quotas`, missing
+            // `endpoints`, or have `endpoints` as a non-object (e.g.
+            // counters that never tracked per-endpoint usage). Earlier
+            // version assumed full shape and crashed the whole panel
+            // when SERVICES was clicked on a fresh server with empty
+            // endpoint maps.
+            if (!info || typeof info !== "object") return [];
+            const quotas = (info.quotas && typeof info.quotas === "object") ? info.quotas : {};
+            const endpointsObj = (info.endpoints && typeof info.endpoints === "object") ? info.endpoints : {};
+            const endpoints = Object.entries(endpointsObj);
+            // If the service has no per-endpoint breakdown but has
+            // quotas (rare but possible), still emit one row at the
+            // service level.
+            if (endpoints.length === 0 && (quotas.day || quotas.hour || quotas.month)) {
+              return [(
+                <div key={service} className={styles.quotaItem}>
+                  <div className={styles.quotaName}>{service}</div>
+                  <div className={styles.rowDim}>{`cap ${quotas.day ?? quotas.hour ?? quotas.month}`}</div>
+                </div>
+              )];
+            }
             return endpoints.slice(0, 4).map(([ep, c]) => {
+              const counter = (c && typeof c === "object") ? c : {};
               // Pick the most relevant window — day if exposed, else hour.
-              const used = c.day ?? c.hour ?? c.month ?? 0;
+              const used = counter.day ?? counter.hour ?? counter.month ?? 0;
               const cap = quotas.day ?? quotas.hour ?? quotas.month ?? 0;
               return (
                 <div key={`${service}-${ep}`} className={styles.quotaItem}>
