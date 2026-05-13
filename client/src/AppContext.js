@@ -1369,6 +1369,35 @@ export function AppContextProvider({ children }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the update* helpers are stable per provider mount but not memoized; keying on the inputs that should restart the polling cycle (API key + location) is the intent.
   }, [weatherApiKey, mapGeo]);
 
+  // Air-quality (AQHI / AQI / IQA) polling. Previously lived inside the
+  // v2 UvAqiBadges component, but v3 layouts (MetricsGrid in LayoutPi /
+  // LayoutDesktop) read `aqhiInfo` from context without mounting that
+  // component — so the IQA tile stayed on "—" forever. Lifting the
+  // fetch here keeps the air-quality state alive regardless of which
+  // UI is rendered, exactly like the weather-data refresh effect above.
+  //
+  // 30 min cadence matches every upstream's hourly publication; the
+  // server caches each source so the cost is flat across remote clients.
+  useEffect(() => {
+    if (!mapGeo) return undefined;
+    const AQI_REFRESH_MS = 30 * 60 * 1000;
+    let cancelled = false;
+    const fetchAqi = () => {
+      const params = new URLSearchParams({
+        lat: mapGeo.latitude,
+        lon: mapGeo.longitude,
+      });
+      axios.get(`/api/air-quality?${params}`)
+        .then((res) => {
+          if (!cancelled) setAqhiInfo(res.data?.available ? res.data : null);
+        })
+        .catch(() => { if (!cancelled) setAqhiInfo(null); });
+    };
+    fetchAqi();
+    const interval = setInterval(fetchAqi, AQI_REFRESH_MS);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [mapGeo]);
+
   // Auto dark/light at sunrise / sunset. Runs only when the user opted
   // in via Settings AND we have valid sunrise/sunset timestamps. Checks
   // every minute (cheap — no network), plus immediately on mount/toggle.

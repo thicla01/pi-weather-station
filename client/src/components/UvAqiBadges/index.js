@@ -1,6 +1,5 @@
-import React, { useContext, useEffect } from "react";
+import React, { useContext } from "react";
 import { useTranslation } from "react-i18next";
-import axios from "axios";
 import { AppContext } from "~/AppContext";
 import styles from "./styles.css";
 
@@ -42,7 +41,8 @@ function epaCategory(idx) {
   return "low";
 }
 
-const AQI_REFRESH_MS = 30 * 60 * 1000; // 30 min — every upstream publishes hourly
+// AQI_REFRESH_MS lived here when this component owned the polling;
+// the interval now lives in AppContext alongside the weather refresh.
 
 // Source-specific label keys for the tooltip. Falls back to the
 // generic ECCC label if a new source ever ships without a matching
@@ -90,34 +90,13 @@ function formatValueForScale(scale, value) {
  * @returns {JSX.Element|null} Badges row, or null when nothing to show
  */
 const UvAqiBadges = () => {
-  const { currentWeatherData, mapGeo, darkMode, aqhiInfo, setAqhiInfo } = useContext(AppContext);
+  const { currentWeatherData, mapGeo, darkMode, aqhiInfo } = useContext(AppContext);
   const { t } = useTranslation();
   const aqi = aqhiInfo; // { value, category, source, scale, kind, stationName, stationDistanceKm } | null
 
-  // Poll the air-quality endpoint when the marker moves. 30-min
-  // refresh matches every upstream's ~hourly publication cadence;
-  // server-side caches keep the cost flat regardless of how many
-  // remote clients are hitting the kiosk. State lives in AppContext
-  // so the Debug panel can show the chosen station + kind without
-  // refetching.
-  useEffect(() => {
-    if (!mapGeo) return undefined;
-    let cancelled = false;
-    const fetchAqi = () => {
-      const params = new URLSearchParams({
-        lat: mapGeo.latitude,
-        lon: mapGeo.longitude,
-      });
-      axios.get(`/api/air-quality?${params}`)
-        .then((res) => {
-          if (!cancelled) setAqhiInfo(res.data?.available ? res.data : null);
-        })
-        .catch(() => { if (!cancelled) setAqhiInfo(null); });
-    };
-    fetchAqi();
-    const interval = setInterval(fetchAqi, AQI_REFRESH_MS);
-    return () => { cancelled = true; clearInterval(interval); };
-  }, [mapGeo, setAqhiInfo]);
+  // Air-quality polling now lives in AppContext (see the "Air-quality"
+  // useEffect there) so v3 layouts — which don't mount UvAqiBadges —
+  // also keep `aqhiInfo` fresh. Reading the value here is enough.
 
   const values = currentWeatherData?.data?.timelines?.[0]?.intervals?.[0]?.values || {};
   const uv = values.uvIndex;
