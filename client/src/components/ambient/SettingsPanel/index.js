@@ -9,6 +9,8 @@ import { InlineIcon } from "@iconify/react";
 import closeSharp from "@iconify/icons-ion/close-sharp";
 import i18n from "~/i18n";
 import { AppContext } from "~/AppContext";
+import { getPalette } from "~/ui/tokens";
+import { useTimeOfDay } from "~/ui/hybrid";
 import styles from "./styles.css";
 
 /**
@@ -45,14 +47,37 @@ const SettingsPanel = () => {
   } = ctx;
   const [advOpen, setAdvOpen] = useState(false);
   const [expOpen, setExpOpen] = useState(false);
+  // SettingsPanel renders as a sibling of AmbientLayers in the App
+  // tree, so it can't inherit the `--c-*` palette tokens that
+  // AmbientLayers sets on its own root. Compute the palette here
+  // and mirror it on the overlay's own root inline style — the
+  // descendant CSS Module rules pick the tokens up exactly the same
+  // way the rest of Direction C does. Hooks fire before the early
+  // return so React's hook ordering invariant stays satisfied.
+  const tod = useTimeOfDay();
+  const palette = getPalette(tod);
 
   if (!settingsMenuOpen) return null;
 
   const lang = (i18n.language || "en").slice(0, 2);
   const remote = !isLocal;
+  const cssVars = {
+    "--c-bg": palette.bg,
+    "--c-text": palette.text,
+    "--c-text-dim": palette.textDim,
+    "--c-accent": palette.accent,
+    "--c-accent-soft": palette.accentSoft,
+    "--c-surface": palette.surface,
+    "--c-surface-hybrid": palette.surfaceHybrid,
+    "--c-border": palette.border,
+    "--c-border-hybrid": palette.borderHybrid,
+    "--c-warn": palette.warn,
+    "--c-danger": palette.danger,
+    "--c-cool": palette.cool,
+  };
 
   return (
-    <div className={styles.overlay} role="dialog" aria-modal="true">
+    <div className={styles.overlay} role="dialog" aria-modal="true" style={cssVars}>
       <div className={styles.header}>
         <div className={styles.title}>{t("settings.title")}</div>
         <button
