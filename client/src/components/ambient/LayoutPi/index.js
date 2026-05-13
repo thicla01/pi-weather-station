@@ -1,4 +1,8 @@
 import React, { useContext } from "react";
+import { useTranslation } from "react-i18next";
+import { InlineIcon } from "@iconify/react";
+import chevronLeft from "@iconify/icons-carbon/chevron-left";
+import chevronRight from "@iconify/icons-carbon/chevron-right";
 import { AppContext } from "~/AppContext";
 import WeatherMap from "~/components/WeatherMap";
 import HeroCompact from "~/components/ambient/HeroCompact";
@@ -10,6 +14,7 @@ import IndoorBlock from "~/components/ambient/IndoorBlock";
 import ChartTabs from "~/components/ambient/ChartTabs";
 import AiSummaryInline from "~/components/ambient/AiSummaryInline";
 import BottomDock from "~/components/ambient/BottomDock";
+import FloatingMiniBanner from "~/components/ambient/FloatingMiniBanner";
 import styles from "./styles.css";
 
 /**
@@ -17,34 +22,71 @@ import styles from "./styles.css";
  *
  * Structure (top to bottom × left to right):
  *   ┌──────────────────────────────┬────────────────────────┐
+ *   │ FloatingMiniBanner (overlay) │  TimeBlock             │
  *   │                              │  HeroCompact           │
- *   │                              │  AlertBanner           │
- *   │  WeatherMap (full-bleed)     │  AlertDetailInline     │
+ *   │  WeatherMap (full-bleed)     │  AlertBanner           │
+ *   │                              │  AlertDetailInline     │
  *   │                              │  MetricsGrid           │
- *   │                              │  IndoorBlock           │
+ *   │           [chevron]          │  IndoorBlock           │
+ *   │                              │  ChartTabs             │
+ *   │                              │  AiSummaryInline       │
  *   ├──────────────────────────────┴────────────────────────┤
  *   │  BottomDock                                            │
  *   └────────────────────────────────────────────────────────┘
  *
- * Phase 3a delivers the grid + right-rail composition. The collapse
- * chevron pinned to the map's right edge, the floating mini-banner
- * overlay when the rail is collapsed, the ChartTabs slab, the
- * AiSummaryInline slab, and the extracted RadarTimeline all land in
- * Phase 3b. Reuses the v2 `<WeatherMap />` directly — extracting
- * RadarTimeline from it requires deciding on the timeline anchor
- * first, which is part of 3b.
+ * The rail is collapsible via a chevron pinned to the map's right
+ * edge. Collapse state lives in `infoPanelCollapsed` on AppContext —
+ * deliberately shared with the v2 InfoPanel toggle so WeatherMap's
+ * existing `MapResizer` reacts to either entry point and re-fits the
+ * Leaflet canvas after the column width changes.
+ *
+ * When the rail is collapsed AND there's an eligible government
+ * alert, `FloatingMiniBanner` overlays on the map's top-right so the
+ * kiosk doesn't silently hide a severe alert. Tapping the mini-banner
+ * re-opens the rail (full UI returns; cycle controls become reachable
+ * again).
+ *
+ * RadarTimeline extraction is deferred — the scrubber currently
+ * inlined inside `WeatherMap` already renders correctly inside the
+ * map cell. Lifting it into its own ambient component is a Phase 10
+ * cleanup item; functionally it's already where it should be.
  *
  * @returns {JSX.Element} Pi layout
  */
 const LayoutPi = () => {
-  const { darkMode, defaultMapZoom } = useContext(AppContext);
+  const { t } = useTranslation();
+  const {
+    darkMode,
+    defaultMapZoom,
+    infoPanelCollapsed,
+    setInfoPanelCollapsed,
+  } = useContext(AppContext);
+
+  const collapsed = Boolean(infoPanelCollapsed);
+  const toggleCollapse = () => setInfoPanelCollapsed(!collapsed);
 
   return (
-    <div className={styles.layout}>
+    <div
+      className={`${styles.layout} ${collapsed ? styles.collapsed : ""}`}
+    >
       <div className={`${styles.mapArea} map-container ${darkMode ? "map-dark-mode" : ""}`}>
         <WeatherMap zoom={defaultMapZoom} dark={darkMode} />
+        {collapsed && <FloatingMiniBanner onExpand={toggleCollapse} />}
+        <button
+          type="button"
+          className={styles.chevron}
+          onClick={toggleCollapse}
+          aria-label={t(collapsed ? "controls.expandPanel" : "controls.collapsePanel", {
+            defaultValue: collapsed ? "Expand panel" : "Collapse panel",
+          })}
+          title={t(collapsed ? "controls.expandPanel" : "controls.collapsePanel", {
+            defaultValue: collapsed ? "Expand panel" : "Collapse panel",
+          })}
+        >
+          <InlineIcon icon={collapsed ? chevronLeft : chevronRight} />
+        </button>
       </div>
-      <aside className={styles.rail}>
+      <aside className={styles.rail} aria-hidden={collapsed}>
         <TimeBlock />
         <HeroCompact />
         <AlertBanner />

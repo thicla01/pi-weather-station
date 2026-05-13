@@ -1,13 +1,13 @@
 /* LayoutPi — orchestrates the Pi 7"/10" composition.
  *
- * CSS Grid with three rows × two columns:
- *   row 1 (1fr):    map | rail  ← the visible work area
- *   row 2 (auto):   dock spans both columns  ← controls
+ * CSS Grid:
+ *   row 1 (1fr):    map | rail
+ *   row 2 (auto):   dock spans both columns
  *
- * The rail width scales with viewport: 300px on smaller Pi screens,
- * 340px when there's room. The map fills the remaining space and
- * goes edge-to-edge inside its cell so the radar always feels
- * full-bleed even when the rail is visible. */
+ * The rail width animates between 300/340px and 0 when the user taps
+ * the chevron. Width transitions on the grid template column drive
+ * the change; WeatherMap's MapResizer reacts to the shared
+ * `infoPanelCollapsed` flag and re-fits the Leaflet canvas afterward. */
 
 .layout {
   display: grid;
@@ -19,12 +19,17 @@
   color: var(--c-text);
   font-family: "Geist", system-ui, -apple-system, sans-serif;
   overflow: hidden;
+  transition: grid-template-columns 200ms ease-out;
 }
 
 @media (min-width: 1280px) {
   .layout {
     grid-template-columns: 1fr 340px;
   }
+}
+
+.layout.collapsed {
+  grid-template-columns: 1fr 0;
 }
 
 .mapArea {
@@ -35,11 +40,6 @@
   overflow: hidden;
 }
 
-/* The rail is the right column. Scrolls internally if its contents
- * grow past the row height — long ECCC alerts can stack with indoor
- * data on a 7" screen and we'd rather scroll than truncate. Padding
- * gives the slabs breathing room without depending on each component
- * to bring its own outer margin. */
 .rail {
   grid-column: 2;
   grid-row: 1;
@@ -48,8 +48,48 @@
   gap: 10px;
   padding: 12px;
   overflow-y: auto;
+  overflow-x: hidden;
   border-left: 1px solid var(--c-border);
   background-color: var(--c-bg);
+  transition: opacity 150ms ease-out;
+}
+
+.layout.collapsed .rail {
+  opacity: 0;
+  pointer-events: none;
+}
+
+/* Chevron toggle — vertical bar pinned to the right edge of the map
+ * area. When collapsed, the chevron sits flush against the screen
+ * edge; when expanded, against the rail's left border. Either way
+ * the user has a single visible affordance to switch states. */
+.chevron {
+  position: absolute;
+  top: 50%;
+  right: 0;
+  transform: translateY(-50%);
+  z-index: 400;
+  width: 22px;
+  height: 56px;
+  background-color: var(--c-surface-hybrid);
+  border: 1px solid var(--c-border);
+  border-right: 0;
+  border-radius: 4px 0 0 4px;
+  color: var(--c-text-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  padding: 0;
+}
+
+.chevron:hover,
+.chevron:focus-visible {
+  color: var(--c-text);
+  background-color: var(--c-surface-hybrid);
+  outline: none;
 }
 
 /* BottomDock cell spans both columns. */
