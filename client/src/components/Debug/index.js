@@ -907,7 +907,8 @@ VulnerabilityScanSection.propTypes = {
   url: PropTypes.string,
 };
 
-function exportDebugCsv(data, clientMetrics, fps) {
+/* eslint-disable-next-line jsdoc/require-jsdoc -- existing helper, signature unchanged; exported so v3 DebugPanel can reuse the same CSV format without duplicating the row layout. */
+export function exportDebugCsv(data, clientMetrics, fps) {
   const q = (val) => `"${String(val ?? "").replace(/"/g, '""')}"`;
   const rows = [];
 
