@@ -206,18 +206,38 @@
 
 /* ── Multi-select stack ───────────────────────────────────────── */
 
-/* Grid with auto-fit columns so multiple pinned buckets sit
- * side-by-side when there's room. minmax(420px, 1fr) means: each
- * column wants 420px min; share remaining width equally; wrap to the
- * next row when a column wouldn't fit. On 800px (Pi 7") only one
- * column fits — same look as before. On 1366px desktop two columns
- * fit. On 1920px three columns. The denser layout matches v2 Debug's
- * info-density without sacrificing readability. */
+/* Multi-column layout (NOT CSS Grid) so the browser balances heights
+ * between columns instead of filling row-by-row. With Grid, pinning
+ * the very tall Services bucket alongside a short Server produced a
+ * ~1000 vs 500 height delta — col 1 looked half-empty next to a
+ * full col 2. Multi-column with `column-fill: balance` (the default)
+ * distributes content top-to-bottom across columns trying to keep
+ * heights equal.
+ *
+ * 2 columns on desktop, 1 column below 880 px so the Pi 7" (800 px
+ * viewport, pane ~664 px) keeps the single-column treatment. 880 is
+ * where the panel's pane grows past ~720 px — comfortable enough
+ * for two readable columns of KV content.
+ *
+ * `break-inside: avoid` on each .stackItem keeps a bucket whole —
+ * without it the browser would happily split a section between
+ * columns, decoupling Server config from its KPI grid below. */
 .stack {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
-  gap: 16px 20px;
-  align-items: start;
+  column-count: 1;
+  column-gap: 20px;
+}
+
+@media (min-width: 880px) {
+  .stack {
+    column-count: 2;
+  }
+}
+
+.stack > .stackItem {
+  break-inside: avoid;
+  -webkit-column-break-inside: avoid;
+  /* Multi-column items need explicit margin instead of grid gap. */
+  margin-bottom: 16px;
 }
 
 .stackItem {
