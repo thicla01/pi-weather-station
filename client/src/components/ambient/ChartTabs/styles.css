@@ -1,0 +1,62 @@
+/* ChartTabs — tabbed slab containing the hourly or daily chart.
+ *
+ * Tabs are pill-shaped buttons in the slab header. Active tab gets
+ * the accent underline + brighter text; inactive stays dim. Chart
+ * area has a fixed height (140px) so the slab doesn't reflow when
+ * Chart.js renders the canvas. */
+
+.slab {
+  background-color: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: 10px;
+  padding: 10px 12px 12px 12px;
+  color: var(--c-text);
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
+}
+
+.tabRow {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.tab {
+  background-color: transparent;
+  border: 0;
+  padding: 4px 10px;
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--c-text-dim);
+  border-radius: 4px;
+  cursor: pointer;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.tab:hover,
+.tab:focus-visible {
+  color: var(--c-text);
+  outline: none;
+}
+
+.active {
+  color: var(--c-text);
+  background-color: var(--c-accent-soft);
+}
+
+.chartArea {
+  height: 140px;
+  position: relative;
+}
+
+/* Chart.js canvas fills its parent; the existing HourlyChart /
+ * DailyChart components bring their own colour scheme tied to
+ * darkMode. They'll render correctly inside the slab but won't pick
+ * up the warm-grey palette yet — Phase 10 cleanup will restyle them
+ * to use the active palette tokens. */
+.chartArea canvas {
+  max-height: 140px;
+}
