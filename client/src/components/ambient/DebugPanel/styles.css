@@ -333,19 +333,22 @@
 }
 
 /* Container queries: respond to the bucket's actual width, not the
- * viewport. When Services sits alone in a wide column, the quota
- * cards densify so the bucket doesn't dominate the vertical space
- * of its own column and the multi-column stack can balance heights
- * better. */
-@container (min-width: 460px) {
-  .gridQuota { grid-template-columns: repeat(2, 1fr); }
-}
-
-@container (min-width: 700px) {
+ * viewport. The thresholds are tuned for the typical bucket widths
+ * the multi-column stack produces:
+ *   - 2-col stack at 1280-1366 px viewport → bucket ~540 px → need
+ *     3-col quotas so Services doesn't tower over the column
+ *   - 1-col stack (Pi 7" / narrow) → bucket ~620 px → 3-col quotas
+ *     are still readable
+ *   - Single bucket pinned, full pane width → bucket ~1100 px →
+ *     4 quotas wide
+ * Earlier 460/700/920 thresholds left bucket-540 at 2-col quotas,
+ * which made Services dominate vertically and broke the multi-column
+ * balancer. */
+@container (min-width: 420px) {
   .gridQuota { grid-template-columns: repeat(3, 1fr); }
 }
 
-@container (min-width: 920px) {
+@container (min-width: 760px) {
   .gridQuota { grid-template-columns: repeat(4, 1fr); }
 }
 
@@ -437,19 +440,29 @@
 /* ── Quota ─────────────────────────────────────────────────────── */
 
 .quotaItem {
-  padding: 8px 10px;
+  padding: 6px 8px;
   background-color: var(--c-surface);
   border: 1px solid var(--c-border);
   border-radius: 4px;
+  /* Lock min-height so all cards in a row line up — the cap-less
+   * ones (just a "N reqs" line) used to be 6 px shorter than the
+   * ones with a QuotaBar, which made the grid look ragged at the
+   * baseline. */
+  min-height: 46px;
 }
 
 .quotaName {
   font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  font-size: 10px;
-  letter-spacing: 0.6px;
+  font-size: 9.5px;
+  letter-spacing: 0.5px;
   text-transform: uppercase;
   color: var(--c-text);
-  margin-bottom: 6px;
+  margin-bottom: 4px;
+  /* Long names like "TOMORROW.IO · CURRENT" need to truncate on
+   * narrow cards (when Services is in a 4-col grid at ~140 px). */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 .quotaBar { width: 100%; }
