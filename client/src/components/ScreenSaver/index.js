@@ -5,6 +5,7 @@ import { format } from "date-fns";
 import { fr, es, enUS } from "date-fns/locale";
 import styles from "./styles.css";
 import { AppContext } from "~/AppContext";
+import { useTimeOfDay } from "~/ui/hybrid";
 
 const DATE_FNS_LOCALES = { fr, es, en: enUS };
 
@@ -96,13 +97,19 @@ function conditionKey(code) {
 const ScreenSaver = ({ stage }) => {
   const { i18n } = useTranslation();
   const {
-    darkMode,
-    sleepNightMode,
     currentWeatherData,
     tempUnit,
     clockTime,
     mapTimezone,
   } = useContext(AppContext);
+  // Read the active palette through the same hook that drives Direction
+  // C surfaces. This unifies the sleep-palette decision under Phase 5
+  // of the v3.0.0 rollout. Today the hook is a `darkMode` +
+  // `sleepNightMode` shim, so v2 users see the same screensaver
+  // variant they always did; once Phase 5+ wires real solar position,
+  // the dusk / night distinction will start to differentiate visually
+  // without any further change in this component.
+  const tod = useTimeOfDay();
 
   // Live wall clock — re-renders every 30 s. Aligned to the next minute on
   // first mount so the displayed time flips at the same instant as the
@@ -190,13 +197,18 @@ const ScreenSaver = ({ stage }) => {
 
   // Variant + stage classes composed onto the root. The mock keeps the
   // base variant active when stage 2 layers on top so the dot picks the
-  // correct (red vs grey) colour from the still-present night-red /
-  // night-cream class.
-  const variantClass = !darkMode
-    ? styles.day
-    : sleepNightMode
-      ? styles.nightRed
-      : styles.nightCream;
+  // correct colour from the still-present variant class.
+  //
+  // Palette → class mapping:
+  //   day      → .day      (cream on warm-grey, default)
+  //   dusk     → .dusk     (warm-grey cream-on-anthracite, Direction C)
+  //   night    → .dusk     (same as dusk for now; differentiates once
+  //                         solar wiring lands in Phase 5+)
+  //   nightRed → .nightRed (long-wavelength red, melatonin-friendly)
+  let variantClass;
+  if (tod === "day") variantClass = styles.day;
+  else if (tod === "nightRed") variantClass = styles.nightRed;
+  else variantClass = styles.dusk; // "dusk" or "night"
   const stage2Class = stage === 2 ? styles.stage2 : "";
 
   // Date formatted via date-fns with the locale-specific pattern from i18n
