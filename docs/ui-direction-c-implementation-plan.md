@@ -183,13 +183,32 @@ sensitive target — the official Pi 7" touchscreen most users have.
 
 Goal: implement the >800px layout (HD monitor and bigger).
 
-- [ ] `LayoutDesktop` — hero band on top, right rail, full-bleed map behind.
-- [ ] `HeroPlaceDesktop`, `HeroTempDesktop`, `HeroClockDesktop` as 3 slabs.
-- [ ] Right rail composition: `MetricsGrid` (compact mode off), `ForecastCard`,
-  `IndoorBlock`, `AiCard` (with all 3 paragraphs).
-- [ ] Radar timeline anchored bottom-left of map area.
-- [ ] Two breakpoints: ≥1280px and ≥1600px (rail width 300 vs 340, hero 160 vs 200).
-- [ ] Test on dev Mac at multiple window sizes.
+- [x] `LayoutDesktop` — hero band top-left, right rail overlaid on the
+  right edge, **full-bleed map fills the entire main area behind
+  everything**. Translucent slabs (warm-grey surface tokens) let the
+  radar show through subtly so the kiosk reads as ambient rather than
+  partitioned.
+- [x] `HeroBand` — the plan asked for three separate slabs
+  (`HeroPlaceDesktop` / `HeroTempDesktop` / `HeroClockDesktop`).
+  Collapsed into a single `HeroBand` with three internal panels +
+  dividers because the visual goal is a wide cohesive top slab, and
+  three separate slabs would have introduced gap noise.
+- [x] Right rail reuses the Phase 3 composites (`AlertBanner`,
+  `AlertDetailInline`, `MetricsGrid`, `IndoorBlock`, `ChartTabs`,
+  `AiSummaryInline`). `TimeBlock` + `HeroCompact` are intentionally
+  omitted from the desktop rail because the HeroBand at the top
+  carries the same information.
+- [~] Radar timeline anchored bottom-left — the existing inline
+  scrubber inside `WeatherMap` already renders correctly in the
+  full-bleed map area. Full extraction stays deferred to Phase 10
+  cleanup.
+- [x] Two breakpoints: ≥ 1280 px (rail 320 px, hero 140 px) and ≥
+  1600 px (rail 360 px, hero 180 px, larger hero font sizes).
+- [x] `AmbientLayers` becomes a dispatcher — `window.matchMedia`
+  on the 1280 px breakpoint, live updates on resize, switches between
+  `LayoutPi` and `LayoutDesktop`. `data-layout="pi|desktop"` exposed
+  for diagnostics.
+- [ ] Test on dev Mac at multiple window sizes (1280, 1600, 1920).
 
 **Deliverable:** PR #6. Desktop layout matches the design at 1366, 1920, and intermediate sizes.
 
