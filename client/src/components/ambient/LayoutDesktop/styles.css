@@ -1,0 +1,124 @@
+/* LayoutDesktop — full-bleed map background with floating overlays.
+ *
+ * Unlike LayoutPi's split grid, the desktop layout puts the radar
+ * behind everything and floats the hero band, right rail, and dock
+ * on top. The user reads the radar through translucent slabs — much
+ * more "ambient" than the partitioned dashboard look. */
+
+.layout {
+  position: relative;
+  width: 100%;
+  height: 100dvh;
+  background-color: var(--c-bg);
+  color: var(--c-text);
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+  --c-rail-width: 320px;
+  --c-dock-height: 52px;
+  --c-edge-gap: 16px;
+}
+
+@media (min-width: 1600px) {
+  .layout {
+    --c-rail-width: 360px;
+  }
+}
+
+/* Map fills the entire area inside the dock — it's the background.
+ * Everything else absolute-positions over it. */
+.mapArea {
+  position: absolute;
+  inset: 0 0 var(--c-dock-height) 0;
+  background-color: var(--c-bg);
+  overflow: hidden;
+}
+
+/* Hero band — pinned to the top-left, leaves the rail column free.
+ * Subtle margin from the viewport edges so the slab visually floats
+ * rather than touching the bezel. */
+.heroSlot {
+  position: absolute;
+  top: var(--c-edge-gap);
+  left: var(--c-edge-gap);
+  right: calc(var(--c-rail-width) + var(--c-edge-gap) * 2);
+  z-index: 10;
+  pointer-events: auto;
+  transition: right 200ms ease-out;
+}
+
+.layout.collapsed .heroSlot {
+  right: var(--c-edge-gap);
+}
+
+/* Right rail — overlays the map on the right edge. Internally scrolls
+ * if its slab stack grows past the available height. */
+.rail {
+  position: absolute;
+  top: var(--c-edge-gap);
+  right: var(--c-edge-gap);
+  bottom: calc(var(--c-dock-height) + var(--c-edge-gap));
+  width: var(--c-rail-width);
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  /* min-height: 0 on the rail itself isn't needed here because the
+   * rail is absolutely positioned with explicit top + bottom, so its
+   * height is naturally constrained. overflow-y: auto engages
+   * normally. */
+  overflow-y: auto;
+  overflow-x: hidden;
+  transition: opacity 150ms ease-out, transform 200ms ease-out;
+}
+
+.layout.collapsed .rail {
+  opacity: 0;
+  pointer-events: none;
+  transform: translateX(calc(var(--c-rail-width) + var(--c-edge-gap)));
+}
+
+/* Chevron toggle — pinned to the map's right edge, vertically
+ * centred. Same affordance as LayoutPi, just positioned differently
+ * because the rail itself is absolutely placed. */
+.chevron {
+  position: absolute;
+  top: 50%;
+  right: calc(var(--c-rail-width) + var(--c-edge-gap) * 2);
+  transform: translateY(-50%);
+  z-index: 20;
+  width: 22px;
+  height: 56px;
+  background-color: var(--c-surface-hybrid);
+  border: 1px solid var(--c-border);
+  border-radius: 4px 0 0 4px;
+  color: var(--c-text-dim);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  padding: 0;
+  transition: right 200ms ease-out;
+}
+
+.layout.collapsed .chevron {
+  right: 0;
+}
+
+.chevron:hover,
+.chevron:focus-visible {
+  color: var(--c-text);
+  background-color: var(--c-surface-hybrid);
+  outline: none;
+}
+
+/* BottomDock spans the full viewport width at the bottom. */
+.layout > :last-child {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--c-dock-height);
+  z-index: 10;
+}
