@@ -269,7 +269,10 @@ const BUCKETS = [
 // order before considering col 2.
 const APPROX_HEIGHT = {
   server: 360,
-  client: 240,
+  // Client bumped from 240 — now includes Current position section
+  // (lat/lon/zoom/aqhi grid + copy button) above the remote/security
+  // lists, so the bucket grew by ~120 px.
+  client: 360,
   services: 580,
   storage: 440,
   about: 260,
@@ -467,9 +470,42 @@ const BucketServer = ({ data }) => {
 const BucketClient = ({ data }) => {
   const clients = Array.isArray(data.remoteClients) ? data.remoteClients : [];
   const events = Array.isArray(data.securityEvents) ? data.securityEvents : [];
+  // Current map position + zoom + AQHI come straight from AppContext
+  // (they're live client state, not part of the /api/debug snapshot).
+  // The Settings panel shows the *default* coords (`customLat`/`customLon`);
+  // this row shows the *currently selected* coords the user navigated
+  // to — same distinction v2 Debug surfaces in its Client KPI block.
+  const { mapGeo, currentMapZoom, aqhiInfo } = useContext(AppContext);
+  const coordsString = mapGeo
+    ? `${mapGeo.latitude.toFixed(6)}, ${mapGeo.longitude.toFixed(6)}`
+    : null;
   return (
     <div className={styles.bucket}>
-      <SectionTitle title="Remote clients" />
+      <SectionTitle title="Current position" />
+      <div className={styles.gridTwo}>
+        <KV
+          k="lat"
+          v={mapGeo ? mapGeo.latitude.toFixed(6) : "—"}
+        />
+        <KV
+          k="lon"
+          v={mapGeo ? mapGeo.longitude.toFixed(6) : "—"}
+        />
+        <KV k="zoom" v={currentMapZoom != null ? currentMapZoom : "—"} />
+        <KV
+          k="aqhi"
+          v={aqhiInfo?.value != null
+            ? `${aqhiInfo.value}${aqhiInfo.category ? ` · ${aqhiInfo.category}` : ""}`
+            : "—"}
+        />
+      </div>
+      {coordsString ? (
+        <div className={styles.copyCoordRow}>
+          <DebugCopyButton value={coordsString} />
+        </div>
+      ) : null}
+
+      <SectionTitle title="Remote clients" gap />
       {clients.length === 0 ? (
         <div className={styles.emptyNote}>No remote clients tracked yet.</div>
       ) : (
@@ -702,6 +738,40 @@ const QuotaBar = ({ used, cap }) => {
 const SectionTitle = ({ title, gap }) => (
   <h3 className={`${styles.sectionTitle} ${gap ? styles.sectionTitleGap : ""}`}>{title}</h3>
 );
+
+/**
+ * Inline copy-to-clipboard pill used by the Current Position row.
+ * Mirrors SettingsPanel's CopyButton but lives here to keep
+ * DebugPanel self-contained (no cross-component imports yet — both
+ * could move to a shared `ui/clipboard.js` when one more consumer
+ * shows up).
+ *
+ * @param {object} props
+ * @param {string} props.value — text to copy
+ * @returns {JSX.Element}
+ */
+const DebugCopyButton = ({ value }) => {
+  const [copied, setCopied] = useState(false);
+  const onCopy = () => {
+    if (!navigator.clipboard) return;
+    navigator.clipboard.writeText(value)
+      .then(() => {
+        setCopied(true);
+        setTimeout(() => setCopied(false), 1500);
+      })
+      .catch((err) => console.warn("[DebugPanel] clipboard write failed", err));
+  };
+  return (
+    <button
+      type="button"
+      className={styles.copyCoordButton}
+      onClick={onCopy}
+      title={`Copy "${value}"`}
+    >
+      {copied ? "Copied!" : `Copy ${value}`}
+    </button>
+  );
+};
 
 // ───────────────────────────────────────────────────────────────────
 // Format helpers
