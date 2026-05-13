@@ -1,0 +1,536 @@
+/* SettingsPanel — Direction C, port of variant B from the Claude
+ * Design canvas. Tokens come from the AmbientLayers root (palette
+ * mirrored onto CSS custom properties), so this stylesheet stays
+ * palette-agnostic — only the layout, sizing, and structural rules
+ * live here. */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  background-color: var(--c-bg);
+  color: var(--c-text);
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--c-border);
+  background-color: var(--c-surface);
+  position: sticky;
+  top: 0;
+  z-index: 1;
+}
+
+.title {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--c-accent);
+}
+
+.closeButton {
+  background: transparent;
+  border: 0;
+  padding: 4px;
+  font-size: 20px;
+  color: var(--c-text);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.closeButton:hover,
+.closeButton:focus-visible {
+  color: var(--c-accent);
+  outline: none;
+}
+
+.body {
+  max-width: 880px;
+  margin: 0 auto;
+  padding: 16px 18px 24px 18px;
+}
+
+/* ── Section common ─────────────────────────────────────────────── */
+
+.section {
+  margin-bottom: 18px;
+}
+
+.sectionHeader {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin-bottom: 10px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--c-border);
+}
+
+.sectionHeaderLeft {
+  flex: 1;
+  min-width: 0;
+}
+
+.sectionHeaderTitle {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--c-accent);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.sectionHeaderSubtitle {
+  font-size: 11px;
+  color: var(--c-text-dim);
+  margin-top: 2px;
+}
+
+.sectionHeaderRight {
+  flex-shrink: 0;
+}
+
+.sectionLock {
+  font-size: 11px;
+}
+
+/* Disclosure variant — same look but the whole header is a button. */
+.disclosureHeader {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  padding: 0 0 6px 0;
+  margin-bottom: 10px;
+  border-bottom: 1px solid var(--c-border);
+  cursor: pointer;
+  text-align: left;
+  font-family: inherit;
+  color: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.disclosureChevron {
+  color: var(--c-accent);
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  transition: transform 150ms;
+  margin-bottom: 4px;
+}
+
+.disclosureChevronOpen {
+  transform: rotate(90deg);
+}
+
+.subhead {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--c-text-dim);
+  margin-bottom: 6px;
+}
+
+.subheadGap {
+  margin-top: 14px;
+}
+
+.subheadAccent {
+  color: var(--c-accent);
+  font-size: 8px;
+  margin-left: 6px;
+}
+
+/* ── Pill ────────────────────────────────────────────────────────── */
+
+.pill {
+  display: inline-block;
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+  padding: 2px 6px;
+  border-radius: 3px;
+  white-space: nowrap;
+}
+
+.pill-neutral {
+  background-color: var(--c-accent-soft);
+  color: var(--c-text-dim);
+  border: 1px solid var(--c-border);
+}
+
+.pill-optional {
+  background-color: transparent;
+  color: var(--c-text-dim);
+  border: 1px solid var(--c-border);
+}
+
+.pill-required {
+  background-color: var(--c-danger);
+  color: #ffffff;
+}
+
+.pill-ok {
+  background-color: #2e7d52;
+  color: #ffffff;
+}
+
+.pill-warn {
+  background-color: var(--c-warn);
+  color: #ffffff;
+}
+
+.pill-invalid {
+  background-color: var(--c-danger);
+  color: #ffffff;
+}
+
+/* ── Status dot ─────────────────────────────────────────────────── */
+
+.statusDot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.statusDot-configured {
+  background-color: #2e7d52;
+}
+
+.statusDot-empty {
+  background-color: var(--c-text-dim);
+}
+
+.statusDot-invalid {
+  background-color: var(--c-danger);
+}
+
+/* ── Remote notice ─────────────────────────────────────────────── */
+
+.remoteNotice {
+  background-color: color-mix(in srgb, var(--c-warn) 14%, transparent);
+  border: 1px solid var(--c-warn);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin-bottom: 12px;
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  font-size: 11.5px;
+  line-height: 1.4;
+}
+
+.remoteNoticeIcon {
+  color: var(--c-warn);
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+
+/* ── Toggle ─────────────────────────────────────────────────────── */
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.toggleDisabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.toggleTrack {
+  width: 30px;
+  height: 16px;
+  border-radius: 10px;
+  position: relative;
+  flex-shrink: 0;
+  background-color: var(--c-accent-soft);
+  border: 1px solid var(--c-border);
+  transition: background-color 120ms;
+}
+
+.toggleTrackOn {
+  background-color: var(--c-accent);
+  border-color: var(--c-accent);
+}
+
+.toggleThumb {
+  position: absolute;
+  top: 1px;
+  left: 1px;
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  background-color: var(--c-text);
+  transition: left 120ms;
+}
+
+.toggleTrackOn .toggleThumb {
+  left: 15px;
+  background-color: #ffffff;
+}
+
+.toggleInput {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.toggleLabel {
+  font-size: 12px;
+  color: var(--c-text);
+}
+
+.toggleSub {
+  font-size: 10.5px;
+  color: var(--c-text-dim);
+  margin-left: 4px;
+}
+
+/* ── Field ──────────────────────────────────────────────────────── */
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.fieldDisabled {
+  opacity: 0.55;
+}
+
+.fieldLabel {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 8.5px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--c-text-dim);
+}
+
+.fieldBox {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 4px 8px;
+  background-color: var(--c-accent-soft);
+  border: 1px solid var(--c-border);
+  border-radius: 4px;
+}
+
+.fieldValue {
+  font-size: 12px;
+  color: var(--c-text);
+  font-variant-numeric: tabular-nums;
+}
+
+.fieldValueMono {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+}
+
+.fieldUnit {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 9px;
+  color: var(--c-text-dim);
+}
+
+/* ── Segmented control ──────────────────────────────────────────── */
+
+.seg {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.segDisabled {
+  opacity: 0.55;
+}
+
+.segLabel {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 8.5px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--c-text-dim);
+}
+
+.segTrack {
+  display: flex;
+  gap: 2px;
+  background-color: var(--c-accent-soft);
+  padding: 2px;
+  border-radius: 4px;
+  border: 1px solid var(--c-border);
+}
+
+.segButton {
+  flex: 1;
+  background: transparent;
+  border: 0;
+  padding: 4px 6px;
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.4px;
+  color: var(--c-text-dim);
+  cursor: pointer;
+  border-radius: 3px;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.segButton:hover:not(:disabled) {
+  color: var(--c-text);
+}
+
+.segButtonActive {
+  background-color: var(--c-bg);
+  color: var(--c-text);
+}
+
+/* ── Grids ──────────────────────────────────────────────────────── */
+
+.grid8 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  margin-bottom: 8px;
+}
+
+@media (min-width: 640px) {
+  .grid8 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+@media (min-width: 960px) {
+  .grid8 {
+    grid-template-columns: repeat(8, 1fr);
+  }
+}
+
+.grid4 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+@media (min-width: 720px) {
+  .grid4 {
+    grid-template-columns: repeat(4, 1fr);
+  }
+}
+
+.toggleRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 14px;
+  margin-top: 8px;
+}
+
+/* ── API keys (variant B — tight list) ──────────────────────────── */
+
+.apiList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.apiRow {
+  display: grid;
+  grid-template-columns: auto 110px 1fr auto;
+  gap: 8px;
+  align-items: center;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--c-border);
+}
+
+.apiNameBlock {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.apiName {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--c-text);
+  line-height: 1.1;
+}
+
+.apiTier {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 8.5px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--c-text-dim);
+}
+
+.apiValueBlock {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.apiKeyMasked {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10px;
+  color: var(--c-text);
+  letter-spacing: 0.4px;
+}
+
+.apiUnlocks {
+  font-size: 10px;
+  color: var(--c-text-dim);
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* ── Advanced + Experimental body ───────────────────────────────── */
+
+.advBody {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.advNote {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px dashed var(--c-border);
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--c-text-dim);
+  line-height: 1.5;
+}
+
+.advNoteFlag {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10px;
+  color: var(--c-accent);
+}
+
+.flagRow {
+  padding: 8px 0;
+}

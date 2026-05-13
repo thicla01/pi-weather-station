@@ -7,6 +7,7 @@ import WeatherMap from "~/components/WeatherMap";
 import InfoPanel from "~/components/InfoPanel";
 import AmbientLayers from "~/components/AmbientLayers";
 import Settings from "~/components/Settings";
+import AmbientSettingsPanel from "~/components/ambient/SettingsPanel";
 import Debug from "~/components/Debug";
 import UpdateModal from "~/components/UpdateModal";
 import ScreenSaver from "~/components/ScreenSaver";
@@ -171,7 +172,12 @@ const App = () => {
           else branch so the v2 experience survives across the cycle.
           See `docs/ui-direction-c-implementation-plan.md`. */}
       <div className={styles.settingsContainer}>
-        <Settings />
+        {/* v3 Direction C ships a redesigned Settings overlay (Phase 8).
+            When `experimentalUiC` is on we render the new panel
+            instead of the v2 Settings; v2 stays bit-for-bit unchanged
+            for users on the production layout. Debug overlay continues
+            to use the v2 component for now (Phase 9 will refresh it). */}
+        {experimentalUiC ? <AmbientSettingsPanel /> : <Settings />}
         <Debug />
       </div>
       <UpdateModal />
