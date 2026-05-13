@@ -10,40 +10,12 @@ import DailyChart from "~/components/weatherCharts/DailyChart";
 import HourlyChart from "~/components/weatherCharts/HourlyChart";
 import AiSummary from "~/components/AiSummary";
 
-const CURRENT_WEATHER_DATA_UPDATE_INTERVAL = 10 * 60 * 1000; //every 10 minutes
-const HOURLY_WEATHER_DATA_UPDATE_INTERVAL = 60 * 60 * 1000; //every hour
-const DAILY_WEATHER_DATA_UPDATE_INTERVAL = 24 * 60 * 60 * 1000; //every day
 const CHART_CYCLE_DURATION = 150_000; // 2.5 minutes — auto-cycle on small screens
 
-/**
- * Creates an interval to call a weather update callback
- *
- * @param {object} params
- * @param {object} params.stateInterval Interval in state
- * @param {Function} params.stateIntervalSetter state interval setter
- * @param {Function} params.cb callback to invoke on each interval
- * @param {Number} params.intervalTime interval frequency, ms
- * @param {String} params.weatherApiKey weather API key
- * @param {object} params.mapGeo coordinates to get weather for
- */
-function createWeatherUpdateInterval({
-  stateInterval,
-  stateIntervalSetter,
-  cb,
-  intervalTime,
-  weatherApiKey,
-  mapGeo,
-}) {
-  if (stateInterval) {
-    clearInterval(stateInterval);
-    stateIntervalSetter(null);
-  }
-  if (weatherApiKey && mapGeo) {
-    const interval = setInterval(cb, intervalTime);
-    cb();
-    stateIntervalSetter(interval);
-  }
-}
+// Weather data polling (current / hourly / daily) was previously
+// created here, but it now lives in AppContext so v3 layouts — which
+// don't mount WeatherInfo — also get periodic refreshes. See the
+// "Periodic weather data refresh" comment in AppContext.js.
 
 /**
  * Displays weather info
@@ -55,17 +27,12 @@ const WeatherInfo = () => {
     getWeatherApiKey,
     getReverseGeoApiKey,
     reverseGeoApiKey,
-    updateCurrentWeatherData,
-    updateHourlyWeatherData,
-    updateDailyWeatherData,
-    mapGeo,
     weatherApiKey,
     currentWeatherDataErr,
     currentWeatherDataErrMsg,
     darkMode,
     setSettingsMenuOpen,
     currentWeatherData,
-    updateSunriseSunset,
     fontSize,
     infoPanelScrollRef,
   } = useContext(AppContext);
@@ -162,37 +129,7 @@ const WeatherInfo = () => {
 
   const { t } = useTranslation();
 
-  const [
-    currentWeatherUpdateInterval,
-    setCurrentWeatherUpdateInterval,
-  ] = useState(null);
-  const [
-    hourlyWeatherUpdateInterval,
-    setHourlyWeatherUpdateInterval,
-  ] = useState(null);
-  const [dailyWeatherUpdateInterval, setDailyWeatherUpdateInterval] = useState(
-    null
-  );
   const [err, setErr] = useState(null);
-
-  const hourlyWeatherUpdateCb = useCallback(() => {
-    updateSunriseSunset(mapGeo);
-    updateHourlyWeatherData(mapGeo).catch((err) => {
-      console.log("err", err);
-    });
-  }, [updateHourlyWeatherData, updateSunriseSunset, mapGeo]);
-
-  const dailyWeatherUpdateCb = useCallback(() => {
-    updateDailyWeatherData(mapGeo).catch((err) => {
-      console.log("err", err);
-    });
-  }, [updateDailyWeatherData, mapGeo]);
-
-  const currentWeatherUpdateCb = useCallback(() => {
-    updateCurrentWeatherData(mapGeo).catch((err) => {
-      console.log("err", err);
-    });
-  }, [updateCurrentWeatherData, mapGeo]);
 
   useEffect(() => {
     setErr(false);
@@ -210,39 +147,6 @@ const WeatherInfo = () => {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the AppContext getter/setter functions used in this effect are stable per provider mount but not memoized, so listing them would cause the effect to re-run on every parent render. Keying on the actual API keys is the intent.
   }, [weatherApiKey, reverseGeoApiKey]);
-
-  useEffect(() => {
-    createWeatherUpdateInterval({
-      stateInterval: currentWeatherUpdateInterval,
-      stateIntervalSetter: setCurrentWeatherUpdateInterval,
-      cb: currentWeatherUpdateCb,
-      intervalTime: CURRENT_WEATHER_DATA_UPDATE_INTERVAL,
-      weatherApiKey,
-      mapGeo,
-    });
-    createWeatherUpdateInterval({
-      stateInterval: hourlyWeatherUpdateInterval,
-      stateIntervalSetter: setHourlyWeatherUpdateInterval,
-      cb: hourlyWeatherUpdateCb,
-      intervalTime: HOURLY_WEATHER_DATA_UPDATE_INTERVAL,
-      weatherApiKey,
-      mapGeo,
-    });
-    createWeatherUpdateInterval({
-      stateInterval: dailyWeatherUpdateInterval,
-      stateIntervalSetter: setDailyWeatherUpdateInterval,
-      cb: dailyWeatherUpdateCb,
-      intervalTime: DAILY_WEATHER_DATA_UPDATE_INTERVAL,
-      weatherApiKey,
-      mapGeo,
-    });
-    return () => {
-      clearInterval(currentWeatherUpdateInterval);
-      clearInterval(hourlyWeatherUpdateInterval);
-      clearInterval(dailyWeatherUpdateInterval);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- the interval state refs are read inside the effect to clear them, then overwritten by createWeatherUpdateInterval; listing them as deps would cause the effect to re-run every time it sets them, looping forever. Keying on the inputs that should trigger a fresh interval cycle (key + location) is the intent.
-  }, [weatherApiKey, mapGeo]);
 
   // The shell is always rendered so a single Tomorrow.io failure doesn't
   // black out everything in the panel — LocationName (LocationIQ),

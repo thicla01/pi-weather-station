@@ -1333,6 +1333,42 @@ export function AppContextProvider({ children }) {
     return () => clearInterval(interval);
   }, [mapGeo]);
 
+  // Periodic weather data refresh. Previously this lived in the v2
+  // WeatherInfo component, but v3 layouts (LayoutLarge / LayoutMedium)
+  // don't mount WeatherInfo — so without this effect, the initial fetch
+  // triggered by setMapPosition was the only weather pull, and data went
+  // stale after the first session-hours (observed: still showing morning
+  // values 5 h later). Lifting the polling into AppContext means every
+  // layout — v2 and v3 alike — gets fresh current/hourly/daily data
+  // without depending on which UI is rendered. The initial setMapPosition
+  // call still fires its one-shot fetches; the immediate call below is
+  // redundant on first mount but covers the case where weatherApiKey
+  // becomes available *after* mapGeo (and matches v2 behaviour).
+  useEffect(() => {
+    if (!weatherApiKey || !mapGeo) return undefined;
+    const CURRENT_INTERVAL = 10 * 60 * 1000;
+    const HOURLY_INTERVAL = 60 * 60 * 1000;
+    const DAILY_INTERVAL = 24 * 60 * 60 * 1000;
+    const runCurrent = () => updateCurrentWeatherData(mapGeo).catch(() => undefined);
+    const runHourly = () => {
+      updateSunriseSunset(mapGeo);
+      updateHourlyWeatherData(mapGeo).catch(() => undefined);
+    };
+    const runDaily = () => updateDailyWeatherData(mapGeo).catch(() => undefined);
+    runCurrent();
+    runHourly();
+    runDaily();
+    const cur = setInterval(runCurrent, CURRENT_INTERVAL);
+    const hrl = setInterval(runHourly, HOURLY_INTERVAL);
+    const dly = setInterval(runDaily, DAILY_INTERVAL);
+    return () => {
+      clearInterval(cur);
+      clearInterval(hrl);
+      clearInterval(dly);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the update* helpers are stable per provider mount but not memoized; keying on the inputs that should restart the polling cycle (API key + location) is the intent.
+  }, [weatherApiKey, mapGeo]);
+
   // Auto dark/light at sunrise / sunset. Runs only when the user opted
   // in via Settings AND we have valid sunrise/sunset timestamps. Checks
   // every minute (cheap — no network), plus immediately on mount/toggle.
