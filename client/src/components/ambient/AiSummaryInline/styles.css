@@ -116,10 +116,21 @@
 .text {
   font-size: 13px;
   line-height: 1.55;
-  margin-top: 10px;
+  /* 16 px gap between paragraphs reads as a proper paragraph break.
+   * 10 px was the original value and felt like extra line-spacing
+   * rather than a paragraph boundary, so when Claude returns the
+   * three-paragraph response (current / period / radar) the radar
+   * paragraph visually ran into the period paragraph — the user
+   * couldn't tell where one ended and the next began. */
+  margin-top: 16px;
   margin-bottom: 0;
 }
 
 .text:first-child {
-  margin-top: 12px;
+  /* No top margin on the first paragraph — the slab body already
+   * provides 4 px of padding-top, which is enough breathing room
+   * below the toggle's border-bottom without the previous 12 px
+   * extra that made the first sentence look orphaned from the
+   * RÉSUMÉ IA title. */
+  margin-top: 0;
 }

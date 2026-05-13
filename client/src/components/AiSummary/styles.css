@@ -59,7 +59,11 @@
   font-family: "Rubik", sans-serif;
   font-size: clamp(14px, 1.3vw, 18px);
   line-height: 1.55;
-  margin: 0 0 6px 0;
+  /* 16 px paragraph gap (was 6) so the three-paragraph Claude
+   * response (current / period / radar) reads as three distinct
+   * paragraphs rather than one block with extra line-spacing.
+   * Same rationale as AiSummaryInline. */
+  margin: 0 0 16px 0;
   font-style: italic;
 }
 
