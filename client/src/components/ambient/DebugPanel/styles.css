@@ -1,0 +1,379 @@
+/* DebugPanel — Direction C variant A (vertical tab rail).
+ *
+ * Two-column layout under the header: 96 px nav rail on the left,
+ * scrollable content pane on the right. Palette tokens are mirrored
+ * from the SettingsPanel's own root inline style — both overlays
+ * compute their own copy because they're siblings of AmbientLayers
+ * in the App tree and CSS custom properties don't propagate to
+ * siblings. */
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 5000;
+  background-color: var(--c-bg);
+  color: var(--c-text);
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--c-border);
+  background-color: var(--c-surface);
+  flex-shrink: 0;
+}
+
+.title {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  font-weight: 500;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--c-accent);
+}
+
+.closeButton {
+  background: transparent;
+  border: 0;
+  padding: 4px;
+  font-size: 20px;
+  color: var(--c-text);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.closeButton:hover,
+.closeButton:focus-visible {
+  color: var(--c-accent);
+  outline: none;
+}
+
+.body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+/* ── Vertical tab rail ─────────────────────────────────────────── */
+
+.rail {
+  width: 96px;
+  flex-shrink: 0;
+  background-color: var(--c-surface);
+  border-right: 1px solid var(--c-border);
+  display: flex;
+  flex-direction: column;
+  padding: 8px 4px;
+  gap: 2px;
+}
+
+@media (min-width: 1280px) {
+  .rail {
+    width: 120px;
+  }
+}
+
+.railButton {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  padding: 10px 4px;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--c-text-dim);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  font-family: inherit;
+  position: relative;
+}
+
+.railButton:hover,
+.railButton:focus-visible {
+  color: var(--c-text);
+  background-color: var(--c-accent-soft);
+  outline: none;
+}
+
+.railButtonActive {
+  color: var(--c-text);
+  background-color: var(--c-accent-soft);
+}
+
+.railButtonActive::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  background-color: var(--c-accent);
+  border-radius: 0 2px 2px 0;
+}
+
+.railIcon {
+  font-size: 22px;
+  line-height: 1;
+  color: var(--c-accent);
+}
+
+.railLabel {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 9px;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+/* ── Content pane ─────────────────────────────────────────────── */
+
+.pane {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  padding: 16px 20px 24px 20px;
+}
+
+.bucket {
+  max-width: 880px;
+}
+
+.sectionTitle {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 1.6px;
+  text-transform: uppercase;
+  color: var(--c-accent);
+  margin: 0 0 10px 0;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--c-border);
+}
+
+.sectionTitleGap {
+  margin-top: 22px;
+}
+
+.gridTwo {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0;
+}
+
+@media (min-width: 640px) {
+  .gridTwo {
+    grid-template-columns: 1fr 1fr;
+    gap: 0 24px;
+  }
+}
+
+.gridQuota {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 12px;
+}
+
+@media (min-width: 640px) {
+  .gridQuota {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+/* ── KV row ────────────────────────────────────────────────────── */
+
+.kv {
+  display: flex;
+  gap: 8px;
+  align-items: baseline;
+  padding: 3px 0;
+  border-bottom: 1px dotted var(--c-border);
+}
+
+.kvKey {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 9px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  color: var(--c-text-dim);
+  min-width: 110px;
+  flex-shrink: 0;
+}
+
+.kvValue {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  color: var(--c-text);
+  font-variant-numeric: tabular-nums;
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Tag ───────────────────────────────────────────────────────── */
+
+.tag {
+  display: inline-block;
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 8.5px;
+  letter-spacing: 1px;
+  font-weight: 600;
+  text-transform: uppercase;
+  padding: 1px 5px;
+  border-radius: 2px;
+}
+
+.tag-ok { background-color: #2e7d52; color: #fff; }
+.tag-warn { background-color: var(--c-warn); color: #fff; }
+.tag-err { background-color: var(--c-danger); color: #fff; }
+.tag-info { background-color: var(--c-accent-soft); color: var(--c-accent); border: 1px solid var(--c-accent); }
+.tag-neutral { background-color: var(--c-accent-soft); color: var(--c-text-dim); }
+
+/* ── Lists / rows ─────────────────────────────────────────────── */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px;
+  background-color: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: 4px;
+  font-size: 11px;
+}
+
+.rowMono {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  color: var(--c-text);
+}
+
+.rowDim {
+  color: var(--c-text-dim);
+  font-size: 10px;
+}
+
+.rowName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* ── Quota ─────────────────────────────────────────────────────── */
+
+.quotaItem {
+  padding: 8px 10px;
+  background-color: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: 4px;
+}
+
+.quotaName {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--c-text);
+  margin-bottom: 6px;
+}
+
+.quotaBar { width: 100%; }
+
+.quotaRow {
+  display: flex;
+  justify-content: space-between;
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 9px;
+  color: var(--c-text-dim);
+  letter-spacing: 0.6px;
+}
+
+.quotaPct { font-variant-numeric: tabular-nums; }
+
+.quotaPct-accent { color: var(--c-accent); }
+.quotaPct-warn { color: var(--c-warn); }
+.quotaPct-danger { color: var(--c-danger); }
+
+.quotaTrack {
+  height: 4px;
+  background-color: var(--c-accent-soft);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-top: 4px;
+}
+
+.quotaFill {
+  height: 100%;
+  transition: width 200ms ease-out;
+}
+
+.quotaFill-accent { background-color: var(--c-accent); }
+.quotaFill-warn { background-color: var(--c-warn); }
+.quotaFill-danger { background-color: var(--c-danger); }
+
+/* ── Notices ──────────────────────────────────────────────────── */
+
+.emptyNote {
+  font-size: 11px;
+  color: var(--c-text-dim);
+  font-style: italic;
+  padding: 6px 0;
+}
+
+.deferNote {
+  margin-top: 18px;
+  padding: 10px 12px;
+  background-color: var(--c-accent-soft);
+  border: 1px dashed var(--c-border);
+  border-radius: 6px;
+  font-size: 11px;
+  color: var(--c-text-dim);
+  line-height: 1.45;
+}
+
+.deferNote code {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10px;
+  color: var(--c-text);
+  background-color: var(--c-bg);
+  padding: 1px 4px;
+  border-radius: 3px;
+  margin: 0 2px;
+}
+
+.errorBox {
+  background-color: color-mix(in srgb, var(--c-danger) 14%, transparent);
+  border: 1px solid var(--c-danger);
+  border-radius: 6px;
+  padding: 12px;
+  color: var(--c-text);
+  font-size: 12px;
+}
+
+.errorMessage {
+  margin-top: 6px;
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10px;
+  color: var(--c-text-dim);
+}
+
+.loadingBox {
+  padding: 24px;
+  text-align: center;
+  color: var(--c-text-dim);
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+}

@@ -9,6 +9,7 @@ import AmbientLayers from "~/components/AmbientLayers";
 import Settings from "~/components/Settings";
 import AmbientSettingsPanel from "~/components/ambient/SettingsPanel";
 import Debug from "~/components/Debug";
+import AmbientDebugPanel from "~/components/ambient/DebugPanel";
 import UpdateModal from "~/components/UpdateModal";
 import ScreenSaver from "~/components/ScreenSaver";
 import useIdleDetection from "~/hooks/useIdleDetection";
@@ -184,13 +185,12 @@ const App = () => {
           else branch so the v2 experience survives across the cycle.
           See `docs/ui-direction-c-implementation-plan.md`. */}
       <div className={styles.settingsContainer}>
-        {/* v3 Direction C ships a redesigned Settings overlay (Phase 8).
-            When `experimentalUiC` is on we render the new panel
-            instead of the v2 Settings; v2 stays bit-for-bit unchanged
-            for users on the production layout. Debug overlay continues
-            to use the v2 component for now (Phase 9 will refresh it). */}
+        {/* v3 Direction C ships redesigned Settings + Debug overlays
+            (Phase 8 / Phase 9). When `experimentalUiC` is on we render
+            the new panels instead of the v2 ones; v2 stays bit-for-bit
+            unchanged for users on the production layout. */}
         {experimentalUiC ? <AmbientSettingsPanel /> : <Settings />}
-        <Debug />
+        {experimentalUiC ? <AmbientDebugPanel /> : <Debug />}
       </div>
       <UpdateModal />
       {experimentalUiC ? (
