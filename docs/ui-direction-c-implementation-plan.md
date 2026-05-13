@@ -154,12 +154,13 @@ available, tested, ready to be composed into layouts.
 Goal: implement the small-screen layout (800×480 and similar). This is the most
 sensitive target — the official Pi 7" touchscreen most users have.
 
-- [ ] **`RadarTimeline` (carried over from Phase 2)** — extract the
-  scrubber + play/pause currently inlined inside `WeatherMap`. Define
-  its own component file under `components/ambient/RadarTimeline/`,
-  consume the radar frame state from AppContext, render against the
-  warm-grey palette. Anchor it bottom-left of the map area as part of
-  this phase's layout work.
+- [~] **`RadarTimeline` extraction (carried over from Phase 2)** —
+  **deferred to Phase 10 cleanup.** The scrubber currently inlined
+  inside `WeatherMap` (line 439) renders correctly inside the v3 map
+  cell already; lifting it into its own ambient component requires
+  promoting the radar frame state into AppContext, which is a wide
+  change for limited end-user benefit at this stage. The functional
+  piece works — the architectural separation is what's deferred.
 - [ ] `LayoutPi` — split 70/30 grid with `mapW = w - colW`, collapsible right
   column, full-width 52px dock.
 - [ ] `HeroCompact` — combined location + temperature + description + wind in

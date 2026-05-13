@@ -1,0 +1,58 @@
+/* FloatingMiniBanner — slab overlay over the map when the rail is
+ * collapsed. Uses a `<button>` so keyboard / screen-reader users can
+ * activate it the same way they do the v2 cycle banner. */
+
+.banner {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  z-index: 400;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  max-width: 360px;
+  padding: 8px 12px 8px 16px;
+  background-color: var(--c-surface-hybrid);
+  border: 1px solid var(--c-border-hybrid);
+  border-radius: 6px;
+  color: var(--c-text);
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  overflow: hidden;
+}
+
+/* Severity strip on the left edge, same convention as the full
+ * AlertBanner so the chip reads as "the same alert, just compact". */
+.banner::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  background-color: var(--c-cool);
+}
+
+.tier-orange::before {
+  background-color: var(--c-warn);
+}
+
+.tier-red::before {
+  background-color: var(--c-danger);
+}
+
+.banner:hover,
+.banner:focus-visible {
+  background-color: var(--c-surface-hybrid);
+  outline: 1px solid var(--c-accent);
+  outline-offset: -1px;
+}
+
+.title {
+  flex: 1;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

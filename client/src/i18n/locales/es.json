@@ -241,6 +241,8 @@
     "lightMode": "Cambiar a modo claro",
     "openSettings": "Abrir los ajustes",
     "closeSettings": "Cerrar los ajustes",
+    "collapsePanel": "Ocultar el panel de información",
+    "expandPanel": "Mostrar el panel de información",
     "openDebug": "Abrir el panel de depuración",
     "closeDebug": "Cerrar el panel de depuración",
     "openUpdate": "Mostrar la ventana de actualización",
