@@ -12,6 +12,35 @@
   color: var(--c-text);
   font-family: "Geist", system-ui, -apple-system, sans-serif;
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+/* The slab is the *last* flex item in the rail's vertical column.
+ * When expanded (body present), claim the remaining vertical space
+ * (`flex: 1 1 0`) so the slab height is "rail height − everything
+ * above" rather than its natural content height. Without this, the
+ * slab grew to fit its body's max-height, then overflowed past the
+ * rail's viewport — which is what made the previous cap-based fix
+ * look broken (the body did scroll, but the bottom of the body —
+ * including the scrollbar end — was hidden behind the rail's clip
+ * rect, so scrolling stopped a few lines short of the actual content
+ * end).
+ *
+ * `min-height: 0` is load-bearing for the inner overflow:scroll to
+ * engage — flex items default to `min-height: auto` (= content
+ * height), which would override the parent's height constraint.
+ * `max-height` caps growth on tall displays so we don't get a 600 px
+ * tall AI slab on a 1440p kiosk; below the cap, the slab follows
+ * the rail.
+ *
+ * Gated on `:has(.body)` so the collapsed state — where only the
+ * toggle renders inside the slab — keeps its natural ~40 px height
+ * and doesn't balloon into a giant empty box. */
+.slab:has(.body) {
+  flex: 1 1 0;
+  min-height: 160px;
+  max-height: 360px;
 }
 
 .toggle {
@@ -48,27 +77,22 @@
 .body {
   padding: 4px 14px 14px 14px;
   border-top: 1px solid var(--c-border);
-  /* Cap the summary body height so long Claude responses (the 3rd
-   * "Analyse radar" paragraph can run 200+ words during active
-   * weather) get their own scroll area inside the slab instead of
-   * pushing the rail's scroll past the viewport bottom.
-   *
-   * The cap is responsive (`min(30vh, 280px)`) for a concrete reason:
-   * the slab is the *last* child in the rail's flex column, and on
-   * a 13" laptop / Mac kiosk at 1280×800 with HeroBand + MetricsGrid
-   * + ChartTabs above it, the rail has ~210 px of vertical space
-   * left for the slab. A fixed 320 px cap (the previous value)
-   * pushed the body's bottom — and its scrollbar — *below* the rail's
-   * visible viewport, so the user saw the truncated text but no
-   * affordance to scroll. Anchoring on `vh` keeps the entire slab
-   * inside the rail no matter the screen height.
+  /* `flex: 1 1 auto` + `min-height: 0` lets the body shrink to whatever
+   * space the slab gives it (after the toggle's ~40 px), then scrolls
+   * internally for anything past that. Combined with the slab's
+   * `flex: 1 1 0` claim on remaining rail space, the body's bottom
+   * edge — and therefore the bottom of its scrollbar — always sits
+   * inside the rail's visible viewport. The user can drag the
+   * scrollbar all the way down and actually reach the end of the
+   * "Analyse radar" paragraph.
    *
    * `overflow-y: scroll` (not auto) keeps the scrollbar visible at
-   * all times — the affordance is the whole point. `overscroll-
-   * behavior: contain` stops mousewheel/swipe leak into the rail
-   * once the body hits its top/bottom, so the user can scroll the
-   * AI text without accidentally scrolling the rail behind it. */
-  max-height: min(30vh, 280px);
+   * all times — the affordance is the whole point of an inner-scroll
+   * box. `overscroll-behavior: contain` stops mousewheel/swipe leak
+   * into the rail once the body hits its top/bottom, so the user can
+   * scroll the AI text without accidentally scrolling the rail. */
+  flex: 1 1 auto;
+  min-height: 0;
   overflow-y: scroll;
   overscroll-behavior: contain;
   -webkit-overflow-scrolling: touch;
