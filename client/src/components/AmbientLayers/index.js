@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
+import { AppContext } from "~/AppContext";
 import styles from "./styles.css";
 import { getPalette } from "~/ui/tokens";
 import { useTimeOfDay, useHybridMode } from "~/ui/hybrid";
@@ -20,6 +21,15 @@ import "!style-loader!css-loader!~/ui/reset.css";
 // desktop variant).
 const DESKTOP_MQ = "(min-width: 1280px)";
 
+// Font-size scaling — mirrors the v2 fontSize setting (S / M / L)
+// so users who picked a custom zoom in Settings get the same
+// behaviour under Direction C. Same scalar values v2 uses on its
+// info-container; applied via the `zoom` property on the AmbientLayers
+// root (zoom is non-standard but supported in all the kiosk browsers
+// the project targets — Chromium, Firefox, Safari/WebKit). When
+// fontSize is unset or unrecognised, the scalar falls back to 1.0.
+const FONT_SIZE_ZOOM = { s: 0.85, m: 1.0, l: 1.15 };
+
 /**
  * Direction C — Ambient Layers root.
  *
@@ -40,6 +50,8 @@ const AmbientLayers = () => {
   const tod = useTimeOfDay();
   const palette = getPalette(tod);
   const { level: hybridLevelValue } = useHybridMode();
+  const { fontSize } = useContext(AppContext);
+  const fontSizeZoom = FONT_SIZE_ZOOM[fontSize] || 1.0;
 
   // Initialise from the current viewport — SSR not in play here, so
   // window is always defined at first render.
@@ -96,6 +108,13 @@ const AmbientLayers = () => {
     "--c-danger": palette.danger,
     "--c-cool": palette.cool,
     "--c-strip-color": stripColor,
+    // `zoom` scales the entire subtree; `height` compensates so the
+    // internal 100dvh references still cover the viewport when the
+    // root is zoomed up (1.15) or down (0.85). Same trick the v2
+    // info-container uses to keep the layout viewport-correct under
+    // font-size scaling.
+    zoom: fontSizeZoom,
+    height: `calc(100dvh / ${fontSizeZoom})`,
   };
 
   return (
@@ -105,6 +124,7 @@ const AmbientLayers = () => {
       data-palette={tod}
       data-hybrid={hybridLevelValue}
       data-layout={isDesktop ? "desktop" : "pi"}
+      data-font-size={fontSize || "m"}
     >
       {isDesktop ? <LayoutDesktop /> : <LayoutPi />}
     </div>

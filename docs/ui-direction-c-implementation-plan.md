@@ -281,19 +281,27 @@ Goal: wire the auto-trigger for hybrid instrumentation mode, and translate every
 
 Goal: integrate v2 user-facing features and polish before release.
 
-- [ ] **Font size wrapper** — `zoom: { s: 0.85, m: 1, l: 1.15 }[fontSize]` on the
-  root of AmbientLayers. Preserves the v2 S/M/L UX without modifying the design.
-- [ ] **Responsive polish** — test at 800×480, 1024×600, 1280×720, 1366×768,
-  1600×900, 1920×1080. Fix any breakpoint gaps.
-- [ ] **Performance benchmarks** — measure FPS during radar animation and
-  banner cycling on Pi 4. Decide if `useBlur` ever turns on (the design has it
-  off by default; benchmarks confirm or relax).
-- [ ] **Visual regression** — capture screenshots of key states (calm/rain/severe,
-  day/dusk/night/nightRed, hybrid on/off) for the README update.
-- [ ] **Remove the experimentalUiC flag** — *moved to Phase 10 (release)*
-  so the flag is still live through the Settings + Debug refresh phases.
-- [ ] **Cleanup** — delete unused tokens, prune dead code paths from the
-  Direction C codebase as it stabilises.
+- [x] **Font size wrapper** — `zoom: { s: 0.85, m: 1, l: 1.15 }[fontSize]`
+  applied to the AmbientLayers root via inline style, plus
+  `height: calc(100dvh / fontSizeZoom)` so the internal viewport
+  references still cover the screen. Same trick v2 uses on its
+  info-container. `data-font-size` attribute exposed for diagnostics.
+- [ ] **Responsive polish** — test at 800×480, 1024×600, 1280×720,
+  1366×768, 1600×900, 1920×1080. Fix any breakpoint gaps. *(requires
+  manual browser testing across resolutions — pending session.)*
+- [ ] **Performance benchmarks** — measure FPS during radar animation
+  and banner cycling on Pi 4. *(requires Pi 4 access — pending.)*
+- [ ] **Visual regression** — capture screenshots of key states
+  (calm/rain/severe, day/dusk/night/nightRed, hybrid on/off) for the
+  README update. *(captured live during dev sessions; formal README
+  integration belongs to Phase 10.)*
+- [ ] **Remove the experimentalUiC flag** — *moved to Phase 10
+  (release)* so the flag is still live through the Settings + Debug
+  refresh phases.
+- [ ] **Cleanup** — delete unused tokens, prune dead code paths from
+  the Direction C codebase as it stabilises. *(deferred to Phase 10
+  cleanup pass — too early to know what's truly unused while panels
+  are still being added.)*
 
 **Deliverable:** PR #9. Direction C stable, ready for the panel refreshes.
 
