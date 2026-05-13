@@ -1,0 +1,138 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"/>
+<title>Pi Weather Station — Settings & Debug · Canvas</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin/>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@300;400;500;600&family=IBM+Plex+Mono:wght@400;500&family=JetBrains+Mono:wght@300;400;500&family=Geist:wght@200;300;400;500;600&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet"/>
+<style>
+  html, body { margin: 0; padding: 0; height: 100%; background: #0a0a0a; font-family: Geist, system-ui, sans-serif; }
+  * { box-sizing: border-box; }
+  .dcArtboard { background: #1c1a17; overflow: hidden; }
+</style>
+</head>
+<body>
+<div id="root"></div>
+
+<script src="https://unpkg.com/react@18.3.1/umd/react.development.js" integrity="sha384-hD6/rw4ppMLGNu3tX5cjIb+uRZ7UkRJ6BPkLpg4hAu/6onKUg4lLsHAs9EBPT82L" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.development.js" integrity="sha384-u6aeetuaXnQ38mYT8rp6sbXaQe3NL9t+IBXmnYxwkUI2Hw4bsp2Wvmx4yRQF1uAm" crossorigin="anonymous"></script>
+<script src="https://unpkg.com/@babel/standalone@7.29.0/babel.min.js" integrity="sha384-m08KidiNqLdpJqLq95G/LEi8Qvjl/xUYll3QILypMoQ65QorJ9Lvtp2RXYGBFj1y" crossorigin="anonymous"></script>
+
+<script type="text/babel" src="design-canvas.jsx"></script>
+<script type="text/babel" src="lib/data.jsx"></script>
+<script type="text/babel" src="lib/icons.jsx"></script>
+<script type="text/babel" src="lib/map-bg.jsx"></script>
+<script type="text/babel" src="lib/c-components.jsx"></script>
+<script type="text/babel" src="lib/direction-c-ambient.jsx"></script>
+<script type="text/babel" src="lib/admin-data.jsx"></script>
+<script type="text/babel" src="lib/settings-panel.jsx"></script>
+<script type="text/babel" src="lib/debug-panel.jsx"></script>
+
+<script type="text/babel">
+const PRIMARY_TOD = 'night';
+
+function App() {
+  return (
+    <DesignCanvas>
+
+      {/* ───────── SECTION 1 · SETTINGS · API KEY VARIANTS ───────── */}
+      <DCSection id="settings-variants" title="Settings · API keys — three arrangements at the same screen size"
+        subtitle="Same 4-section IA, same palette, same scenario (all 6 keys configured · anthropic flagged invalid). Only the API-keys block differs.">
+
+        <DCArtboard id="set-cards-night" label="A · Provider cards · 800×480 · night" width={800} height={480}>
+          <SettingsPanel timeOfDay="night" size="800x480" keysVariant="cards" scenario="configured"/>
+        </DCArtboard>
+
+        <DCArtboard id="set-list-night" label="B · Tight list · 800×480 · night · RECOMMENDED" width={800} height={480}>
+          <SettingsPanel timeOfDay="night" size="800x480" keysVariant="list" scenario="configured"/>
+        </DCArtboard>
+
+        <DCArtboard id="set-disclose-night" label="C · Required + disclose optional · 800×480 · night" width={800} height={480}>
+          <SettingsPanel timeOfDay="night" size="800x480" keysVariant="disclose" scenario="configured"/>
+        </DCArtboard>
+      </DCSection>
+
+      {/* ───────── SECTION 2 · SETTINGS · STATE COVERAGE ───────── */}
+      <DCSection id="settings-states" title="Settings · state coverage on the recommended variant"
+        subtitle="Variant B (list) shown across the three states the maintainer flagged: first-boot empty, remote read-only, and HD reflow.">
+
+        <DCArtboard id="set-empty" label="Empty · first-boot install · 800×480" width={800} height={480}>
+          <SettingsPanel timeOfDay="day" size="800x480" keysVariant="list" scenario="empty"/>
+        </DCArtboard>
+
+        <DCArtboard id="set-remote" label="Remote read-only · SSH tunnel · 800×480" width={800} height={480}>
+          <SettingsPanel timeOfDay="night" size="800x480" keysVariant="list" scenario="configured" remote={true}/>
+        </DCArtboard>
+
+        <DCArtboard id="set-hd" label="HD monitor reflow · 1366×768 · dusk" width={1366} height={768}>
+          <SettingsPanel timeOfDay="dusk" size="1366x768" keysVariant="list" scenario="configured"/>
+        </DCArtboard>
+      </DCSection>
+
+      {/* ───────── SECTION 3 · DEBUG · NAV VARIANTS ───────── */}
+      <DCSection id="debug-variants" title="Debug · three navigation patterns at 7&quot; Pi"
+        subtitle="Same 12 sections, grouped into 5 task buckets (Server / Client / Services / Storage / About). Only the navigation primitive changes.">
+
+        <DCArtboard id="dbg-rail" label="A · Vertical tab rail · 800×480 · RECOMMENDED" width={800} height={480}>
+          <DebugPanel timeOfDay="night" size="800x480" navVariant="rail" scenario="healthy"/>
+        </DCArtboard>
+
+        <DCArtboard id="dbg-pager" label="B · Chip-bar pager · 800×480 · touch-first" width={800} height={480}>
+          <DebugPanel timeOfDay="night" size="800x480" navVariant="pager" scenario="healthy"/>
+        </DCArtboard>
+
+        <DCArtboard id="dbg-search" label="C · Search + accordion · 800×480 · power user" width={800} height={480}>
+          <DebugPanel timeOfDay="night" size="800x480" navVariant="search" scenario="healthy"/>
+        </DCArtboard>
+      </DCSection>
+
+      {/* ───────── SECTION 4 · DEBUG · EDGE CASES ───────── */}
+      <DCSection id="debug-edges" title="Debug · edge-case scenarios on the recommended variant"
+        subtitle="Variant A (rail) shown across the three scenarios the maintainer flagged: quota near limit · security event · stale provider statuspage.">
+
+        <DCArtboard id="dbg-quota" label="Services bucket · quota near limit (AirNow 94%)" width={800} height={480}>
+          <DebugPanel timeOfDay="night" size="800x480" navVariant="rail" scenario="quota-near"/>
+        </DCArtboard>
+
+        <DCArtboard id="dbg-security" label="Client bucket · security event (blocked POST)" width={800} height={480}>
+          <DebugPanel timeOfDay="night" size="800x480" navVariant="rail" scenario="security"/>
+        </DCArtboard>
+
+        <DCArtboard id="dbg-stale" label="Services bucket · stale provider statuspage" width={800} height={480}>
+          <DebugPanel timeOfDay="night" size="800x480" navVariant="rail" scenario="stale"/>
+        </DCArtboard>
+
+        <DCArtboard id="dbg-hd" label="HD monitor reflow · 1366×768 · dusk" width={1366} height={768}>
+          <DebugPanel timeOfDay="dusk" size="1366x768" navVariant="rail" scenario="healthy"/>
+        </DCArtboard>
+      </DCSection>
+
+      {/* ───────── SECTION 5 · PALETTE COVERAGE ───────── */}
+      <DCSection id="palette" title="Palette coverage — day / dusk / night-red"
+        subtitle="Both panels inherit `timeOfDay` from the host kiosk. Confirms typography + contrast across the active surfaces.">
+
+        <DCArtboard id="set-day" label="Settings · day cream · 800×480" width={800} height={480}>
+          <SettingsPanel timeOfDay="day" size="800x480" keysVariant="list" scenario="configured"/>
+        </DCArtboard>
+
+        <DCArtboard id="dbg-day" label="Debug · day cream · 800×480" width={800} height={480}>
+          <DebugPanel timeOfDay="day" size="800x480" navVariant="rail" scenario="healthy"/>
+        </DCArtboard>
+
+        <DCArtboard id="set-nightred" label="Settings · night-red bedside · 800×480" width={800} height={480}>
+          <SettingsPanel timeOfDay="nightRed" size="800x480" keysVariant="list" scenario="configured"/>
+        </DCArtboard>
+
+        <DCArtboard id="dbg-nightred" label="Debug · night-red bedside · 800×480" width={800} height={480}>
+          <DebugPanel timeOfDay="nightRed" size="800x480" navVariant="rail" scenario="healthy"/>
+        </DCArtboard>
+      </DCSection>
+    </DesignCanvas>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById('root')).render(<App/>);
+</script>
+</body>
+</html>
