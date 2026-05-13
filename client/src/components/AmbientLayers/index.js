@@ -110,17 +110,15 @@ const AmbientLayers = () => {
     "--c-danger": palette.danger,
     "--c-cool": palette.cool,
     "--c-strip-color": stripColor,
-    // Note: a previous Phase 7 iteration applied `zoom` here to scale
-    // the entire tree by `fontSizeZoom`. That broke positioning of
-    // absolute-positioned children (mapArea, BottomDock) because the
-    // 100dvh references inside the layout no longer matched the zoomed
-    // root. v2 applies `zoom` only to its info-container (the right
-    // column), not the whole page — that's the pattern Direction C
-    // needs to adopt. Deferred to a follow-up: scale slabs / rails via
-    // a different mechanism (per-rail zoom or CSS font-size cascade)
-    // so the map stays at native resolution.
-    // The fontSizeZoom is still computed above for future use; for now
-    // we expose it via the `data-font-size` attribute only.
+    // Font-size scaling is exposed as `--c-font-scale` and consumed by
+    // the scrollable subtrees (rail in both layouts, heroSlot in
+    // LayoutDesktop). Applying `zoom` here on the root broke
+    // positioning of absolute children (Phase 7 incident) because
+    // 100dvh references inside the layout no longer matched the
+    // zoomed root. Scoping the zoom to scrollable subtrees keeps the
+    // map at native resolution while the user's text-density
+    // preference still has visible effect on the slabs and metrics.
+    "--c-font-scale": FONT_SIZE_ZOOM[fontSizeKey],
   };
 
   return (

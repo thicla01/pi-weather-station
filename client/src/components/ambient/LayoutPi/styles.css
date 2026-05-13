@@ -58,6 +58,10 @@
   border-left: 1px solid var(--c-border);
   background-color: var(--c-bg);
   transition: opacity 150ms ease-out;
+  /* Font-size preference scopes its zoom to the rail subtree only —
+   * the map stays at native scale so Leaflet's pixel↔coordinate math
+   * remains correct. Falls back to 1 when no preference is set. */
+  zoom: var(--c-font-scale, 1);
 }
 
 .layout.collapsed .rail {
