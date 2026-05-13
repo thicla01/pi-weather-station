@@ -15,7 +15,14 @@
   border-radius: 12px;
   color: var(--c-text);
   font-family: "Geist", system-ui, -apple-system, sans-serif;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.25);
+  /* Two box-shadows: outer drop shadow lifts the band off the radar
+   * tiles below, inner shadow on the left edge picks up the hybrid
+   * severity colour (warn / danger) when a serious alert is active.
+   * In calm conditions `--c-strip-color` resolves to `transparent` so
+   * the inner shadow disappears. */
+  box-shadow:
+    inset 4px 0 0 var(--c-strip-color, transparent),
+    0 8px 24px rgba(0, 0, 0, 0.25);
 }
 
 .divider {

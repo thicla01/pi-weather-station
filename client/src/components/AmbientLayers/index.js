@@ -54,19 +54,48 @@ const AmbientLayers = () => {
     return () => mq.removeEventListener("change", handler);
   }, []);
 
+  // Hybrid mode escalates the visual treatment when a severe gov alert
+  // is active. Three knobs surfaced through CSS custom properties so
+  // every slab in the tree picks up the change without any per-component
+  // logic:
+  //
+  //   --c-surface         bumped from 0.85 → 0.96 alpha so the slabs
+  //                       read as more solid (less radar showing through)
+  //   --c-border          stronger edge to match the bumped surface
+  //   --c-strip-color     drives an inset box-shadow strip on slabs that
+  //                       opt in via `box-shadow: inset 4px 0 0 var(--c-strip-color)`
+  //
+  // `light` level (moderate alert) uses warn (amber); `full` level
+  // (severe / extreme alert) uses danger (red). `none` keeps everything
+  // calm — strip resolves to transparent so the slabs render unchanged.
+  const isHybridFull = hybridLevelValue === "full";
+  const isHybridLight = hybridLevelValue === "light";
+  const surfaceVar = isHybridFull || isHybridLight
+    ? palette.surfaceHybrid
+    : palette.surface;
+  const borderVar = isHybridFull || isHybridLight
+    ? palette.borderHybrid
+    : palette.border;
+  const stripColor = isHybridFull
+    ? palette.danger
+    : isHybridLight
+      ? palette.warn
+      : "transparent";
+
   const cssVars = {
     "--c-bg": palette.bg,
     "--c-text": palette.text,
     "--c-text-dim": palette.textDim,
     "--c-accent": palette.accent,
     "--c-accent-soft": palette.accentSoft,
-    "--c-surface": palette.surface,
+    "--c-surface": surfaceVar,
     "--c-surface-hybrid": palette.surfaceHybrid,
-    "--c-border": palette.border,
+    "--c-border": borderVar,
     "--c-border-hybrid": palette.borderHybrid,
     "--c-warn": palette.warn,
     "--c-danger": palette.danger,
     "--c-cool": palette.cool,
+    "--c-strip-color": stripColor,
   };
 
   return (
