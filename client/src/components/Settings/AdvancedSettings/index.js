@@ -124,7 +124,6 @@ const AdvancedSettings = ({ readOnly }) => {
     saveAdvancedSleepFlag,
     experimentalUiC,
     saveAdvancedExperimentalFlag,
-    debugEnabled,
   } = useContext(AppContext);
   const [open, setOpen] = useState(false);
   const sectionRef = useRef(null);
@@ -482,29 +481,29 @@ const AdvancedSettings = ({ readOnly }) => {
               this group migrates into the new "Expérimental" section
               and becomes visible to all local users. Hidden entirely
               for remote and for production kiosks until then.
-              See `docs/ui-direction-c-implementation-plan.md`. */}
-          {debugEnabled && (
-            <>
-              <div className={styles.groupLabel} style={{ marginTop: "1em" }}>
-                {t("settings.advanced.experimentalGroup")}
-              </div>
-              <div className={styles.row}>
-                <div className={styles.rowLabel}>
-                  {t("settings.advanced.experimentalUiC")}
-                  <span className={styles.rowHint}>
-                    {t("settings.advanced.experimentalUiCHint")}
-                  </span>
-                </div>
-                <InlineToggle
-                  value={experimentalUiC}
-                  onChange={(v) => saveAdvancedExperimentalFlag("uiC", v)}
-                  onLabel={t("settings.on")}
-                  offLabel={t("settings.off")}
-                  readOnly={readOnly}
-                />
-              </div>
-            </>
-          )}
+              See `docs/ui-direction-c-implementation-plan.md`.
+              Phase-out plan: gate removed in v2.14 so all users can opt in
+              to the v3 preview. v3 becomes the default in 3.0; the toggle
+              stays for one or two more minor releases as an escape hatch
+              before the v2 code path is removed entirely. */}
+          <div className={styles.groupLabel} style={{ marginTop: "1em" }}>
+            {t("settings.advanced.previewGroup")}
+          </div>
+          <div className={styles.row}>
+            <div className={styles.rowLabel}>
+              {t("settings.advanced.ambientPreview")}
+              <span className={styles.rowHint}>
+                {t("settings.advanced.ambientPreviewHint")}
+              </span>
+            </div>
+            <InlineToggle
+              value={experimentalUiC}
+              onChange={(v) => saveAdvancedExperimentalFlag("uiC", v)}
+              onLabel={t("settings.on")}
+              offLabel={t("settings.off")}
+              readOnly={readOnly}
+            />
+          </div>
         </div>
       )}
     </div>

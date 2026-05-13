@@ -19,6 +19,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.0] - 2026-05-13
+
+### Changed
+- **v3 "Ambient" interface promoted from experimental to opt-in preview** — the Direction C / Ambient Layers UI (Phases 0 through 9b) is now reachable by every user without `DEBUG=true` on the service. Removed the debug gate around the toggle in `AdvancedSettings`; relabelled the section from "Experimental" to "Preview" with clearer messaging that v3 is a full rebuild covering the dashboard, settings, and debug panels and that v2 remains the production default. Internal settings key stays `experimentalUiC` so existing `settings.json` files don't need migration. v3 SettingsPanel mirrors the same relabel ("Aperçu" / "Preview" section). i18n keys renamed (`experimentalGroup`/`experimentalUiC`/`experimentalUiCHint` → `previewGroup`/`ambientPreview`/`ambientPreviewHint`) in EN / FR / ES.
+
+### Added
+- **Bug-report breadcrumb in Debug → About** — `ui: v3-ambient (preview)` row so reports gathered during the coexistence window unambiguously identify which front-end was active. v2 Debug doesn't have an About card; absence of the row implicitly identifies v2.
+
+### Fixed
+- **AI summary slab in v3 — multiple paragraph rendering issues fixed in one pass**: body scroll cap was unreachable (replaced with flex-based sizing — slab claims remaining rail space, body fills inside, scrollbar always inside the visible viewport); paragraph split too strict (Claude occasionally emits single newlines, switched to `split(/\n+/).filter(Boolean)` in v2 + v3); paragraph spacing invisible (bumped to 16 px gap, prefixed `.body .text` to escape the `.ambientRoot p { margin: 0 }` reset in v3); scrollbar widened from 6 → 8 px and recoloured for visibility.
+- **Weather data never refreshed in v3 layouts** — polling (10 min current / 60 min hourly / 24 h daily) lived in the v2 `WeatherInfo` component which v3 doesn't mount, so once the initial `setMapPosition` fetch fired the data went stale (~5 h in production). Lifted the polling effect into `AppContext`; every layout v2 / v3 alike gets fresh data without depending on a specific component being rendered.
+- **Air-quality (IQA / AQHI / AQI) never refreshed in v3 layouts** — same shape as the weather-refresh bug: the v2 `UvAqiBadges` owned the 30 min `/api/air-quality` fetch. v3 read `aqhiInfo` from context but never had it populated. Lifted to AppContext.
+- **MetricsGrid AQI tile lost the scale identifier** — three scales reach the client depending on source (`iqa` Quebec, `aqhi` Canada, `epa` US), and the same number means very different things across them. Surface the scale in the unit slot (`5 IQA` / `Bonne`) mirroring how `kph` anchors the wind value.
+- **SettingsPanel API keys read-only on localhost** — Phase 8a regression. Restored editable inputs + Save button flow batching all 6 keys + lat/lon through `saveSettingsToJson()`.
+
+### Added
+- **Debug panel — install-update CTA in About** — reads live `updateAvailable` from AppContext so the YES tag flips immediately after `Check update`; `Install update…` button closes Debug and opens the UpdateModal. `needsManualUpgrade` swaps the button for a `bash deploy/install.sh` instruction.
+- **Debug panel parity with v2 — full port of remaining sections**: Server bucket gets LAN URLs + Internet badge, init manager, power status, radar compression KPI + Export report, recent logs block. Client bucket gets full client KPIs (page load, FPS, JS heap, screen, API resource-timing). Services bucket gets per-service quota tables (hour / day / month + TOTAL, coloured by tier). Storage bucket gets radar AI snapshots (collapsible details, Copy per entry, Export JSON section-level). About bucket gets Dependabot vulnerability scan link. Header gets Export CSV button (reuses v2's `exportDebugCsv` via named export).
+- **Debug panel pinned-bucket state persists across reload** — Set serialised to localStorage on every change, validated against current BUCKETS on init.
+
+---
+
 ## [Unreleased]
 
 ### Added

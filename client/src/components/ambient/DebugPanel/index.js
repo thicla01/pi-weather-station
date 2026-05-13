@@ -1080,6 +1080,12 @@ const BucketAbout = ({ data }) => {
         <KV k="branch"  v={v.branch || "?"} />
         <KV k="repo"    v="github.com/thicla01/pi-weather-station" />
         <KV k="license" v="MIT" />
+        {/* UI flavour — handy for bug reports during the v2/v3
+         * coexistence window. By definition this bucket renders only
+         * when the v3 panel is mounted, so "v3-ambient" is correct
+         * here; the v2 Debug overlay exists but doesn't have an
+         * About section like this. */}
+        <KV k="ui"      v="v3-ambient (preview)" />
       </div>
 
       <SectionTitle title="Update check" gap />

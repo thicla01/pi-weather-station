@@ -12,6 +12,20 @@ A full-stack weather display application originally designed for the Raspberry P
 
 The kiosk browser is chosen interactively by `install.sh` (Chromium, Chrome, Brave, Edge, or Firefox) and persisted in `~/.config/pi-weather-station/browser.conf`. Snap-confined Firefox is supported via a named profile (`-P pi-weather-station`).
 
+## Try the v3 "Ambient" interface preview
+
+Starting in v2.14, every installation can opt into the upcoming v3 interface — a full rebuild of the dashboard, settings, and debug panels with a refreshed visual language ("Ambient Layers") and phone-friendly layouts on the way. v2 remains the production default; v3 is opt-in while feedback ramps up.
+
+To try it on your own station:
+
+1. Open **Settings → Advanced → Preview**
+2. Flip **Ambient interface (v3 preview)** on
+3. The page reloads into the new UI
+
+Flip it back off any time to return to the classic v2 interface — the toggle is the only switch needed. Both interfaces share the same backend, the same settings.json, and the same data sources; you're switching the front-end only.
+
+Spot a bug, a regression, or an awkward layout? Please open an issue at <https://github.com/thicla01/pi-weather-station/issues> with the v3-ambient label (the Debug panel's "About" bucket includes the UI flavour as `ui: v3-ambient (preview)` for clarity). The v3.0.0 final release — where v3 becomes the default and the mobile layout lands — is planned after the feedback window closes.
+
 ## Screenshots
 
 The original Pi Weather Station (v1.x), as designed by [@elewin](https://github.com/elewin):

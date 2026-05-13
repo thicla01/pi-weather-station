@@ -101,9 +101,8 @@ const SettingsPanel = () => {
           open={advOpen}
           onToggle={() => setAdvOpen((o) => !o)}
         />
-        <SectionExperimental
+        <SectionPreview
           ctx={ctx}
-          t={t}
           lang={lang}
           remote={remote}
           open={expOpen}
@@ -515,7 +514,6 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
     sleepStage2Enabled,
     sleepStage2Delay,
     sleepNightMode,
-    experimentalUiC,
     debugEnabled,
     saveAdvancedSleepFlag,
   } = ctx;
@@ -603,9 +601,6 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
             {lang === "fr"
               ? "Le port complet des autres réglages avancés (style de carte, options IA, zoom par défaut) suit dans la Phase 8b."
               : "Full port of the remaining advanced settings (map style, AI options, default zoom) lands in Phase 8b."}
-            {experimentalUiC ? (
-              <>{" "}<span className={styles.advNoteFlag}>experimentalUiC = ON</span></>
-            ) : null}
           </div>
         </div>
       )}
@@ -614,23 +609,24 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
 };
 
 // ───────────────────────────────────────────────────────────────────
-// Section 4 · Expérimental
+// Section 4 · Preview
 // ───────────────────────────────────────────────────────────────────
 
 /**
- * Experimental feature flags. Currently the only active flag is
- * `experimentalUiC` (this Direction C UI itself).
+ * v3 preview toggle. Internally still uses the `experimentalUiC` key
+ * for settings.json compatibility — only the label changed in v2.14
+ * when the v3 UI was promoted from a debug-gated experiment to a
+ * publicly-opt-in preview.
  *
  * @param {object} props
  * @param {object} props.ctx
- * @param {Function} props.t
  * @param {string} props.lang
  * @param {boolean} props.remote
  * @param {boolean} props.open
  * @param {Function} props.onToggle
  * @returns {JSX.Element}
  */
-const SectionExperimental = ({ ctx, lang, remote, open, onToggle }) => {
+const SectionPreview = ({ ctx, lang, remote, open, onToggle }) => {
   const { experimentalUiC, saveAdvancedExperimentalFlag } = ctx;
   const activeCount = experimentalUiC ? 1 : 0;
 
@@ -639,10 +635,10 @@ const SectionExperimental = ({ ctx, lang, remote, open, onToggle }) => {
       <DisclosureHeader
         index="4"
         lockIcon
-        title={lang === "fr" ? "Expérimental" : "Experimental"}
+        title={lang === "fr" ? "Aperçu" : "Preview"}
         subtitle={lang === "fr"
-          ? "Fonctionnalités en validation, désactivées par défaut."
-          : "Features under validation, disabled by default."}
+          ? "Bascule entre l'interface en production (v2) et l'aperçu v3."
+          : "Switch between the production v2 interface and the v3 preview."}
         right={(
           <Pill kind="optional">
             {activeCount} {lang === "fr" ? "actif" : "active"}
@@ -655,13 +651,15 @@ const SectionExperimental = ({ ctx, lang, remote, open, onToggle }) => {
         <div className={styles.advBody}>
           <div className={styles.flagRow}>
             <Toggle
-              label={lang === "fr" ? "Direction C UI preview" : "Direction C UI preview"}
+              label={lang === "fr"
+                ? "Interface ambient (aperçu v3)"
+                : "Ambient interface (v3 preview)"}
               value={Boolean(experimentalUiC)}
               onChange={(v) => saveAdvancedExperimentalFlag("uiC", v)}
               disabled={remote}
               sub={lang === "fr"
-                ? "Aperçu de l'interface Ambient Layers (v3.0.0)"
-                : "Ambient Layers interface preview (v3.0.0)"}
+                ? "Désactivez pour revenir à l'interface classique v2. Signalez les bugs sur GitHub Issues."
+                : "Disable to switch back to the classic v2 interface. Report bugs at GitHub Issues."}
             />
           </div>
         </div>
