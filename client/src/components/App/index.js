@@ -162,6 +162,18 @@ const App = () => {
       className={`${darkMode ? styles.dark : styles.light} ${
         mouseHide ? styles.hideMouse : ""
       }`}
+      /* --info-col-width set at the root so it propagates to BOTH the
+       * v2 grid container (which uses it directly via the CSS variable
+       * for its grid template) AND the sibling .settingsContainer
+       * holding v2 Settings + Debug overlays (which calc() their own
+       * width as 100vw - var(--info-col-width) - 20px). Before this
+       * the variable lived on .container, didn't propagate to
+       * siblings, and the overlays fell back to a 300 px assumption.
+       * That worked at fontSize=M (300px InfoPanel column) but caused
+       * a 25 px overlap at fontSize=L (345 px column), visible as the
+       * Settings panel poking under the right rail. The visual issue
+       * predates Direction C — fontSize=L just made it visible. */
+      style={{ "--info-col-width": `${panelWidthPx}px` }}
     >
       {/* Phase 0 of the v3.0.0 UI refresh — when the experimental flag
           is on, render the new Ambient Layers entry point (today a
