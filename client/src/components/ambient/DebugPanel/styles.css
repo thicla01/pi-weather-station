@@ -180,6 +180,63 @@
   max-width: 880px;
 }
 
+/* ── Multi-select stack ───────────────────────────────────────── */
+
+.stack {
+  display: flex;
+  flex-direction: column;
+  gap: 24px;
+}
+
+.stackItem {
+  /* Each pinned bucket gets a thin left accent and a soft surface
+   * tint so it reads as a distinct module when multiple are open.
+   * Without this the stacked sections blur together — the original
+   * single-bucket variant didn't need separation because only one
+   * was ever visible at a time. */
+  padding: 12px 16px;
+  background-color: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-left: 3px solid var(--c-accent);
+  border-radius: 6px;
+}
+
+.stackHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 8px;
+  border-bottom: 1px solid var(--c-border);
+}
+
+.stackHeaderIcon {
+  font-size: 14px;
+  color: var(--c-accent);
+}
+
+.stackHeaderLabel {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 1.4px;
+  text-transform: uppercase;
+  color: var(--c-text);
+}
+
+.placeholder {
+  padding: 32px 24px;
+  text-align: center;
+  font-size: 12px;
+  color: var(--c-text-dim);
+  line-height: 1.5;
+  max-width: 480px;
+  margin: 24px auto 0;
+  border: 1px dashed var(--c-border);
+  border-radius: 8px;
+  background-color: var(--c-accent-soft);
+}
+
 .sectionTitle {
   font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 10px;

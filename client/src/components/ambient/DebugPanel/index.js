@@ -62,10 +62,25 @@ const DebugPanel = () => {
     refreshUpdateCheck,
   } = useContext(AppContext);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
-  const [bucket, setBucket] = useState("server");
+  // Multi-select buckets: each rail tab is a push-button. Press to
+  // pin its section on screen; press again to unpin. Multiple
+  // sections can stack vertically — handy for cross-bucket
+  // debugging (e.g. Server KPI side-by-side with the Services
+  // quota board when chasing a slow endpoint). Default: just
+  // Server, same as a fresh open.
+  const [activeBuckets, setActiveBuckets] = useState(() => new Set(["server"]));
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+
+  const toggleBucket = useCallback((id) => {
+    setActiveBuckets((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  }, []);
 
   const tod = useTimeOfDay();
   const palette = getPalette(tod);
@@ -162,20 +177,22 @@ const DebugPanel = () => {
       </div>
 
       <div className={styles.body}>
-        <nav className={styles.rail} role="tablist" aria-label="Debug sections">
-          {BUCKETS.map((b) => (
-            <button
-              key={b.id}
-              type="button"
-              role="tab"
-              aria-selected={bucket === b.id}
-              className={`${styles.railButton} ${bucket === b.id ? styles.railButtonActive : ""}`}
-              onClick={() => setBucket(b.id)}
-            >
-              <span className={styles.railIcon}>{b.icon}</span>
-              <span className={styles.railLabel}>{b.label}</span>
-            </button>
-          ))}
+        <nav className={styles.rail} role="group" aria-label="Debug sections">
+          {BUCKETS.map((b) => {
+            const isActive = activeBuckets.has(b.id);
+            return (
+              <button
+                key={b.id}
+                type="button"
+                aria-pressed={isActive}
+                className={`${styles.railButton} ${isActive ? styles.railButtonActive : ""}`}
+                onClick={() => toggleBucket(b.id)}
+              >
+                <span className={styles.railIcon}>{b.icon}</span>
+                <span className={styles.railLabel}>{b.label}</span>
+              </button>
+            );
+          })}
         </nav>
 
         <main className={styles.pane}>
@@ -188,9 +205,29 @@ const DebugPanel = () => {
             <div className={styles.loadingBox}>
               {t("debug.loading", { defaultValue: "Loading…" })}
             </div>
-          ) : data ? (
-            <BucketContent bucket={bucket} data={data} />
-          ) : null}
+          ) : !data ? null : activeBuckets.size === 0 ? (
+            <div className={styles.placeholder}>
+              {t("debug.pickBucket", {
+                defaultValue: "Press a tab to view a section. Press again to hide it. Multiple sections can stack.",
+              })}
+            </div>
+          ) : (
+            // Render every active bucket stacked vertically. Iterate
+            // through BUCKETS (the canonical order) instead of the Set
+            // so the visual order stays stable as the user toggles
+            // tabs in arbitrary sequence.
+            <div className={styles.stack}>
+              {BUCKETS.filter((b) => activeBuckets.has(b.id)).map((b) => (
+                <section key={b.id} className={styles.stackItem}>
+                  <div className={styles.stackHeader}>
+                    <span className={styles.stackHeaderIcon}>{b.icon}</span>
+                    <span className={styles.stackHeaderLabel}>{b.label}</span>
+                  </div>
+                  <BucketContent bucket={b.id} data={data} />
+                </section>
+              ))}
+            </div>
+          )}
         </main>
       </div>
     </div>
