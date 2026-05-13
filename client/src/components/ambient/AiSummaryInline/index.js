@@ -105,7 +105,15 @@ const AiSummaryInline = () => {
       </button>
       {expanded ? (
         <div className={styles.body}>
-          {summary.split("\n\n").map((paragraph, i) => (
+          {/* Tolerant split: Claude is *supposed* to separate paragraphs
+           * with a blank line (\n\n per the prompt), but in practice it
+           * sometimes drops to a single \n — the Debug snapshot's <pre>
+           * still renders that as visually-distinct lines, which masks
+           * the bug until somebody notices that the AiSummary slab
+           * shows one giant run-on paragraph. Splitting on `\n+` and
+           * dropping empties handles both shapes without ping-ponging
+           * with the model. */}
+          {summary.split(/\n+/).map((p) => p.trim()).filter(Boolean).map((paragraph, i) => (
             <p key={i} className={styles.text}>{paragraph}</p>
           ))}
         </div>

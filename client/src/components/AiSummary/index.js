@@ -109,7 +109,11 @@ const AiSummary = ({ expanded, onToggle, containerRef }) => {
         </button>
         <div className={styles.line} />
       </div>
-      {summary.split("\n\n").map((paragraph, i) => (
+      {/* Tolerant split — see AiSummaryInline for rationale. Claude
+       * occasionally separates paragraphs with a single \n instead of
+       * the prompted \n\n; splitting on `\n+` keeps the rendering
+       * resilient to that. */}
+      {summary.split(/\n+/).map((p) => p.trim()).filter(Boolean).map((paragraph, i) => (
         <p key={i} className={styles.text}>{paragraph}</p>
       ))}
     </div>
