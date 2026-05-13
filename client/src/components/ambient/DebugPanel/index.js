@@ -348,7 +348,7 @@ const BucketServices = ({ data }) => {
                 p.indicator === "none" ? "ok"
                   : p.indicator === "minor" ? "warn"
                     : "err"
-              }>{(p.indicator || "?").toUpperCase()}</Tag>
+              }>{String(p.indicator || "?").toUpperCase()}</Tag>
               <span className={styles.rowName}>{p.name}</span>
               <span className={styles.rowDim}>{p.description}</span>
             </div>
@@ -364,7 +364,7 @@ const BucketServices = ({ data }) => {
           {Object.entries(services).slice(0, 10).map(([name, info]) => (
             <div key={name} className={styles.row}>
               <Tag kind={info?.status === "ok" ? "ok" : info?.status === "warn" ? "warn" : "err"}>
-                {(info?.status || "?").toUpperCase()}
+                {String(info?.status || "?").toUpperCase()}
               </Tag>
               <span className={styles.rowName}>{name}</span>
               <span className={styles.rowDim}>{info?.comment || ""}</span>
