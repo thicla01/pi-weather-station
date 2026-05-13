@@ -246,7 +246,8 @@
     "openDebug": "Abrir el panel de depuración",
     "closeDebug": "Cerrar el panel de depuración",
     "openUpdate": "Mostrar la ventana de actualización",
-    "closeUpdate": "Cerrar la ventana de actualización"
+    "closeUpdate": "Cerrar la ventana de actualización",
+    "updateAvailableRemote": "Actualización disponible — conéctese en local para instalar"
   },
   "debug": {
     "title": "DEPURACIÓN",

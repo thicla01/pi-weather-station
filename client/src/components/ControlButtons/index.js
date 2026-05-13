@@ -103,12 +103,31 @@ const ControlButtons = () => {
           <InlineIcon icon={bugIcon} />
         </div>
       )}
-      {isLocal && updateAvailable && (
+      {updateAvailable && isLocal && (
         <div
           onClick={() => setUpdateModalOpen(!updateModalOpen)}
           className={`${styles.updateButton} ${updateModalOpen ? styles.buttonDown : ""}`}
           title={t(updateModalOpen ? "controls.closeUpdate" : "controls.openUpdate")}
           aria-label={t(updateModalOpen ? "controls.closeUpdate" : "controls.openUpdate")}
+        >
+          <InlineIcon icon={upgradeIcon} />
+          <span className={styles.updateBadge} />
+        </div>
+      )}
+      {updateAvailable && !isLocal && (
+        // Remote-viewer indicator (requested by @k5map on a headless RPi
+        // setup, May 2026). Same icon + pulsing badge as the local
+        // version so the affordance is recognisable, but rendered as a
+        // passive indicator: no onClick, no role="button", and a tooltip
+        // explaining that installation has to happen from localhost
+        // (the /api/update endpoint is gated by `localhostOnly`
+        // middleware — a security boundary we keep). Reduced opacity
+        // communicates "informational, not interactive" at a glance.
+        <div
+          className={`${styles.updateButton} ${styles.updateButtonRemote}`}
+          title={t("controls.updateAvailableRemote")}
+          aria-label={t("controls.updateAvailableRemote")}
+          aria-disabled="true"
         >
           <InlineIcon icon={upgradeIcon} />
           <span className={styles.updateBadge} />
