@@ -204,10 +204,18 @@
 
 /* ── Multi-select stack ───────────────────────────────────────── */
 
+/* Grid with auto-fit columns so multiple pinned buckets sit
+ * side-by-side when there's room. minmax(420px, 1fr) means: each
+ * column wants 420px min; share remaining width equally; wrap to the
+ * next row when a column wouldn't fit. On 800px (Pi 7") only one
+ * column fits — same look as before. On 1366px desktop two columns
+ * fit. On 1920px three columns. The denser layout matches v2 Debug's
+ * info-density without sacrificing readability. */
 .stack {
-  display: flex;
-  flex-direction: column;
-  gap: 24px;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(420px, 1fr));
+  gap: 16px 20px;
+  align-items: start;
 }
 
 .stackItem {
