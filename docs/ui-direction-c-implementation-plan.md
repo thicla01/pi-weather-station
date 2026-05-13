@@ -251,20 +251,26 @@ v2 Settings panel still pilots the four `advancedSleep` params.
 
 Goal: wire the auto-trigger for hybrid instrumentation mode, and translate everything.
 
-- [ ] `useHybridMode(data)` hook — returns `'red' | 'amber' | null` based on
-  alert tier + radar state + confidence threshold (70%).
-- [ ] Apply hybrid injections conditionally:
-  - Severity strip on slabs with critical metrics (3-4px left border, tier colour).
-  - Mono numerals: switch critical numbers (temp, wind, pressure, confidence)
-    from `display` font to `mono` font.
-  - Opacity bump: slab surface alpha 0.85-0.92 → 0.94-0.98.
-  - Severity-coded chips: confidence pills get tier-coloured backgrounds.
-- [ ] **i18n extraction**:
-  - Scan all new components for hardcoded strings.
-  - Add new keys under `ambient.*` namespace in `en.json` / `fr.json` / `es.json`
-    (estimated 40-50 new keys).
-  - Replace each hardcoded string with `{t("ambient.xxx")}`.
-  - Pay attention to length variance (FR ~30% longer than EN).
+- [x] `useHybridMode()` — already built in Phase 1. Returns
+  `none` / `light` / `full` based on `govAlerts` severity. (Renamed
+  from the plan's `null | amber | red` vocabulary so the strings map
+  to existing CSS class names better.)
+- [x] Hybrid injections driven via CSS custom properties on the
+  AmbientLayers root — every slab picks up the escalation without
+  per-component logic:
+  - `--c-surface` swaps 0.85α → 0.96α
+  - `--c-border` strengthens to match
+  - `--c-strip-color` resolves to warn / danger / transparent
+  - Opted-in slabs (HeroBand, HeroCompact, MetricsGrid cells,
+    IndoorBlock) render the strip via `box-shadow: inset 4px 0 0`.
+    AlertBanner keeps its own strip from Phase 2b.
+  - Mono numerals: already pervasive since Phase 3 — no toggle needed.
+  - Severity-coded chips: ConfidencePill bucket colours from Phase 2a
+    cover this requirement.
+- [x] i18n extraction: added incrementally during Phases 3a/3b/3c
+  (`metrics.*`, `charts.tab24h/tab5d`, `controls.collapsePanel/
+  expandPanel/updateAvailableRemote`). 19 distinct i18n key references
+  across the ambient namespace — coverage complete.
 - [ ] Test all 3 locales on the same kiosk.
 
 **Deliverable:** PR #8. Hybrid mode visible on severe scenarios, i18n complete in 3 langs.

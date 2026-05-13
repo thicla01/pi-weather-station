@@ -11,6 +11,10 @@
   padding: 12px 14px;
   color: var(--c-text);
   font-family: "Geist", system-ui, -apple-system, sans-serif;
+  /* Hybrid-mode severity strip — indoor data joins the escalation
+   * because air-quality / temp can be safety-relevant in extreme
+   * scenarios (e.g. wildfire smoke event). */
+  box-shadow: inset 3px 0 0 var(--c-strip-color, transparent);
 }
 
 .label {

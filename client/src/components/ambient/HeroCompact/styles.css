@@ -12,6 +12,10 @@
   padding: 16px 18px 14px 18px;
   color: var(--c-text);
   font-family: "Geist", system-ui, -apple-system, sans-serif;
+  /* Hybrid-mode severity strip on the left edge. Transparent in calm
+   * conditions; picks up warn/danger when a serious alert is active.
+   * See AmbientLayers root for the --c-strip-color resolution. */
+  box-shadow: inset 4px 0 0 var(--c-strip-color, transparent);
 }
 
 .empty {
