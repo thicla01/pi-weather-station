@@ -40,6 +40,16 @@ const MetricsGrid = () => {
   const uvIndex = values?.uvIndex;
   const aqi = aqhiInfo?.value;
   const aqiCategory = aqhiInfo?.category;
+  // The scale identifier ("IQA" for Quebec, "AQHI" for ECCC fallback,
+  // "AQI" for EPA AirNow / OpenAQ) anchors the meaning of the number —
+  // a 5 means "good" on IQA (max ~50) but "moderate" on AQHI (max 10+).
+  // Render it in the unit slot, similar to how "kph" anchors the wind
+  // value. Falls back to the generic "metrics.aqi" translation when
+  // we don't yet have a payload so the cell label still reads clearly.
+  const aqiScaleLabel = aqhiInfo?.scale === "iqa" ? "IQA"
+    : aqhiInfo?.scale === "aqhi" ? "AQHI"
+      : aqhiInfo?.scale === "epa" ? "AQI"
+        : "";
 
   return (
     <div className={styles.grid}>
@@ -64,7 +74,7 @@ const MetricsGrid = () => {
       <Cell
         icon={leafIcon}
         value={aqi != null ? aqi : "—"}
-        unit=""
+        unit={aqiScaleLabel}
         label={aqiCategory ? t(`badges.aqiLevel.${aqiCategory}`) : t("metrics.aqi")}
       />
     </div>
