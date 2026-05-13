@@ -55,10 +55,18 @@
   z-index: 10;
   pointer-events: auto;
   transition: right 200ms ease-out;
-  /* Font-size preference — same scope as the rail. The hero band's
-   * grid template uses minmax() so the band gracefully compresses if
-   * the zoomed content exceeds the slot's width. */
-  zoom: var(--c-font-scale, 1);
+  /* No `zoom` here. Earlier Phase 7 polish applied
+   * `zoom: var(--c-font-scale, 1)` to scale the hero text at fontSize=L,
+   * but \`zoom\` visually expands the box without updating the layout
+   * engine's geometry — at scale 1.15 the slot rendered ~968 px wide
+   * while its declared width stayed 842, and the right rail (also
+   * at zoom 1.15 → 368 px visual width vs 320 declared) marched left,
+   * producing a ~150 px overlap that clipped the clock.
+   * The hero band is already large enough at native size; leaving it
+   * unscaled keeps the right edge anchored to its declared position
+   * and the rail stays cleanly to its right. The rail itself still
+   * honours the font-size preference (its contents reads denser/
+   * sparser by user choice). */
 }
 
 .layout.collapsed .heroSlot {
