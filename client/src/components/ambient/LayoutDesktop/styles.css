@@ -51,7 +51,14 @@
   position: absolute;
   top: var(--c-edge-gap);
   left: calc(var(--c-edge-gap) + 70px);
-  right: calc(var(--c-rail-width) + var(--c-edge-gap) * 2);
+  /* The rail is `zoom: var(--c-font-scale)` so its visual width is
+   * rail-width × font-scale, not rail-width. The heroSlot needs to
+   * end before the rail's visual left edge — otherwise the date in
+   * the clock panel gets clipped by the rail at fontSize=L (320 px
+   * declared rail → 368 px visual at scale 1.15, while heroSlot.right
+   * stayed at 352 → 16 px overlap). Multiply the rail-width by the
+   * font-scale here so the gap holds at every preference. */
+  right: calc(var(--c-rail-width) * var(--c-font-scale, 1) + var(--c-edge-gap) * 2);
   z-index: 10;
   pointer-events: auto;
   transition: right 200ms ease-out;
@@ -108,7 +115,9 @@
 .chevron {
   position: absolute;
   top: 50%;
-  right: calc(var(--c-rail-width) + var(--c-edge-gap) * 2);
+  /* Same font-scale compensation as heroSlot — keep the chevron
+   * pinned to the rail's visual left edge, not its declared one. */
+  right: calc(var(--c-rail-width) * var(--c-font-scale, 1) + var(--c-edge-gap) * 2);
   transform: translateY(-50%);
   z-index: 20;
   width: 22px;
