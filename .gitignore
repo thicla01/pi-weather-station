@@ -17,3 +17,4 @@ report/
 
 # macOS Finder metadata — should never be tracked
 .DS_Store
+.claude/
