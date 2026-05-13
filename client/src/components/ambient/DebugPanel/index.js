@@ -72,6 +72,18 @@ const DebugPanel = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  // Column count for the masonry distributor — 1 on narrow viewports
+  // (Pi 7"), 2 on desktop. Same 880 px breakpoint the .stack CSS
+  // used before. Tracked via matchMedia so live resize works.
+  const [columnCount, setColumnCount] = useState(
+    () => (typeof window !== "undefined" && window.matchMedia("(min-width: 880px)").matches ? 2 : 1),
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 880px)");
+    const handler = (e) => setColumnCount(e.matches ? 2 : 1);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
   const toggleBucket = useCallback((id) => {
     setActiveBuckets((prev) => {
@@ -220,21 +232,18 @@ const DebugPanel = () => {
               })}
             </div>
           ) : (
-            // Render every active bucket stacked vertically. Iterate
-            // through BUCKETS (the canonical order) instead of the Set
-            // so the visual order stays stable as the user toggles
-            // tabs in arbitrary sequence.
-            <div className={styles.stack}>
-              {BUCKETS.filter((b) => activeBuckets.has(b.id)).map((b) => (
-                <section key={b.id} className={styles.stackItem}>
-                  <div className={styles.stackHeader}>
-                    <span className={styles.stackHeaderIcon}>{b.icon}</span>
-                    <span className={styles.stackHeaderLabel}>{b.label}</span>
-                  </div>
-                  <BucketContent bucket={b.id} data={data} />
-                </section>
-              ))}
-            </div>
+            // Masonry-style layout: distribute pinned buckets across
+            // explicit columns so the dominant bucket (Services) doesn't
+            // strand a half-empty column next to it. CSS multi-column
+            // can't do this because it fills in document order and
+            // can't move a tall item out of the way. Column count is
+            // viewport-driven via the CSS class names so the algorithm
+            // produces 1 column on Pi 7", 2 on standard desktop.
+            <MasonryStack
+              activeBuckets={activeBuckets}
+              data={data}
+              columnCount={columnCount}
+            />
           )}
         </main>
       </div>
@@ -249,6 +258,91 @@ const BUCKETS = [
   { id: "storage",  icon: "▢", label: "Storage" },
   { id: "about",    icon: "ⓘ", label: "About" },
 ];
+
+// Approximate heights for each bucket in pixels — used by the
+// masonry distributor below. Exact values aren't critical; we just
+// need a stable rank-order so the algorithm can place each bucket
+// into the currently-shortest column. Refined from on-screen
+// measurements during validation; tweak when section content
+// changes substantially. CSS multi-column can't do this with
+// `break-inside: avoid` because it greedily fills col 1 in document
+// order before considering col 2.
+const APPROX_HEIGHT = {
+  server: 360,
+  client: 240,
+  services: 580,
+  storage: 440,
+  about: 260,
+};
+
+/**
+ * Distribute the active buckets across `columnCount` columns using a
+ * Longest-Processing-Time-first greedy scheduler — each bucket goes
+ * to the column with the smallest running total. Returns an array
+ * of arrays, one per column, with the bucket objects in placement
+ * order.
+ *
+ * @param {Set<string>} activeBuckets
+ * @param {number} columnCount
+ * @returns {Array<Array<{id:string,icon:string,label:string}>>}
+ */
+function distributeBuckets(activeBuckets, columnCount) {
+  const cols = Array.from({ length: columnCount }, () => []);
+  if (activeBuckets.size === 0) return cols;
+  const heights = new Array(columnCount).fill(0);
+  const pinned = BUCKETS.filter((b) => activeBuckets.has(b.id));
+  // Sort by descending approximate height so the dominant bucket
+  // gets placed first into a clean column, and subsequent shorter
+  // buckets fill the gaps.
+  const sorted = [...pinned].sort(
+    (a, b) => (APPROX_HEIGHT[b.id] || 300) - (APPROX_HEIGHT[a.id] || 300),
+  );
+  sorted.forEach((b) => {
+    let idx = 0;
+    for (let i = 1; i < columnCount; i += 1) {
+      if (heights[i] < heights[idx]) idx = i;
+    }
+    cols[idx].push(b);
+    heights[idx] += APPROX_HEIGHT[b.id] || 300;
+  });
+  return cols;
+}
+
+/**
+ * Renders the pinned buckets distributed across N columns using the
+ * masonry placement helper. Each column is its own flex container so
+ * the visual order matches what the user pressed — the canonical
+ * BUCKETS order is preserved within each column, but tall buckets
+ * are moved out of the way to balance heights.
+ *
+ * @param {object} props
+ * @param {Set<string>} props.activeBuckets
+ * @param {object} props.data — /api/debug payload
+ * @param {number} props.columnCount — 1 on narrow, 2 on desktop
+ * @returns {JSX.Element}
+ */
+const MasonryStack = ({ activeBuckets, data, columnCount }) => {
+  const columns = distributeBuckets(activeBuckets, columnCount);
+  return (
+    <div
+      className={`${styles.stack} ${columnCount === 2 ? styles.stackTwoCol : styles.stackOneCol}`}
+    >
+      {columns.map((col, i) => (
+        <div key={i} className={styles.stackColumn}>
+          {col.map((b) => (
+            <section key={b.id} className={styles.stackItem}>
+              <div className={styles.stackHeader}>
+                <span className={styles.stackHeaderIcon}>{b.icon}</span>
+                <span className={styles.stackHeaderLabel}>{b.label}</span>
+              </div>
+              <BucketContent bucket={b.id} data={data} />
+            </section>
+          ))}
+        </div>
+      ))}
+    </div>
+  );
+};
 
 /**
  * Per-bucket dispatcher, wrapped in an error boundary so a render
