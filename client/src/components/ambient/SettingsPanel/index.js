@@ -130,24 +130,29 @@ const SettingsPanel = () => {
  * @returns {JSX.Element}
  */
 const SectionLocalPrefs = ({ ctx, lang }) => {
-  // Note: most preference setters aren't exposed directly on
-  // AppContext today — the v2 Settings overlay piloted them via
-  // dedicated Select components with their own commit logic. Phase
-  // 8a renders the read-only view (values reflect the current state,
-  // taps no-op cleanly via the `!disabled && onChange && onChange()`
-  // gate inside Seg/Toggle). Phase 8b wires the write path through
-  // AppContext for real once we add the corresponding setters.
+  // Phase 8b wires the writes — every preference is now persisted via
+  // the existing AppContext `saveXxx` helpers (each one mirrors the
+  // value to localStorage). The v2 Settings overlay uses the same
+  // helpers under the hood, so v2 + v3 share the same persistence
+  // path and a change made in one is immediately reflected by the
+  // other on reload.
   const {
-    fontSize,
-    clockTime,
-    tempUnit,
-    speedUnit,
-    lengthUnit,
-    distanceUnit,
-    darkModeAuto,
-    mouseHide,
-    hideRadarLegend,
+    fontSize, saveFontSize,
+    clockTime, saveClockTime,
+    tempUnit, saveTempUnit,
+    speedUnit, saveSpeedUnit,
+    lengthUnit, saveLengthUnit,
+    distanceUnit, saveDistanceUnit,
+    darkModeAuto, saveDarkModeAuto,
+    mouseHide, saveMouseHide,
+    hideRadarLegend, saveHideRadarLegend,
   } = ctx;
+
+  // The MouseHide / HideRadarLegend save helpers take a JSON-encoded
+  // string ("true" / "false") so they're symmetrical with the v2
+  // Select component that calls them. Wrap the Toggle's boolean
+  // onChange into that shape.
+  const saveBoolFlag = (saver) => (v) => saver(JSON.stringify(Boolean(v)));
 
   return (
     <div className={styles.section}>
@@ -170,43 +175,43 @@ const SectionLocalPrefs = ({ ctx, lang }) => {
           label={lang === "fr" ? "Taille texte" : "Font size"}
           options={[{ v: "s", l: "S" }, { v: "m", l: "M" }, { v: "l", l: "L" }]}
           value={fontSize || "m"}
-          onChange={() => undefined /* TODO Phase 8b */}
+          onChange={saveFontSize}
         />
         <Seg
           label={lang === "fr" ? "Mode sombre" : "Dark mode"}
           options={[{ v: true, l: "AUTO" }, { v: false, l: "MANUEL" }]}
           value={Boolean(darkModeAuto)}
-          onChange={() => undefined /* TODO Phase 8b */}
+          onChange={saveDarkModeAuto}
         />
         <Seg
           label={lang === "fr" ? "Horloge" : "Clock"}
           options={[{ v: "12", l: "12h" }, { v: "24", l: "24h" }]}
           value={clockTime}
-          onChange={() => undefined /* TODO Phase 8b */}
+          onChange={saveClockTime}
         />
         <Seg
           label="Temp"
           options={[{ v: "f", l: "°F" }, { v: "c", l: "°C" }, { v: "k", l: "K" }]}
           value={tempUnit}
-          onChange={() => undefined /* TODO Phase 8b */}
+          onChange={saveTempUnit}
         />
         <Seg
           label={lang === "fr" ? "Vent" : "Speed"}
           options={[{ v: "mph", l: "mph" }, { v: "ms", l: "m/s" }, { v: "kmh", l: "kph" }]}
           value={speedUnit}
-          onChange={() => undefined /* TODO Phase 8b */}
+          onChange={saveSpeedUnit}
         />
         <Seg
           label={lang === "fr" ? "Précip." : "Length"}
           options={[{ v: "in", l: "in" }, { v: "mm", l: "mm" }]}
           value={lengthUnit}
-          onChange={() => undefined /* TODO Phase 8b */}
+          onChange={saveLengthUnit}
         />
         <Seg
           label="Dist."
           options={[{ v: "mi", l: "mi" }, { v: "km", l: "km" }]}
           value={distanceUnit}
-          onChange={() => undefined /* TODO Phase 8b */}
+          onChange={saveDistanceUnit}
         />
       </div>
 
@@ -214,12 +219,12 @@ const SectionLocalPrefs = ({ ctx, lang }) => {
         <Toggle
           label={lang === "fr" ? "Masquer le curseur" : "Hide mouse cursor"}
           value={Boolean(mouseHide)}
-          onChange={() => undefined /* TODO Phase 8b */}
+          onChange={saveBoolFlag(saveMouseHide)}
         />
         <Toggle
           label={lang === "fr" ? "Masquer la légende radar" : "Hide radar legend"}
           value={Boolean(hideRadarLegend)}
-          onChange={() => undefined /* TODO Phase 8b */}
+          onChange={saveBoolFlag(saveHideRadarLegend)}
         />
       </div>
     </div>
@@ -258,7 +263,7 @@ const SectionConfig = ({ ctx, lang, remote }) => {
     mapApiKey, weatherApiKey, reverseGeoApiKey,
     anthropicApiKey, airNowApiKey, openAqApiKey,
     customLat, customLon,
-    radarSource,
+    radarSource, saveRadarSource,
     brightnessPercent, brightnessAvailable,
   } = ctx;
 
@@ -327,7 +332,7 @@ const SectionConfig = ({ ctx, lang, remote }) => {
           label={lang === "fr" ? "Source radar" : "Radar source"}
           options={[{ v: "rainviewer", l: "RainViewer" }, { v: "eccc", l: "ECCC" }]}
           value={radarSource || "rainviewer"}
-          onChange={() => undefined}
+          onChange={saveRadarSource}
           disabled={remote}
         />
         {brightnessAvailable ? (
@@ -375,7 +380,16 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
     sleepNightMode,
     experimentalUiC,
     debugEnabled,
+    saveAdvancedSleepFlag,
   } = ctx;
+  // The sleep helper returns a promise (it POSTs to /api/settings).
+  // Errors are non-critical for the UI — log + swallow so a transient
+  // network hiccup doesn't crash the panel.
+  const sleep = (key) => (value) => {
+    if (typeof saveAdvancedSleepFlag !== "function") return;
+    Promise.resolve(saveAdvancedSleepFlag(key, value))
+      .catch((err) => console.warn("[settings] sleep flag save failed", key, err));
+  };
 
   return (
     <div className={styles.section} style={{ opacity: remote ? 0.65 : 1 }}>
@@ -398,6 +412,7 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
             <Toggle
               label={lang === "fr" ? "Activer la veille" : "Enable sleep"}
               value={Boolean(sleepEnabled)}
+              onChange={sleep("enabled")}
               disabled={remote}
             />
             <Field
@@ -417,11 +432,13 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
             <Toggle
               label={lang === "fr" ? "Texte rouge nuit" : "Red text at night"}
               value={Boolean(sleepNightMode)}
+              onChange={sleep("nightMode")}
               disabled={remote}
             />
             <Toggle
               label={lang === "fr" ? "Stage 2 · activé" : "Stage 2 · enabled"}
               value={Boolean(sleepStage2Enabled)}
+              onChange={sleep("stage2Enabled")}
               disabled={remote}
             />
             <Field
