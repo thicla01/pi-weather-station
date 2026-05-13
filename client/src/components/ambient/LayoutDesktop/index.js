@@ -53,6 +53,7 @@ const LayoutDesktop = () => {
     defaultMapZoom,
     infoPanelCollapsed,
     setInfoPanelCollapsed,
+    mouseHide,
   } = useContext(AppContext);
 
   const collapsed = Boolean(infoPanelCollapsed);
@@ -61,7 +62,7 @@ const LayoutDesktop = () => {
   return (
     <div className={`${styles.layout} ${collapsed ? styles.collapsed : ""}`}>
       {/* Full-bleed map fills the entire main area as the background. */}
-      <div className={`${styles.mapArea} map-container ${darkMode ? "map-dark-mode" : ""}`}>
+      <div className={`${styles.mapArea} map-container ${darkMode ? "map-dark-mode" : ""} ${mouseHide ? "map-mouse-hide" : ""}`}>
         <WeatherMap zoom={defaultMapZoom} dark={darkMode} />
       </div>
 

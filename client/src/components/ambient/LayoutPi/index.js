@@ -60,6 +60,7 @@ const LayoutPi = () => {
     defaultMapZoom,
     infoPanelCollapsed,
     setInfoPanelCollapsed,
+    mouseHide,
   } = useContext(AppContext);
 
   const collapsed = Boolean(infoPanelCollapsed);
@@ -69,7 +70,7 @@ const LayoutPi = () => {
     <div
       className={`${styles.layout} ${collapsed ? styles.collapsed : ""}`}
     >
-      <div className={`${styles.mapArea} map-container ${darkMode ? "map-dark-mode" : ""}`}>
+      <div className={`${styles.mapArea} map-container ${darkMode ? "map-dark-mode" : ""} ${mouseHide ? "map-mouse-hide" : ""}`}>
         <WeatherMap zoom={defaultMapZoom} dark={darkMode} />
         {collapsed && <FloatingMiniBanner onExpand={toggleCollapse} />}
         <button
