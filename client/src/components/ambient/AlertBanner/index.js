@@ -110,8 +110,9 @@ const AlertBanner = () => {
         data-i18n-key={radarState.i18nKey}
         data-tier={radarState.tier}
         data-bucket={radarState.confidenceBucket}
+        style={{ color: "lime", fontSize: "18px", fontWeight: "bold", minHeight: "30px" }}
       >
-        {t(radarState.i18nKey) || `[missing: ${radarState.i18nKey}]`}
+        DEBUG[{String(radarState.i18nKey)}]:{" "}{t(radarState.i18nKey) || "(empty translation)"}
       </div>
     </div>
   );
