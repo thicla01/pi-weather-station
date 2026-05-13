@@ -42,13 +42,15 @@
   overflow: hidden;
 }
 
-/* Hero band — pinned to the top-left, leaves the rail column free.
- * Subtle margin from the viewport edges so the slab visually floats
- * rather than touching the bezel. */
+/* Hero band — pinned to the top-left but offset rightward so Leaflet's
+ * zoom controls + our reset-map / marker buttons (top-left of the map)
+ * stay clickable. The 70 px clearance covers the 30 px control column
+ * plus 16 px outer gap and a 24 px breathing margin, so the controls
+ * read as a small floating group rather than tucked under the slab. */
 .heroSlot {
   position: absolute;
   top: var(--c-edge-gap);
-  left: var(--c-edge-gap);
+  left: calc(var(--c-edge-gap) + 70px);
   right: calc(var(--c-rail-width) + var(--c-edge-gap) * 2);
   z-index: 10;
   pointer-events: auto;
