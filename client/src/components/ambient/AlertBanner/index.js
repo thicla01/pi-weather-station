@@ -105,7 +105,14 @@ const AlertBanner = () => {
         <SourceBadge source="RADAR" />
         <ConfidencePill confidence={radarState.confidence} />
       </div>
-      <div className={styles.title}>{t(radarState.i18nKey)}</div>
+      <div
+        className={styles.title}
+        data-i18n-key={radarState.i18nKey}
+        data-tier={radarState.tier}
+        data-bucket={radarState.confidenceBucket}
+      >
+        {t(radarState.i18nKey) || `[missing: ${radarState.i18nKey}]`}
+      </div>
     </div>
   );
 };
