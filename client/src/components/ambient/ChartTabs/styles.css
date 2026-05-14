@@ -14,37 +14,67 @@
   font-family: "Geist", system-ui, -apple-system, sans-serif;
 }
 
+/* Tab strip — visually distinct pill buttons so the user reads
+ * them as an interactive switcher, not a section header.
+ *
+ * Before: 11 px UPPERCASE-with-letter-spacing text on transparent
+ * background, distinguished only by colour. Read as a label, not
+ * as buttons. After: full pill fill on every state (subtle on the
+ * inactive tab, strong accent fill on the active one), bordered,
+ * readable casing, generous tap target. The separator below the
+ * strip gives the chart area an explicit visual home and stops the
+ * tab row from drifting into the chart canvas. */
 .tabRow {
   display: flex;
-  gap: 6px;
-  margin-bottom: 8px;
+  gap: 8px;
+  margin-bottom: 12px;
+  padding-bottom: 10px;
+  border-bottom: 1px solid var(--c-border);
 }
 
 .tab {
-  background-color: transparent;
-  border: 0;
-  padding: 4px 10px;
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background-color: var(--c-bg);
+  border: 1px solid var(--c-border);
+  padding: 8px 14px;
   font-family: inherit;
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
-  letter-spacing: 0.4px;
-  text-transform: uppercase;
+  letter-spacing: 0.2px;
   color: var(--c-text-dim);
-  border-radius: 4px;
+  border-radius: 6px;
   cursor: pointer;
   position: relative;
+  transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out;
   -webkit-tap-highlight-color: transparent;
 }
 
-.tab:hover,
-.tab:focus-visible {
+.tab:hover {
   color: var(--c-text);
-  outline: none;
+  border-color: var(--c-text-dim);
+}
+
+.tab:focus-visible {
+  outline: 2px dashed var(--c-text);
+  outline-offset: 2px;
 }
 
 .active {
-  color: var(--c-text);
-  background-color: var(--c-accent-soft);
+  color: var(--c-bg);
+  background-color: var(--c-accent);
+  border-color: var(--c-accent);
+}
+
+.active:hover {
+  /* Keep the accent fill on hover for the active tab — the inactive
+   * tab's hover state already brightens its text + border, so this
+   * keeps the two states cleanly differentiated. */
+  color: var(--c-bg);
+  border-color: var(--c-accent);
+  filter: brightness(1.08);
 }
 
 .chartArea {

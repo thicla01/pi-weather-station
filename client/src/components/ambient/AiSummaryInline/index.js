@@ -3,6 +3,8 @@ import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
 import chevronUp from "@iconify/icons-carbon/chevron-up";
 import chevronDown from "@iconify/icons-carbon/chevron-down";
+import maximize from "@iconify/icons-carbon/maximize";
+import minimize from "@iconify/icons-carbon/minimize";
 import axios from "axios";
 import { AppContext } from "~/AppContext";
 import styles from "./styles.css";
@@ -40,6 +42,11 @@ const AiSummaryInline = () => {
   const { i18n } = useTranslation();
   const [summary, setSummary] = useState(null);
   const [expanded, setExpanded] = useState(true);
+  // Maximize mode: the slab promotes to position:absolute over the
+  // rail so the body has the entire rail height to itself. Restores
+  // to flex-flow when toggled off. Distinct from `expanded` so the
+  // user can still collapse the body while in either layout.
+  const [maximized, setMaximized] = useState(false);
   const intervalRef = useRef(null);
 
   const lang = ["fr", "es"].find((l) => i18n.language.startsWith(l)) || "en";
@@ -90,19 +97,56 @@ const AiSummaryInline = () => {
   if (!available || !summary) return null;
 
   return (
-    <div className={styles.slab}>
-      <button
-        type="button"
-        className={styles.toggle}
-        onClick={() => setExpanded((p) => !p)}
-        aria-expanded={expanded}
-      >
-        <span className={styles.label}>{LABEL[lang] || LABEL.en}</span>
-        <InlineIcon
-          icon={expanded ? chevronUp : chevronDown}
-          className={styles.chevron}
-        />
-      </button>
+    <div className={`${styles.slab} ${maximized ? styles.slabMaximized : ""}`}>
+      <div className={styles.header}>
+        <button
+          type="button"
+          className={styles.toggle}
+          onClick={() => setExpanded((p) => !p)}
+          aria-expanded={expanded}
+        >
+          <span className={styles.label}>{LABEL[lang] || LABEL.en}</span>
+        </button>
+        <div className={styles.headerActions}>
+          {/* Maximize / restore — promotes the slab to absolute-
+           * positioned overlay over the rail so the body gets the
+           * full rail height. Only meaningful when there's a body to
+           * see, so we hide it when the slab is collapsed. */}
+          {expanded ? (
+            <button
+              type="button"
+              className={styles.actionButton}
+              onClick={() => setMaximized((m) => !m)}
+              aria-pressed={maximized}
+              aria-label={maximized
+                ? (lang === "fr" ? "Restaurer" : "Restore")
+                : (lang === "fr" ? "Agrandir" : "Maximize")}
+              title={maximized
+                ? (lang === "fr" ? "Restaurer" : "Restore")
+                : (lang === "fr" ? "Agrandir" : "Maximize")}
+            >
+              <InlineIcon
+                icon={maximized ? minimize : maximize}
+                className={styles.chevron}
+              />
+            </button>
+          ) : null}
+          <button
+            type="button"
+            className={styles.actionButton}
+            onClick={() => setExpanded((p) => !p)}
+            aria-expanded={expanded}
+            aria-label={expanded
+              ? (lang === "fr" ? "Replier" : "Collapse")
+              : (lang === "fr" ? "Déplier" : "Expand")}
+          >
+            <InlineIcon
+              icon={expanded ? chevronUp : chevronDown}
+              className={styles.chevron}
+            />
+          </button>
+        </div>
+      </div>
       {expanded ? (
         <div className={styles.body}>
           {/* Tolerant split: Claude is *supposed* to separate paragraphs

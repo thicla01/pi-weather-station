@@ -350,7 +350,28 @@ async function weatherDaily(req, res) {
     return res.status(503).json("Weather API key not configured").end();
   }
 
-  const fields = ["temperature", "precipitationProbability", "precipitationIntensity", "windSpeed"].join("%2c");
+  // Daily fields:
+  //   - temperature / precipitationIntensity / precipitationProbability /
+  //     windSpeed are the avg-over-day values the existing Chart.js
+  //     DailyChart line renders against.
+  //   - temperatureMax / temperatureMin / weatherCodeMax /
+  //     precipitationProbabilityMax were added to power the v3 column-
+  //     layout daily forecast (DailyForecastColumns), which mirrors the
+  //     Claude Design 5-day mockup: each column needs a high / low pair
+  //     and an icon. Tomorrow.io returns all of these in the same call
+  //     (one daily timeline per call already aggregates the underlying
+  //     hourly samples server-side), so the extra fields don't cost an
+  //     extra request — just a slightly larger response payload. */
+  const fields = [
+    "temperature",
+    "temperatureMax",
+    "temperatureMin",
+    "precipitationProbability",
+    "precipitationProbabilityMax",
+    "precipitationIntensity",
+    "windSpeed",
+    "weatherCodeMax",
+  ].join("%2c");
   const endTime = new Date(Date.now() + 4 * 60 * 60 * 24 * 1000).toISOString();
 
   const cacheKey = getCacheKey("daily", lat, lon);

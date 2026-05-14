@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useTranslation } from "react-i18next";
 import HourlyChart from "~/components/weatherCharts/HourlyChart";
-import DailyChart from "~/components/weatherCharts/DailyChart";
+import DailyForecastColumns from "~/components/ambient/DailyForecastColumns";
 import styles from "./styles.css";
 
 /**
@@ -50,7 +50,13 @@ const ChartTabs = () => {
         </button>
       </div>
       <div className={styles.chartArea}>
-        {tab === "hourly" ? <HourlyChart /> : <DailyChart />}
+        {/* Hourly stays the existing Chart.js line — a temperature
+         * curve over 24 h is the right shape for that range. Daily
+         * switches to the column strip (DailyForecastColumns):
+         * 5 days × {day · icon · high · low · precip %}, mirroring
+         * the Claude Design "Next 5 days" mockup. v2 DailyChart is
+         * still present in the bundle and used by v2 layouts. */}
+        {tab === "hourly" ? <HourlyChart /> : <DailyForecastColumns />}
       </div>
     </div>
   );

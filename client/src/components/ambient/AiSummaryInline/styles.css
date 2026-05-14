@@ -16,6 +16,26 @@
   flex-direction: column;
 }
 
+/* Maximized state — the slab leaves the rail's flex flow and pins to
+ * the rail's inner bounds, so the body has the entire rail height
+ * minus the header. Restores v2's "AI takes over the panel" feel.
+ *
+ * `position: absolute` resolves against the nearest positioned
+ * ancestor; in both LayoutDesktop and LayoutPi the rail itself is
+ * `position: absolute`, so the slab pins against the rail. The
+ * `inset: 12px` matches the rail's own padding so the maximized
+ * slab visually replaces the contents without bumping against the
+ * rail border. z-index is the slab's only stacking concern —
+ * BottomDock and HeroBand live in their own positioned layers
+ * outside the rail and aren't affected. */
+.slab.slabMaximized {
+  position: absolute;
+  inset: 12px;
+  z-index: 5;
+  max-height: none;
+  min-height: 0;
+}
+
 /* The slab is the *last* flex item in the rail's vertical column.
  * When expanded (body present), claim the remaining vertical space
  * (`flex: 1 1 0`) so the slab height is "rail height − everything
@@ -43,16 +63,29 @@
   max-height: 360px;
 }
 
-.toggle {
+/* Header row carries the title (.toggle button) on the left and an
+ * action group (maximize + collapse) on the right. Both buttons are
+ * separate <button> elements — the v2 chevron was a single push-
+ * button for the whole row; v3 splits the responsibilities so the
+ * user gets a dedicated maximize affordance that restores the
+ * "AI takes over the rail" behaviour from v2 InfoPanel. */
+.header {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  width: 100%;
-  padding: 10px 14px;
+  padding: 6px 8px 6px 14px;
+}
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  flex: 1;
+  padding: 4px 0;
   background-color: transparent;
   border: 0;
   cursor: pointer;
   color: var(--c-text-dim);
+  text-align: left;
   -webkit-tap-highlight-color: transparent;
 }
 
@@ -60,6 +93,42 @@
 .toggle:focus-visible {
   color: var(--c-text);
   outline: none;
+}
+
+.headerActions {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.actionButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background-color: transparent;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--c-text-dim);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.actionButton:hover {
+  color: var(--c-text);
+  background-color: var(--c-accent-soft);
+}
+
+.actionButton:focus-visible {
+  outline: 2px dashed var(--c-text);
+  outline-offset: 1px;
+}
+
+.actionButton[aria-pressed="true"] {
+  color: var(--c-text);
+  background-color: var(--c-accent-soft);
 }
 
 .label {

@@ -19,6 +19,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.2] - 2026-05-13
+
+### Changed
+- **v3 ChartTabs — tabs now read as buttons** — the "24 hours" / "5 days" pair previously rendered as 11 px UPPERCASE-letter-spaced labels on a transparent background, distinguishable only by colour shift. Users read them as a section header and missed the interaction entirely. Switched to full pill buttons: bordered, background-filled, equal-width, 12 px non-uppercase text, accent fill on the active tab, hover/focus states with brightness and outline. A separator line below the tab strip gives the chart area a clear visual home.
+- **v3 5-day forecast switched from Chart.js line to a column strip** — new `DailyForecastColumns` component replaces the v2 `DailyChart` line graph for the "5 days" tab inside `ChartTabs`. Each column shows the day abbreviation, weather icon (via `parseWeatherCode` + Iconify wi/* set), high temp (bold), low temp (dim), and precipitation % when ≥ 30 %. Matches the Claude Design "Next 5 days" mockup. The hourly tab still uses the Chart.js line — a temperature curve over 24 h is the right shape for that range. Server-side `/api/weather/daily` field list expanded to include `temperatureMax` / `temperatureMin` / `weatherCodeMax` / `precipitationProbabilityMax`; Tomorrow.io returns all of them in the same call, so this is a payload size bump only — no extra API cost. v2 DailyChart stays in the bundle for v2 layouts.
+
+### Added
+- **v3 AiSummaryInline — maximize / restore button** — the chevron alone only toggled the body's visibility, with no equivalent of v2's "expand into the panel" behaviour that let the user give long radar paragraphs more room to breathe. Added a dedicated maximize button in the slab header (Iconify `carbon/maximize` / `carbon/minimize`). Tap to promote the slab to `position: absolute` over the rail at z-index 5 — the body claims the entire rail height minus the header. Tap again to restore to flex flow. The button is hidden when the body is collapsed (nothing to maximize) and shows an `aria-pressed` state when active. Header structure refactored: the title row is now a separate `.header` wrapper containing the toggle + a `.headerActions` group with the maximize and chevron buttons side-by-side, each with their own `:focus-visible` outline and hover state.
+
+---
+
 ## [2.14.1] - 2026-05-13
 
 ### Fixed

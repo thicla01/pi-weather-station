@@ -1,0 +1,86 @@
+/* 5-day forecast strip. Five equal-width columns with day name,
+ * icon, high temp (bold), low temp (dim), and precipitation %
+ * when meaningful (≥ 30 %). Matches the Claude Design "Next 5
+ * days" panel.
+ *
+ * Lives inside ChartTabs's .chartArea — which has a fixed
+ * 140 px height for the line chart it normally hosts. The strip
+ * fills that area edge-to-edge. */
+
+.strip {
+  display: grid;
+  grid-template-columns: repeat(5, 1fr);
+  gap: 4px;
+  height: 100%;
+  align-items: stretch;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  padding: 4px 2px;
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
+}
+
+.day {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.8px;
+  color: var(--c-text-dim);
+}
+
+.iconRow {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 32px;
+  /* The day-night icons from @iconify/icons-wi render at the chosen
+   * font-size; pick a size that reads clearly at 7" viewing
+   * distance without dominating the column. */
+  font-size: 28px;
+  color: var(--c-accent);
+}
+
+.icon {
+  /* Inherit colour + sizing from .iconRow. Explicit declaration
+   * here keeps the iconify wrapper from forcing 1em. */
+  width: 1em;
+  height: 1em;
+}
+
+.iconPlaceholder {
+  font-size: 16px;
+  color: var(--c-text-dim);
+}
+
+/* High / low temperature pair. The high stays at the full text
+ * colour and font weight; the low drops one weight and uses the
+ * dimmed token so the eye picks up the daily range at a glance. */
+.tempMax {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--c-text);
+  line-height: 1.1;
+}
+
+.tempMin {
+  font-size: 13px;
+  font-weight: 400;
+  color: var(--c-text-dim);
+  line-height: 1.1;
+}
+
+/* Precipitation %. The cool token (the same accent v2 uses for the
+ * blue precip line in the line chart) anchors the meaning. Empty
+ * string when below threshold so the column still aligns vertically
+ * without a placeholder dash. */
+.precip {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--c-cool);
+  min-height: 14px;
+  margin-top: 2px;
+}
