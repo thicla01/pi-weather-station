@@ -11,7 +11,7 @@ import i18n from "~/i18n";
 import { AppContext } from "~/AppContext";
 import { getPalette } from "~/ui/tokens";
 import { useTimeOfDay } from "~/ui/hybrid";
-import { resolveFontSizeZoom } from "~/ui/fontSize";
+import { resolvePanelFontSizeZoom } from "~/ui/fontSize";
 import styles from "./styles.css";
 
 /**
@@ -79,10 +79,11 @@ const SettingsPanel = () => {
     // Apply the user's text-size preference here too — SettingsPanel
     // renders outside `.ambientRoot` so it doesn't pick up
     // `--c-font-scale` via the cascade. Setting `zoom` on the overlay
-    // root scales every descendant font-size proportionally, matching
-    // the rest of the v3 UI. `zoom` is non-standard but supported in
-    // every browser the kiosk runs (Chromium / Firefox / WebKit).
-    zoom: resolveFontSizeZoom(fontSize),
+    // root scales every descendant font-size proportionally. Uses the
+    // panel-boosted resolver so the baseline lands one notch above
+    // the main UI's scale (`current L` becomes `new S` per user
+    // request).
+    zoom: resolvePanelFontSizeZoom(fontSize),
   };
 
   return (
@@ -278,7 +279,7 @@ const SectionConfig = ({ ctx, lang, remote }) => {
     anthropicApiKey, airNowApiKey, openAqApiKey,
     customLat, customLon,
     radarSource, saveRadarSource,
-    brightnessPercent, brightnessAvailable,
+    brightnessPercent, brightnessAvailable, brightnessMinPercent, setBrightnessLive,
     saveSettingsToJson,
   } = ctx;
 
@@ -467,11 +468,11 @@ const SectionConfig = ({ ctx, lang, remote }) => {
           disabled={remote}
         />
         {brightnessAvailable ? (
-          <Field
+          <BrightnessSlider
             label={lang === "fr" ? "Luminosité" : "Brightness"}
-            value={brightnessPercent != null ? Math.round(brightnessPercent) : "—"}
-            unit="%"
-            mono
+            value={brightnessPercent}
+            min={brightnessMinPercent ?? 10}
+            onChange={setBrightnessLive}
             disabled={remote}
           />
         ) : (
@@ -893,5 +894,46 @@ const EditableField = ({ label, value, unit, mono, onChange, trailing }) => (
     </div>
   </div>
 );
+
+/**
+ * Brightness range slider. Replaces the read-only Field that just
+ * showed the percentage but had no way to change it. Wired to
+ * `setBrightnessLive` (debounced server POST, see AppContext) so the
+ * thumb tracks smoothly while the actual sysfs write only fires every
+ * 250 ms.
+ *
+ * Min is read from `brightnessMinPercent` (server-reported floor so
+ * users can't drop the panel below the readable threshold and get
+ * stuck in the dark). Max is always 100. Step is 1.
+ *
+ * @param {object} props
+ * @param {string} props.label
+ * @param {number|null} props.value
+ * @param {number} props.min
+ * @param {Function} props.onChange — called with the new percent (0-100)
+ * @param {boolean} [props.disabled]
+ * @returns {JSX.Element}
+ */
+const BrightnessSlider = ({ label, value, min, onChange, disabled }) => {
+  const display = value != null ? Math.round(value) : "—";
+  return (
+    <div className={`${styles.field} ${disabled ? styles.fieldDisabled : ""}`}>
+      <div className={styles.fieldLabel}>{label}</div>
+      <div className={styles.brightnessRow}>
+        <input
+          type="range"
+          className={styles.brightnessSlider}
+          min={min}
+          max={100}
+          step={1}
+          value={value != null ? value : min}
+          disabled={disabled}
+          onChange={(e) => onChange && onChange(Number(e.target.value))}
+        />
+        <span className={styles.brightnessValue}>{display}<span className={styles.fieldUnit}>%</span></span>
+      </div>
+    </div>
+  );
+};
 
 export default SettingsPanel;

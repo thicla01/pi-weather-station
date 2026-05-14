@@ -11,7 +11,7 @@ import axios from "axios";
 import { AppContext } from "~/AppContext";
 import { getPalette } from "~/ui/tokens";
 import { useTimeOfDay } from "~/ui/hybrid";
-import { resolveFontSizeZoom } from "~/ui/fontSize";
+import { resolvePanelFontSizeZoom } from "~/ui/fontSize";
 import { exportDebugCsv } from "~/components/Debug";
 import styles from "./styles.css";
 
@@ -182,9 +182,9 @@ const DebugPanel = () => {
     "--c-cool": palette.cool,
     // Same rationale as SettingsPanel — DebugPanel renders outside
     // `.ambientRoot` and so doesn't see the `--c-font-scale` cascade.
-    // Apply the user's text-size preference via inline `zoom` here so
-    // the dense bucket grid scales like the rest of the v3 UI.
-    zoom: resolveFontSizeZoom(fontSize),
+    // Uses the panel-boosted resolver so the dense bucket grid lands
+    // one notch above the main UI scale (current L → new S).
+    zoom: resolvePanelFontSizeZoom(fontSize),
   };
 
   return (

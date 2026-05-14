@@ -546,10 +546,14 @@
 
 .apiKeyInput {
   width: 100%;
-  background-color: var(--c-bg);
+  /* Soft-accent fill matches the Lat/Lon `fieldBox` rows so the
+   * affordance "this is an editable input" reads the same way across
+   * the panel. Was `var(--c-bg)` previously, which sat too close to
+   * the slab background and looked like a passive label. */
+  background-color: var(--c-accent-soft);
   border: 1px solid var(--c-border);
-  border-radius: 3px;
-  padding: 3px 6px;
+  border-radius: 4px;
+  padding: 4px 8px;
   color: var(--c-text);
   font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 10px;
@@ -559,6 +563,7 @@
 .apiKeyInput:focus {
   outline: none;
   border-color: var(--c-accent);
+  /* Slightly stronger fill on focus to confirm interaction */
   background-color: var(--c-surface);
 }
 
@@ -575,6 +580,67 @@
 
 .fieldInput:focus {
   outline: none;
+}
+
+/* Brightness slider — replaces the read-only Field in the Location
+ * & hardware row. Keeps the same `.field` outer column so the label
+ * lines up with siblings, then a custom row that combines a real
+ * range input + the live percentage display. The range thumb +
+ * track use the accent token for visual continuity with the rest of
+ * the v3 palette. */
+.brightnessRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 4px 8px;
+  background-color: var(--c-accent-soft);
+  border: 1px solid var(--c-border);
+  border-radius: 4px;
+}
+
+.brightnessSlider {
+  flex: 1;
+  -webkit-appearance: none;
+  appearance: none;
+  height: 4px;
+  background: var(--c-border);
+  border-radius: 2px;
+  outline: none;
+  cursor: pointer;
+}
+
+.brightnessSlider:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.brightnessSlider::-webkit-slider-thumb {
+  -webkit-appearance: none;
+  appearance: none;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--c-accent);
+  cursor: pointer;
+  border: 0;
+}
+
+.brightnessSlider::-moz-range-thumb {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: var(--c-accent);
+  cursor: pointer;
+  border: 0;
+}
+
+.brightnessValue {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 12px;
+  color: var(--c-text);
+  font-variant-numeric: tabular-nums;
+  min-width: 38px;
+  text-align: right;
 }
 
 .saveBar {

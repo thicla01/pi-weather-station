@@ -19,6 +19,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.18] - 2026-05-14
+
+### Changed
+- **v3 SettingsPanel + DebugPanel — baseline font size bumped by ~15 %** — user feedback after 2.14.17: "the current Large should be the new Small". The panels house dense forms with 8–11 px labels which read as too small at kiosk distance even at the L step. Added `PANEL_FONT_ZOOM_BOOST = 1.15` multiplier in `src/ui/fontSize.js` and a new `resolvePanelFontSizeZoom()` resolver; SettingsPanel and DebugPanel now use it. Net effect: panel S(0.85)×1.15 ≈ main M, panel M(1.0)×1.15 = main L, panel L(1.15)×1.15 ≈ 1.32. The main UI (HeroBand, rail, slabs) stays on the original scale via the standard `resolveFontSizeZoom`.
+- **v3 SettingsPanel — API key inputs styled like the Lat/Lon fields** — the API key text inputs used `var(--c-bg)` (slab background) which made them visually flat against the slab and easy to miss as editable. Switched to `var(--c-accent-soft)` (same fill as the `.fieldBox` wrapper on Lat/Lon), with a `var(--c-surface)` focus state. Now reads as a clearly interactive row at a glance.
+
+### Added
+- **v3 SettingsPanel — Brightness slider** — previously rendered as a read-only Field that just showed the current percentage with no way to change it. Replaced with a `<input type="range">` wired to `setBrightnessLive` (debounced server POST already in AppContext). Min comes from `brightnessMinPercent` (server-reported floor), max is 100, step 1. Thumb + track use the accent token. Slider sits in a `.brightnessRow` styled like the Lat/Lon fieldBox so the visual family stays consistent.
+
+---
+
 ## [2.14.17] - 2026-05-14
 
 ### Fixed
