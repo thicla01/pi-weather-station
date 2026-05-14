@@ -19,6 +19,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.24] - 2026-05-15
+
+### Changed
+- **v3 DebugPanel — selective KV-key translation for the user-facing labels** — most KV keys (uptime / rss / heap used / cpu temp / fan rpm / commit / hostname / hardware / os / init / DEBUG / ALLOW_REMOTE / local sha / latest sha / page load / fps / js heap / screen / lat / lon / zoom / aqhi / etc.) stay English on purpose — they're shared technical vocabulary developers use across locales. But a handful of more user-facing labels were translated: `name` (nom / nombre), `version` (versión), `branch` (branche / rama), `license` (licence / licencia), `latest ver` (dernière ver / última ver), `available` (disponible / disponible), `hits` / `misses` / `hit rate` / `entries` in the Cache stats block, and the `Internet: ONLINE / OFFLINE` status (EN LIGNE / EN LÍNEA, HORS LIGNE / DESCONECTADO). The `v3-ambient (preview)` UI flavour string also now reads `aperçu` / `vista previa` in FR / ES.
+
+---
+
 ## [2.14.23] - 2026-05-15
 
 ### Added

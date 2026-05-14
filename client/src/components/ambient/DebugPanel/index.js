@@ -540,11 +540,11 @@ const BucketServer = ({ data, lang }) => {
     <div className={styles.bucket}>
       <SectionTitle title={lbl(lang, "Server config", "Configuration serveur", "Configuración servidor")} />
       <div className={styles.gridTwo}>
-        <KV k="version"  v={`${v.name || "?"} v${v.version || "?"} · ${v.commit || "?"}`} />
+        <KV k={lbl(lang, "version", "version", "versión")}  v={`${v.name || "?"} v${v.version || "?"} · ${v.commit || "?"}`} />
         <KV k="hostname" v={sys.hostname || "?"} />
         <KV k="hardware" v={sys.hardware || "?"} />
         <KV k="os"       v={sys.os || "?"} />
-        <KV k="branch"   v={v.branch || "?"} />
+        <KV k={lbl(lang, "branch", "branche", "rama")}   v={v.branch || "?"} />
         <KV k="init"     v={(cfg.initManager || "—").toUpperCase()} />
         {/* Boolean labels localised: VRAI/FAUX in FR, VERDADERO/FALSO in ES.
          * ALLOW_REMOTE intentionally renders as `warn` (orange) when on
@@ -568,7 +568,9 @@ const BucketServer = ({ data, lang }) => {
         )}
         {conn ? (
           <span className={`${styles.netConn} ${conn.online ? styles.netConnOnline : styles.netConnOffline}`}>
-            {`Internet: ${conn.online ? "ONLINE" : "OFFLINE"}`}
+            {`Internet: ${conn.online
+              ? lbl(lang, "ONLINE", "EN LIGNE", "EN LÍNEA")
+              : lbl(lang, "OFFLINE", "HORS LIGNE", "DESCONECTADO")}`}
             {conn.online && conn.latencyMs != null ? ` · ${conn.latencyMs} ms` : ""}
           </span>
         ) : null}
@@ -1000,10 +1002,10 @@ const BucketStorage = ({ data, lang }) => {
     <div className={styles.bucket}>
       <SectionTitle title={lbl(lang, "Cache stats", "Statistiques de cache", "Estadísticas de caché")} />
       <div className={styles.gridTwo}>
-        <KV k="hits"     v={kpis.cache?.hits != null ? kpis.cache.hits.toLocaleString() : "—"} />
-        <KV k="misses"   v={kpis.cache?.misses != null ? kpis.cache.misses.toLocaleString() : "—"} />
-        <KV k="hit rate" v={kpis.cache?.rate != null ? `${kpis.cache.rate}%` : "—"} />
-        <KV k="entries"  v={cache.length.toLocaleString()} />
+        <KV k={lbl(lang, "hits", "succès", "aciertos")}     v={kpis.cache?.hits != null ? kpis.cache.hits.toLocaleString() : "—"} />
+        <KV k={lbl(lang, "misses", "manqués", "fallos")}   v={kpis.cache?.misses != null ? kpis.cache.misses.toLocaleString() : "—"} />
+        <KV k={lbl(lang, "hit rate", "taux de succès", "tasa de aciertos")} v={kpis.cache?.rate != null ? `${kpis.cache.rate}%` : "—"} />
+        <KV k={lbl(lang, "entries", "entrées", "entradas")}  v={cache.length.toLocaleString()} />
       </div>
 
       <SectionTitle title={lbl(lang, "Cache entries", "Entrées de cache", "Entradas de caché")} gap />
@@ -1137,26 +1139,32 @@ const BucketAbout = ({ data, lang }) => {
     <div className={styles.bucket}>
       <SectionTitle title={lbl(lang, "About this build", "À propos de cette version", "Acerca de esta versión")} />
       <div className={styles.gridTwo}>
-        <KV k="name"    v={v.name || "?"} />
-        <KV k="version" v={v.version || "?"} />
+        <KV k={lbl(lang, "name", "nom", "nombre")}       v={v.name || "?"} />
+        <KV k={lbl(lang, "version", "version", "versión")}    v={v.version || "?"} />
         <KV k="commit"  v={v.commit || "?"} />
-        <KV k="branch"  v={v.branch || "?"} />
+        <KV k={lbl(lang, "branch", "branche", "rama")}     v={v.branch || "?"} />
         <KV k="repo"    v="github.com/thicla01/pi-weather-station" />
-        <KV k="license" v="MIT" />
+        <KV k={lbl(lang, "license", "licence", "licencia")}    v="MIT" />
         {/* UI flavour — handy for bug reports during the v2/v3
          * coexistence window. By definition this bucket renders only
          * when the v3 panel is mounted, so "v3-ambient" is correct
          * here; the v2 Debug overlay exists but doesn't have an
-         * About section like this. */}
-        <KV k="ui"      v="v3-ambient (preview)" />
+         * About section like this. The "(preview)" label is also
+         * localised since it's a user-facing word, not a technical
+         * marker. */}
+        <KV k="ui"      v={lbl(lang,
+          "v3-ambient (preview)",
+          "v3-ambient (aperçu)",
+          "v3-ambient (vista previa)"
+        )} />
       </div>
 
       <SectionTitle title={lbl(lang, "Update check", "Vérification MAJ", "Comprobación actualización")} gap />
       <div className={styles.gridTwo}>
         <KV k="local sha"   v={u.localSha || v.commit || "—"} />
         <KV k="latest sha"  v={latestSha || u.latestSha || "—"} />
-        <KV k="latest ver"  v={latestVersion || u.latestVersion || "—"} />
-        <KV k="available"   v={<Tag kind={updateAvailable ? "warn" : "ok"}>{updateAvailable
+        <KV k={lbl(lang, "latest ver", "dernière ver", "última ver")}  v={latestVersion || u.latestVersion || "—"} />
+        <KV k={lbl(lang, "available", "disponible", "disponible")}   v={<Tag kind={updateAvailable ? "warn" : "ok"}>{updateAvailable
           ? lbl(lang, "YES", "OUI", "SÍ")
           : lbl(lang, "UP-TO-DATE", "À JOUR", "AL DÍA")
         }</Tag>} />
