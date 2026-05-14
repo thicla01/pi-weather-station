@@ -67,8 +67,12 @@ const LayoutDesktop = () => {
       </div>
 
       {/* HeroBand pinned to the top-left, leaving the rail's column
-          free on the right. */}
-      <div className={styles.heroSlot}>
+          free on the right. The `data-ambient-hero` attribute is a
+          stable hook for WeatherMap's `useRailOffset` so it can
+          measure the actual rendered HeroBand height and push the
+          marker visually down past it without hardcoding pixel values
+          that would drift if the slab ever changes height. */}
+      <div className={styles.heroSlot} data-ambient-hero>
         <HeroBand />
       </div>
 

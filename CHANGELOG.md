@@ -19,6 +19,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.14] - 2026-05-14
+
+### Changed
+- **v3 map centring — now also accounts for the HeroBand height** — 2.14.13 fixed the horizontal off-centring caused by the right rail, but on LayoutDesktop the HeroBand at top-left still covered the upper portion of the outer 100 km radar analysis circle. Extended the `useRailOffset` hook (renamed to return `{x, y}`) to also measure the HeroBand's rendered height via a stable `[data-ambient-hero]` data attribute added to the HeroBand wrapper in LayoutDesktop. `panWithRailOffset` applies the Y offset by subtracting half the HeroBand height from the projected pixel Y, which pushes the marker visually DOWN past the band. LayoutPi stacks the hero info inside the rail (no top-left coverage) and so doesn't need a Y offset — `[data-ambient-hero]` is absent on Pi, the measurement returns 0, and behaviour matches 2.14.13. v2 layouts are still unaffected.
+
+---
+
 ## [2.14.13] - 2026-05-14
 
 ### Changed

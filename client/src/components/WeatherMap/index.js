@@ -811,28 +811,36 @@ ArrowToggleControl.propTypes = {
  * to the LEFT of viewport-centre, which is exactly the centre of the
  * non-rail area.
  *
- * When `railOffsetX` is 0 (v2 layout, rail collapsed, full-screen
+ * When `railOffset` is 0 (v2 layout, rail collapsed, full-screen
  * radar mode in Phase 11) the function falls back to a plain panTo
  * / setView and the marker sits at the true viewport centre.
  *
  * @param {object} map — Leaflet map instance
  * @param {Array<Number>} latLng — `[lat, lon]`
- * @param {Number} railOffsetX — visible rail width in pixels (0 if
+ * @param {Number} railOffset — visible rail width in pixels (0 if
  *   no rail is currently covering the right edge)
  * @param {object} [opts]
  * @param {boolean} [opts.animate=true] — true for panTo, false for setView
  *   without animation (used on initial mount where animation looks janky)
  */
-function panWithRailOffset(map, latLng, railOffsetX, opts = {}) {
+function panWithRailOffset(map, latLng, offset, opts = {}) {
   const { animate = true } = opts;
-  if (!railOffsetX) {
+  const offsetX = (offset && offset.x) || 0;
+  const offsetY = (offset && offset.y) || 0;
+  if (!offsetX && !offsetY) {
     if (animate) map.panTo(latLng);
     else map.setView(latLng, map.getZoom(), { animate: false });
     return;
   }
   const zoom = map.getZoom();
   const point = map.project(latLng, zoom);
-  const adjusted = point.add([railOffsetX / 2, 0]);
+  // X: positive offset means rail covers the right edge; push the
+  //    map centre RIGHT, which moves the marker visually LEFT.
+  // Y: positive offset means the HeroBand covers the top; push the
+  //    map centre UP (smaller pixel Y), which moves the marker
+  //    visually DOWN past the band. Subtract because Leaflet's
+  //    pixel Y points DOWN.
+  const adjusted = point.add([offsetX / 2, -offsetY / 2]);
   const newCenter = map.unproject(adjusted, zoom);
   if (animate) map.panTo(newCenter);
   else map.setView(newCenter, zoom, { animate: false });
@@ -858,27 +866,29 @@ function panWithRailOffset(map, latLng, railOffsetX, opts = {}) {
  */
 function useRailOffset() {
   const { experimentalUiC, infoPanelCollapsed } = useContext(AppContext);
-  const [offset, setOffset] = useState(0);
+  const [offset, setOffset] = useState({ x: 0, y: 0 });
   useEffect(() => {
     if (!experimentalUiC || infoPanelCollapsed) {
-      setOffset(0);
+      setOffset({ x: 0, y: 0 });
       return undefined;
     }
     let cancelled = false;
     const measure = () => {
       if (cancelled) return;
       const rail = document.querySelector(".ambientRoot aside");
-      if (!rail) {
-        setOffset(0);
-        return;
-      }
-      const width = rail.getBoundingClientRect().width;
-      setOffset(Math.round(width));
+      const hero = document.querySelector(".ambientRoot [data-ambient-hero]");
+      const x = rail ? Math.round(rail.getBoundingClientRect().width) : 0;
+      // HeroBand only exists in LayoutDesktop — LayoutPi stacks the
+      // hero info INSIDE the rail so there's nothing covering the
+      // top-left of the map. `[data-ambient-hero]` is therefore the
+      // right opt-in marker; absent → y = 0 → no vertical shift.
+      const y = hero ? Math.round(hero.getBoundingClientRect().height) : 0;
+      setOffset({ x, y });
     };
     const handle = requestAnimationFrame(measure);
-    // Re-measure on viewport size changes — the LayoutDesktop bumps
-    // rail width from 320 → 360 px above 1900 px wide via a media
-    // query, and we want the offset to track that.
+    // Re-measure on viewport size changes — LayoutDesktop bumps rail
+    // width from 320 → 360 px above 1900 px wide via a media query,
+    // and the HeroBand's height can shift if its content reflows.
     window.addEventListener("resize", measure);
     return () => {
       cancelled = true;
@@ -889,47 +899,49 @@ function useRailOffset() {
   return offset;
 }
 
-const PanHandler = ({ panToCoords, setPanToCoords, railOffsetX }) => {
+const PanHandler = ({ panToCoords, setPanToCoords, railOffset }) => {
   const map = useMap();
   useEffect(() => {
     if (panToCoords) {
-      panWithRailOffset(map, [panToCoords.latitude, panToCoords.longitude], railOffsetX);
+      panWithRailOffset(map, [panToCoords.latitude, panToCoords.longitude], railOffset);
       setPanToCoords(null);
     }
-  }, [panToCoords, map, setPanToCoords, railOffsetX]);
+  }, [panToCoords, map, setPanToCoords, railOffset]);
   return null;
 };
 
 PanHandler.propTypes = {
   panToCoords: PropTypes.object,
   setPanToCoords: PropTypes.func.isRequired,
-  railOffsetX: PropTypes.number,
+  railOffset: PropTypes.shape({ x: PropTypes.number, y: PropTypes.number }),
 };
 
 /**
- * Re-centres the map whenever `railOffsetX` changes — collapsing or
+ * Re-centres the map whenever `railOffset` changes — collapsing or
  * expanding the rail, or switching layouts, would otherwise leave
  * the marker in the wrong visual position. Pulls the current marker
  * latLng from context and re-applies the offset trick. Skipped when
  * `markerPosition` isn't yet set (initial load before mapGeo lands).
  */
-const RailOffsetTracker = ({ railOffsetX, markerPosition }) => {
+const RailOffsetTracker = ({ railOffset, markerPosition }) => {
   const map = useMap();
-  const lastOffsetRef = useRef(railOffsetX);
+  const lastOffsetRef = useRef(railOffset);
   useEffect(() => {
-    // Skip the first run so the initial mount doesn't double-pan
-    // (MapContainer's `center` prop already places us — the explicit
-    // re-pan happens below via the initial-offset effect).
-    if (lastOffsetRef.current === railOffsetX) return;
-    lastOffsetRef.current = railOffsetX;
+    // useRailOffset returns a fresh object every render even when
+    // values haven't changed, so compare by x/y rather than identity.
+    // Skip the first run so the initial mount doesn't double-pan —
+    // InitialOffsetCentering handles the boot case explicitly.
+    const prev = lastOffsetRef.current;
+    if (prev && prev.x === railOffset.x && prev.y === railOffset.y) return;
+    lastOffsetRef.current = railOffset;
     if (!markerPosition) return;
-    panWithRailOffset(map, markerPosition, railOffsetX, { animate: true });
-  }, [railOffsetX, markerPosition, map]);
+    panWithRailOffset(map, markerPosition, railOffset, { animate: true });
+  }, [railOffset, markerPosition, map]);
   return null;
 };
 
 RailOffsetTracker.propTypes = {
-  railOffsetX: PropTypes.number,
+  railOffset: PropTypes.shape({ x: PropTypes.number, y: PropTypes.number }),
   markerPosition: PropTypes.array,
 };
 
@@ -939,20 +951,21 @@ RailOffsetTracker.propTypes = {
  * marker would stay at viewport-centre (behind the rail) until the
  * user clicks somewhere. Runs once when both map and marker are ready.
  */
-const InitialOffsetCentering = ({ railOffsetX, markerPosition }) => {
+const InitialOffsetCentering = ({ railOffset, markerPosition }) => {
   const map = useMap();
   const appliedRef = useRef(false);
   useEffect(() => {
     if (appliedRef.current) return;
-    if (!markerPosition || !railOffsetX) return;
+    if (!markerPosition || !railOffset) return;
+    if (!railOffset.x && !railOffset.y) return;
     appliedRef.current = true;
-    panWithRailOffset(map, markerPosition, railOffsetX, { animate: false });
-  }, [map, markerPosition, railOffsetX]);
+    panWithRailOffset(map, markerPosition, railOffset, { animate: false });
+  }, [map, markerPosition, railOffset]);
   return null;
 };
 
 InitialOffsetCentering.propTypes = {
-  railOffsetX: PropTypes.number,
+  railOffset: PropTypes.shape({ x: PropTypes.number, y: PropTypes.number }),
   markerPosition: PropTypes.array,
 };
 
@@ -1029,7 +1042,7 @@ const WeatherMap = ({ zoom, dark }) => {
   // centre of the non-rail area; see panWithRailOffset for the math.
   // Returns 0 in v2 layouts, when the rail is collapsed, or in
   // (future) full-screen radar mode.
-  const railOffsetX = useRailOffset();
+  const railOffset = useRailOffset();
   const {
     setMapPosition,
     panToCoords,
@@ -1352,9 +1365,9 @@ const WeatherMap = ({ zoom, dark }) => {
         fadeAnimation={false}
       >
         <MapClickHandler onClick={mapClickHandler} />
-        <PanHandler panToCoords={panToCoords} setPanToCoords={setPanToCoords} railOffsetX={railOffsetX} />
-        <InitialOffsetCentering railOffsetX={railOffsetX} markerPosition={markerPosition} />
-        <RailOffsetTracker railOffsetX={railOffsetX} markerPosition={markerPosition} />
+        <PanHandler panToCoords={panToCoords} setPanToCoords={setPanToCoords} railOffset={railOffset} />
+        <InitialOffsetCentering railOffset={railOffset} markerPosition={markerPosition} />
+        <RailOffsetTracker railOffset={railOffset} markerPosition={markerPosition} />
         <MapZoomTracker onZoomChange={setCurrentMapZoom} />
         <ZoomLevelHandler zoomToLevel={zoomToLevel} setZoomToLevel={setZoomToLevel} />
         <MapResizer infoPanelCollapsed={infoPanelCollapsed} />
