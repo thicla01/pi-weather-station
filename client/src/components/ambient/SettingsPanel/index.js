@@ -390,7 +390,6 @@ const SectionConfig = ({ ctx, lang, remote }) => {
     <div className={styles.section}>
       <SectionHeader
         index="2"
-        lockIcon
         title={lang === "fr" ? "Configuration & clés API" : "Configuration & API keys"}
         subtitle={lang === "fr"
           ? "settings.json côté serveur. Écriture locale uniquement."
@@ -414,12 +413,19 @@ const SectionConfig = ({ ctx, lang, remote }) => {
         remote={remote}
         draft={draft}
         onChange={updateDraft}
+        lang={lang}
       />
 
       <div className={`${styles.subhead} ${styles.subheadGap}`}>
         {lang === "fr" ? "Localisation & matériel" : "Location & hardware"}
       </div>
       <div className={styles.grid4}>
+        {/* Pre-2.14.21 the Latitude field carried a "Copier" CopyButton
+         * trailing the input. That belonged on the Debug panel's
+         * Current-Position row (where it's still useful — diagnostic
+         * copy-coords action) and crept into Settings by accident.
+         * Removed here — the value is already user-editable in this
+         * view, so copy is redundant. */}
         {remote ? (
           <Field
             label={lang === "fr" ? "Latitude" : "Latitude"}
@@ -427,12 +433,6 @@ const SectionConfig = ({ ctx, lang, remote }) => {
             unit="°"
             mono
             selectable
-            trailing={(customLat != null && customLon != null) ? (
-              <CopyButton
-                label={lang === "fr" ? "Copier" : "Copy"}
-                value={`${customLat}, ${customLon}`}
-              />
-            ) : null}
           />
         ) : (
           <EditableField
@@ -441,12 +441,6 @@ const SectionConfig = ({ ctx, lang, remote }) => {
             unit="°"
             mono
             onChange={updateDraft("customLat")}
-            trailing={(customLat != null && customLon != null) ? (
-              <CopyButton
-                label={lang === "fr" ? "Copier" : "Copy"}
-                value={`${customLat}, ${customLon}`}
-              />
-            ) : null}
           />
         )}
         {remote ? (
@@ -552,7 +546,6 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
     <div className={styles.section} style={{ opacity: remote ? 0.65 : 1 }}>
       <DisclosureHeader
         index="3"
-        lockIcon
         title={lang === "fr" ? "Avancé" : "Advanced"}
         subtitle={lang === "fr" ? "Affichage · IA · veille" : "Display · AI · sleep"}
         open={open}
@@ -562,8 +555,6 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
         <div className={styles.advBody}>
           <div className={styles.subhead}>
             {lang === "fr" ? "Veille" : "Sleep"}
-            {" "}
-            <span className={styles.subheadAccent}>NEW · Direction C</span>
           </div>
           <div className={styles.grid4}>
             <Toggle
@@ -656,7 +647,6 @@ const SectionPreview = ({ ctx, lang, remote, open, onToggle }) => {
     <div className={styles.section} style={{ opacity: remote ? 0.65 : 1 }}>
       <DisclosureHeader
         index="4"
-        lockIcon
         title={lang === "fr" ? "Aperçu" : "Preview"}
         subtitle={lang === "fr"
           ? "Bascule entre l'interface en production (v2) et l'aperçu v3."
@@ -736,38 +726,11 @@ const Field = ({ label, value, unit, mono, disabled, selectable, trailing }) => 
   </div>
 );
 
-/**
- * Small inline button that copies `value` to the clipboard. Renders
- * a transient "Copied!" affirmation on success.
- *
- * @param {object} props
- * @param {string} props.value — text to copy
- * @param {string} props.label — button label when idle
- * @returns {JSX.Element}
- */
-const CopyButton = ({ value, label }) => {
-  const [copied, setCopied] = React.useState(false);
-  const onCopy = () => {
-    if (!navigator.clipboard || !value) return;
-    navigator.clipboard.writeText(value)
-      .then(() => {
-        setCopied(true);
-        setTimeout(() => setCopied(false), 1500);
-      })
-      .catch((err) => console.warn("[settings] clipboard write failed", err));
-  };
-  return (
-    <button
-      type="button"
-      className={styles.copyButton}
-      onClick={onCopy}
-      disabled={!value}
-      title={value ? `Copy "${value}"` : "Nothing to copy"}
-    >
-      {copied ? (label === "Copier" ? "Copié !" : "Copied!") : label}
-    </button>
-  );
-};
+/* CopyButton was used trailing the Latitude EditableField until
+ * 2.14.21. Removed there because the value is already editable in
+ * Settings — copy was redundant. The Debug panel keeps its own
+ * inline copy affordance (DebugCopyButton on the Current Position
+ * row) which is genuinely useful for diagnostics. */
 
 const Seg = ({ label, options, value, onChange, disabled }) => (
   <div className={`${styles.seg} ${disabled ? styles.segDisabled : ""}`}>
@@ -788,11 +751,18 @@ const Seg = ({ label, options, value, onChange, disabled }) => (
   </div>
 );
 
-const SectionHeader = ({ index, title, subtitle, right, lockIcon }) => (
+const SectionHeader = ({ index, title, subtitle, right }) => (
   <div className={styles.sectionHeader}>
     <div className={styles.sectionHeaderLeft}>
       <div className={styles.sectionHeaderTitle}>
-        {lockIcon ? <span className={styles.sectionLock} title="Local only">⚿</span> : null}
+        {/* `lockIcon` used to render the U+269F glyph as a "Local only"
+         * cue here, but it falls back to a tofu rectangle in the
+         * Geist/Rubik stack — the kiosk font set doesn't carry that
+         * codepoint. The same information is now communicated by the
+         * green "MODIFIABLE" pill on section 2; sections 3/4 are
+         * implicitly local-only via the same write-path. The prop is
+         * still accepted (no consumer change needed) but renders
+         * nothing. */}
         <span>{index} · {title}</span>
       </div>
       {subtitle ? <div className={styles.sectionHeaderSubtitle}>{subtitle}</div> : null}
@@ -801,7 +771,7 @@ const SectionHeader = ({ index, title, subtitle, right, lockIcon }) => (
   </div>
 );
 
-const DisclosureHeader = ({ index, title, subtitle, right, lockIcon, open, onToggle }) => (
+const DisclosureHeader = ({ index, title, subtitle, right, open, onToggle }) => (
   <button
     type="button"
     className={styles.disclosureHeader}
@@ -813,7 +783,14 @@ const DisclosureHeader = ({ index, title, subtitle, right, lockIcon, open, onTog
     </span>
     <div className={styles.sectionHeaderLeft}>
       <div className={styles.sectionHeaderTitle}>
-        {lockIcon ? <span className={styles.sectionLock} title="Local only">⚿</span> : null}
+        {/* `lockIcon` used to render the U+269F glyph as a "Local only"
+         * cue here, but it falls back to a tofu rectangle in the
+         * Geist/Rubik stack — the kiosk font set doesn't carry that
+         * codepoint. The same information is now communicated by the
+         * green "MODIFIABLE" pill on section 2; sections 3/4 are
+         * implicitly local-only via the same write-path. The prop is
+         * still accepted (no consumer change needed) but renders
+         * nothing. */}
         <span>{index} · {title}</span>
       </div>
       {subtitle ? <div className={styles.sectionHeaderSubtitle}>{subtitle}</div> : null}
@@ -833,17 +810,26 @@ const RemoteNotice = ({ lang }) => (
   </div>
 );
 
-const ApiKeysList = ({ providers, remote, draft, onChange }) => (
+const ApiKeysList = ({ providers, remote, draft, onChange, lang }) => (
   <div className={styles.apiList}>
     {providers.map((p) => {
       const value = draft ? draft[p.id] || "" : "";
       const status = value ? "configured" : "empty";
+      /* Localise the tier badge. `required` / `optional` are the two
+       * values used by the providers array; fall back to the raw
+       * tier string for any future custom values so we don't blank
+       * out unknown tiers silently. */
+      const tierLabel = p.tier === "required"
+        ? (lang === "fr" ? "REQUIS" : lang === "es" ? "REQUERIDO" : "REQUIRED")
+        : p.tier === "optional"
+          ? (lang === "fr" ? "OPTIONNEL" : lang === "es" ? "OPCIONAL" : "OPTIONAL")
+          : p.tier;
       return (
         <div key={p.id} className={styles.apiRow}>
           <StatusDot status={status} />
           <div className={styles.apiNameBlock}>
             <div className={styles.apiName}>{p.name}</div>
-            <div className={styles.apiTier}>{p.tier}</div>
+            <div className={styles.apiTier}>{tierLabel}</div>
           </div>
           <div className={styles.apiValueBlock}>
             {remote ? (

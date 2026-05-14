@@ -19,6 +19,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.21] - 2026-05-14
+
+### Changed
+- **v3 SettingsPanel — API key tier badges localised** — the `REQUIRED` / `OPTIONAL` sub-labels under each provider name now follow the active language: `REQUIS` / `OPTIONNEL` (FR), `REQUERIDO` / `OPCIONAL` (ES). Fall-through preserves the raw tier string for any future custom values.
+- **v3 SettingsPanel — "NEW · Direction C" badge removed from the Sleep subsection** — the marker was a Phase-5 dev-time tag pointing reviewers at "this is the newly-ported section". Since the section is now stable + shipped, the marker just added noise next to the section title. Sleep stands on its own.
+
+### Removed
+- **v3 SettingsPanel — Copier button removed from the Latitude field** — the button was a port hangover from the Debug panel's Current-Position row (where it makes sense as a one-tap diagnostic copy). In Settings the value is already user-editable, so copying it to clipboard was redundant. Debug keeps its inline copy affordance untouched.
+- **v3 SettingsPanel — "lock" glyph next to section numbers 2/3/4 removed** — the panel used `⚿` (U+269F) as a "Local only" cue, but the Geist/Rubik font stack doesn't carry that codepoint so the browser fell back to a tofu rectangle next to the section numbers. The same information is now communicated by the green "MODIFIABLE" pill on section 2 (sections 3/4 are implicitly local-only via the same write-path), so the glyph was pure noise. `lockIcon` prop is dropped from both `SectionHeader` and `DisclosureHeader`.
+
+---
+
 ## [2.14.20] - 2026-05-14
 
 ### Fixed
