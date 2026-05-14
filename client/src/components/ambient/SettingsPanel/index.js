@@ -15,6 +15,20 @@ import { resolvePanelFontSizeZoom } from "~/ui/fontSize";
 import styles from "./styles.css";
 
 /**
+ * Three-locale text helper. Returns the FR / ES / EN form based on
+ * `lang`. Tiny inline shim that keeps JSX rows readable when we'd
+ * otherwise chain `lang === "fr" ? X : lang === "es" ? Y : Z` —
+ * same convention DebugPanel uses (`lbl` there too).
+ *
+ * @param {string} lang — two-letter locale (`en` / `fr` / `es`)
+ * @param {string} en  — English string (default fallback)
+ * @param {string} fr  — French string
+ * @param {string} es  — Spanish string
+ * @returns {string}
+ */
+const lbl = (lang, en, fr, es) => (lang === "fr" ? fr : lang === "es" ? es : en);
+
+/**
  * Direction C Settings panel — port of the Claude Design canvas at
  * `docs/design-references/settings-debug/project/lib/settings-panel.jsx`
  * variant B (tight list) for the API keys block.
@@ -167,15 +181,16 @@ const SectionLocalPrefs = ({ ctx, lang }) => {
     <div className={styles.section}>
       <SectionHeader
         index="1"
-        title={lang === "fr" ? "Préférences locales" : "Local preferences"}
-        subtitle={lang === "fr"
-          ? "Stockées dans le navigateur. Pas de redémarrage requis."
-          : "Stored in the browser. No restart required."}
+        title={lbl(lang, "Local preferences", "Préférences locales", "Preferencias locales")}
+        subtitle={lbl(lang,
+          "Stored in the browser. No restart required.",
+          "Stockées dans le navigateur. Pas de redémarrage requis.",
+          "Almacenadas en el navegador. Sin reinicio.")}
       />
 
       <div className={styles.grid8}>
         <Seg
-          label={lang === "fr" ? "Langue" : "Language"}
+          label={lbl(lang, "Language", "Langue", "Idioma")}
           options={[{ v: "en", l: "EN" }, { v: "fr", l: "FR" }, { v: "es", l: "ES" }]}
           value={lang}
           onChange={(v) => i18nChangeLanguage(v)}
@@ -193,13 +208,13 @@ const SectionLocalPrefs = ({ ctx, lang }) => {
           onChange={saveFontSize}
         />
         <Seg
-          label={lang === "fr" ? "Mode sombre" : "Dark mode"}
+          label={lbl(lang, "Dark mode", "Mode sombre", "Modo oscuro")}
           options={[{ v: true, l: "AUTO" }, { v: false, l: "MANUEL" }]}
           value={Boolean(darkModeAuto)}
           onChange={saveDarkModeAuto}
         />
         <Seg
-          label={lang === "fr" ? "Horloge" : "Clock"}
+          label={lbl(lang, "Clock", "Horloge", "Reloj")}
           options={[{ v: "12", l: "12h" }, { v: "24", l: "24h" }]}
           value={clockTime}
           onChange={saveClockTime}
@@ -211,13 +226,13 @@ const SectionLocalPrefs = ({ ctx, lang }) => {
           onChange={saveTempUnit}
         />
         <Seg
-          label={lang === "fr" ? "Vent" : "Speed"}
+          label={lbl(lang, "Speed", "Vent", "Viento")}
           options={[{ v: "mph", l: "mph" }, { v: "ms", l: "m/s" }, { v: "kmh", l: "kph" }]}
           value={speedUnit}
           onChange={saveSpeedUnit}
         />
         <Seg
-          label={lang === "fr" ? "Précip." : "Length"}
+          label={lbl(lang, "Length", "Précip.", "Precip.")}
           options={[{ v: "in", l: "in" }, { v: "mm", l: "mm" }]}
           value={lengthUnit}
           onChange={saveLengthUnit}
@@ -232,12 +247,12 @@ const SectionLocalPrefs = ({ ctx, lang }) => {
 
       <div className={styles.toggleRow}>
         <Toggle
-          label={lang === "fr" ? "Masquer le curseur" : "Hide mouse cursor"}
+          label={lbl(lang, "Hide mouse cursor", "Masquer le curseur", "Ocultar cursor")}
           value={Boolean(mouseHide)}
           onChange={saveBoolFlag(saveMouseHide)}
         />
         <Toggle
-          label={lang === "fr" ? "Masquer la légende radar" : "Hide radar legend"}
+          label={lbl(lang, "Hide radar legend", "Masquer la légende radar", "Ocultar leyenda radar")}
           value={Boolean(hideRadarLegend)}
           onChange={saveBoolFlag(saveHideRadarLegend)}
         />
@@ -373,32 +388,33 @@ const SectionConfig = ({ ctx, lang, remote }) => {
 
   const providers = [
     { id: "mapApiKey", name: "Mapbox", tier: "required",
-      unlocks: lang === "fr" ? "Tuiles de carte + styles" : "Map tiles + styles" },
+      unlocks: lbl(lang, "Map tiles + styles", "Tuiles de carte + styles", "Teselas y estilos de mapa") },
     { id: "weatherApiKey", name: "Tomorrow.io", tier: "required",
-      unlocks: lang === "fr" ? "Prévisions horaires + 5 jours" : "Hourly + daily forecast" },
+      unlocks: lbl(lang, "Hourly + daily forecast", "Prévisions horaires + 5 jours", "Pronóstico horario + 5 días") },
     { id: "reverseGeoApiKey", name: "LocationIQ", tier: "optional",
-      unlocks: lang === "fr" ? "Géocodage inverse · nom de lieu" : "Reverse geocoding · place name" },
+      unlocks: lbl(lang, "Reverse geocoding · place name", "Géocodage inverse · nom de lieu", "Geocodificación inversa · nombre del lugar") },
     { id: "anthropicApiKey", name: "Anthropic", tier: "optional",
-      unlocks: lang === "fr" ? "Résumé météo IA (Claude Haiku)" : "AI weather summary (Claude Haiku)" },
+      unlocks: lbl(lang, "AI weather summary (Claude Haiku)", "Résumé météo IA (Claude Haiku)", "Resumen meteorológico IA (Claude Haiku)") },
     { id: "airNowApiKey", name: "EPA AirNow", tier: "optional",
-      unlocks: lang === "fr" ? "Indice qualité d'air US (AQI)" : "US air-quality index (AQI)" },
+      unlocks: lbl(lang, "US air-quality index (AQI)", "Indice qualité d'air US (AQI)", "Índice de calidad del aire EE.UU. (AQI)") },
     { id: "openAqApiKey", name: "OpenAQ", tier: "optional",
-      unlocks: lang === "fr" ? "Repli qualité d'air mondial" : "Global air-quality fallback" },
+      unlocks: lbl(lang, "Global air-quality fallback", "Repli qualité d'air mondial", "Calidad del aire global (respaldo)") },
   ];
 
   return (
     <div className={styles.section}>
       <SectionHeader
         index="2"
-        title={lang === "fr" ? "Configuration & clés API" : "Configuration & API keys"}
-        subtitle={lang === "fr"
-          ? "settings.json côté serveur. Écriture locale uniquement."
-          : "Server-side settings.json. Local writes only."}
+        title={lbl(lang, "Configuration & API keys", "Configuration & clés API", "Configuración y claves API")}
+        subtitle={lbl(lang,
+          "Server-side settings.json. Local writes only.",
+          "settings.json côté serveur. Écriture locale uniquement.",
+          "settings.json del servidor. Escritura local únicamente.")}
         right={(
           <Pill kind={remote ? "optional" : "ok"}>
             {remote
-              ? (lang === "fr" ? "LECTURE SEULE" : "READ-ONLY")
-              : (lang === "fr" ? "MODIFIABLE" : "EDITABLE")}
+              ? lbl(lang, "READ-ONLY", "LECTURE SEULE", "SOLO LECTURA")
+              : lbl(lang, "EDITABLE", "MODIFIABLE", "EDITABLE")}
           </Pill>
         )}
       />
@@ -406,7 +422,7 @@ const SectionConfig = ({ ctx, lang, remote }) => {
       {remote && <RemoteNotice lang={lang} />}
 
       <div className={styles.subhead}>
-        {lang === "fr" ? "Clés API" : "API keys"}
+        {lbl(lang, "API keys", "Clés API", "Claves API")}
       </div>
       <ApiKeysList
         providers={providers}
@@ -417,7 +433,7 @@ const SectionConfig = ({ ctx, lang, remote }) => {
       />
 
       <div className={`${styles.subhead} ${styles.subheadGap}`}>
-        {lang === "fr" ? "Localisation & matériel" : "Location & hardware"}
+        {lbl(lang, "Location & hardware", "Localisation & matériel", "Ubicación y hardware")}
       </div>
       <div className={styles.grid4}>
         {/* Pre-2.14.21 the Latitude field carried a "Copier" CopyButton
@@ -428,7 +444,7 @@ const SectionConfig = ({ ctx, lang, remote }) => {
          * view, so copy is redundant. */}
         {remote ? (
           <Field
-            label={lang === "fr" ? "Latitude" : "Latitude"}
+            label={lbl(lang, "Latitude", "Latitude", "Latitud")}
             value={customLat != null ? customLat : "—"}
             unit="°"
             mono
@@ -436,7 +452,7 @@ const SectionConfig = ({ ctx, lang, remote }) => {
           />
         ) : (
           <EditableField
-            label={lang === "fr" ? "Latitude" : "Latitude"}
+            label={lbl(lang, "Latitude", "Latitude", "Latitud")}
             value={draft.customLat}
             unit="°"
             mono
@@ -461,7 +477,7 @@ const SectionConfig = ({ ctx, lang, remote }) => {
           />
         )}
         <Seg
-          label={lang === "fr" ? "Source radar" : "Radar source"}
+          label={lbl(lang, "Radar source", "Source radar", "Fuente radar")}
           options={[{ v: "rainviewer", l: "RainViewer" }, { v: "eccc", l: "ECCC" }]}
           value={radarSource || "rainviewer"}
           onChange={saveRadarSource}
@@ -469,7 +485,7 @@ const SectionConfig = ({ ctx, lang, remote }) => {
         />
         {brightnessAvailable ? (
           <BrightnessSlider
-            label={lang === "fr" ? "Luminosité" : "Brightness"}
+            label={lbl(lang, "Brightness", "Luminosité", "Brillo")}
             value={brightnessPercent}
             min={brightnessMinPercent ?? 10}
             onChange={setBrightnessLive}
@@ -489,10 +505,10 @@ const SectionConfig = ({ ctx, lang, remote }) => {
             disabled={saveState === "saving" || remote}
           >
             {saveState === "saving"
-              ? (lang === "fr" ? "Enregistrement…" : "Saving…")
+              ? lbl(lang, "Saving…", "Enregistrement…", "Guardando…")
               : saveState === "saved"
-                ? (lang === "fr" ? "✓ Enregistré" : "✓ Saved")
-                : (lang === "fr" ? "Enregistrer" : "Save changes")}
+                ? lbl(lang, "✓ Saved", "✓ Enregistré", "✓ Guardado")
+                : lbl(lang, "Save changes", "Enregistrer", "Guardar cambios")}
           </button>
           {saveState === "error" && saveError ? (
             <span className={styles.saveError}>{saveError}</span>
@@ -572,8 +588,8 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
     <div className={styles.section} style={{ opacity: remote ? 0.65 : 1 }}>
       <DisclosureHeader
         index="3"
-        title={lang === "fr" ? "Avancé" : "Advanced"}
-        subtitle={lang === "fr" ? "Affichage · IA · veille" : "Display · AI · sleep"}
+        title={lbl(lang, "Advanced", "Avancé", "Avanzado")}
+        subtitle={lbl(lang, "Display · AI · sleep", "Affichage · IA · veille", "Pantalla · IA · suspensión")}
         open={open}
         onToggle={onToggle}
       />
@@ -581,11 +597,11 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
         <div className={styles.advBody}>
           {/* ── Display ───────────────────────────────────────────── */}
           <div className={styles.subhead}>
-            {lang === "fr" ? "Affichage" : "Display"}
+            {lbl(lang, "Display", "Affichage", "Pantalla")}
           </div>
           <div className={styles.grid4}>
             <Seg
-              label={lang === "fr" ? "Carte · clair" : "Map · light"}
+              label={lbl(lang, "Map · light", "Carte · clair", "Mapa · claro")}
               options={[
                 { v: "light-v10", l: "v10" },
                 { v: "light-v11", l: "v11" },
@@ -596,7 +612,7 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
               disabled={remote}
             />
             <Seg
-              label={lang === "fr" ? "Carte · sombre" : "Map · dark"}
+              label={lbl(lang, "Map · dark", "Carte · sombre", "Mapa · oscuro")}
               options={[
                 { v: "dark-v10", l: "v10" },
                 { v: "dark-v11", l: "v11" },
@@ -606,7 +622,7 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
               disabled={remote}
             />
             <RangeSlider
-              label={lang === "fr" ? "Opacité radar · clair" : "Radar opacity · light"}
+              label={lbl(lang, "Radar opacity · light", "Opacité radar · clair", "Opacidad radar · claro")}
               value={radarOpacityLight}
               min={0.05}
               max={1}
@@ -616,7 +632,7 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
               disabled={remote}
             />
             <RangeSlider
-              label={lang === "fr" ? "Opacité radar · sombre" : "Radar opacity · dark"}
+              label={lbl(lang, "Radar opacity · dark", "Opacité radar · sombre", "Opacidad radar · oscuro")}
               value={radarOpacityDark}
               min={0.05}
               max={1}
@@ -629,86 +645,87 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
 
           {/* ── AI / radar analysis ────────────────────────────────── */}
           <div className={`${styles.subhead} ${styles.subheadGap}`}>
-            {lang === "fr" ? "IA · analyse radar" : "AI · radar analysis"}
+            {lbl(lang, "AI · radar analysis", "IA · analyse radar", "IA · análisis radar")}
           </div>
           <div className={styles.grid4}>
             <Toggle
-              label={lang === "fr" ? "Analyse radar activée" : "Radar analysis enabled"}
+              label={lbl(lang, "Radar analysis enabled", "Analyse radar activée", "Análisis radar activado")}
               value={Boolean(radarAnalysisEnabled)}
               onChange={ai("radarAnalysisEnabled")}
               disabled={remote}
-              sub={lang === "fr"
-                ? "Cercles d'analyse + résumé IA radar"
-                : "Analysis rings + AI radar summary"}
+              sub={lbl(lang,
+                "Analysis rings + AI radar summary",
+                "Cercles d'analyse + résumé IA radar",
+                "Anillos de análisis + resumen IA radar")}
             />
             <Toggle
-              label={lang === "fr" ? "Rayon étendu (100 km)" : "Extended radius (100 km)"}
+              label={lbl(lang, "Extended radius (100 km)", "Rayon étendu (100 km)", "Radio extendido (100 km)")}
               value={Boolean(extendedRadarRadius)}
               onChange={ai("extendedRadius")}
               disabled={remote}
-              sub={lang === "fr"
-                ? "Ajoute l'anneau extérieur"
-                : "Adds the outer ring"}
+              sub={lbl(lang, "Adds the outer ring", "Ajoute l'anneau extérieur", "Añade el anillo exterior")}
             />
             <Toggle
-              label={lang === "fr" ? "Points d'échantillonnage" : "Sampling points"}
+              label={lbl(lang, "Sampling points", "Points d'échantillonnage", "Puntos de muestreo")}
               value={Boolean(showSamplingPoints)}
               onChange={ai("showSamplingPoints")}
               disabled={remote}
-              sub={lang === "fr"
-                ? "Affiche les points lus par le détecteur"
-                : "Show points read by the sampler"}
+              sub={lbl(lang,
+                "Show points read by the sampler",
+                "Affiche les points lus par le détecteur",
+                "Muestra los puntos leídos por el muestreador")}
             />
             <Toggle
-              label={lang === "fr" ? "Chemin rapide jour calme" : "Calm-day fast path"}
+              label={lbl(lang, "Calm-day fast path", "Chemin rapide jour calme", "Ruta rápida día calmo")}
               value={Boolean(calmDayFastPath)}
               onChange={ai("calmDayFastPath")}
               disabled={remote}
-              sub={lang === "fr"
-                ? "Saute Claude quand le temps est stable"
-                : "Skip Claude when weather is stable"}
+              sub={lbl(lang,
+                "Skip Claude when weather is stable",
+                "Saute Claude quand le temps est stable",
+                "Omite Claude cuando el tiempo es estable")}
             />
           </div>
 
           {/* ── Sleep ──────────────────────────────────────────────── */}
           <div className={`${styles.subhead} ${styles.subheadGap}`}>
-            {lang === "fr" ? "Veille" : "Sleep"}
+            {lbl(lang, "Sleep", "Veille", "Suspensión")}
           </div>
           <div className={styles.grid4}>
             <Toggle
-              label={lang === "fr" ? "Activer la veille" : "Enable sleep"}
+              label={lbl(lang, "Enable sleep", "Activer la veille", "Activar suspensión")}
               value={Boolean(sleepEnabled)}
               onChange={sleep("enabled")}
               disabled={remote}
             />
             <Field
-              label={lang === "fr" ? "Stage 1 · délai" : "Stage 1 · delay"}
+              label={lbl(lang, "Stage 1 · delay", "Stage 1 · délai", "Etapa 1 · retraso")}
               value={sleepStage1Delay ?? "—"}
               unit="min"
               mono
               disabled={remote}
             />
             <Field
-              label={lang === "fr" ? "Stage 1 · lum." : "Stage 1 · brightness"}
+              label={lbl(lang, "Stage 1 · brightness", "Stage 1 · lum.", "Etapa 1 · brillo")}
               value={sleepStage1Brightness ?? "—"}
               unit="%"
               mono
               disabled={remote}
             />
             <Toggle
-              label={lang === "fr" ? "Texte rouge nuit" : "Red text at night"}
+              label={lbl(lang, "Red text at night", "Texte rouge nuit", "Texto rojo de noche")}
               value={Boolean(sleepNightMode)}
               onChange={sleep("nightMode")}
               disabled={remote}
             />
             <Toggle
-              label={lang === "fr" ? "Stage 2 · activé" : "Stage 2 · enabled"}
+              label={lbl(lang, "Stage 2 · enabled", "Stage 2 · activé", "Etapa 2 · activada")}
               value={Boolean(sleepStage2Enabled)}
               onChange={sleep("stage2Enabled")}
               disabled={remote}
             />
             <Field
-              label={lang === "fr" ? "Stage 2 · délai" : "Stage 2 · delay"}
+              label={lbl(lang, "Stage 2 · delay", "Stage 2 · délai", "Etapa 2 · retraso")}
               value={sleepStage2Delay ?? "—"}
               unit="min"
               mono
@@ -717,14 +734,14 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
           </div>
 
           <div className={`${styles.subhead} ${styles.subheadGap}`}>
-            {lang === "fr" ? "Diagnostic" : "Diagnostic"}
+            {lbl(lang, "Diagnostic", "Diagnostic", "Diagnóstico")}
           </div>
           <div className={styles.toggleRow}>
             <Toggle
-              label={lang === "fr" ? "Panneau Débogage" : "Debug panel"}
+              label={lbl(lang, "Debug panel", "Panneau Débogage", "Panel depuración")}
               value={Boolean(debugEnabled)}
               disabled
-              sub={lang === "fr" ? "(défini par DEBUG=true au service)" : "(set via DEBUG=true on the service)"}
+              sub={lbl(lang, "(set via DEBUG=true on the service)", "(défini par DEBUG=true au service)", "(definido por DEBUG=true en el servicio)")}
             />
           </div>
 
@@ -766,13 +783,14 @@ const SectionPreview = ({ ctx, lang, remote, open, onToggle }) => {
     <div className={styles.section} style={{ opacity: remote ? 0.65 : 1 }}>
       <DisclosureHeader
         index="4"
-        title={lang === "fr" ? "Aperçu" : "Preview"}
-        subtitle={lang === "fr"
-          ? "Bascule entre l'interface en production (v2) et l'aperçu v3."
-          : "Switch between the production v2 interface and the v3 preview."}
+        title={lbl(lang, "Preview", "Aperçu", "Vista previa")}
+        subtitle={lbl(lang,
+          "Switch between the production v2 interface and the v3 preview.",
+          "Bascule entre l'interface en production (v2) et l'aperçu v3.",
+          "Cambia entre la interfaz v2 (producción) y la vista previa v3.")}
         right={(
           <Pill kind="optional">
-            {activeCount} {lang === "fr" ? "actif" : "active"}
+            {activeCount} {lbl(lang, "active", "actif", "activa")}
           </Pill>
         )}
         open={open}
@@ -782,15 +800,17 @@ const SectionPreview = ({ ctx, lang, remote, open, onToggle }) => {
         <div className={styles.advBody}>
           <div className={styles.flagRow}>
             <Toggle
-              label={lang === "fr"
-                ? "Interface ambient (aperçu v3)"
-                : "Ambient interface (v3 preview)"}
+              label={lbl(lang,
+                "Ambient interface (v3 preview)",
+                "Interface ambient (aperçu v3)",
+                "Interfaz ambient (vista previa v3)")}
               value={Boolean(experimentalUiC)}
               onChange={(v) => saveAdvancedExperimentalFlag("uiC", v)}
               disabled={remote}
-              sub={lang === "fr"
-                ? "Désactivez pour revenir à l'interface classique v2. Signalez les bugs sur GitHub Issues."
-                : "Disable to switch back to the classic v2 interface. Report bugs at GitHub Issues."}
+              sub={lbl(lang,
+                "Disable to switch back to the classic v2 interface. Report bugs at GitHub Issues.",
+                "Désactivez pour revenir à l'interface classique v2. Signalez les bugs sur GitHub Issues.",
+                "Desactiva para volver a la interfaz clásica v2. Informa errores en GitHub Issues.")}
             />
           </div>
         </div>
@@ -922,9 +942,10 @@ const RemoteNotice = ({ lang }) => (
   <div className={styles.remoteNotice}>
     <span className={styles.remoteNoticeIcon}>⚠</span>
     <div>
-      {lang === "fr"
-        ? "Connexion distante détectée. Pour modifier ces paramètres, ouvrez un tunnel SSH depuis votre poste local."
-        : "Remote connection detected. To change these settings, open an SSH tunnel from your local machine."}
+      {lbl(lang,
+        "Remote connection detected. To change these settings, open an SSH tunnel from your local machine.",
+        "Connexion distante détectée. Pour modifier ces paramètres, ouvrez un tunnel SSH depuis votre poste local.",
+        "Conexión remota detectada. Para modificar estos ajustes, abra un túnel SSH desde su equipo local.")}
     </div>
   </div>
 );

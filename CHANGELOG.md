@@ -19,6 +19,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.23] - 2026-05-15
+
+### Added
+- **v3 SettingsPanel — full Spanish translations** — the panel previously used a two-locale ternary pattern (`lang === "fr" ? "FR" : "EN"`) for ~50 strings, so Spanish users saw English text everywhere except for the few rows that already had explicit ES values (font size segment, tier badges, etc.). Added a shared `lbl(lang, en, fr, es)` helper at the top of the file (same convention DebugPanel uses), then converted every two-locale ternary to three-locale via `lbl(...)`. 49 conversions across Local preferences, API keys, Advanced (Display/AI/Sleep/Diagnostic), Preview, and the RemoteNotice. Spanish translations were drawn from the i18n glossary in `docs/localization-glossary.md` and are pending native-speaker validation (the glossary's `☐` cells will be flipped to `☑` as rows are confirmed).
+
+---
+
 ## [2.14.22] - 2026-05-14
 
 ### Added
