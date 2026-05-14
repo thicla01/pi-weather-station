@@ -302,14 +302,17 @@ function buildRingLayers(risk, dark, aiOff = false, nightRed = false) {
   const overlay = risk && RING_RISK_STYLE[dark ? "dark" : "light"][risk];
   const baseDash = "6 6";
   // Calm / not yet loaded — single neutral ring, theme-aware.
-  // nightRed (sleep-stage-1 long-wavelength mode) tints the ring
-  // toward warm red instead of the default desaturated grey, so
-  // it matches the rest of the palette. Picked a muted brick tone
-  // (#8c5a5a) so it stays readable as a guide line without screaming
-  // "alert" — bright reds are reserved for the actual risk overlays.
+  // nightRed (sleep-stage-1 long-wavelength mode) tints the ring to
+  // match the rest of the palette. Originally tried #8c5a5a (brick
+  // grey) but the user wanted the dominant red that defines the
+  // night-red look — same hue family as the card text & surfaces.
+  // `#c04848` is exactly the nightRed.text token — it harmonises
+  // the ring with the rest of the UI without crossing into "alert"
+  // territory (bright reds are still reserved for the actual risk
+  // overlays, which are even more saturated).
   if (!overlay) {
     return [{
-      color: nightRed ? "#8c5a5a" : (dark ? "#a8a097" : "#3a3938"),
+      color: nightRed ? "#c04848" : (dark ? "#a8a097" : "#3a3938"),
       weight: 2,
       // Subdued treatment when AI is off: opacity dropped from 0.85
       // to 0.35 and the dash made sparser ("3 9" gives short marks

@@ -28,6 +28,21 @@
   color: #1a2a3a;
 }
 
+/* Long-wavelength night-red palette. Colours mirror the nightRed
+ * tokens in src/ui/tokens.js (text #c04848, bg #100404) rather than
+ * referencing the CSS variables directly — the modal renders as a
+ * sibling of `<AmbientLayers>` in App/index.js, so it sits outside
+ * the `.ambientRoot` subtree where the variables are defined.
+ * Hardcoding keeps the override self-contained and avoids hoisting
+ * the variables to a global scope just for this one consumer. */
+.container-night-red {
+  background: #100404;
+  border: 1px solid rgba(176, 64, 64, 0.32);
+  border-bottom: none;
+  border-right: none;
+  color: #c04848;
+}
+
 /* Header */
 .header {
   display: flex;
@@ -44,6 +59,10 @@
 
 .container-light .header {
   border-color: #ccc;
+}
+
+.container-night-red .header {
+  border-color: rgba(176, 64, 64, 0.22);
 }
 
 .title {
@@ -81,6 +100,10 @@
 
 .container-light .close-button {
   color: #1a2a3a;
+}
+
+.container-night-red .close-button {
+  color: #c04848;
 }
 
 /* Changelog list */
@@ -373,4 +396,71 @@
 
 .update-button-stopped {
   background: #16a34a;
+}
+
+/* ───────────────────────────────────────────────────────────────────
+ * Long-wavelength night-red palette overrides.
+ *
+ * Applied when the user is in v3 ambient mode AND has the
+ * `advanced.sleep.nightMode` flag on — the kiosk shifts to a deep-red
+ * scheme to preserve melatonin at night. The modal renders as a
+ * sibling of <AmbientLayers>, so we can't pick up the .ambientRoot
+ * CSS variables here; the values below mirror the nightRed tokens
+ * defined in src/ui/tokens.js. Override only the elements that
+ * visually scream "wrong palette": container fill, terminal-style
+ * cmd block, amber warning, blue update button. The rest inherits
+ * from .container-dark, which already lands close enough.
+ * ─────────────────────────────────────────────────────────────────── */
+.container-night-red .service-file-notice {
+  background: #2a0a0a;
+  border-color: #b04040;
+  color: #e08080;
+}
+
+.container-night-red .cmd-section {
+  border-color: rgba(176, 64, 64, 0.18);
+}
+
+.container-night-red .cmd-code {
+  background: #060000;
+  color: #c04848;
+}
+
+.container-night-red .copy-button {
+  background: #2a0a0a;
+  color: #c04848;
+  border: 1px solid rgba(176, 64, 64, 0.32);
+}
+
+.container-night-red .error-message {
+  background: #2a0a0a;
+  color: #e08080;
+  border-color: #b04040;
+}
+
+.container-night-red .no-systemd-cmd {
+  background: #060000;
+  color: #c04848;
+}
+
+.container-night-red .actions {
+  border-color: rgba(176, 64, 64, 0.18);
+}
+
+.container-night-red .skip-button {
+  background: #2a0a0a;
+  color: #c04848;
+}
+
+.container-night-red .update-button {
+  background: #c04040;
+  color: #100404;
+}
+
+.container-night-red .update-button-failed {
+  background: #b04030;
+}
+
+.container-night-red .update-button-stopped {
+  background: #783030;
 }

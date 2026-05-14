@@ -19,6 +19,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.11] - 2026-05-14
+
+### Changed
+- **Dashed radar circles in nightRed mode now use the dominant red** — 2.14.9 picked `#8c5a5a` (muted brick grey) for calm-tier rings, hoping that staying subdued would keep them out of "alert" territory. User preferred matching the same red family as the rest of the night-red UI, so switched to `#c04848` (the `nightRed.text` token). Risk-tier rings (yellow / orange / red overlays) intentionally stay louder since they're alert signals.
+- **UpdateModal — nightRed palette overrides** — the in-app updater modal hardcoded dark-blue / green / amber tones (`#2a2a2a` container, `#1d4ed8` update button, `#3a2a14`/`#f59e0b` service-file warning, `#7dd3a8` command-block text). Felt visually disconnected when the rest of the UI was night-red. Added a `containerNightRed` class applied alongside `containerDark` when `useTimeOfDay() === "nightRed"`. Overrides only the visually-loud elements (container fill, cmd-section terminal, amber notice, update button) — the dark baseline still drives the smaller touches. Colours hardcoded to mirror the `nightRed.*` tokens from `tokens.js` because the modal sits as a sibling of `<AmbientLayers>` in the React tree and so can't pick up the `.ambientRoot` CSS variables.
+
+### Fixed
+- **Radar precipitation legend was hidden behind the v3 right rail** — the legend is positioned `bottom-right` of the map, which in v3 layouts is exactly where the right rail sits. Added an `.ambientRoot .radar-legend` rule that shifts the legend left by `rail-width + edge-gap` so it lands just left of the rail's outer border. v2 layouts don't define the CSS variables, so the legend stays at its original `right: 10px` for them.
+
+---
+
 ## [2.14.10] - 2026-05-14
 
 ### Fixed

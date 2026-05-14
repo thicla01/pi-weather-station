@@ -2,6 +2,7 @@ import React, { useContext, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { CSSTransition } from "react-transition-group";
 import { AppContext } from "~/AppContext";
+import { useTimeOfDay } from "~/ui/hybrid";
 import styles from "./styles.css";
 import "!style-loader!css-loader!./animations.css";
 
@@ -84,7 +85,19 @@ const UpdateModal = () => {
     }
   };
 
-  const themeClass = darkMode ? styles.containerDark : styles.containerLight;
+  // In v3 ambient mode with sleep-stage-1 nightRed palette active,
+  // apply BOTH `containerDark` AND `containerNightRed`. The dark
+  // baseline gives all the small touches (badge bg fallback, etc.)
+  // while nightRed selectively re-tints the visually loud elements
+  // (container fill, cmd-section terminal, amber service-file notice,
+  // blue update button). useTimeOfDay returns "nightRed" only when
+  // both darkMode AND sleepNightMode are on, so v2 layouts and dark
+  // ambient layouts without the sleep flag stay on the plain dark
+  // styling.
+  const nightRed = useTimeOfDay() === "nightRed";
+  const themeClass = nightRed
+    ? `${styles.containerDark} ${styles.containerNightRed}`
+    : darkMode ? styles.containerDark : styles.containerLight;
   const cursorClass = !mouseHide ? styles.showMouse : "";
 
   return (
