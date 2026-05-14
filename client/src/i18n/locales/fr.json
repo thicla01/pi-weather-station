@@ -238,6 +238,8 @@
     "hideMarker": "Masquer le marqueur de position",
     "showTimeline": "Afficher la chronologie radar",
     "hideTimeline": "Masquer la chronologie radar",
+    "showRadarLegend": "Afficher la légende radar",
+    "hideRadarLegend": "Masquer la légende radar",
     "darkMode": "Passer en mode sombre",
     "lightMode": "Passer en mode clair",
     "openSettings": "Ouvrir les paramètres",

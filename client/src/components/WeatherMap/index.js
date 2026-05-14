@@ -1030,7 +1030,6 @@ ZoomLevelHandler.propTypes = {
  */
 const WeatherMap = ({ zoom, dark }) => {
   const MAP_CLICK_DEBOUNCE_TIME = 200; //ms
-  const { t } = useTranslation();
   // `nightRed` is the long-wavelength sleep-stage-1 mode. Used here
   // to red-tint the dashed radar circles so they match the rest of
   // the UI when the night-red palette is active. WeatherMap is mounted
@@ -1084,7 +1083,6 @@ const WeatherMap = ({ zoom, dark }) => {
     setInnerDirectionVectors,
     setOuterDirectionVectors,
     showDirectionArrows,
-    toggleDirectionArrows,
     innerDirectionVectors,
     outerDirectionVectors,
   } = useContext(AppContext);
@@ -1371,14 +1369,12 @@ const WeatherMap = ({ zoom, dark }) => {
         <MapZoomTracker onZoomChange={setCurrentMapZoom} />
         <ZoomLevelHandler zoomToLevel={zoomToLevel} setZoomToLevel={setZoomToLevel} />
         <MapResizer infoPanelCollapsed={infoPanelCollapsed} />
-        {radarAnalysisEnabled ? (
-          <ArrowToggleControl
-            active={showDirectionArrows}
-            onToggle={toggleDirectionArrows}
-            titleOn={t("radar.hideDirectionArrows")}
-            titleOff={t("radar.showDirectionArrows")}
-          />
-        ) : null}
+        {/* ArrowToggleControl lived here pre-2.14.15 as an imperative
+         * Leaflet control at the topleft. Moved to BottomDock so the
+         * top-left of the map stays uncluttered (and the dock has
+         * plenty of room for related radar toggles now that v3 gives
+         * it a dedicated slab). See ControlButtons for the new entry,
+         * gated on the same `radarAnalysisEnabled` flag. */}
         <AttributionControl position={"bottomleft"} />
         <TileLayer
           attribution={MAPBOX_ATTRIBUTION}

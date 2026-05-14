@@ -84,6 +84,17 @@
   color: var(--c-text) !important;
 }
 
+/* Push Leaflet's top-left control stack (zoom +/-) down + right to
+ * line up with the cards' top-left edge — by default Leaflet anchors
+ * at top: 10px / left: 10px, but the ambient cards sit at the
+ * edge-gap inset (16 px). Aligning them gives the kiosk a single
+ * visual "guide line" at the top-left corner instead of two slightly-
+ * offset anchors. */
+.ambientRoot .leaflet-top.leaflet-left {
+  top: var(--c-edge-gap, 16px);
+  left: var(--c-edge-gap, 16px);
+}
+
 .ambientRoot .leaflet-bar {
   border-color: var(--c-border) !important;
 }

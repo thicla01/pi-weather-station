@@ -81,7 +81,12 @@
  * matches the original vertical anchor so the legend sits a touch
  * above the attribution strip. */
 :global(.ambientRoot) .radar-legend {
-  left: 70px;
+  /* Hug the left edge with the same edge-gap margin the cards use on
+   * the right side. `--c-edge-gap` is set by both LayoutDesktop and
+   * LayoutPi (16 px). Falls back to 16 px if the variable isn't
+   * defined (defensive — shouldn't happen since we're already scoped
+   * to `.ambientRoot`). */
+  left: var(--c-edge-gap, 16px);
   right: auto;
 }
 

@@ -238,6 +238,8 @@
     "hideMarker": "Ocultar el marcador de ubicación",
     "showTimeline": "Mostrar la línea de tiempo del radar",
     "hideTimeline": "Ocultar la línea de tiempo del radar",
+    "showRadarLegend": "Mostrar leyenda del radar",
+    "hideRadarLegend": "Ocultar leyenda del radar",
     "darkMode": "Cambiar a modo oscuro",
     "lightMode": "Cambiar a modo claro",
     "openSettings": "Abrir los ajustes",

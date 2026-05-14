@@ -11,6 +11,8 @@ import roundLocationOff from "@iconify/icons-ic/round-location-off";
 import timelineIcon from "@iconify/icons-material-symbols/timeline";
 import bugIcon from "@iconify/icons-carbon/debug";
 import upgradeIcon from "@iconify/icons-carbon/upgrade";
+import nearMeIcon from "@iconify/icons-material-symbols/near-me-outline";
+import legendIcon from "@iconify/icons-carbon/legend";
 
 /**
  * Buttons group component
@@ -28,6 +30,12 @@ const ControlButtons = () => {
     radarTimelineVisible,
     toggleRadarTimelineVisible,
     radarSource,
+    radarAnalysisEnabled,
+    showDirectionArrows,
+    toggleDirectionArrows,
+    mapTimestamps,
+    hideRadarLegend,
+    saveHideRadarLegend,
     toggleSettingsMenuOpen,
     settingsMenuOpen,
     mouseHide,
@@ -76,6 +84,37 @@ const ControlButtons = () => {
           aria-label={t(radarTimelineVisible ? "controls.hideTimeline" : "controls.showTimeline")}
         >
           <InlineIcon icon={timelineIcon} />
+        </div>
+      )}
+      {/* Direction-arrows toggle. Previously rendered as an imperative
+       * Leaflet control at the map's top-left (next to the zoom +/-);
+       * moved to the bottom dock so the top-left of the map can stay
+       * uncluttered. Same `radarAnalysisEnabled` gate — when the
+       * analysis pipeline is off, there are no arrows to toggle. */}
+      {radarAnalysisEnabled && (
+        <div
+          onClick={toggleDirectionArrows}
+          className={`${showDirectionArrows ? styles.buttonDown : ""}`}
+          title={t(showDirectionArrows ? "radar.hideDirectionArrows" : "radar.showDirectionArrows")}
+          aria-label={t(showDirectionArrows ? "radar.hideDirectionArrows" : "radar.showDirectionArrows")}
+        >
+          <InlineIcon icon={nearMeIcon} />
+        </div>
+      )}
+      {/* Radar legend visibility toggle. The legend exists when
+       * RainViewer is the active radar source AND there's at least
+       * one timestamp landed; we gate the button on the same
+       * conditions so users can't toggle an absent overlay. The
+       * persisted preference lives in `hideRadarLegend` on context
+       * (advanced setting since v2.x). */}
+      {radarSource === "rainviewer" && mapTimestamps && (
+        <div
+          onClick={() => saveHideRadarLegend(!hideRadarLegend)}
+          className={`${!hideRadarLegend ? styles.buttonDown : ""}`}
+          title={t(hideRadarLegend ? "controls.showRadarLegend" : "controls.hideRadarLegend")}
+          aria-label={t(hideRadarLegend ? "controls.showRadarLegend" : "controls.hideRadarLegend")}
+        >
+          <InlineIcon icon={legendIcon} />
         </div>
       )}
       <div

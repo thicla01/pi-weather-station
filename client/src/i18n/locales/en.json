@@ -238,6 +238,8 @@
     "hideMarker": "Hide location marker",
     "showTimeline": "Show radar timeline",
     "hideTimeline": "Hide radar timeline",
+    "showRadarLegend": "Show radar legend",
+    "hideRadarLegend": "Hide radar legend",
     "darkMode": "Switch to dark mode",
     "lightMode": "Switch to light mode",
     "openSettings": "Open settings",

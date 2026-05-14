@@ -19,6 +19,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.15] - 2026-05-14
+
+### Changed
+- **Map controls reorganisation** — three small layout polishes now that the v3 bottom dock has plenty of room for additional toggles:
+  - **Direction-arrows toggle** moved from a Leaflet imperative control at the map's top-left (next to the zoom +/-) into the bottom dock as a regular `ControlButtons` entry. Same `radarAnalysisEnabled` gate. Uses the Iconify `material-symbols/near-me-outline` icon (vs the previous unicode ↗ glyph rendered inline in the Leaflet anchor). State still lives in `showDirectionArrows` on context — same toggle behaviour, different render site.
+  - **Radar-legend visibility toggle** added to the bottom dock too, gated on `radarSource === "rainviewer" && mapTimestamps` (same conditions the legend itself checks). Reads/writes `hideRadarLegend` via the existing `saveHideRadarLegend` context helper. Uses Iconify `carbon/legend`.
+  - **Radar legend pinned to the left edge with the same edge-gap as the cards** (`left: var(--c-edge-gap, 16px)` instead of the 70 px clearance for Leaflet zoom that 2.14.12 used). The zoom controls move down to the same anchor (next item), so the 70 px clearance is no longer needed — they no longer compete vertically anyway since legend is at bottom and zoom at top.
+  - **Leaflet zoom controls aligned with the cards' top edge** — Leaflet's defaults anchor at `top: 10px / left: 10px`; cards sit at `--c-edge-gap` (16 px). Override `.ambientRoot .leaflet-top.leaflet-left` so both stacks land on the same guide line. v2 layouts unaffected because the scope keeps the override out of their tree.
+
+i18n keys added in EN / FR / ES: `controls.showRadarLegend`, `controls.hideRadarLegend`.
+
+---
+
 ## [2.14.14] - 2026-05-14
 
 ### Changed
