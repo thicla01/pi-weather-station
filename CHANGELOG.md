@@ -19,6 +19,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.7] - 2026-05-14
+
+### Changed
+- **v3 AiSummaryInline — slab opacity bumped to `--c-surfaceHybrid` in maximize mode** — the rest-state fill (`--c-surface`, ~85 % opacity) lets the radar bleed through the slab, which is the right look when the slab floats above the map. In maximize mode the slab covers MetricsGrid + ChartTabs, not the map, so the underlying tiles read as visual noise behind the AI text. Reuse the `--c-surfaceHybrid` token (~96 %, originally introduced for the severe-alert hybrid mode) plus a 6 px backdrop blur — cleans up whatever residual transparency remains so the prose reads on a uniform, calm backdrop.
+- **v3 AiSummaryInline — slab grows to fit 3 paragraphs when rail has the space** — the 2.14.2 `max-height: 360 px` cap sat there as a guard against "AI slab dominating the rail on tall displays", but in practice it truncated the 3rd paragraph (the `Analyse radar` block, typically the longest) on common layouts where the rail offered more than 360 px to the slab — 1280×800 Macs being the obvious case. With `flex: 1 1 0` the slab already naturally claims all remaining rail space without being able to overflow, so the cap was pure footgun. Removed. Min-height floor (160 px) preserved as a guard against very crowded rails.
+
+---
+
 ## [2.14.6] - 2026-05-14
 
 ### Fixed

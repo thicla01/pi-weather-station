@@ -34,6 +34,20 @@
   z-index: 5;
   max-height: none;
   min-height: 0;
+  /* Bump opacity in maximize mode — `--c-surface` (the rest-state
+   * fill) sits at ~85% opacity to let the radar bleed through the
+   * slab, which is the right call when the slab floats above the
+   * map. In maximize mode the slab covers MetricsGrid + ChartTabs,
+   * not the map, so the underlying tiles would read as visual
+   * noise. `--c-surfaceHybrid` (96 %) is the token built for this
+   * exact use case (originally for severe-alert "hybrid" mode);
+   * reusing it here keeps the palette consistent. The 6 px
+   * backdrop blur is belt-and-braces — it cleans up whatever
+   * residual transparency remains so the AI text reads on a
+   * uniform, calm backdrop. */
+  background-color: var(--c-surfaceHybrid);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 
 /* The slab is the *last* flex item in the rail's vertical column.
@@ -60,7 +74,15 @@
 .slab:has(.body) {
   flex: 1 1 0;
   min-height: 160px;
-  max-height: 360px;
+  /* No max-height cap: with `flex: 1 1 0` the slab naturally claims
+   * all remaining rail space, so it can't overflow upward. The cap
+   * previously sat at 360 px to "keep the AI slab from dominating
+   * the rail on tall displays", but in practice it just truncated
+   * the 3rd paragraph on common layouts (1280×800 Mac, where the
+   * rail offers ~480 px to the slab, all of which 3 paragraphs of
+   * typical French response would gladly use). Min-height stays as
+   * a floor so the slab keeps a usable footprint on very tall
+   * peer-content layouts. */
 }
 
 /* Header row carries the title on the left and a single action
