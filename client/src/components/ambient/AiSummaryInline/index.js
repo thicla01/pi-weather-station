@@ -1,8 +1,6 @@
 import React, { useEffect, useState, useContext, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
-import chevronUp from "@iconify/icons-carbon/chevron-up";
-import chevronDown from "@iconify/icons-carbon/chevron-down";
 import maximize from "@iconify/icons-carbon/maximize";
 import minimize from "@iconify/icons-carbon/minimize";
 import axios from "axios";
@@ -41,11 +39,15 @@ const AiSummaryInline = () => {
   } = useContext(AppContext);
   const { i18n } = useTranslation();
   const [summary, setSummary] = useState(null);
-  const [expanded, setExpanded] = useState(true);
   // Maximize mode: the slab promotes to position:absolute over the
   // rail so the body has the entire rail height to itself. Restores
-  // to flex-flow when toggled off. Distinct from `expanded` so the
-  // user can still collapse the body while in either layout.
+  // to flex-flow when toggled off.
+  //
+  // The expand/collapse chevron lived here in 2.14.2 but was redundant
+  // once the dedicated maximize button covered the actual user need
+  // (give the AI summary more room). The body now always renders;
+  // users hide the slab by collapsing the right rail at the layout
+  // level. Less affordance, less confusion.
   const [maximized, setMaximized] = useState(false);
   const intervalRef = useRef(null);
 
@@ -99,69 +101,38 @@ const AiSummaryInline = () => {
   return (
     <div className={`${styles.slab} ${maximized ? styles.slabMaximized : ""}`}>
       <div className={styles.header}>
+        <span className={styles.label}>{LABEL[lang] || LABEL.en}</span>
         <button
           type="button"
-          className={styles.toggle}
-          onClick={() => setExpanded((p) => !p)}
-          aria-expanded={expanded}
+          className={styles.actionButton}
+          onClick={() => setMaximized((m) => !m)}
+          aria-pressed={maximized}
+          aria-label={maximized
+            ? (lang === "fr" ? "Restaurer" : "Restore")
+            : (lang === "fr" ? "Agrandir" : "Maximize")}
+          title={maximized
+            ? (lang === "fr" ? "Restaurer" : "Restore")
+            : (lang === "fr" ? "Agrandir" : "Maximize")}
         >
-          <span className={styles.label}>{LABEL[lang] || LABEL.en}</span>
+          <InlineIcon
+            icon={maximized ? minimize : maximize}
+            className={styles.chevron}
+          />
         </button>
-        <div className={styles.headerActions}>
-          {/* Maximize / restore — promotes the slab to absolute-
-           * positioned overlay over the rail so the body gets the
-           * full rail height. Only meaningful when there's a body to
-           * see, so we hide it when the slab is collapsed. */}
-          {expanded ? (
-            <button
-              type="button"
-              className={styles.actionButton}
-              onClick={() => setMaximized((m) => !m)}
-              aria-pressed={maximized}
-              aria-label={maximized
-                ? (lang === "fr" ? "Restaurer" : "Restore")
-                : (lang === "fr" ? "Agrandir" : "Maximize")}
-              title={maximized
-                ? (lang === "fr" ? "Restaurer" : "Restore")
-                : (lang === "fr" ? "Agrandir" : "Maximize")}
-            >
-              <InlineIcon
-                icon={maximized ? minimize : maximize}
-                className={styles.chevron}
-              />
-            </button>
-          ) : null}
-          <button
-            type="button"
-            className={styles.actionButton}
-            onClick={() => setExpanded((p) => !p)}
-            aria-expanded={expanded}
-            aria-label={expanded
-              ? (lang === "fr" ? "Replier" : "Collapse")
-              : (lang === "fr" ? "Déplier" : "Expand")}
-          >
-            <InlineIcon
-              icon={expanded ? chevronUp : chevronDown}
-              className={styles.chevron}
-            />
-          </button>
-        </div>
       </div>
-      {expanded ? (
-        <div className={styles.body}>
-          {/* Tolerant split: Claude is *supposed* to separate paragraphs
-           * with a blank line (\n\n per the prompt), but in practice it
-           * sometimes drops to a single \n — the Debug snapshot's <pre>
-           * still renders that as visually-distinct lines, which masks
-           * the bug until somebody notices that the AiSummary slab
-           * shows one giant run-on paragraph. Splitting on `\n+` and
-           * dropping empties handles both shapes without ping-ponging
-           * with the model. */}
-          {summary.split(/\n+/).map((p) => p.trim()).filter(Boolean).map((paragraph, i) => (
-            <p key={i} className={styles.text}>{paragraph}</p>
-          ))}
-        </div>
-      ) : null}
+      <div className={styles.body}>
+        {/* Tolerant split: Claude is *supposed* to separate paragraphs
+         * with a blank line (\n\n per the prompt), but in practice it
+         * sometimes drops to a single \n — the Debug snapshot's <pre>
+         * still renders that as visually-distinct lines, which masks
+         * the bug until somebody notices that the AiSummary slab
+         * shows one giant run-on paragraph. Splitting on `\n+` and
+         * dropping empties handles both shapes without ping-ponging
+         * with the model. */}
+        {summary.split(/\n+/).map((p) => p.trim()).filter(Boolean).map((paragraph, i) => (
+          <p key={i} className={styles.text}>{paragraph}</p>
+        ))}
+      </div>
     </div>
   );
 };

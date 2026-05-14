@@ -19,6 +19,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.3] - 2026-05-13
+
+### Changed
+- **v3 AiSummaryInline — chevron removed, header simplified** — once the dedicated maximize button shipped (2.14.2), the expand/collapse chevron added a second toggle for a behaviour nobody asked for: hiding the AI body inside the slab. The summary body now always renders when the slab is mounted; users hide the slab entirely by collapsing the right rail at the layout level. Header layout cleaned up: title on the left, single action button (maximize / restore) on the right.
+- **v3 ChartTabs — segmented control style** — separate bordered pills (2.14.2) read as two independent buttons rather than a "pick one of two views" selector. Switched to the platform-standard segmented-control idiom: a single bordered container wraps both options, the active option is filled with the accent token, the inactive is transparent inside the container with a soft-accent hover state. The unified outer outline makes the relationship between the two halves immediately legible.
+
+### Fixed
+- **v3 DailyForecastColumns — tolerant field lookup** — the 2.14.2 component read `temperatureMax` / `temperatureMin` / `weatherCodeMax` / `precipitationProbabilityMax` directly. If the server is still serving a cached pre-2.14.2 daily response (the daily cache TTL is 6 h), those fields are missing and the strip shows "—" everywhere except the day labels. Added fallbacks: temp falls through to `temperatureApparentMax`/`Min` then to plain `temperature` (avg used as both high and low when no spread is available), weather code falls through to `weatherCodeFullDay` / `weatherCodeDay` / plain `weatherCode`, precip probability falls through to plain `precipitationProbability`. The strip now renders something useful regardless of which payload shape the server hands it.
+
+---
+
 ## [2.14.2] - 2026-05-13
 
 ### Changed

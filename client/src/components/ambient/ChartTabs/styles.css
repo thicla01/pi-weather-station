@@ -14,22 +14,26 @@
   font-family: "Geist", system-ui, -apple-system, sans-serif;
 }
 
-/* Tab strip — visually distinct pill buttons so the user reads
- * them as an interactive switcher, not a section header.
+/* Segmented control — one bordered container that wraps both
+ * "options". The active option is filled with the accent token;
+ * the inactive is transparent inside the container. The unified
+ * outline makes it unambiguous that the two halves are alternatives
+ * within a single switch, not two independent buttons.
  *
- * Before: 11 px UPPERCASE-with-letter-spacing text on transparent
- * background, distinguished only by colour. Read as a label, not
- * as buttons. After: full pill fill on every state (subtle on the
- * inactive tab, strong accent fill on the active one), bordered,
- * readable casing, generous tap target. The separator below the
- * strip gives the chart area an explicit visual home and stops the
- * tab row from drifting into the chart canvas. */
+ * Previous attempts (separate pill buttons in 2.14.2, transparent
+ * labels in 2.14.1 and earlier) didn't read as selectors at a
+ * glance. The segmented-control idiom — single visible group
+ * boundary with an internal moving fill — is the platform-standard
+ * way to express "pick one of two views". */
 .tabRow {
-  display: flex;
-  gap: 8px;
+  display: inline-flex;
+  width: 100%;
   margin-bottom: 12px;
-  padding-bottom: 10px;
-  border-bottom: 1px solid var(--c-border);
+  padding: 3px;
+  background-color: var(--c-bg);
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  gap: 2px;
 }
 
 .tab {
@@ -37,43 +41,42 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background-color: var(--c-bg);
-  border: 1px solid var(--c-border);
-  padding: 8px 14px;
+  background-color: transparent;
+  border: 0;
+  padding: 7px 14px;
   font-family: inherit;
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.2px;
   color: var(--c-text-dim);
-  border-radius: 6px;
+  border-radius: 5px;
   cursor: pointer;
-  position: relative;
-  transition: background-color 120ms ease-out, border-color 120ms ease-out, color 120ms ease-out;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
   -webkit-tap-highlight-color: transparent;
 }
 
 .tab:hover {
   color: var(--c-text);
-  border-color: var(--c-text-dim);
+  background-color: var(--c-accent-soft);
 }
 
 .tab:focus-visible {
   outline: 2px dashed var(--c-text);
-  outline-offset: 2px;
+  outline-offset: -1px;
 }
 
 .active {
   color: var(--c-bg);
   background-color: var(--c-accent);
-  border-color: var(--c-accent);
+  font-weight: 600;
 }
 
 .active:hover {
-  /* Keep the accent fill on hover for the active tab — the inactive
-   * tab's hover state already brightens its text + border, so this
-   * keeps the two states cleanly differentiated. */
+  /* Active tab stays filled on hover; the inactive sibling already
+   * shifts to the soft-accent ghost fill so the two states stay
+   * cleanly distinct. */
   color: var(--c-bg);
-  border-color: var(--c-accent);
+  background-color: var(--c-accent);
   filter: brightness(1.08);
 }
 

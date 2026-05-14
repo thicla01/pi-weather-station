@@ -65,10 +65,17 @@ const DailyForecastColumns = () => {
         // existing v2 DailyChart "EEEEE" label logic).
         const adjusted = new Date(date.getTime() + date.getTimezoneOffset() * 60 * 1000);
         const dayLabel = format(adjusted, "EEE", { locale: dateLocale }).toUpperCase();
-        const tempMax = values?.temperatureMax;
-        const tempMin = values?.temperatureMin;
-        const code = values?.weatherCodeMax;
-        const precip = values?.precipitationProbabilityMax;
+        // Tolerant field lookup: prefer the daily-aggregate variants
+        // (added to the proxy request in 2.14.2) but fall back to the
+        // plain field name if the server is still serving a cached
+        // pre-2.14.2 response, or if Tomorrow.io returns a different
+        // shape for some endpoints. When max isn't available we use
+        // the avg as both high and low — a single readable value beats
+        // two "—" placeholders. */
+        const tempMax = values?.temperatureMax ?? values?.temperatureApparentMax ?? values?.temperature;
+        const tempMin = values?.temperatureMin ?? values?.temperatureApparentMin ?? values?.temperature;
+        const code = values?.weatherCodeMax ?? values?.weatherCodeFullDay ?? values?.weatherCodeDay ?? values?.weatherCode;
+        const precip = values?.precipitationProbabilityMax ?? values?.precipitationProbability;
         // Daily icons always render the daytime variant — the high
         // temp and weather are characterised by the day, not the
         // overnight tail, so `isDay=true` is the right pick.

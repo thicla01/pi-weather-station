@@ -63,42 +63,19 @@
   max-height: 360px;
 }
 
-/* Header row carries the title (.toggle button) on the left and an
- * action group (maximize + collapse) on the right. Both buttons are
- * separate <button> elements — the v2 chevron was a single push-
- * button for the whole row; v3 splits the responsibilities so the
- * user gets a dedicated maximize affordance that restores the
- * "AI takes over the rail" behaviour from v2 InfoPanel. */
+/* Header row carries the title on the left and a single action
+ * button (maximize / restore) on the right. The expand/collapse
+ * chevron was removed in 2.14.3 — once the dedicated maximize button
+ * existed, the chevron added a second toggle for a behaviour
+ * (hide the body) that nobody asked for. The body always renders
+ * now; hiding the slab entirely is handled by collapsing the rail
+ * at the layout level. */
 .header {
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 6px 8px 6px 14px;
-}
-
-.toggle {
-  display: inline-flex;
-  align-items: center;
-  flex: 1;
-  padding: 4px 0;
-  background-color: transparent;
-  border: 0;
-  cursor: pointer;
   color: var(--c-text-dim);
-  text-align: left;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.toggle:hover,
-.toggle:focus-visible {
-  color: var(--c-text);
-  outline: none;
-}
-
-.headerActions {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
 }
 
 .actionButton {
