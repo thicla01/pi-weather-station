@@ -211,6 +211,12 @@ async function checkForUpdate() {
     // 4 → 5, body-parser 1 → 2, plus minor groups) silently failed to surface
     // an update on a fleet of 7 Pis: dependency upgrades carry security
     // patches and warrant a notification of their own.
+    // `release:` was added 2026-05-13 after the v2.14.0 promotion commit
+    // (the literal "release: v2.14.0 — promote v3 Ambient UI…") was invisible
+    // to the updater: it was the only newer commit on the Pi besides a plain
+    // `chore:` cleanup, both filtered out, so the kiosk reported "up to date"
+    // even though a tagged release was sitting on master. A release commit
+    // is by definition exactly what we want to notify users about.
     let commits = [];
     if (shasDiffer && localSha) {
       try {
@@ -221,7 +227,7 @@ async function checkForUpdate() {
         commits = compareRes.data.commits
           .map((c) => {
             const firstLine = c.commit.message.split("\n")[0];
-            const match = firstLine.match(/^(feat|fix|perf|chore\(deps\))(?:\(.+?\))?:\s*(.+)/);
+            const match = firstLine.match(/^(feat|fix|perf|release|chore\(deps\))(?:\(.+?\))?:\s*(.+)/);
             if (!match) return null;
             // Normalise the literal `chore(deps)` capture to a short `deps`
             // token so the client-side badge keys stay simple.

@@ -19,6 +19,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.1] - 2026-05-13
+
+### Fixed
+- **In-app updater silent about the 2.14.0 release** — `updateChecker.js` only flags an update as available when there's at least one commit matching the conventional-commits filter (`feat:` / `fix:` / `perf:` / `chore(deps):`). The 2.14.0 commit used a `release:` prefix and the subsequent cleanup used plain `chore:`, neither of which the filter recognised — so `commits` came back empty and `updateAvailable` stayed `false`, even though `localSha !== latestSha`. The kiosk reported "up to date" while sitting two commits behind a tagged release. Add `release` to the recognised set and log the precedent inline. Same trap as the `chore(deps):` addition from the May 2026 Dependabot incident. Client-side: new `update.release` i18n key (EN/FR/ES) and a violet `.badgeRelease` style so release commits read distinctly in the UpdateModal.
+
+---
+
 ## [2.14.0] - 2026-05-13
 
 ### Changed

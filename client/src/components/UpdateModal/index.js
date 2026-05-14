@@ -113,6 +113,7 @@ const UpdateModal = () => {
                   commit.type === "feat" ? styles.badgeFeat
                   : commit.type === "perf" ? styles.badgePerf
                   : commit.type === "deps" ? styles.badgeDeps
+                  : commit.type === "release" ? styles.badgeRelease
                   : styles.badgeFix
                 }`}>
                   {t(`update.${commit.type}`)}
