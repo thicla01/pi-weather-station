@@ -42,10 +42,13 @@
   gap: 16px;
 }
 
+/* See HeroBand/styles.css for the alignment rationale — same
+ * top-aligned "badge" treatment kept proportional for the smaller
+ * compact hero used in the Pi layout. */
 .tempBlock {
   display: flex;
-  align-items: baseline;
-  gap: 4px;
+  align-items: flex-start;
+  gap: 2px;
 }
 
 .tempValue {
@@ -58,6 +61,7 @@
 
 .tempUnit {
   font-size: 22px;
+  line-height: 1;
   font-weight: 500;
   color: var(--c-text-dim);
 }

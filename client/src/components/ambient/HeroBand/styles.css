@@ -60,10 +60,16 @@
   padding: 16px 24px;
 }
 
+/* Temp block — MétéoMédia / TWN-style alignment: huge number + small
+ * unit "badge" attached to the top-right of the digit. `align-items:
+ * flex-start` aligns the small `°C` with the TOP of the big number
+ * (vs `baseline` which dropped it to the bottom — read as orphaned).
+ * `line-height: 1` on the value keeps the cap-height equal to font
+ * size so flex-start lands at the digit's actual top edge. */
 .tempBlock {
   display: flex;
-  align-items: baseline;
-  gap: 4px;
+  align-items: flex-start;
+  gap: 2px;
   grid-column: 1;
   grid-row: 1 / span 2;
 }
@@ -77,7 +83,13 @@
 }
 
 .tempUnit {
-  font-size: 24px;
+  /* Bumped from 24 to 28 px — at top-right "badge" position the
+   * unit needs slightly more presence to read at kiosk distance,
+   * and the typographic balance against the 72 px number is better
+   * at ~38 % than the previous ~33 %. Keep `line-height: 1` so the
+   * unit's top hugs the same horizontal line as the digit's top. */
+  font-size: 28px;
+  line-height: 1;
   font-weight: 500;
   color: var(--c-text-dim);
 }
@@ -103,7 +115,10 @@
  * proportional on 1080p/4K displays rather than puny in the corner. */
 @media (min-width: 1600px) {
   .tempValue { font-size: 88px; }
-  .tempUnit { font-size: 28px; }
+  /* Scale the badge unit alongside the value so the ratio stays
+   * consistent at ~38 % across breakpoints. Was 28 px (default) →
+   * 28 px (wide), which felt cramped against the 88 px digit. */
+  .tempUnit { font-size: 34px; }
   .tempIcon { font-size: 76px; }
   .tempDesc { font-size: 17px; }
   .panelTemp { padding: 24px 32px; }

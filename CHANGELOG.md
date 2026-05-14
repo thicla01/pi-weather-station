@@ -19,6 +19,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.16] - 2026-05-14
+
+### Changed
+- **Temperature unit "badge" repositioned to the top of the digit (MétéoMédia / TWN style)** — the previous baseline alignment dropped the small `°C` to the bottom-right corner of the big number, where it read as orphaned and easy to miss. Switched to `align-items: flex-start` on `.tempBlock` so the unit's top edge hugs the digit's top edge — same convention MétéoMédia and other weather brands use. Unit font also nudged up from ~33 % of the digit size to ~38 % (24 → 28 px on default breakpoint, 28 → 34 px on the wide-display breakpoint, 22 → 22 px on HeroCompact) so it carries enough presence at kiosk distance. Applied to both `HeroBand` (LayoutDesktop) and `HeroCompact` (LayoutPi) for parity.
+
+---
+
 ## [2.14.15] - 2026-05-14
 
 ### Changed
