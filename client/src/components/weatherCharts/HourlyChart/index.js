@@ -21,6 +21,7 @@ import {
   speedUnitLabel,
 } from "~/services/conversions";
 import { fontColor } from "../common";
+import { useTimeOfDay } from "~/ui/hybrid";
 
 ChartJS.register(
   CategoryScale,
@@ -34,6 +35,7 @@ ChartJS.register(
 
 const buildChartOptions = ({
   darkMode,
+  nightRed,
   tempUnit,
   speedUnit,
   lengthUnit,
@@ -53,14 +55,14 @@ const buildChartOptions = ({
       title: {
         display: true,
         text: title,
-        color: fontColor(darkMode),
+        color: fontColor(darkMode, nightRed),
         font: { family: "Rubik, sans-serif" },
       },
     },
     scales: {
       x: {
         ticks: {
-          color: fontColor(darkMode),
+          color: fontColor(darkMode, nightRed),
           font: { family: "Rubik, sans-serif" },
         },
       },
@@ -69,7 +71,7 @@ const buildChartOptions = ({
         display: true,
         position: "left",
         ticks: {
-          color: fontColor(darkMode),
+          color: fontColor(darkMode, nightRed),
           font: { family: "Rubik, sans-serif" },
           maxTicksLimit: 5,
           callback: (val) => {
@@ -84,7 +86,7 @@ const buildChartOptions = ({
         display: true,
         position: "right",
         ticks: {
-          color: fontColor(darkMode),
+          color: fontColor(darkMode, nightRed),
           font: { family: "Rubik, sans-serif" },
           maxTicksLimit: 5,
           suggestedMin: 0,
@@ -186,6 +188,10 @@ const HourlyChart = () => {
     hourlyWeatherDataErrMsg,
   } = useContext(AppContext);
   const { t } = useTranslation();
+  // Canvas-drawn chart text can't inherit CSS variables — pass the
+  // active palette flag through to fontColor() so the title and axes
+  // pick up the night-red tint when the sleep-stage-1 palette is on.
+  const nightRed = useTimeOfDay() === "nightRed";
 
   const [altMode, setAltMode] = useState(false);
   const [chartData, setChartData] = useState(null);
@@ -223,6 +229,7 @@ const HourlyChart = () => {
           options={buildChartOptions({
             tempUnit,
             darkMode,
+            nightRed,
             lengthUnit,
             speedUnit,
             altMode,

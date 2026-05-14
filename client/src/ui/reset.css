@@ -59,28 +59,40 @@
  * Override with the active palette tokens so they auto-tint with the
  * rest of the UI. Scoped to .ambientRoot so v2 layouts (which still
  * mount WeatherMap) keep their original Leaflet appearance. */
-.ambientRoot .leaflet-control-zoom a,
-.ambientRoot .leaflet-bar a {
-  background-color: var(--c-surface);
-  color: var(--c-text);
-  border-bottom-color: var(--c-border);
+/* Leaflet's stylesheet ships with `!important` rules on the zoom
+ * control anchor's `background-color: #fff` and `color: #000`, plus
+ * a `text-shadow` that pushes the +/- glyphs to high-contrast even
+ * if we override `color` alone. To win the specificity war without
+ * giving up the CSS-variable approach, we match Leaflet's selector
+ * structure (`.leaflet-bar a`, `.leaflet-touch .leaflet-bar a`) and
+ * add !important on the color rules. Plus we kill the text-shadow,
+ * which exists for the white-bg case and reads as halo otherwise. */
+.ambientRoot .leaflet-bar a,
+.ambientRoot .leaflet-bar a:link,
+.ambientRoot .leaflet-bar a:visited,
+.ambientRoot .leaflet-touch .leaflet-bar a {
+  background-color: var(--c-surface) !important;
+  color: var(--c-text) !important;
+  border-bottom-color: var(--c-border) !important;
+  text-shadow: none !important;
 }
 
-.ambientRoot .leaflet-control-zoom a:hover,
-.ambientRoot .leaflet-bar a:hover {
-  background-color: var(--c-accent-soft);
-  color: var(--c-text);
+.ambientRoot .leaflet-bar a:hover,
+.ambientRoot .leaflet-bar a:focus,
+.ambientRoot .leaflet-touch .leaflet-bar a:hover {
+  background-color: var(--c-accent-soft) !important;
+  color: var(--c-text) !important;
 }
 
 .ambientRoot .leaflet-bar {
-  border-color: var(--c-border);
+  border-color: var(--c-border) !important;
 }
 
 .ambientRoot .leaflet-control-attribution {
-  background-color: var(--c-surface);
-  color: var(--c-text-dim);
+  background-color: var(--c-surface) !important;
+  color: var(--c-text-dim) !important;
 }
 
 .ambientRoot .leaflet-control-attribution a {
-  color: var(--c-text);
+  color: var(--c-text) !important;
 }

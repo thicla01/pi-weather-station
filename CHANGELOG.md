@@ -19,6 +19,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.10] - 2026-05-14
+
+### Fixed
+- **v3 nightRed mode — Leaflet zoom controls actually tint now** — 2.14.9 added `.ambientRoot .leaflet-bar a` rules but Leaflet's stylesheet (loaded from unpkg.com) ships rules that effectively pin `background-color: #fff` and `color: #000` plus a `text-shadow` that creates a halo around the +/- glyphs. Beat them with matching specificity + `!important` on the colour rules, kill the text-shadow, and cover the `:link / :visited / :hover / :focus / .leaflet-touch` states the Leaflet base styles target. Same treatment for the attribution strip.
+- **v3 nightRed mode — Chart.js axes and title** — Chart.js draws on canvas so CSS variables can't reach it; the title (`Temp. 24 heures / Précipitations`) and axis ticks (`10 C / 5 C / 0 C` on the left, `1% / 0% / -1%` on the right, `22 / 01 / 04 …` on the X axis) remained near-white in nightRed mode. Extended the `fontColor()` helper with a `nightRed` flag returning `rgba(192, 72, 72, 0.85)` (matches the `nightRed.text` palette token), and threaded `useTimeOfDay() === "nightRed"` from both `HourlyChart` and `DailyChart` into their respective `buildChartOptions` calls so every text element on the chart picks up the palette.
+- **Custom "↗" arrow control — active-state colour palette-aware** — the v3 imperative Leaflet control hardcoded `#2563eb` / `#fff` for its toggled-on state. Replaced with `var(--c-accent, #2563eb)` / `var(--c-bg, #fff)` (inline style CSS-var resolution Chromium does natively); ambientRoot descendants pick up the active palette, v2 layouts fall through to the original blue via the var() default.
+
+---
+
 ## [2.14.9] - 2026-05-14
 
 ### Changed

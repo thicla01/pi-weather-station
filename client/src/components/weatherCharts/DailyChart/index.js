@@ -21,6 +21,7 @@ import {
   speedUnitLabel,
 } from "~/services/conversions";
 import { fontColor } from "../common";
+import { useTimeOfDay } from "~/ui/hybrid";
 import { getDateLocale } from "~/i18n/dateLocale";
 
 ChartJS.register(
@@ -35,6 +36,7 @@ ChartJS.register(
 
 const createChartOptions = ({
   darkMode,
+  nightRed,
   tempUnit,
   speedUnit,
   lengthUnit,
@@ -54,14 +56,14 @@ const createChartOptions = ({
       title: {
         display: true,
         text: title,
-        color: fontColor(darkMode),
+        color: fontColor(darkMode, nightRed),
         font: { family: "Rubik, sans-serif" },
       },
     },
     scales: {
       x: {
         ticks: {
-          color: fontColor(darkMode),
+          color: fontColor(darkMode, nightRed),
           font: { family: "Rubik, sans-serif" },
         },
       },
@@ -70,7 +72,7 @@ const createChartOptions = ({
         display: true,
         position: "left",
         ticks: {
-          color: fontColor(darkMode),
+          color: fontColor(darkMode, nightRed),
           font: { family: "Rubik, sans-serif" },
           maxTicksLimit: 5,
           callback: (val) => {
@@ -85,7 +87,7 @@ const createChartOptions = ({
         display: true,
         position: "right",
         ticks: {
-          color: fontColor(darkMode),
+          color: fontColor(darkMode, nightRed),
           font: { family: "Rubik, sans-serif" },
           maxTicksLimit: 5,
           suggestedMin: 0,
@@ -182,6 +184,9 @@ const DailyChart = () => {
     speedUnit,
   } = useContext(AppContext);
   const { t, i18n } = useTranslation();
+  // Canvas-drawn chart text: pass the active palette into fontColor()
+  // so axes / title pick up the nightRed tint when active.
+  const nightRed = useTimeOfDay() === "nightRed";
 
   const [altMode, setAltMode] = useState(false);
   const [chartData, setChartData] = useState(null);
@@ -215,6 +220,7 @@ const DailyChart = () => {
         createChartOptions({
           tempUnit,
           darkMode,
+          nightRed,
           lengthUnit,
           speedUnit,
           altMode,
@@ -229,6 +235,7 @@ const DailyChart = () => {
     altMode,
     speedUnit,
     darkMode,
+    nightRed,
     t,
     i18n.language,
     setChartOptionsCallback,

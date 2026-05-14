@@ -760,8 +760,16 @@ const ArrowToggleControl = ({ active, onToggle, titleOn, titleOff }) => {
     link.title = active ? titleOn : titleOff;
     link.setAttribute("aria-pressed", String(active));
     if (active) {
-      link.style.backgroundColor = "#2563eb";
-      link.style.color = "#fff";
+      // CSS variables in inline style — Chromium resolves them against
+      // the nearest ancestor's computed value, so inside .ambientRoot
+      // we pick up the active palette automatically (warm orange on
+      // day/dusk/night, red on nightRed). Outside ambientRoot (v2
+      // layouts) the variables are unset, the property falls back to
+      // its initial value, and the link reads as transparent — which
+      // would be wrong. Fallback to the original #2563eb/#fff via the
+      // var() default so v2 keeps its blue active state.
+      link.style.backgroundColor = "var(--c-accent, #2563eb)";
+      link.style.color = "var(--c-bg, #fff)";
     } else {
       link.style.backgroundColor = "";
       link.style.color = "";
