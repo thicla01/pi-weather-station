@@ -325,6 +325,37 @@ const DebugPanel = () => {
  * SettingsPanel: inline ternary instead of an i18n key explosion. */
 const lbl = (lang, en, fr, es) => (lang === "fr" ? fr : lang === "es" ? es : en);
 
+const boolLabel = (lang, value) => (value
+  ? lbl(lang, "TRUE", "VRAI", "VERDADERO")
+  : lbl(lang, "FALSE", "FAUX", "FALSO"));
+
+/* Atlassian Statuspage indicator → localised label. The platform uses
+ * a fixed enum: none / minor / major / critical / maintenance. */
+const indicatorLabel = (lang, raw) => {
+  const key = String(raw || "").toLowerCase();
+  switch (key) {
+    case "none":        return lbl(lang, "NONE",        "AUCUN",      "NINGUNO");
+    case "minor":       return lbl(lang, "MINOR",       "MINEUR",     "MENOR");
+    case "major":       return lbl(lang, "MAJOR",       "MAJEUR",     "MAYOR");
+    case "critical":    return lbl(lang, "CRITICAL",    "CRITIQUE",   "CRÍTICO");
+    case "maintenance": return lbl(lang, "MAINTENANCE", "MAINTENANCE", "MANTENIMIENTO");
+    default:            return String(raw || "?").toUpperCase();
+  }
+};
+
+/* Map an HTTP status code (number) to a Tag `kind`. 2xx → ok (green),
+ * 4xx → warn (orange), 5xx → err (red), anything else → neutral.
+ * Pre-2.14.20 the service-calls table compared `status === "ok"`,
+ * but the server stores the numeric HTTP code — so every successful
+ * 200 fell through to `err` and rendered red. */
+const httpStatusKind = (status) => {
+  if (typeof status !== "number") return "neutral";
+  if (status >= 500) return "err";
+  if (status >= 400) return "warn";
+  if (status >= 200) return "ok";
+  return "neutral";
+};
+
 /* Static bucket spec — IDs are used for localStorage persistence
  * and don't need to be translated. The localised display label is
  * resolved at render time via `bucketLabel(lang, bucket.id)`. */
@@ -515,8 +546,13 @@ const BucketServer = ({ data, lang }) => {
         <KV k="os"       v={sys.os || "?"} />
         <KV k="branch"   v={v.branch || "?"} />
         <KV k="init"     v={(cfg.initManager || "—").toUpperCase()} />
-        <KV k="DEBUG"    v={<Tag kind={cfg.debug ? "ok" : "neutral"}>{cfg.debug ? "TRUE" : "FALSE"}</Tag>} />
-        <KV k="ALLOW_REMOTE" v={<Tag kind={cfg.allowRemote ? "warn" : "neutral"}>{cfg.allowRemote ? "TRUE" : "FALSE"}</Tag>} />
+        {/* Boolean labels localised: VRAI/FAUX in FR, VERDADERO/FALSO in ES.
+         * ALLOW_REMOTE intentionally renders as `warn` (orange) when on
+         * — it's a security-relevant flag (opens network access). DEBUG
+         * renders as `ok` (green) when on because the panel exposing it
+         * is itself debug-only. */}
+        <KV k="DEBUG"    v={<Tag kind={cfg.debug ? "ok" : "neutral"}>{cfg.debug ? boolLabel(lang, true) : boolLabel(lang, false)}</Tag>} />
+        <KV k="ALLOW_REMOTE" v={<Tag kind={cfg.allowRemote ? "warn" : "neutral"}>{cfg.allowRemote ? boolLabel(lang, true) : boolLabel(lang, false)}</Tag>} />
       </div>
 
       <SectionTitle title={lbl(lang, "Network", "Réseau", "Red")} gap />
@@ -580,7 +616,7 @@ const BucketServer = ({ data, lang }) => {
       ) : null}
 
       <SectionTitle title={lbl(lang, "Recent logs", "Journaux récents", "Registros recientes")} gap />
-      <LogsBlock logs={data.logs} />
+      <LogsBlock logs={data.logs} lang={lang} />
     </div>
   );
 };
@@ -594,9 +630,9 @@ const BucketServer = ({ data, lang }) => {
  * @param {Array<string>} props.logs
  * @returns {JSX.Element}
  */
-const LogsBlock = ({ logs }) => {
+const LogsBlock = ({ logs, lang }) => {
   if (!Array.isArray(logs) || logs.length === 0) {
-    return <div className={styles.emptyNote}>No logs to show.</div>;
+    return <div className={styles.emptyNote}>{lbl(lang, "No logs to show.", "Aucun journal à afficher.", "Sin registros para mostrar.")}</div>;
   }
   return (
     <div className={styles.logBlock}>
@@ -770,7 +806,7 @@ const BucketClient = ({ data, lang }) => {
 
       <SectionTitle title={lbl(lang, "Remote clients", "Clients distants", "Clientes remotos")} gap />
       {clients.length === 0 ? (
-        <div className={styles.emptyNote}>No remote clients tracked yet.</div>
+        <div className={styles.emptyNote}>{lbl(lang, "No remote clients tracked yet.", "Aucun client distant suivi.", "Ningún cliente remoto rastreado.")}</div>
       ) : (
         <div className={styles.list}>
           {clients.slice(0, 10).map((c, i) => (
@@ -789,12 +825,12 @@ const BucketClient = ({ data, lang }) => {
 
       <SectionTitle title={lbl(lang, "Security events", "Événements de sécurité", "Eventos de seguridad")} gap />
       {events.length === 0 ? (
-        <div className={styles.emptyNote}>No security events.</div>
+        <div className={styles.emptyNote}>{lbl(lang, "No security events.", "Aucun événement de sécurité.", "Ningún evento de seguridad.")}</div>
       ) : (
         <div className={styles.list}>
           {events.slice(0, 10).map((s, i) => (
             <div key={i} className={styles.row}>
-              <Tag kind="err">BLOCKED</Tag>
+              <Tag kind="err">{lbl(lang, "BLOCKED", "BLOQUÉ", "BLOQUEADO")}</Tag>
               <span className={styles.rowMono}>{s.ip || "?"}</span>
               <span>{s.method || ""} {s.path || s.url || ""}</span>
               <span className={styles.rowDim}>{s.reason || s.message || ""}</span>
@@ -817,13 +853,13 @@ const BucketServices = ({ data, lang }) => {
   return (
     <div className={styles.bucket}>
       <div className={styles.sectionTitleRow}>
-        <SectionTitle title={lbl(lang, "Provider statuspages", "Status fournisseurs", "Estado de proveedores")} />
+        <SectionTitle title={lbl(lang, "Provider statuspages", "Statut fournisseurs", "Estado de proveedores")} />
         {fetchedAt ? (
-          <span className={styles.sectionMeta}>last fetch: {fetchedAt}</span>
+          <span className={styles.sectionMeta}>{lbl(lang, "last fetch", "dernière requête", "última consulta")}: {fetchedAt}</span>
         ) : null}
       </div>
       {providers.length === 0 ? (
-        <div className={styles.emptyNote}>No provider status available.</div>
+        <div className={styles.emptyNote}>{lbl(lang, "No provider status available.", "Aucun statut fournisseur disponible.", "Estado del proveedor no disponible.")}</div>
       ) : (
         <div className={styles.list}>
           {providers.map((p, i) => (
@@ -832,7 +868,7 @@ const BucketServices = ({ data, lang }) => {
                 p.indicator === "none" ? "ok"
                   : p.indicator === "minor" ? "warn"
                     : "err"
-              }>{String(p.indicator || "?").toUpperCase()}</Tag>
+              }>{indicatorLabel(lang, p.indicator)}</Tag>
               <span className={styles.rowName}>{p.name}</span>
               <span className={styles.rowDim}>{p.description}</span>
             </div>
@@ -842,12 +878,12 @@ const BucketServices = ({ data, lang }) => {
 
       <SectionTitle title={lbl(lang, "Recent service calls", "Appels de service récents", "Llamadas de servicio recientes")} gap />
       {Object.keys(services).length === 0 ? (
-        <div className={styles.emptyNote}>No service activity yet.</div>
+        <div className={styles.emptyNote}>{lbl(lang, "No service activity yet.", "Aucune activité de service.", "Sin actividad de servicio.")}</div>
       ) : (
         <div className={styles.list}>
           {Object.entries(services).slice(0, 10).map(([name, info]) => (
             <div key={name} className={styles.row}>
-              <Tag kind={info?.status === "ok" ? "ok" : info?.status === "warn" ? "warn" : "err"}>
+              <Tag kind={httpStatusKind(info?.status)}>
                 {String(info?.status || "?").toUpperCase()}
               </Tag>
               <span className={styles.rowName}>{name}</span>
@@ -860,7 +896,7 @@ const BucketServices = ({ data, lang }) => {
       {counterEntries.length === 0 ? (
         <>
           <SectionTitle title={lbl(lang, "API quotas", "Quotas API", "Cuotas API")} gap />
-          <div className={styles.emptyNote}>No quota data tracked yet.</div>
+          <div className={styles.emptyNote}>{lbl(lang, "No quota data tracked yet.", "Aucune donnée de quota suivie.", "Sin datos de cuota rastreados.")}</div>
         </>
       ) : (
         counterEntries.map(([service, info]) => {
@@ -972,7 +1008,7 @@ const BucketStorage = ({ data, lang }) => {
 
       <SectionTitle title={lbl(lang, "Cache entries", "Entrées de cache", "Entradas de caché")} gap />
       {cache.length === 0 ? (
-        <div className={styles.emptyNote}>Cache is empty.</div>
+        <div className={styles.emptyNote}>{lbl(lang, "Cache is empty.", "Cache vide.", "Caché vacío.")}</div>
       ) : (
         <div className={styles.list}>
           {cache.slice(0, 12).map((e, i) => (
@@ -987,7 +1023,7 @@ const BucketStorage = ({ data, lang }) => {
       )}
 
       <SectionTitle title={lbl(lang, "Radar AI snapshots", "Captures radar IA", "Capturas radar IA")} gap />
-      <RadarSnapshotsBlock snapshots={data.radarSnapshots} />
+      <RadarSnapshotsBlock snapshots={data.radarSnapshots} lang={lang} />
     </div>
   );
 };
@@ -1002,7 +1038,7 @@ const BucketStorage = ({ data, lang }) => {
  * @param {Array} props.snapshots
  * @returns {JSX.Element}
  */
-const RadarSnapshotsBlock = ({ snapshots }) => {
+const RadarSnapshotsBlock = ({ snapshots, lang }) => {
   const [copiedIndex, setCopiedIndex] = useState(null);
   const hasAny = Array.isArray(snapshots) && snapshots.length > 0;
   const handleCopy = useCallback(async (s, i) => {
@@ -1032,7 +1068,7 @@ const RadarSnapshotsBlock = ({ snapshots }) => {
     URL.revokeObjectURL(url);
   }, [snapshots, hasAny]);
   if (!hasAny) {
-    return <div className={styles.emptyNote}>No radar snapshots yet.</div>;
+    return <div className={styles.emptyNote}>{lbl(lang, "No radar snapshots yet.", "Aucune capture radar pour l'instant.", "Sin capturas radar todavía.")}</div>;
   }
   return (
     <>
@@ -1120,7 +1156,10 @@ const BucketAbout = ({ data, lang }) => {
         <KV k="local sha"   v={u.localSha || v.commit || "—"} />
         <KV k="latest sha"  v={latestSha || u.latestSha || "—"} />
         <KV k="latest ver"  v={latestVersion || u.latestVersion || "—"} />
-        <KV k="available"   v={<Tag kind={updateAvailable ? "warn" : "ok"}>{updateAvailable ? "YES" : "UP-TO-DATE"}</Tag>} />
+        <KV k="available"   v={<Tag kind={updateAvailable ? "warn" : "ok"}>{updateAvailable
+          ? lbl(lang, "YES", "OUI", "SÍ")
+          : lbl(lang, "UP-TO-DATE", "À JOUR", "AL DÍA")
+        }</Tag>} />
         {updateAvailable && commitCount > 0 ? (
           <KV k="new commits" v={String(commitCount)} />
         ) : null}
@@ -1157,9 +1196,11 @@ const BucketAbout = ({ data, lang }) => {
       <SectionTitle title={lbl(lang, "Vulnerability scan", "Analyse vulnérabilités", "Análisis vulnerabilidades")} gap />
       <div className={styles.vulnNotice}>
         <p className={styles.vulnText}>
-          Vulnerability scanning + automatic security PRs now live on
-          GitHub via Dependabot — see the alerts dashboard for the
-          live source of truth.
+          {lbl(lang,
+            "Vulnerability scanning + automatic security PRs now live on GitHub via Dependabot — see the alerts dashboard for the live source of truth.",
+            "L'analyse des vulnérabilités et les PR de sécurité automatiques vivent maintenant sur GitHub via Dependabot — voir le tableau d'alertes pour la source en temps réel.",
+            "El análisis de vulnerabilidades y los PR de seguridad automáticos viven ahora en GitHub vía Dependabot — consulta el panel de alertas para la fuente en tiempo real."
+          )}
         </p>
         {data.vulnerabilityScanUrl ? (
           <a

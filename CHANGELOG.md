@@ -19,6 +19,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.20] - 2026-05-14
+
+### Fixed
+- **v3 DebugPanel — service-call pills correctly coloured by HTTP code** — the recent-service-calls table coloured pills by comparing `info?.status === "ok"`, but the server stores the numeric HTTP code (200 / 503 / etc.), not a string. So every successful 200 fell through to the `err` branch and rendered red regardless of outcome. Replaced with a `httpStatusKind(status)` helper: 2xx → ok (green), 4xx → warn (orange), 5xx → err (red), anything else → neutral.
+- **v3 DebugPanel — "Statut fournisseurs" (was "Status fournisseurs")** — corrected the FR section title; "status" is an anglicism, "statut" is the standard French noun.
+
+### Changed
+- **v3 DebugPanel — more strings localised**:
+  - `TRUE` / `FALSE` boolean tags → `VRAI` / `FAUX` (FR), `VERDADERO` / `FALSO` (ES) on the `DEBUG` and `ALLOW_REMOTE` rows
+  - Atlassian Statuspage indicators (`NONE` / `MINOR` / `MAJOR` / `CRITICAL` / `MAINTENANCE`) → FR/ES equivalents (`AUCUN` / `MINEUR` / `MAJEUR` / `CRITIQUE` / `MAINTENANCE`, and ES equivalents)
+  - `UP-TO-DATE` / `YES` in the update-check row → `À JOUR` / `OUI` and `AL DÍA` / `SÍ`
+  - `BLOCKED` security-events tag → `BLOQUÉ` / `BLOQUEADO`
+  - `last fetch:` and all "empty state" placeholders (`No remote clients tracked yet.`, `No security events.`, `No provider status available.`, `No service activity yet.`, `No quota data tracked yet.`, `Cache is empty.`, `No radar snapshots yet.`, `No logs to show.`) localised in FR + ES
+  - Vulnerability scan notice body text localised in FR + ES
+
+---
+
 ## [2.14.19] - 2026-05-14
 
 ### Fixed
