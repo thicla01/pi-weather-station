@@ -19,6 +19,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.6] - 2026-05-14
+
+### Fixed
+- **Weather cache no longer serves stale-shape responses across upgrades** — `proxyCtrl.js` persists the in-memory cache to `weather-cache.json` (loaded on startup, saved every 5 min). On the 2.14.4 → 2.14.5 upgrade — which extended the Tomorrow.io daily field list with `temperatureMax` / `temperatureMin` / `weatherCodeMax` / `precipitationProbabilityMax` for the v3 5-day column strip — the disk cache held entries built against the OLD 4-field list and kept serving them after the restart. The v3 React state was populated with the obsolete shape on first fetch and never refreshed (daily polling cadence is 24 h), so the strip rendered with missing icons and identical max/min temperatures. Fix: include an 8-char SHA1 of the requested field list in every cache key (`daily:abc12345:45.5017:-73.5673` instead of `daily:45.5017:-73.5673`). When the field list changes between releases, the new hash mismatches all legacy keys → cache miss → fresh fetch → new shape. `loadCacheFromDisk` also explicitly skips pre-2.14.6 entries (3-part keys) so the on-disk file self-cleans on first startup after upgrade.
+- **Browser cache of API JSON cleared at the source** — Chromium can hold onto API responses for hours when the server doesn't send `Cache-Control` (heuristic max-age based on `Last-Modified`). This masked the cache-shape bug above and made debugging painful — `curl` returned fresh fields while the kiosk's `axios` call inside AppContext still got the cached stale shape. Added an Express middleware that emits `Cache-Control: no-store` on every `/api/*` response except `/api/tiles/*` (tiles are content-addressable and benefit from aggressive caching). Future upgrades that change response shape are automatically picked up on the next reload.
+
+---
+
 ## [2.14.5] - 2026-05-13
 
 ### Fixed

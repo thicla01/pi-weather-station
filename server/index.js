@@ -167,6 +167,23 @@ app.use(bodyParser.json());
 app.use(express.static(path.join(`${__dirname}/${DIST_DIR}`)));
 app.use(responseTimerMiddleware);
 
+// Disable browser caching of every /api/* response. The kiosk
+// Chromium would otherwise hold onto JSON payloads across reloads
+// (max-age heuristic when no Cache-Control is sent), which masked
+// a real server-side cache change during the 2.14.4 → 2.14.5 rollout
+// — the proxy started returning new fields but Chromium kept serving
+// the cached pre-upgrade response and the UI rendered the old shape.
+// Combined with proxyCtrl's field-hash in the cache key (2.14.6),
+// this guarantees every upgrade gets fresh payloads on first reload.
+// Tile responses (/api/tiles/...) deliberately bypass this — tiles
+// are content-addressable and benefit from aggressive browser cache.
+app.use("/api", (req, res, next) => {
+  if (!req.path.startsWith("/tiles")) {
+    res.setHeader("Cache-Control", "no-store");
+  }
+  next();
+});
+
 // When remote access is enabled, trust the first proxy hop so req.ip
 // reflects the real client IP from X-Forwarded-For rather than the
 // proxy's socket address. Disabled for local-only mode to prevent

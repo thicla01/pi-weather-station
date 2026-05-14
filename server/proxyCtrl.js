@@ -1,9 +1,31 @@
 const fs = require("fs");
 const path = require("path");
+const crypto = require("crypto");
 const axios = require("axios").default;
 const { getSettingsData } = require("./settingsCtrl");
 const { recordServiceCall } = require("./serviceStatus");
 const { increment } = require("./requestCounter");
+
+/**
+ * Field-set signature for a Tomorrow.io request. Used inside the cache
+ * key so that when the list of requested fields changes between
+ * releases (as it did in 2.14.2 when temperatureMax / temperatureMin /
+ * weatherCodeMax / precipitationProbabilityMax were added for the v3
+ * 5-day column strip), cached entries built against the old field set
+ * become unreachable — the next lookup misses, refetches, and stores
+ * a fresh entry with the new shape. Without this, the disk cache file
+ * (loaded on startup) silently served old-shape responses for hours
+ * after an upgrade. The HMIRaspi kiosk hit this on 2.14.4 → 2.14.5
+ * upgrade and only recovered after a manual `rm weather-cache.json`
+ * plus a coord change that rebuilt the cache entry.
+ *
+ * @param {string[]} fields — array of field names (the same array we
+ *   feed to the Tomorrow.io `fields=` URL parameter)
+ * @returns {string} short 8-hex-char SHA1 of the joined field list
+ */
+function hashFields(fields) {
+  return crypto.createHash("sha1").update(fields.join(",")).digest("hex").slice(0, 8);
+}
 
 const ALLOWED_STYLES = ["dark-v10", "dark-v11", "light-v10", "light-v11", "navigation-day-v1", "streets-v12"];
 
@@ -24,6 +46,41 @@ const WEATHER_CACHE_TTL = {
   daily:    6 * 60 * 60 * 1000,
 };
 
+/**
+ * Tomorrow.io field lists per timestep granularity. Pulled out to
+ * module scope so we can hash them once at startup (see hashFields).
+ * The hash becomes part of every cache key, so adding/removing a
+ * field in any of these arrays automatically invalidates the
+ * corresponding cached entries — no need to manually rm the disk
+ * cache after an upgrade that changes the request shape.
+ *
+ *   - Current adds uvIndex + epaIndex on top of the common subset
+ *     because they're real-time read-outs in the InfoPanel, not
+ *     values we chart over time.
+ *   - Daily includes the Max/Min variants used by the v3 5-day
+ *     column strip (DailyForecastColumns) on top of the avg fields
+ *     the v2 Chart.js DailyChart still consumes.
+ */
+const CURRENT_FIELDS = [
+  "temperature", "humidity", "windSpeed", "precipitationIntensity",
+  "precipitationType", "precipitationProbability", "cloudCover",
+  "weatherCode", "uvIndex", "epaIndex",
+];
+const HOURLY_FIELDS = [
+  "temperature", "precipitationProbability", "precipitationIntensity", "windSpeed",
+];
+const DAILY_FIELDS = [
+  "temperature", "temperatureMax", "temperatureMin",
+  "precipitationProbability", "precipitationProbabilityMax",
+  "precipitationIntensity", "windSpeed", "weatherCodeMax",
+];
+
+// Computed once at module load. Used in every cache key — see
+// getCacheKey() for the rationale.
+const CURRENT_FIELDS_HASH = hashFields(CURRENT_FIELDS);
+const HOURLY_FIELDS_HASH = hashFields(HOURLY_FIELDS);
+const DAILY_FIELDS_HASH = hashFields(DAILY_FIELDS);
+
 const CACHE_FILE = path.join(__dirname, "weather-cache.json");
 
 const weatherCache = {};
@@ -36,13 +93,26 @@ function loadCacheFromDisk() {
     const saved = JSON.parse(raw);
     const now = Date.now();
     let loaded = 0;
+    let skipped = 0;
     for (const [key, entry] of Object.entries(saved)) {
+      // Legacy entries (pre-2.14.6) had 3 colon-separated parts:
+      // `type:lat:lon`. Current entries have 4: `type:hash:lat:lon`.
+      // Skip the legacy shape so we don't serve cached responses that
+      // were built against an obsolete field list — the lookup paths
+      // below all generate 4-part keys now, so old entries would never
+      // be hit anyway, but dropping them explicitly keeps the on-disk
+      // file clean and the startup log honest.
+      if (key.split(":").length !== 4) {
+        skipped++;
+        continue;
+      }
       if (entry.expiresAt > now) {
         weatherCache[key] = entry;
         loaded++;
       }
     }
     if (loaded > 0) console.log(`[cache] Loaded ${loaded} entries from disk`);
+    if (skipped > 0) console.log(`[cache] Skipped ${skipped} legacy entries (pre-2.14.6 schema)`);
   } catch {
     // File missing or unreadable — start with empty cache
   }
@@ -64,8 +134,15 @@ function saveCacheToDisk() {
 loadCacheFromDisk();
 setInterval(saveCacheToDisk, 5 * 60 * 1000).unref();
 
-function getCacheKey(type, lat, lon) {
-  return `${type}:${lat.toFixed(4)}:${lon.toFixed(4)}`;
+/**
+ * @param {string} type — `current` / `hourly` / `daily`
+ * @param {string} fieldsHash — 8-char field-set signature (see hashFields)
+ * @param {number} lat — latitude (4-decimal precision in the key)
+ * @param {number} lon — longitude
+ * @returns {string} cache key
+ */
+function getCacheKey(type, fieldsHash, lat, lon) {
+  return `${type}:${fieldsHash}:${lat.toFixed(4)}:${lon.toFixed(4)}`;
 }
 
 function getFromCache(key) {
@@ -240,14 +317,8 @@ async function weatherCurrent(req, res) {
     return res.status(503).json("Weather API key not configured").end();
   }
 
-  // uvIndex (0-11+ scale, WMO categorisation) and epaIndex (EPA AQI
-  // category 1-6) are added only to the `current` endpoint — they're
-  // real-time read-outs in the InfoPanel, not values we chart over time.
-  const fields = ["temperature", "humidity", "windSpeed", "precipitationIntensity",
-    "precipitationType", "precipitationProbability", "cloudCover", "weatherCode",
-    "uvIndex", "epaIndex"].join("%2c");
-
-  const cacheKey = getCacheKey("current", lat, lon);
+  const fields = CURRENT_FIELDS.join("%2c");
+  const cacheKey = getCacheKey("current", CURRENT_FIELDS_HASH, lat, lon);
   const cached = getFromCache(cacheKey);
   if (cached) return res.status(200).json(cached).end();
 
@@ -297,10 +368,10 @@ async function weatherHourly(req, res) {
     return res.status(503).json("Weather API key not configured").end();
   }
 
-  const fields = ["temperature", "precipitationProbability", "precipitationIntensity", "windSpeed"].join("%2c");
+  const fields = HOURLY_FIELDS.join("%2c");
   const endTime = new Date(Date.now() + 60 * 60 * 23 * 1000).toISOString();
 
-  const cacheKey = getCacheKey("hourly", lat, lon);
+  const cacheKey = getCacheKey("hourly", HOURLY_FIELDS_HASH, lat, lon);
   const cached = getFromCache(cacheKey);
   if (cached) return res.status(200).json(cached).end();
 
@@ -350,31 +421,10 @@ async function weatherDaily(req, res) {
     return res.status(503).json("Weather API key not configured").end();
   }
 
-  // Daily fields:
-  //   - temperature / precipitationIntensity / precipitationProbability /
-  //     windSpeed are the avg-over-day values the existing Chart.js
-  //     DailyChart line renders against.
-  //   - temperatureMax / temperatureMin / weatherCodeMax /
-  //     precipitationProbabilityMax were added to power the v3 column-
-  //     layout daily forecast (DailyForecastColumns), which mirrors the
-  //     Claude Design 5-day mockup: each column needs a high / low pair
-  //     and an icon. Tomorrow.io returns all of these in the same call
-  //     (one daily timeline per call already aggregates the underlying
-  //     hourly samples server-side), so the extra fields don't cost an
-  //     extra request — just a slightly larger response payload. */
-  const fields = [
-    "temperature",
-    "temperatureMax",
-    "temperatureMin",
-    "precipitationProbability",
-    "precipitationProbabilityMax",
-    "precipitationIntensity",
-    "windSpeed",
-    "weatherCodeMax",
-  ].join("%2c");
+  const fields = DAILY_FIELDS.join("%2c");
   const endTime = new Date(Date.now() + 4 * 60 * 60 * 24 * 1000).toISOString();
 
-  const cacheKey = getCacheKey("daily", lat, lon);
+  const cacheKey = getCacheKey("daily", DAILY_FIELDS_HASH, lat, lon);
   const cached = getFromCache(cacheKey);
   if (cached) return res.status(200).json(cached).end();
 
