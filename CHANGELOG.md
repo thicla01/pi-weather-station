@@ -19,6 +19,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.25] - 2026-05-15
+
+### Changed
+- **v3 DebugPanel — more user-facing labels translated in Server bucket** — four remaining English strings localised in FR/ES:
+  - `POWER OK` tag in the Power status row → `ALIMENTATION OK` / `ALIMENTACIÓN OK`
+  - `avg` suffix in the response-times rows + radar compression stats → `moy` / `prom`
+  - `frames` in the radar compression stats → `trames` / `tramas`
+  - `Export report` button → `Exporter rapport` / `Exportar informe` (plus the success message `Exported` → `Exporté` / `Exportado`)
+- `PowerStatusRow` and `RadarCompressionRow` now receive `lang` as a prop so they can localise their own chrome. `ms` (milliseconds) and `req` (requests) intentionally stay English — universal IT abbreviations.
+
+---
+
 ## [2.14.24] - 2026-05-15
 
 ### Changed

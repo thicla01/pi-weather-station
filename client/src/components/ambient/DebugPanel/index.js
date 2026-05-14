@@ -591,14 +591,14 @@ const BucketServer = ({ data, lang }) => {
       {kpis.powerStatus?.available ? (
         <>
           <SectionTitle title={lbl(lang, "Power status", "État alimentation", "Estado de alimentación")} gap />
-          <PowerStatusRow powerStatus={kpis.powerStatus} />
+          <PowerStatusRow powerStatus={kpis.powerStatus} lang={lang} />
         </>
       ) : null}
 
       {kpis.radarCompression ? (
         <>
           <SectionTitle title={lbl(lang, "Radar compression", "Compression radar", "Compresión radar")} gap />
-          <RadarCompressionRow stats={kpis.radarCompression} />
+          <RadarCompressionRow stats={kpis.radarCompression} lang={lang} />
         </>
       ) : null}
 
@@ -610,7 +610,7 @@ const BucketServer = ({ data, lang }) => {
               <div key={i} className={styles.row}>
                 <span className={styles.rowName}>{r.endpoint}</span>
                 <span className={styles.rowDim}>{r.count} req</span>
-                <span className={styles.rowMono}>{r.avgMs} ms avg</span>
+                <span className={styles.rowMono}>{r.avgMs} ms {lbl(lang, "avg", "moy", "prom")}</span>
               </div>
             ))}
           </div>
@@ -800,7 +800,7 @@ const BucketClient = ({ data, lang }) => {
             <div key={r.endpoint} className={styles.row}>
               <span className={styles.rowName}>{r.endpoint}</span>
               <span className={styles.rowDim}>{r.count} req</span>
-              <span className={styles.rowMono}>{r.avgMs} ms avg · {r.minMs}–{r.maxMs}</span>
+              <span className={styles.rowMono}>{r.avgMs} ms {lbl(lang, "avg", "moy", "prom")} · {r.minMs}–{r.maxMs}</span>
             </div>
           ))}
         </div>
@@ -1262,13 +1262,13 @@ const POWER_LABELS = {
  * @param {object} props.powerStatus — `{ available, current, occurred }`
  * @returns {JSX.Element}
  */
-const PowerStatusRow = ({ powerStatus }) => {
+const PowerStatusRow = ({ powerStatus, lang }) => {
   const anyCurrent = POWER_FLAGS.some((f) => powerStatus.current?.[f]);
   const anyOccurred = POWER_FLAGS.some((f) => powerStatus.occurred?.[f]);
   return (
     <div className={styles.powerRow}>
       {!anyCurrent ? (
-        <Tag kind="ok">POWER OK</Tag>
+        <Tag kind="ok">{lbl(lang, "POWER OK", "ALIMENTATION OK", "ALIMENTACIÓN OK")}</Tag>
       ) : (
         POWER_FLAGS.filter((f) => powerStatus.current[f]).map((f) => (
           <Tag key={f} kind={POWER_CRITICAL.includes(f) ? "err" : "warn"}>
@@ -1296,7 +1296,7 @@ const PowerStatusRow = ({ powerStatus }) => {
  * @param {object} props.stats — `{ count, avgPct, minPct, maxPct }` from the server.
  * @returns {JSX.Element}
  */
-const RadarCompressionRow = ({ stats }) => {
+const RadarCompressionRow = ({ stats, lang }) => {
   const [exporting, setExporting] = useState(false);
   const [exportMsg, setExportMsg] = useState(null);
   const onExport = () => {
@@ -1304,7 +1304,7 @@ const RadarCompressionRow = ({ stats }) => {
     setExporting(true);
     axios.post("/api/debug/radar-compression-report")
       .then((res) => {
-        setExportMsg(res.data?.path || "Exported");
+        setExportMsg(res.data?.path || lbl(lang, "Exported", "Exporté", "Exportado"));
         setTimeout(() => setExportMsg(null), 4000);
       })
       .catch((err) => {
@@ -1313,10 +1313,12 @@ const RadarCompressionRow = ({ stats }) => {
       })
       .finally(() => setExporting(false));
   };
+  const avgWord = lbl(lang, "avg", "moy", "prom");
+  const framesWord = lbl(lang, "frames", "trames", "tramas");
   return (
     <div className={styles.compRow}>
       <span className={styles.compStat}>
-        {`${stats.avgPct.toFixed(0)} % avg · ${stats.count} frames · ${stats.minPct.toFixed(0)}–${stats.maxPct.toFixed(0)} %`}
+        {`${stats.avgPct.toFixed(0)} % ${avgWord} · ${stats.count} ${framesWord} · ${stats.minPct.toFixed(0)}–${stats.maxPct.toFixed(0)} %`}
       </span>
       <button
         type="button"
@@ -1324,7 +1326,7 @@ const RadarCompressionRow = ({ stats }) => {
         onClick={onExport}
         disabled={exporting}
       >
-        {exporting ? "…" : "Export report"}
+        {exporting ? "…" : lbl(lang, "Export report", "Exporter rapport", "Exportar informe")}
       </button>
       {exportMsg ? (
         <span className={styles.compExportMsg}>{exportMsg}</span>
