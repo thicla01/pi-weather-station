@@ -19,6 +19,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.13] - 2026-05-14
+
+### Changed
+- **v3 map centring — marker now sits at the visual centre of the visible area, not the rail-overlapped one** — Leaflet's stock centring puts the marker at viewport-centre, but in v3 ambient layouts the right rail covers the right 320–360 px of the map. So a geographically-centred marker ended up visually north-east. Added a `panWithRailOffset` helper that projects the marker latLng to pixel coords, shifts the pixel point right by half the rail width, then unprojects — Leaflet centres on the shifted point and the marker lands at the visual middle of the non-rail area. Wired into `PanHandler` (covers map-click navigation + every `setPanToCoords` consumer), plus a new `InitialOffsetCentering` effect that re-centres on initial mount (MapContainer's `center` prop is only honoured once and ignored thereafter), plus `RailOffsetTracker` that re-pans whenever the rail collapses or expands. v2 layouts and v3 layouts in collapsed-rail mode get `railOffsetX = 0` and fall through to the stock Leaflet behaviour, so nothing changes for them. Future full-screen-radar mode (Phase 11) gets the same automatic 0-offset behaviour.
+
+---
+
 ## [2.14.12] - 2026-05-14
 
 ### Fixed

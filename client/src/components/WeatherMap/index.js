@@ -797,20 +797,163 @@ ArrowToggleControl.propTypes = {
  * @param {Function} props.setPanToCoords resets panToCoords to null
  * @returns {null} renders nothing
  */
-const PanHandler = ({ panToCoords, setPanToCoords }) => {
+/**
+ * Pan the map so `latLng` ends up at the *visual* centre of the area
+ * NOT covered by the right rail. Leaflet's stock centring puts the
+ * latLng at viewport-centre, but in v3 ambient layouts the rail
+ * covers the right ~320 px of the map; that shifts the marker to the
+ * north-east visually even though it's geographically centred.
+ *
+ * Trick: project the target latLng to pixel coords at the current
+ * zoom, push the pixel point right by half the rail width, then
+ * unproject. The new map centre is geographically to the right of
+ * the marker — Leaflet centres on it, which puts the marker visually
+ * to the LEFT of viewport-centre, which is exactly the centre of the
+ * non-rail area.
+ *
+ * When `railOffsetX` is 0 (v2 layout, rail collapsed, full-screen
+ * radar mode in Phase 11) the function falls back to a plain panTo
+ * / setView and the marker sits at the true viewport centre.
+ *
+ * @param {object} map — Leaflet map instance
+ * @param {Array<Number>} latLng — `[lat, lon]`
+ * @param {Number} railOffsetX — visible rail width in pixels (0 if
+ *   no rail is currently covering the right edge)
+ * @param {object} [opts]
+ * @param {boolean} [opts.animate=true] — true for panTo, false for setView
+ *   without animation (used on initial mount where animation looks janky)
+ */
+function panWithRailOffset(map, latLng, railOffsetX, opts = {}) {
+  const { animate = true } = opts;
+  if (!railOffsetX) {
+    if (animate) map.panTo(latLng);
+    else map.setView(latLng, map.getZoom(), { animate: false });
+    return;
+  }
+  const zoom = map.getZoom();
+  const point = map.project(latLng, zoom);
+  const adjusted = point.add([railOffsetX / 2, 0]);
+  const newCenter = map.unproject(adjusted, zoom);
+  if (animate) map.panTo(newCenter);
+  else map.setView(newCenter, zoom, { animate: false });
+}
+
+/**
+ * Read the visible rail's pixel width once on mount + whenever the
+ * collapsed/experimental flags toggle. Queries the DOM directly
+ * because the value lives in CSS variables on `.ambientRoot` and on
+ * the rail's actual rendered bounding rect (the `--c-rail-width`
+ * value differs between LayoutDesktop and LayoutPi, and is bumped
+ * to 360 px on wide displays via a media query). Returns 0 when
+ * there's no rail to worry about (v2 layout, rail collapsed, no
+ * ambientRoot present).
+ *
+ * The 1-frame timeout is load-bearing for the initial measurement:
+ * WeatherMap mounts inside the rail-bearing layout, so the rail's
+ * geometry isn't yet laid out when this effect's first synchronous
+ * pass runs. Deferring by a frame lets the browser commit the
+ * stylesheet before we measure.
+ *
+ * @returns {Number} rail width in pixels (0 if no offset needed)
+ */
+function useRailOffset() {
+  const { experimentalUiC, infoPanelCollapsed } = useContext(AppContext);
+  const [offset, setOffset] = useState(0);
+  useEffect(() => {
+    if (!experimentalUiC || infoPanelCollapsed) {
+      setOffset(0);
+      return undefined;
+    }
+    let cancelled = false;
+    const measure = () => {
+      if (cancelled) return;
+      const rail = document.querySelector(".ambientRoot aside");
+      if (!rail) {
+        setOffset(0);
+        return;
+      }
+      const width = rail.getBoundingClientRect().width;
+      setOffset(Math.round(width));
+    };
+    const handle = requestAnimationFrame(measure);
+    // Re-measure on viewport size changes — the LayoutDesktop bumps
+    // rail width from 320 → 360 px above 1900 px wide via a media
+    // query, and we want the offset to track that.
+    window.addEventListener("resize", measure);
+    return () => {
+      cancelled = true;
+      cancelAnimationFrame(handle);
+      window.removeEventListener("resize", measure);
+    };
+  }, [experimentalUiC, infoPanelCollapsed]);
+  return offset;
+}
+
+const PanHandler = ({ panToCoords, setPanToCoords, railOffsetX }) => {
   const map = useMap();
   useEffect(() => {
     if (panToCoords) {
-      map.panTo([panToCoords.latitude, panToCoords.longitude]);
+      panWithRailOffset(map, [panToCoords.latitude, panToCoords.longitude], railOffsetX);
       setPanToCoords(null);
     }
-  }, [panToCoords, map, setPanToCoords]);
+  }, [panToCoords, map, setPanToCoords, railOffsetX]);
   return null;
 };
 
 PanHandler.propTypes = {
   panToCoords: PropTypes.object,
   setPanToCoords: PropTypes.func.isRequired,
+  railOffsetX: PropTypes.number,
+};
+
+/**
+ * Re-centres the map whenever `railOffsetX` changes — collapsing or
+ * expanding the rail, or switching layouts, would otherwise leave
+ * the marker in the wrong visual position. Pulls the current marker
+ * latLng from context and re-applies the offset trick. Skipped when
+ * `markerPosition` isn't yet set (initial load before mapGeo lands).
+ */
+const RailOffsetTracker = ({ railOffsetX, markerPosition }) => {
+  const map = useMap();
+  const lastOffsetRef = useRef(railOffsetX);
+  useEffect(() => {
+    // Skip the first run so the initial mount doesn't double-pan
+    // (MapContainer's `center` prop already places us — the explicit
+    // re-pan happens below via the initial-offset effect).
+    if (lastOffsetRef.current === railOffsetX) return;
+    lastOffsetRef.current = railOffsetX;
+    if (!markerPosition) return;
+    panWithRailOffset(map, markerPosition, railOffsetX, { animate: true });
+  }, [railOffsetX, markerPosition, map]);
+  return null;
+};
+
+RailOffsetTracker.propTypes = {
+  railOffsetX: PropTypes.number,
+  markerPosition: PropTypes.array,
+};
+
+/**
+ * Applies the rail offset on initial mount — MapContainer's `center`
+ * prop is read once and never re-applied, so without this effect the
+ * marker would stay at viewport-centre (behind the rail) until the
+ * user clicks somewhere. Runs once when both map and marker are ready.
+ */
+const InitialOffsetCentering = ({ railOffsetX, markerPosition }) => {
+  const map = useMap();
+  const appliedRef = useRef(false);
+  useEffect(() => {
+    if (appliedRef.current) return;
+    if (!markerPosition || !railOffsetX) return;
+    appliedRef.current = true;
+    panWithRailOffset(map, markerPosition, railOffsetX, { animate: false });
+  }, [map, markerPosition, railOffsetX]);
+  return null;
+};
+
+InitialOffsetCentering.propTypes = {
+  railOffsetX: PropTypes.number,
+  markerPosition: PropTypes.array,
 };
 
 /**
@@ -881,6 +1024,12 @@ const WeatherMap = ({ zoom, dark }) => {
   // by both v2 and v3 layouts, so reading from useTimeOfDay keeps the
   // logic palette-aware without coupling to either layout.
   const nightRed = useTimeOfDay() === "nightRed";
+  // Pixel width of the v3 right rail when visible. Drives the
+  // off-centre projection trick that keeps the marker at the visual
+  // centre of the non-rail area; see panWithRailOffset for the math.
+  // Returns 0 in v2 layouts, when the rail is collapsed, or in
+  // (future) full-screen radar mode.
+  const railOffsetX = useRailOffset();
   const {
     setMapPosition,
     panToCoords,
@@ -1203,7 +1352,9 @@ const WeatherMap = ({ zoom, dark }) => {
         fadeAnimation={false}
       >
         <MapClickHandler onClick={mapClickHandler} />
-        <PanHandler panToCoords={panToCoords} setPanToCoords={setPanToCoords} />
+        <PanHandler panToCoords={panToCoords} setPanToCoords={setPanToCoords} railOffsetX={railOffsetX} />
+        <InitialOffsetCentering railOffsetX={railOffsetX} markerPosition={markerPosition} />
+        <RailOffsetTracker railOffsetX={railOffsetX} markerPosition={markerPosition} />
         <MapZoomTracker onZoomChange={setCurrentMapZoom} />
         <ZoomLevelHandler zoomToLevel={zoomToLevel} setZoomToLevel={setZoomToLevel} />
         <MapResizer infoPanelCollapsed={infoPanelCollapsed} />
