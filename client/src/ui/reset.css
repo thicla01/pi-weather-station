@@ -97,15 +97,3 @@
   color: var(--c-text) !important;
 }
 
-/* Radar precipitation legend lives inside the map area, anchored
- * bottom-right by WeatherMap/styles.css (right: 10px). In v3 layouts
- * the right rail covers the right edge of the map — so without an
- * override the legend would sit behind the AI Summary slab and be
- * invisible. Shift it left by the rail width + edge gap so it lands
- * just to the left of the rail's outer border in ambient mode. The
- * `--c-rail-width` and `--c-edge-gap` CSS variables are set by the
- * ambient layouts; v2 layouts don't define them and keep the legend
- * at its original right: 10px position via the cascade fallback. */
-.ambientRoot .radar-legend {
-  right: calc(var(--c-rail-width, 0px) * var(--c-font-scale, 1) + var(--c-edge-gap, 0px) * 2 + 10px);
-}

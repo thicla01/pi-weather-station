@@ -19,6 +19,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.12] - 2026-05-14
+
+### Fixed
+- **Radar legend moved to bottom-LEFT in ambient mode** — 2.14.11's reset.css rule never matched because `.radar-legend` is CSS-Modules-hashed in the DOM while reset.css uses literal unhashed selectors. The legend stayed pinned bottom-right, behind the AI Summary slab. Moved the rule into `WeatherMap/styles.css` using the `:global(.ambientRoot)` escape hatch so the hashing aligns, and repositioned to `left: 70px; right: auto` — clears the Leaflet zoom buttons' column and stays well left of the rail regardless of font-scale or screen size.
+
+---
+
 ## [2.14.11] - 2026-05-14
 
 ### Changed

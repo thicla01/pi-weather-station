@@ -65,6 +65,26 @@
   white-space: nowrap;
 }
 
+/* In v3 ambient layouts the right rail covers the bottom-right
+ * corner of the map (where the legend lives by default), so the
+ * legend sits behind the AI Summary slab and is invisible. Move it
+ * to the bottom-LEFT in ambient mode — well clear of the rail and
+ * still useful as a glance reference. `:global(.ambientRoot)` is
+ * the CSS-Modules escape hatch that lets us target the global
+ * `.ambientRoot` class from inside this module-scoped stylesheet
+ * (the previous attempt in reset.css didn't match because the
+ * `.radar-legend` class is module-hashed in the DOM and reset.css's
+ * unhashed selector never lined up).
+ *
+ * `left` value clears the Leaflet zoom buttons' column (the +/-
+ * stack sits at ~10 px from the left, ~50 px wide), and bottom: 24
+ * matches the original vertical anchor so the legend sits a touch
+ * above the attribution strip. */
+:global(.ambientRoot) .radar-legend {
+  left: 70px;
+  right: auto;
+}
+
 .no-map {
   height: 100%;
   width: 100%;
