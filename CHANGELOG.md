@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.27] - 2026-05-15
+
+### Fixed
+- **v3 AiSummaryInline maximize broken on LayoutPi (7" Pi)** — `.slabMaximized` does `position: absolute; inset: 12px` to fill the rail when maximized, but LayoutPi's `.rail` was a plain CSS-grid item with no positioning, so the slab pinned to `.layout` (or the viewport) instead. Result on the 7" kiosk: the maximize button didn't visibly do anything — the slab stayed in its flex slot with an inset relative to the wrong ancestor, the background didn't cover the rail's other items, and the body text read through to map labels in light mode. LayoutDesktop already had `position: absolute` on its rail so the bug was specific to LayoutPi. Adding `position: relative` to `.rail` fixes the pinning. Additionally, when entering maximize mode the rail is now scrolled to top — without this, if the user had scrolled down to read the collapsed summary, the maximized slab (correctly positioned at the rail's content origin) sat above the visible viewport and required a manual scroll-up to see.
+
+---
+
 ## [2.10.2] - 2026-04-27
 
 ### Fixed

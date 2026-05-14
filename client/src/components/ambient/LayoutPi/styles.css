@@ -43,6 +43,16 @@
 .rail {
   grid-column: 2;
   grid-row: 1;
+  /* `position: relative` is load-bearing for AiSummaryInline's maximize
+   * mode: the slab does `position: absolute; inset: 12px` to fill the
+   * rail when maximized, which only works if the rail itself is a
+   * positioned ancestor. Without this, the slab pinned against
+   * `.layout` instead — the inset was wrong, the slab stayed in its
+   * flex slot, and the text rendered without the expected full-rail
+   * background (read-through to the map below). LayoutDesktop already
+   * has `position: absolute` on its rail; LayoutPi used CSS grid for
+   * the map/rail split and never positioned the rail itself. */
+  position: relative;
   /* min-height: 0 is load-bearing — without it the grid cell expands
    * to fit content and `overflow-y: auto` never engages, so the
    * AiSummaryInline (and bottom of ChartTabs) silently scrolls below

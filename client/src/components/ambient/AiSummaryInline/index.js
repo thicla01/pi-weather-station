@@ -50,6 +50,30 @@ const AiSummaryInline = () => {
   // level. Less affordance, less confusion.
   const [maximized, setMaximized] = useState(false);
   const intervalRef = useRef(null);
+  const slabRef = useRef(null);
+
+  // When entering maximize mode, scroll the rail to the top so the
+  // absolutely-positioned slab (which pins to the rail's content
+  // origin, not its viewport) actually shows inside the visible area.
+  // Without this, if the user had scrolled the rail down to read the
+  // collapsed summary, hitting maximize would expand the slab *above*
+  // the current scroll position — the slab is correctly sized and
+  // opaque but invisible until the user manually scrolls back up.
+  useEffect(() => {
+    if (!maximized || !slabRef.current) return;
+    // Walk up to find the scrollable rail ancestor. We can't hard-code
+    // the class name because both LayoutPi and LayoutDesktop render
+    // this component into their own rail variants.
+    let el = slabRef.current.parentElement;
+    while (el && el !== document.body) {
+      const overflowY = window.getComputedStyle(el).overflowY;
+      if (overflowY === "auto" || overflowY === "scroll") {
+        el.scrollTop = 0;
+        break;
+      }
+      el = el.parentElement;
+    }
+  }, [maximized]);
 
   const lang = ["fr", "es"].find((l) => i18n.language.startsWith(l)) || "en";
 
@@ -99,7 +123,7 @@ const AiSummaryInline = () => {
   if (!available || !summary) return null;
 
   return (
-    <div className={`${styles.slab} ${maximized ? styles.slabMaximized : ""}`}>
+    <div ref={slabRef} className={`${styles.slab} ${maximized ? styles.slabMaximized : ""}`}>
       <div className={styles.header}>
         <span className={styles.label}>{LABEL[lang] || LABEL.en}</span>
         <button
