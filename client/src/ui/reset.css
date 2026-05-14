@@ -52,3 +52,35 @@
   -webkit-text-size-adjust: 100%;
   text-size-adjust: 100%;
 }
+
+/* Leaflet built-in controls — zoom buttons, attribution strip, and any
+ * custom anchor controls — ship with hardcoded #fff backgrounds and
+ * #000 text that read as visual outsiders in dark / nightRed mode.
+ * Override with the active palette tokens so they auto-tint with the
+ * rest of the UI. Scoped to .ambientRoot so v2 layouts (which still
+ * mount WeatherMap) keep their original Leaflet appearance. */
+.ambientRoot .leaflet-control-zoom a,
+.ambientRoot .leaflet-bar a {
+  background-color: var(--c-surface);
+  color: var(--c-text);
+  border-bottom-color: var(--c-border);
+}
+
+.ambientRoot .leaflet-control-zoom a:hover,
+.ambientRoot .leaflet-bar a:hover {
+  background-color: var(--c-accent-soft);
+  color: var(--c-text);
+}
+
+.ambientRoot .leaflet-bar {
+  border-color: var(--c-border);
+}
+
+.ambientRoot .leaflet-control-attribution {
+  background-color: var(--c-surface);
+  color: var(--c-text-dim);
+}
+
+.ambientRoot .leaflet-control-attribution a {
+  color: var(--c-text);
+}

@@ -21,6 +21,7 @@ import {
 import L from "leaflet";
 import PropTypes from "prop-types";
 import { AppContext } from "~/AppContext";
+import { useTimeOfDay } from "~/ui/hybrid";
 import { useTranslation } from "react-i18next";
 import debounce from "debounce";
 import axios from "axios";
@@ -297,13 +298,18 @@ const RING_OUTLINE_EXTRA_WEIGHT = 2;    // outline extends ~1 px on each side of
  * @returns {Array<object>} Ordered list of pathOptions; render in order
  *   so the coloured stroke sits on top of the outline.
  */
-function buildRingLayers(risk, dark, aiOff = false) {
+function buildRingLayers(risk, dark, aiOff = false, nightRed = false) {
   const overlay = risk && RING_RISK_STYLE[dark ? "dark" : "light"][risk];
   const baseDash = "6 6";
   // Calm / not yet loaded — single neutral ring, theme-aware.
+  // nightRed (sleep-stage-1 long-wavelength mode) tints the ring
+  // toward warm red instead of the default desaturated grey, so
+  // it matches the rest of the palette. Picked a muted brick tone
+  // (#8c5a5a) so it stays readable as a guide line without screaming
+  // "alert" — bright reds are reserved for the actual risk overlays.
   if (!overlay) {
     return [{
-      color: dark ? "#a8a097" : "#3a3938",
+      color: nightRed ? "#8c5a5a" : (dark ? "#a8a097" : "#3a3938"),
       weight: 2,
       // Subdued treatment when AI is off: opacity dropped from 0.85
       // to 0.35 and the dash made sparser ("3 9" gives short marks
@@ -360,8 +366,8 @@ function buildRingLayers(risk, dark, aiOff = false) {
  * @param {Boolean} [props.aiOff] AI summary unavailable — see buildRingLayers
  * @returns {JSX.Element} One or two stacked Circles
  */
-const RiskRing = ({ center, radius, risk, dark, aiOff }) => {
-  const layers = buildRingLayers(risk, dark, aiOff);
+const RiskRing = ({ center, radius, risk, dark, aiOff, nightRed }) => {
+  const layers = buildRingLayers(risk, dark, aiOff, nightRed);
   return (
     <>
       {layers.map((opts, i) => (
@@ -377,6 +383,7 @@ RiskRing.propTypes = {
   risk: PropTypes.string,
   dark: PropTypes.bool,
   aiOff: PropTypes.bool,
+  nightRed: PropTypes.bool,
 };
 
 const RADAR_LEGEND_ITEMS = [
@@ -857,6 +864,12 @@ ZoomLevelHandler.propTypes = {
 const WeatherMap = ({ zoom, dark }) => {
   const MAP_CLICK_DEBOUNCE_TIME = 200; //ms
   const { t } = useTranslation();
+  // `nightRed` is the long-wavelength sleep-stage-1 mode. Used here
+  // to red-tint the dashed radar circles so they match the rest of
+  // the UI when the night-red palette is active. WeatherMap is mounted
+  // by both v2 and v3 layouts, so reading from useTimeOfDay keeps the
+  // logic palette-aware without coupling to either layout.
+  const nightRed = useTimeOfDay() === "nightRed";
   const {
     setMapPosition,
     panToCoords,
@@ -1241,10 +1254,10 @@ const WeatherMap = ({ zoom, dark }) => {
             ring is always 16 directions × 10 distances; outer ring is 32
             directions × 10 distances when extendedRadius is on. */}
         {radarAnalysisEnabled && markerPosition ? (
-          <RiskRing center={markerPosition} radius={innerRadiusMeters} risk={innerRisk} dark={dark} aiOff={!aiSummaryAvailable} />
+          <RiskRing center={markerPosition} radius={innerRadiusMeters} risk={innerRisk} dark={dark} aiOff={!aiSummaryAvailable} nightRed={nightRed} />
         ) : null}
         {radarAnalysisEnabled && markerPosition && extendedRadarRadius ? (
-          <RiskRing center={markerPosition} radius={outerRadiusMeters} risk={outerRisk} dark={dark} aiOff={!aiSummaryAvailable} />
+          <RiskRing center={markerPosition} radius={outerRadiusMeters} risk={outerRisk} dark={dark} aiOff={!aiSummaryAvailable} nightRed={nightRed} />
         ) : null}
         {radarAnalysisEnabled && markerPosition && showSamplingPoints
           ? buildSamplingPoints(markerPosition, extendedRadarRadius, distanceUnit).map(

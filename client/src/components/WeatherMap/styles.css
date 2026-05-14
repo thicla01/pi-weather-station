@@ -19,16 +19,21 @@
   -webkit-backdrop-filter: blur(6px);
 }
 
+/* Dark/light text colour uses var(--c-text, fallback) so the radar
+ * legend follows the active ambient palette when rendered inside an
+ * ambient layout (esp. picks up the red tint in nightRed mode) while
+ * keeping the original near-white / dark grey fallback for v2 layouts
+ * where the CSS variables aren't defined. */
 .radar-legend-dark {
   background: rgba(58, 57, 56, 0.88);
   border: 1px solid rgba(117, 117, 117, 0.45);
-  color: #f6f6f4;
+  color: var(--c-text, #f6f6f4);
 }
 
 .radar-legend-light {
   background: rgba(var(--light-panel-bg-rgb, 238, 236, 232), 0.90);
   border: 1px solid rgba(218, 218, 218, 0.85);
-  color: #3a3938;
+  color: var(--c-text, #3a3938);
 }
 
 .radar-legend-title {

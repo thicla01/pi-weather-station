@@ -19,6 +19,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.9] - 2026-05-14
+
+### Changed
+- **v3 nightRed mode — dashed radar circles, radar legend, and Leaflet built-in controls now follow the palette** — the calm-tier rings rendered with a desaturated warm grey (`#a8a097`) in dark mode, but nightRed (sleep-stage-1 long-wavelength preference) still got the same grey — visually disconnected from the red-tinted slabs around them. Added a `nightRed` branch in `buildRingLayers` that picks a muted brick (`#8c5a5a`) for calm rings; the bright yellow/orange/red risk overlays intentionally stay loud regardless of palette since they're alert signals. The radar legend's text colour now reads from `var(--c-text)` with a fallback to the original near-white, so it picks up the active palette automatically in ambient layouts (v2 layouts keep the original grey via the fallback). Leaflet's zoom buttons + attribution strip + custom anchor controls were also tinted via global rules scoped to `.ambientRoot`, using `var(--c-surface) / var(--c-text)` so they auto-adapt to whichever palette is active. v2 layouts are untouched because the scope keeps the overrides out of their tree.
+
+---
+
 ## [2.14.8] - 2026-05-14
 
 ### Fixed
