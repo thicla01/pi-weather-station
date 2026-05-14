@@ -532,15 +532,41 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
     sleepNightMode,
     debugEnabled,
     saveAdvancedSleepFlag,
+    // Display group (Phase 8b — ported in 2.14.22)
+    lightModeStyle,
+    darkModeStyle,
+    radarOpacityLight,
+    radarOpacityDark,
+    saveAdvancedDisplayFlag,
+    setRadarOpacityLightLive,
+    setRadarOpacityDarkLive,
+    // AI group
+    radarAnalysisEnabled,
+    extendedRadarRadius,
+    showSamplingPoints,
+    calmDayFastPath,
+    saveAdvancedAiFlag,
   } = ctx;
-  // The sleep helper returns a promise (it POSTs to /api/settings).
-  // Errors are non-critical for the UI — log + swallow so a transient
-  // network hiccup doesn't crash the panel.
+  // Each save helper returns a promise (POST /api/settings). Errors
+  // are non-critical for the UI — log + swallow so a transient
+  // network hiccup doesn't crash the panel. Wrap each save fn in a
+  // tiny helper so the JSX stays clean.
   const sleep = (key) => (value) => {
     if (typeof saveAdvancedSleepFlag !== "function") return;
     Promise.resolve(saveAdvancedSleepFlag(key, value))
       .catch((err) => console.warn("[settings] sleep flag save failed", key, err));
   };
+  const display = (key) => (value) => {
+    if (typeof saveAdvancedDisplayFlag !== "function") return;
+    Promise.resolve(saveAdvancedDisplayFlag(key, value))
+      .catch((err) => console.warn("[settings] display flag save failed", key, err));
+  };
+  const ai = (key) => (value) => {
+    if (typeof saveAdvancedAiFlag !== "function") return;
+    Promise.resolve(saveAdvancedAiFlag(key, value))
+      .catch((err) => console.warn("[settings] AI flag save failed", key, err));
+  };
+  const percentFormat = (v) => `${Math.round(v * 100)}%`;
 
   return (
     <div className={styles.section} style={{ opacity: remote ? 0.65 : 1 }}>
@@ -553,7 +579,99 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
       />
       {open && (
         <div className={styles.advBody}>
+          {/* ── Display ───────────────────────────────────────────── */}
           <div className={styles.subhead}>
+            {lang === "fr" ? "Affichage" : "Display"}
+          </div>
+          <div className={styles.grid4}>
+            <Seg
+              label={lang === "fr" ? "Carte · clair" : "Map · light"}
+              options={[
+                { v: "light-v10", l: "v10" },
+                { v: "light-v11", l: "v11" },
+                { v: "streets-v12", l: "Streets" },
+              ]}
+              value={lightModeStyle || "streets-v12"}
+              onChange={display("lightModeStyle")}
+              disabled={remote}
+            />
+            <Seg
+              label={lang === "fr" ? "Carte · sombre" : "Map · dark"}
+              options={[
+                { v: "dark-v10", l: "v10" },
+                { v: "dark-v11", l: "v11" },
+              ]}
+              value={darkModeStyle || "dark-v10"}
+              onChange={display("darkModeStyle")}
+              disabled={remote}
+            />
+            <RangeSlider
+              label={lang === "fr" ? "Opacité radar · clair" : "Radar opacity · light"}
+              value={radarOpacityLight}
+              min={0.05}
+              max={1}
+              step={0.05}
+              format={percentFormat}
+              onChange={setRadarOpacityLightLive}
+              disabled={remote}
+            />
+            <RangeSlider
+              label={lang === "fr" ? "Opacité radar · sombre" : "Radar opacity · dark"}
+              value={radarOpacityDark}
+              min={0.05}
+              max={1}
+              step={0.05}
+              format={percentFormat}
+              onChange={setRadarOpacityDarkLive}
+              disabled={remote}
+            />
+          </div>
+
+          {/* ── AI / radar analysis ────────────────────────────────── */}
+          <div className={`${styles.subhead} ${styles.subheadGap}`}>
+            {lang === "fr" ? "IA · analyse radar" : "AI · radar analysis"}
+          </div>
+          <div className={styles.grid4}>
+            <Toggle
+              label={lang === "fr" ? "Analyse radar activée" : "Radar analysis enabled"}
+              value={Boolean(radarAnalysisEnabled)}
+              onChange={ai("radarAnalysisEnabled")}
+              disabled={remote}
+              sub={lang === "fr"
+                ? "Cercles d'analyse + résumé IA radar"
+                : "Analysis rings + AI radar summary"}
+            />
+            <Toggle
+              label={lang === "fr" ? "Rayon étendu (100 km)" : "Extended radius (100 km)"}
+              value={Boolean(extendedRadarRadius)}
+              onChange={ai("extendedRadius")}
+              disabled={remote}
+              sub={lang === "fr"
+                ? "Ajoute l'anneau extérieur"
+                : "Adds the outer ring"}
+            />
+            <Toggle
+              label={lang === "fr" ? "Points d'échantillonnage" : "Sampling points"}
+              value={Boolean(showSamplingPoints)}
+              onChange={ai("showSamplingPoints")}
+              disabled={remote}
+              sub={lang === "fr"
+                ? "Affiche les points lus par le détecteur"
+                : "Show points read by the sampler"}
+            />
+            <Toggle
+              label={lang === "fr" ? "Chemin rapide jour calme" : "Calm-day fast path"}
+              value={Boolean(calmDayFastPath)}
+              onChange={ai("calmDayFastPath")}
+              disabled={remote}
+              sub={lang === "fr"
+                ? "Saute Claude quand le temps est stable"
+                : "Skip Claude when weather is stable"}
+            />
+          </div>
+
+          {/* ── Sleep ──────────────────────────────────────────────── */}
+          <div className={`${styles.subhead} ${styles.subheadGap}`}>
             {lang === "fr" ? "Veille" : "Sleep"}
           </div>
           <div className={styles.grid4}>
@@ -610,11 +728,12 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
             />
           </div>
 
-          <div className={styles.advNote}>
-            {lang === "fr"
-              ? "Le port complet des autres réglages avancés (style de carte, options IA, zoom par défaut) suit dans la Phase 8b."
-              : "Full port of the remaining advanced settings (map style, AI options, default zoom) lands in Phase 8b."}
-          </div>
+          {/* Phase 8b note removed in 2.14.22 — Display + AI subsections
+           * above complete the port. Anything still on the v2 Advanced
+           * panel that isn't covered here is intentionally out of scope
+           * for v3 (e.g. the calmDayFastPath toggle is now a checkbox
+           * under "AI"; the v2-only "default zoom" field was a one-off
+           * dev affordance that didn't survive Direction C). */}
         </div>
       )}
     </div>
@@ -888,26 +1007,26 @@ const EditableField = ({ label, value, unit, mono, onChange, trailing }) => (
 );
 
 /**
- * Brightness range slider. Replaces the read-only Field that just
- * showed the percentage but had no way to change it. Wired to
- * `setBrightnessLive` (debounced server POST, see AppContext) so the
- * thumb tracks smoothly while the actual sysfs write only fires every
- * 250 ms.
- *
- * Min is read from `brightnessMinPercent` (server-reported floor so
- * users can't drop the panel below the readable threshold and get
- * stuck in the dark). Max is always 100. Step is 1.
+ * Generic range slider with a live percent / formatted readout. Used
+ * by the brightness setting (integer 0-100, step 1) and by the radar
+ * opacity sliders (fractional 0.05-1, step 0.05) in the Advanced
+ * Display subsection. `format` defaults to integer-percent so callers
+ * with simple needs (brightness) don't have to pass anything.
  *
  * @param {object} props
  * @param {string} props.label
  * @param {number|null} props.value
  * @param {number} props.min
- * @param {Function} props.onChange — called with the new percent (0-100)
+ * @param {number} [props.max=100]
+ * @param {number} [props.step=1]
+ * @param {Function} [props.format] — value → display string
+ * @param {Function} props.onChange — called with the raw new value
  * @param {boolean} [props.disabled]
  * @returns {JSX.Element}
  */
-const BrightnessSlider = ({ label, value, min, onChange, disabled }) => {
-  const display = value != null ? Math.round(value) : "—";
+const RangeSlider = ({ label, value, min, max = 100, step = 1, format, onChange, disabled }) => {
+  const fmt = format || ((v) => `${Math.round(v)}%`);
+  const display = value != null ? fmt(value) : "—";
   return (
     <div className={`${styles.field} ${disabled ? styles.fieldDisabled : ""}`}>
       <div className={styles.fieldLabel}>{label}</div>
@@ -916,16 +1035,20 @@ const BrightnessSlider = ({ label, value, min, onChange, disabled }) => {
           type="range"
           className={styles.brightnessSlider}
           min={min}
-          max={100}
-          step={1}
+          max={max}
+          step={step}
           value={value != null ? value : min}
           disabled={disabled}
           onChange={(e) => onChange && onChange(Number(e.target.value))}
         />
-        <span className={styles.brightnessValue}>{display}<span className={styles.fieldUnit}>%</span></span>
+        <span className={styles.brightnessValue}>{display}</span>
       </div>
     </div>
   );
 };
+
+/* Backwards-compat alias for the brightness consumer — keeps the
+ * call site readable while the implementation is now shared. */
+const BrightnessSlider = (props) => <RangeSlider {...props} />;
 
 export default SettingsPanel;

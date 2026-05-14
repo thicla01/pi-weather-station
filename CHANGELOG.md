@@ -19,6 +19,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.22] - 2026-05-14
+
+### Added
+- **v3 SettingsPanel — full Phase 8b port of the Advanced subsections** — closes the "Phase 8b — Full port of the remaining advanced settings" placeholder that lived under the Sleep subsection since 2.14.18. Two new subsections inside the Advanced disclosure, sitting before Sleep:
+  - **Affichage / Display** — `lightModeStyle` (Mapbox light style: `light-v10` / `light-v11` / `streets-v12`), `darkModeStyle` (`dark-v10` / `dark-v11`), `radarOpacityLight` slider (0.05–1 in 0.05 steps, % display), `radarOpacityDark` slider (same shape). Wired to the existing `saveAdvancedDisplayFlag` + `setRadarOpacityLightLive` / `setRadarOpacityDarkLive` context helpers.
+  - **IA · analyse radar / AI · radar analysis** — four toggles: `radarAnalysisEnabled`, `extendedRadarRadius` (saves under JSON key `extendedRadius`), `showSamplingPoints`, `calmDayFastPath`. Each carries a short FR/EN/ES `sub` explaining the impact. Wired to `saveAdvancedAiFlag`.
+
+### Changed
+- **BrightnessSlider generalised into RangeSlider** — same JSX + CSS, now accepts `format` (callback) and arbitrary `min/max/step` so the new radar-opacity sliders can share the implementation. `BrightnessSlider` retained as a thin alias for the existing call site readability.
+- **Removed the Phase 8b note** — the placeholder explaining "the rest will land later" is no longer truthful now that Display + AI are in. The advanced section reads cleaner without it.
+
+---
+
 ## [2.14.21] - 2026-05-14
 
 ### Changed
