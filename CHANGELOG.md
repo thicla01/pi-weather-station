@@ -19,6 +19,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.17] - 2026-05-14
+
+### Fixed
+- **v3 SettingsPanel + DebugPanel now scale with the text-size preference** — the S/M/L choice in Settings drove the rail and HeroBand zoom via `--c-font-scale`, but the SettingsPanel and DebugPanel overlays render as siblings of `<AmbientLayers>` in the React tree, so they're outside `.ambientRoot` and never saw the cascaded CSS variable. Result: changing text size did nothing inside the two overlays where the dense forms benefit most from it. Extracted the `FONT_SIZE_ZOOM` map into a shared `src/ui/fontSize.js`, then applied `zoom: resolveFontSizeZoom(fontSize)` as inline style on both overlays so they scale consistently with the rest of the v3 UI.
+
+### Changed
+- **v3 SettingsPanel — text-size labels now follow the active language** — the segmented control showed `S / M / L` regardless of locale. EN keeps `S / M / L` (universal clothing-style sizing), FR and ES switch to `P / M / G` (Petit/Moyen/Grand · Pequeño/Mediano/Grande). Section label also translated: "Taille texte" (FR) / "Tamaño texto" (ES) / "Font size" (EN).
+
+---
+
 ## [2.14.16] - 2026-05-14
 
 ### Changed

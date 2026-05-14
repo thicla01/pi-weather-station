@@ -5,6 +5,7 @@ import { getPalette } from "~/ui/tokens";
 import { useTimeOfDay, useHybridMode } from "~/ui/hybrid";
 import LayoutPi from "~/components/ambient/LayoutPi";
 import LayoutDesktop from "~/components/ambient/LayoutDesktop";
+import { FONT_SIZE_ZOOM } from "~/ui/fontSize";
 
 // Global stylesheets — fonts (@font-face declarations) and the
 // scoped CSS reset. Imported via raw style-loader so they emit
@@ -28,7 +29,10 @@ const DESKTOP_MQ = "(min-width: 1280px)";
 // root (zoom is non-standard but supported in all the kiosk browsers
 // the project targets — Chromium, Firefox, Safari/WebKit). When
 // fontSize is unset or unrecognised, the scalar falls back to 1.0.
-const FONT_SIZE_ZOOM = { s: 0.85, m: 1.0, l: 1.15 };
+// FONT_SIZE_ZOOM is imported at the top from `~/ui/fontSize` — shared
+// with SettingsPanel + DebugPanel so the user's text-size preference
+// reaches every UI surface, including the overlays that mount outside
+// `.ambientRoot` and so can't read the `--c-font-scale` CSS variable.
 
 /**
  * Direction C — Ambient Layers root.

@@ -11,6 +11,7 @@ import axios from "axios";
 import { AppContext } from "~/AppContext";
 import { getPalette } from "~/ui/tokens";
 import { useTimeOfDay } from "~/ui/hybrid";
+import { resolveFontSizeZoom } from "~/ui/fontSize";
 import { exportDebugCsv } from "~/components/Debug";
 import styles from "./styles.css";
 
@@ -68,6 +69,7 @@ const DebugPanel = () => {
     isLocal,
     debugEnabled,
     refreshUpdateCheck,
+    fontSize,
   } = useContext(AppContext);
   const [checkingUpdate, setCheckingUpdate] = useState(false);
   // Multi-select buckets: each rail tab is a push-button. Press to
@@ -178,6 +180,11 @@ const DebugPanel = () => {
     "--c-warn": palette.warn,
     "--c-danger": palette.danger,
     "--c-cool": palette.cool,
+    // Same rationale as SettingsPanel — DebugPanel renders outside
+    // `.ambientRoot` and so doesn't see the `--c-font-scale` cascade.
+    // Apply the user's text-size preference via inline `zoom` here so
+    // the dense bucket grid scales like the rest of the v3 UI.
+    zoom: resolveFontSizeZoom(fontSize),
   };
 
   return (

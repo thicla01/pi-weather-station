@@ -11,6 +11,7 @@ import i18n from "~/i18n";
 import { AppContext } from "~/AppContext";
 import { getPalette } from "~/ui/tokens";
 import { useTimeOfDay } from "~/ui/hybrid";
+import { resolveFontSizeZoom } from "~/ui/fontSize";
 import styles from "./styles.css";
 
 /**
@@ -44,6 +45,7 @@ const SettingsPanel = () => {
     settingsMenuOpen,
     setSettingsMenuOpen,
     isLocal,
+    fontSize,
   } = ctx;
   const [advOpen, setAdvOpen] = useState(false);
   const [expOpen, setExpOpen] = useState(false);
@@ -74,6 +76,13 @@ const SettingsPanel = () => {
     "--c-warn": palette.warn,
     "--c-danger": palette.danger,
     "--c-cool": palette.cool,
+    // Apply the user's text-size preference here too — SettingsPanel
+    // renders outside `.ambientRoot` so it doesn't pick up
+    // `--c-font-scale` via the cascade. Setting `zoom` on the overlay
+    // root scales every descendant font-size proportionally, matching
+    // the rest of the v3 UI. `zoom` is non-standard but supported in
+    // every browser the kiosk runs (Chromium / Firefox / WebKit).
+    zoom: resolveFontSizeZoom(fontSize),
   };
 
   return (
@@ -171,8 +180,14 @@ const SectionLocalPrefs = ({ ctx, lang }) => {
           onChange={(v) => i18nChangeLanguage(v)}
         />
         <Seg
-          label={lang === "fr" ? "Taille texte" : "Font size"}
-          options={[{ v: "s", l: "S" }, { v: "m", l: "M" }, { v: "l", l: "L" }]}
+          label={lang === "fr" ? "Taille texte" : lang === "es" ? "Tamaño texto" : "Font size"}
+          /* Letters per language: clothing-style sizing initials.
+           * EN: S/M/L (Small/Medium/Large) — universal.
+           * FR: P/M/G (Petit/Moyen/Grand).
+           * ES: P/M/G (Pequeño/Mediano/Grande). */
+          options={lang === "fr" || lang === "es"
+            ? [{ v: "s", l: "P" }, { v: "m", l: "M" }, { v: "l", l: "G" }]
+            : [{ v: "s", l: "S" }, { v: "m", l: "M" }, { v: "l", l: "L" }]}
           value={fontSize || "m"}
           onChange={saveFontSize}
         />
