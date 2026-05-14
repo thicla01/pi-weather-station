@@ -321,7 +321,23 @@
 @media (min-width: 640px) {
   .gridTwo {
     grid-template-columns: 1fr 1fr;
-    gap: 0 24px;
+    /* Was 24 px column-gap — wasted horizontal real estate at the
+     * boosted panel zoom (2.14.18 = 1.32× effective at L). Tight 12 px
+     * keeps the two columns visually distinct without padding the
+     * About / Server values off-screen. */
+    gap: 0 12px;
+  }
+}
+
+/* Container-query fallback: if the bucket is too narrow for two
+ * comfortable columns (less than ~360 px after the font boost), fall
+ * back to a single column. Container queries respond to the bucket's
+ * own width, not the viewport — so a pinned-About bucket on a
+ * narrow desktop with two stacked columns still gets the right
+ * shape. */
+@container (max-width: 360px) {
+  .gridTwo {
+    grid-template-columns: 1fr;
   }
 }
 
@@ -367,7 +383,13 @@
   letter-spacing: 0.8px;
   text-transform: uppercase;
   color: var(--c-text-dim);
-  min-width: 110px;
+  /* Was 110 px — at the boosted panel zoom (1.32 × at L) that became
+   * ~145 px, so short keys like `os` / `init` / `branch` were padded
+   * out and pushed values toward the column edge. 80 px is the
+   * tightest the longest realistic French label (`disponibilité` etc.)
+   * needs to render without wrapping. Flex layout still grows the
+   * column as needed for translated long labels via flex-shrink 0. */
+  min-width: 80px;
   flex-shrink: 0;
 }
 

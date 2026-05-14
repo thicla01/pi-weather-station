@@ -19,6 +19,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.19] - 2026-05-14
+
+### Fixed
+- **v3 DebugPanel — content no longer overflows the viewport at boosted zoom** — 2.14.18's panel font boost (1.32× at L) made `.kvKey min-width: 110 px` effective ~145 px, padding short labels out and pushing the "About this build" right column off-screen. Reduced `min-width` to 80 px (tight on the longest realistic localised key) and tightened the `gridTwo` column gap from 24 → 12 px. Added a container-query fallback that drops `gridTwo` to single column under 360 px bucket width, so dense buckets stay readable when stacked two-up at narrow desktop widths.
+- **v3 SettingsPanel — Save button always fires when clicked** — the button's `disabled` attribute used to gate on `isDirty` (no edits → no save). Users reported "no visual feedback" on click after the panel font boost made the button look the same in both states. Now the button stays enabled whenever a save is possible (local mode + saveSettingsToJson available + not already in-flight). A no-op save still flashes "✓ Saved" so the user knows the click registered; server-side the save is idempotent.
+- **v3 DebugPanel — section titles + bucket labels translated** — user reported a French-mode panel mixing FR overlay chrome with EN bucket content. Localised the five bucket labels (`Server` → `Serveur`, `About` → `À propos`, etc.) and the dozen most-visible section titles (`Server config`, `Network`, `Update check`, `Vulnerability scan`, etc.) into FR/ES alongside EN. KV row keys (uptime, rss, heap used, etc.) stay English on purpose — they're shared technical vocabulary and translating them would noise up the dense table without helping readers.
+
+---
+
 ## [2.14.18] - 2026-05-14
 
 ### Changed

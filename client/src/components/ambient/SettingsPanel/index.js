@@ -321,16 +321,13 @@ const SectionConfig = ({ ctx, lang, remote }) => {
     }));
   }, [mapApiKey, weatherApiKey, reverseGeoApiKey, anthropicApiKey, airNowApiKey, openAqApiKey, customLat, customLon]);
 
-  const isDirty = (
-    draft.mapApiKey !== (mapApiKey || "") ||
-    draft.weatherApiKey !== (weatherApiKey || "") ||
-    draft.reverseGeoApiKey !== (reverseGeoApiKey || "") ||
-    draft.anthropicApiKey !== (anthropicApiKey || "") ||
-    draft.airNowApiKey !== (airNowApiKey || "") ||
-    draft.openAqApiKey !== (openAqApiKey || "") ||
-    draft.customLat !== (customLat != null ? String(customLat) : "") ||
-    draft.customLon !== (customLon != null ? String(customLon) : "")
-  );
+  // `isDirty` used to gate the Save button's disabled attribute, but
+  // it caused the "Save click does nothing" UX bug — the button looked
+  // identical to enabled state in nightRed mode at boosted zoom, but
+  // didn't react because nothing had been edited yet. Save is now
+  // unconditionally available in local mode (idempotent on the server),
+  // so the dirty check is no longer required. Kept as a comment marker
+  // in case a future "only save when changed" UI brings it back.
 
   const updateDraft = (key) => (value) => {
     setDraft((prev) => ({ ...prev, [key]: value }));
@@ -342,7 +339,16 @@ const SectionConfig = ({ ctx, lang, remote }) => {
   };
 
   const onSave = () => {
-    if (!isDirty || typeof saveSettingsToJson !== "function" || remote) return;
+    // Always run when called — the button's `disabled` attribute used
+    // to gate on `isDirty`, but the user reported "no visual feedback"
+    // on Save click (2.14.18). Most likely the button looked clickable
+    // but was actually disabled because nothing had changed yet. Now
+    // the button stays enabled whenever a save is possible (local mode
+    // + saveSettingsToJson available + not already saving), and a
+    // no-op save still flashes "✓ Saved" so the user knows the click
+    // was acknowledged. Server-side this is idempotent — same values
+    // produce the same persisted state.
+    if (typeof saveSettingsToJson !== "function" || remote || saveState === "saving") return;
     setSaveState("saving");
     setSaveError(null);
     saveSettingsToJson({
@@ -486,7 +492,7 @@ const SectionConfig = ({ ctx, lang, remote }) => {
             type="button"
             className={styles.saveButton}
             onClick={onSave}
-            disabled={!isDirty || saveState === "saving"}
+            disabled={saveState === "saving" || remote}
           >
             {saveState === "saving"
               ? (lang === "fr" ? "Enregistrement…" : "Saving…")
