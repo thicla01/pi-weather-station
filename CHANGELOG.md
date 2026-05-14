@@ -19,6 +19,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.4] - 2026-05-13
+
+### Fixed
+- **v3 DailyForecastColumns — weather icons now render** — the column strip was correctly receiving `weatherCodeMax` from the server (curl-confirmed against `/api/weather/daily`), `parseWeatherCode` returned the expected `{icon, descKey}` object, but the icon never appeared. Root cause: the `.iconRow` CSS shipped in 2.14.2 was a `display: flex; height: 32px` container with `font-size: 28px`, and Iconify's `InlineIcon` was getting starved of vertical room by the parent flex computation. Switched to the same context HeroCompact uses successfully — block-level `font-size: 30px`, `line-height: 1`, no flex on the parent. SVG renders as expected at all five columns.
+
+---
+
 ## [2.14.3] - 2026-05-13
 
 ### Changed

@@ -32,23 +32,20 @@
   color: var(--c-text-dim);
 }
 
+/* Icon block — sized identically to HeroCompact's `.iconBlock` so the
+ * Iconify wrapper inherits a known-good context (font-size sets the
+ * 1em-relative SVG, line-height: 1 prevents the parent's baseline
+ * leading from pushing the SVG out of the column). Pretty much the
+ * minimum container InlineIcon needs to render. */
 .iconRow {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 32px;
-  /* The day-night icons from @iconify/icons-wi render at the chosen
-   * font-size; pick a size that reads clearly at 7" viewing
-   * distance without dominating the column. */
-  font-size: 28px;
+  font-size: 30px;
   color: var(--c-accent);
-}
-
-.icon {
-  /* Inherit colour + sizing from .iconRow. Explicit declaration
-   * here keeps the iconify wrapper from forcing 1em. */
-  width: 1em;
-  height: 1em;
+  line-height: 1;
+  text-align: center;
+  /* Reserve vertical space so columns with no icon (Tomorrow.io's
+   * `weatherCodeMax` is null on edge-case days, e.g. fully missing
+   * forecasts) still align tops with the icon-bearing columns. */
+  min-height: 30px;
 }
 
 .iconPlaceholder {

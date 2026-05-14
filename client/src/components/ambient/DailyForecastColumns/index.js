@@ -85,7 +85,7 @@ const DailyForecastColumns = () => {
             <div className={styles.day}>{dayLabel}</div>
             <div className={styles.iconRow}>
               {icon ? (
-                <InlineIcon icon={icon} className={styles.icon} />
+                <InlineIcon icon={icon} />
               ) : (
                 <span className={styles.iconPlaceholder}>—</span>
               )}
