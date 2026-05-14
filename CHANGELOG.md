@@ -19,6 +19,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.26] - 2026-05-15
+
+### Changed
+- **v3 DebugPanel — "Install update…" button and `needsManualUpgrade` notice translated** — surfaced from the About bucket's Update check section only when an update is available, the install CTA was rendered in English in every locale. Now reads `Installer la mise à jour…` (FR) / `Instalar actualización…` (ES). The fallback "This install is too old for the in-app updater. Run `bash deploy/install.sh` on the device to upgrade." message (shown when `needsManualUpgrade` is set, e.g. pre-v2.4.1 installs) is also fully localised in FR + ES around the unchanged shell-command code block.
+
+---
+
 ## [2.14.25] - 2026-05-15
 
 ### Changed

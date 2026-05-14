@@ -1177,9 +1177,17 @@ const BucketAbout = ({ data, lang }) => {
         <div className={styles.updateActionRow}>
           {needsManualUpgrade ? (
             <p className={styles.updateNote}>
-              This install is too old for the in-app updater. Run
+              {lbl(lang,
+                "This install is too old for the in-app updater. Run",
+                "Cette installation est trop ancienne pour la mise à jour in-app. Lancez",
+                "Esta instalación es demasiado antigua para el actualizador in-app. Ejecuta"
+              )}
               <code> bash deploy/install.sh </code>
-              on the device to upgrade.
+              {lbl(lang,
+                "on the device to upgrade.",
+                "sur l'appareil pour mettre à jour.",
+                "en el dispositivo para actualizar."
+              )}
             </p>
           ) : (
             <button
@@ -1195,7 +1203,7 @@ const BucketAbout = ({ data, lang }) => {
               }}
             >
               <InlineIcon icon={upgradeIcon} />
-              <span>Install update…</span>
+              <span>{lbl(lang, "Install update…", "Installer la mise à jour…", "Instalar actualización…")}</span>
             </button>
           )}
         </div>
