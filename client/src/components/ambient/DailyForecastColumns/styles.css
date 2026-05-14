@@ -39,13 +39,19 @@
  * minimum container InlineIcon needs to render. */
 .iconRow {
   font-size: 30px;
-  color: var(--c-accent);
+  /* Was var(--c-accent) — switched to var(--c-text) after the icons
+   * remained invisible even with the HeroCompact-mirrored container
+   * shape. The active palette's accent token can land close to the
+   * surface fill on some palette/dark-mode combinations, which would
+   * read as "icon not rendering" even when the SVG paints. Text is
+   * the high-contrast token, guaranteed visible on every palette. */
+  color: var(--c-text);
   line-height: 1;
   text-align: center;
-  /* Reserve vertical space so columns with no icon (Tomorrow.io's
-   * `weatherCodeMax` is null on edge-case days, e.g. fully missing
-   * forecasts) still align tops with the icon-bearing columns. */
   min-height: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .iconPlaceholder {

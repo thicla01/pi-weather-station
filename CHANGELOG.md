@@ -19,6 +19,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.5] - 2026-05-13
+
+### Fixed
+- **v3 DailyForecastColumns — second pass on the missing icons** — 2.14.4's container shape fix (block-level, `font-size`-driven, mirroring HeroCompact) didn't move the needle for the user. Two changes that should: explicit `width={30} height={30}` props on `<InlineIcon>` so the SVG sizes off pixels rather than the 1em-relative font-size cascade, and switched the colour token from `var(--c-accent)` to `var(--c-text)` — the active palette's accent can sit close to the surface fill on some dark-mode combinations, and `--c-text` is the guaranteed-contrast token. The placeholder when the icon is falsy now shows `code N` (the numeric Tomorrow.io code) instead of just `—`, so a future debug round can distinguish "data not arriving" from "data arrived but icon not rendering" at a glance.
+
+---
+
 ## [2.14.4] - 2026-05-13
 
 ### Fixed

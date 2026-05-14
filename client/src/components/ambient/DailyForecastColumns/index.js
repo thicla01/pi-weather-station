@@ -84,10 +84,24 @@ const DailyForecastColumns = () => {
           <div key={i} className={styles.column} role="listitem">
             <div className={styles.day}>{dayLabel}</div>
             <div className={styles.iconRow}>
+              {/* Explicit pixel sizing + currentColor on the SVG to
+               * rule out any ambient font-size / line-height / flex
+               * interaction. Iconify's `style` prop wins over the
+               * 1em-based defaults. Diagnostic fallback below: if
+               * `icon` is truthy but the SVG still doesn't paint, the
+               * numeric weather code shows so we know whether the
+               * problem is rendering or data. */}
               {icon ? (
-                <InlineIcon icon={icon} />
+                <InlineIcon
+                  icon={icon}
+                  width={30}
+                  height={30}
+                  style={{ color: "currentColor" }}
+                />
               ) : (
-                <span className={styles.iconPlaceholder}>—</span>
+                <span className={styles.iconPlaceholder}>
+                  {code != null ? `code ${code}` : "—"}
+                </span>
               )}
             </div>
             <div className={styles.tempMax}>
