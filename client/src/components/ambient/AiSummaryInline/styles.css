@@ -34,18 +34,16 @@
   z-index: 5;
   max-height: none;
   min-height: 0;
-  /* Bump opacity in maximize mode — `--c-surface` (the rest-state
-   * fill) sits at ~85% opacity to let the radar bleed through the
-   * slab, which is the right call when the slab floats above the
-   * map. In maximize mode the slab covers MetricsGrid + ChartTabs,
-   * not the map, so the underlying tiles would read as visual
-   * noise. `--c-surfaceHybrid` (96 %) is the token built for this
-   * exact use case (originally for severe-alert "hybrid" mode);
-   * reusing it here keeps the palette consistent. The 6 px
-   * backdrop blur is belt-and-braces — it cleans up whatever
-   * residual transparency remains so the AI text reads on a
-   * uniform, calm backdrop. */
-  background-color: var(--c-surfaceHybrid);
+  /* Fully opaque fill in maximize mode. `--c-surface` (rest state)
+   * sits at 85 % so the slab reads as a translucent layer over the
+   * radar. `--c-surfaceHybrid` (96 %) wasn't enough either — the
+   * residual 4 % transparency was still picking up white-sky /
+   * yellow-rain / dark-water patches from the map in light mode,
+   * making the AI text's contrast inconsistent line by line.
+   * `--c-bg` is the only token guaranteed 100 % opaque on every
+   * palette, so use it for maximize. The blur stays as a safety
+   * net in case `--c-bg` is ever redefined with transparency. */
+  background-color: var(--c-bg);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);
 }

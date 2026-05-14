@@ -19,6 +19,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.8] - 2026-05-14
+
+### Fixed
+- **v3 AiSummaryInline — maximize mode now fully opaque** — `--c-surfaceHybrid` (96 %) from 2.14.7 wasn't enough: the residual 4 % transparency was still picking up white-sky / yellow-rain / dark-water patches from the map in light mode, making the AI text's contrast inconsistent line by line. Switched to `--c-bg` (the only palette token guaranteed 100 % opaque on every mode). The backdrop blur stays as a safety net.
+
+---
+
 ## [2.14.7] - 2026-05-14
 
 ### Changed
