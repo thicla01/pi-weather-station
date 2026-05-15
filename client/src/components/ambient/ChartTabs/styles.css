@@ -227,7 +227,13 @@
   min-height: 20px;
 }
 
-.dot {
+/* Specificity note (v2.14.52 fix): selectors below use the parent
+ * `.cycleDots` to bump specificity to (0,2,0), which beats the
+ * `.ambientRoot button` reset in ui/reset.css (0,1,1). Without this,
+ * the reset's `background: transparent; border: 0` wins over the
+ * module's `.dot` rule (0,1,0) and the dots render as invisible
+ * 0-sized buttons — exactly what the user reported. */
+.cycleDots .dot {
   width: 12px;
   height: 12px;
   padding: 0;
@@ -248,17 +254,17 @@
   transition: background-color 120ms ease-out, border-color 120ms ease-out, transform 120ms ease-out;
 }
 
-.dot:hover {
+.cycleDots .dot:hover {
   background-color: var(--c-text);
   border-color: var(--c-text);
 }
 
-.dot:focus-visible {
+.cycleDots .dot:focus-visible {
   outline: 2px dashed var(--c-text);
   outline-offset: 3px;
 }
 
-.dotActive {
+.cycleDots .dotActive {
   background-color: var(--c-accent);
   border-color: var(--c-accent);
   transform: scale(1.25);

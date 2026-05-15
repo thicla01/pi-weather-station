@@ -89,9 +89,20 @@ const DAILY_FIELDS_HASH = hashFields(DAILY_FIELDS);
 
 const CACHE_FILE = path.join(__dirname, "weather-cache.json");
 
+// How long past `expiresAt` we keep an entry around for stale-on-error
+// fallback. When the upstream API returns 4xx/5xx/timeout we serve the
+// last known good payload instead of error-ing the client, but only if
+// that payload isn't ancient — 24 h is a deliberately generous bound:
+// long enough to survive overnight outages and quota refresh windows
+// (Tomorrow.io's free tier resets every 24 h) but short enough that
+// "yesterday's weather" never gets shown as today's. After this window
+// the entry is treated as if it didn't exist at all.
+const MAX_STALE_MS = 24 * 60 * 60 * 1000;
+
 const weatherCache = {};
 let cacheHits = 0;
 let cacheMisses = 0;
+let staleServed = 0;
 
 function loadCacheFromDisk() {
   try {
@@ -112,7 +123,13 @@ function loadCacheFromDisk() {
         skipped++;
         continue;
       }
-      if (entry.expiresAt > now) {
+      // Load entries that are either still fresh OR within the stale
+      // recovery window. The stale ones aren't served by `getFromCache`
+      // — they're only available via `getStaleFromCache` as a last-
+      // resort fallback when an upstream fetch fails (rate limit, net
+      // error, timeout). This is what makes the cache survive a Pi
+      // restart during a Tomorrow.io 429 storm.
+      if (entry.expiresAt > now - MAX_STALE_MS) {
         weatherCache[key] = entry;
         loaded++;
       }
@@ -128,8 +145,13 @@ function saveCacheToDisk() {
   try {
     const now = Date.now();
     const toSave = {};
+    // Same generosity as loadCacheFromDisk — persist entries within the
+    // stale window so a daemon restart doesn't throw away the stale
+    // fallback. Anything older than MAX_STALE_MS past expiry is
+    // genuinely useless and gets pruned at save time, which is how the
+    // file stays bounded.
     for (const [key, entry] of Object.entries(weatherCache)) {
-      if (entry.expiresAt > now) toSave[key] = entry;
+      if (entry.expiresAt > now - MAX_STALE_MS) toSave[key] = entry;
     }
     fs.writeFileSync(CACHE_FILE, JSON.stringify(toSave), "utf8");
   } catch (err) {
@@ -159,7 +181,12 @@ function getFromCache(key) {
     return null;
   }
   if (Date.now() > entry.expiresAt) {
-    delete weatherCache[key];
+    // No longer delete on expiry — keep the entry around for up to
+    // MAX_STALE_MS so `getStaleFromCache` can serve it as a fallback
+    // when an upstream fetch fails. The next save-to-disk pass will
+    // either re-persist it (if still within the stale window) or
+    // drop it (if it's truly ancient). saveCacheToDisk handles the
+    // bounded-growth guarantee.
     cacheMisses++;
     console.log(`[cache] EXPIRED ${key}`);
     return null;
@@ -170,12 +197,44 @@ function getFromCache(key) {
   return entry.data;
 }
 
+/**
+ * Stale-on-error lookup: returns a cached entry even if past its
+ * `expiresAt`, as long as it's within the MAX_STALE_MS recovery
+ * window. Used by the three Tomorrow.io fetch endpoints as a fallback
+ * when the upstream call fails (429 rate-limit, network error,
+ * timeout) — instead of returning an error to the client we hand back
+ * the last known good payload, so the UI keeps reading rather than
+ * blanking to "—". Returns `null` if no entry exists or it's beyond
+ * the stale window.
+ *
+ * Tracked separately from regular hits/misses via `staleServed` so the
+ * debug panel can surface how often we're falling back to stale data
+ * (a useful signal when investigating fleet-wide quota pressure).
+ *
+ * @param {string} key cache key (`type:fieldsHash:lat:lon`)
+ * @returns {*|null} the cached `data` payload, or null
+ */
+function getStaleFromCache(key) {
+  const entry = weatherCache[key];
+  if (!entry) return null;
+  const ageMs = Date.now() - entry.expiresAt;
+  if (ageMs > MAX_STALE_MS) return null;
+  staleServed++;
+  const ageMin = Math.round(ageMs / 1000 / 60);
+  console.log(`[cache] STALE  ${key} (${ageMin}m past expiry)`);
+  return entry.data;
+}
+
 function getCacheStats() {
   const total = cacheHits + cacheMisses;
   return {
     hits: cacheHits,
     misses: cacheMisses,
     rate: total > 0 ? Math.round((100 * cacheHits) / total) : null,
+    // Number of times a stale entry was served as fallback after an
+    // upstream fetch failed (rate-limit, network error, timeout). High
+    // values indicate fleet-wide quota pressure or upstream instability.
+    staleServed,
   };
 }
 
@@ -342,6 +401,14 @@ async function weatherCurrent(req, res) {
     const message = err?.response?.data?.message || err?.response?.data || "Weather request failed";
     increment("tomorrow.io", "current");
     recordServiceCall("Tomorrow.io (current)", status, String(message).slice(0, 100));
+    // Stale-on-error: if a past payload is within the recovery window
+    // (24 h), serve it instead of erroring. The serviceStatus row above
+    // still records the upstream failure so the debug panel reflects
+    // reality; the user just doesn't see the UI blank to "—". Returns
+    // 200 because the response carries real data — clients can treat
+    // it as fresh for charting purposes.
+    const stale = getStaleFromCache(cacheKey);
+    if (stale) return res.status(200).json(stale).end();
     return res.status(status).json(message).end();
   }
 }
@@ -395,6 +462,9 @@ async function weatherHourly(req, res) {
     const message = err?.response?.data?.message || err?.response?.data || "Weather request failed";
     increment("tomorrow.io", "hourly");
     recordServiceCall("Tomorrow.io (hourly)", status, String(message).slice(0, 100));
+    // Stale-on-error fallback — see weatherCurrent for the rationale.
+    const stale = getStaleFromCache(cacheKey);
+    if (stale) return res.status(200).json(stale).end();
     return res.status(status).json(message).end();
   }
 }
@@ -448,6 +518,9 @@ async function weatherDaily(req, res) {
     const message = err?.response?.data?.message || err?.response?.data || "Weather request failed";
     increment("tomorrow.io", "daily");
     recordServiceCall("Tomorrow.io (daily)", status, String(message).slice(0, 100));
+    // Stale-on-error fallback — see weatherCurrent for the rationale.
+    const stale = getStaleFromCache(cacheKey);
+    if (stale) return res.status(200).json(stale).end();
     return res.status(status).json(message).end();
   }
 }

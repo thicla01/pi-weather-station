@@ -5,6 +5,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.52] - 2026-05-15
+
+### Added
+- **Stale-on-error fallback for Tomorrow.io weather endpoints** — User report after a fleet-wide Tomorrow.io 429 storm: "the UI blanks to —". When `weatherCurrent` / `weatherHourly` / `weatherDaily` fail (429 rate-limit, network error, timeout) the proxy now checks `getStaleFromCache(key)` and, if a past payload is within a 24 h recovery window (`MAX_STALE_MS`), serves it back as a 200 response instead of bubbling the error to the client. The serviceStatus row still records the upstream failure so the debug panel reflects reality; the user just doesn't see a blank.
+  - `getFromCache` no longer deletes entries on expiry (kept around for the stale lookup).
+  - `loadCacheFromDisk` and `saveCacheToDisk` accept entries up to 24 h past their expiry so the recovery window survives a daemon restart.
+  - `staleServed` counter added to `getCacheStats()` — surfaced in the debug panel as a signal of fleet-wide quota pressure.
+
+### Fixed
+- **ChartTabs cycle dots — actually invisible because of CSS reset** — Three rounds of trying to fix dot visibility (v2.14.40, v2.14.50, v2.14.51) all kept failing for the same hidden reason: `client/src/ui/reset.css` ships a `.ambientRoot button { background: transparent; border: 0; padding: 0 }` rule whose specificity (0,1,1) BEATS the CSS-module `.dot` rule (0,1,0). Every `background-color` and `border` declared on `.dot` was silently wiped by the reset — leaving 0-sized invisible buttons. Bumped the dot selectors to `.cycleDots .dot` / `.cycleDots .dotActive` (0,2,0) so they win the cascade. The visible-from-the-start text label sat right next to the invisible dots, which is why the row was rendered but the dots themselves looked missing.
+- **i18n — missing English chart view labels** — Side-by-side test of localhost macOS (English) and remote Pi (French) revealed the macOS instance was displaying raw i18n keys: `charts.viewdailycolumns` (lowercased by CSS) under the chart card instead of the translated label. Root cause: when the new view-cycle keys were added in v2.14.40 the Edit on `en.json` errored out silently and was never retried, so only `fr.json` and `es.json` got the six new strings. Filled in the missing English entries — every locale now has the same key set.
+
+---
+
 ## [2.14.51] - 2026-05-15
 
 ### Fixed
