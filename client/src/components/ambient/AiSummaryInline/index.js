@@ -123,7 +123,11 @@ const AiSummaryInline = () => {
   if (!available || !summary) return null;
 
   return (
-    <div ref={slabRef} className={`${styles.slab} ${maximized ? styles.slabMaximized : ""}`}>
+    <div
+      ref={slabRef}
+      className={`${styles.slab} ${maximized ? styles.slabMaximized : ""}`}
+      data-ai-maximized={maximized ? "true" : undefined}
+    >
       <div className={styles.header}>
         <span className={styles.label}>{LABEL[lang] || LABEL.en}</span>
         <button

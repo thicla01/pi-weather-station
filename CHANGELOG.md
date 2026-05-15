@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.47] - 2026-05-15
+
+### Changed
+- **AiSummaryInline maximize — rail widens on both layouts** — Same affordance ChartTabs got in v2.14.46. When the AI summary slab is maximized it now emits `data-ai-maximized="true"` on its root, and both `LayoutPi` and `LayoutDesktop` have their existing `:has` rules extended (comma-separated selector) to match either `data-chart-maximized` or `data-ai-maximized`. Result: opening the AI summary in maximized mode widens the rail to `min(60vw, 600px)` on LayoutPi and `min(60vw, 960px)` on LayoutDesktop, so the user can read the full three paragraphs (current conditions / period forecast / radar analysis) without scrolling on the 7" kiosk.
+
+  Distinct attribute names per slab (`data-chart-maximized` vs `data-ai-maximized`) instead of a shared `data-slab-maximized` because other rules need to target the slabs individually — `HourlyForecastColumns`'s `.expanded` typography only fires on the chart-maximized state, not the AI one.
+
+---
+
 ## [2.14.46] - 2026-05-15
 
 ### Changed

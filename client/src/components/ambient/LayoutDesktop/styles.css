@@ -24,21 +24,29 @@
   }
 }
 
-/* Expandable ChartTabs (v2.14.39, widened in v2.14.44) — when the chart
- * slab in the rail emits `data-chart-maximized="true"`, grow the rail
- * width so the chart canvas has more of the viewport to work with. The
- * HeroBand's `right` offset already references `--c-rail-width` via
- * `calc()` and transitions on it (200 ms ease-out), so changing this
- * single variable smoothly pushes the band leftward and pulls the
- * rail+chevron toward the centre.
+/* Expandable rail (v2.14.39 ChartTabs, v2.14.47 AiSummaryInline) — when
+ * either of the two maximizable slabs in the rail emits its
+ * `data-{slab}-maximized="true"` flag, grow the rail width so the
+ * promoted slab has more of the viewport to work with. The HeroBand's
+ * `right` offset already references `--c-rail-width` via `calc()` and
+ * transitions on it (200 ms ease-out), so changing this single variable
+ * smoothly pushes the band leftward and pulls the rail+chevron toward
+ * the centre.
  *
  * Cap (`min(60vw, 960px)`) keeps the rail from getting absurdly wide on
  * 4K/ultra-wide monitors but still pushes well past 50 % on mid-range
  * displays — at 1920 px wide the rail reaches 960 px (50 %), at 2560 px
  * it stays capped at 960 px (37 %), and at 1280 px it reaches 768 px
  * (60 %). Past ~960 px the chart axis labels read fine and extra width
- * just stretches the canvas without adding information density. */
-.layout:has([data-chart-maximized="true"]) {
+ * just stretches the canvas without adding information density.
+ *
+ * Each maximizable slab uses its OWN data attribute (chart vs ai) rather
+ * than a shared `data-slab-maximized` so other rules can target the
+ * specific slab — e.g. ChartTabs's `.expanded` typography only fires on
+ * `[data-chart-maximized="true"]`. The rail-width grow rule below
+ * intentionally matches either via a comma-separated selector. */
+.layout:has([data-chart-maximized="true"]),
+.layout:has([data-ai-maximized="true"]) {
   --c-rail-width: min(60vw, 960px);
 }
 
