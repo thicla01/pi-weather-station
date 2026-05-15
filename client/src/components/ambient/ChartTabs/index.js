@@ -136,6 +136,17 @@ const ChartTabs = () => {
     ? { temp: "charts.viewTempPrecip", wind: "charts.viewWindPrecip", columns: "charts.viewHourlyColumns" }[activeView]
     : { temp: "charts.viewTempPrecip", wind: "charts.viewWindPrecip", columns: "charts.viewDailyColumns" }[activeView];
 
+  // The line-chart views render a 2-series graph (grey for temp/wind,
+  // blue for precipitation) but the Chart.js native legend is disabled
+  // for vertical-space reasons. Surface a small custom legend above the
+  // canvas so users can map colours to meaning without guessing.
+  // Hidden for the columns view (its icons + temp/precip labels are
+  // self-descriptive). Mirrors the v2 InfoPanel pattern.
+  const showLegend = activeView !== "columns";
+  const mainSeriesLabel = activeView === "wind"
+    ? t("charts.windSpeed", { defaultValue: "Wind" })
+    : t("charts.temp", { defaultValue: "Temp" });
+
   if (tab === "hourly") {
     if (activeView === "columns") {
       chartBody = (
@@ -194,6 +205,18 @@ const ChartTabs = () => {
           <InlineIcon icon={maximized ? minimize : maximize} className={styles.actionIcon} />
         </button>
       </div>
+      {showLegend ? (
+        <div className={styles.legendRow} aria-hidden="true">
+          <span className={styles.legendItem}>
+            <span className={`${styles.legendDot} ${styles.legendDotMain}`} />
+            {mainSeriesLabel}
+          </span>
+          <span className={styles.legendItem}>
+            <span className={`${styles.legendDot} ${styles.legendDotPrecip}`} />
+            {t("charts.precipitation", { defaultValue: "Precipitation" })}
+          </span>
+        </div>
+      ) : null}
       <div className={styles.chartArea}>{chartBody}</div>
       <div
         className={styles.cycleDots}

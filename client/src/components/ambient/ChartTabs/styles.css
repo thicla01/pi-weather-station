@@ -104,6 +104,51 @@
   filter: brightness(1.08);
 }
 
+/* Small custom legend row above the chart canvas. The Chart.js
+ * native legend is disabled (we render the title there instead and
+ * vertical space is scarce in compact mode), so the colour key for
+ * the two-series line charts is supplied by this row. Hidden for
+ * the columns view via the `showLegend` flag in ChartTabs's JSX. */
+.legendRow {
+  display: flex;
+  justify-content: center;
+  gap: 14px;
+  margin: 4px 0 6px 0;
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--c-text-dim);
+  letter-spacing: 0.2px;
+}
+
+.legendItem {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.legendDot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 50%;
+}
+
+/* Colours match the Chart.js dataset borderColor/backgroundColor in
+ * HourlyChart / DailyChart (see chartColors in their respective
+ * common.js / index.js — grey for temp / wind, blue for precip).
+ * Hard-coded RGB matches the rgba(.., 0.5) lines visually at 1.0
+ * alpha; if those line colours ever change, sync the dot here.
+ *
+ * Note: opaque (no alpha) since the dot is small enough that
+ * transparency over the slab surface would wash it out. */
+.legendDotMain {
+  background-color: rgb(127, 127, 127);
+}
+
+.legendDotPrecip {
+  background-color: rgb(63, 127, 191);
+}
+
 .chartArea {
   height: 140px;
   position: relative;

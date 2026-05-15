@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.49] - 2026-05-15
+
+### Added
+- **ChartTabs — chart legend restored** — User feedback: the two-line graphs (grey + blue) had no colour key in v3 `ChartTabs`. The Chart.js native legend stays disabled (vertical space is scarce in compact mode, and the canvas title sits where the legend would go), so a small custom legend row now renders above the chart with two dots and labels — grey for « Température » / « Vent », blue for « Précipitations », keyed off the active view. Visible only for the line-chart views (`temp` / `wind`); hidden for the columns view since the icons + temperature labels there are self-descriptive. Mirrors the v2 `WeatherInfo` `ChartLegend` pattern.
+
+---
+
 ## [2.14.48] - 2026-05-15
 
 ### Fixed
