@@ -5,6 +5,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.30] - 2026-05-14
+
+### Fixed
+- **v3 DebugPanel — responsive layout for 7" kiosk (800×480)** — Several layout issues appeared when viewing the v3 Debug panel at the Raspberry Pi 7" touchscreen resolution:
+  - **Zoom cap**: The panel-boost zoom (1.15–1.32×) applied to a `position: fixed; inset: 0` overlay compresses the effective viewport, pushing rail chips out of view. Capped at `zoom: 1` when `max-height ≤ 520 px` (the kiosk detection threshold).
+  - **Header — icon-only buttons**: Action buttons ("Refresh", "Export CSV", "Check update") showed icon + text label at 800 px, consuming ~220 px of header width and causing the header row to overflow. At `max-height ≤ 520 px`, the text labels are now hidden (`display: none`) via `.actionLabel`; button padding tightened. The `title` attribute on each button preserves accessibility.
+  - **Rail chips — compact size**: The 96 px rail and 10 px chip padding were too large at 800 × 480. Under the compact breakpoint the rail narrows to 76 px, chips use tighter padding (7 px 2 px), and icon/label sizes are reduced (18 px / 8 px) so all 5 tabs fit without vertical overflow.
+  - **gridTwo wrapping on VERSION**: `@container (min-width: 800px)` split the KV grid into two columns at the kiosk width, halving each column to ~328 px. Long values like "pi-weather-station v2.14.27 · 7de9b57" then wrapped on every hyphen — five-line VERSION rows. Replaced the container query (and the `container-type: inline-size` it required on `.bucket`) with `@media (min-width: 1080px)` — the kiosk stays single-column, standard desktop displays get the two-column layout.
+  - **kvValue hyphen-wrapping**: CSS's default word-break treats hyphens as break opportunities, so "pi-weather-station" was three lines. Added `white-space: nowrap; overflow: hidden; text-overflow: ellipsis` to `.kvValue`.
+  - **RÉSEAU URLs wrapping to 3 lines**: `container-type: inline-size` on `.bucket` triggers a Chrome layout bug where block children cannot stretch to the parent's width (their intrinsic inline size resolves to ~0). Both `width: 100%` and `display: flex → block` rewrites on `.netList`/`.netUrl` were ineffective while the containment was in place. Removing `container-type` and switching to viewport media queries fixed the rendering immediately.
+  - **gridQuota columns**: Quota grid now uses `@media (min-width: 700px)` for 3-col and `@media (min-width: 1400px)` for 4-col, replacing the `@container` rules that depended on the removed containment.
+  - **Pane padding**: Reduced content-pane padding under the compact breakpoint (10 px top, 12 px sides, 16 px bottom) to free more usable area for bucket content.
+
+---
+
 ## [2.14.29] - 2026-05-15
 
 ### Changed

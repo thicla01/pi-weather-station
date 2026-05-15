@@ -185,7 +185,14 @@ const DebugPanel = () => {
     // `.ambientRoot` and so doesn't see the `--c-font-scale` cascade.
     // Uses the panel-boosted resolver so the dense bucket grid lands
     // one notch above the main UI scale (current L → new S).
-    zoom: resolvePanelFontSizeZoom(fontSize),
+    // On small screens (≤ 520 px height, i.e. the 7" Pi kiosk) the
+    // panel-boost zoom is skipped: applying 1.15–1.32× to a
+    // `position: fixed; inset: 0` overlay compresses the effective
+    // viewport, making the rail chips overflow vertically and the
+    // header buttons wrap. Space wins over font size on the kiosk.
+    zoom: window.matchMedia("(max-height: 520px)").matches
+      ? 1
+      : resolvePanelFontSizeZoom(fontSize),
   };
 
   return (
@@ -198,9 +205,12 @@ const DebugPanel = () => {
             className={styles.actionButton}
             onClick={fetchDebug}
             disabled={loading}
+            title={loading
+              ? t("debug.loading", { defaultValue: "Loading…" })
+              : t("debug.refresh", { defaultValue: "Refresh" })}
           >
             <InlineIcon icon={refreshIcon} />
-            <span>{loading
+            <span className={styles.actionLabel}>{loading
               ? t("debug.loading", { defaultValue: "Loading…" })
               : t("debug.refresh", { defaultValue: "Refresh" })}</span>
           </button>
@@ -208,6 +218,7 @@ const DebugPanel = () => {
             type="button"
             className={styles.actionButton}
             disabled={!data}
+            title={t("debug.exportCsv", { defaultValue: "Export CSV" })}
             onClick={() => {
               if (!data) return;
               // exportDebugCsv reads `clientMetrics` and `fps`; both are
@@ -220,12 +231,15 @@ const DebugPanel = () => {
             }}
           >
             <InlineIcon icon={downloadIcon} />
-            <span>{t("debug.exportCsv", { defaultValue: "Export CSV" })}</span>
+            <span className={styles.actionLabel}>{t("debug.exportCsv", { defaultValue: "Export CSV" })}</span>
           </button>
           <button
             type="button"
             className={styles.actionButton}
             disabled={checkingUpdate || typeof refreshUpdateCheck !== "function"}
+            title={checkingUpdate
+              ? t("debug.checking", { defaultValue: "Checking…" })
+              : t("debug.checkUpdate", { defaultValue: "Check update" })}
             onClick={() => {
               if (typeof refreshUpdateCheck !== "function") return;
               setCheckingUpdate(true);
@@ -239,7 +253,7 @@ const DebugPanel = () => {
             }}
           >
             <InlineIcon icon={upgradeIcon} />
-            <span>{checkingUpdate
+            <span className={styles.actionLabel}>{checkingUpdate
               ? t("debug.checking", { defaultValue: "Checking…" })
               : t("debug.checkUpdate", { defaultValue: "Check update" })}</span>
           </button>

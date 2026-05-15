@@ -114,6 +114,57 @@
   }
 }
 
+/* ── Small-screen (7" kiosk, max-height: 520px) compact mode ──────
+ * The overlay has zoom:1 on this form factor (JS-gated, see
+ * DebugPanel/index.js) so pixel values here are true CSS pixels.
+ * Goal: fit the full panel — header + rail chips + content — into
+ * 480 px height without vertical overflow or horizontal crowding. */
+@media (max-height: 520px) {
+  /* Tighter header — drop vertical padding, keep label + buttons legible. */
+  .header {
+    padding: 8px 12px;
+  }
+
+  /* Icon-only action buttons — text labels are hidden; `title` attrs
+   * keep them accessible. Saves ~220 px of header width. */
+  .actionLabel {
+    display: none;
+  }
+
+  /* Narrow action buttons to icon + minimal padding. */
+  .actionButton {
+    padding: 5px 7px;
+    gap: 0;
+  }
+
+  /* Narrower rail — frees more width for the content pane. */
+  .rail {
+    width: 76px;
+    padding: 6px 2px;
+  }
+
+  /* Tighter rail chips — reduce vertical padding so all 5 chips fit. */
+  .railButton {
+    padding: 7px 2px;
+    gap: 3px;
+  }
+
+  /* Slightly smaller icon + label inside rail chips. */
+  .railIcon {
+    font-size: 18px;
+  }
+
+  .railLabel {
+    font-size: 8px;
+    letter-spacing: 0.8px;
+  }
+
+  /* Tighter content pane padding. */
+  .pane {
+    padding: 10px 12px 16px 12px;
+  }
+}
+
 .railButton {
   display: flex;
   flex-direction: column;
@@ -202,14 +253,12 @@
 
 .bucket {
   max-width: 880px;
-  /* Establishes a container query context — the internal grids
-   * inside the bucket (quotas, KV pairs) can then react to the
-   * bucket's actual width rather than the viewport. Important
-   * because in the multi-column .stack a bucket can land in a
-   * narrow column (~570 px) or, when it's the only tall item, in
-   * effectively the full pane width (~1100 px). Viewport media
-   * queries can't tell those apart. */
-  container-type: inline-size;
+  /* container-type: inline-size removed — Chrome has a layout
+   * bug where inline-size containment prevents block children from
+   * stretching to the parent's width, causing .netList URLs to
+   * wrap at ~80px. The @container query below is replaced by a
+   * @media query at 1080px which is above the 7" kiosk width
+   * (800px) while still activating on standard desktop displays. */
 }
 
 /* ── Multi-select stack ───────────────────────────────────────── */
@@ -318,26 +367,21 @@
   gap: 0;
 }
 
-@media (min-width: 640px) {
+/* Two-column KV layout — triggers at 1080 px viewport width.
+ * The 7" kiosk is 800 px wide, so this threshold keeps it in
+ * single-column (value area ≈ 580 px, enough for long strings
+ * like "pi-weather-station v2.14.27 · 7de9b57"). Standard
+ * desktop displays (1280 px+) get the two-column layout.
+ *
+ * Previously this was @container (min-width: 800px) keyed off
+ * the bucket's own width, but container-type: inline-size caused
+ * a Chrome layout bug (block children couldn't stretch to fill
+ * the parent). The viewport-based threshold achieves the same
+ * practical result without the containment side-effects. */
+@media (min-width: 1080px) {
   .gridTwo {
     grid-template-columns: 1fr 1fr;
-    /* Was 24 px column-gap — wasted horizontal real estate at the
-     * boosted panel zoom (2.14.18 = 1.32× effective at L). Tight 12 px
-     * keeps the two columns visually distinct without padding the
-     * About / Server values off-screen. */
     gap: 0 12px;
-  }
-}
-
-/* Container-query fallback: if the bucket is too narrow for two
- * comfortable columns (less than ~360 px after the font boost), fall
- * back to a single column. Container queries respond to the bucket's
- * own width, not the viewport — so a pinned-About bucket on a
- * narrow desktop with two stacked columns still gets the right
- * shape. */
-@container (max-width: 360px) {
-  .gridTwo {
-    grid-template-columns: 1fr;
   }
 }
 
@@ -347,23 +391,16 @@
   gap: 10px;
 }
 
-/* Container queries: respond to the bucket's actual width, not the
- * viewport. The thresholds are tuned for the typical bucket widths
- * the multi-column stack produces:
- *   - 2-col stack at 1280-1366 px viewport → bucket ~540 px → need
- *     3-col quotas so Services doesn't tower over the column
- *   - 1-col stack (Pi 7" / narrow) → bucket ~620 px → 3-col quotas
- *     are still readable
- *   - Single bucket pinned, full pane width → bucket ~1100 px →
- *     4 quotas wide
- * Earlier 460/700/920 thresholds left bucket-540 at 2-col quotas,
- * which made Services dominate vertically and broke the multi-column
- * balancer. */
-@container (min-width: 420px) {
+/* Quota grid columns — viewport-based now that container-type was
+ * removed from .bucket. 700px covers the 7" kiosk (800px viewport)
+ * and gives 3-col quotas; 1400px gives 4-col on wide desktops.
+ * The multi-column stack at 1280–1366px puts buckets in ~540px
+ * columns — 3-col quotas fit there too (540/3 ≈ 180px per card). */
+@media (min-width: 700px) {
   .gridQuota { grid-template-columns: repeat(3, 1fr); }
 }
 
-@container (min-width: 760px) {
+@media (min-width: 1400px) {
   .gridQuota { grid-template-columns: repeat(4, 1fr); }
 }
 
@@ -399,6 +436,14 @@
   color: var(--c-text);
   font-variant-numeric: tabular-nums;
   flex: 1;
+  /* `white-space: nowrap` stops the browser from breaking at hyphens
+   * (e.g. "pi-weather-station" → 3 lines) — hyphens are valid break
+   * opportunities by default. Combined with overflow+ellipsis, values
+   * that exceed the column width are clipped rather than wrapped. For
+   * a debug panel this is the right trade-off: single-line rows keep
+   * the table scannable; the full value is visible on hover/tooltip
+   * and in the CSV export. */
+  white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
 }
@@ -788,18 +833,29 @@
 
 /* Network block: stacked LAN URLs + Internet connectivity badge.
  * Mirrors the v2 header's right-column layout but lives inside the
- * Server bucket since v3 buckets pin via the rail (no shared header). */
+ * Server bucket since v3 buckets pin via the rail (no shared header).
+ *
+ * Layout note: `.netList` uses display: block (not flex) so that each
+ * `.netUrl` block stretches to the full containing-block width without
+ * being constrained by flex min-content sizing. The `container-type:
+ * inline-size` on the parent `.bucket` can cause flex containers to
+ * miscalculate their cross-axis width on Chrome 124+; block layout
+ * avoids that ambiguity entirely. Gap is handled via margin-bottom. */
 .netList {
-  display: flex;
-  flex-direction: column;
-  gap: 6px;
+  display: block;
   font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 11px;
 }
 
 .netUrl {
+  display: block;
   color: var(--c-accent);
-  word-break: break-all;
+  overflow-wrap: break-word;
+  margin-bottom: 6px;
+}
+
+.netUrl:last-child {
+  margin-bottom: 0;
 }
 
 .netConn {
