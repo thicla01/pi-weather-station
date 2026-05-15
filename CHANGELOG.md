@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.31] - 2026-05-14
+
+### Fixed
+- **v3 SettingsPanel — responsive layout for 7" kiosk (800×480)** — Two issues were visible at the Raspberry Pi 7" touchscreen resolution:
+  - **Sticky header opacity**: The header used `background-color: var(--c-surface)` which resolves to `rgba(…, 0.85)` (15% transparent). When the user scrolls, section content bled through the semi-transparent header. Changed to `var(--c-bg)` (always fully opaque) so scrolled content is fully covered.
+  - **Compact header padding**: At 800×480 the header's default 14 px vertical padding consumes precious space. Added a `@media (max-height: 520px)` rule that reduces vertical padding to 8 px.
+  - **"Carte · sombre" label wrapping**: In the AFFICHAGE `grid4` the "Carte · sombre" seg label wrapped to two lines at 800 px cell widths, and the stretch alignment of the grid caused the segmented control track to sit lower than its neighbours. Fixed with `white-space: nowrap; overflow: hidden; text-overflow: ellipsis` on `.segLabel` and `align-items: start` on `.grid4`.
+
+---
+
 ## [2.14.30] - 2026-05-14
 
 ### Fixed

@@ -21,10 +21,22 @@
   justify-content: space-between;
   padding: 14px 18px;
   border-bottom: 1px solid var(--c-border);
-  background-color: var(--c-surface);
+  /* --c-surface is rgba(..., 0.85) — semi-transparent. When the
+   * overlay scrolls, content bleeds through the sticky header.
+   * Use --c-bg (always opaque) so the header fully covers
+   * scrolled content at all screen sizes. */
+  background-color: var(--c-bg);
   position: sticky;
   top: 0;
   z-index: 1;
+}
+
+/* Compact header on 7" kiosk (800×480) — saves ~12 px of
+ * precious vertical space without losing legibility. */
+@media (max-height: 520px) {
+  .header {
+    padding: 8px 18px;
+  }
 }
 
 .title {
@@ -419,6 +431,11 @@
   letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--c-text-dim);
+  /* Prevent "Carte · sombre" and similar labels from wrapping to a
+   * second line at narrow grid-cell widths (e.g. 800×480 kiosk). */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .segTrack {
@@ -479,6 +496,9 @@
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 10px;
+  /* Top-align cells so a two-line label in one cell doesn't push the
+   * control track down relative to single-line siblings. */
+  align-items: start;
 }
 
 @media (min-width: 720px) {
