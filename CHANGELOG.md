@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.44] - 2026-05-15
+
+### Changed
+- **ChartTabs maximize — wider rail + bigger hourly columns** — When the chart card is maximized:
+  - **Rail width cap** raised from `min(50vw, 720px)` to `min(60vw, 960px)`. On a 1920×1080 monitor the rail reaches 960 px (50 %), on 1280 px it reaches 768 px (60 %), capped at 960 px on 2560 px ultra-wide. Past ~960 px the chart axes read fine and extra width just stretches the canvas without adding information.
+  - **HourlyForecastColumns — expanded typography**: icon 26 → 38 px, hour 11 → 13 px, temperature 14 → 20 px (Geist Mono for clean numeric alignment), precipitation 10 → 12 px, gap 4-6 → 8-10 px. The compact (default rail) sizing is strictly untouched — the new values only apply inside `.strip.expanded` which is gated on the `expanded` prop passed by `ChartTabs` when maximized.
+  - Untouched: compact mode at every font-scale (P / M / G) on the 7" kiosk, the line-chart views, and `DailyForecastColumns` (which scales naturally with the wider rail without typography changes).
+
+---
+
 ## [2.14.43] - 2026-05-15
 
 ### Changed

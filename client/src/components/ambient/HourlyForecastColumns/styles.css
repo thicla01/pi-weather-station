@@ -86,3 +86,47 @@
   margin-top: 0;
 }
 
+/* Expanded mode (ChartTabs maximized, ~60 vw rail) — cells get
+ * substantially more horizontal room than compact (~120 px each vs
+ * ~75 px), so the typography and icons grow to fill the space. The
+ * compact rules above stay strictly untouched — these overrides only
+ * apply inside `.strip.expanded`. */
+.expanded {
+  gap: 8px 10px;
+}
+
+.expanded .column {
+  gap: 4px;
+  padding: 4px 2px;
+}
+
+.expanded .hour {
+  font-size: 13px;
+  letter-spacing: 0.6px;
+}
+
+.expanded .iconRow {
+  font-size: 38px;
+  min-height: 38px;
+}
+
+.expanded .iconPlaceholder {
+  font-size: 16px;
+}
+
+.expanded .temp {
+  /* Geist Mono for the temp digit row in expanded mode — the larger
+   * size emphasises the numeral, monospace keeps the °/digit baseline
+   * aligned across cells so the row scans cleanly. */
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 20px;
+  font-weight: 500;
+  letter-spacing: -0.5px;
+}
+
+.expanded .precip {
+  font-size: 12px;
+  min-height: 14px;
+  margin-top: 2px;
+}
+

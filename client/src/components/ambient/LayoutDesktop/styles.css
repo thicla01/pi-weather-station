@@ -24,18 +24,22 @@
   }
 }
 
-/* Expandable ChartTabs (v2.14.39) — when the chart slab in the rail
- * emits `data-chart-maximized="true"`, grow the rail width so the
- * chart canvas has roughly half the viewport to work with. The
+/* Expandable ChartTabs (v2.14.39, widened in v2.14.44) — when the chart
+ * slab in the rail emits `data-chart-maximized="true"`, grow the rail
+ * width so the chart canvas has more of the viewport to work with. The
  * HeroBand's `right` offset already references `--c-rail-width` via
  * `calc()` and transitions on it (200 ms ease-out), so changing this
  * single variable smoothly pushes the band leftward and pulls the
- * rail+chevron toward the centre. The cap (`min(50vw, 720px)`) keeps
- * the rail from getting absurdly wide on 4K/ultra-wide monitors —
- * past ~720 px the chart axis labels read fine and extra width just
- * stretches the canvas without adding information density. */
+ * rail+chevron toward the centre.
+ *
+ * Cap (`min(60vw, 960px)`) keeps the rail from getting absurdly wide on
+ * 4K/ultra-wide monitors but still pushes well past 50 % on mid-range
+ * displays — at 1920 px wide the rail reaches 960 px (50 %), at 2560 px
+ * it stays capped at 960 px (37 %), and at 1280 px it reaches 768 px
+ * (60 %). Past ~960 px the chart axis labels read fine and extra width
+ * just stretches the canvas without adding information density. */
 .layout:has([data-chart-maximized="true"]) {
-  --c-rail-width: min(50vw, 720px);
+  --c-rail-width: min(60vw, 960px);
 }
 
 
