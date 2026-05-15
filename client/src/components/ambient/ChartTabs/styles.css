@@ -211,46 +211,54 @@
 /* Cycle indicator dots — sit below the chart area, communicate that
  * the active tab has multiple views and which one is currently shown.
  * Tapping a dot jumps directly to that view; tapping the chart area
- * itself advances by one (existing v2 gesture preserved). */
+ * itself advances by one (existing v2 gesture preserved).
+ *
+ * v2.14.50: bumped from 8 px outline-only to 10 px filled dim/active
+ * after user noticed they were "too faint to see" at 18 % border
+ * opacity against the cream surface in day mode. Inactive dots now
+ * use `--c-text-dim` as a soft solid fill; active flips to the
+ * full accent token. Reads clearly on every palette. */
 .cycleDots {
   display: flex;
   align-items: center;
   justify-content: center;
-  gap: 8px;
-  margin-top: 8px;
-  min-height: 18px;
+  gap: 10px;
+  margin-top: 10px;
+  min-height: 20px;
 }
 
 .dot {
-  width: 8px;
-  height: 8px;
+  width: 10px;
+  height: 10px;
   padding: 0;
-  border: 1px solid var(--c-border-hybrid);
+  border: 0;
   border-radius: 50%;
-  background-color: transparent;
+  background-color: var(--c-text-dim);
+  opacity: 0.55;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
   /* Larger invisible hit target around the visible dot — the dot
-   * itself reads at 8 px for the chrome-light look, but tapping a
-   * 8-px circle on a touchscreen is unreliable. Use a transparent
-   * outer ring so the user has a ~22-px tap zone without the dots
-   * looking heavy. */
+   * itself reads at 10 px for the chrome-light look, but tapping a
+   * 10-px circle on a touchscreen is unreliable. The transparent
+   * outer ring gives a ~24-px tap zone without the dots looking
+   * heavy. */
   box-shadow: 0 0 0 7px transparent;
-  transition: background-color 120ms ease-out, border-color 120ms ease-out;
+  transition: background-color 120ms ease-out, opacity 120ms ease-out, transform 120ms ease-out;
 }
 
 .dot:hover {
-  border-color: var(--c-text-dim);
+  opacity: 0.85;
 }
 
 .dot:focus-visible {
   outline: 2px dashed var(--c-text);
-  outline-offset: 2px;
+  outline-offset: 3px;
 }
 
 .dotActive {
   background-color: var(--c-accent);
-  border-color: var(--c-accent);
+  opacity: 1;
+  transform: scale(1.15);
 }
 
 /* Small view label to the right of the dots — reinforces what the

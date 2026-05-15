@@ -5,6 +5,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.50] - 2026-05-15
+
+### Changed
+- **ChartTabs cycle dots — visibility bump** — User report: "we were supposed to put 3 little dots at the bottom — they're not really there". The dots were in fact rendered but the inactive state used a 1-px border at `var(--c-border-hybrid)` which resolves to `rgba(42, 38, 32, 0.18)` in day mode — practically invisible against the cream surface. Reworked the visual:
+  - Size 8 → 10 px, gap 8 → 10 px, hit-target ring kept at ~24 px
+  - Inactive: outline-only → soft solid fill at `var(--c-text-dim)` with 55 % opacity (reads as a dim dot on every palette)
+  - Active: filled `var(--c-accent)` at 100 % opacity, plus a `scale(1.15)` bump to reinforce which view is current
+  - Hover lifts inactive opacity to 85 %
+
+---
+
 ## [2.14.49] - 2026-05-15
 
 ### Added
