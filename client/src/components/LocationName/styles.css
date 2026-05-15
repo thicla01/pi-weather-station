@@ -4,6 +4,31 @@
   overflow: hidden;
 }
 
+/* Stacked variant — used by HeroBand to give the city name visual weight
+ * proportional to the large temperature numeral, with the country on a
+ * smaller second line. Removes the v2 max-height cap so two lines fit. */
+.stacked {
+  max-height: none;
+}
+
+.stacked .primary {
+  font-size: inherit;
+  font-weight: inherit;
+  line-height: 1.1;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.stacked .secondary {
+  font-size: 0.65em;
+  font-weight: 400;
+  line-height: 1.2;
+  margin-top: 4px;
+  opacity: 0.75;
+  letter-spacing: 0.3px;
+}
+
 .err {
   font-size: clamp(11px, 1.0vw, 14px);
   color: rgba(128, 128, 128, 0.6);

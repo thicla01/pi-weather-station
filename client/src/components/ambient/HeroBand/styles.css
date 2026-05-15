@@ -44,14 +44,20 @@
 }
 
 .placeLabel {
-  font-size: 16px;
-  font-weight: 500;
-  letter-spacing: 0.4px;
+  /* Sized for the stacked LocationName variant — the city sits at this
+   * font-size and the country on its own line at 0.65em, giving the panel
+   * enough visual weight to balance the 72-88 px temperature numeral. */
+  font-size: 28px;
+  font-weight: 600;
+  letter-spacing: 0.2px;
+  line-height: 1.1;
   color: var(--c-text);
 }
 
-/* LocationName brings its own pin icon — keep the row inline. */
-.placeLabel > div { display: inline-flex; align-items: center; gap: 6px; }
+/* LocationName (non-stacked v2 variant) brings its own pin icon — keep the
+ * row inline. The stacked variant handles its own layout via its scoped
+ * `.primary` rule, so this only affects the legacy inline path. */
+.placeLabel > div:not([class*="stacked"]) { display: inline-flex; align-items: center; gap: 6px; }
 
 /* ── Temperature panel ──────────────────────────────────────────── */
 
@@ -131,15 +137,16 @@
   .tempDesc { font-size: 17px; }
   .panelTemp { padding: 24px 32px; }
 
-  /* Location panel — larger city name to fill the panel proportionally */
-  .placeLabel { font-size: 20px; }
+  /* Location panel — larger city name to fill the panel proportionally
+   * (the stacked country line scales automatically via the 0.65em rule). */
+  .placeLabel { font-size: 34px; }
   .panelPlace { padding: 24px 32px; }
 
   /* Clock panel — date label and sunrise/sunset row up to match */
-  .clockDate { font-size: 14px; letter-spacing: 1px; }
-  .clockTime { font-size: 52px; }
-  .clockAmPm { font-size: 18px; }
-  .clockSunRow { font-size: 14px; margin-top: 10px; gap: 18px; }
+  .clockDate { font-size: 16px; letter-spacing: 1.1px; }
+  .clockTime { font-size: 56px; }
+  .clockAmPm { font-size: 20px; }
+  .clockSunRow { font-size: 16px; margin-top: 10px; gap: 20px; }
   .panelClock { padding: 24px 32px; }
 }
 
@@ -151,9 +158,9 @@
 }
 
 .clockDate {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
-  letter-spacing: 0.8px;
+  letter-spacing: 0.9px;
   color: var(--c-text-dim);
   margin-bottom: 4px;
 }
@@ -178,7 +185,7 @@
   gap: 14px;
   justify-content: flex-end;
   margin-top: 8px;
-  font-size: 12px;
+  font-size: 14px;
   color: var(--c-text-dim);
 }
 
@@ -189,6 +196,6 @@
 }
 
 @media (min-width: 1600px) {
-  .clockTime { font-size: 52px; }
-  .clockAmPm { font-size: 18px; }
+  .clockTime { font-size: 56px; }
+  .clockAmPm { font-size: 20px; }
 }

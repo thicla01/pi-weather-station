@@ -99,7 +99,7 @@ const HeroBand = () => {
     <div className={styles.band}>
       <div className={styles.panelPlace}>
         <div className={styles.placeLabel}>
-          <LocationName />
+          <LocationName stacked />
         </div>
       </div>
       <div className={styles.divider} />

@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.37] - 2026-05-15
+
+### Changed
+- **HeroBand — stacked LocationName + larger date/sun row** — Two-part adjustment to balance the panel against the large temperature numeral:
+  - **LocationName `stacked` prop**: New variant renders the city (or first segment before the last comma) on its primary line and the country on a smaller secondary line at 0.65em. Splitting on the LAST comma keeps multi-word regions intact ("Washington, D.C., USA" → "Washington, D.C." + "USA"). The HeroBand passes `stacked` so "Montréal, Canada" reads as a bold "Montréal" with "Canada" underneath rather than getting visually lost on a single small line.
+  - **HeroBand `.placeLabel`**: Font bumped 16 px → 28 px (default) / 20 px → 34 px (≥ 1600 px), weight 500 → 600. The stacked country line scales automatically via the relative `0.65em` rule.
+  - **HeroBand clock panel**: `.clockDate` 12 px → 14 px (default) / 14 px → 16 px (≥ 1600 px); `.clockSunRow` 12 px → 14 px (default) / 14 px → 16 px (≥ 1600 px); `.clockTime` 52 px → 56 px (≥ 1600 px); `.clockAmPm` 18 px → 20 px (≥ 1600 px); `.clockSunRow` gap 18 px → 20 px (≥ 1600 px). The clock panel now reads as proportional to the new larger location panel.
+
+---
+
 ## [2.14.36] - 2026-05-15
 
 ### Changed
