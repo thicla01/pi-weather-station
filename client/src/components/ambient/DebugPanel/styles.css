@@ -293,15 +293,6 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
-  /* Container query context for .gridTwo and .gridQuota breakpoints.
-   * Placed here (not on .bucket) to avoid a Chrome layout bug where
-   * container-type: inline-size on a direct ancestor prevents block
-   * children from stretching to their parent's width — which was
-   * collapsing .netList URLs to ~80px. At this level .netList is
-   * three nodes deep and escapes the bug. The column width correctly
-   * reflects the masonry layout: ~667px on the 7" kiosk (1-col),
-   * ~560px on desktop 2-col stack, ~1143px on desktop 1-col stack. */
-  container-type: inline-size;
 }
 
 .stackItem {
@@ -375,15 +366,17 @@
   gap: 0;
 }
 
-/* Two-column KV layout — triggers when .stackColumn reaches 800px.
- * 7" kiosk (1-col stack, ~667px column): stays single-column ✓
- * Desktop 2-col stack (~560px column): stays single-column ✓
- * Desktop 1-col stack (~1143px column): goes 2-column ✓ */
-@container (min-width: 800px) {
-  .gridTwo {
-    grid-template-columns: 1fr 1fr;
-    gap: 0 12px;
-  }
+/* Two-column KV layout — applied via JS .gridTwoWide class.
+ * Condition: single masonry column (columnCount === 1) AND
+ * viewport ≥ 1080 px. This avoids container-type: inline-size
+ * entirely — Chrome (desktop, newer builds) has a bug where
+ * inline-size containment on any ancestor makes block descendants
+ * unable to stretch to their parent's width, collapsing .netList
+ * URLs to near-zero width. Pi Chromium (older) doesn't exhibit
+ * the bug, so hardware was fine but Mac DevTools sim was broken. */
+.gridTwoWide {
+  grid-template-columns: 1fr 1fr;
+  gap: 0 12px;
 }
 
 .gridQuota {
@@ -392,16 +385,14 @@
   gap: 10px;
 }
 
-/* Quota grid columns keyed off the stackColumn width.
- * 420px: all common configurations reach this → 3-col quotas.
- * 760px: 1-col stack on desktop (~1143px) → 4-col quotas.
- * 2-col stack on desktop (~560px) stays at 3-col quotas, which
- * balances Services height in the masonry distributor. */
-@container (min-width: 420px) {
+/* Quota grid columns — viewport-based (no container-type).
+ * 700 px: 7" kiosk (800 px) and above → 3-col quotas.
+ * 1400 px: wide desktop → 4-col quotas. */
+@media (min-width: 700px) {
   .gridQuota { grid-template-columns: repeat(3, 1fr); }
 }
 
-@container (min-width: 760px) {
+@media (min-width: 1400px) {
   .gridQuota { grid-template-columns: repeat(4, 1fr); }
 }
 

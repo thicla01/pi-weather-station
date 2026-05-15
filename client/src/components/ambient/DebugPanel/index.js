@@ -128,6 +128,30 @@ const DebugPanel = () => {
     return () => mq.removeEventListener("change", handler);
   }, []);
 
+  // gridTwo 2-column layout: only when we're in single-column masonry
+  // (columnCount === 1, so the bucket takes the full pane width) AND the
+  // viewport is wide enough (≥ 1080 px) that the bucket exceeds ~800 px.
+  // On the 7" kiosk (800 px) columnCount is 1 but the viewport fails the
+  // 1080 px check → stays single-column. On the 10" in 2-col masonry
+  // columnCount is 2 → stays single-column regardless of viewport.
+  //
+  // This avoids container-type: inline-size entirely. Chrome (newer
+  // desktop builds) has a layout bug where inline-size containment on
+  // any ancestor prevents block children from stretching to their
+  // parent's width, collapsing .netList URLs to near-zero width. The
+  // Pi's Chromium (older) doesn't exhibit the bug, so the regression
+  // was invisible on hardware but broke the Mac DevTools simulation.
+  const [wideViewport, setWideViewport] = useState(
+    () => typeof window !== "undefined" && window.matchMedia("(min-width: 1080px)").matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia("(min-width: 1080px)");
+    const handler = (e) => setWideViewport(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+  const gridTwoWide = columnCount === 1 && wideViewport;
+
   const toggleBucket = useCallback((id) => {
     setActiveBuckets((prev) => {
       const next = new Set(prev);
@@ -323,6 +347,7 @@ const DebugPanel = () => {
               activeBuckets={activeBuckets}
               data={data}
               columnCount={columnCount}
+              gridTwoWide={gridTwoWide}
               lang={lang}
             />
           )}
@@ -454,7 +479,7 @@ function distributeBuckets(activeBuckets, columnCount) {
  * @param {number} props.columnCount — 1 on narrow, 2 on desktop
  * @returns {JSX.Element}
  */
-const MasonryStack = ({ activeBuckets, data, columnCount, lang }) => {
+const MasonryStack = ({ activeBuckets, data, columnCount, gridTwoWide, lang }) => {
   const columns = distributeBuckets(activeBuckets, columnCount);
   return (
     <div
@@ -468,7 +493,7 @@ const MasonryStack = ({ activeBuckets, data, columnCount, lang }) => {
                 <span className={styles.stackHeaderIcon}>{b.icon}</span>
                 <span className={styles.stackHeaderLabel}>{bucketLabel(lang, b.id)}</span>
               </div>
-              <BucketContent bucket={b.id} data={data} lang={lang} />
+              <BucketContent bucket={b.id} data={data} lang={lang} gridTwoWide={gridTwoWide} />
             </section>
           ))}
         </div>
@@ -487,13 +512,13 @@ const MasonryStack = ({ activeBuckets, data, columnCount, lang }) => {
  * @param {object} props.data — payload from /api/debug
  * @returns {JSX.Element}
  */
-const BucketContent = ({ bucket, data, lang }) => (
+const BucketContent = ({ bucket, data, lang, gridTwoWide }) => (
   <BucketErrorBoundary bucket={bucket}>
-    {bucket === "server"   ? <BucketServer data={data} lang={lang} /> :
-     bucket === "client"   ? <BucketClient data={data} lang={lang} /> :
+    {bucket === "server"   ? <BucketServer data={data} lang={lang} gridTwoWide={gridTwoWide} /> :
+     bucket === "client"   ? <BucketClient data={data} lang={lang} gridTwoWide={gridTwoWide} /> :
      bucket === "services" ? <BucketServices data={data} lang={lang} /> :
-     bucket === "storage"  ? <BucketStorage data={data} lang={lang} /> :
-     bucket === "about"    ? <BucketAbout data={data} lang={lang} /> :
+     bucket === "about"    ? <BucketAbout data={data} lang={lang} gridTwoWide={gridTwoWide} /> :
+     bucket === "storage"  ? <BucketStorage data={data} lang={lang} gridTwoWide={gridTwoWide} /> :
                              null}
   </BucketErrorBoundary>
 );
@@ -541,7 +566,7 @@ class BucketErrorBoundary extends React.Component {
 // Bucket renderers — each shows the most representative section(s)
 // ───────────────────────────────────────────────────────────────────
 
-const BucketServer = ({ data, lang }) => {
+const BucketServer = ({ data, lang, gridTwoWide }) => {
   const v = data.appVersion || {};
   const sys = data.system || {};
   const net = data.network || {};
@@ -553,7 +578,7 @@ const BucketServer = ({ data, lang }) => {
   return (
     <div className={styles.bucket}>
       <SectionTitle title={lbl(lang, "Server config", "Configuration serveur", "Configuración servidor")} />
-      <div className={styles.gridTwo}>
+      <div className={`${styles.gridTwo} ${gridTwoWide ? styles.gridTwoWide : ""}`}>
         <KV k={lbl(lang, "version", "version", "versión")}  v={`${v.name || "?"} v${v.version || "?"} · ${v.commit || "?"}`} />
         <KV k="hostname" v={sys.hostname || "?"} />
         <KV k="hardware" v={sys.hardware || "?"} />
@@ -591,7 +616,7 @@ const BucketServer = ({ data, lang }) => {
       </div>
 
       <SectionTitle title={lbl(lang, "Server KPI", "KPI serveur", "KPI servidor")} gap />
-      <div className={styles.gridTwo}>
+      <div className={`${styles.gridTwo} ${gridTwoWide ? styles.gridTwoWide : ""}`}>
         <KV k="uptime"     v={kpis.uptimeSec != null ? formatUptime(kpis.uptimeSec) : "—"} />
         <KV k="heap used"  v={mem.heapUsedMb != null ? `${mem.heapUsedMb} MB` : "—"} />
         <KV k="heap total" v={mem.heapTotalMb != null ? `${mem.heapTotalMb} MB` : "—"} />
@@ -744,7 +769,7 @@ const useClientMetrics = () => {
   return { ...metrics, fps };
 };
 
-const BucketClient = ({ data, lang }) => {
+const BucketClient = ({ data, lang, gridTwoWide }) => {
   const clients = Array.isArray(data.remoteClients) ? data.remoteClients : [];
   const events = Array.isArray(data.securityEvents) ? data.securityEvents : [];
   // Current map position + zoom + AQHI come straight from AppContext
@@ -760,7 +785,7 @@ const BucketClient = ({ data, lang }) => {
   return (
     <div className={styles.bucket}>
       <SectionTitle title={lbl(lang, "Client KPI", "KPI client", "KPI cliente")} />
-      <div className={styles.gridTwo}>
+      <div className={`${styles.gridTwo} ${gridTwoWide ? styles.gridTwoWide : ""}`}>
         <KV k="page load" v={pageLoad != null ? `${pageLoad} ms` : "—"} />
         <KV
           k="fps"
@@ -782,7 +807,7 @@ const BucketClient = ({ data, lang }) => {
       </div>
 
       <SectionTitle title={lbl(lang, "Current position", "Position actuelle", "Posición actual")} gap />
-      <div className={styles.gridTwo}>
+      <div className={`${styles.gridTwo} ${gridTwoWide ? styles.gridTwoWide : ""}`}>
         <KV
           k="lat"
           v={mapGeo ? mapGeo.latitude.toFixed(6) : "—"}
@@ -1009,13 +1034,13 @@ const QuotaTable = ({ service, quotas, endpoints }) => {
   );
 };
 
-const BucketStorage = ({ data, lang }) => {
+const BucketStorage = ({ data, lang, gridTwoWide }) => {
   const cache = Array.isArray(data.cache) ? data.cache : [];
   const kpis = data.serverKpis || {};
   return (
     <div className={styles.bucket}>
       <SectionTitle title={lbl(lang, "Cache stats", "Statistiques de cache", "Estadísticas de caché")} />
-      <div className={styles.gridTwo}>
+      <div className={`${styles.gridTwo} ${gridTwoWide ? styles.gridTwoWide : ""}`}>
         <KV k={lbl(lang, "hits", "succès", "aciertos")}     v={kpis.cache?.hits != null ? kpis.cache.hits.toLocaleString() : "—"} />
         <KV k={lbl(lang, "misses", "manqués", "fallos")}   v={kpis.cache?.misses != null ? kpis.cache.misses.toLocaleString() : "—"} />
         <KV k={lbl(lang, "hit rate", "taux de succès", "tasa de aciertos")} v={kpis.cache?.rate != null ? `${kpis.cache.rate}%` : "—"} />
@@ -1128,7 +1153,7 @@ const RadarSnapshotsBlock = ({ snapshots, lang }) => {
   );
 };
 
-const BucketAbout = ({ data, lang }) => {
+const BucketAbout = ({ data, lang, gridTwoWide }) => {
   const v = data.appVersion || {};
   // Prefer live AppContext state over the /api/debug snapshot for the
   // update-check section. /api/debug serialises whatever was cached at
@@ -1152,7 +1177,7 @@ const BucketAbout = ({ data, lang }) => {
   return (
     <div className={styles.bucket}>
       <SectionTitle title={lbl(lang, "About this build", "À propos de cette version", "Acerca de esta versión")} />
-      <div className={styles.gridTwo}>
+      <div className={`${styles.gridTwo} ${gridTwoWide ? styles.gridTwoWide : ""}`}>
         <KV k={lbl(lang, "name", "nom", "nombre")}       v={v.name || "?"} />
         <KV k={lbl(lang, "version", "version", "versión")}    v={v.version || "?"} />
         <KV k="commit"  v={v.commit || "?"} />
@@ -1174,7 +1199,7 @@ const BucketAbout = ({ data, lang }) => {
       </div>
 
       <SectionTitle title={lbl(lang, "Update check", "Vérification MAJ", "Comprobación actualización")} gap />
-      <div className={styles.gridTwo}>
+      <div className={`${styles.gridTwo} ${gridTwoWide ? styles.gridTwoWide : ""}`}>
         <KV k="local sha"   v={u.localSha || v.commit || "—"} />
         <KV k="latest sha"  v={latestSha || u.latestSha || "—"} />
         <KV k={lbl(lang, "latest ver", "dernière ver", "última ver")}  v={latestVersion || u.latestVersion || "—"} />
