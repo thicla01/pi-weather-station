@@ -1,6 +1,6 @@
 {
   "name": "pi-weather-station",
-  "version": "2.14.50",
+  "version": "2.14.51",
   "description": "A weather station designed for the Raspberry Pi 7 inch touchscreen",
   "main": "index.js",
   "scripts": {

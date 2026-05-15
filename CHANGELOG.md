@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.51] - 2026-05-15
+
+### Fixed
+- **ChartTabs cycle dots — still too faint after the v2.14.50 bump** — User report after the visibility rework: still not seeing them. v2.14.50 used `opacity: 0.55` on the whole element which multiplied against the already-dim `--c-text-dim` token, ending around ~30 % effective alpha — easy to miss on a textured radar surface bleeding through the slab. Drops the element-level opacity entirely and uses a solid fill at `--c-text-dim` plus a matching 1-px border so the dot reads crisp on every palette. Size 10 → 12 px, active scale 1.15 → 1.25. Hover lifts both fill and border to `--c-text`. No more chained transparency.
+
+---
+
 ## [2.14.50] - 2026-05-15
 
 ### Changed

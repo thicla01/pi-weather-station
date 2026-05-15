@@ -228,26 +228,29 @@
 }
 
 .dot {
-  width: 10px;
-  height: 10px;
+  width: 12px;
+  height: 12px;
   padding: 0;
-  border: 0;
+  /* Subtle 1-px ring at the same dim text colour to give the dot a
+   * crisp edge even when its fill blends with the surface. */
+  border: 1px solid var(--c-text-dim);
   border-radius: 50%;
+  /* Fill at the dim text token — no element-level opacity, no
+   * transparency multiplications. The dim token itself is already
+   * the muted variant. Reads clearly on every palette without
+   * disappearing into the surface. */
   background-color: var(--c-text-dim);
-  opacity: 0.55;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  /* Larger invisible hit target around the visible dot — the dot
-   * itself reads at 10 px for the chrome-light look, but tapping a
-   * 10-px circle on a touchscreen is unreliable. The transparent
-   * outer ring gives a ~24-px tap zone without the dots looking
-   * heavy. */
+  /* Larger invisible hit target — ~26 px tap zone via box-shadow
+   * extension so touchscreen taps don't miss the 12-px disc. */
   box-shadow: 0 0 0 7px transparent;
-  transition: background-color 120ms ease-out, opacity 120ms ease-out, transform 120ms ease-out;
+  transition: background-color 120ms ease-out, border-color 120ms ease-out, transform 120ms ease-out;
 }
 
 .dot:hover {
-  opacity: 0.85;
+  background-color: var(--c-text);
+  border-color: var(--c-text);
 }
 
 .dot:focus-visible {
@@ -257,8 +260,8 @@
 
 .dotActive {
   background-color: var(--c-accent);
-  opacity: 1;
-  transform: scale(1.15);
+  border-color: var(--c-accent);
+  transform: scale(1.25);
 }
 
 /* Small view label to the right of the dots — reinforces what the
