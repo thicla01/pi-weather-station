@@ -253,12 +253,11 @@
 
 .bucket {
   max-width: 880px;
-  /* container-type: inline-size removed — Chrome has a layout
-   * bug where inline-size containment prevents block children from
-   * stretching to the parent's width, causing .netList URLs to
-   * wrap at ~80px. The @container query below is replaced by a
-   * @media query at 1080px which is above the 7" kiosk width
-   * (800px) while still activating on standard desktop displays. */
+  /* No container-type here: Chrome has a bug where inline-size
+   * containment on a direct ancestor prevents block children from
+   * stretching to the parent's width. container-type: inline-size
+   * lives on .stackColumn instead — .netList is 3 levels deep
+   * there and escapes the bug. */
 }
 
 /* ── Multi-select stack ───────────────────────────────────────── */
@@ -294,6 +293,15 @@
   display: flex;
   flex-direction: column;
   gap: 16px;
+  /* Container query context for .gridTwo and .gridQuota breakpoints.
+   * Placed here (not on .bucket) to avoid a Chrome layout bug where
+   * container-type: inline-size on a direct ancestor prevents block
+   * children from stretching to their parent's width — which was
+   * collapsing .netList URLs to ~80px. At this level .netList is
+   * three nodes deep and escapes the bug. The column width correctly
+   * reflects the masonry layout: ~667px on the 7" kiosk (1-col),
+   * ~560px on desktop 2-col stack, ~1143px on desktop 1-col stack. */
+  container-type: inline-size;
 }
 
 .stackItem {
@@ -367,18 +375,11 @@
   gap: 0;
 }
 
-/* Two-column KV layout — triggers at 1080 px viewport width.
- * The 7" kiosk is 800 px wide, so this threshold keeps it in
- * single-column (value area ≈ 580 px, enough for long strings
- * like "pi-weather-station v2.14.27 · 7de9b57"). Standard
- * desktop displays (1280 px+) get the two-column layout.
- *
- * Previously this was @container (min-width: 800px) keyed off
- * the bucket's own width, but container-type: inline-size caused
- * a Chrome layout bug (block children couldn't stretch to fill
- * the parent). The viewport-based threshold achieves the same
- * practical result without the containment side-effects. */
-@media (min-width: 1080px) {
+/* Two-column KV layout — triggers when .stackColumn reaches 800px.
+ * 7" kiosk (1-col stack, ~667px column): stays single-column ✓
+ * Desktop 2-col stack (~560px column): stays single-column ✓
+ * Desktop 1-col stack (~1143px column): goes 2-column ✓ */
+@container (min-width: 800px) {
   .gridTwo {
     grid-template-columns: 1fr 1fr;
     gap: 0 12px;
@@ -391,16 +392,16 @@
   gap: 10px;
 }
 
-/* Quota grid columns — viewport-based now that container-type was
- * removed from .bucket. 700px covers the 7" kiosk (800px viewport)
- * and gives 3-col quotas; 1400px gives 4-col on wide desktops.
- * The multi-column stack at 1280–1366px puts buckets in ~540px
- * columns — 3-col quotas fit there too (540/3 ≈ 180px per card). */
-@media (min-width: 700px) {
+/* Quota grid columns keyed off the stackColumn width.
+ * 420px: all common configurations reach this → 3-col quotas.
+ * 760px: 1-col stack on desktop (~1143px) → 4-col quotas.
+ * 2-col stack on desktop (~560px) stays at 3-col quotas, which
+ * balances Services height in the masonry distributor. */
+@container (min-width: 420px) {
   .gridQuota { grid-template-columns: repeat(3, 1fr); }
 }
 
-@media (min-width: 1400px) {
+@container (min-width: 760px) {
   .gridQuota { grid-template-columns: repeat(4, 1fr); }
 }
 
