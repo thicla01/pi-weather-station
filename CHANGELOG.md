@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.43] - 2026-05-15
+
+### Changed
+- **HourlyForecastColumns — multi-row layouts** — Both density modes now stack cells vertically so each cell breathes instead of fighting for horizontal room:
+  - **Compact** (~320 px rail): 2 rows × 4 columns at a 3-hour step → 8 cells covering 24 h. Each cell ~75 px wide (vs ~38 px on the previous single-row 8-column layout), so the icon and temperature don't compete for space.
+  - **Expanded** (~50 vw rail when ChartTabs is maximized): 3 rows × 8 columns at a **1-hour step** → 24 cells covering 24 h hour-by-hour. Same ~75 px cell width as compact, just three rows of them — the full hourly granularity is now visible at a glance.
+  - Both modes share the same per-cell typography (icon 26 px, hour 11 px, temp 14 px) since the cell widths converge on the same ~75 px target — the variable is row count and step, not cell size.
+
+---
+
 ## [2.14.42] - 2026-05-15
 
 ### Changed

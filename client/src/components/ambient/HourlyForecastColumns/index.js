@@ -6,17 +6,21 @@ import { parseWeatherCode } from "~/ui/weatherCodes";
 import { convertTemp } from "~/services/conversions";
 import styles from "./styles.css";
 
-// Two density modes — both cover the full 24-hour window so the strip
-// always lives up to the "24 heures" tab label rather than only showing
-// the next half-day. Compact mode (320 px rail) packs 8 columns at a
-// 3-hour step; expanded mode (~700 px when ChartTabs is maximized) gets
-// 12 columns at a 2-hour step. Anything denser than 12 columns crowds
-// the icon and temperature on a touchscreen, anything thinner than 8
-// leaves the rightmost half of the day off the strip.
+// Two density modes — both cover the full 24-hour window. Compact mode
+// (default rail, ~320 px wide) lays 8 cells out over 2 rows of 4 at a
+// 3-hour step; expanded mode (rail widened by ChartTabs maximize,
+// ~50 vw) lays 24 cells over 3 rows of 8 at a 1-hour step. Splitting
+// vertically lets each cell breathe — at 4 columns the compact cell is
+// ~75 px wide (vs ~38 px on a single 8-column row), and the expanded
+// 8-column rows give each hourly cell ~75 px too. Visual mass per cell
+// is the same in both modes; what changes is the granularity (3 h vs
+// 1 h) and the row count.
 const COMPACT_HOUR_STEP = 3;
-const COMPACT_COLUMN_COUNT = 8;
-const EXPANDED_HOUR_STEP = 2;
-const EXPANDED_COLUMN_COUNT = 12;
+const COMPACT_TOTAL_CELLS = 8;
+const COMPACT_COLUMNS_PER_ROW = 4;
+const EXPANDED_HOUR_STEP = 1;
+const EXPANDED_TOTAL_CELLS = 24;
+const EXPANDED_COLUMNS_PER_ROW = 8;
 
 // Threshold below which the precipitation percentage is hidden so
 // every column doesn't carry a noisy "0 %" / "5 %" label. Mirrors the
@@ -55,14 +59,14 @@ const HourlyForecastColumns = ({ expanded = false }) => {
   }
 
   const hourStep = expanded ? EXPANDED_HOUR_STEP : COMPACT_HOUR_STEP;
-  const columnCount = expanded ? EXPANDED_COLUMN_COUNT : COMPACT_COLUMN_COUNT;
+  const totalCells = expanded ? EXPANDED_TOTAL_CELLS : COMPACT_TOTAL_CELLS;
 
   // Pick N hours stepped by hourStep. Start at index 1 so the first
-  // column reflects the upcoming hour, not the current one — current
+  // cell reflects the upcoming hour, not the current one — current
   // conditions are already in HeroBand / MetricsGrid, repeating them
   // here would be wasteful.
   const slots = [];
-  for (let n = 0; n < columnCount; n++) {
+  for (let n = 0; n < totalCells; n++) {
     const idx = 1 + n * hourStep;
     if (idx >= intervals.length) break;
     slots.push(intervals[idx]);

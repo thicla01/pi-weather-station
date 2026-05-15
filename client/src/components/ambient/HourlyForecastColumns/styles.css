@@ -8,66 +8,62 @@
  * the day name does in DailyForecastColumns and the column has
  * one less data row. */
 
-/* Default (compact) density — 8 columns at a 3-hour step, covering
- * the full 24-hour window. Each cell is ~38 px wide in a 320-px rail
- * which leaves room for a 24-px icon plus the hour and temperature
- * lines without crowding. */
+/* Default (compact) density — 8 cells laid out as 2 rows of 4 columns
+ * at a 3-hour step, covering the full 24-hour window. Each cell is
+ * ~75 px wide in a 320-px rail (4 cells across) which leaves room for
+ * a 28-px icon plus comfortable hour and temperature lines. CSS Grid's
+ * implicit-row auto-flow lays cells 5-8 on the second row automatically
+ * as they overflow the 4-column template. */
 .strip {
   display: grid;
-  grid-template-columns: repeat(8, 1fr);
-  gap: 2px;
+  grid-template-columns: repeat(4, 1fr);
+  grid-auto-rows: 1fr;
+  gap: 4px 6px;
   height: 100%;
   align-items: stretch;
   position: relative;
 }
 
 /* Expanded density — used when ChartTabs is maximized and the rail
- * has widened to ~50 vw. 12 columns at a 2-hour step cover the same
- * 24-hour window with finer granularity and ~55 px per cell. */
+ * has widened to ~50 vw. 24 cells laid out as 3 rows of 8 columns at
+ * a 1-hour step cover the full 24-hour window hour by hour, with
+ * roughly the same ~75 px per cell as compact mode but three rows
+ * stacked instead of two. */
 .strip.expanded {
-  grid-template-columns: repeat(12, 1fr);
-  gap: 4px;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 4px 6px;
 }
 
+/* Both modes share the same per-cell typography because cells in both
+ * end up roughly ~75 px wide (compact: 4-col grid in a 320 px rail,
+ * expanded: 8-col grid in a ~640 px rail). Only the grid shape and
+ * row count differ between modes. */
 .column {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  gap: 3px;
-  padding: 4px 1px;
+  gap: 2px;
+  padding: 2px 1px;
   font-family: "Geist", system-ui, -apple-system, sans-serif;
 }
 
 .hour {
   font-size: 11px;
   font-weight: 500;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.5px;
   color: var(--c-text-dim);
 }
 
-.expanded .hour {
-  font-size: 12px;
-  letter-spacing: 0.6px;
-}
-
-/* Default-mode icons run smaller so 8 columns at ~38 px each don't
- * crowd at the 320-px rail width. Expanded mode reclaims the 28-px
- * size since each column has ~55 px to play with. */
 .iconRow {
-  font-size: 24px;
+  font-size: 26px;
   color: var(--c-text);
   line-height: 1;
   text-align: center;
-  min-height: 24px;
+  min-height: 26px;
   display: flex;
   align-items: center;
   justify-content: center;
-}
-
-.expanded .iconRow {
-  font-size: 28px;
-  min-height: 28px;
 }
 
 .iconPlaceholder {
@@ -82,21 +78,11 @@
   line-height: 1.1;
 }
 
-.expanded .temp {
-  font-size: 15px;
-}
-
 .precip {
   font-size: 10px;
   font-weight: 500;
   color: var(--c-cool);
   min-height: 12px;
-  margin-top: 1px;
-}
-
-.expanded .precip {
-  font-size: 11px;
-  min-height: 14px;
-  margin-top: 2px;
+  margin-top: 0;
 }
 
