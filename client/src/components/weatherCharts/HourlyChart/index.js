@@ -185,7 +185,6 @@ const HourlyChart = () => {
     lengthUnit,
     speedUnit,
     hourlyWeatherDataErr,
-    hourlyWeatherDataErrMsg,
   } = useContext(AppContext);
   const { t } = useTranslation();
   // Canvas-drawn chart text can't inherit CSS variables — pass the
@@ -245,8 +244,11 @@ const HourlyChart = () => {
           styles.errContainer
         }`}
       >
+        {/* Raw axios error string (e.g. "Request failed with status code 429")
+         * is intentionally not shown — it's meaningless to a kiosk user and
+         * leaks HTTP internals. The translated label is enough; detailed
+         * diagnostics are available in the Debug panel. */}
         <div>{t("errors.hourlyForecastFailed")}</div>
-        <div className={styles.message}>{hourlyWeatherDataErrMsg}</div>
       </div>
     );
   } else {

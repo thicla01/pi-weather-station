@@ -177,7 +177,6 @@ const DailyChart = () => {
   const {
     dailyWeatherData,
     dailyWeatherDataErr,
-    dailyWeatherDataErrMsg,
     tempUnit,
     darkMode,
     lengthUnit,
@@ -260,8 +259,9 @@ const DailyChart = () => {
           styles.errContainer
         }`}
       >
+        {/* Raw axios error string intentionally omitted — see HourlyChart
+         * for the rationale. Detailed diagnostics live in the Debug panel. */}
         <div>{t("errors.dailyForecastFailed")}</div>
-        <div className={styles.message}>{dailyWeatherDataErrMsg}</div>
       </div>
     );
   } else {

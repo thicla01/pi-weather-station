@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.29] - 2026-05-15
+
+### Changed
+- **HourlyChart + DailyChart — raw HTTP error no longer shown to user** — "Request failed with status code 429" (and similar axios messages) were displayed verbatim below the translated error label, exposing HTTP internals to kiosk users. The translated label ("Impossible d'obtenir les prévisions sur 24 heures" / daily equivalent) is sufficient for the user; detailed diagnostics remain available in the Debug panel.
+
+---
+
 ## [2.14.28] - 2026-05-15
 
 ### Fixed
