@@ -115,7 +115,13 @@
     "temp": "Temp.",
     "precipitation": "Precipitaciones",
     "tab24h": "24 horas",
-    "tab5d": "5 días"
+    "tab5d": "5 días",
+    "hourlyColumnsTitle": "Próximas 12 horas",
+    "cycleView": "Vista siguiente",
+    "viewTempPrecip": "Temperatura + precipitación",
+    "viewWindPrecip": "Viento + precipitación",
+    "viewHourlyColumns": "Columnas horarias",
+    "viewDailyColumns": "Columnas 5 días"
   },
   "update": {
     "available": "Actualización disponible: v{{version}}",

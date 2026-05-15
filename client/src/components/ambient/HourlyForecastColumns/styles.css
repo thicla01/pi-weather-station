@@ -1,0 +1,87 @@
+/* HourlyForecastColumns — 6 equal-width columns, each showing
+ * hour · weather icon · temperature · precipitation %. Slots into
+ * ChartTabs's .chartArea as the third view in the 24h cycle.
+ *
+ * Sized to feel proportional to DailyForecastColumns (5 columns,
+ * mostly 30-px icons + bold high / dim low temps) — same iconRow
+ * scale, slightly tighter type because the hour label sits where
+ * the day name does in DailyForecastColumns and the column has
+ * one less data row. */
+
+.strip {
+  display: grid;
+  grid-template-columns: repeat(6, 1fr);
+  gap: 4px;
+  height: 100%;
+  align-items: stretch;
+  position: relative;
+}
+
+.column {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 4px;
+  padding: 4px 2px;
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
+}
+
+.hour {
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.6px;
+  color: var(--c-text-dim);
+}
+
+.iconRow {
+  font-size: 28px;
+  color: var(--c-text);
+  line-height: 1;
+  text-align: center;
+  min-height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.iconPlaceholder {
+  font-size: 14px;
+  color: var(--c-text-dim);
+}
+
+.temp {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--c-text);
+  line-height: 1.1;
+}
+
+.precip {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--c-cool);
+  min-height: 14px;
+  margin-top: 2px;
+}
+
+/* Floating title in the strip's top-right corner — matches the
+ * Chart.js title position so the third view doesn't feel
+ * unlabelled compared to the two line charts that have their
+ * title baked into the canvas. `aria-hidden` because the tab
+ * already announces the section name via the segmented control;
+ * this is purely visual reinforcement.
+ *
+ * In the maximized chart view the strip grows to fill more
+ * vertical space; the title stays anchored top-right via the
+ * `.strip` `position: relative` ancestor. */
+.title {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.4px;
+  color: var(--c-accent);
+  pointer-events: none;
+}

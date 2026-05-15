@@ -5,6 +5,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.40] - 2026-05-15
+
+### Added
+- **ChartTabs — 3-view cycle per tab with dot indicators** — Each tab now cycles through three views:
+  - **24h tab**: temperature + precipitation line / wind + precipitation line / **new** `HourlyForecastColumns` (6 columns covering the next 12 hours at 2-hour intervals: hour · weather icon · temperature · precipitation %).
+  - **5d tab**: temperature + precipitation line (v2 `DailyChart`, brought back into `ChartTabs`) / wind + precipitation line (v2 `DailyChart` altMode) / existing `DailyForecastColumns`.
+  - A row of three dots beneath the chart area shows which view is active and is tappable to jump directly. The legacy tap-on-chart gesture is preserved (advances by one). View indices are persisted to `localStorage` per tab so the user's preference survives reloads.
+  - The two line charts (`HourlyChart`, `DailyChart`) gained a controlled-vs-uncontrolled `altMode` + `onAltToggle` prop pair: when `ChartTabs` passes them, the chart respects the parent and forwards taps to the cycle handler; when absent (v2 `InfoPanel`), the charts keep their internal state and previous tap-to-toggle behaviour.
+  - New `HourlyForecastColumns` component mirrors `DailyForecastColumns`'s visual language (column with day/hour label, weather icon, temperature, precip %) at hourly granularity. Sized to feel proportional to the daily strip, with a small "Prochaines 12 heures" / "Next 12 hours" / "Próximas 12 horas" title pinned top-right.
+  - New i18n keys: `charts.hourlyColumnsTitle`, `charts.cycleView`, `charts.viewTempPrecip`, `charts.viewWindPrecip`, `charts.viewHourlyColumns`, `charts.viewDailyColumns` in EN / FR / ES.
+
+---
+
 ## [2.14.39] - 2026-05-15
 
 ### Added

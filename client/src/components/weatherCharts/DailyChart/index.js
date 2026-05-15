@@ -1,4 +1,5 @@
 import React, { useContext, useState, useEffect, useCallback } from "react";
+import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
 import { AppContext } from "~/AppContext";
 import styles from "../styles.css";
@@ -169,11 +170,15 @@ const mapChartData = ({
 };
 
 /**
- * Daily forecast chart
+ * Daily forecast chart. Same controlled-vs-uncontrolled altMode contract
+ * as HourlyChart — see that component's JSDoc for the rationale.
  *
- * @returns {JSX.Element} Hourly forecast chart
+ * @param {object} [props]
+ * @param {boolean} [props.altMode] Controlled mode flag (false = temp, true = wind).
+ * @param {Function} [props.onAltToggle] Called on tap when controlled.
+ * @returns {JSX.Element} Daily forecast chart
  */
-const DailyChart = () => {
+const DailyChart = ({ altMode: altModeProp, onAltToggle }) => {
   const {
     dailyWeatherData,
     dailyWeatherDataErr,
@@ -187,7 +192,12 @@ const DailyChart = () => {
   // so axes / title pick up the nightRed tint when active.
   const nightRed = useTimeOfDay() === "nightRed";
 
-  const [altMode, setAltMode] = useState(false);
+  const [altModeLocal, setAltModeLocal] = useState(false);
+  const altMode = altModeProp !== undefined ? altModeProp : altModeLocal;
+  const handleClick = () => {
+    if (onAltToggle) onAltToggle();
+    else setAltModeLocal((m) => !m);
+  };
   const [chartData, setChartData] = useState(null);
   const [chartOptions, setChartOptions] = useState(null);
 
@@ -245,9 +255,7 @@ const DailyChart = () => {
     return (
       <div
         className={styles.container}
-        onClick={() => {
-          setAltMode(!altMode);
-        }}
+        onClick={handleClick}
       >
         <Line options={chartOptions} data={chartData} />
       </div>
@@ -267,6 +275,11 @@ const DailyChart = () => {
   } else {
     return null;
   }
+};
+
+DailyChart.propTypes = {
+  altMode: PropTypes.bool,
+  onAltToggle: PropTypes.func,
 };
 
 export default DailyChart;

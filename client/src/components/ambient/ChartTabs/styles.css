@@ -163,6 +163,83 @@
   flex-shrink: 0;
 }
 
+/* Cycle indicator dots — sit below the chart area, communicate that
+ * the active tab has multiple views and which one is currently shown.
+ * Tapping a dot jumps directly to that view; tapping the chart area
+ * itself advances by one (existing v2 gesture preserved). */
+.cycleDots {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 8px;
+  min-height: 18px;
+}
+
+.dot {
+  width: 8px;
+  height: 8px;
+  padding: 0;
+  border: 1px solid var(--c-border-hybrid);
+  border-radius: 50%;
+  background-color: transparent;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  /* Larger invisible hit target around the visible dot — the dot
+   * itself reads at 8 px for the chrome-light look, but tapping a
+   * 8-px circle on a touchscreen is unreliable. Use a transparent
+   * outer ring so the user has a ~22-px tap zone without the dots
+   * looking heavy. */
+  box-shadow: 0 0 0 7px transparent;
+  transition: background-color 120ms ease-out, border-color 120ms ease-out;
+}
+
+.dot:hover {
+  border-color: var(--c-text-dim);
+}
+
+.dot:focus-visible {
+  outline: 2px dashed var(--c-text);
+  outline-offset: 2px;
+}
+
+.dotActive {
+  background-color: var(--c-accent);
+  border-color: var(--c-accent);
+}
+
+/* Small view label to the right of the dots — reinforces what the
+ * dots represent on first encounter. Could be hidden after a few
+ * sessions via a "tip dismissed" cookie, but it costs almost nothing
+ * visually and helps discoverability so we keep it always-on for now. */
+.viewLabel {
+  margin-left: 6px;
+  font-size: 11px;
+  font-weight: 400;
+  letter-spacing: 0.3px;
+  color: var(--c-text-dim);
+  text-transform: lowercase;
+}
+
+/* Columns view wrapper — the line-chart components ship their own
+ * onClick on `.container`, but DailyForecastColumns and
+ * HourlyForecastColumns don't, so we wrap them in a div that owns
+ * the tap-to-cycle gesture. Sized to fill the chartArea so the tap
+ * zone covers the full column strip rather than only the columns
+ * themselves. */
+.columnsClickable {
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.columnsClickable:focus-visible {
+  outline: 2px dashed var(--c-text);
+  outline-offset: -2px;
+  border-radius: 6px;
+}
+
 /* HourlyChart ships its own wrapper `.container` with hardcoded
  * `width: 255px; height: 115px` (sized for v2's WeatherInfo panel).
  * In v3's ChartTabs the rail width varies (300/340 px) and the slab

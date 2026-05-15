@@ -1,4 +1,5 @@
 import React, { useContext, useState, useEffect } from "react";
+import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
 import { AppContext } from "~/AppContext";
 import styles from "../styles.css";
@@ -172,11 +173,22 @@ const mapChartData = ({
 };
 
 /**
- * Hourly forecast chart
+ * Hourly forecast chart.
  *
+ * Supports two modes — temperature + precipitation, or wind speed +
+ * precipitation. By default the component manages the mode internally
+ * and toggles it on chart-area tap (v2 behaviour). When the parent
+ * passes `altMode` + `onAltToggle` (controlled), the chart respects the
+ * parent's state and forwards taps to the callback instead — used by
+ * v3's `ChartTabs` so the cycle indicator dots and the tap gesture stay
+ * in sync.
+ *
+ * @param {object} [props]
+ * @param {boolean} [props.altMode] Controlled mode flag (false = temp, true = wind). When omitted, the component falls back to internal state.
+ * @param {Function} [props.onAltToggle] Called on chart-area tap when controlled. Receives no arguments — parents decide what the next state is.
  * @returns {JSX.Element} Hourly forecast chart
  */
-const HourlyChart = () => {
+const HourlyChart = ({ altMode: altModeProp, onAltToggle }) => {
   const {
     hourlyWeatherData,
     tempUnit,
@@ -192,7 +204,15 @@ const HourlyChart = () => {
   // pick up the night-red tint when the sleep-stage-1 palette is on.
   const nightRed = useTimeOfDay() === "nightRed";
 
-  const [altMode, setAltMode] = useState(false);
+  // Controlled-vs-uncontrolled: prop wins when provided. The internal
+  // state stays around so v2's InfoPanel (which doesn't pass altMode)
+  // keeps its tap-to-toggle behaviour without further changes.
+  const [altModeLocal, setAltModeLocal] = useState(false);
+  const altMode = altModeProp !== undefined ? altModeProp : altModeLocal;
+  const handleClick = () => {
+    if (onAltToggle) onAltToggle();
+    else setAltModeLocal((m) => !m);
+  };
   const [chartData, setChartData] = useState(null);
   useEffect(() => {
     if (hourlyWeatherData) {
@@ -219,9 +239,7 @@ const HourlyChart = () => {
     return (
       <div
         className={styles.container}
-        onClick={() => {
-          setAltMode(!altMode);
-        }}
+        onClick={handleClick}
       >
         <Line
           data={chartData}
@@ -254,6 +272,11 @@ const HourlyChart = () => {
   } else {
     return null;
   }
+};
+
+HourlyChart.propTypes = {
+  altMode: PropTypes.bool,
+  onAltToggle: PropTypes.func,
 };
 
 export default HourlyChart;

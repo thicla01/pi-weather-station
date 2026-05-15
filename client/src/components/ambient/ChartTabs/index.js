@@ -1,63 +1,91 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
 import maximize from "@iconify/icons-carbon/maximize";
 import minimize from "@iconify/icons-carbon/minimize";
 import HourlyChart from "~/components/weatherCharts/HourlyChart";
+import DailyChart from "~/components/weatherCharts/DailyChart";
+import HourlyForecastColumns from "~/components/ambient/HourlyForecastColumns";
 import DailyForecastColumns from "~/components/ambient/DailyForecastColumns";
 import styles from "./styles.css";
 
+// View identifiers per tab. Treated as a 0-indexed cycle: tap on the
+// chart area (or on a dot) advances to the next view; the last view
+// wraps back to the first. Stored in localStorage so the user's
+// preferred view per tab survives reloads.
+const HOURLY_VIEWS = ["temp", "wind", "columns"];
+const DAILY_VIEWS = ["temp", "wind", "columns"];
+
+const STORAGE_KEY_HOURLY = "ambient.chartTabs.hourlyView";
+const STORAGE_KEY_DAILY = "ambient.chartTabs.dailyView";
+
+/**
+ * Read a non-negative integer from localStorage, clamped to a maximum.
+ * Falls back to 0 on any parse error or when the value is out of range.
+ *
+ * @param {String} key localStorage key
+ * @param {Number} max exclusive upper bound (returned value is < max)
+ * @returns {Number} integer in [0, max), defaulting to 0
+ */
+function readStoredView(key, max) {
+  try {
+    const raw = window.localStorage.getItem(key);
+    if (raw == null) return 0;
+    const n = parseInt(raw, 10);
+    if (Number.isNaN(n) || n < 0 || n >= max) return 0;
+    return n;
+  } catch {
+    return 0;
+  }
+}
+
 /**
  * Direction C chart slab — tabbed switcher between the hourly (24 h)
- * and daily (5 day) forecast charts.
+ * and daily (5 day) forecasts, each cycling through three views:
  *
- * The split-into-tabs pattern is the same one v2 uses on small screens
- * (`(max-height: 520px)` media query) — kiosk vertical space is too
- * scarce to show both charts stacked. For Direction C the tabs are
- * unconditional: the right rail is 300/340px wide and a stacked layout
- * would always feel cramped, regardless of viewport height.
+ *   24h tab → temp+precip line / wind+precip line / hourly columns
+ *   5d tab  → temp+precip line / wind+precip line / 5-day columns
  *
- * Maximize toggle (added in v2.14.39): the slab can promote to
- * `position: absolute; inset: 12px` over its rail and emit a stable
- * `data-chart-maximized="true"` data attribute on its root. LayoutDesktop's
- * stylesheet uses `:has([data-chart-maximized="true"])` to detect the
- * maximized state and grow `--c-rail-width` from its default 320 / 360 px
- * to `min(50vw, 720px)`, giving the chart canvas roughly half the screen
- * width and pushing the HeroBand leftward via its existing `right:
- * calc(var(--c-rail-width) * …)` rule. On LayoutPi the rail is already
- * ~half the screen so no width growth is needed; the maximize just hides
- * sibling rail items behind the now-opaque slab. Pattern mirrors
- * AiSummaryInline's maximize.
+ * The cycle is driven by either tapping the chart area itself (the v2
+ * tap-to-toggle gesture, kept because users already know it) or
+ * tapping one of the dots in the indicator row beneath the chart. Dots
+ * make the affordance visible — without them users wouldn't know the
+ * tap exists. The per-tab view index is persisted to localStorage so
+ * the user's preference survives reloads.
  *
- * The actual chart components (`HourlyChart`, `DailyForecastColumns`)
- * are reused verbatim — they already use `<ResponsiveContainer>` (or fill
- * their parent box) so the larger chartArea simply gives them more room.
+ * Maximize toggle (v2.14.39): the slab promotes to `position: absolute;
+ * inset: 12px` over its rail and emits `data-chart-maximized="true"`.
+ * LayoutDesktop's stylesheet uses `:has([data-chart-maximized="true"])`
+ * to grow `--c-rail-width` from 320 / 360 px to `min(50vw, 720px)`,
+ * giving the chart roughly half the screen.
  *
- * @returns {JSX.Element} chart slab with tab header
+ * @returns {JSX.Element} chart slab with tab header, cycle dots, and chart body
  */
 const ChartTabs = () => {
   const { t, i18n } = useTranslation();
   const [tab, setTab] = useState("hourly");
-  // Maximize mode: the slab pins to its rail's inner bounds so the chart
-  // gets the full rail height; on LayoutDesktop the rail also widens via
-  // the `:has()` rule keyed off `data-chart-maximized` (see header
-  // comment). Local state — the lift-to-context refactor for mutually
-  // exclusive Chart/AiSummary maximize will land in a follow-up if the
-  // overlap turns out to be common in real use.
+  const [hourlyView, setHourlyView] = useState(() => readStoredView(STORAGE_KEY_HOURLY, HOURLY_VIEWS.length));
+  const [dailyView, setDailyView] = useState(() => readStoredView(STORAGE_KEY_DAILY, DAILY_VIEWS.length));
   const [maximized, setMaximized] = useState(false);
   const slabRef = useRef(null);
 
-  // Same scroll-rail-to-top trick AiSummaryInline uses on maximize: the
-  // absolutely-positioned slab anchors to its rail ancestor's content
-  // origin, so if the user scrolled the rail before pressing maximize
-  // the slab would render above the viewport and be invisible until
-  // the user manually scrolled back up. Walk to the scrollable ancestor
-  // and set its scrollTop to 0 whenever we enter maximize mode.
+  // Persist on change. Wrapped in try/catch because localStorage can
+  // throw in some private-browsing modes — failing silently is
+  // preferable to a broken UI for what is purely a comfort feature.
+  useEffect(() => {
+    try { window.localStorage.setItem(STORAGE_KEY_HOURLY, String(hourlyView)); } catch { /* ignore */ }
+  }, [hourlyView]);
+  useEffect(() => {
+    try { window.localStorage.setItem(STORAGE_KEY_DAILY, String(dailyView)); } catch { /* ignore */ }
+  }, [dailyView]);
+
+  // Scroll the rail to the top when maximizing (same trick AiSummaryInline
+  // uses) so the absolutely-positioned slab is in the visible viewport.
   useEffect(() => {
     if (!maximized || !slabRef.current) return;
     let el = slabRef.current.parentElement;
     while (el && el !== document.body) {
-      const overflowY = window.getComputedStyle(el).overflowY;
+      const { overflowY } = window.getComputedStyle(el);
       if (overflowY === "auto" || overflowY === "scroll") {
         el.scrollTop = 0;
         break;
@@ -70,6 +98,65 @@ const ChartTabs = () => {
   const maximizeLabel = maximized
     ? { fr: "Restaurer", es: "Restaurar", en: "Restore" }[lang]
     : { fr: "Agrandir", es: "Ampliar", en: "Maximize" }[lang];
+
+  // Cycle handler: advance the active tab's view index by one, wrapping
+  // back to 0 after the last view. Wrapped in useCallback so the chart
+  // components don't re-render needlessly when the parent re-renders
+  // for unrelated reasons (palette change, etc.).
+  const cycleActiveView = useCallback(() => {
+    if (tab === "hourly") {
+      setHourlyView((v) => (v + 1) % HOURLY_VIEWS.length);
+    } else {
+      setDailyView((v) => (v + 1) % DAILY_VIEWS.length);
+    }
+  }, [tab]);
+
+  // Set the active tab's view explicitly (for dot taps).
+  const setActiveView = useCallback((index) => {
+    if (tab === "hourly") setHourlyView(index);
+    else setDailyView(index);
+  }, [tab]);
+
+  const activeViews = tab === "hourly" ? HOURLY_VIEWS : DAILY_VIEWS;
+  const activeIndex = tab === "hourly" ? hourlyView : dailyView;
+  const activeView = activeViews[activeIndex];
+  // altMode mapping: the two line-chart views ("temp" and "wind") map
+  // to the chart components' boolean altMode. The "columns" view
+  // renders the dedicated column-strip component instead and altMode
+  // is irrelevant.
+  const altMode = activeView === "wind";
+
+  // The chart components already render their click handler on the
+  // chart container — we forward the cycle action through their
+  // `onAltToggle` prop so the existing tap gesture keeps working. For
+  // the columns view there's no chart container, so we wrap that one
+  // in a clickable div directly.
+  let chartBody;
+  const viewLabelKey = tab === "hourly"
+    ? { temp: "charts.viewTempPrecip", wind: "charts.viewWindPrecip", columns: "charts.viewHourlyColumns" }[activeView]
+    : { temp: "charts.viewTempPrecip", wind: "charts.viewWindPrecip", columns: "charts.viewDailyColumns" }[activeView];
+
+  if (tab === "hourly") {
+    if (activeView === "columns") {
+      chartBody = (
+        <div className={styles.columnsClickable} onClick={cycleActiveView} role="button" tabIndex={0}>
+          <HourlyForecastColumns />
+        </div>
+      );
+    } else {
+      chartBody = <HourlyChart altMode={altMode} onAltToggle={cycleActiveView} />;
+    }
+  } else {
+    if (activeView === "columns") {
+      chartBody = (
+        <div className={styles.columnsClickable} onClick={cycleActiveView} role="button" tabIndex={0}>
+          <DailyForecastColumns />
+        </div>
+      );
+    } else {
+      chartBody = <DailyChart altMode={altMode} onAltToggle={cycleActiveView} />;
+    }
+  }
 
   return (
     <div
@@ -107,14 +194,33 @@ const ChartTabs = () => {
           <InlineIcon icon={maximized ? minimize : maximize} className={styles.actionIcon} />
         </button>
       </div>
-      <div className={styles.chartArea}>
-        {/* Hourly stays the existing Chart.js line — a temperature
-         * curve over 24 h is the right shape for that range. Daily
-         * switches to the column strip (DailyForecastColumns):
-         * 5 days × {day · icon · high · low · precip %}, mirroring
-         * the Claude Design "Next 5 days" mockup. v2 DailyChart is
-         * still present in the bundle and used by v2 layouts. */}
-        {tab === "hourly" ? <HourlyChart /> : <DailyForecastColumns />}
+      <div className={styles.chartArea}>{chartBody}</div>
+      <div
+        className={styles.cycleDots}
+        role="tablist"
+        aria-label={t("charts.cycleView", { defaultValue: "Cycle view" })}
+      >
+        {activeViews.map((view, i) => {
+          const labelKey = tab === "hourly"
+            ? { temp: "charts.viewTempPrecip", wind: "charts.viewWindPrecip", columns: "charts.viewHourlyColumns" }[view]
+            : { temp: "charts.viewTempPrecip", wind: "charts.viewWindPrecip", columns: "charts.viewDailyColumns" }[view];
+          const label = t(labelKey);
+          return (
+            <button
+              key={view}
+              type="button"
+              role="tab"
+              aria-selected={i === activeIndex}
+              aria-label={label}
+              title={label}
+              className={`${styles.dot} ${i === activeIndex ? styles.dotActive : ""}`}
+              onClick={() => setActiveView(i)}
+            />
+          );
+        })}
+        <span className={styles.viewLabel} aria-hidden="true">
+          {viewLabelKey ? t(viewLabelKey) : ""}
+        </span>
       </div>
     </div>
   );
