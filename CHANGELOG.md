@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.48] - 2026-05-15
+
+### Fixed
+- **HourlyForecastColumns — sparse layout in expanded mode on tall viewports** — On the 24h-tab columns view, with ChartTabs maximized on a desktop monitor (and thus the chart area ~600 px tall), the 3 rows of cells stretched to ~200 px each because of `grid-auto-rows: 1fr` combined with `align-items: stretch`. The cells' content (icon + hour + temperature, ~60 px tall) sat at the top of each row, leaving ~140 px of dead vertical space below. User feedback: "les données ont l'air perdu parce que le tableau est trop grand". Fix: `grid-auto-rows: auto` so rows take their natural height, plus `align-content: center` on `.strip` so the 3-row cluster sits in the middle of the chart area with the leftover space distributed top and bottom as breathing room. Gap bumped from 4 px → 8 px between rows so the strip still reads as a deliberate grid rather than a tight clump.
+
+---
+
 ## [2.14.47] - 2026-05-15
 
 ### Changed

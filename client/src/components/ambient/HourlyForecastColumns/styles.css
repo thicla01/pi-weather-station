@@ -17,10 +17,18 @@
 .strip {
   display: grid;
   grid-template-columns: repeat(4, 1fr);
-  grid-auto-rows: 1fr;
-  gap: 4px 6px;
+  /* Natural row height (was `1fr` in v2.14.43-46) — at desktop maximize
+   * the chart area is ~600 px tall and `1fr` rows stretched each cell to
+   * ~200 px, leaving 140 px of dead vertical space below the temperature.
+   * Reading as "données perdues" (user feedback v2.14.48). `auto` rows
+   * sit at their content height, and `align-content: center` clusters
+   * the rows in the middle of the chart area so the rest of the space
+   * reads as breathing room rather than gaps inside the strip. */
+  grid-auto-rows: auto;
+  gap: 8px 6px;
   height: 100%;
   align-items: stretch;
+  align-content: center;
   position: relative;
 }
 
