@@ -17,10 +17,12 @@ import styles from "./styles.css";
 // 1 h) and the row count.
 const COMPACT_HOUR_STEP = 3;
 const COMPACT_TOTAL_CELLS = 8;
-const COMPACT_COLUMNS_PER_ROW = 4;
 const EXPANDED_HOUR_STEP = 1;
 const EXPANDED_TOTAL_CELLS = 24;
-const EXPANDED_COLUMNS_PER_ROW = 8;
+// Columns-per-row (4 compact, 8 expanded) is enforced by the CSS Grid
+// `grid-template-columns: repeat(N, 1fr)` rule in styles.css — keeping
+// the count out of JS avoids two sources of truth. CSS Grid auto-flow
+// lays the remaining cells onto subsequent rows automatically.
 
 // Threshold below which the precipitation percentage is hidden so
 // every column doesn't carry a noisy "0 %" / "5 %" label. Mirrors the
