@@ -14,6 +14,26 @@
   align-items: stretch;
   min-height: 52px;
   color: var(--c-text);
+
+  /* Override the v2 ControlButtons hard-coded grey gradients via CSS
+   * custom properties so the dock buttons adapt to every Direction C
+   * palette (day / dusk / night / nightRed).
+   *
+   * Problem solved: in nightRed mode the v2 grey button backgrounds
+   * (#5d5c5c) reduced contrast with the red icons (--c-text: #c04848)
+   * to ~1.24:1 — effectively invisible. Transparent buttons let the
+   * dark dock surface show through, giving icons ~4:1 contrast.
+   * In day mode the grey gradient clashed with the warm cream surface
+   * (#fffaf0) — transparent eliminates the colour mismatch entirely.
+   *
+   * The fallback values in ControlButtons/styles.css are untouched, so
+   * v2 layouts that embed ControlButtons outside this dock are
+   * unaffected. */
+  --ctrl-btn-bg: transparent;
+  --ctrl-btn-active: var(--c-accent-soft);
+  --ctrl-btn-down: var(--c-accent-soft);
+  --ctrl-btn-border: var(--c-border-hybrid);
+  --ctrl-btn-border-l: transparent;
 }
 
 /* ControlButtons brings its own `display: flex; justify-content:

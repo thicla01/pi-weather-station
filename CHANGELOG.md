@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.34] - 2026-05-14
+
+### Fixed
+- **v3 BottomDock — button contrast and palette consistency** — Two visual issues with the control-button row at the bottom of the 7" Pi layout:
+  - **nightRed mode — icons invisible**: The v2 ControlButtons stylesheet paints button cells with a mid-grey gradient (`#5d5c5c → #4e4e4e`). In nightRed mode the icon colour is `--c-text: #c04848` (warm red). Red on grey has a contrast ratio of only ~1.24:1 — effectively indistinguishable. Root cause: the v2 hard-coded greys are palette-unaware and fight the Direction C tokens.
+  - **day mode — colour mismatch**: Switching from dark to light mode turned the button bar from "black" (dark surface + dark grey buttons) to a warm brown-orange. The grey gradient buttons clashed with the day-mode cream dock surface (`rgba(255, 250, 240, 0.85)`).
+  - **Fix — CSS custom properties**: Added `--ctrl-btn-bg`, `--ctrl-btn-active`, `--ctrl-btn-down`, `--ctrl-btn-border`, `--ctrl-btn-border-l` custom properties to `ControlButtons/styles.css` with the v2 values as fallbacks. `BottomDock/styles.css` overrides them on `.dock` with Direction C tokens: transparent button backgrounds (dock surface shows through, giving icons ~4:1 contrast in nightRed), `--c-accent-soft` for active/down states, and `--c-border-hybrid` for dividers. v2 layouts that embed ControlButtons outside the dock are unaffected.
+
+---
+
 ## [2.14.33] - 2026-05-14
 
 ### Fixed

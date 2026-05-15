@@ -18,23 +18,27 @@
 }
 
 .container.dark > div {
-  background: linear-gradient(#5d5c5c, #4e4e4e);
-  border-right: 1px solid #4c4c4c;
-  border-left: 1px solid #757575;
+  /* --ctrl-btn-bg / --ctrl-btn-border / --ctrl-btn-border-l are
+   * intentionally left unset here — they resolve to their fallback
+   * values in v2 contexts and are overridden by BottomDock for the
+   * Direction C wrapper (see ambient/BottomDock/styles.css). */
+  background: var(--ctrl-btn-bg, linear-gradient(#5d5c5c, #4e4e4e));
+  border-right: 1px solid var(--ctrl-btn-border, #4c4c4c);
+  border-left: 1px solid var(--ctrl-btn-border-l, #757575);
 }
 
 .container.dark > div:active {
-  background: linear-gradient(#4e4e4e, #5d5c5c);
+  background: var(--ctrl-btn-active, linear-gradient(#4e4e4e, #5d5c5c));
 }
 
 .container.light > div {
-  background: linear-gradient(#d6d6d6, #c7c7c7);
-  border-right: 1px solid #bdbdbd;
-  border-left: 1px solid #dadada;
+  background: var(--ctrl-btn-bg, linear-gradient(#d6d6d6, #c7c7c7));
+  border-right: 1px solid var(--ctrl-btn-border, #bdbdbd);
+  border-left: 1px solid var(--ctrl-btn-border-l, #dadada);
 }
 
 .container.light > div:active {
-  background: linear-gradient(#d7d7d7, #e6e6e6);
+  background: var(--ctrl-btn-active, linear-gradient(#d7d7d7, #e6e6e6));
 }
 
 .container.light > div:first-child {
@@ -42,11 +46,11 @@
 }
 
 .light .button-down {
-  background: linear-gradient(#E4E4E4, #F3F3F3) !important;
+  background: var(--ctrl-btn-down, linear-gradient(#E4E4E4, #F3F3F3)) !important;
 }
 
 .dark .button-down {
-  background: linear-gradient(#686868, #777676) !important;
+  background: var(--ctrl-btn-down, linear-gradient(#686868, #777676)) !important;
 }
 
 /* Update button */
