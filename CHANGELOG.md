@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.41] - 2026-05-15
+
+### Fixed
+- **HourlyForecastColumns — missing weather icons** — Field-test report: the new 24h "Colonnes horaires" view rendered the hour label and temperature but no weather icon (only the "—" placeholder). Cause: `HOURLY_FIELDS` in `proxyCtrl.js` only requested `temperature`, `precipitationProbability`, `precipitationIntensity`, `windSpeed` — `weatherCode` was never pulled because the v2 `HourlyChart` line chart didn't need it. Added `weatherCode` to `HOURLY_FIELDS`; the cache key versioning introduced in v2.14.6 (commit 300d1f2) bumps the `HOURLY_FIELDS_HASH` automatically, so every Pi will discard its stale hourly cache and refetch on the next request — no manual `rm weather-cache.json` required.
+- **HourlyForecastColumns — title overlapping rightmost columns** — The "Prochaines 12 heures" title was absolute-positioned at `top: 4px; right: 6px` and bled over the last column's hour / temperature on both the compact rail (≤ 320 px) and the expanded rail (~ 700 px). The cycle dots already display a "colonnes horaires" label below the chart area, which is enough — removed the in-strip title entirely (and its unused i18n usage / `useTranslation` import).
+
+---
+
 ## [2.14.40] - 2026-05-15
 
 ### Added

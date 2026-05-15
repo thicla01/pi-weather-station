@@ -65,23 +65,3 @@
   margin-top: 2px;
 }
 
-/* Floating title in the strip's top-right corner — matches the
- * Chart.js title position so the third view doesn't feel
- * unlabelled compared to the two line charts that have their
- * title baked into the canvas. `aria-hidden` because the tab
- * already announces the section name via the segmented control;
- * this is purely visual reinforcement.
- *
- * In the maximized chart view the strip grows to fill more
- * vertical space; the title stays anchored top-right via the
- * `.strip` `position: relative` ancestor. */
-.title {
-  position: absolute;
-  top: 4px;
-  right: 6px;
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.4px;
-  color: var(--c-accent);
-  pointer-events: none;
-}

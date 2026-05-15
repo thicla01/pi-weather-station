@@ -68,6 +68,12 @@ const CURRENT_FIELDS = [
 ];
 const HOURLY_FIELDS = [
   "temperature", "precipitationProbability", "precipitationIntensity", "windSpeed",
+  // weatherCode added in 2.14.41 to render the icon column in
+  // HourlyForecastColumns (the third view in the 24h tab cycle).
+  // Adding to the list bumps HOURLY_FIELDS_HASH, which orphans every
+  // cached hourly entry and forces a fresh fetch on next request — see
+  // the cache-versioning rationale at the top of this file.
+  "weatherCode",
 ];
 const DAILY_FIELDS = [
   "temperature", "temperatureMax", "temperatureMin",

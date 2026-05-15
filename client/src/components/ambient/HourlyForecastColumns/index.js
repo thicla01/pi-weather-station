@@ -1,5 +1,4 @@
 import React, { useContext } from "react";
-import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
 import { AppContext } from "~/AppContext";
 import { parseWeatherCode } from "~/ui/weatherCodes";
@@ -34,7 +33,6 @@ const PRECIP_THRESHOLD = 30;
  */
 const HourlyForecastColumns = () => {
   const { hourlyWeatherData, tempUnit, clockTime } = useContext(AppContext);
-  const { t } = useTranslation();
 
   const intervals = hourlyWeatherData?.data?.timelines?.[0]?.intervals;
   if (!Array.isArray(intervals) || intervals.length === 0) {
@@ -104,9 +102,6 @@ const HourlyForecastColumns = () => {
           </div>
         );
       })}
-      <div className={styles.title} aria-hidden="true">
-        {t("charts.hourlyColumnsTitle", { defaultValue: "Next 12 hours" })}
-      </div>
     </div>
   );
 };
