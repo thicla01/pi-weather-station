@@ -23,6 +23,11 @@
   box-shadow:
     inset 4px 0 0 var(--c-strip-color, transparent),
     0 8px 24px rgba(0, 0, 0, 0.25);
+  /* At ultra-wide viewports (2560px+) the heroSlot can be 2100+ px
+   * wide — each of the three panels would stretch to 500+ px, leaving
+   * large amounts of empty space ("désert" feeling). Cap at 1600px so
+   * the band stays content-rich at any viewport width. */
+  max-width: 1600px;
 }
 
 .divider {
@@ -111,9 +116,12 @@
   align-self: center;
 }
 
-/* Bigger temp + icon on wider viewports — keeps the hero band feeling
- * proportional on 1080p/4K displays rather than puny in the corner. */
+/* Bigger content on wider viewports — keeps the hero band feeling
+ * proportional on 1080p/4K displays rather than puny in the corner.
+ * All three panels scale together so no panel reads as sparser than
+ * its neighbours. */
 @media (min-width: 1600px) {
+  /* Temperature panel */
   .tempValue { font-size: 88px; }
   /* Scale the badge unit alongside the value so the ratio stays
    * consistent at ~38 % across breakpoints. Was 28 px (default) →
@@ -122,7 +130,16 @@
   .tempIcon { font-size: 76px; }
   .tempDesc { font-size: 17px; }
   .panelTemp { padding: 24px 32px; }
-  .panelPlace,
+
+  /* Location panel — larger city name to fill the panel proportionally */
+  .placeLabel { font-size: 20px; }
+  .panelPlace { padding: 24px 32px; }
+
+  /* Clock panel — date label and sunrise/sunset row up to match */
+  .clockDate { font-size: 14px; letter-spacing: 1px; }
+  .clockTime { font-size: 52px; }
+  .clockAmPm { font-size: 18px; }
+  .clockSunRow { font-size: 14px; margin-top: 10px; gap: 18px; }
   .panelClock { padding: 24px 32px; }
 }
 

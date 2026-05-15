@@ -5,6 +5,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.36] - 2026-05-15
+
+### Changed
+- **HeroBand — ultra-wide cap + wider font scaling** — At viewport widths beyond 1600 px the three HeroBand panels stretched to 500 px+ each, leaving large expanses of empty space (reported by k5map). Two changes:
+  - Added `max-width: 1600px` to `.band` — the band stops growing at 1600 px regardless of how wide the monitor is, keeping the content-rich look of the design reference.
+  - Extended the `@media (min-width: 1600px)` block to include the Location panel (`font-size: 16 px → 20 px`, `padding: 24px 32px`) and the Clock panel (`date: 12 px → 14 px`, `clockTime: 44 px → 52 px`, `AM/PM: 16 px → 18 px`, `sun row: 12 px → 14 px`, `gap: 14 px → 18 px`, `margin-top: 8 px → 10 px`, `padding: 24px 32px`). The Temperature panel already scaled at ≥ 1600 px; the other two panels now follow, so all three read as proportional rather than the Location and Clock panels feeling small next to the large temperature digit.
+
+### Docs
+- **`docs/ui-layout_en.md`** — Full rewrite for v3 Direction C: LayoutPi ASCII diagram, LayoutDesktop ASCII diagram, HeroBand panels table, BottomDock ControlButtons table, Overlays table, Palette/time-of-day modes table. Replaces the v2 split-grid description.
+- **`docs/ui-layout_fr.md`** — Translated to French, aligned with the v3 Direction C rewrite above.
+
+---
+
 ## [2.14.35] - 2026-05-14
 
 ### Fixed

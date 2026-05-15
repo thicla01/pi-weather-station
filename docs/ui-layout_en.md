@@ -1,161 +1,173 @@
-# Pi Weather Station — UI Layout Reference
+# Pi Weather Station — UI Layout Reference (v3 / Direction C)
 
-This document describes the screen layout, panel names, and section names used in the Pi Weather Station interface. Use it as a reference when reporting issues or requesting changes.
+This document describes the screen layout, component names, and section names for the **v3 Direction C** interface. The v3 UI is activated via the **Preview** toggle in Settings (section 4). Use this document when reporting issues or requesting changes.
 
----
-
-## Full layout (normal screen, > 520 px height)
-
-```
-┌─────────────────────────────────────────┬───────────────────┐
-│                                         │   INFOPANEL       │
-│                                         │ ┌───────────────┐ │
-│                                         │ │ IndoorTemp│CLK│ │
-│                                         │ └───────────────┘ │
-│                                         │ ╔═══════════════╗ │
-│  WEATHERMAP (Leaflet + RainViewer       │ ║ LocationName  ║ │
-│  radar tiles, 45 km analysis circle)    │ ╠═══════════════╣ │
-│                                         │ ║CurrentWeather ║ │
-│                                         │ ║  temp, icon   ║ │
-│                                         │ ║  wind, humidity║ │
-│                                         │ ╠═══════════════╣ │
-│                                         │ ║  ChartLegend  ║ │
-│                                         │ ╠═══════════════╣ │
-│  ┌──────────────────────────────────┐   │ ║  HourlyChart  ║ │
-│  │   SETTINGS  (overlay)            │   │ ╠═══════════════╣ │
-│  │   DEBUG     (overlay)            │   │ ║  DailyChart   ║ │
-│  └──────────────────────────────────┘   │ ╠═══════════════╣ │
-│                                         │ ║   AiSummary   ║ │
-│                                         │ ║[AI SUMMARY ↑] ║ │
-│                                         │ ╚═══════════════╝ │
-│                                         │ ┌───────────────┐ │
-│                                         │ │ ControlButtons│ │
-│                                         │ └───────────────┘ │
-└─────────────────────────────────────────┴───────────────────┘
-```
+> **v2 note** — the pre-v3 layout (split grid, InfoPanel on the right with ControlButtons at the bottom of the rail) is still accessible by disabling the Preview toggle. This document covers v3 only.
 
 ---
 
-## Small screen (≤ 520 px height — official 7" display 800×480)
+## Layout variants
 
-On small screens, two adaptations activate automatically:
+The v3 interface selects a layout automatically based on screen size:
 
-- **ChartTabs** — HourlyChart and DailyChart are replaced by two tabs (`24 hours` / `5 days`) to save vertical space.
-- **PanelToggle** — A floating button appears on the right edge of the map to hide/show the InfoPanel.
-
-```
-┌──────────────────────────────────────┬─┬───────────────────┐
-│                                      │ │   INFOPANEL       │
-│                                      │›│ ┌───────────────┐ │
-│           WEATHERMAP                 │ │ │ IndoorTmp│CLK │ │
-│         (Leaflet radar map)          │P│ └───────────────┘ │
-│                                      │a│ ╔═══════════════╗ │
-│                                      │n│ ║ LocationName  ║ │
-│                                      │e│ ╠═══════════════╣ │
-│                                      │l│ ║CurrentWeather ║ │
-│                                      │T│ ╠═══════════════╣ │
-│                                      │o│ ║  ChartLegend  ║ │
-│                                      │g│ ╠═══════════════╣ │
-│                                      │g│ ║   ChartTabs   ║ │
-│                                      │l│ ║  24h │  5d    ║ │
-│                                      │e│ ╠═══════════════╣ │
-│                                      │ │ ║ HourlyChart   ║ │
-│                                      │ │ ║     or        ║ │
-│                                      │ │ ║ DailyChart    ║ │
-│                                      │ │ ╠═══════════════╣ │
-│                                      │ │ ║   AiSummary   ║ │
-│                                      │ │ ║[AI SUMMARY ↑] ║ │
-│                                      │ │ ╚═══════════════╝ │
-│                                      │ │ ┌───────────────┐ │
-│                                      │ │ │ ControlButtons│ │
-│                                      │ │ └───────────────┘ │
-└──────────────────────────────────────┴─┴───────────────────┘
-```
+| Condition | Layout |
+|-----------|--------|
+| `max-height ≤ 520 px` (e.g. official Pi 7" at 800×480) | **LayoutPi** |
+| `width ≥ 1280 px` (HD monitor, 10" Pi, desktop) | **LayoutDesktop** |
 
 ---
 
-## Collapsed InfoPanel (small screen only)
+## LayoutPi — 7" / 10" Pi touchscreen
 
-When the **PanelToggle** button is pressed (`‹`), the InfoPanel is hidden and the map occupies the full width:
+The map occupies the left column; the rail (info panel) occupies the right column. A collapsible chevron button on the map's right edge hides/shows the rail.
 
 ```
-┌────────────────────────────────────────────────────────────┬┐
-│                                                            │›││
-│                   WEATHERMAP (full width)                  │ ││
-│                                                            │ ││
-└────────────────────────────────────────────────────────────┴┘
+┌──────────────────────────┬──────────────────────────┐
+│                          │ TimeBlock                 │
+│                          │ (date · clock · sun row)  │
+│                          ├──────────────────────────┤
+│   WeatherMap             │ HeroCompact               │
+│   (Leaflet + RainViewer  │ (location · temp · icon · │
+│    radar tiles)          │  description)             │
+│                          ├──────────────────────────┤
+│                          │ AlertBanner               │
+│         [›]              ├──────────────────────────┤
+│    (chevron toggle)      │ AlertDetailInline         │
+│                          ├──────────────────────────┤
+│                          │ MetricsGrid               │
+│                          │ (wind · humidity · UV ·   │
+│                          │  air quality)             │
+│                          ├──────────────────────────┤
+│                          │ IndoorBlock (Homebridge)  │
+│                          ├──────────────────────────┤
+│                          │ ChartTabs                 │
+│                          │ (24 hours / 5 days tabs   │
+│                          │  on ≤ 520 px height)      │
+│                          ├──────────────────────────┤
+│                          │ AiSummaryInline           │
+│                          │ (expandable ↑)            │
+└──────────────────────────┴──────────────────────────┤
+│ BottomDock (ControlButtons — 7 icon buttons)         │
+└──────────────────────────────────────────────────────┘
+```
+
+### Small-screen adaptations (≤ 520 px height — official 7" display 800×480)
+
+- **ChartTabs** — HourlyChart and DailyChart are shown as two tabs (`24 hours` / `5 days`) instead of stacked, to save vertical space. Tab state persists across the session.
+- **Panel toggle** — A chevron (`›` / `‹`) is pinned to the map's right edge to collapse/expand the rail. When collapsed the map fills the full width; Leaflet calls `map.invalidateSize()` so the tiles re-fit.
+- **FloatingMiniBanner** — When the rail is collapsed and a government severe alert is active, a compact banner overlays the map's top-right so the alert is never silently hidden. Tapping it re-opens the rail.
+- **SettingsPanel grid4** — Advanced section grids switch to 2 columns on ≤ 520 px height, giving sliders and toggles enough room (fixes overflow on radar-opacity sliders and AI toggle sub-text).
+
+### Collapsed rail
+
+```
+┌────────────────────────────────────┬──┐
+│                                    │  │
+│                                    │‹ │
+│   WeatherMap (full width)          │  │
+│                                    │  │
+│  [FloatingMiniBanner if alert]     │  │
+│                                    │  │
+└────────────────────────────────────┴──┤
+│  BottomDock                           │
+└───────────────────────────────────────┘
 ```
 
 ---
 
-## Debug overlay — full-width on small screens
+## LayoutDesktop — HD monitor / desktop (≥ 1280 px wide)
 
-On small screens the **Debug** overlay extends across the entire viewport instead of leaving a 320 px gutter for the InfoPanel — there isn't enough horizontal room to show the debug tables (quotas, services, security events) usefully otherwise. The InfoPanel and the **PanelToggle** button are still rendered behind the overlay but are visually covered. Closing is done via the red **Close** pill at the top-right corner of the panel itself, not via the bug-icon in ControlButtons (which is also covered).
+The map fills the entire viewport as a full-bleed background. The HeroBand, right rail, and BottomDock are translucent slabs floating on top of the radar.
 
 ```
-┌──────────────────────────────────────────────────────────[X]┐
-│ DEBUG (full viewport width)                                 │
-│  · Provider status / KPIs / Quotas / Services / Logs ...    │
-│                                                             │
-└─────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────┬───────────┐
+│ HeroBand (floating slab, max 1600 px wide)  │           │
+│ ┌──────────────┬──────────────┬───────────┐ │           │
+│ │ Location     │ Temp + icon  │ Date      │ │  Right    │
+│ │ (city name)  │ + description│ Clock     │ │  Rail     │
+│ │              │              │ Sun row   │ │           │
+│ └──────────────┴──────────────┴───────────┘ │ - Metrics │
+│                                         [›] │ - Alerts  │
+│  WeatherMap                                 │ - Charts  │
+│  (full-bleed — radar visible through slabs) │ - AI sum. │
+│                                             │           │
+│                                             │           │
+├─────────────────────────────────────────────┴───────────┤
+│  BottomDock (ControlButtons)                             │
+└──────────────────────────────────────────────────────────┘
 ```
 
-The **Settings** overlay keeps the 320 px gutter on small screens — its rows fit fine in the narrower area, so the InfoPanel stays partially visible behind it.
+### HeroBand panels
+
+| Panel | Content | Font sizes |
+|-------|---------|------------|
+| **Left — Location** | City name (LocationName, pin icon) | 16 px → 20 px at ≥ 1600 px |
+| **Centre — Temperature** | Large temp numeral · unit badge · weather icon · description | 72 px → 88 px at ≥ 1600 px |
+| **Right — Clock** | Date (all-caps) · HH:MM · AM/PM (12h) · sunrise/sunset row | Clock 44 px → 52 px; sun row 12 px → 14 px at ≥ 1600 px |
+
+The band has a `max-width: 1600 px` cap — at ultra-wide viewports (2560 px+) it stays content-rich rather than sprawling across the full available area.
+
+### Right rail
+
+Width: `320 px` (default) · `360 px` at ≥ 1600 px. Zooms with the user's font-size preference (`--c-font-scale`).
+
+Components (top to bottom):
+1. **AlertBanner** — government severe-weather alert pill (hidden when no active alert)
+2. **AlertDetailInline** — expanded alert text (hidden when collapsed)
+3. **MetricsGrid** — wind speed · humidity · UV index · air-quality index
+4. **IndoorBlock** — Homebridge indoor temperature / humidity / air quality (hidden if not configured)
+5. **ChartTabs** — 24-hour and 5-day forecast tabs with Recharts graphs
+6. **AiSummaryInline** — Claude AI weather summary; expandable to fill the rail (↑ button)
+
+### Collapsed rail (LayoutDesktop)
+
+The chevron (`›` / `‹`) on the map's right edge collapses the rail. The HeroBand extends to fill the freed width. FloatingMiniBanner appears if an alert is active.
 
 ---
 
-## AiSummary — expanded mode
+## BottomDock
 
-When the **AI SUMMARY ↑** button is pressed, the charts (ChartLegend, ChartTabs/Charts) are hidden and the summary slides up automatically:
+Spans the full viewport width at the bottom of both layouts. Contains the **ControlButtons** row. Height: 52 px. Icons: 24 px.
 
-```
-╔═══════════════╗
-║ LocationName  ║
-╠═══════════════╣
-║CurrentWeather ║
-╠═══════════════╣   ← ChartLegend + Charts hidden (350 ms transition)
-║   AiSummary   ║
-║[AI SUMMARY ↓] ║   ← chevron ↓ to restore charts
-╚═══════════════╝
-```
+### ControlButtons (left → right, typical configuration)
 
-Pressing **AI SUMMARY ↓** restores the charts and automatically scrolls the view back to the top of the InfoPanel (LocationName visible).
+| Icon | Action | Visibility condition |
+|------|--------|---------------------|
+| ↖ Location arrow | Reset map to home position | Always |
+| 📍 / 📍off | Toggle location marker | Always |
+| 〜 Timeline | Show / hide radar timeline scrubber | RainViewer source only |
+| ↗ Direction arrows | Show / hide precipitation direction arrows | Radar analysis enabled |
+| ☰ Legend | Show / hide radar colour legend | RainViewer + timestamps loaded |
+| ◑ Contrast | Toggle dark / light mode | Always |
+| ⚙ Settings | Open Settings panel | Always |
+| 🐛 Debug | Open Debug panel | Localhost + `DEBUG=true` only |
+| ⬆ Update | Open update modal | When a new release is available |
 
----
-
-## Component nomenclature
-
-| Display / common name       | React component          | Source file                                 |
-|-----------------------------|--------------------------|---------------------------------------------|
-| Radar map                   | `WeatherMap`             | `components/WeatherMap/index.js`            |
-| Right side panel            | `InfoPanel`              | `components/InfoPanel/index.js`             |
-| Clock                       | `Clock`                  | `components/Clock/index.js`                 |
-| Indoor temperature          | `IndoorTemperature`      | `components/IndoorTemperature/index.js`     |
-| Location                    | `LocationName`           | `components/LocationName/index.js`          |
-| Current weather             | `CurrentWeather`         | `components/CurrentWeather/index.js`        |
-| Chart legend                | `ChartLegend`            | inside `WeatherInfo/index.js`               |
-| 24-hour chart               | `HourlyChart`            | `components/weatherCharts/HourlyChart/`     |
-| 5-day chart                 | `DailyChart`             | `components/weatherCharts/DailyChart/`      |
-| Chart tabs                  | `ChartTabs`              | inside `WeatherInfo/index.js` (small screen)|
-| AI summary                  | `AiSummary`              | `components/AiSummary/index.js`             |
-| Control buttons             | `ControlButtons`         | `components/ControlButtons/index.js`        |
-| Settings (overlay)          | `Settings`               | `components/Settings/index.js`              |
-| Debug (overlay)             | `Debug`                  | `components/Debug/index.js`                 |
-| Update modal (overlay)      | `UpdateModal`            | `components/UpdateModal/index.js`           |
-| Panel toggle (small screen) | `PanelToggle`            | inside `App/index.js`                       |
+Button appearance adapts to the Direction C palette via CSS custom properties: transparent backgrounds (dock surface shows through), `--c-border-hybrid` dividers, `--c-accent-soft` on press/active.
 
 ---
 
 ## Overlays
 
-**Settings** and **Debug** are overlays that appear on top of the radar map. On wide screens they leave a 320 px gutter on the right so the InfoPanel stays visible; on small screens (≤ 520 px height) the **Debug** overlay extends across the full viewport, while **Settings** keeps the gutter (see "Debug overlay — full-width on small screens" above). The two panels are mutually exclusive — opening one automatically closes the other.
+All overlays render as `position: fixed; inset: 0; z-index 5000+` and mirror the active Direction C palette via inline CSS variables (they render outside `AmbientLayers`).
 
-- **Settings**: accessible via the ⚙ button in ControlButtons, always visible. Its built-in close button is the **X** at the top-right of the panel. The bottom of the panel exposes an **Advanced settings** collapsible section (Display group: map styles, radar opacity sliders, hardware brightness slider; AI group: radar-analysis toggles, sampling-point overlay).
-- **Debug**: accessible via the 🐛 button in ControlButtons, only visible from the Pi itself (`localhost`) when `DEBUG=true`. The close action is the red circular **Close** pill at the top-right of the panel — sized for touch (44×44 px) and clearly visible against the dark background. The font size for the Debug panel follows the global Settings → Font Size selector with a dedicated scale (S = 1.0×, M = 1.15×, L = 1.30×).
-- **UpdateModal**: opens from inside the Settings overlay when `GET /api/update-check` reports `updateAvailable: true`. Lists incoming `feat:`/`fix:` commits and surfaces warnings (`needsManualUpgrade`, `serviceFileChanged`) plus error messages from a failed `POST /api/update`.
+| Overlay | Trigger | Remote access |
+|---------|---------|---------------|
+| **SettingsPanel** | ⚙ Settings button | Sections 2–4 (server writes) blocked from remote clients; read-only view shown |
+| **DebugPanel** | 🐛 Debug button | Localhost + `DEBUG=true` only |
+| **UpdateModal** | ⬆ Update button | Localhost only (`/api/update` is `localhostOnly`) |
 
 ---
 
-## InfoPanel header
+## Palette / time-of-day modes
 
-The header row at the top of the InfoPanel hosts both **IndoorTemperature** (left) and **Clock** (right). When `indoorTemperature.enabled` is `false` or the Homebridge poll returns no data, IndoorTemperature renders nothing and Clock alone is right-aligned via `margin-inline-start: auto` on the last child.
+The Direction C palette adapts automatically based on time of day (`useTimeOfDay()`):
+
+| Mode | Time window | Key colours |
+|------|-------------|-------------|
+| **day** | After sunrise | Warm cream bg `#f4f0e8`, dark text, amber accent |
+| **dusk** | ± 90 min around sunrise/sunset | Deep warm-grey bg `#1c1a17`, amber accent |
+| **night** | Between dusk and nightRed window | Near-black bg `#0e0c0a`, copper accent |
+| **nightRed** | Late night (night-vision / sleep mode) | Very dark red bg `#100404`, all text and accent in red tones |
+
+`nightRed` uses `text: #d05050` (~5:1 contrast) and `textDim: #b84848` (~4:1 contrast) against the dark card surface — readable for both bold and non-bold text.
