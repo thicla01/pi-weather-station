@@ -1,10 +1,40 @@
-import React, { useContext } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { InlineIcon } from "@iconify/react";
 import { AppContext } from "~/AppContext";
 import { parseWeatherCode } from "~/ui/weatherCodes";
 import { convertTemp } from "~/services/conversions";
 import styles from "./styles.css";
+
+// Same threshold AmbientLayers uses to switch LayoutPi → LayoutDesktop.
+// Below this width the rail doesn't widen on maximize, so the dense
+// expanded layout (8 cols × 3 rows × 1-hour step) wouldn't physically
+// fit. Sharing the literal here would require lifting the constant into
+// a shared module — for one consumer of a CSS-driven breakpoint, just
+// match the value and keep both modules' comments in sync.
+const DESKTOP_MQ = "(min-width: 1280px)";
+
+/**
+ * Track whether the viewport currently matches the LayoutDesktop
+ * breakpoint. The rail only grows on `maximized` chart cards at that
+ * width and above — see HourlyForecastColumns's `expanded`-mode
+ * comment for why we have to gate the dense layout on this.
+ *
+ * @returns {boolean} true when the viewport is at least 1280 px wide
+ */
+function useIsDesktop() {
+  const [isDesktop, setIsDesktop] = useState(
+    () => typeof window !== "undefined" && window.matchMedia(DESKTOP_MQ).matches
+  );
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const mq = window.matchMedia(DESKTOP_MQ);
+    const handler = () => setIsDesktop(mq.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+  return isDesktop;
+}
 
 // Two density modes — both cover the full 24-hour window. Compact mode
 // (default rail, ~320 px wide) lays 8 cells out over 2 rows of 4 at a
@@ -54,14 +84,22 @@ const PRECIP_THRESHOLD = 30;
  */
 const HourlyForecastColumns = ({ expanded = false }) => {
   const { hourlyWeatherData, tempUnit, clockTime } = useContext(AppContext);
+  const isDesktop = useIsDesktop();
+  // The `expanded` prop is set whenever ChartTabs is maximized, on any
+  // layout. The dense layout (24 cells × 1-hour step) only physically
+  // fits when the rail widens — which only happens on LayoutDesktop.
+  // Below 1280 px the maximize still works visually (slab covers the
+  // other rail slabs, AiSummary-style) but the strip itself stays at
+  // the compact 8-cell layout so cells don't crush against each other.
+  const effectiveExpanded = expanded && isDesktop;
 
   const intervals = hourlyWeatherData?.data?.timelines?.[0]?.intervals;
   if (!Array.isArray(intervals) || intervals.length === 0) {
     return null;
   }
 
-  const hourStep = expanded ? EXPANDED_HOUR_STEP : COMPACT_HOUR_STEP;
-  const totalCells = expanded ? EXPANDED_TOTAL_CELLS : COMPACT_TOTAL_CELLS;
+  const hourStep = effectiveExpanded ? EXPANDED_HOUR_STEP : COMPACT_HOUR_STEP;
+  const totalCells = effectiveExpanded ? EXPANDED_TOTAL_CELLS : COMPACT_TOTAL_CELLS;
 
   // Pick N hours stepped by hourStep. Start at index 1 so the first
   // cell reflects the upcoming hour, not the current one — current
@@ -78,7 +116,7 @@ const HourlyForecastColumns = ({ expanded = false }) => {
 
   return (
     <div
-      className={`${styles.strip} ${expanded ? styles.expanded : ""}`}
+      className={`${styles.strip} ${effectiveExpanded ? styles.expanded : ""}`}
       role="list"
     >
       {slots.map((interval, i) => {

@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.45] - 2026-05-15
+
+### Fixed
+- **HourlyForecastColumns — expanded mode overflowed on the 7" Pi** — Field report: pressing the chart maximize button on the 7" kiosk produced visible column clipping on the right of the rail. Cause: only `LayoutDesktop` (active at viewport widths ≥ 1280 px) widens `--c-rail-width` when the chart slab emits `data-chart-maximized="true"`. `LayoutPi` (< 1280 px, used by the 7" kiosk and any sub-1280 desktop) leaves the rail at its native width. `ChartTabs` was passing `expanded={maximized}` to `HourlyForecastColumns` unconditionally, so the dense 24-cell layout (8 cols × 3 rows × 1-hour step) and the larger expanded typography were applied to a rail that hadn't actually widened — hence the overflow.
+- Fix: `HourlyForecastColumns` now derives an `effectiveExpanded` flag = `expanded && isDesktop`, where `isDesktop` tracks `(min-width: 1280px)` via `matchMedia` with a `change` listener. Below 1280 px the chart maximize still works (the slab still covers other rail items, AiSummary-style), but the strip itself stays at the compact 8-cell × 3-hour layout. The CSS `.expanded` rules are additionally wrapped in `@media (min-width: 1280px)` as defence-in-depth against any pre-React-hydration flash. The desktop (≥ 1280 px) maximize behaviour is unchanged.
+
+---
+
 ## [2.14.44] - 2026-05-15
 
 ### Changed
