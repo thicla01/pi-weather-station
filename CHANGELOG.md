@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.46] - 2026-05-15
+
+### Changed
+- **ChartTabs maximize — rail widens on LayoutPi too** — Until this version only `LayoutDesktop` (≥ 1280 px) widened the rail when the chart was maximized; on the 7" Pi the slab grew in height only (covering its rail siblings). Now `LayoutPi` carries its own `:has([data-chart-maximized="true"])` rule that swaps `grid-template-columns` from `1fr 300px` (340 px at ≥ 1280 px) to `1fr min(60vw, 600px)`. On the 800-px-wide 7" kiosk this gives the chart card a 480-px-wide rail (60 %) while keeping ~320 px for the map; on 1024-px screens the rail reaches 600 px. The same 200 ms `grid-template-columns` transition used by the chevron collapse animation drives the open, so the rail slides smoothly into place rather than snapping.
+- **HourlyForecastColumns — dense layout now lives on LayoutPi too** — With the wider maximized rail the dense 24-cell × 1-hour grid physically fits at sub-1280 widths. Reverted the v2.14.45 `effectiveExpanded` JS gate so the strip uses the dense layout whenever `expanded` is true, regardless of viewport. The CSS `.expanded` *typography* overrides (icon 38 px, temp 20 px Geist Mono) stay gated behind `@media (min-width: 1280px)` because cells at 7" maximize are ~55 px wide — fine for the compact 26-px icons but too small for the desktop's 38-px ones. Net result: 7" maximize now shows the same 24-hour 1-hour-step grid as desktop maximize, just with the compact-sized text and icons.
+
+---
+
 ## [2.14.45] - 2026-05-15
 
 ### Fixed

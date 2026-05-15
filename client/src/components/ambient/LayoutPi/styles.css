@@ -32,6 +32,28 @@
   grid-template-columns: 1fr 0;
 }
 
+/* Expandable ChartTabs (v2.14.46) — when the chart slab in the rail
+ * emits `data-chart-maximized="true"`, widen the rail so the chart
+ * card has more room. Same affordance LayoutDesktop offers, adapted
+ * to the smaller viewport widths LayoutPi serves (800-1279 px).
+ *
+ * Cap (`min(60vw, 600px)`) keeps the map area readable:
+ *   - 800 px (7" Pi):  rail grows from 300 px → 480 px (map = 320 px)
+ *   - 1024 px:         rail grows from 300 px → 600 px (map = 424 px)
+ *   - 1279 px:         rail grows from 340 px → 600 px (map = 679 px)
+ *
+ * The `transition: grid-template-columns 200 ms ease-out` rule on
+ * `.layout` (set above for the collapse animation) is reused here, so
+ * the rail slides open smoothly instead of snapping.
+ *
+ * If the user has already collapsed the rail via the chevron (.collapsed)
+ * the chart-maximized state is unreachable (the slab lives inside the
+ * rail), so there's no conflict between the two grid-template-columns
+ * values — .collapsed always wins because of source order. */
+.layout:has([data-chart-maximized="true"]) {
+  grid-template-columns: 1fr min(60vw, 600px);
+}
+
 .mapArea {
   position: relative;
   grid-column: 1;
