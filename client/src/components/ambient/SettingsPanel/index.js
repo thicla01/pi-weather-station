@@ -691,13 +691,25 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
           <div className={`${styles.subhead} ${styles.subheadGap}`}>
             {lbl(lang, "Sleep", "Veille", "Suspensión")}
           </div>
-          <div className={styles.grid4}>
+          {/* Stage 1 — toggles separated from fields so each control
+           * type renders in a visually consistent row (Toggle = horizontal
+           * track+label; Field = vertical label-above-box). Mixing them
+           * in the same grid row produced height mismatches. */}
+          <div className={styles.toggleRow}>
             <Toggle
               label={lbl(lang, "Enable sleep", "Activer la veille", "Activar suspensión")}
               value={Boolean(sleepEnabled)}
               onChange={sleep("enabled")}
               disabled={remote}
             />
+            <Toggle
+              label={lbl(lang, "Red text at night", "Texte rouge nuit", "Texto rojo de noche")}
+              value={Boolean(sleepNightMode)}
+              onChange={sleep("nightMode")}
+              disabled={remote}
+            />
+          </div>
+          <div className={styles.grid4}>
             <Field
               label={lbl(lang, "Stage 1 · delay", "Stage 1 · délai", "Etapa 1 · retraso")}
               value={sleepStage1Delay ?? "—"}
@@ -712,18 +724,17 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
               mono
               disabled={remote}
             />
-            <Toggle
-              label={lbl(lang, "Red text at night", "Texte rouge nuit", "Texto rojo de noche")}
-              value={Boolean(sleepNightMode)}
-              onChange={sleep("nightMode")}
-              disabled={remote}
-            />
+          </div>
+          {/* Stage 2 — same pattern: toggle then fields */}
+          <div className={styles.toggleRow} style={{ marginTop: 10 }}>
             <Toggle
               label={lbl(lang, "Stage 2 · enabled", "Stage 2 · activé", "Etapa 2 · activada")}
               value={Boolean(sleepStage2Enabled)}
               onChange={sleep("stage2Enabled")}
               disabled={remote}
             />
+          </div>
+          <div className={styles.grid4}>
             <Field
               label={lbl(lang, "Stage 2 · delay", "Stage 2 · délai", "Etapa 2 · retraso")}
               value={sleepStage2Delay ?? "—"}

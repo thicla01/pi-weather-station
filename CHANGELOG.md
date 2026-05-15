@@ -5,6 +5,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.32] - 2026-05-14
+
+### Fixed
+- **v3 SettingsPanel — Advanced section layout at 800×480** — Several layout issues in the expanded Advanced (Avancé) section:
+  - **grid4 → 2 columns on kiosk**: Added `@media (max-height: 520px)` override that forces `.grid4` to 2 columns. This fixes three subsections at once: (1) AFFICHAGE — "Opacité radar · sombre" no longer overflows to the right (sliders get ~360 px each); (2) ANALYSE RADAR — 4 toggles with sub-text now render in 2 rows of 2 rather than a cramped 4-column layout; (3) VEILLE — each cell has enough width for its content.
+  - **fieldLabel nowrap**: Added `white-space: nowrap; overflow: hidden; text-overflow: ellipsis` to `.fieldLabel` (same treatment as `.segLabel` in v2.14.31) so labels like "Opacité radar · sombre" never wrap to a second line at narrow cell widths.
+  - **Veille structural fix**: Separated the Sleep section's mixed Toggle/Field `grid4` into distinct rows — Toggles in `toggleRow` (horizontal, flex-wrap) and Fields in their own `grid4` blocks. This removes the visual height mismatch that appeared when a horizontal Toggle (track + label, ~24 px tall) and a vertical Field (label above box, ~30 px tall) shared the same grid row.
+- **v3 SettingsPanel — API key fields uniform width** — Each `.apiRow` is an independent CSS grid instance; with `1fr auto` the `auto` description column varied per row (shorter text → wider input). Changed to `2fr 1fr` so both the key input (⅔) and description (⅓) use fixed fractions of the available space, making every key field exactly the same width. Removed the `max-width: 220px` cap from `.apiUnlocks` (now constrained by the `1fr` column) and added explicit `text-align: left`.
+
+---
+
 ## [2.14.31] - 2026-05-14
 
 ### Fixed

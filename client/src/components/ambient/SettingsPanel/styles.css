@@ -339,6 +339,11 @@
   letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--c-text-dim);
+  /* Prevent long labels (e.g. "Opacité radar · sombre") from
+   * wrapping to a second line at narrow grid-cell widths. */
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .fieldBox {
@@ -507,6 +512,17 @@
   }
 }
 
+/* On the 7" kiosk (800×480, max-height ≤ 520 px) 4 columns is too
+ * narrow for sliders and toggles with sub-text — force 2 columns so
+ * each cell gets ~360 px and controls render without overflow. The
+ * rule wins over the min-width: 720px above because it targets a
+ * tighter combined condition (height + width both constrained). */
+@media (max-height: 520px) {
+  .grid4 {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
 .toggleRow {
   display: flex;
   flex-wrap: wrap;
@@ -524,7 +540,13 @@
 
 .apiRow {
   display: grid;
-  grid-template-columns: auto 110px 1fr auto;
+  /* dot · name(fixed) · key-input(2 parts) · description(1 part)
+   * Using fr ratios on both data columns so every row in the list
+   * gets the SAME key-field width regardless of description length.
+   * (Each apiRow is an independent grid instance inside the flex
+   * column — without fixed ratios the `auto` description column
+   * would vary per row and pull the `1fr` key column with it.) */
+  grid-template-columns: auto 110px 2fr 1fr;
   gap: 8px;
   align-items: center;
   padding: 6px 8px;
@@ -707,7 +729,10 @@
 .apiUnlocks {
   font-size: 10px;
   color: var(--c-text-dim);
-  max-width: 220px;
+  text-align: left;
+  /* max-width removed — the column is now a 1fr fraction of the
+   * grid, so the container constrains width rather than a hard cap.
+   * Truncation is kept as a safety net for very small viewports. */
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
