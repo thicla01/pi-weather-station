@@ -83,8 +83,14 @@ const night = {
 
 const nightRed = {
   bg: "#100404",
-  text: "#c04848",
-  textDim: "#783030",
+  // text bumped from #c04848 → #d05050: contrast vs dark card surface
+  // goes from ~4:1 to ~5.1:1, clearing WCAG AA for normal-weight text.
+  text: "#d05050",
+  // textDim was #783030 (contrast ~2.25:1 — unreadable for small text,
+  // confirmed by k5map feedback). Bumped to #b84848 → ~4:1 contrast,
+  // matching the original text token's previous level and making
+  // secondary labels (unit suffixes, sub-labels) legible in night mode.
+  textDim: "#b84848",
   accent: "#c44040",
   accentSoft: "rgba(196, 64, 64, 0.18)",
   surface: "rgba(40, 12, 12, 0.85)",

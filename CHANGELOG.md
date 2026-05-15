@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.35] - 2026-05-14
+
+### Fixed
+- **BottomDock — icon size** — Dock icons were rendered at browser default (~16 px). Explicit `width: 24px; height: 24px` on `.dock :global(svg)` fills the 36 px usable area (52 px dock − 8 px padding × 2) comfortably.
+- **nightRed palette — text contrast** — Two colour tokens were insufficient for readability of non-bold / secondary text (reported by k5map):
+  - `text` bumped `#c04848 → #d05050`: contrast vs. the dark card surface increases from ~4:1 to ~5.1:1, clearing WCAG AA for normal-weight text at normal size.
+  - `textDim` bumped `#783030 → #b84848`: the old value had a contrast ratio of only ~2.25:1 — effectively illegible for small text. The new value reaches ~4:1, matching the old `text` token's level and making unit suffixes, sub-labels, and secondary metadata readable in nightRed mode.
+
+---
+
 ## [2.14.34] - 2026-05-14
 
 ### Fixed

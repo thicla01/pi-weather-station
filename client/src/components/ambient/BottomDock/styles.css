@@ -55,6 +55,14 @@
  * elsewhere is untouched. */
 .dock :global(svg) {
   color: var(--c-text);
+  /* Scale icons to fill the touch-target area (52px dock, 8px padding
+   * → 36px available). 24px gives a comfortably readable glyph
+   * without clipping at the top/bottom of the dock cell. Iconify
+   * renders SVG with width/height="1em", so font-size on the parent
+   * also scales them; setting both ensures consistency across
+   * browsers that may handle the em-unit differently. */
+  width: 24px;
+  height: 24px;
 }
 
 .dock :global(div):hover :global(svg),
