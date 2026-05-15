@@ -2,7 +2,7 @@
 
 This document describes the screen layout, component names, and section names for the **v3 Direction C** interface. The v3 UI is activated via the **Preview** toggle in Settings (section 4). Use this document when reporting issues or requesting changes.
 
-> **v2 note** — the pre-v3 layout (split grid, InfoPanel on the right with ControlButtons at the bottom of the rail) is still accessible by disabling the Preview toggle. This document covers v3 only.
+> **v2 note** — the pre-v3 layout (split grid, InfoPanel on the right with ControlButtons at the bottom of the rail) is still accessible by disabling the Preview toggle. This document covers v3 only; see [`archive/ui-layout_v2_en.md`](archive/ui-layout_v2_en.md) for the v2 reference.
 
 ---
 

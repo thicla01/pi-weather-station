@@ -2,7 +2,7 @@
 
 Ce document décrit la disposition de l'écran, les noms des composants et les noms des sections de l'interface **v3 Direction C**. L'interface v3 est activée via le bouton **Aperçu** dans les Paramètres (section 4). Utilisez ce document pour signaler des problèmes ou demander des modifications.
 
-> **Note v2** — la disposition d'avant la v3 (grille fractionnée, InfoPanel à droite avec ControlButtons en bas du rail) est toujours accessible en désactivant le bouton Aperçu. Ce document couvre uniquement la v3.
+> **Note v2** — la disposition d'avant la v3 (grille fractionnée, InfoPanel à droite avec ControlButtons en bas du rail) est toujours accessible en désactivant le bouton Aperçu. Ce document couvre uniquement la v3 ; voir [`archive/ui-layout_v2_fr.md`](archive/ui-layout_v2_fr.md) pour la référence v2.
 
 ---
 
