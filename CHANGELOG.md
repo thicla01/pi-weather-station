@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.39] - 2026-05-15
+
+### Added
+- **ChartTabs maximize (24h / 5-day chart card)** — New ↗ button at the right end of the tab row promotes the chart slab to `position: absolute; inset: 12px` over its rail, exactly like AiSummaryInline's maximize button. The maximized slab emits `data-chart-maximized="true"` on its root, and `LayoutDesktop`'s stylesheet uses `:has([data-chart-maximized="true"])` to grow `--c-rail-width` from its default 320 / 360 px to `min(50vw, 720px)`. The HeroBand's `right` offset already references `--c-rail-width` via `calc()` (and was already transitioning over 200 ms), so the band smoothly slides leftward and the rail widens together. Chart.js's `maintainAspectRatio: false` + `responsive: true` already in place means the canvas reflows automatically. On LayoutPi (7" kiosk) the rail is already ~half the screen, so the maximize behaves like AiSummary's: same width, slab covers siblings. ↘ button restores the compact rail width.
+
+This is Approach A from the ROADMAP "Expandable chart card" entry. Approach B (centred modal) and C (compact → tall → wide → modal stepper) remain backlog options if A's 50 vw cap proves too cramped in real use.
+
+---
+
 ## [2.14.38] - 2026-05-15
 
 ### Fixed

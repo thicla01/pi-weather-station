@@ -24,6 +24,21 @@
   }
 }
 
+/* Expandable ChartTabs (v2.14.39) — when the chart slab in the rail
+ * emits `data-chart-maximized="true"`, grow the rail width so the
+ * chart canvas has roughly half the viewport to work with. The
+ * HeroBand's `right` offset already references `--c-rail-width` via
+ * `calc()` and transitions on it (200 ms ease-out), so changing this
+ * single variable smoothly pushes the band leftward and pulls the
+ * rail+chevron toward the centre. The cap (`min(50vw, 720px)`) keeps
+ * the rail from getting absurdly wide on 4K/ultra-wide monitors —
+ * past ~720 px the chart axis labels read fine and extra width just
+ * stretches the canvas without adding information density. */
+.layout:has([data-chart-maximized="true"]) {
+  --c-rail-width: min(50vw, 720px);
+}
+
+
 /* Map fills the entire area inside the dock — it's the background.
  * Everything else absolute-positions over it. */
 .mapArea {
@@ -100,7 +115,13 @@
    * normally. */
   overflow-y: auto;
   overflow-x: hidden;
-  transition: opacity 150ms ease-out, transform 200ms ease-out;
+  /* `width` joined the transition list in v2.14.39 so the rail
+   * smoothly widens when ChartTabs maximizes (see the
+   * `:has([data-chart-maximized="true"])` rule below). */
+  transition:
+    opacity 150ms ease-out,
+    transform 200ms ease-out,
+    width 200ms ease-out;
 }
 
 .layout.collapsed .rail {

@@ -12,6 +12,29 @@
   padding: 10px 12px 12px 12px;
   color: var(--c-text);
   font-family: "Geist", system-ui, -apple-system, sans-serif;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Maximized state — mirrors AiSummaryInline's maximize: the slab leaves
+ * the rail's flex flow and pins to the rail's inner bounds. On
+ * LayoutDesktop a parallel `:has([data-chart-maximized="true"])` rule
+ * grows `--c-rail-width` so the rail itself widens to give the chart
+ * roughly half the screen width. On LayoutPi the rail is already wide
+ * enough; the slab just claims the rail's full visible area, hiding the
+ * other slabs visually (they're still rendered behind).
+ *
+ * `inset: 12px` matches the rail's own padding; `--c-bg` is the only
+ * token guaranteed 100 % opaque on every palette (`--c-surface` sits at
+ * 85 %, the radar would bleed through at this size). z-index 5 keeps the
+ * slab above its siblings within the rail's stacking context. */
+.slab.slabMaximized {
+  position: absolute;
+  inset: 12px;
+  z-index: 5;
+  background-color: var(--c-bg);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
 }
 
 /* Segmented control — one bordered container that wraps both
@@ -34,6 +57,7 @@
   border: 1px solid var(--c-border);
   border-radius: 8px;
   gap: 2px;
+  align-items: center;
 }
 
 .tab {
@@ -83,6 +107,60 @@
 .chartArea {
   height: 140px;
   position: relative;
+}
+
+/* When the slab is maximized, the chartArea grows to fill the slab's
+ * remaining height. `flex: 1 1 0` + `min-height: 0` claims the available
+ * space below the tab row; the inner `> div` and canvas rules below
+ * (already in place for fontSize=L) handle the responsive resizing. */
+.slabMaximized .chartArea {
+  height: auto;
+  flex: 1 1 0;
+  min-height: 0;
+}
+
+.slabMaximized .chartArea canvas {
+  max-height: 100%;
+}
+
+/* Action button (maximize / restore) lives at the right end of the tab
+ * row. Same visual language as AiSummaryInline's button: transparent
+ * background, dim icon, hover lights it up via `--c-accent-soft`. */
+.actionButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  margin-left: 4px;
+  padding: 0;
+  background-color: transparent;
+  border: 0;
+  border-radius: 5px;
+  cursor: pointer;
+  color: var(--c-text-dim);
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+}
+
+.actionButton:hover {
+  color: var(--c-text);
+  background-color: var(--c-accent-soft);
+}
+
+.actionButton:focus-visible {
+  outline: 2px dashed var(--c-text);
+  outline-offset: 1px;
+}
+
+.actionButton[aria-pressed="true"] {
+  color: var(--c-text);
+  background-color: var(--c-accent-soft);
+}
+
+.actionIcon {
+  font-size: 16px;
+  flex-shrink: 0;
 }
 
 /* HourlyChart ships its own wrapper `.container` with hardcoded
