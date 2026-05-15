@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.42] - 2026-05-15
+
+### Changed
+- **HourlyForecastColumns — full 24-hour coverage** — The previous layout showed 6 columns at a 2-hour step, covering only the next 12 hours despite living inside the "24 heures" tab. Reworked to two density modes, both spanning the full 24-hour window:
+  - **Compact** (default rail, ~320 px wide): 8 columns at a 3-hour step. Icon scaled down to 24 px, hour/temp/precip slightly tighter so 8 cells fit at ~38 px each.
+  - **Expanded** (rail widened by ChartTabs maximize, ~50 vw): 12 columns at a 2-hour step. Icon back to 28 px, type at the previous values — ~55 px per column gives the strip real breathing room.
+  - `HourlyForecastColumns` accepts a new `expanded` prop; `ChartTabs` passes `maximized` through so the density mode swaps automatically when the user maximizes the chart card. The strip never silently truncates: the tab label now matches the data span.
+
+---
+
 ## [2.14.41] - 2026-05-15
 
 ### Fixed

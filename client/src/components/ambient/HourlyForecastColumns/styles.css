@@ -8,13 +8,25 @@
  * the day name does in DailyForecastColumns and the column has
  * one less data row. */
 
+/* Default (compact) density — 8 columns at a 3-hour step, covering
+ * the full 24-hour window. Each cell is ~38 px wide in a 320-px rail
+ * which leaves room for a 24-px icon plus the hour and temperature
+ * lines without crowding. */
 .strip {
   display: grid;
-  grid-template-columns: repeat(6, 1fr);
-  gap: 4px;
+  grid-template-columns: repeat(8, 1fr);
+  gap: 2px;
   height: 100%;
   align-items: stretch;
   position: relative;
+}
+
+/* Expanded density — used when ChartTabs is maximized and the rail
+ * has widened to ~50 vw. 12 columns at a 2-hour step cover the same
+ * 24-hour window with finer granularity and ~55 px per cell. */
+.strip.expanded {
+  grid-template-columns: repeat(12, 1fr);
+  gap: 4px;
 }
 
 .column {
@@ -22,45 +34,68 @@
   flex-direction: column;
   align-items: center;
   justify-content: flex-start;
-  gap: 4px;
-  padding: 4px 2px;
+  gap: 3px;
+  padding: 4px 1px;
   font-family: "Geist", system-ui, -apple-system, sans-serif;
 }
 
 .hour {
   font-size: 11px;
   font-weight: 500;
-  letter-spacing: 0.6px;
+  letter-spacing: 0.4px;
   color: var(--c-text-dim);
 }
 
+.expanded .hour {
+  font-size: 12px;
+  letter-spacing: 0.6px;
+}
+
+/* Default-mode icons run smaller so 8 columns at ~38 px each don't
+ * crowd at the 320-px rail width. Expanded mode reclaims the 28-px
+ * size since each column has ~55 px to play with. */
 .iconRow {
-  font-size: 28px;
+  font-size: 24px;
   color: var(--c-text);
   line-height: 1;
   text-align: center;
-  min-height: 28px;
+  min-height: 24px;
   display: flex;
   align-items: center;
   justify-content: center;
 }
 
+.expanded .iconRow {
+  font-size: 28px;
+  min-height: 28px;
+}
+
 .iconPlaceholder {
-  font-size: 14px;
+  font-size: 13px;
   color: var(--c-text-dim);
 }
 
 .temp {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--c-text);
   line-height: 1.1;
 }
 
+.expanded .temp {
+  font-size: 15px;
+}
+
 .precip {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 500;
   color: var(--c-cool);
+  min-height: 12px;
+  margin-top: 1px;
+}
+
+.expanded .precip {
+  font-size: 11px;
   min-height: 14px;
   margin-top: 2px;
 }
