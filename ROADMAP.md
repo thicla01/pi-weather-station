@@ -50,6 +50,28 @@ Mock-up workflow if revisited: each new design starts as a standalone HTML file 
 - **Bonus shipped alongside (not strictly trend-aware):** the radar prompt formatter dropped from ~5000 chars to ~2600 (62 % compression vs ~25 % before) by listing only non-zero samples within the active annulus and omitting fully-clear directions entirely. Claude reads the new convention via an updated preamble in `aiSummaryCtrl`. Compression-stats reports went from ~43 % of frames in the 0-25 % bucket to 100 % in the 50-75 % bucket immediately after the change.
 - **What's still tunable:** the inward-shift thresholds (5 km / 8 km) and `TIER_HYSTERESIS_N = 2` are empirical. Tighter and we miss real cells; looser and we trigger on noise. Re-tune if the observed false-positive rate climbs again.
 
+### 📈 Expandable chart card (24h / 5-day) — width beyond the rail
+The ChartTabs card in the right rail currently uses the rail's ~320 px width even on a 27" 1440p monitor — the two series (temperature + precipitation probability) are visible but cramped, the X-axis labels overlap, and there's no room to surface additional series the API already returns (humidity, wind, pressure, cloud cover, dew point). The `AiSummaryInline` already demonstrates a "↑ expand" pattern where one rail slab takes over the rail's full vertical space; the chart card deserves a similar treatment that **also** grows in width.
+
+**Approach A — rail widens leftward** *(chosen for first iteration, 2026-05-15)*:
+- New ChartTabs `expanded` state (toggle via ↗ button next to the existing 24h/5d tabs).
+- When expanded, the right rail grows from `--c-rail-width` (320 px / 360 px ≥1600px) to ~50% of the viewport width.
+- The HeroBand `right` offset updates to track the new rail width (it already uses `calc(var(--c-rail-width) * var(--c-font-scale, 1) + …)`, so a CSS variable change is sufficient).
+- The chevron toggle on the map's right edge that collapses the rail stays available — collapsing while expanded just restores compact width then collapses.
+- On 7" `LayoutPi` the rail is already ~50% of the screen, so the toggle reuses the existing `AiSummary`-style "↑ hide siblings" pattern within the same rail width — no horizontal growth needed.
+- ~3 h: state in `AppContext` (`chartsExpanded`), CSS variable swap, chart `<ResponsiveContainer>` already scales, sibling rail items (MetricsGrid / IndoorBlock / AiSummaryInline) hide when expanded.
+
+**Future enrichment (separate ROADMAP item, post-A)**: with the extra horizontal real estate, expose additional series in expanded mode:
+- Humidity + dew point (24h tab)
+- Wind speed + direction (both tabs)
+- Pressure trend (24h tab)
+- Cloud cover percentage (both tabs)
+- Precipitation accumulation in mm or in (5-day tab)
+
+The chart legend grows from 2 → 4-6 entries; user can toggle individual series via legend clicks (Recharts supports this natively).
+
+**Why not start with a centred modal (Approach B)** : the kiosk's primary content is the radar context. Keeping the chart and radar side-by-side preserves the differentiating glance pattern of the Pi Weather Station. A modal can be added later as a third level (Approach C: compact → tall → wide → modal) if Approach A's ~50% width still feels too cramped after a few weeks of use.
+
 ### 🇨🇦 Environment Canada radar source as an alternative to RainViewer
 Today's radar layer pulls 256×256 PNG tiles from RainViewer's CDN, which works globally but isn't optimal for the Quebec/Montreal-heavy fleet (7 Pis as of 2026-05-07). RainViewer's North American composite is downstream of the same MSC GeoMet feed that ECCC publishes directly, with extra latency and a ~10-min cadence. Two reasons to consider a Canadian-fleet switch:
 

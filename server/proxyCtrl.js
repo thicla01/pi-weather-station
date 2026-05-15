@@ -478,4 +478,16 @@ async function sunriseSunset(req, res) {
   }
 }
 
-module.exports = { reverseGeocode, mapTile, weatherCurrent, weatherHourly, weatherDaily, sunriseSunset, weatherCache, saveCacheToDisk, getCacheStats };
+module.exports = {
+  reverseGeocode, mapTile, weatherCurrent, weatherHourly, weatherDaily,
+  sunriseSunset, weatherCache, saveCacheToDisk, getCacheStats,
+  // Exposed so aiSummaryCtrl can read entries from the shared in-memory
+  // cache using the SAME versioned key schema proxyCtrl writes with.
+  // Before this export the controller had its own 3-part lookup helpers
+  // (`hourly:<lat>:<lon>`) which silently missed every entry after the
+  // 2026-05-13 schema bump to `type:fieldsHash:lat:lon` — paragraph 2 of
+  // the AI summary disappeared as a result (no hourly data → no forecast
+  // section → no daily fallback either). Keep these in sync if the
+  // proxyCtrl cache key shape ever changes again.
+  getCacheKey, CURRENT_FIELDS_HASH, HOURLY_FIELDS_HASH, DAILY_FIELDS_HASH,
+};

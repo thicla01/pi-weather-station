@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.38] - 2026-05-15
+
+### Fixed
+- **AI summary — paragraph 2 (forecast) silently dropped on every Pi** — Field-team report (2026-05-15): the AI weather summary stopped rendering the period-forecast paragraph (« ce soir 18h-21h » / « cette nuit 21h-5h » / « demain ») a few days ago. Cause: commit `300d1f2` (v2.14.6, 2026-05-13) versioned the weather cache key schema in `proxyCtrl.js` from 3 parts (`type:lat:lon`) to 4 parts (`type:fieldsHash:lat:lon`) so future field-list changes auto-invalidate disk-cached entries — but `aiSummaryCtrl.js` was not updated and kept reading with 3-part keys. Both `getHourlyFromSharedCache()` and `getDailyFromSharedCache()` returned `null` for every lookup → `secondSection` stayed empty → the prompt and the calm-day fast path both rendered only paragraphs 1 (current) and 3 (radar). `getWeatherFromSharedCache()` had the same bug but masked it via a fallback fresh API call inside the controller. Fix: `proxyCtrl` now exports `getCacheKey` and `{CURRENT,HOURLY,DAILY}_FIELDS_HASH`; `aiSummaryCtrl` imports and uses them so the two modules cannot drift again. All three lookups now hit the cache correctly; paragraph 2 reappears on first AI summary refresh after upgrade.
+
+---
+
 ## [2.14.37] - 2026-05-15
 
 ### Changed

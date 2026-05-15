@@ -1,7 +1,20 @@
 const Anthropic = require("@anthropic-ai/sdk");
 const axios = require("axios").default;
 const { getSettingsData } = require("./settingsCtrl");
-const { weatherCache } = require("./proxyCtrl");
+// Cache helpers + field-hash constants are imported from proxyCtrl rather
+// than re-derived here. Before this import was added the controller hand-
+// crafted 3-part keys (`hourly:<lat>:<lon>`) that always missed against
+// proxyCtrl's 4-part schema (`type:fieldsHash:lat:lon`, introduced 2026-
+// 05-13 in commit 300d1f2). Result: AI-summary paragraph 2 (forecast)
+// silently disappeared on every Pi. Sharing the key builder guarantees
+// the two modules cannot drift again.
+const {
+  weatherCache,
+  getCacheKey,
+  CURRENT_FIELDS_HASH,
+  HOURLY_FIELDS_HASH,
+  DAILY_FIELDS_HASH,
+} = require("./proxyCtrl");
 const { recordServiceCall, getServiceStatus } = require("./serviceStatus");
 const { increment } = require("./requestCounter");
 const { analyzeRadar } = require("./radarAnalyzerCtrl");
@@ -307,21 +320,21 @@ function buildCalmDayTemplate({
 }
 
 function getWeatherFromSharedCache(lat, lon) {
-  const key = `current:${lat.toFixed(4)}:${lon.toFixed(4)}`;
+  const key = getCacheKey("current", CURRENT_FIELDS_HASH, lat, lon);
   const entry = weatherCache[key];
   if (!entry || Date.now() > entry.expiresAt) return null;
   return entry.data;
 }
 
 function getDailyFromSharedCache(lat, lon) {
-  const key = `daily:${lat.toFixed(4)}:${lon.toFixed(4)}`;
+  const key = getCacheKey("daily", DAILY_FIELDS_HASH, lat, lon);
   const entry = weatherCache[key];
   if (!entry || Date.now() > entry.expiresAt) return null;
   return entry.data;
 }
 
 function getHourlyFromSharedCache(lat, lon) {
-  const key = `hourly:${lat.toFixed(4)}:${lon.toFixed(4)}`;
+  const key = getCacheKey("hourly", HOURLY_FIELDS_HASH, lat, lon);
   const entry = weatherCache[key];
   if (!entry || Date.now() > entry.expiresAt) return null;
   return entry.data;
