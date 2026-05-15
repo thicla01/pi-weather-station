@@ -85,6 +85,22 @@
   position: relative;
 }
 
+/* HourlyChart ships its own wrapper `.container` with hardcoded
+ * `width: 255px; height: 115px` (sized for v2's WeatherInfo panel).
+ * In v3's ChartTabs the rail width varies (300/340 px) and the slab
+ * inside is wider than 255 px — at fontSize=L (`zoom: 1.15` on the
+ * rail) the canvas's right Y-axis labels ("100%", "0%") were getting
+ * truncated to single digits because Chart.js's layout math assumed
+ * the 255 px ceiling. Forcing the chart's wrapper div to fill the
+ * chartArea via a descendant selector lets Chart.js measure the real
+ * available width and lay out both Y-axes cleanly. Direct-child
+ * selector (not `*`) so the error-state wrapper inside HourlyChart is
+ * unaffected (it uses its own `.errContainer` class). */
+.chartArea > div {
+  width: 100%;
+  height: 100%;
+}
+
 /* Chart.js canvas fills its parent; the existing HourlyChart /
  * DailyChart components bring their own colour scheme tied to
  * darkMode. They'll render correctly inside the slab but won't pick

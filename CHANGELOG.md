@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.28] - 2026-05-15
+
+### Fixed
+- **v3 ChartTabs — hourly chart Y-axis truncated at fontSize=L** — HourlyChart's wrapper div ships a legacy `width: 255px; height: 115px` from the v2 WeatherInfo panel. In v3's ChartTabs the slab is wider (~276 px usable) and the rail applies `zoom: 1.15` at fontSize=L, so Chart.js's layout math underestimated available space and truncated the right Y-axis labels ("60%" appeared as "6"). A `.chartArea > div` override in ChartTabs/styles.css forces the chart wrapper to `width: 100%; height: 100%` so Chart.js measures the real container and allocates proper axis padding at every font size. v2's WeatherInfo layout is unaffected (the rule is scoped to ChartTabs).
+
+---
+
 ## [2.14.27] - 2026-05-15
 
 ### Fixed
