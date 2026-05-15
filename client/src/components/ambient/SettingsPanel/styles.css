@@ -497,6 +497,16 @@
   }
 }
 
+/* Two-column grid — used for content that never benefits from 4
+ * columns (e.g. toggles with long sub-text labels in the AI section).
+ * Always stays at 2 columns regardless of viewport width. */
+.grid2 {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+  align-items: start;
+}
+
 .grid4 {
   display: grid;
   grid-template-columns: repeat(2, 1fr);

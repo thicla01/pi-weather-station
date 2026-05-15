@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.33] - 2026-05-14
+
+### Fixed
+- **v3 SettingsPanel — AI · Analyse Radar section always 2 columns** — The 4 toggles with sub-text in the AI subsection were laid out in a `grid4` (4 columns). Inside the 880 px max-width body each cell was only ~200 px wide — too narrow for labels like "Points d'échantillonnage" + their sub descriptions, which wrapped to 3–4 lines and misaligned rows on the 10" screen (not caught by the `max-height: 520px` kiosk fix from v2.14.32). Added a new `.grid2` CSS class (always 2 columns, `align-items: start`) and applied it to the AI section so each toggle cell gets ~400 px on all viewports.
+
+---
+
 ## [2.14.32] - 2026-05-14
 
 ### Fixed

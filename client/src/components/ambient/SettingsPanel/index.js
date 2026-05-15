@@ -647,7 +647,11 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
           <div className={`${styles.subhead} ${styles.subheadGap}`}>
             {lbl(lang, "AI · radar analysis", "IA · analyse radar", "IA · análisis radar")}
           </div>
-          <div className={styles.grid4}>
+          {/* grid2 (not grid4): each toggle carries a multi-line sub-text
+           * label that wraps badly at ~200 px (4-col width inside the
+           * 880 px body). 2 columns gives ~400 px per cell on all
+           * viewports — enough for the sub-text to breathe. */}
+          <div className={styles.grid2}>
             <Toggle
               label={lbl(lang, "Radar analysis enabled", "Analyse radar activée", "Análisis radar activado")}
               value={Boolean(radarAnalysisEnabled)}
