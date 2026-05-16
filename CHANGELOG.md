@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.59] - 2026-05-15
+
+### Fixed
+- **7" maximize regressions from v2.14.58** — Field test on the 7" Pi after pulling v2.14.58 surfaced three coordinated problems, all rooted in the same architectural mismatch: the 320 px chartArea and the new richer daily-expanded JSX layout from v2.14.57 were applied unconditionally, but the daily-expanded CSS was gated `@media (min-width: 1280px)`.
+  - **5-day data disordered**: DailyForecastColumns rendered the richer JSX (day/night icon split, precipitation %, accumulation row) on the 7" too, but its CSS only kicked in at ≥ 1280 px. Sub-1280 fell back to default styles and the columns stacked at varying heights. Fix: added a `useIsDesktop()` hook (same matchMedia pattern HourlyForecastColumns uses) and derived `effectiveExpanded = expanded && isDesktop` so the 7" renders the compact 1-icon layout even when maximized, matching what the CSS knows how to style.
+  - **Charts overflow downward**: The 320 px chartArea pushed the slab total height past the 7" rail's ~428 px after the dock. Fix: made the chartArea height responsive — 280 px on sub-1280 (`LayoutPi`), 320 px on ≥ 1280 (`LayoutDesktop`). The 7" slab now totals ~406 px, comfortably inside the rail.
+  - **24h data with too much top/bottom margin**: On the 7", compact hourly-columns typography produces only ~226 px of content. At 320 px chartArea, `align-content: center` distributed ~47 px above and below — the content visually floated, parts had to be scrolled to. Reverting to 280 px on sub-1280 (same fix as the overflow) brings the centring slack to a normal ~27 px top + bottom.
+
+---
+
 ## [2.14.58] - 2026-05-15
 
 ### Fixed
