@@ -739,9 +739,23 @@ MapClickHandler.propTypes = {
 const MapResizer = ({ infoPanelCollapsed }) => {
   const map = useMap();
   useEffect(() => {
-    // Small delay lets the CSS transition finish before recalculating
-    const timer = setTimeout(() => map.invalidateSize(), 50);
-    return () => clearTimeout(timer);
+    // Two invalidateSize() calls bracket the CSS grid-template-columns
+    // transition. The LayoutPi `.layout` rule transitions on
+    // grid-template-columns over 200 ms — invalidating at 50 ms made
+    // Leaflet snapshot the map container mid-transition, so its
+    // internal `_size` cache held a value smaller than the final
+    // visible map. Later pans (e.g. the Reset Map button after a
+    // collapse) computed centres against that stale size and the
+    // marker landed off-centre. The 50 ms call still gives a
+    // live-feedback refresh as the rail slides in/out; the 250 ms
+    // call (50 ms after the 200 ms transition ends) latches the
+    // final size for pan math. */
+    const live = setTimeout(() => map.invalidateSize(), 50);
+    const final = setTimeout(() => map.invalidateSize(), 250);
+    return () => {
+      clearTimeout(live);
+      clearTimeout(final);
+    };
   }, [infoPanelCollapsed, map]);
   return null;
 };

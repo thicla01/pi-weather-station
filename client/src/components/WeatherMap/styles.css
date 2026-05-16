@@ -534,3 +534,95 @@
    styling, and topleft positioning all match the built-in zoom +/-
    buttons exactly. No CSS needed on this side anymore — Leaflet's
    .leaflet-bar a rules cover the whole baseline. */
+
+/* nightRed scrubber overrides (v2.14.69) — every hard-coded amber
+ * `#f08200` and yellow `#f0e600` in the default scrubber chrome was
+ * the last visual element the night-vision palette didn't reach. The
+ * backdrop, the forecast label, the return-to-now button, the
+ * play-active state, the scrubber gradient's nowcast portion, the
+ * "now" tick marks, and the thumb's grabbing-state colour all read
+ * as alien bright accents against the dark-red basemap. Each rule
+ * below swaps the literal colour for a nightRed-family token
+ * (`var(--c-accent)` ≈ `#c44040`, `var(--c-text-dim)` for muted
+ * track segments, `var(--c-bg)` for the slab backdrop).
+ *
+ * `:global(.ambientRoot[data-palette="nightRed"])` mirrors the
+ * scope used by the `.radar-legend` override at the top of this
+ * file — same CSS-Modules escape hatch for combining a global
+ * ancestor with a local module class. */
+:global(.ambientRoot[data-palette="nightRed"]) .radar-timeline-dark {
+  /* Tint the slab so it harmonises with the rest of the UI cards
+   * (each ambient slab uses `--c-surface`-ish translucent fills). */
+  background: var(--c-surface-hybrid, rgba(40, 12, 12, 0.85));
+  border-color: var(--c-border-hybrid, rgba(176, 64, 64, 0.22));
+  color: var(--c-text, #d05050);
+}
+
+:global(.ambientRoot[data-palette="nightRed"]) .radar-timeline-forecast {
+  color: var(--c-accent, #c44040);
+}
+
+:global(.ambientRoot[data-palette="nightRed"]) .radar-timeline-now {
+  border-color: var(--c-accent, #c44040);
+  color: var(--c-accent, #c44040);
+}
+
+:global(.ambientRoot[data-palette="nightRed"]) .radar-timeline-now:hover,
+:global(.ambientRoot[data-palette="nightRed"]) .radar-timeline-now:focus {
+  background: var(--c-accent-soft, rgba(196, 64, 64, 0.18));
+}
+
+:global(.ambientRoot[data-palette="nightRed"]) .radar-timeline-play-active {
+  background: var(--c-accent, #c44040);
+  border-color: var(--c-accent, #c44040);
+  color: var(--c-bg, #100404);
+}
+
+:global(.ambientRoot[data-palette="nightRed"]) .radar-timeline-play-active:hover,
+:global(.ambientRoot[data-palette="nightRed"]) .radar-timeline-play-active:focus {
+  /* A slightly darker shade of the accent for the active-hover state.
+   * The default uses `#d57600` (one step darker than `#f08200`); we
+   * mirror that with a darker nightRed red. */
+  background: #a82828;
+}
+
+/* Scrubber track gradient — replace the past `#888` neutral grey and
+ * nowcast `#f08200` amber with palette-aware tokens. The text-dim
+ * stays as a muted "past" track since the nightRed text-dim is
+ * already a soft red; the accent does the nowcast accent. */
+:global(.ambientRoot[data-palette="nightRed"]) .radar-timeline-scrubber {
+  background: linear-gradient(
+    to right,
+    var(--c-text-dim, #b84848) 0,
+    var(--c-text-dim, #b84848) calc(var(--thumb-w) / 2 + var(--past-frac, 1) * (100% - var(--thumb-w))),
+    var(--c-accent, #c44040) calc(var(--thumb-w) / 2 + var(--past-frac, 1) * (100% - var(--thumb-w))),
+    var(--c-accent, #c44040) 100%
+  ) no-repeat center / 100% var(--track-h);
+}
+
+/* "Now" tick marks at the past→nowcast boundary — same accent as the
+ * gradient transition. The thin border that helps the tick stand
+ * out on top of either track colour now uses a soft palette tone. */
+:global(.ambientRoot[data-palette="nightRed"]) .radar-timeline-scrubber-wrap-with-now::before,
+:global(.ambientRoot[data-palette="nightRed"]) .radar-timeline-scrubber-wrap-with-now::after {
+  background: var(--c-accent, #c44040);
+  border-color: rgba(255, 255, 255, 0.30);
+}
+
+/* Scrubber thumb — keep the high-contrast disc shape, but recolour
+ * its border to a palette tone and swap the active-grab yellow for
+ * a brighter red so the affordance still reads as a state change
+ * but stays inside the red family. */
+:global(.ambientRoot[data-palette="nightRed"]) .radar-timeline-scrubber::-webkit-slider-thumb {
+  background: var(--c-text, #d05050);
+  border-color: var(--c-bg, #100404);
+}
+
+:global(.ambientRoot[data-palette="nightRed"]) .radar-timeline-scrubber:active::-webkit-slider-thumb {
+  background: var(--c-accent, #c44040);
+}
+
+:global(.ambientRoot[data-palette="nightRed"]) .radar-timeline-scrubber::-moz-range-thumb {
+  background: var(--c-text, #d05050);
+  border-color: var(--c-bg, #100404);
+}

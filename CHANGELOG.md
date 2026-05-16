@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.69] - 2026-05-16
+
+### Fixed
+- **Recenter button off-centre after collapsing the panel on 7"** — User report after v2.14.68: collapsing the right panel and then pressing the recenter button left the marker slightly off-centre on the 7" Pi. Cause: `MapResizer` called `map.invalidateSize()` 50 ms after `infoPanelCollapsed` toggled, but the LayoutPi grid template transitions over 200 ms — Leaflet snapshotted the container mid-transition, so its internal `_size` cache held a smaller value than the final visible map. Pans computed against that stale size landed off-centre. Now `MapResizer` fires two invalidations: one at 50 ms (live refresh during the transition) and one at 250 ms (after the transition completes, latching the final size for pan math).
+
+### Changed
+- **Radar timeline scrubber — nightRed palette overrides** — Last visual element the night-vision palette didn't reach. The scrubber chrome hard-coded amber `#f08200` for the forecast label, the return-to-now button, the play-active state, the scrubber gradient's nowcast portion, and the "now" tick marks; it also used a yellow `#f0e600` grab-state thumb and a generic dark-grey slab backdrop. Added a block of `:global(.ambientRoot[data-palette="nightRed"]) .radar-timeline-*` overrides that swap every literal colour for a nightRed-family token — `var(--c-accent)` (≈ `#c44040`) for the accents, `var(--c-text-dim)` for the muted past-track segment, `var(--c-surface-hybrid)` for the slab fill. Light, dark, and dusk palettes keep their original amber accents.
+
+---
+
 ## [2.14.68] - 2026-05-16
 
 ### Fixed
