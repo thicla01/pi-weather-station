@@ -214,8 +214,12 @@
   color: var(--c-text-dim);
 }
 
+/* Iconify SVG inherits its size from font-size (1em) and colour from
+ * currentColor. The 14 px size pairs with the 11 px text on the same
+ * row — slightly larger than the surrounding label so the glyph reads
+ * as a clear category marker without dominating the value. */
 .strip.expanded .dropletIcon {
-  font-size: 11px;
+  font-size: 14px;
   line-height: 1;
 }
 
@@ -269,6 +273,6 @@
   }
 
   .strip.expanded .dropletIcon {
-    font-size: 12px;
+    font-size: 16px;
   }
 }

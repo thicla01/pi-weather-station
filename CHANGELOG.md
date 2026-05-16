@@ -5,6 +5,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.62] - 2026-05-15
+
+### Fixed
+- **Rain accumulation looked like a negative number, then became a missing-glyph box** — Two-step regression after v2.14.60 added the accumulation row:
+  - User first reported `─ 0.9 mm` reading as `-0.9 mm` (negative). The prefix `─` (U+2500 BOX DRAWINGS LIGHT HORIZONTAL) was intended as a neutral water-marker but visually indistinguishable from a minus sign at small sizes.
+  - First fix swapped it to `💧` to match the precipitation-probability row above. Worked on the 7" Pi (which has `fonts-noto-color-emoji` installed) but on HMIRaspi the emoji rendered as a Unicode replacement box (`𗈫 35%`) — that host doesn't ship the color-emoji font.
+  - Final fix: replaced both `💧` and `❄` characters with Iconify SVG icons (`@iconify/icons-wi/raindrop`, `@iconify/icons-wi/snowflake-cold`). Bundled inline in `bundle.min.js`, inherit colour via `currentColor`, immune to the host's font configuration, and scale crisply at any zoom level. The precipitation-probability row uses the same raindrop icon as the rain-accumulation row, keeping the visual category consistent.
+- **Maximized chart card needed scrolling to see the bottom on tall Pi viewports** — The v2.14.60 chart card (slab ~406 px declared) extended beyond the visible rail at higher font-scales, requiring vertical swipe to reach the cycle-dots row. Reduced `.slabMaximized .chartArea` height on sub-1280 from 280 → 240 px (LayoutDesktop's 320 px is unchanged). New slab total ~366 px fits on shorter viewports even at zoom 1.30. The 24h hourly columns view at compact typography (~226 px content) centres with ~7 px top/bottom — tight but reads as a single block.
+
+### Known follow-up
+- `ScreenSaver/index.js` still uses text-style emoji (`☀ ☂ ❄`) for its weather code → icon mapping. These have better font fallback than the colorful `💧`/`❄` we just removed, but if HMIRaspi shows replacement boxes during sleep mode, swap to Iconify there too.
+
+---
+
 ## [2.14.60] - 2026-05-15
 
 ### Changed

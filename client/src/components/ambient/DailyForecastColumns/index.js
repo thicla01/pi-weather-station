@@ -2,6 +2,8 @@ import React, { useContext } from "react";
 import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
+import raindropIcon from "@iconify/icons-wi/raindrop";
+import snowflakeIcon from "@iconify/icons-wi/snowflake-cold";
 import { format } from "date-fns";
 import { fr, es, enUS } from "date-fns/locale";
 import { AppContext } from "~/AppContext";
@@ -64,7 +66,7 @@ const SNOW_ACCUMULATION_MIN_MM = 5; // = 0.5 cm
  */
 const DailyForecastColumns = ({ expanded = false }) => {
   const { dailyWeatherData, tempUnit, lengthUnit } = useContext(AppContext);
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   // v2.14.60: the expanded JSX (day/night icon split + accumulation
   // row) now renders on every viewport, not just LayoutDesktop. The
   // v2.14.59 `effectiveExpanded = expanded && isDesktop` gate kept
@@ -232,7 +234,11 @@ const DailyForecastColumns = ({ expanded = false }) => {
             </div>
             {precip != null && precip >= PRECIP_THRESHOLD ? (
               <div className={styles.precipLine}>
-                <span className={styles.dropletIcon} aria-hidden="true">💧</span>
+                <InlineIcon
+                  icon={raindropIcon}
+                  className={styles.dropletIcon}
+                  aria-hidden="true"
+                />
                 <span>{Math.round(precip)}%</span>
               </div>
             ) : null}
@@ -244,11 +250,17 @@ const DailyForecastColumns = ({ expanded = false }) => {
                     : styles.rainLine
                 }
               >
-                <span aria-hidden="true">
-                  {accumulationLine.kind === "snow"
-                    ? t("charts.snow", { defaultValue: "❄" })
-                    : "─"}
-                </span>
+                {/* v2.14.61 → v2.14.62: started with "─" (read as minus
+                 * sign), switched to 💧 emoji (rendered as missing-
+                 * glyph box on HMIRaspi which lacks color-emoji
+                 * fonts), now use Iconify SVG icons — bundled in the
+                 * JS, palette-aware via currentColor, immune to the
+                 * host system's font configuration. */}
+                <InlineIcon
+                  icon={accumulationLine.kind === "snow" ? snowflakeIcon : raindropIcon}
+                  className={styles.dropletIcon}
+                  aria-hidden="true"
+                />
                 <span>{accumulationLine.label}</span>
               </div>
             ) : null}

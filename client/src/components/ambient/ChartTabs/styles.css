@@ -172,29 +172,26 @@
 }
 
 /* When the slab is maximized, the chartArea grows to a sensible fixed
- * height. Two breakpoints (v2.14.59 after field test on 7" Pi):
+ * height. Two breakpoints (v2.14.61 after field test on remote Pi):
  *
- *   - sub-1280 (LayoutPi, 7" / small Pis): 280 px. The 7" rail is
- *     ~428 px tall after the dock. Slab chrome (tabs + legend + dots
- *     + slab padding) consumes ~114 px, plus 12 px top inset → slab
- *     totals ~406 px which fits within the rail without overflowing
- *     the bottom edge. The 24h hourly columns at COMPACT typography
- *     (~70 px per row × 3 rows + gaps ≈ 226 px) centre with ~27 px
- *     top + 27 px bottom — generous breathing room.
+ *   - sub-1280 (LayoutPi, 7" / small Pis): 240 px. v2.14.60's 280 px
+ *     made the slab total ~406 px (chrome ~126 + chartArea 280),
+ *     which exceeded the visible rail on the user's remote Pi
+ *     viewport — the chart card needed scrolling to see the bottom.
+ *     240 px brings the slab to ~366 px, which fits even on shorter
+ *     viewports / higher font-scales. The 24h hourly columns at
+ *     compact typography (~70 px per row × 3 + gaps ≈ 226 px)
+ *     centre with ~7 px top/bottom — tight but the content reads
+ *     as a single unit. The 5-day expanded view at sub-1280 typo
+ *     (~140 px content) centres with ~50 px each side.
  *
  *   - ≥ 1280 (LayoutDesktop): 320 px. The hourly columns at EXPANDED
  *     desktop typography (~93 px per row × 3 + gaps ≈ 295 px) need
- *     the extra 40 px so 12-13 px top + bottom margins survive.
- *     The 5-day expanded view (~150 px content) breathes nicely.
- *     Line charts get a near-3:1 aspect on the desktop rail width
- *     (~924 × 320 = 2.9:1), the conventional time-series ratio.
- *
- * The previous v2.14.58 unconditional 320 px overflowed the 7" rail
- * by ~24 px (graphiques débordent vers le bas) and left the 24h
- * compact-typography content with ~47 px top/bottom — way too much
- * (trop de marge dans le haut et dans le bas). */
+ *     the extra space so 12-13 px top/bottom margins survive. Line
+ *     charts get a near-3:1 aspect on the desktop rail width
+ *     (~924 × 320 = 2.9:1), the conventional time-series ratio. */
 .slabMaximized .chartArea {
-  height: 280px;
+  height: 240px;
   flex: 0 0 auto;
 }
 
