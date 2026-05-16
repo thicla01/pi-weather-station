@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.68] - 2026-05-16
+
+### Fixed
+- **Recenter map button pushed the marker too far left on the 7" Pi** — User report: pressing "Recentrer la carte sur la position actuelle" on the 7" kiosk put the marker on the far-LEFT edge of the visible map area instead of centring it in the rail-free zone. Cause: `useRailOffset()` in WeatherMap applied a horizontal shift equal to the rail's width on every layout, but the shift only makes sense when the rail OVERLAYS the map (`LayoutDesktop`'s full-bleed map + floating rail). On `LayoutPi` the rail sits in its own grid column and the map column is already the visible map area — the extra shift pushed the centre way right, dropping the marker against the left edge of the screen. Gated the shift on the presence of `[data-ambient-hero]` (set only by `LayoutDesktop`): when absent, the layout is `LayoutPi`-class and no offset is needed, so both `x` and `y` stay at 0. `LayoutDesktop` behaviour is unchanged.
+
+---
+
 ## [2.14.67] - 2026-05-16
 
 ### Fixed

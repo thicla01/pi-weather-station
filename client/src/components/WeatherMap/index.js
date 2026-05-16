@@ -944,11 +944,18 @@ function useRailOffset() {
       if (cancelled) return;
       const rail = document.querySelector(".ambientRoot aside");
       const hero = document.querySelector(".ambientRoot [data-ambient-hero]");
-      const x = rail ? Math.round(rail.getBoundingClientRect().width) : 0;
-      // HeroBand only exists in LayoutDesktop — LayoutPi stacks the
-      // hero info INSIDE the rail so there's nothing covering the
-      // top-left of the map. `[data-ambient-hero]` is therefore the
-      // right opt-in marker; absent → y = 0 → no vertical shift.
+      // `data-ambient-hero` is only set in LayoutDesktop, where the map
+      // is full-bleed and BOTH the HeroBand (top) and the rail (right
+      // edge) OVERLAY the map. On LayoutPi the map sits in its own
+      // grid column with the rail in a separate column, so the visible
+      // map area is already the full map — no shift needed at all.
+      // Pre-v2.14.68 the horizontal offset was applied on every
+      // layout, which pushed the marker to the far left on LayoutPi
+      // (rail offset shifted the map centre right when the marker was
+      // already in the clear). Gating BOTH axes on `hero` keeps the
+      // overlay correction limited to LayoutDesktop where it belongs.
+      const railOverlaysMap = !!hero;
+      const x = (rail && railOverlaysMap) ? Math.round(rail.getBoundingClientRect().width) : 0;
       const y = hero ? Math.round(hero.getBoundingClientRect().height) : 0;
       setOffset({ x, y });
     };
