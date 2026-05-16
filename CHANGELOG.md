@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.64] - 2026-05-16
+
+### Changed
+- **Leaflet attribution prefix — Ukrainian flag dropped** — Default Leaflet `AttributionControl` prefixes the library credit with `🇺🇦 Leaflet`. The flag emoji's yellow stripe read as a bright contrasting band against the dark-red nightRed basemap (user feedback: "il y a l'icône de Leaflet qui a une partie blanche, ça attire l'attention"). Overrode the prefix to just `"Leaflet"` — keeps the legal attribution, and the existing `.leaflet-control-attribution` CSS already tints the text to `var(--c-text)`. Same treatment on every palette.
+- **Location marker — palette-aware target icon** — User report on the 7" Pi: the default Leaflet blue teardrop pin was hard to see at glance distance and clashed with every dark palette. Replaced with a `DivIcon`-based target marker (22 × 22 px): a 2-px ring + a 6-px filled centre dot, both using `var(--c-accent, #b85a18)` so the marker auto-tints with the active palette (soft amber on day, deeper amber on dusk, copper on night, deep red on nightRed). A subtle 1-px white halo keeps it visible against cluttered radar tiles. v2 layouts that mount `WeatherMap` outside `.ambientRoot` fall back to the literal amber colour via the CSS variable's default.
+
+---
+
 ## [2.14.63] - 2026-05-15
 
 ### Fixed

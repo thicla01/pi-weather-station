@@ -295,6 +295,32 @@ const RING_OUTLINE_COLOR = "#3a3938";   // dark-grey halo behind coloured stroke
 const RING_OUTLINE_EXTRA_WEIGHT = 2;    // outline extends ~1 px on each side of the coloured stroke
 
 /**
+ * Build the custom DivIcon used for the user's location marker. v2.14.64
+ * replaces Leaflet's default blue teardrop pin — that bright blue
+ * stood out against every palette (especially nightRed where it
+ * looked alien) and was hard to see on the 7" kiosk at glance
+ * distance. The target-style marker (outer ring + filled centre dot)
+ * picks up `--c-accent` from the active palette via CSS variables, so
+ * it auto-tints with day / dusk / night / nightRed without per-palette
+ * overrides. Sized at 22 × 22 with the anchor centred so the dot sits
+ * exactly on the selected coordinates.
+ *
+ * @returns {import("leaflet").DivIcon} Leaflet DivIcon ready for `<Marker icon={…}>`
+ */
+function buildLocationMarkerIcon() {
+  return L.divIcon({
+    className: "weather-station-target",
+    html:
+      '<div class="weather-station-target__ring">' +
+      '<div class="weather-station-target__dot"></div>' +
+      '</div>',
+    iconSize: [22, 22],
+    iconAnchor: [11, 11],
+  });
+}
+const LOCATION_MARKER_ICON = buildLocationMarkerIcon();
+
+/**
  * Build the Leaflet pathOptions stack for a dashed radar circle. Returns
  * one or two layers: a single neutral stroke for calm rings (and dark-
  * mode coloured rings, where the dark basemap provides natural contrast),
@@ -1416,7 +1442,15 @@ const WeatherMap = ({ zoom, dark }) => {
          * plenty of room for related radar toggles now that v3 gives
          * it a dedicated slab). See ControlButtons for the new entry,
          * gated on the same `radarAnalysisEnabled` flag. */}
-        <AttributionControl position={"bottomleft"} />
+        {/* v2.14.64: prefix overridden to just "Leaflet" — the default
+         * Leaflet AttributionControl prefixes the library credit with
+         * the Ukrainian flag emoji (🇺🇦). Its yellow stripe reads as
+         * a bright contrasting band against the dark-red nightRed
+         * basemap and pulled the eye to a corner detail. Keeping the
+         * "Leaflet" text satisfies attribution; the colour palette
+         * for that text is handled by .leaflet-control-attribution
+         * rules in ui/reset.css. */}
+        <AttributionControl position="bottomleft" prefix="Leaflet" />
         <TileLayer
           attribution={MAPBOX_ATTRIBUTION}
           url={`/api/tiles/${dark ? darkModeStyle : lightModeStyle}/{z}/{x}/{y}`}
@@ -1454,7 +1488,11 @@ const WeatherMap = ({ zoom, dark }) => {
           />
         ) : null}
         {markerIsVisible && markerPosition ? (
-          <Marker position={markerPosition} opacity={0.65}></Marker>
+          <Marker
+            position={markerPosition}
+            icon={LOCATION_MARKER_ICON}
+            opacity={1}
+          />
         ) : null}
         {/* Radar-analysis overlays — only visible when the AI summary feature
             is configured AND the radar analysis is enabled in advanced

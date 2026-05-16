@@ -108,3 +108,48 @@
   color: var(--c-text) !important;
 }
 
+/* Location marker — Leaflet renders this DivIcon from
+ * buildLocationMarkerIcon() in WeatherMap/index.js. We override its
+ * defaults here (not in WeatherMap/styles.css) because that file is a
+ * CSS Module: its class names would be hashed and the literal class
+ * name `weather-station-target` Leaflet writes into the DOM wouldn't
+ * match. Using `--c-accent` (with a fallback orange for v2 layouts
+ * that don't set the variable) means the marker auto-tints with the
+ * active palette — soft amber on day, deeper amber on dusk, copper
+ * on night, deep red on nightRed — so it never sits as a foreign
+ * blue dot on the radar tiles. The 22 × 22 footprint pairs visually
+ * with the radar rings without competing with them.
+ *
+ * The default Leaflet `.leaflet-div-icon` ships a 1-px white border
+ * around its container; we zero that out so only the ring + dot
+ * inside contribute to the visible marker. */
+.leaflet-div-icon.weather-station-target {
+  background: transparent;
+  border: 0;
+}
+
+.weather-station-target__ring {
+  width: 22px;
+  height: 22px;
+  border: 2px solid var(--c-accent, #b85a18);
+  border-radius: 50%;
+  background-color: rgba(0, 0, 0, 0.18);
+  box-sizing: border-box;
+  position: relative;
+  /* Subtle outer halo so the marker reads cleanly on cluttered
+   * radar tiles (where the precipitation colour palette can run
+   * close to the accent). */
+  box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.15);
+}
+
+.weather-station-target__dot {
+  width: 6px;
+  height: 6px;
+  background-color: var(--c-accent, #b85a18);
+  border-radius: 50%;
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
