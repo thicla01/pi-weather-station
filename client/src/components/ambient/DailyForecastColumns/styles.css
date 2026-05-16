@@ -10,16 +10,26 @@
 .strip {
   display: grid;
   grid-template-columns: repeat(5, 1fr);
+  /* Natural row height + center-aligned content. v2.14.55: with the
+   * maximized chartArea now fixed at 280 px the previous
+   * `align-items: stretch` + `justify-content: flex-start` on the
+   * column put day labels at the top of a tall cell with empty space
+   * below ("données justifiées au haut" — user report). Letting the
+   * row be auto-height and centring it vertically in the grid keeps
+   * the 5-day strip visually centred inside the 280-px chartArea
+   * just like HourlyForecastColumns does for its 3 rows. */
+  grid-auto-rows: auto;
   gap: 4px;
   height: 100%;
-  align-items: stretch;
+  align-items: center;
+  align-content: center;
 }
 
 .column {
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: flex-start;
+  justify-content: center;
   gap: 4px;
   padding: 4px 2px;
   font-family: "Geist", system-ui, -apple-system, sans-serif;

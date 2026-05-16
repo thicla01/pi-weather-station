@@ -17,20 +17,29 @@
 }
 
 /* Maximized state — mirrors AiSummaryInline's maximize: the slab leaves
- * the rail's flex flow and pins to the rail's inner bounds. On
- * LayoutDesktop a parallel `:has([data-chart-maximized="true"])` rule
- * grows `--c-rail-width` so the rail itself widens to give the chart
- * roughly half the screen width. On LayoutPi the rail is already wide
- * enough; the slab just claims the rail's full visible area, hiding the
- * other slabs visually (they're still rendered behind).
+ * the rail's flex flow and pins to the rail's TOP. v2.14.55 stopped
+ * stretching the slab to fill the entire rail height (the previous
+ * `inset: 12px` behaviour) — on tall viewports it left the chart
+ * canvas at a near-1:1 aspect ratio (read as unusual) and the columns
+ * views floated in a sea of empty space ("données justifiées au haut
+ * dans un cas et au milieu dans l'autre" — user report).
  *
- * `inset: 12px` matches the rail's own padding; `--c-bg` is the only
- * token guaranteed 100 % opaque on every palette (`--c-surface` sits at
- * 85 %, the radar would bleed through at this size). z-index 5 keeps the
- * slab above its siblings within the rail's stacking context. */
+ * Now the slab sizes to its natural content height (tabs + legend +
+ * chartArea + dots) capped by the chartArea's explicit height set
+ * below. The slab still covers what sits directly below it in the
+ * rail flow because z-index 5 stays in place; siblings further down
+ * become visible again, which is fine — the maximize affordance is
+ * "make this card bigger", not "take over the rail".
+ *
+ * `--c-bg` is the only token guaranteed 100 % opaque on every palette
+ * (`--c-surface` sits at 85 %, the radar would bleed through at this
+ * size). */
 .slab.slabMaximized {
   position: absolute;
-  inset: 12px;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  bottom: auto;
   z-index: 5;
   background-color: var(--c-bg);
   backdrop-filter: blur(6px);
@@ -162,14 +171,26 @@
   position: relative;
 }
 
-/* When the slab is maximized, the chartArea grows to fill the slab's
- * remaining height. `flex: 1 1 0` + `min-height: 0` claims the available
- * space below the tab row; the inner `> div` and canvas rules below
- * (already in place for fontSize=L) handle the responsive resizing. */
+/* When the slab is maximized, the chartArea grows to a sensible fixed
+ * height. v2.14.39 used `flex: 1 1 0` to claim ALL remaining slab
+ * space — combined with the slab filling the rail via `inset: 12px`,
+ * the chart canvas on tall viewports stretched to a near-1:1 aspect
+ * ratio (read as unusual), and columns views floated in a sea of
+ * empty space.
+ *
+ * 280 px is tuned so that:
+ *   - 24h hourly columns (8 cols × 3 rows × 1-hour step) at expanded
+ *     desktop typography (~90 px per row) fit comfortably with
+ *     breathing room
+ *   - Line charts have a near-3:1 aspect at the desktop rail width
+ *     (~924 px × 280 px = 3.3:1), the conventional time-series ratio
+ *   - 5-day columns (1 row) centre vertically with sensible padding
+ *   - 7" maximized rail (~428 px tall after dock) still has 60 px
+ *     slack between the slab bottom (12 px top + 280 px chart + ~120
+ *     px chrome = ~412 px) and the rail bottom — no overflow */
 .slabMaximized .chartArea {
-  height: auto;
-  flex: 1 1 0;
-  min-height: 0;
+  height: 280px;
+  flex: 0 0 auto;
 }
 
 .slabMaximized .chartArea canvas {

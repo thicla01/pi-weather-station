@@ -5,6 +5,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.55] - 2026-05-15
+
+### Changed
+- **ChartTabs maximize — slab no longer stretches the full rail height** — User feedback on a tall desktop monitor: the maximized chart card stretched all the way down the rail. The line chart took a near-1:1 aspect ratio (unusual for a time series), the 5-day columns view sat with data justified to the top under a sea of empty space, and the 24h hourly columns floated centred but with similarly excessive padding above and below. Reworked the maximize geometry so the slab sizes to its natural content height instead of filling the rail:
+  - `.slab.slabMaximized` switched from `inset: 12px` (stretch rail) to `top/left/right: 12px; bottom: auto` (top-anchored, content-sized).
+  - `.slabMaximized .chartArea` swapped `flex: 1 1 0` (claim remaining slab space) for a fixed `height: 280 px`. 280 px is tuned so the 24h hourly-columns view at expanded desktop typography fits comfortably (3 rows × ~90 px + gaps), line charts get a near-3:1 aspect ratio at the desktop rail width (~924 px × 280 px), and the 7" maximized rail (~428 px tall) still has ~60 px slack between the slab bottom and the rail bottom.
+  - `DailyForecastColumns` strip updated to use `align-content: center` + `justify-content: center` on the column flex, matching `HourlyForecastColumns` behaviour, so the single 5-day row centres vertically in the 280-px chartArea instead of sticking to the top.
+
+Net result: the maximized chart card is the same physical size on every viewport regardless of which view is active. Rail siblings below it become visible again when the maximize is shorter than the rail — the affordance now reads as "make this card bigger" rather than "take over the rail".
+
+---
+
 ## [2.14.54] - 2026-05-15
 
 ### Fixed
