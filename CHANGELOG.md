@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.67] - 2026-05-16
+
+### Fixed
+- **Ukrainian flag still visible in nightRed despite v2.14.66 rule** — User report: the flag remained visible in nightRed even after the CSS hide-rule was added. Cause: Leaflet's own stylesheet ships `display: inline !important` on `.leaflet-attribution-flag`, which my v2.14.66 `display: none` (without `!important`) couldn't override. Added `!important` to the override so it wins the cascade.
+
+---
+
 ## [2.14.66] - 2026-05-16
 
 ### Fixed

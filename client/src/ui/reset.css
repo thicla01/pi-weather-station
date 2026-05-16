@@ -124,7 +124,9 @@
  * a stray leading space precedes "Leaflet". `display: none` on the
  * SVG also collapses the whitespace it would have occupied. */
 .ambientRoot[data-palette="nightRed"] .leaflet-attribution-flag {
-  display: none;
+  /* `!important` is required to override Leaflet's own
+   * `display: inline !important` in leaflet.css. */
+  display: none !important;
 }
 
 /* Location marker — Leaflet renders this DivIcon from
