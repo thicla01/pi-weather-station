@@ -166,9 +166,7 @@ const SectionLocalPrefs = ({ ctx, lang }) => {
     speedUnit, saveSpeedUnit,
     lengthUnit, saveLengthUnit,
     distanceUnit, saveDistanceUnit,
-    darkModeAuto, saveDarkModeAuto,
     mouseHide, saveMouseHide,
-    hideRadarLegend, saveHideRadarLegend,
   } = ctx;
 
   // The MouseHide / HideRadarLegend save helpers take a JSON-encoded
@@ -207,12 +205,12 @@ const SectionLocalPrefs = ({ ctx, lang }) => {
           value={fontSize || "m"}
           onChange={saveFontSize}
         />
-        <Seg
-          label={lbl(lang, "Dark mode", "Mode sombre", "Modo oscuro")}
-          options={[{ v: true, l: "AUTO" }, { v: false, l: "MANUEL" }]}
-          value={Boolean(darkModeAuto)}
-          onChange={saveDarkModeAuto}
-        />
+        {/* Dark mode "AUTO / MANUEL" segmented control removed in
+         * v2.14.72 — the dock now carries a dedicated auto-toggle
+         * button next to the contrast toggle, so the panel duplicate
+         * was redundant. The underlying state (`darkModeAuto`) and
+         * its setter (`saveDarkModeAuto`) still live in AppContext
+         * for the dock button + any future re-introduction. */}
         <Seg
           label={lbl(lang, "Clock", "Horloge", "Reloj")}
           options={[{ v: "12", l: "12h" }, { v: "24", l: "24h" }]}
@@ -251,11 +249,10 @@ const SectionLocalPrefs = ({ ctx, lang }) => {
           value={Boolean(mouseHide)}
           onChange={saveBoolFlag(saveMouseHide)}
         />
-        <Toggle
-          label={lbl(lang, "Hide radar legend", "Masquer la légende radar", "Ocultar leyenda radar")}
-          value={Boolean(hideRadarLegend)}
-          onChange={saveBoolFlag(saveHideRadarLegend)}
-        />
+        {/* "Hide radar legend" toggle removed in v2.14.73 — the
+         * radar legend has its own dedicated toggle in the dock now
+         * (carbon:legend, gated on the active RainViewer source).
+         * State + setter still in AppContext for the dock button. */}
       </div>
     </div>
   );

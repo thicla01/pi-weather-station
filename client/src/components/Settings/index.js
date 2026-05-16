@@ -40,12 +40,8 @@ const Settings = () => {
     setSettingsMenuOpen,
     mouseHide,
     saveMouseHide,
-    hideRadarLegend,
-    saveHideRadarLegend,
     radarSource,
     saveRadarSource,
-    darkModeAuto,
-    saveDarkModeAuto,
     isLocal,
     remoteSecurityEnabled,
   } = useContext(AppContext);
@@ -228,28 +224,14 @@ const Settings = () => {
                   cb={saveRadarSource}
                 />
               </div>
-              <div>
-                <div className={styles.label}>{t("settings.hideRadarLegend")}</div>
-                <ToggleButton
-                  button1Label={t("settings.on")}
-                  button2Label={t("settings.off")}
-                  val={hideRadarLegend}
-                  button1Val={true}
-                  button2Val={false}
-                  cb={saveHideRadarLegend}
-                />
-              </div>
-              <div>
-                <div className={styles.label}>{t("settings.darkModeAuto")}</div>
-                <ToggleButton
-                  button1Label={t("settings.on")}
-                  button2Label={t("settings.off")}
-                  val={darkModeAuto}
-                  button1Val={true}
-                  button2Val={false}
-                  cb={saveDarkModeAuto}
-                />
-              </div>
+              {/* Hide radar legend toggle removed in v2.14.73 — the
+               * legend toggle now lives in the dock as a dedicated
+               * button (carbon:legend) right next to the radar source
+               * selector. State + setter still in AppContext. */}
+              {/* Dark mode AUTO toggle removed in v2.14.72 — accessible
+               * via the dedicated auto-toggle button in the dock now.
+               * Underlying state/setter still in AppContext for the
+               * dock and for any future re-introduction. */}
               <div>
                 <div className={styles.label}>{t("settings.language")}</div>
                 <ToggleButton

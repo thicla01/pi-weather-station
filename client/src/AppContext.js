@@ -488,15 +488,20 @@ export function AppContextProvider({ children }) {
 
   /**
    * Manual dark/light toggle wrapper — same shape as setDarkMode for
-   * existing call sites, but also turns off auto mode if it was on.
-   * The intuition is "tap to override": the user wins, auto resumes
-   * only when they explicitly re-enable it from Settings.
+   * existing call sites. v2.14.72: stopped silently disabling auto
+   * mode here. Once the dock got a dedicated auto-mode toggle the
+   * "tap contrast = disable auto" side effect became surprising
+   * (the auto button is visibly ON, and toggling contrast shouldn't
+   * silently turn it off — the user can see auto's state at a glance
+   * and disable it explicitly if they want). The auto interval will
+   * re-flip the manual choice at the next sunrise / sunset boundary
+   * if auto is still on; that's the trade-off the user accepted by
+   * leaving auto enabled.
    *
    * @param {Boolean} next
    */
   function setDarkModeManual(next) {
     setDarkMode(next);
-    if (darkModeAuto) saveDarkModeAuto(false);
   }
 
   /**

@@ -3,16 +3,31 @@ import { useTranslation } from "react-i18next";
 import { AppContext } from "~/AppContext";
 import styles from "./styles.css";
 import { InlineIcon } from "@iconify/react";
-import locationArrow from "@iconify/icons-map/location-arrow";
+
+/* All icons unified to the IBM Carbon family (v2.14.71) — pre-v2.14.71
+ * the dock mixed 5 different icon sets (carbon / ic / material-symbols
+ * / map) with inconsistent stroke weights and corner radii. Carbon
+ * gives a single 24×24 grid with a 2-px stroke across every glyph for
+ * a coherent visual rhythm in the dock. */
+import centerCircleIcon from "@iconify/icons-carbon/center-circle";
+import locationFilledIcon from "@iconify/icons-carbon/location-filled";
+import locationOutlineIcon from "@iconify/icons-carbon/location";
+import timePlotIcon from "@iconify/icons-carbon/time-plot";
+import windGustsIcon from "@iconify/icons-carbon/wind-gusts";
+import legendIcon from "@iconify/icons-carbon/legend";
 import contrastIcon from "@iconify/icons-carbon/contrast";
-import sharpSettings from "@iconify/icons-ic/sharp-settings";
-import roundLocationOn from "@iconify/icons-ic/round-location-on";
-import roundLocationOff from "@iconify/icons-ic/round-location-off";
-import timelineIcon from "@iconify/icons-material-symbols/timeline";
+import automaticIcon from "@iconify/icons-carbon/automatic";
+import moonIcon from "@iconify/icons-carbon/moon";
+import settingsIcon from "@iconify/icons-carbon/settings";
 import bugIcon from "@iconify/icons-carbon/debug";
 import upgradeIcon from "@iconify/icons-carbon/upgrade";
-import nearMeIcon from "@iconify/icons-material-symbols/near-me-outline";
-import legendIcon from "@iconify/icons-carbon/legend";
+
+// Inline color for the moon icon — the "blood moon" / lunar-eclipse
+// red that's also the nightRed palette's accent. Applied as a literal
+// because we want the same red regardless of the active palette so
+// the icon reads as a constant "this button is about the red palette"
+// signal. See ControlButtons styles + state-rendering notes below.
+const MOON_COLOR = "#c44040";
 
 /**
  * Buttons group component
@@ -24,6 +39,10 @@ const ControlButtons = () => {
   const {
     darkMode,
     setDarkMode,
+    darkModeAuto,
+    saveDarkModeAuto,
+    sleepNightMode,
+    saveAdvancedSleepFlag,
     resetMapPosition,
     markerIsVisible,
     toggleMarker,
@@ -33,7 +52,6 @@ const ControlButtons = () => {
     radarAnalysisEnabled,
     showDirectionArrows,
     toggleDirectionArrows,
-    mapTimestamps,
     hideRadarLegend,
     saveHideRadarLegend,
     toggleSettingsMenuOpen,
@@ -59,23 +77,31 @@ const ControlButtons = () => {
         title={t("controls.resetMapPosition")}
         aria-label={t("controls.resetMapPosition")}
       >
-        <InlineIcon icon={locationArrow} />
+        <InlineIcon icon={centerCircleIcon} />
       </div>
+      {/* Location marker visibility toggle. State-based icon: filled
+       * pin when the marker is visible, outline pin when hidden. The
+       * filled-vs-outline pair reads as "this is the current state"
+       * (rather than the older "show the action" convention, which
+       * had a slash-through icon when the marker was ON — confusing
+       * because the slash visually said "off" while the marker was
+       * actually showing). */}
       <div
         onClick={toggleMarker}
         title={t(markerIsVisible ? "controls.hideMarker" : "controls.showMarker")}
         aria-label={t(markerIsVisible ? "controls.hideMarker" : "controls.showMarker")}
       >
         <InlineIcon
-          icon={markerIsVisible ? roundLocationOff : roundLocationOn}
+          icon={markerIsVisible ? locationFilledIcon : locationOutlineIcon}
         />
       </div>
       {/* Toggles visibility of the radar timeline overlay over the
-          map. Replaces the previous standalone play/stop control —
-          play/pause now lives in the timeline itself, and this button
-          gives the user an escape hatch when they want a clean map.
-          Hidden when radarSource is ECCC (the timeline scrubber drives
-          RainViewer frame URLs and has no equivalent on the WMS layer). */}
+          map. The icon (time-plot) signals "this opens time / chrono
+          controls" — the previous play-triangle was misleading because
+          tapping doesn't start playback, it just shows the scrubber UI
+          which has its own play button inside. Hidden when radarSource
+          is ECCC (the timeline scrubber drives RainViewer frame URLs
+          and has no equivalent on the WMS layer). */}
       {radarSource === "rainviewer" && (
         <div
           onClick={toggleRadarTimelineVisible}
@@ -83,14 +109,13 @@ const ControlButtons = () => {
           title={t(radarTimelineVisible ? "controls.hideTimeline" : "controls.showTimeline")}
           aria-label={t(radarTimelineVisible ? "controls.hideTimeline" : "controls.showTimeline")}
         >
-          <InlineIcon icon={timelineIcon} />
+          <InlineIcon icon={timePlotIcon} />
         </div>
       )}
-      {/* Direction-arrows toggle. Previously rendered as an imperative
-       * Leaflet control at the map's top-left (next to the zoom +/-);
-       * moved to the bottom dock so the top-left of the map can stay
-       * uncluttered. Same `radarAnalysisEnabled` gate — when the
-       * analysis pipeline is off, there are no arrows to toggle. */}
+      {/* Direction-arrows toggle. The wind-gusts glyph reads as
+       * "directional weather phenomenon" — more specific than a
+       * generic arrow and lit the feature better than the previous
+       * near-me arrow which read as a generic "external link". */}
       {radarAnalysisEnabled && (
         <div
           onClick={toggleDirectionArrows}
@@ -98,16 +123,18 @@ const ControlButtons = () => {
           title={t(showDirectionArrows ? "radar.hideDirectionArrows" : "radar.showDirectionArrows")}
           aria-label={t(showDirectionArrows ? "radar.hideDirectionArrows" : "radar.showDirectionArrows")}
         >
-          <InlineIcon icon={nearMeIcon} />
+          <InlineIcon icon={windGustsIcon} />
         </div>
       )}
-      {/* Radar legend visibility toggle. The legend exists when
-       * RainViewer is the active radar source AND there's at least
-       * one timestamp landed; we gate the button on the same
-       * conditions so users can't toggle an absent overlay. The
-       * persisted preference lives in `hideRadarLegend` on context
-       * (advanced setting since v2.x). */}
-      {radarSource === "rainviewer" && mapTimestamps && (
+      {/* Legend visibility toggle. v2.14.72: dropped the `mapTimestamps`
+       * part of the gate — that state lives in WeatherMap, not in
+       * AppContext, so the check was always falsy and the button
+       * never rendered (latent bug since the original v2 wiring).
+       * The button now shows whenever the radar source is RainViewer;
+       * clicking it just flips `hideRadarLegend` regardless of whether
+       * a legend is currently painted. When timestamps eventually
+       * load, the legend follows the preference. */}
+      {radarSource === "rainviewer" && (
         <div
           onClick={() => saveHideRadarLegend(!hideRadarLegend)}
           className={`${!hideRadarLegend ? styles.buttonDown : ""}`}
@@ -124,13 +151,43 @@ const ControlButtons = () => {
       >
         <InlineIcon icon={contrastIcon} />
       </div>
+      {/* Auto dark/light toggle (v2.14.71). Flips darkMode at the
+       * local sunrise / sunset times pulled from sunrise-sunset.org.
+       * `.buttonDown` active state mirrors the timeline + legend
+       * toggles: when ON, the button reads as "pressed in" via the
+       * palette's accent-soft fill. */}
+      <div
+        onClick={() => saveDarkModeAuto(!darkModeAuto)}
+        className={`${darkModeAuto ? styles.buttonDown : ""}`}
+        title={t(darkModeAuto ? "controls.disableAutoMode" : "controls.enableAutoMode")}
+        aria-label={t(darkModeAuto ? "controls.disableAutoMode" : "controls.enableAutoMode")}
+      >
+        <InlineIcon icon={automaticIcon} />
+      </div>
+      {/* Night-red (sleep-stage-1) palette toggle (v2.14.71). The
+       * moon icon is rendered in MOON_COLOR (#c44040 — same as the
+       * nightRed accent and matches "blood moon" / lunar eclipse
+       * iconography) regardless of palette. When the mode is OFF
+       * (day / dusk / night palettes) the red moon on the standard
+       * dock surface reads as "dormant, ready to activate". When ON
+       * (nightRed palette) the `.buttonDown` accent-soft fill behind
+       * the moon signals "currently active, tap to deactivate" —
+       * same toggle affordance as the timeline button. */}
+      <div
+        onClick={() => saveAdvancedSleepFlag("nightMode", !sleepNightMode)}
+        className={`${sleepNightMode ? styles.buttonDown : ""}`}
+        title={t(sleepNightMode ? "controls.disableNightRed" : "controls.enableNightRed")}
+        aria-label={t(sleepNightMode ? "controls.disableNightRed" : "controls.enableNightRed")}
+      >
+        <InlineIcon icon={moonIcon} style={{ color: MOON_COLOR }} />
+      </div>
       <div
         onClick={toggleSettingsMenuOpen}
         className={`${settingsMenuOpen ? styles.buttonDown : ""}`}
         title={t(settingsMenuOpen ? "controls.closeSettings" : "controls.openSettings")}
         aria-label={t(settingsMenuOpen ? "controls.closeSettings" : "controls.openSettings")}
       >
-        <InlineIcon icon={sharpSettings} />
+        <InlineIcon icon={settingsIcon} />
       </div>
       {isLocal && debugEnabled && (
         <div
@@ -154,14 +211,6 @@ const ControlButtons = () => {
         </div>
       )}
       {updateAvailable && !isLocal && (
-        // Remote-viewer indicator (requested by @k5map on a headless RPi
-        // setup, May 2026). Same icon + pulsing badge as the local
-        // version so the affordance is recognisable, but rendered as a
-        // passive indicator: no onClick, no role="button", and a tooltip
-        // explaining that installation has to happen from localhost
-        // (the /api/update endpoint is gated by `localhostOnly`
-        // middleware — a security boundary we keep). Reduced opacity
-        // communicates "informational, not interactive" at a glance.
         <div
           className={`${styles.updateButton} ${styles.updateButtonRemote}`}
           title={t("controls.updateAvailableRemote")}

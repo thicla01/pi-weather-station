@@ -5,6 +5,44 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.73] - 2026-05-16
+
+### Changed
+- **Removed "Hide radar legend" toggle from both Settings panels** — Now that v2.14.72 fixed the dock legend button (it was a latent bug — the button never rendered because of a stale gate), having a duplicate toggle in the Settings panels was redundant. Removed from the v3 `SettingsPanel` (Display section) and the v2 `Settings` (basic preferences). `hideRadarLegend` state + `saveHideRadarLegend` setter still live in AppContext for the dock button.
+
+---
+
+## [2.14.72] - 2026-05-16
+
+### Fixed
+- **Radar legend button never appeared on the dock** — Pre-existing latent bug surfaced during the v2.14.71 dock refresh review: `ControlButtons` gated the legend button on `radarSource === "rainviewer" && mapTimestamps && ...`, but `mapTimestamps` lives in `WeatherMap`'s local state, not in `AppContext` — so the destructured value was always `undefined` and the button never rendered. Dropped the `mapTimestamps` part of the gate; the button now appears whenever the radar source is RainViewer and just flips the `hideRadarLegend` preference (legend follows it when timestamps eventually load).
+
+### Changed
+- **Manual contrast toggle no longer silently disables auto mode** — Originally the v2.14.71 dock added a dedicated auto-toggle, so the side-effect of `setDarkModeManual` silently turning auto off felt surprising — the user could see auto's state and would prefer to disable it explicitly. Removed the `saveDarkModeAuto(false)` call from `setDarkModeManual`. The auto interval will re-flip the manual choice at the next sunrise / sunset boundary if auto stays on.
+- **Removed `darkModeAuto` toggle from both Settings panels** — Now that the dock carries a dedicated auto-toggle button, the segmented control in the v3 `SettingsPanel` and the `ToggleButton` in the v2 `Settings` were redundant. Kept `sleepNightMode` in both panels per user request — that toggle keeps its contextual home in the sleep-mode section since it's tied to that subsystem's documentation, even though the dock also exposes it now.
+
+---
+
+## [2.14.71] - 2026-05-16
+
+### Changed
+- **BottomDock icon refresh — all unified to IBM Carbon** — Pre-v2.14.71 the dock mixed 5 different icon families (`carbon`, `ic`, `material-symbols`, `map`) with inconsistent stroke weights and corner radii. Switched every glyph to a Carbon equivalent so the dock reads as a single 24×24 / 2-px grid:
+  - Recentrer carte: `map:location-arrow` → `carbon:center-circle`
+  - Marqueur ON: `ic:round-location-on` → `carbon:location-filled`
+  - Marqueur OFF: `ic:round-location-off` → `carbon:location` (outline)
+  - Chronologie radar: `material-symbols:timeline` → `carbon:time-plot` (more semantically accurate: the button opens scrubber controls, not playback)
+  - Flèches direction: `material-symbols:near-me-outline` → `carbon:wind-gusts` (specific to directional weather phenomena)
+  - Paramètres: `ic:sharp-settings` → `carbon:settings`
+  - Légende / Contraste / Debug / Mise à jour: already Carbon, unchanged.
+- Marker toggle now uses the state-based filled-vs-outline pattern (filled when visible, outline when hidden) instead of the previous "show-the-action" slash pattern.
+
+### Added
+- **Auto dark/light toggle in the dock** — Until now only accessible via Settings → Auto mode. Added a `carbon:automatic` button next to Contrast. `darkModeAuto` flips on tap; persisted to settings.json through the existing `saveDarkModeAuto` setter. `.buttonDown` accent-soft fill signals the active state, same as the timeline / legend toggles.
+- **NightRed palette toggle in the dock** — Same accessibility upgrade for `sleepNightMode`. `carbon:moon` button next to Auto; tap flips between standard dark and the long-wavelength red palette. The moon icon is always rendered in the "blood moon" red `#c44040` (matches the nightRed accent token) so the button reads as "this is about the red palette" regardless of which palette is currently active. When the mode is ON the `.buttonDown` accent-soft fill behind the moon signals "currently active, tap to deactivate".
+- Six new i18n keys (EN / FR / ES): `enableAutoMode`, `disableAutoMode`, `enableNightRed`, `disableNightRed`.
+
+---
+
 ## [2.14.70] - 2026-05-16
 
 ### Fixed
