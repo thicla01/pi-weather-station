@@ -155,6 +155,20 @@ const CALM_RADAR_BY_LANG = {
   es: 'Análisis radar: nada que señalar en {distance} alrededor de tu ubicación.',
 };
 
+// Localised prefix Claude is instructed to use as the first word(s) of
+// the third paragraph (radar analysis). Pre-2.14.64 the prompt seeded
+// the French "Analyse radar : " in every language and asked Claude to
+// translate when not French — in practice Claude sometimes kept the
+// French verbatim, producing English summaries that opened with the
+// French label. Providing the exact target string per language keeps
+// Claude on-rails. Must end with the same trailing space/punctuation
+// the model is expected to emit so we can detect it later if needed.
+const RADAR_PARAGRAPH_LABEL_BY_LANG = {
+  en: "Radar analysis: ",
+  fr: "Analyse radar : ",
+  es: "Análisis radar: ",
+};
+
 /**
  * True when the formatted radar snapshot reports no active precipitation
  * within the surveyed annulus — used as an additional gate for the
@@ -647,7 +661,12 @@ async function getWeatherSummary(req, res) {
     if (slot === "current") return `The ${which} paragraph covers current conditions ONLY (2-3 sentences) — do NOT add a closing sentence about the upcoming forecast; that belongs in its own paragraph.`;
     if (slot === "period")  return `The ${which} paragraph is a STANDALONE paragraph about ${secondPeriodLabel} (1-2 sentences) — it MUST be separated from the current-conditions paragraph by a blank line and must not be merged into another paragraph as a trailing sentence, even if its content is short.`;
     if (slot === "radar") {
-      return `The ${which} paragraph MUST start with the literal label "Analyse radar : " (in ${language === "French" ? "French — keep this exact wording" : `${language}, translated as appropriate`}) and describe ONLY what the radar shows right now relative to the user: where precipitation currently is, whether it is approaching based on movement between the three radar snapshots, and an estimated arrival time if a band is genuinely moving toward them. Do NOT reference the period forecast (paragraph ${paragraphSlots.indexOf("period") + 1 || "above"} already covers that) — the radar paragraph is strictly about radar observations. If the radar shows no precipitation in the surveyed annulus, say so plainly without speculating about future conditions. 1-3 sentences.`;
+      // Hard-code the localised radar-paragraph label per language —
+      // see RADAR_PARAGRAPH_LABEL_BY_LANG comment for the rationale
+      // (Claude was sometimes leaving the French seed in English
+      // summaries).
+      const radarLabel = RADAR_PARAGRAPH_LABEL_BY_LANG[lang] || RADAR_PARAGRAPH_LABEL_BY_LANG.en;
+      return `The ${which} paragraph MUST start with the literal label "${radarLabel}" (in ${language}, exactly as written above — do not translate or rephrase the label) and describe ONLY what the radar shows right now relative to the user: where precipitation currently is, whether it is approaching based on movement between the three radar snapshots, and an estimated arrival time if a band is genuinely moving toward them. Do NOT reference the period forecast (paragraph ${paragraphSlots.indexOf("period") + 1 || "above"} already covers that) — the radar paragraph is strictly about radar observations. If the radar shows no precipitation in the surveyed annulus, say so plainly without speculating about future conditions. 1-3 sentences.`;
     }
     return "";
   }).join(" ");

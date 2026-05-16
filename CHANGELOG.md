@@ -5,6 +5,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.63] - 2026-05-15
+
+### Fixed
+- **AI summary — English radar paragraph started with French label "Analyse radar:"** — User report from a real test zone (severe thunderstorm watch over Iowa): the AI summary's third paragraph opened with `Analyse radar:` even though the rest of the summary was in English. Cause: the prompt instruction seeded the French label `"Analyse radar : "` and asked Claude to translate when the language wasn't French — Claude sometimes kept the French seed verbatim instead of translating. Added a per-language label dictionary (`RADAR_PARAGRAPH_LABEL_BY_LANG`) with `Radar analysis: ` / `Analyse radar : ` / `Análisis radar: ` and updated the prompt to pass the matching language's label directly, with explicit "do not translate or rephrase the label" instructions. Same trick the existing `CALM_RADAR_BY_LANG` uses for the calm-day fast path.
+
+### Changed
+- **Radar risk circles — dedicated nightRed palette** — In nightRed mode (sleep-stage-1 long-wavelength sleep palette) the bright yellow `#f0e600` and red `#e60000` ring colours used in light and dark mode read as alien intrusions against the anthracite-red basemap. User feedback: « en mode rouge, ça détonne ». Added a `nightRed` branch to `RING_RISK_STYLE` so the radar circles stay inside the red family while still escalating clearly:
+  - **Calm** (no precipitation): `#c04848`, weight 2, dashed `6 6` — unchanged. Matches the nightRed `text` token.
+  - **Yellow → Warn**: `#a82828` (medium-saturation deep red), weight 4, dashed `6 6`. Deeper and thicker than calm.
+  - **Orange → Mid**: `#8c1818` (rust-red), weight 5, dashed `4 4`. Tighter dash density signals an extra step.
+  - **Red → Danger**: `#6b0808` (deepest blood-red), weight **7**, **solid** stroke. The continuous trace breaks the dash rhythm of the lower tiers, making severe risk unmistakable at a glance even at 7" kiosk distance.
+  - Alarm escalation now runs on three axes — saturation, stroke weight, dash pattern — instead of relying solely on hue. Robust for daltonian readers and preserves the dark-adapted vision the nightRed palette aims to support.
+
+  Light and dark mode tiers are unchanged.
+
+---
+
 ## [2.14.62] - 2026-05-15
 
 ### Fixed

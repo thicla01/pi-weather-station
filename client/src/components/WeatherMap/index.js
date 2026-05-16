@@ -270,6 +270,26 @@ const RING_RISK_STYLE = {
     orange: { color: "#f08200", weight: 3 },
     red:    { color: "#e60000", weight: 4 },
   },
+  // nightRed (sleep-stage-1 long-wavelength palette) — keeps every tier
+  // inside the red family so the radar rings don't visually break the
+  // night-vision palette. The bright yellow / orange / red used in
+  // light + dark mode read as alien intrusions against the
+  // anthracite-red background. Alarm escalation here works on THREE
+  // axes (the colour hue contribution is intentionally narrow):
+  //
+  //   1. Saturation: warn (muted) → mid (mid) → danger (deepest)
+  //   2. Stroke weight: 4 → 5 → 7 (vs 2 for calm)
+  //   3. Pattern: dashed 6 6 → dashed 4 4 → SOLID
+  //
+  // The solid stroke for the severe-tier creates a clear visual
+  // rupture from the dashed tiers below — readable even on a 7"
+  // kiosk at glance distance, and survives the dark-adapted vision
+  // the nightRed palette aims to preserve.
+  nightRed: {
+    yellow: { color: "#a82828", weight: 4, dashArray: "6 6" },
+    orange: { color: "#8c1818", weight: 5, dashArray: "4 4" },
+    red:    { color: "#6b0808", weight: 7, solid: true },
+  },
 };
 const RING_OUTLINE_COLOR = "#3a3938";   // dark-grey halo behind coloured strokes in light mode
 const RING_OUTLINE_EXTRA_WEIGHT = 2;    // outline extends ~1 px on each side of the coloured stroke
@@ -299,7 +319,9 @@ const RING_OUTLINE_EXTRA_WEIGHT = 2;    // outline extends ~1 px on each side of
  *   so the coloured stroke sits on top of the outline.
  */
 function buildRingLayers(risk, dark, aiOff = false, nightRed = false) {
-  const overlay = risk && RING_RISK_STYLE[dark ? "dark" : "light"][risk];
+  // Pick the palette: nightRed wins over dark when both are active.
+  const paletteKey = nightRed ? "nightRed" : (dark ? "dark" : "light");
+  const overlay = risk && RING_RISK_STYLE[paletteKey][risk];
   const baseDash = "6 6";
   // Calm / not yet loaded — single neutral ring, theme-aware.
   // nightRed (sleep-stage-1 long-wavelength mode) tints the ring to
@@ -308,8 +330,8 @@ function buildRingLayers(risk, dark, aiOff = false, nightRed = false) {
   // night-red look — same hue family as the card text & surfaces.
   // `#c04848` is exactly the nightRed.text token — it harmonises
   // the ring with the rest of the UI without crossing into "alert"
-  // territory (bright reds are still reserved for the actual risk
-  // overlays, which are even more saturated).
+  // territory (deeper reds are still reserved for the actual risk
+  // overlays, which use both deeper saturation and wider strokes).
   if (!overlay) {
     return [{
       color: nightRed ? "#c04848" : (dark ? "#a8a097" : "#3a3938"),
@@ -324,6 +346,25 @@ function buildRingLayers(risk, dark, aiOff = false, nightRed = false) {
       dashArray: aiOff ? "3 9" : baseDash,
       fill: false,
     }];
+  }
+  // nightRed coloured tier — single stroke, alarm conveyed by the
+  // per-tier weight escalation (4 → 5 → 7) and dash pattern
+  // (6 6 → 4 4 → solid). All tiers stay in the deep-red family so
+  // the alert reads as "more of the same" rather than introducing a
+  // colour-mode-breaking yellow / bright-red against the
+  // anthracite-red basemap. See RING_RISK_STYLE.nightRed for the
+  // per-tier rationale.
+  if (nightRed) {
+    const layer = {
+      color: overlay.color,
+      weight: overlay.weight,
+      opacity: 0.95,
+      fill: false,
+    };
+    if (!overlay.solid) {
+      layer.dashArray = overlay.dashArray || baseDash;
+    }
+    return [layer];
   }
   // Dark mode coloured tier — single bright stroke; basemap contrasts it.
   if (dark) {
