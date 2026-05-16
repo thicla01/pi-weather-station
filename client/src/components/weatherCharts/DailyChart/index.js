@@ -21,7 +21,7 @@ import {
   convertSpeed,
   speedUnitLabel,
 } from "~/services/conversions";
-import { fontColor } from "../common";
+import { fontColor, gridColor } from "../common";
 import { useTimeOfDay } from "~/ui/hybrid";
 import { getDateLocale } from "~/i18n/dateLocale";
 
@@ -67,6 +67,10 @@ const createChartOptions = ({
           color: fontColor(darkMode, nightRed),
           font: { family: "Rubik, sans-serif" },
         },
+        // Explicit grid colour — see HourlyChart for rationale.
+        grid: {
+          color: gridColor(darkMode, nightRed),
+        },
       },
       y: {
         type: "linear",
@@ -82,6 +86,9 @@ const createChartOptions = ({
               : `${val} ${tempUnit.toUpperCase()}`;
           },
         },
+        grid: {
+          color: gridColor(darkMode, nightRed),
+        },
       },
       y1: {
         type: "linear",
@@ -96,6 +103,7 @@ const createChartOptions = ({
             return `${val}${altMode ? ` ${lengthUnit}` : "%"}`;
           },
         },
+        // y1 (precip % axis) intentionally has no grid — see HourlyChart.
         grid: {
           drawOnChartArea: false,
         },

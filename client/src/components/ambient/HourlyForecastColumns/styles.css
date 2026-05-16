@@ -30,6 +30,15 @@
   align-items: stretch;
   align-content: center;
   position: relative;
+  /* v2.14.53 — the 3-row grid was sitting flush against the chartArea
+   * top, leaving ~2 px between the tab row and the first hour label.
+   * The 5-day columns view next door has a more generous gap because
+   * its single tall row leaves the day label visually at the top of a
+   * tall cell rather than at the very edge. Adding padding-top here
+   * lines up the first hour row with the 5-day day-label baseline.
+   * `align-content: center` still spreads the rows in the remaining
+   * grid height — this padding just shifts the entire cluster down. */
+  padding-top: 10px;
 }
 
 /* Expanded density — used when ChartTabs is maximized and the rail

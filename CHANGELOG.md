@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.53] - 2026-05-15
+
+### Fixed
+- **Chart gridlines invisible in dark / nightRed mode** — User report: gridlines visible on the light surface but "almost invisible" against dark and nightRed. Cause: Chart.js's default grid colour `rgba(0,0,0,0.1)` doesn't survive on dark backgrounds. Added a `gridColor(darkMode, nightRed)` helper alongside the existing `fontColor()` in `client/src/components/weatherCharts/common.js`, with three branches: `rgba(58,57,56,0.18)` (light), `rgba(246,246,244,0.14)` (dark), `rgba(192,72,72,0.16)` (nightRed). Wired into both `HourlyChart` and `DailyChart` for the x-axis and primary y-axis (y1's grid stays suppressed to avoid double horizontal lines).
+- **HourlyForecastColumns — first row flush against the tab bar** — User feedback: the 24h columns view had the hour labels (21h, 00h, 03h…) practically touching the tabs above, while the 5-day columns view next door had a comfortable gap. Cause: the hourly strip's 3-row grid filled the chartArea right to the top edge, whereas the 5-day single-row grid stretched its tall cell so the day label sat with breathing room above it visually. Added `padding-top: 10 px` to `.strip` so the cluster shifts down. `align-content: center` still distributes the rows naturally in the remaining grid height. Applies to both compact and expanded modes on every screen size.
+
+---
+
 ## [2.14.52] - 2026-05-15
 
 ### Added

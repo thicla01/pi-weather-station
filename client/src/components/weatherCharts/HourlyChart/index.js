@@ -21,7 +21,7 @@ import {
   convertSpeed,
   speedUnitLabel,
 } from "~/services/conversions";
-import { fontColor } from "../common";
+import { fontColor, gridColor } from "../common";
 import { useTimeOfDay } from "~/ui/hybrid";
 
 ChartJS.register(
@@ -66,6 +66,12 @@ const buildChartOptions = ({
           color: fontColor(darkMode, nightRed),
           font: { family: "Rubik, sans-serif" },
         },
+        // Explicit grid colour — Chart.js's default `rgba(0,0,0,0.1)`
+        // disappears against dark / nightRed surfaces. See gridColor()
+        // in ../common.js for the per-palette values.
+        grid: {
+          color: gridColor(darkMode, nightRed),
+        },
       },
       y: {
         type: "linear",
@@ -81,6 +87,9 @@ const buildChartOptions = ({
               : `${val} ${tempUnit.toUpperCase()}`;
           },
         },
+        grid: {
+          color: gridColor(darkMode, nightRed),
+        },
       },
       y1: {
         type: "linear",
@@ -95,6 +104,9 @@ const buildChartOptions = ({
             return `${val}${altMode ? ` ${lengthUnit}` : "%"}`;
           },
         },
+        // y1 is the right-side axis for precipitation %. Its grid lines
+        // are intentionally suppressed so we don't get double horizontal
+        // grids — only the left y axis draws horizontals.
         grid: {
           drawOnChartArea: false,
         },
