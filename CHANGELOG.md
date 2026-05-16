@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.58] - 2026-05-15
+
+### Fixed
+- **Daily expanded — weather icons missing (showed raw "c10010" codes)** — User report from a Pi: the v2.14.57 expanded 5-day layout rendered placeholders like `c10010 21°` instead of the day/night icons + temp. Cause: Tomorrow.io's `weatherCodeDay` / `weatherCodeNight` fields return 5-digit codes (4-digit base + 0/1 day-night flag — e.g. `10010` = "Cloudy + day variant", `10011` = "Cloudy + night variant"), but `parseWeatherCode` in `ui/weatherCodes.js` was matching only the 4-digit family used by the legacy `weatherCode` / `weatherCodeMax` fields. Fix: normalise codes > 9999 down to their 4-digit base before the switch statement. The 4-digit input path is unchanged so the compact view and v2 InfoPanel keep working identically.
+- **24h expanded — tight top and bottom margins** — At expanded desktop typography (38 px icons, 20 px monos), the 3 rows × 8 columns × ~93 px per row + gaps came out to ~295 px of content, just over the 280 px chartArea fixed height set in v2.14.55. `align-content: center` had no slack to distribute so the cluster overflowed slightly, eating the breathing room at top and bottom. Bumped chartArea height in maximized mode from 280 px → 320 px to give ~25 px of slack, which centring distributes as 12-13 px above and below — "marges normales" the user requested.
+- **5-day expanded — columns with precipitation desync'd from dry columns** — User report: in v2.14.57's expanded daily view, columns that had a precipitation line (FRI/TUE) shifted the cluster down relative to dry columns (SAT/SUN/MON), so the day labels stopped lining up across the 5 columns. Cause: `.strip.expanded` had `align-items: center` which centred each cell vertically within the row; cells with more content were taller and their content centred lower. Switched to `align-items: start` so all cells anchor to the row's top edge — day labels, day-icons, max temps, etc. all line up across the 5 columns regardless of whether the precipitation rows render below. Dry days simply end taller-empty at the bottom of their cell, but the visually important top alignment holds.
+
+---
+
 ## [2.14.57] - 2026-05-15
 
 ### Added

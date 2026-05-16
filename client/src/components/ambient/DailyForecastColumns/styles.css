@@ -109,8 +109,16 @@
  * compact layout above, same as HourlyForecastColumns does. */
 @media (min-width: 1280px) {
   .strip.expanded {
-    /* Generous column gap so each day reads as a distinct island */
+    /* Generous column gap so each day reads as a distinct island.
+     * `align-items: start` so all cells anchor to the top of the row
+     * regardless of whether they have a precipitation / accumulation
+     * line below — without this, cells with extra rows shift the
+     * cluster lower than cells without, and the day labels stop
+     * lining up across the 5 columns (user reported "petit
+     * désalignement" between dry days SAT/SUN/MON and rainy
+     * FRI/TUE in v2.14.57). */
     gap: 12px;
+    align-items: start;
   }
 
   .strip.expanded .column {

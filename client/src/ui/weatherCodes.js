@@ -25,14 +25,29 @@ import daySunnyOvercast from "@iconify/icons-wi/day-sunny-overcast";
 /**
  * Map a Tomorrow.io weather code to its display icon + i18n key.
  *
- * @param {number} code — Tomorrow.io weather code
+ * Accepts both the 4-digit `weatherCode` / `weatherCodeMax` family
+ * (e.g. 1001 = Cloudy) and the 5-digit `weatherCodeDay` /
+ * `weatherCodeNight` variants (e.g. 10010 = Cloudy + day flag,
+ * 10011 = Cloudy + night flag) per the Tomorrow.io documentation —
+ * https://docs.tomorrow.io/reference/data-layers-weather-codes
+ *
+ * The trailing day/night flag in 5-digit codes is purely metadata
+ * (the `isDay` parameter already drives icon variant selection), so
+ * we normalise 5-digit input down to its 4-digit base before
+ * matching. Without this normalisation v2.14.57's expanded 5-day
+ * columns view rendered raw placeholders like "c10010" instead of
+ * icons because the switch only knew the 4-digit names.
+ *
+ * @param {number} code — Tomorrow.io weather code (4-digit base or
+ *   5-digit day/night variant)
  * @param {boolean} [isDay] — true if currently in daylight hours.
  *   Drives the day/night icon variants for clear/cloudy/rain.
  * @returns {{descKey: string, icon: object} | undefined} icon + i18n
  *   key, or undefined when the code is unknown (caller renders nothing).
  */
 export function parseWeatherCode(code, isDay) {
-  switch (code) {
+  const baseCode = code != null && code > 9999 ? Math.floor(code / 10) : code;
+  switch (baseCode) {
     case 6201: return { descKey: "weather.heavyFreezingRain", icon: isDay ? dayRain : nightRain };
     case 6001: return { descKey: "weather.freezingRain", icon: isDay ? dayRain : nightRain };
     case 6200: return { descKey: "weather.lightFreezingRain", icon: isDay ? dayRain : nightRain };

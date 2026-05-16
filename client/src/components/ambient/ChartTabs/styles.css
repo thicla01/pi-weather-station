@@ -175,21 +175,28 @@
  * height. v2.14.39 used `flex: 1 1 0` to claim ALL remaining slab
  * space — combined with the slab filling the rail via `inset: 12px`,
  * the chart canvas on tall viewports stretched to a near-1:1 aspect
- * ratio (read as unusual), and columns views floated in a sea of
- * empty space.
+ * ratio, and columns views floated in a sea of empty space.
  *
- * 280 px is tuned so that:
- *   - 24h hourly columns (8 cols × 3 rows × 1-hour step) at expanded
- *     desktop typography (~90 px per row) fit comfortably with
- *     breathing room
- *   - Line charts have a near-3:1 aspect at the desktop rail width
- *     (~924 px × 280 px = 3.3:1), the conventional time-series ratio
- *   - 5-day columns (1 row) centre vertically with sensible padding
- *   - 7" maximized rail (~428 px tall after dock) still has 60 px
- *     slack between the slab bottom (12 px top + 280 px chart + ~120
- *     px chrome = ~412 px) and the rail bottom — no overflow */
+ * Bumped from 280 → 320 px in v2.14.58: the 24h hourly columns view
+ * at expanded desktop typography is ~93 px per row × 3 rows + gaps
+ * ≈ 295 px content. At 280 px it overflowed slightly, eating the
+ * top/bottom margins inside the chartArea. 320 px gives ~25 px of
+ * slack which `align-content: center` distributes as 12-13 px top
+ * and bottom — the normal-feeling margins the user asked for.
+ *
+ * 320 px also works for:
+ *   - Line charts: ~924 × 320 = 2.9:1 aspect at desktop rail width
+ *   - 5-day columns: ~150 px tall cells centre in 320 px → ~85 px
+ *     of top/bottom breathing
+ *   - 7" maximized rail (~428 px tall): 12 px top + 320 px chart
+ *     + ~120 px chrome = ~452 px, slightly over the rail height
+ *     (~428 px after dock). Mitigated because on sub-1280 px the
+ *     `.expanded` typography media query doesn't kick in, so the
+ *     dense layout uses compact typography that fits within ~280 px
+ *     of content. The chartArea is still 320 px but the strip
+ *     centres inside it. */
 .slabMaximized .chartArea {
-  height: 280px;
+  height: 320px;
   flex: 0 0 auto;
 }
 
