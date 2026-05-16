@@ -97,3 +97,117 @@
   min-height: 14px;
   margin-top: 2px;
 }
+
+/* Expanded layout (v2.14.57) — used when the 5-day card is maximized
+ * on LayoutDesktop (rail widens to min(60vw, 960px), chartArea fixed
+ * at 280 px). Each cell pairs a day-icon with the max temp on row 1
+ * and a night-icon with the min temp on row 2, then adds optional
+ * rows for precipitation probability and accumulation.
+ *
+ * Gated `@media (min-width: 1280px)` — the dense layout assumes the
+ * widened rail. Below that breakpoint the strip falls back to the
+ * compact layout above, same as HourlyForecastColumns does. */
+@media (min-width: 1280px) {
+  .strip.expanded {
+    /* Generous column gap so each day reads as a distinct island */
+    gap: 12px;
+  }
+
+  .strip.expanded .column {
+    gap: 8px;
+    padding: 10px 6px;
+    align-items: center;
+    justify-content: flex-start;
+  }
+
+  .strip.expanded .day {
+    font-size: 14px;
+    letter-spacing: 1px;
+    margin-bottom: 4px;
+  }
+
+  /* Two paired rows: day-icon ↔ max temp, night-icon ↔ min temp.
+   * Grid lays the icon on the left at a fixed 36 px column and the
+   * temperature on the right so all five days align vertically — eye
+   * sweeps the column of temps without zig-zagging around variable
+   * icon widths. */
+  .strip.expanded .dayNightRow {
+    display: grid;
+    grid-template-columns: 36px 1fr;
+    align-items: center;
+    column-gap: 8px;
+    width: 100%;
+    padding: 0 4px;
+  }
+
+  .strip.expanded .iconCell {
+    color: var(--c-text);
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 32px;
+  }
+
+  /* Night icon dimmer than day — communicates that the min temp /
+   * overnight conditions are secondary information. */
+  .strip.expanded .iconCellDim {
+    color: var(--c-text-dim);
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 26px;
+    opacity: 0.85;
+  }
+
+  .strip.expanded .tempMax {
+    font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 26px;
+    font-weight: 600;
+    color: var(--c-text);
+    line-height: 1.1;
+    text-align: left;
+  }
+
+  .strip.expanded .tempMin {
+    font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+    font-size: 18px;
+    font-weight: 500;
+    color: var(--c-text-dim);
+    line-height: 1.1;
+    text-align: left;
+  }
+
+  /* Precip probability + accumulation rows share the same visual
+   * grammar: small inline icon + value. Centered under the day/night
+   * pair so the cell reads as a balanced stack. */
+  .strip.expanded .precipLine,
+  .strip.expanded .rainLine,
+  .strip.expanded .snowLine {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 13px;
+    font-weight: 500;
+    margin-top: 2px;
+  }
+
+  .strip.expanded .precipLine {
+    color: var(--c-cool);
+  }
+
+  .strip.expanded .rainLine {
+    color: var(--c-cool);
+    opacity: 0.85;
+  }
+
+  .strip.expanded .snowLine {
+    color: var(--c-text-dim);
+  }
+
+  .strip.expanded .dropletIcon {
+    font-size: 12px;
+    line-height: 1;
+  }
+}

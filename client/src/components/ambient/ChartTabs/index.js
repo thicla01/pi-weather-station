@@ -161,7 +161,7 @@ const ChartTabs = () => {
     if (activeView === "columns") {
       chartBody = (
         <div className={styles.columnsClickable} onClick={cycleActiveView} role="button" tabIndex={0}>
-          <DailyForecastColumns />
+          <DailyForecastColumns expanded={maximized} />
         </div>
       );
     } else {

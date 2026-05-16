@@ -5,6 +5,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.57] - 2026-05-15
+
+### Added
+- **DailyForecastColumns — richer expanded layout** — When `ChartTabs` is maximized on LayoutDesktop, the 5-day card now uses a denser per-column layout that surfaces two new dimensions of data:
+  - **Day / night icon split**: instead of a single `weatherCodeMax` glyph at the top of each column, the expanded layout pairs a `weatherCodeDay` icon with the max temp on row 1 (sun/cloud/etc.) and a `weatherCodeNight` icon with the min temp on row 2 (moon/cloud-moon/etc.). The icon ↔ temp pairing creates a stronger semantic link: max happens in the daytime, min overnight.
+  - **Precipitation accumulation**: under the existing probability percentage, an extra line shows `─ X.X mm` (rain) or `❄ X.X cm` (snow) when the accumulation is meaningful (≥ 0.5 mm rain, ≥ 5 mm snow = 0.5 cm). Imperial users see inches. Days with no precip don't render this line, so the strip stays clean for dry forecasts.
+  - Day/night codes and accumulation values fall back to the legacy `weatherCodeMax` / no-value when missing — stale caches still render cleanly.
+- `DAILY_FIELDS` in `proxyCtrl.js` extended to request `weatherCodeDay`, `weatherCodeNight`, `rainAccumulation`, `snowAccumulation`. The `DAILY_FIELDS_HASH` bump orphans cached daily entries automatically on first request after upgrade.
+- The compact view (used on the 7" Pi and in the non-maximized rail) keeps its current layout unchanged.
+
+---
+
 ## [2.14.56] - 2026-05-15
 
 ### Changed

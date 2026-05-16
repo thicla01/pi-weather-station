@@ -79,6 +79,16 @@ const DAILY_FIELDS = [
   "temperature", "temperatureMax", "temperatureMin",
   "precipitationProbability", "precipitationProbabilityMax",
   "precipitationIntensity", "windSpeed", "weatherCodeMax",
+  // v2.14.57 — enrich the maximized 5-day columns view with:
+  //   - weatherCodeDay / weatherCodeNight  → icons split by day/night
+  //     half (rather than the single agglomerated weatherCodeMax)
+  //   - rainAccumulation / snowAccumulation → "how much will fall"
+  //     surfaced under the precipitation probability percentage
+  // Adding fields here bumps DAILY_FIELDS_HASH, which orphans every
+  // cached daily entry on the fleet — fresh fetches on next request
+  // pick up the new shape. No manual cache wipe needed.
+  "weatherCodeDay", "weatherCodeNight",
+  "rainAccumulation", "snowAccumulation",
 ];
 
 // Computed once at module load. Used in every cache key — see
