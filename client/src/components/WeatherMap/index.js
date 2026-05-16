@@ -1442,15 +1442,17 @@ const WeatherMap = ({ zoom, dark }) => {
          * plenty of room for related radar toggles now that v3 gives
          * it a dedicated slab). See ControlButtons for the new entry,
          * gated on the same `radarAnalysisEnabled` flag. */}
-        {/* v2.14.64: prefix overridden to just "Leaflet" — the default
-         * Leaflet AttributionControl prefixes the library credit with
-         * the Ukrainian flag emoji (🇺🇦). Its yellow stripe reads as
-         * a bright contrasting band against the dark-red nightRed
-         * basemap and pulled the eye to a corner detail. Keeping the
-         * "Leaflet" text satisfies attribution; the colour palette
-         * for that text is handled by .leaflet-control-attribution
-         * rules in ui/reset.css. */}
-        <AttributionControl position="bottomleft" prefix="Leaflet" />
+        {/* v2.14.66: the Ukrainian flag (added by Leaflet v1.9.3 as a
+         * humanitarian gesture) stays visible in every palette except
+         * nightRed — its yellow stripe disrupts the dark-red basemap.
+         * Earlier (v2.14.65) we toggled the `prefix` prop with a
+         * `key`, which forced a remount and duplicated the tile-
+         * layer attribution strings on every palette switch. Replaced
+         * the React-side toggle with a pure CSS rule that hides
+         * `.leaflet-attribution-flag` only when `data-palette` on
+         * `.ambientRoot` resolves to `nightRed`. See ui/reset.css.
+         * No remount, no duplicated attributions. */}
+        <AttributionControl position="bottomleft" />
         <TileLayer
           attribution={MAPBOX_ATTRIBUTION}
           url={`/api/tiles/${dark ? darkModeStyle : lightModeStyle}/{z}/{x}/{y}`}
@@ -1488,11 +1490,28 @@ const WeatherMap = ({ zoom, dark }) => {
           />
         ) : null}
         {markerIsVisible && markerPosition ? (
-          <Marker
-            position={markerPosition}
-            icon={LOCATION_MARKER_ICON}
-            opacity={1}
-          />
+          /* v2.14.65: custom target icon only in nightRed mode. In every
+           * other palette the default Leaflet blue teardrop pin stays —
+           * it's a familiar map idiom and reads cleanly on the day /
+           * dusk / night basemaps. nightRed is the one palette where
+           * a bright blue clashes hard with the deep-red background,
+           * so we swap to the palette-aware target marker there. The
+           * `key` forces the marker DOM to be recreated when nightRed
+           * flips so Leaflet picks up the new icon. */
+          nightRed ? (
+            <Marker
+              key="target"
+              position={markerPosition}
+              icon={LOCATION_MARKER_ICON}
+              opacity={1}
+            />
+          ) : (
+            <Marker
+              key="default"
+              position={markerPosition}
+              opacity={0.65}
+            />
+          )
         ) : null}
         {/* Radar-analysis overlays — only visible when the AI summary feature
             is configured AND the radar analysis is enabled in advanced

@@ -5,6 +5,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.66] - 2026-05-16
+
+### Fixed
+- **Leaflet attribution duplicated on palette switch** — v2.14.65 used a React `key` on `<AttributionControl>` to force the control to remount when the palette flipped (so the new `prefix` prop took effect). Side-effect: each remount caused the tile layers to re-register their attribution strings without the previous strings being cleaned up, so cycling between palettes accumulated "© Mapbox, RainViewer" lines (one extra line per switch). Replaced the React-side toggle with a pure CSS rule that hides `.leaflet-attribution-flag` only when `[data-palette="nightRed"]` is active on `.ambientRoot`. The AttributionControl mounts once and stays put; no remount, no duplicated attributions. License analysis from v2.14.65 still applies — BSD-2-Clause allows hiding the flag.
+
+### Changed
+- **Leaflet attribution flag — kept in standard palettes, dropped in nightRed only** — v2.14.64 dropped the Ukrainian flag `🇺🇦` from the AttributionControl prefix on every palette. User preference: keep the flag visible in day / dusk / night (it's a humanitarian gesture from the Leaflet maintainers since v1.9.3, and the blue + yellow read fine against those basemaps), but drop it in nightRed where the yellow stripe disrupts the dark-red look. Implemented via the CSS rule described in the Fixed section above.
+- **Location marker — palette-specific marker selection** — Similar split: v2.14.64's target DivIcon replaced the default Leaflet blue pin on every palette. User preference: the familiar blue teardrop pin stays in day / dusk / night (it reads cleanly on those basemaps and is the standard map idiom), and only swaps to the palette-aware target marker in nightRed where the bright blue clashed with the deep-red background. Conditional rendering via two distinct `<Marker>` elements with a `key` so Leaflet rebuilds the marker DOM when the palette flips.
+
+---
+
 ## [2.14.64] - 2026-05-16
 
 ### Changed

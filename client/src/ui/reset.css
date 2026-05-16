@@ -108,6 +108,25 @@
   color: var(--c-text) !important;
 }
 
+/* Hide the Ukrainian-flag SVG inside Leaflet's default attribution
+ * prefix when the nightRed palette is active. The flag's yellow
+ * stripe reads disruptively against the dark-red basemap; every
+ * other palette (day / dusk / night) keeps the flag visible as the
+ * humanitarian gesture Leaflet's maintainers added in v1.9.3.
+ * Using `data-palette="nightRed"` on .ambientRoot (set by AmbientLayers
+ * from the time-of-day hook) rather than a JS toggle on the
+ * AttributionControl prop — that approach (v2.14.65) caused the
+ * control to remount and the tile-layer attribution strings to
+ * duplicate on each palette switch.
+ *
+ * The trailing-space adjustment hides the rendered " Leaflet" by
+ * also hiding the leading space — without this the flag is gone but
+ * a stray leading space precedes "Leaflet". `display: none` on the
+ * SVG also collapses the whitespace it would have occupied. */
+.ambientRoot[data-palette="nightRed"] .leaflet-attribution-flag {
+  display: none;
+}
+
 /* Location marker — Leaflet renders this DivIcon from
  * buildLocationMarkerIcon() in WeatherMap/index.js. We override its
  * defaults here (not in WeatherMap/styles.css) because that file is a
