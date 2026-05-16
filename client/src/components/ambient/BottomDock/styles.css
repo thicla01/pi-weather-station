@@ -65,7 +65,19 @@
   height: 24px;
 }
 
-.dock :global(div):hover :global(svg),
+/* v2.14.74: hover color change removed entirely. The earlier
+ * approaches (media-query gate, then JS data-touched flag) addressed
+ * the post-tap "stuck brown icon" but didn't help the more general
+ * case the user flagged afterwards: even on a pure-mouse session,
+ * any time the pointer simply sits over a dock button the icon paints
+ * brown (warm-day accent) / amber (dark) / dim-red (nightRed), which
+ * the user reads as "this button is in some on-state". With multiple
+ * toggle buttons in the dock that DO use accent fill to signal their
+ * active state (`.buttonDown` → `--c-accent-soft`), a per-icon hover
+ * tint creates ambiguity between "I'm hovering this" and "this is
+ * on". Dropping the hover color leaves `.buttonDown` as the sole
+ * accent signal in the dock, removing the confusion. `:focus-visible`
+ * is kept for keyboard navigation. */
 .dock :global(div):focus-visible :global(svg) {
   color: var(--c-accent);
 }

@@ -26,12 +26,17 @@ const AiSummary = ({ expanded, onToggle, containerRef }) => {
   const {
     mapGeo,
     darkMode,
-    aiSummaryAvailable: available,
+    aiSummaryAvailable: serverAvailable,
     setAiSummaryAvailable: setAvailable,
+    aiSummaryUserVisible,
     tempUnit,
     speedUnit,
     distanceUnit,
   } = useContext(AppContext);
+  // See AiSummaryInline for the rationale on splitting server vs.
+  // user visibility — same pattern here for the v2 layout's
+  // AiSummary panel.
+  const available = serverAvailable && aiSummaryUserVisible;
   const { i18n } = useTranslation();
   const [summary, setSummary] = useState(null);
   const intervalRef = useRef(null);

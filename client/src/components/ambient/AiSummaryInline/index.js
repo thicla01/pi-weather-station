@@ -31,12 +31,20 @@ const REFRESH_INTERVAL = 15 * 60 * 1000;
 const AiSummaryInline = () => {
   const {
     mapGeo,
-    aiSummaryAvailable: available,
+    aiSummaryAvailable: serverAvailable,
     setAiSummaryAvailable: setAvailable,
+    aiSummaryUserVisible,
     tempUnit,
     speedUnit,
     distanceUnit,
   } = useContext(AppContext);
+  // The slab renders only when BOTH the server has a working
+  // Anthropic key (`serverAvailable`) AND the user hasn't hidden the
+  // section via the debug-only dock toggle (`aiSummaryUserVisible`).
+  // The fetch effect below still subscribes to `serverAvailable` so
+  // the network listener doesn't churn when the user merely hides
+  // the rendering.
+  const available = serverAvailable && aiSummaryUserVisible;
   const { i18n } = useTranslation();
   const [summary, setSummary] = useState(null);
   // Maximize mode: the slab promotes to position:absolute over the

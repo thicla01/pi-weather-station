@@ -53,6 +53,25 @@
   background: var(--ctrl-btn-down, linear-gradient(#686868, #777676)) !important;
 }
 
+/* v2.14.74 — slot-reserving "disabled" state. Used by the direction-
+ * arrows button when `radarAnalysisEnabled` is false: the button stays
+ * in the flex row (no horizontal layout shift when the debug "radar
+ * rings" toggle flips) AND remains visually present so the user can
+ * see "this control exists but is currently inactive — turn the rings
+ * on to enable it". Reduced opacity + `pointer-events: none` + default
+ * cursor communicates the disabled state without painting an empty
+ * cell. `.svg` opacity intentionally NOT set separately; the wrapping
+ * div's opacity already cascades to the inline icon. */
+/* `pointer-events` intentionally NOT disabled here — the click handler
+ * in index.js intercepts taps on a disabled button to surface a short
+ * toast hint ("Active the radar rings first") rather than silently
+ * doing nothing. Cursor stays default so the button doesn't read as
+ * an active control. */
+.button-disabled {
+  opacity: 0.35;
+  cursor: default;
+}
+
 /* Update button */
 .update-button {
   position: relative;
@@ -94,5 +113,64 @@
 @keyframes update-pulse {
   0%, 100% { opacity: 1; transform: scale(1); }
   50%       { opacity: 0.5; transform: scale(0.75); }
+}
+
+/* v2.14.74 — transient toast above the dock. Floats above the tapped
+ * button (anchored via inline `left` set by the React component) and
+ * fades in/out across a 2.5 s window driven by `TOAST_TIMEOUT` in
+ * ControlButtons/index.js. Pointer-events disabled so the toast never
+ * intercepts a follow-up tap.
+ *
+ * Specificity fix: `.container > div` above sets `width: 100%; height:
+ * 100%; display: flex` on every direct div child, which would make the
+ * toast span the entire dock and centre its text in the middle. The
+ * compound selector `.container > div.toast` (specificity 0,2,1) beats
+ * the wildcard (0,1,1) so the toast keeps its intrinsic content width.
+ *
+ * The toast is centred on its anchor point via `translateX(-50%)`. The
+ * inline `left` set in index.js places the anchor at the centre of the
+ * tapped button (or 50 % when no event is available). `max-width` +
+ * ellipsis keeps long messages contained on narrow viewports. */
+.container > div.toast {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  width: auto;
+  height: auto;
+  display: block;
+  max-width: min(280px, calc(100vw - 24px));
+  /* Frosted-glass look: translucent surface + backdrop blur. User
+   * preferred the lighter "ice" effect over the accent-soft tint that
+   * was tried briefly — keeps the toast visually distinct from the
+   * dock without competing with the button states. */
+  background-color: var(--c-surface, rgba(30, 30, 32, 0.85));
+  color: var(--c-text, #f0f0f0);
+  border: 1px solid var(--c-border-hybrid, var(--c-border, rgba(255, 255, 255, 0.18)));
+  border-radius: 8px;
+  padding: 6px 12px;
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  pointer-events: none;
+  z-index: 20;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  /* CSS variable holds the X-axis translate so the keyframes can pair
+   * vertical motion with horizontal centring without overriding `left`. */
+  --toast-tx: -50%;
+  transform: translateX(var(--toast-tx));
+  animation: toast-pop 2500ms ease-out forwards;
+}
+
+@keyframes toast-pop {
+  0%   { opacity: 0; transform: translate(var(--toast-tx), 4px); }
+  10%  { opacity: 1; transform: translate(var(--toast-tx), 0); }
+  85%  { opacity: 1; transform: translate(var(--toast-tx), 0); }
+  100% { opacity: 0; transform: translate(var(--toast-tx), -2px); }
 }
 

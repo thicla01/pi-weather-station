@@ -132,9 +132,6 @@ const ChartTabs = () => {
   // the columns view there's no chart container, so we wrap that one
   // in a clickable div directly.
   let chartBody;
-  const viewLabelKey = tab === "hourly"
-    ? { temp: "charts.viewTempPrecip", wind: "charts.viewWindPrecip", columns: "charts.viewHourlyColumns" }[activeView]
-    : { temp: "charts.viewTempPrecip", wind: "charts.viewWindPrecip", columns: "charts.viewDailyColumns" }[activeView];
 
   // The line-chart views render a 2-series graph (grey for temp/wind,
   // blue for precipitation) but the Chart.js native legend is disabled
@@ -251,9 +248,13 @@ const ChartTabs = () => {
             />
           );
         })}
-        <span className={styles.viewLabel} aria-hidden="true">
-          {viewLabelKey ? t(viewLabelKey) : ""}
-        </span>
+        {/* The view label ("température + précipitations" etc.) used
+         * to render to the right of the dots. v2.14.74 removed it —
+         * the dots themselves carry enough state (aria-label / title
+         * for accessibility, position + accent fill for sight). The
+         * .cycleDots flex container now centres the remaining dots
+         * horizontally since there's no trailing label to anchor
+         * them off-centre. */}
       </div>
     </div>
   );

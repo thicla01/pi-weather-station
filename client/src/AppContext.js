@@ -13,7 +13,10 @@ const LENGTH_UNIT_STORAGE_KEY = "lengthUnit";
 const DISTANCE_UNIT_STORAGE_KEY = "distanceUnit";
 const DEFAULT_MAP_ZOOM_STORAGE_KEY = "defaultMapZoom";
 const DEFAULT_MAP_ZOOM_FALLBACK = 7; // historical hard-coded value before the slider
+const DARK_MODE_STORAGE_KEY = "darkMode";
 const DARK_MODE_AUTO_STORAGE_KEY = "darkModeAuto";
+const MARKER_VISIBLE_STORAGE_KEY = "markerIsVisible";
+const AI_USER_VISIBLE_STORAGE_KEY = "aiSummaryUserVisible";
 const CLOCK_UNIT_STORAGE_KEY = "clockTime";
 const MOUSE_HIDE_STORAGE_KEY = "mouseHide";
 const FONT_SIZE_STORAGE_KEY = "fontSize";
@@ -71,6 +74,14 @@ export function AppContextProvider({ children }) {
   // 503 (no Anthropic API key configured). Used by WeatherMap to conditionally
   // show the 45 km radar-analysis circle around mapGeo.
   const [aiSummaryAvailable, setAiSummaryAvailable] = useState(true);
+  // v2.14.74: user-controlled AI summary visibility. `aiSummaryAvailable`
+  // tracks whether the server has an Anthropic key configured (server-
+  // driven, flipped to false on a 503 response). This is the user's
+  // override — when false, the AI summary stays hidden even if the
+  // server has the key. Exposed via a dock toggle button (debug-mode
+  // only) so users can hide the section temporarily without removing
+  // their key. Default true, persisted in localStorage.
+  const [aiSummaryUserVisible, setAiSummaryUserVisible] = useState(true);
   // Advanced settings (advanced.ai.* in settings.json). Defaults mirror the
   // v2.6 baseline (radar analysis on, no extended radius, no doubled outer
   // points, no sampling-point overlay). Toggles flip independently and
@@ -487,6 +498,21 @@ export function AppContextProvider({ children }) {
   }
 
   /**
+   * Set AI summary user-visible preference + persist to localStorage.
+   * Separate from the server-driven `aiSummaryAvailable` so a user can
+   * hide the section temporarily without losing it when their Anthropic
+   * key still works server-side. Components rendering the AI summary
+   * should check both: `aiSummaryAvailable && aiSummaryUserVisible`.
+   *
+   * @param {Boolean} newVal next visibility
+   */
+  function saveAiSummaryUserVisible(newVal) {
+    const next = Boolean(newVal);
+    setAiSummaryUserVisible(next);
+    try { window.localStorage.setItem(AI_USER_VISIBLE_STORAGE_KEY, String(next)); } catch { /* localStorage may be unavailable */ }
+  }
+
+  /**
    * Manual dark/light toggle wrapper — same shape as setDarkMode for
    * existing call sites. v2.14.72: stopped silently disabling auto
    * mode here. Once the dock got a dedicated auto-mode toggle the
@@ -502,6 +528,12 @@ export function AppContextProvider({ children }) {
    */
   function setDarkModeManual(next) {
     setDarkMode(next);
+    // v2.14.74: persist the manual choice. If auto-mode is on, the
+    // next interval check will potentially flip it back based on
+    // sunrise/sunset — that's expected behaviour. The persisted
+    // value is the last manual flip, restored at boot via
+    // loadStoredData().
+    try { window.localStorage.setItem(DARK_MODE_STORAGE_KEY, String(Boolean(next))); } catch { /* localStorage may be unavailable */ }
   }
 
   /**
@@ -644,6 +676,25 @@ export function AppContextProvider({ children }) {
       setCurrentMapZoom(parsedZoom);
     }
     if (storedDarkAuto === "true") setDarkModeAuto(true);
+    // v2.14.74: restore the manual dark-mode choice. When auto-mode
+    // is also on, the polling interval (further down in this file)
+    // re-evaluates on mount and will override this restored value
+    // if the time of day says otherwise — that's intentional, the
+    // restored value is just a "last known state" so cold boots
+    // don't surprise the user by flipping back to the useState
+    // default while the auto-poll catches up.
+    const storedDark = window.localStorage.getItem(DARK_MODE_STORAGE_KEY);
+    if (storedDark === "true" || storedDark === "false") {
+      setDarkMode(storedDark === "true");
+    }
+    // Restore marker visibility — default useState is `true`, so we
+    // only override when the persisted value is explicitly "false".
+    const storedMarker = window.localStorage.getItem(MARKER_VISIBLE_STORAGE_KEY);
+    if (storedMarker === "false") setMarkerIsVisible(false);
+    // AI summary user-visible — same pattern: default true, override
+    // only on explicit "false".
+    const storedAiVisible = window.localStorage.getItem(AI_USER_VISIBLE_STORAGE_KEY);
+    if (storedAiVisible === "false") setAiSummaryUserVisible(false);
     if (clock) {
       setClockTime(clock);
     }
@@ -1051,7 +1102,11 @@ export function AppContextProvider({ children }) {
    * Toggles the marker on and off
    */
   function toggleMarker() {
-    setMarkerIsVisible(!markerIsVisible);
+    const next = !markerIsVisible;
+    setMarkerIsVisible(next);
+    // v2.14.74: persist the visibility choice. Default true on first
+    // boot; restored from localStorage on subsequent boots.
+    try { window.localStorage.setItem(MARKER_VISIBLE_STORAGE_KEY, String(next)); } catch { /* localStorage may be unavailable */ }
   }
 
   /**
@@ -1447,6 +1502,8 @@ export function AppContextProvider({ children }) {
     mapTimezone,
     aiSummaryAvailable,
     setAiSummaryAvailable,
+    aiSummaryUserVisible,
+    saveAiSummaryUserVisible,
     radarAnalysisEnabled,
     extendedRadarRadius,
     showSamplingPoints,

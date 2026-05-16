@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useState, useRef, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { AppContext } from "~/AppContext";
 import styles from "./styles.css";
@@ -21,6 +21,8 @@ import moonIcon from "@iconify/icons-carbon/moon";
 import settingsIcon from "@iconify/icons-carbon/settings";
 import bugIcon from "@iconify/icons-carbon/debug";
 import upgradeIcon from "@iconify/icons-carbon/upgrade";
+import circleDashIcon from "@iconify/icons-carbon/circle-dash";
+import botIcon from "@iconify/icons-carbon/bot";
 
 // Inline color for the moon icon — the "blood moon" / lunar-eclipse
 // red that's also the nightRed palette's accent. Applied as a literal
@@ -28,6 +30,11 @@ import upgradeIcon from "@iconify/icons-carbon/upgrade";
 // the icon reads as a constant "this button is about the red palette"
 // signal. See ControlButtons styles + state-rendering notes below.
 const MOON_COLOR = "#c44040";
+
+// Toast auto-dismiss window. 2500 ms is long enough to read a short
+// localized phrase ("Mode auto activé") on a 7" kiosk without dragging
+// past the user's next intended tap.
+const TOAST_TIMEOUT = 2500;
 
 /**
  * Buttons group component
@@ -43,13 +50,17 @@ const ControlButtons = () => {
     saveDarkModeAuto,
     sleepNightMode,
     saveAdvancedSleepFlag,
+    radarAnalysisEnabled,
+    saveAdvancedAiFlag,
+    aiSummaryAvailable,
+    aiSummaryUserVisible,
+    saveAiSummaryUserVisible,
     resetMapPosition,
     markerIsVisible,
     toggleMarker,
     radarTimelineVisible,
     toggleRadarTimelineVisible,
     radarSource,
-    radarAnalysisEnabled,
     showDirectionArrows,
     toggleDirectionArrows,
     hideRadarLegend,
@@ -66,14 +77,52 @@ const ControlButtons = () => {
     setUpdateModalOpen,
   } = useContext(AppContext);
 
+  // Toast state — short transient label shown just above the dock to
+  // confirm "what just happened" when the user taps a toggle. Each
+  // tap bumps `toastId` so a fresh CSS animation re-fires even if the
+  // text content happens to be identical to the previous toast. The
+  // timeout ref lets us cancel a pending dismissal when a new toast
+  // supersedes the current one.
+  const [toast, setToast] = useState({ id: 0, message: "", x: null });
+  const toastTimeoutRef = useRef(null);
+  const toastIdRef = useRef(0);
+  const containerRef = useRef(null);
+
+  useEffect(() => () => {
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+  }, []);
+
+  // Notify is called from each toggle's onClick. The optional event lets
+  // us anchor the toast horizontally above the actual button that was
+  // tapped (rather than always centred on the dock) — important on the
+  // 7" kiosk where the leftmost button's toast appearing in the middle
+  // of the screen reads as "nothing happened, that button is broken".
+  // Falls back to centred when no event is provided.
+  const notify = (key, e) => {
+    let x = null;
+    if (e && e.currentTarget && containerRef.current) {
+      const buttonRect = e.currentTarget.getBoundingClientRect();
+      const containerRect = containerRef.current.getBoundingClientRect();
+      x = buttonRect.left + buttonRect.width / 2 - containerRect.left;
+    }
+    toastIdRef.current += 1;
+    const id = toastIdRef.current;
+    setToast({ id, message: t(key), x });
+    if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
+    toastTimeoutRef.current = setTimeout(() => {
+      setToast((prev) => (prev.id === id ? { ...prev, message: "" } : prev));
+    }, TOAST_TIMEOUT);
+  };
+
   return (
     <div
+      ref={containerRef}
       className={`${styles.container} ${
         darkMode ? styles.dark : styles.light
       } ${!mouseHide ? styles.showMouse : ""}`}
     >
       <div
-        onClick={resetMapPosition}
+        onClick={(e) => { resetMapPosition(); notify("toasts.mapRecentered", e); }}
         title={t("controls.resetMapPosition")}
         aria-label={t("controls.resetMapPosition")}
       >
@@ -87,7 +136,7 @@ const ControlButtons = () => {
        * because the slash visually said "off" while the marker was
        * actually showing). */}
       <div
-        onClick={toggleMarker}
+        onClick={(e) => { toggleMarker(); notify(markerIsVisible ? "toasts.markerHidden" : "toasts.markerShown", e); }}
         title={t(markerIsVisible ? "controls.hideMarker" : "controls.showMarker")}
         aria-label={t(markerIsVisible ? "controls.hideMarker" : "controls.showMarker")}
       >
@@ -104,7 +153,7 @@ const ControlButtons = () => {
           and has no equivalent on the WMS layer). */}
       {radarSource === "rainviewer" && (
         <div
-          onClick={toggleRadarTimelineVisible}
+          onClick={(e) => { toggleRadarTimelineVisible(); notify(radarTimelineVisible ? "toasts.timelineHidden" : "toasts.timelineShown", e); }}
           className={`${radarTimelineVisible ? styles.buttonDown : ""}`}
           title={t(radarTimelineVisible ? "controls.hideTimeline" : "controls.showTimeline")}
           aria-label={t(radarTimelineVisible ? "controls.hideTimeline" : "controls.showTimeline")}
@@ -115,17 +164,42 @@ const ControlButtons = () => {
       {/* Direction-arrows toggle. The wind-gusts glyph reads as
        * "directional weather phenomenon" — more specific than a
        * generic arrow and lit the feature better than the previous
-       * near-me arrow which read as a generic "external link". */}
-      {radarAnalysisEnabled && (
-        <div
-          onClick={toggleDirectionArrows}
-          className={`${showDirectionArrows ? styles.buttonDown : ""}`}
-          title={t(showDirectionArrows ? "radar.hideDirectionArrows" : "radar.showDirectionArrows")}
-          aria-label={t(showDirectionArrows ? "radar.hideDirectionArrows" : "radar.showDirectionArrows")}
-        >
-          <InlineIcon icon={windGustsIcon} />
-        </div>
-      )}
+       * near-me arrow which read as a generic "external link".
+       *
+       * v2.14.74: when `radarAnalysisEnabled` is false the button stays
+       * in the DOM but renders with `.buttonDisabled` (reduced opacity
+       * + `pointer-events: none`) instead of being removed. This
+       * preserves its slot in the flex row so toggling the debug
+       * "radar rings" button doesn't make the remaining buttons slide
+       * left/right to fill the gap, and the dimmed glyph still tells
+       * the user "this control exists but needs the analysis rings to
+       * be on". The title is rewritten to a hint ("Enable radar rings
+       * first…") so a tooltip / aria-label still communicates why the
+       * control is inactive. */}
+      <div
+        onClick={(e) => {
+          if (!radarAnalysisEnabled) {
+            // Tap on the disabled (dimmed) button surfaces a short
+            // explanation toast instead of silently doing nothing —
+            // the user sees the icon and tries it; without feedback
+            // they would conclude the button is broken.
+            notify("toasts.directionArrowsNeedRings", e);
+            return;
+          }
+          toggleDirectionArrows();
+          notify(showDirectionArrows ? "toasts.directionArrowsOff" : "toasts.directionArrowsOn", e);
+        }}
+        className={`${!radarAnalysisEnabled ? styles.buttonDisabled : ""} ${showDirectionArrows ? styles.buttonDown : ""}`}
+        title={radarAnalysisEnabled
+          ? t(showDirectionArrows ? "radar.hideDirectionArrows" : "radar.showDirectionArrows")
+          : t("radar.directionArrowsNeedRings")}
+        aria-label={radarAnalysisEnabled
+          ? t(showDirectionArrows ? "radar.hideDirectionArrows" : "radar.showDirectionArrows")
+          : t("radar.directionArrowsNeedRings")}
+        aria-disabled={!radarAnalysisEnabled || undefined}
+      >
+        <InlineIcon icon={windGustsIcon} />
+      </div>
       {/* Legend visibility toggle. v2.14.72: dropped the `mapTimestamps`
        * part of the gate — that state lives in WeatherMap, not in
        * AppContext, so the check was always falsy and the button
@@ -136,7 +210,7 @@ const ControlButtons = () => {
        * load, the legend follows the preference. */}
       {radarSource === "rainviewer" && (
         <div
-          onClick={() => saveHideRadarLegend(!hideRadarLegend)}
+          onClick={(e) => { saveHideRadarLegend(!hideRadarLegend); notify(hideRadarLegend ? "toasts.legendShown" : "toasts.legendHidden", e); }}
           className={`${!hideRadarLegend ? styles.buttonDown : ""}`}
           title={t(hideRadarLegend ? "controls.showRadarLegend" : "controls.hideRadarLegend")}
           aria-label={t(hideRadarLegend ? "controls.showRadarLegend" : "controls.hideRadarLegend")}
@@ -145,7 +219,7 @@ const ControlButtons = () => {
         </div>
       )}
       <div
-        onClick={() => setDarkMode(!darkMode)}
+        onClick={(e) => { setDarkMode(!darkMode); notify(darkMode ? "toasts.lightModeOn" : "toasts.darkModeOn", e); }}
         title={t(darkMode ? "controls.lightMode" : "controls.darkMode")}
         aria-label={t(darkMode ? "controls.lightMode" : "controls.darkMode")}
       >
@@ -157,7 +231,7 @@ const ControlButtons = () => {
        * toggles: when ON, the button reads as "pressed in" via the
        * palette's accent-soft fill. */}
       <div
-        onClick={() => saveDarkModeAuto(!darkModeAuto)}
+        onClick={(e) => { saveDarkModeAuto(!darkModeAuto); notify(darkModeAuto ? "toasts.autoModeOff" : "toasts.autoModeOn", e); }}
         className={`${darkModeAuto ? styles.buttonDown : ""}`}
         title={t(darkModeAuto ? "controls.disableAutoMode" : "controls.enableAutoMode")}
         aria-label={t(darkModeAuto ? "controls.disableAutoMode" : "controls.enableAutoMode")}
@@ -174,7 +248,7 @@ const ControlButtons = () => {
        * the moon signals "currently active, tap to deactivate" —
        * same toggle affordance as the timeline button. */}
       <div
-        onClick={() => saveAdvancedSleepFlag("nightMode", !sleepNightMode)}
+        onClick={(e) => { saveAdvancedSleepFlag("nightMode", !sleepNightMode); notify(sleepNightMode ? "toasts.nightRedOff" : "toasts.nightRedOn", e); }}
         className={`${sleepNightMode ? styles.buttonDown : ""}`}
         title={t(sleepNightMode ? "controls.disableNightRed" : "controls.enableNightRed")}
         aria-label={t(sleepNightMode ? "controls.disableNightRed" : "controls.enableNightRed")}
@@ -182,7 +256,7 @@ const ControlButtons = () => {
         <InlineIcon icon={moonIcon} style={{ color: MOON_COLOR }} />
       </div>
       <div
-        onClick={toggleSettingsMenuOpen}
+        onClick={(e) => { toggleSettingsMenuOpen(); notify(settingsMenuOpen ? "toasts.settingsClosed" : "toasts.settingsOpened", e); }}
         className={`${settingsMenuOpen ? styles.buttonDown : ""}`}
         title={t(settingsMenuOpen ? "controls.closeSettings" : "controls.openSettings")}
         aria-label={t(settingsMenuOpen ? "controls.closeSettings" : "controls.openSettings")}
@@ -191,12 +265,46 @@ const ControlButtons = () => {
       </div>
       {isLocal && debugEnabled && (
         <div
-          onClick={toggleDebugMenuOpen}
+          onClick={(e) => { toggleDebugMenuOpen(); notify(debugMenuOpen ? "toasts.debugClosed" : "toasts.debugOpened", e); }}
           className={`${debugMenuOpen ? styles.buttonDown : ""}`}
           title={t(debugMenuOpen ? "controls.closeDebug" : "controls.openDebug")}
           aria-label={t(debugMenuOpen ? "controls.closeDebug" : "controls.openDebug")}
         >
           <InlineIcon icon={bugIcon} />
+        </div>
+      )}
+      {/* Debug-only — quick toggle for the dashed analysis rings on
+       * the map. Mirrors the `radarAnalysisEnabled` setting that
+       * lives in AdvancedSettings → AI section; the dock button is
+       * a convenience for live development / on-screen debugging.
+       * The same `saveAdvancedAiFlag` setter is used so the change
+       * round-trips to settings.json the same way the panel toggle
+       * does. `carbon:circle-dash` literally depicts the dashed
+       * rings the button controls. */}
+      {isLocal && debugEnabled && (
+        <div
+          onClick={(e) => { saveAdvancedAiFlag("radarAnalysisEnabled", !radarAnalysisEnabled); notify(radarAnalysisEnabled ? "toasts.radarRingsOff" : "toasts.radarRingsOn", e); }}
+          className={`${radarAnalysisEnabled ? styles.buttonDown : ""}`}
+          title={t(radarAnalysisEnabled ? "controls.disableRadarRings" : "controls.enableRadarRings")}
+          aria-label={t(radarAnalysisEnabled ? "controls.disableRadarRings" : "controls.enableRadarRings")}
+        >
+          <InlineIcon icon={circleDashIcon} />
+        </div>
+      )}
+      {/* Debug-only — hide the entire AI summary section without
+       * touching the Anthropic key (which keeps server availability
+       * = true). `aiSummaryAvailable` is the server-driven flag (key
+       * is configured + reachable); `aiSummaryUserVisible` is this
+       * user-controlled override. Both AI summary components render
+       * only when both are true. */}
+      {isLocal && debugEnabled && aiSummaryAvailable && (
+        <div
+          onClick={(e) => { saveAiSummaryUserVisible(!aiSummaryUserVisible); notify(aiSummaryUserVisible ? "toasts.aiSummaryHidden" : "toasts.aiSummaryShown", e); }}
+          className={`${aiSummaryUserVisible ? styles.buttonDown : ""}`}
+          title={t(aiSummaryUserVisible ? "controls.hideAiSummary" : "controls.showAiSummary")}
+          aria-label={t(aiSummaryUserVisible ? "controls.hideAiSummary" : "controls.showAiSummary")}
+        >
+          <InlineIcon icon={botIcon} />
         </div>
       )}
       {updateAvailable && isLocal && (
@@ -208,6 +316,30 @@ const ControlButtons = () => {
         >
           <InlineIcon icon={upgradeIcon} />
           <span className={styles.updateBadge} />
+        </div>
+      )}
+      {/* Transient toast — floats just above the dock to confirm
+       * the effect of the last toggle. Rendered conditionally so the
+       * CSS animation re-fires on each new tap; the `key` bound to
+       * `toast.id` guarantees React unmounts the previous instance
+       * even when consecutive toasts share the same message text. */}
+      {toast.message && (
+        <div
+          key={toast.id}
+          className={styles.toast}
+          role="status"
+          aria-live="polite"
+          /* When anchored above a specific button, the inline `left`
+           * positions the toast horizontally. Pair it with the CSS
+           * `transform: translateX(-50%)` (in styles.css) so the toast
+           * centres on its anchor point. `maxWidth` keeps it from
+           * spilling past either edge of the dock — the toast text
+           * truncates with `text-overflow: ellipsis` if it would.
+           * When `toast.x` is null (no event available) fall back to
+           * dock-centred. */
+          style={toast.x !== null ? { left: `${toast.x}px` } : undefined}
+        >
+          {toast.message}
         </div>
       )}
       {updateAvailable && !isLocal && (

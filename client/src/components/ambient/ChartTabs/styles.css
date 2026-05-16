@@ -46,71 +46,68 @@
   -webkit-backdrop-filter: blur(6px);
 }
 
-/* Segmented control — one bordered container that wraps both
- * "options". The active option is filled with the accent token;
- * the inactive is transparent inside the container. The unified
- * outline makes it unambiguous that the two halves are alternatives
- * within a single switch, not two independent buttons.
- *
- * Previous attempts (separate pill buttons in 2.14.2, transparent
- * labels in 2.14.1 and earlier) didn't read as selectors at a
- * glance. The segmented-control idiom — single visible group
- * boundary with an internal moving fill — is the platform-standard
- * way to express "pick one of two views". */
+/* Tab row — two standalone toggle-style buttons (v2.14.74 — was a
+ * unified segmented control before). The active tab gets the same
+ * subtle `--c-accent-soft` fill the dock's auto-mode / nightRed
+ * toggles use, so the visual language is consistent across all the
+ * toggleable controls in the app: surface stays transparent when
+ * inactive, accent-soft when active. The row container drops the
+ * wrap-around border + background and just lays the buttons out
+ * with a gap. */
 .tabRow {
   display: inline-flex;
   width: 100%;
   margin-bottom: 12px;
-  padding: 3px;
-  background-color: var(--c-bg);
-  border: 1px solid var(--c-border);
-  border-radius: 8px;
-  gap: 2px;
+  gap: 6px;
   align-items: center;
 }
 
-.tab {
+/* Specificity note (v2.14.74): selectors below are scoped under the
+ * parent `.tabRow` to bump specificity to (0,2,0), which beats the
+ * `.ambientRoot button` reset in ui/reset.css (0,1,1). Without this,
+ * the reset's `background: transparent; border: 0` wins over the
+ * module's bare `.tab` / `.active` rules (0,1,0) — the buttons render
+ * unstyled and `.active` produces no visible accent fill (the symptom
+ * the user flagged when 24h/5j tabs looked indistinguishable from
+ * inactive).
+ *
+ * Same fix pattern as `.cycleDots .dot` below — see its specificity
+ * note for the longer-form explanation. */
+.tabRow .tab {
   flex: 1;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   background-color: transparent;
-  border: 0;
+  border: 1px solid transparent;
   padding: 7px 14px;
   font-family: inherit;
   font-size: 12px;
   font-weight: 500;
   letter-spacing: 0.2px;
   color: var(--c-text-dim);
-  border-radius: 5px;
+  border-radius: 6px;
   cursor: pointer;
-  transition: background-color 120ms ease-out, color 120ms ease-out;
+  transition: background-color 120ms ease-out, color 120ms ease-out, border-color 120ms ease-out;
   -webkit-tap-highlight-color: transparent;
 }
 
-.tab:hover {
+@media (hover: hover) and (pointer: fine) {
+  .tabRow .tab:hover {
+    color: var(--c-text);
+  }
+}
+
+.tabRow .tab:focus-visible {
+  outline: 2px dashed var(--c-text);
+  outline-offset: 2px;
+}
+
+.tabRow .active {
   color: var(--c-text);
   background-color: var(--c-accent-soft);
-}
-
-.tab:focus-visible {
-  outline: 2px dashed var(--c-text);
-  outline-offset: -1px;
-}
-
-.active {
-  color: var(--c-bg);
-  background-color: var(--c-accent);
+  border-color: var(--c-border-hybrid);
   font-weight: 600;
-}
-
-.active:hover {
-  /* Active tab stays filled on hover; the inactive sibling already
-   * shifts to the soft-accent ghost fill so the two states stay
-   * cleanly distinct. */
-  color: var(--c-bg);
-  background-color: var(--c-accent);
-  filter: brightness(1.08);
 }
 
 /* Small custom legend row above the chart canvas. The Chart.js
@@ -307,18 +304,10 @@
   transform: scale(1.25);
 }
 
-/* Small view label to the right of the dots — reinforces what the
- * dots represent on first encounter. Could be hidden after a few
- * sessions via a "tip dismissed" cookie, but it costs almost nothing
- * visually and helps discoverability so we keep it always-on for now. */
-.viewLabel {
-  margin-left: 6px;
-  font-size: 11px;
-  font-weight: 400;
-  letter-spacing: 0.3px;
-  color: var(--c-text-dim);
-  text-transform: lowercase;
-}
+/* v2.14.74 removed the inline view-label that sat to the right of
+ * the dots. The dots already carry the active-view state visually
+ * (accent fill on the selected dot) and aria-label / title on each
+ * dot keeps screen-readers + keyboard users informed. */
 
 /* Columns view wrapper — the line-chart components ship their own
  * onClick on `.container`, but DailyForecastColumns and

@@ -5,6 +5,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.74] - 2026-05-16
+
+### Added
+- **Two debug-only dock toggles** (visible when `isLocal && debugEnabled`):
+  - `carbon:circle-dash` button toggles `radarAnalysisEnabled` (the analysis circles on the radar). Uses the same `saveAdvancedAiFlag` setter as the AdvancedSettings → AI panel, so the change round-trips to `settings.json`.
+  - `carbon:bot` button toggles `aiSummaryUserVisible` (user-controlled override of the AI summary section). Additionally gated on `aiSummaryAvailable` so it only appears when the Anthropic key is configured. Persisted to `localStorage`.
+- **Toast notifications on dock toggles** — Every dock tap surfaces a short transient toast above the tapped button confirming the resulting state ("Mode auto activé", "Marqueur masqué", etc.). Anchored on the tapped button's centre X coordinate (not always dock-centred) so the leftmost button's toast no longer reads as "nothing happened". Frosted-glass styling with `backdrop-filter: blur(6px)` and palette-aware tokens. 2.5 s auto-dismiss, re-keyed on each new toast so consecutive identical-text taps still re-animate.
+- **ChartTabs 24h / 5j buttons as individual toggles** — Replaced the unified segmented-control look with two standalone pill buttons sharing the same `--c-accent-soft` active-state language as the dock toggles. Visual consistency: surface transparent when inactive, accent-soft fill when active across all toggle-able controls in the app. Specificity-bumped selectors (`.tabRow .tab` / `.tabRow .active`) so they beat the `.ambientRoot button` reset.
+
+### Changed
+- **Dock buttons no longer paint accent on hover** — The earlier `(hover: hover) and (pointer: fine)` gate addressed touchscreen-tap stickiness but didn't help the general case: pure-mouse users saw the icon paint accent any time the cursor sat over a button, which on the day palette read as "this button is in some on-state" — confusing alongside the real `.buttonDown` accent-fill that signals toggled-on. Dropped the hover-color rule entirely; `.buttonDown` is now the sole accent signal in the dock. `:focus-visible` kept for keyboard navigation.
+- **Direction-arrows button now disabled-but-visible when rings are off** — Previously rendered conditionally on `radarAnalysisEnabled`, which caused the remaining dock buttons to slide left/right when the debug "radar rings" toggle flipped. Now stays in the DOM with `.buttonDisabled` (opacity 0.35 + cursor default). Tap on the disabled button surfaces a short toast ("Activez d'abord les cercles radar") instead of silently doing nothing.
+- **Persistence audit for dock toggles** — Added `localStorage` persistence for `darkMode`, `markerIsVisible`, and `aiSummaryUserVisible`. All dock button states now survive a Pi reboot or a forced page reload.
+- **Rename "Hide mouse cursor" → "Hide mouse pointer"** in the Display section of the v3 `SettingsPanel`, and the corresponding `hideMouse` i18n strings in EN / FR / ES.
+- **Wind unit "m/s" no longer wraps in the SettingsPanel** — Added `white-space: nowrap` to `.segButton` so the slash in "m/s" stays on one line at wider viewports.
+- **ChartTabs cycle dots — removed the inline view label** — The accent-fill on the active dot already carries the active-view state visually, and aria-label / title on each dot keeps screen-readers + keyboard users informed. Dots now centre horizontally in their row.
+
+---
+
 ## [2.14.73] - 2026-05-16
 
 ### Changed

@@ -465,6 +465,11 @@
   cursor: pointer;
   border-radius: 3px;
   -webkit-tap-highlight-color: transparent;
+  /* Prevent labels with separators like "m/s" from wrapping on the
+   * slash at narrow cell widths — observed on wider Settings panels
+   * where the seg track's flex layout gave each cell less horizontal
+   * room than the label needed. */
+  white-space: nowrap;
 }
 
 .segButton:hover:not(:disabled) {

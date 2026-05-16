@@ -245,7 +245,7 @@ const SectionLocalPrefs = ({ ctx, lang }) => {
 
       <div className={styles.toggleRow}>
         <Toggle
-          label={lbl(lang, "Hide mouse cursor", "Masquer le curseur", "Ocultar cursor")}
+          label={lbl(lang, "Hide mouse pointer", "Masquer le pointeur de la souris", "Ocultar puntero del ratón")}
           value={Boolean(mouseHide)}
           onChange={saveBoolFlag(saveMouseHide)}
         />
