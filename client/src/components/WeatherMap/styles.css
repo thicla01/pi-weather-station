@@ -117,7 +117,20 @@
 .radar-timeline {
   position: absolute;
   bottom: 24px;
-  left: 50%;
+  /* On LayoutDesktop the map is full-bleed (covers the entire
+   * viewport) and the rail OVERLAYS the right side. Centring the
+   * scrubber at 50 % puts it under viewport-centre, which is to
+   * the right of the visible (non-rail) area centre. Shift left
+   * by half the rail's visible width so the scrubber sits in the
+   * middle of the actually-readable map area.
+   *
+   * `--c-rail-visible-width` is set by LayoutDesktop's `.layout`
+   * rule (mirrors `--c-rail-width` while the panel is open, drops
+   * to 0 when collapsed). LayoutPi doesn't define it, so the
+   * fallback `0px` kicks in and the scrubber centres in its grid
+   * column (which is already the visible map area) — no shift
+   * needed there. Same trick: same variable, two layouts. */
+  left: calc(50% - var(--c-rail-visible-width, 0px) / 2);
   transform: translateX(-50%);
   width: clamp(280px, 45vw, 480px);
   display: flex;

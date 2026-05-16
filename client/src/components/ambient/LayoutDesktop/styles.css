@@ -14,6 +14,17 @@
   font-family: "Geist", system-ui, -apple-system, sans-serif;
   overflow: hidden;
   --c-rail-width: 320px;
+  /* Mirror of `--c-rail-width` for consumers that need to know how
+   * much horizontal room the rail is ACTUALLY OCCUPYING right now
+   * — not how wide the rail's box is declared. v2.14.70: the
+   * RadarTimeline scrubber's horizontal centring uses this so the
+   * scrubber sits in the visible (non-rail) area in expanded
+   * states AND snaps back to the true viewport centre when the
+   * user collapses the rail. `.layout.collapsed` overrides this to
+   * 0 below. The original `--c-rail-width` keeps its declared
+   * value so the rail's own width / off-screen translate math
+   * continues to work. */
+  --c-rail-visible-width: var(--c-rail-width);
   --c-dock-height: 52px;
   --c-edge-gap: 16px;
 }
@@ -150,6 +161,12 @@
     opacity 150ms ease-out,
     transform 200ms ease-out,
     width 200ms ease-out;
+}
+
+.layout.collapsed {
+  /* Rail is translated off-screen — for centring math that depends
+   * on the visible rail width (the scrubber), treat it as 0. */
+  --c-rail-visible-width: 0px;
 }
 
 .layout.collapsed .rail {

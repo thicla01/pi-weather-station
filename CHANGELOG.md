@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.70] - 2026-05-16
+
+### Fixed
+- **Radar timeline scrubber appeared offset on LayoutDesktop** — User report: on wider screens the scrubber position felt "a bit random". Cause: the scrubber is positioned `left: 50%` inside the WeatherMap wrapper, which on LayoutDesktop fills the entire viewport. The rail OVERLAYS the right side, so centring at 50 % puts the scrubber to the right of the visible (non-rail) area centre. With the chart-maximize toggle changing the rail width from 320 → up to 960 px, the offset varied between 160 and 480 px — read as "random" to the user.
+- Introduced `--c-rail-visible-width` on `LayoutDesktop`'s `.layout` rule — mirrors `--c-rail-width` when the panel is open, drops to 0 px on `.collapsed`. The scrubber's `left` is now `calc(50% - var(--c-rail-visible-width, 0px) / 2)` so it always centres in the visible map area. LayoutPi doesn't define the variable; the `0px` fallback keeps the scrubber centred in its own grid column (which already excludes the rail).
+
+---
+
 ## [2.14.69] - 2026-05-16
 
 ### Fixed
