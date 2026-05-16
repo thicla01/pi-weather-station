@@ -5,6 +5,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.60] - 2026-05-15
+
+### Changed
+- **DailyForecastColumns — expanded layout now works on 7" too** — User feedback after v2.14.59: night icons missing on the 7" 5-day card, and the daily strip floated in too much vertical empty space (only ~100 px of compact content centred in a 280 px chartArea). v2.14.59's `effectiveExpanded = expanded && isDesktop` gate cured the "désordonnées" symptom but went too far — it stripped the night icons the user wanted to see AND left the chart card mostly empty. Restructured the layout:
+  - JSX gate removed: `effectiveExpanded = expanded` (every maximized viewport renders the day/night icon split + accumulation row).
+  - CSS moved the `.strip.expanded` LAYOUT rules out of the `@media (min-width: 1280px)` block — they apply at every width now. Baseline sizes are tuned for the 7" Pi's ~92 px cells: 22 px day icon, 18 px night icon, 17 px max temp Geist Mono, 14 px min temp, 11 px precip / accumulation. The `@media` block at the bottom OVERRIDES these with bigger desktop sizes (32 / 26 / 26 / 18 / 13 px).
+  - `<InlineIcon>` width/height props dropped from the JSX so the SVG sizing follows the CSS font-size (1em), letting the same JSX work at two scales.
+  - The compact 1-icon JSX path (used when `expanded` is false, i.e. non-maximized rail) is unchanged — still appears in the standard rail compact view at every viewport.
+
+  Net: 7" maximize now shows day icons paired with max temps, night icons paired with min temps, plus precip % and accumulation lines when relevant — the full richer information the desktop view offers, just at a smaller scale that fits the narrower rail. The chart card fills the chartArea with meaningful content instead of being mostly empty.
+
+---
+
 ## [2.14.59] - 2026-05-15
 
 ### Fixed

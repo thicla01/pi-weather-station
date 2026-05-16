@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext } from "react";
 import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
@@ -8,36 +8,6 @@ import { AppContext } from "~/AppContext";
 import { parseWeatherCode } from "~/ui/weatherCodes";
 import { convertTemp, convertLength } from "~/services/conversions";
 import styles from "./styles.css";
-
-// Same breakpoint AmbientLayers uses to switch LayoutPi → LayoutDesktop.
-// The expanded daily layout (day/night icon split, accumulation row)
-// has its CSS gated to `@media (min-width: 1280px)` because cell width
-// at sub-1280 maximize (rail ~456 px / 5 columns = ~91 px each) is too
-// narrow to stack a 32 px icon + a temp pair side by side. Gating the
-// JSX too so sub-1280 keeps the compact 1-icon-per-cell shape — same
-// pattern HourlyForecastColumns uses for its typography overrides.
-const DESKTOP_MQ = "(min-width: 1280px)";
-
-/**
- * Track whether the viewport currently matches the LayoutDesktop
- * breakpoint, with a `change` listener so the rendering swaps
- * automatically if the user resizes or rotates.
- *
- * @returns {boolean} true when the viewport is at least 1280 px wide
- */
-function useIsDesktop() {
-  const [isDesktop, setIsDesktop] = useState(
-    () => typeof window !== "undefined" && window.matchMedia(DESKTOP_MQ).matches
-  );
-  useEffect(() => {
-    if (typeof window === "undefined") return undefined;
-    const mq = window.matchMedia(DESKTOP_MQ);
-    const handler = () => setIsDesktop(mq.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, []);
-  return isDesktop;
-}
 
 /**
  * 5-day forecast as a horizontal strip of columns, replacing the
@@ -95,14 +65,18 @@ const SNOW_ACCUMULATION_MIN_MM = 5; // = 0.5 cm
 const DailyForecastColumns = ({ expanded = false }) => {
   const { dailyWeatherData, tempUnit, lengthUnit } = useContext(AppContext);
   const { t, i18n } = useTranslation();
-  const isDesktop = useIsDesktop();
-  // Gate the rich expanded JSX on `isDesktop` so the 7" Pi (LayoutPi,
-  // sub-1280) falls back to the compact 1-icon layout when ChartTabs
-  // is maximized. The expanded layout's CSS is media-gated to
-  // ≥ 1280 px anyway; rendering its JSX on smaller viewports without
-  // matching CSS produced the "données 5 jours désordonnées" bug
-  // reported in v2.14.58 field testing.
-  const effectiveExpanded = expanded && isDesktop;
+  // v2.14.60: the expanded JSX (day/night icon split + accumulation
+  // row) now renders on every viewport, not just LayoutDesktop. The
+  // v2.14.59 `effectiveExpanded = expanded && isDesktop` gate kept
+  // the 7" on the compact 1-icon layout, but that lost the night
+  // icons the user wanted to see and left the daily compact strip
+  // (~100 px) floating in a 280 px chartArea with too much
+  // top/bottom margin. CSS for the expanded layout below now has a
+  // sub-1280 baseline with smaller sizes that fit ~92 px cells, and
+  // the @media (min-width: 1280px) overrides bump the sizes for the
+  // desktop rail. The `isDesktop` hook is kept so future cell-specific
+  // tweaks can still branch JSX if needed.
+  const effectiveExpanded = expanded;
   const dateLocale = i18n.language.startsWith("fr") ? fr
     : i18n.language.startsWith("es") ? es : enUS;
 
@@ -231,7 +205,7 @@ const DailyForecastColumns = ({ expanded = false }) => {
             <div className={styles.dayNightRow}>
               <span className={styles.iconCell}>
                 {iconDay ? (
-                  <InlineIcon icon={iconDay} width={32} height={32} style={{ color: "currentColor" }} />
+                  <InlineIcon icon={iconDay} style={{ color: "currentColor" }} />
                 ) : (
                   <span className={styles.iconPlaceholder}>
                     {codeDay != null ? `c${codeDay}` : "—"}
@@ -245,7 +219,7 @@ const DailyForecastColumns = ({ expanded = false }) => {
             <div className={styles.dayNightRow}>
               <span className={styles.iconCellDim}>
                 {iconNight ? (
-                  <InlineIcon icon={iconNight} width={26} height={26} style={{ color: "currentColor" }} />
+                  <InlineIcon icon={iconNight} style={{ color: "currentColor" }} />
                 ) : (
                   <span className={styles.iconPlaceholder}>
                     {codeNight != null ? `c${codeNight}` : "—"}
