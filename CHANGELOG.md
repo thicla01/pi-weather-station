@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.56] - 2026-05-15
+
+### Changed
+- **ChartTabs / AiSummaryInline maximize — radar shows through below the focused card** — User feedback after v2.14.55 sized the maximized slab to its content height: the area BELOW the slab still rendered as a tall dark rectangle because the rail's other contents (MetricsGrid, IndoorBlock, the unfocused sibling slab) kept painting at the widened rail width. On LayoutPi the rail's own opaque `--c-bg` background painted the dark strip too. User report: "on se trouve à déployer une zone relative au fond d'une carte qui serait pleine hauteur et qui fait toute la largeur de notre zone presque noir".
+- Fix: when either `data-chart-maximized="true"` or `data-ai-maximized="true"` is active on a rail child, the `:has`-based rule now (a) hides the OTHER rail children via `display: none` so they don't paint below the focused card, and (b) on LayoutPi only, also transparents the rail's own background and left-border so the radar map shows through where the rail used to be opaque. Net effect: the maximized card is a clean island over the radar — anything below it reveals the basemap.
+
+---
+
 ## [2.14.55] - 2026-05-15
 
 ### Changed

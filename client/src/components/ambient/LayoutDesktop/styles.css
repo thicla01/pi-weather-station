@@ -50,6 +50,22 @@
   --c-rail-width: min(60vw, 960px);
 }
 
+/* Hide sibling rail slabs when any one card is maximized. The chart
+ * (or AI summary) becomes the focused content; everything else in the
+ * rail steps aside so the area below the maximized card reveals the
+ * radar through the transparent rail. Without this, MetricsGrid /
+ * IndoorBlock / AiSummaryInline (or others above/below the maximized
+ * card) keep rendering at the widened rail width, painting a tall
+ * dark area below the focused card — the "fond presque noir" user
+ * report (v2.14.56).
+ *
+ * `:not([data-{slab}-maximized="true"])` excludes the maximized slab
+ * itself from being hidden — it's the only one that stays visible. */
+.layout:has([data-chart-maximized="true"]) .rail > *:not([data-chart-maximized="true"]),
+.layout:has([data-ai-maximized="true"]) .rail > *:not([data-ai-maximized="true"]) {
+  display: none;
+}
+
 
 /* Map fills the entire area inside the dock — it's the background.
  * Everything else absolute-positions over it. */
