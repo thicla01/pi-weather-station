@@ -107,13 +107,21 @@
 /* Small custom legend row above the chart canvas. The Chart.js
  * native legend is disabled (we render the title there instead and
  * vertical space is scarce in compact mode), so the colour key for
- * the two-series line charts is supplied by this row. Hidden for
- * the columns view via the `showLegend` flag in ChartTabs's JSX. */
+ * the two-series line charts is supplied by this row.
+ *
+ * v2.14.54: row now ALWAYS renders so it reserves vertical space —
+ * cycling between line and columns views keeps the slab the same
+ * total height, which keeps the AI summary card below at a stable
+ * position rather than jumping up when the columns view shortens
+ * the chart card. `min-height` guarantees the reservation even
+ * when the row content is empty (columns view). */
 .legendRow {
   display: flex;
   justify-content: center;
+  align-items: center;
   gap: 14px;
   margin: 4px 0 6px 0;
+  min-height: 16px;
   font-size: 11px;
   font-weight: 500;
   color: var(--c-text-dim);

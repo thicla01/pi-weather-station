@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.54] - 2026-05-15
+
+### Fixed
+- **ChartTabs — slab height jumped between views** — User insight: cycling between the line-chart views and the columns view shortened the chart card by ~22 px because the colour legend row (grey/blue dots) only rendered for line views. The shorter card pushed the AI Summary card up, so users saw one sentence less of the summary when columns were active. The v2.14.53 padding-top hack on `HourlyForecastColumns` was treating the symptom, not the cause.
+- Fix: `ChartTabs` now ALWAYS renders the `legendRow` div, populated only when `showLegend` is true. The empty row keeps a `min-height: 16 px` so it reserves the same vertical space whether it shows the colour key or not. The slab stays the same total height across all six view combinations; the AI Summary card below it never moves. Removed the v2.14.53 padding-top compensation from `HourlyForecastColumns/.strip` since it's no longer needed.
+
+---
+
 ## [2.14.53] - 2026-05-15
 
 ### Fixed

@@ -205,18 +205,28 @@ const ChartTabs = () => {
           <InlineIcon icon={maximized ? minimize : maximize} className={styles.actionIcon} />
         </button>
       </div>
-      {showLegend ? (
-        <div className={styles.legendRow} aria-hidden="true">
-          <span className={styles.legendItem}>
-            <span className={`${styles.legendDot} ${styles.legendDotMain}`} />
-            {mainSeriesLabel}
-          </span>
-          <span className={styles.legendItem}>
-            <span className={`${styles.legendDot} ${styles.legendDotPrecip}`} />
-            {t("charts.precipitation", { defaultValue: "Precipitation" })}
-          </span>
-        </div>
-      ) : null}
+      {/* Always render the legend row so it reserves vertical space —
+       * cycling through views keeps the slab the same height, which
+       * keeps the AI summary card below at a stable position. When
+       * the columns view is active there's no colour key to show
+       * (the icons + temperature labels speak for themselves), so the
+       * row renders empty but with the same min-height as when
+       * populated. See styles.css `.legendRow` for the reservation
+       * height. */}
+      <div className={styles.legendRow} aria-hidden="true">
+        {showLegend ? (
+          <>
+            <span className={styles.legendItem}>
+              <span className={`${styles.legendDot} ${styles.legendDotMain}`} />
+              {mainSeriesLabel}
+            </span>
+            <span className={styles.legendItem}>
+              <span className={`${styles.legendDot} ${styles.legendDotPrecip}`} />
+              {t("charts.precipitation", { defaultValue: "Precipitation" })}
+            </span>
+          </>
+        ) : null}
+      </div>
       <div className={styles.chartArea}>{chartBody}</div>
       <div
         className={styles.cycleDots}
