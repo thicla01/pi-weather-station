@@ -93,26 +93,16 @@
  * Pi 7" / Desktop layouts (≥ 800 px) keep the original
  * `space-between` distribution — the larger containers have room
  * for the icon at the right edge of its column without crowding. */
-@media (max-width: 799px) {
-  .tempRow {
-    justify-content: flex-start;
-    gap: 12px;
-  }
-}
-
-/* v2.15.11: Pi 7" merged hero row (800-1279 px viewports). The
- * LayoutPi rail is 300 px wide; each heroRow column gets ~132 px
- * after the 12 px outer padding + 10 px grid gap. v2.15.9's 46 px
- * typography was too aggressive — the icon's 46 px box overflowed
- * the column by 2 px (user-reported: "L'icône déborde sur la zone
- * horloge"). Dialled back to 36 px so the row breathes even in 12h
- * mode where the time column needs room for "12:34 AM". */
+/* v2.15.13: reduced typography on small viewports — kept after the
+ * v2.15.5-12 merged-hero experiment was reverted. The hero block
+ * stays stacked above the TimeBlock (original v2 structure), but
+ * with these smaller sizes the combined height is meaningfully
+ * less than the v2.14 baseline (56 px temp + 40 px clock had a
+ * ~120 px slab; the new 30 px / 56 px sizes shrink that). The
+ * `.tempRow` alignment goes back to the base `space-between`
+ * (temp left, icon right) since the card now has the full rail
+ * width, not a narrow merged column. */
 @media (min-width: 800px) and (max-width: 1279px) {
-  /* v2.15.12: matched to TimeBlock's reduced 30 px clock so both
-   * columns of the merged hero stay visually balanced. The 36 px
-   * v2.15.11 sizes overflowed the right column at fontSize=L
-   * (zoom 1.15 scaling); the smaller sizes give the merged row
-   * room to breathe at every fontSize step. */
   .tempValue {
     font-size: 30px;
     letter-spacing: -0.5px;
@@ -129,9 +119,5 @@
   }
   .location {
     margin-bottom: 6px;
-  }
-  .tempRow {
-    justify-content: flex-start;
-    gap: 8px;
   }
 }

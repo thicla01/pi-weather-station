@@ -133,19 +133,8 @@ const LayoutMobile = () => {
   return (
     <div className={styles.layout}>
       <div className={styles.scroll}>
-        {/* Combined hero card: HeroCompact (location, temp, condition)
-         * on the left, TimeBlock (date, clock, sunrise/sunset) on the
-         * right. Both components render their own `.slab` internally;
-         * the `.heroRow` wrapper styling (see styles.css) flattens
-         * those inner slabs to a transparent shared surface so the
-         * pair reads as a single card. This was a v2.15.5 layout
-         * optimisation from user feedback ("je suggère de fusionner
-         * les cartes Heures et Température ensemble") — saves ~120 px
-         * of vertical scroll on the 7" iPhone reference. */}
-        <div className={styles.heroRow}>
-          <div className={styles.heroLeft}><HeroCompact /></div>
-          <div className={styles.heroRight}><TimeBlock /></div>
-        </div>
+        <TimeBlock />
+        <HeroCompact />
         <AlertBanner />
         <AlertDetailInline />
         <MetricsGrid />

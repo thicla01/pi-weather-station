@@ -161,57 +161,16 @@
   grid-row: 2;
 }
 
-/* Merged hero row (v2.15.9) — wraps the rail's first two slabs
- * (`HeroCompact` on the left, `TimeBlock` on the right) into a
- * single shared card. Strips the inner components' individual
- * `.slab` chrome via universal child selectors and provides one
- * outer surface here. Saves ~80 px of vertical scroll on the
- * 480 px-tall 7" Pi screen.
+/* v2.15.9-12 experimented with a merged hero row (TimeBlock +
+ * HeroCompact in a 2-column shared card) to save vertical space.
+ * Reverted in v2.15.13 after the 12h-format edge case forced too
+ * many overflow workarounds: the 5-char "10:37 AM" overflowed the
+ * narrow column, AM/PM had to stack on its own line, sunrise/
+ * sunset and the date both wrapped to 2 lines in the cramped
+ * columns. Net result was worse than the original stacked layout.
  *
- * Mirrors the structural pattern used by `LayoutMobile/.heroRow`;
- * the typography is tuned a notch smaller via component-local
- * `@media (min-width: 800px) and (max-width: 1279px)` blocks in
- * `HeroCompact` and `TimeBlock` so the row still fits at
- * fontSize=L (zoom 1.15) inside the 300 px rail (≈ 261 px logical
- * usable). */
-.heroRow {
-  display: grid;
-  /* v2.15.11: switched from 1.1fr/1fr to 1fr/1fr after measuring on
-   * the 300 px rail — the right column needed parity with the left
-   * to hold "12:34 AM" in 12h mode without overflowing. */
-  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
-  gap: 10px;
-  align-items: stretch;
-  background-color: var(--c-surface);
-  border: 1px solid var(--c-border);
-  border-radius: 10px;
-  padding: 10px 12px;
-}
-
-.heroLeft,
-.heroRight {
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-}
-
-/* Flatten the inner `.slab` surfaces from HeroCompact and TimeBlock —
- * the outer `.heroRow` already provides the shared card chrome. The
- * universal child selector `> *` targets each component's root slab
- * div regardless of its CSS-Modules hash. */
-.heroLeft > *,
-.heroRight > * {
-  background: transparent !important;
-  border: 0 !important;
-  padding: 0 !important;
-  margin: 0 !important;
-  box-shadow: none !important;
-}
-
-/* Vertical divider between the two halves — same treatment as
- * LayoutMobile. */
-.heroRight {
-  border-left: 1px solid var(--c-border);
-  padding-left: 10px;
-}
+ * The reduced typography from that pass (30 px clock / 30 px temp,
+ * see TimeBlock + HeroCompact media queries) is retained — the
+ * stacked cards are still meaningfully shorter than the v2.14
+ * baseline (56 px temp + 40 px clock), so the height-saving goal
+ * is mostly preserved without the layout-constraint pain. */

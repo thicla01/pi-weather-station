@@ -70,21 +70,20 @@
  * is ~110 px wide and fits inside the right column's ~151 px
  * content width (390 minus scroll padding, hero-row padding, grid
  * gap, and heroRight left-padding). No overflow risk. */
+/* v2.15.13: mobile clock typography retained from the merged-hero
+ * experiment (56 px to match HeroCompact's temperature), but the
+ * merged-row alignment overrides (right-align date/time, flex-end
+ * sunRow) are removed since the card is back to being stacked at
+ * the full rail width. */
 @media (max-width: 799px) {
   .date {
     font-size: 12px;
     letter-spacing: 0.6px;
     margin-bottom: 8px;
-    /* Right-aligned so the date hugs the right edge of the merged
-     * hero row's right column — visually balances against
-     * HeroCompact's left-aligned `.location` in the left column.
-     * User-suggested in the v2.15.6 review. */
-    text-align: right;
   }
   .time {
     font-size: 56px;
     letter-spacing: -1.5px;
-    text-align: right;
   }
   .amPm {
     font-size: 22px;
@@ -95,68 +94,33 @@
     font-size: 14px;
     gap: 16px;
     margin-top: 8px;
-    /* Pack the sunrise/sunset chips to the right edge so they
-     * mirror the date and time alignment above. */
-    justify-content: flex-end;
   }
 }
 
-/* v2.15.11: Pi 7" merged hero row (800-1279 px viewports). The
- * right heroRow column is ~132 px wide on the 300 px rail; the
- * `.time` element minus the 10 px padding-left and 1 px border
- * leaves ~121 px for inline content. v2.15.9's 46 px clock + 18 px
- * AM/PM exceeded that in 12h mode ("12:34 AM" rendered ~152 px
- * wide), pushing the AM span past the rail's right edge so it was
- * invisible — and the right-aligned line's left overhang spilled
- * back across the divider into the icon zone (user-reported: "le
- * chiffre 3 déborde de la zone horloge et AM n'apparait pas").
- * Dialled back to 36 px clock + 13 px AM so the 12h max
- * "12:34 AM" (~117 px wide) fits cleanly inside the column. The
- * `white-space: nowrap` guard prevents any future text from
- * wrapping silently if the column is squeezed further. */
+/* v2.15.13: Pi 7" + small desktop (800-1279 px). The 30 px clock
+ * size from the merged-hero experiment is retained — the stacked
+ * card now has the full rail width to work with, so 12h "10:37 AM"
+ * fits inline easily without needing the AM-stacking or right-
+ * align workarounds from v2.15.11/.12. */
 @media (min-width: 800px) and (max-width: 1279px) {
   .date {
     font-size: 11px;
     letter-spacing: 0.6px;
     margin-bottom: 6px;
-    text-align: right;
   }
   .time {
-    /* v2.15.12: 30 px (down from 36) so the 5-char 12h max
-     * "10:37" still fits at fontSize=L (the rail's `zoom: 1.15`
-     * scales contents up 1.15× — at 36 px the text rendered ~121
-     * viewport px wide against the ~115 px column, overflowing by
-     * ~6 px on top of the AM stacking fix). */
     font-size: 30px;
     letter-spacing: -0.5px;
-    text-align: right;
-    white-space: nowrap;
     line-height: 1;
   }
-  /* v2.15.12: AM/PM stacks BELOW the time digits on Pi.
-   *
-   * The inline approach (v2.15.11) fit "1:33 AM" but not "10:37 AM"
-   * — at 36 px Geist Mono each char is ~21 CSS px wide, so a 5-char
-   * 12h time like "10:37" alone is ~104 CSS px and the AM span pushes
-   * the inline run to ~125 px against ~109 CSS px of column space.
-   * The 5-px column overflow was minor for "1:33 AM" but obvious for
-   * "10:37 AM" (user-reported: "le m déborde, et avec 10:37 le
-   * débordement sera encore plus grand"). Stacking AM on its own
-   * line frees the full column width for the digits and leaves room
-   * for the fontSize=L (zoom 1.15) case where the rail is effectively
-   * narrower in logical pixels. */
   .amPm {
-    display: block;
     font-size: 13px;
-    margin-left: 0;
-    margin-top: 2px;
-    vertical-align: baseline;
-    line-height: 1;
+    margin-left: 5px;
+    vertical-align: 6px;
   }
   .sunRow {
     font-size: 12px;
     gap: 12px;
     margin-top: 6px;
-    justify-content: flex-end;
   }
 }

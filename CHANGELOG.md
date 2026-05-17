@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.15.13] - 2026-05-17
+
+### Changed
+- **Reverted the merged hero row on both Pi 7" and Mobile** — User feedback after the v2.15.5-12 iteration: the side-by-side fusion of `TimeBlock` + `HeroCompact` cost too much in narrow-column edge cases. 12h-format times had to stack AM/PM below the digits (since "10:37 AM" wouldn't fit inline), `DIMANCHE 17 MAI` wrapped to 2 lines in the cramped right column, and the sunrise/sunset row wrapped too. The "false good idea" pattern resolved by going back to the original v2.14 stacked structure (`TimeBlock` above `HeroCompact`, two separate cards). The reduced typography from the experiment (30 px clock on Pi, 56 px on Mobile) is retained — the stacked cards are still meaningfully shorter than the v2.14 baseline (56 px temp + 40 px clock), so the height-saving goal carries over without the layout-constraint pain. Removed: the merged-row CSS rules (`.heroRow`, `.heroLeft`, `.heroRight` in both LayoutPi and LayoutMobile), the `text-align: right` / `display: block` AM/PM overrides, and the left-pack `justify-content: flex-start` on `.tempRow` — all of which were workarounds for the constrained merged-column geometry.
+
+---
+
 ## [2.15.12] - 2026-05-17
 
 ### Fixed
