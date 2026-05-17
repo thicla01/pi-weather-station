@@ -45,12 +45,13 @@ const IndoorBlock = () => {
         .get("/api/indoor-temperature", { validateStatus: () => true })
         .then((r) => {
           if (cancelled) return;
-          if (r.status === 404) {
-            setData(null);
-            return;
-          }
+          // Server returns 200 + { enabled: false } when Homebridge
+          // isn't configured (was 404 before — the previous status
+          // code spammed devtools as a network error on every poll).
           if (r.status === 200 && r.data?.enabled) {
             setData(r.data);
+          } else {
+            setData(null);
           }
         })
         .catch(() => {

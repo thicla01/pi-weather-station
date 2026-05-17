@@ -29,13 +29,13 @@ const IndoorTemperature = () => {
         .get("/api/indoor-temperature", { validateStatus: () => true })
         .then((r) => {
           if (cancelled) return;
-          // 404 = feature not enabled on this Pi → hide the component entirely
-          if (r.status === 404) {
-            setData(null);
-            return;
-          }
+          // 200 + { enabled: false } = feature not configured →
+          // hide. Was 404 before — the previous status code spammed
+          // devtools as a network error on every poll.
           if (r.status === 200 && r.data?.enabled) {
             setData(r.data);
+          } else {
+            setData(null);
           }
         })
         .catch(() => {

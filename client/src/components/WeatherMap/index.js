@@ -19,6 +19,14 @@ import {
   useMapEvents,
 } from "react-leaflet";
 import L from "leaflet";
+// Bundle Leaflet's stylesheet via webpack instead of the CDN <link>
+// that index.html used to carry. The CDN <link> + <script> were
+// failing SRI checks after unpkg shipped a re-encoded build whose
+// SHA-256 no longer matched the pinned hash; the <script> was also
+// dead weight since react-leaflet pulls its Leaflet JS from the npm
+// package above. Importing the CSS here ties stylesheet loading to
+// the component that actually needs it.
+import "leaflet/dist/leaflet.css";
 import PropTypes from "prop-types";
 import { AppContext } from "~/AppContext";
 import { useTimeOfDay } from "~/ui/hybrid";

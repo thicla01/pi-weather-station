@@ -178,7 +178,12 @@ async function getIndoorTemperature(req, res) {
 
   const cfg = settings?.indoorTemperature;
   if (!cfg?.enabled) {
-    return res.status(404).json({ enabled: false }).end();
+    // 200 + { enabled: false } instead of 404. The 404 was logged by
+    // browser devtools as a noisy network error on every poll for
+    // users without Homebridge configured (default state). Clients
+    // already inspect `data.enabled`, so 200 carries the same signal
+    // without polluting the console.
+    return res.status(200).json({ enabled: false }).end();
   }
 
   if (!cache) {
