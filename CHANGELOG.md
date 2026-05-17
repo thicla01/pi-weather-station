@@ -5,6 +5,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.16.2] - 2026-05-18
+
+### Fixed
+- **Grey strip at the bottom of the iPhone PWA install** — In standalone PWA mode with `viewport-fit=cover`, the page extends through the iOS home-indicator area at the bottom. The `BottomDock`'s padding stopped at the dock's logical bottom edge, leaving the `safe-area-inset-bottom` gap painted in the default body background (grey in night palette) rather than the dock's surface colour. User-reported: "espace gris dans le bas de la page". Dock padding now uses `max(8px, env(safe-area-inset-bottom))` so the dock's `--c-surface` fills the home-indicator area cleanly. Left and right paddings also pick up `env(safe-area-inset-*)` for landscape-notch coverage.
+- **Settings × button not tappable in portrait on PWA install** — Same `viewport-fit=cover` consequence on the OTHER side: the `SettingsPanel` and `DebugPanel` sticky headers sat under the Dynamic Island in portrait, putting the close × button under the island and out of reach. Landscape worked because the island doesn't extend into the top-right of landscape view in the same way. Headers now use `padding-top: max(14px, env(safe-area-inset-top))` so they clear the island on every device.
+
+### Changed
+- **Close × button is now a 44×44 px tappable target with a visible border** — User-reported the bare `×` glyph at 20 px was "insufficient for a new user who doesn't recognise the convention". Bumped to 44×44 (Apple Human Interface Guidelines minimum touch target) with a `1px var(--c-border)` outline so the affordance reads as a button rather than an ambiguous glyph. Applied to both `SettingsPanel` and `DebugPanel`. Hover / focus-visible state picks up the accent-soft fill that the other dock toggles use for consistency.
+
+---
+
 ## [2.16.1] - 2026-05-18
 
 ### Changed

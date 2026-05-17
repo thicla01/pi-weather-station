@@ -22,7 +22,15 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  padding: 14px 18px;
+  /* v2.16.2: same safe-area handling as SettingsPanel's header.
+   * Without `safe-area-inset-top` the close × button on a PWA-
+   * installed iPhone sits under the Dynamic Island in portrait
+   * and can't be tapped. */
+  padding:
+    max(14px, env(safe-area-inset-top))
+    max(18px, env(safe-area-inset-right))
+    14px
+    max(18px, env(safe-area-inset-left));
   border-bottom: 1px solid var(--c-border);
   background-color: var(--c-surface);
   flex-shrink: 0;
@@ -73,19 +81,31 @@
   cursor: default;
 }
 
+/* v2.16.2: same 44×44 tap target as SettingsPanel's closeButton.
+ * Visible border so the affordance reads as tappable. */
 .closeButton {
   background: transparent;
-  border: 0;
-  padding: 4px;
-  font-size: 20px;
+  border: 1px solid var(--c-border);
+  border-radius: 6px;
+  width: 44px;
+  height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  font-size: 22px;
+  line-height: 1;
   color: var(--c-text);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
 }
 
 .closeButton:hover,
 .closeButton:focus-visible {
   color: var(--c-accent);
+  background-color: var(--c-accent-soft);
+  border-color: var(--c-accent);
   outline: none;
 }
 

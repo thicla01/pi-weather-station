@@ -9,7 +9,20 @@
 .dock {
   background-color: var(--c-surface);
   border-top: 1px solid var(--c-border);
-  padding: 8px 14px;
+  /* v2.16.2: bottom padding extends through the iOS home-indicator
+   * safe area (`env(safe-area-inset-bottom)`) so the dock's surface
+   * colour fills it. Without this, the area below the dock — where
+   * the home indicator floats — was painted in the default body
+   * background (grey on the night palette), reading as a stray
+   * "abandoned" strip below the dock. User-reported on PWA-installed
+   * iPhone after the v2.16.x trust-cert work made standalone mode
+   * usable. Sides use `max(...)` so a notch in landscape (Dynamic
+   * Island sideways) doesn't reach the dock controls. */
+  padding:
+    8px
+    max(14px, env(safe-area-inset-right))
+    max(8px, env(safe-area-inset-bottom))
+    max(14px, env(safe-area-inset-left));
   display: flex;
   align-items: stretch;
   min-height: 52px;
