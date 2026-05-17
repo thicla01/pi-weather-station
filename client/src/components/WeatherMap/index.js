@@ -769,7 +769,18 @@ const MapResizer = ({ infoPanelCollapsed, mobileRadarMaximized, latitude, longit
   // (defensive — should never happen since the parent only mounts
   // when coords are set). */
   useEffect(() => {
-    if (mobileRadarMaximized === undefined) return undefined;
+    // Bail when LayoutMobile isn't active — AppContext seeds
+    // `mobileRadarMaximized` to `null` and LayoutMobile flips it to
+    // `false` on mount (and back to `null` on unmount). The previous
+    // `=== undefined` guard didn't catch the `null` initial value,
+    // so on LayoutPi / LayoutDesktop this effect fired on every
+    // latitude / longitude / zoom change with a parasitic
+    // `invalidateSize()` + `setView()` that snapshotted a transient
+    // grid-template-columns size during boot — the marker ended up
+    // off-centre (NE on user-reported screens > 7"). Tapping the
+    // recenter button worked because resetMapPosition does its own
+    // setView against the correctly-measured container.
+    if (mobileRadarMaximized == null) return undefined;
     const live = setTimeout(() => {
       map.invalidateSize();
       if (hasVal(latitude) && hasVal(longitude) && zoom) {
