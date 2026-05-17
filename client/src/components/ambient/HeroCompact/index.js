@@ -52,19 +52,21 @@ const HeroCompact = () => {
   const parsed = parseWeatherCode(weatherCode, daylight);
   const tempUnitLabel = tempUnit === "k" ? "K" : `°${tempUnit.toUpperCase()}`;
 
-  // Feels-like: show only when meaningfully different from the
-  // actual temperature (≥ 1° in the user's selected unit after
-  // rounding). Otherwise the chip just repeats the big numeral and
-  // adds clutter. Tomorrow.io's `temperatureApparent` accounts for
-  // wind chill (cold + wind) and heat index (hot + humid), so this
-  // is the most contextually useful single number that fits in the
-  // freed space next to the icon.
+  // Feels-like always-on. v2.15.15 gated rendering on
+  // |feels - temp| ≥ 1 to avoid redundancy in calm-warm conditions,
+  // but that meant the chip disappeared most of the time and the
+  // user couldn't tell whether the feature was working. v2.15.16
+  // shows it whenever the server has a value — same consistency the
+  // mainstream weather apps (Apple, Google, Weather Channel) use.
+  // Tomorrow.io's `temperatureApparent` accounts for wind chill
+  // (cold + wind) and heat index (hot + humid); when neither applies
+  // it falls back to the actual temperature, which is fine — the
+  // chip just confirms there's no perceived correction today.
   const tempConverted = convertTemp(temperature, tempUnit);
   const feelsConverted = temperatureApparent != null
     ? convertTemp(temperatureApparent, tempUnit)
     : null;
-  const showFeelsLike = feelsConverted != null
-    && Math.abs(feelsConverted - tempConverted) >= 1;
+  const showFeelsLike = feelsConverted != null;
 
   return (
     <div className={styles.slab}>

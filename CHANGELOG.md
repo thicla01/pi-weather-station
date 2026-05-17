@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.15.16] - 2026-05-17
+
+### Changed
+- **Feels-like chip now always visible** (when Tomorrow.io returns the field) — User-reported v2.15.15 chip didn't appear in current conditions. The `|feels - temp| ≥ 1` threshold meant the chip silently hid itself in calm conditions where wind chill / heat index don't apply, so the user couldn't tell the feature was working. Dropped the threshold; the chip now renders whenever `temperatureApparent` is in the payload — matches the always-on pattern of Apple Weather, Google Weather, and The Weather Channel. When the perceived temp matches the actual one, the chip simply confirms there's no correction today.
+
+---
+
 ## [2.15.15] - 2026-05-17
 
 ### Added
