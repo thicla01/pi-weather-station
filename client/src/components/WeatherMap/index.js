@@ -736,7 +736,7 @@ MapClickHandler.propTypes = {
  * @param {boolean} props.infoPanelCollapsed whether the info panel is collapsed
  * @returns {null} renders nothing
  */
-const MapResizer = ({ infoPanelCollapsed }) => {
+const MapResizer = ({ infoPanelCollapsed, mobileRadarMaximized, latitude, longitude, zoom }) => {
   const map = useMap();
   useEffect(() => {
     // Two invalidateSize() calls bracket the CSS grid-template-columns
@@ -757,11 +757,45 @@ const MapResizer = ({ infoPanelCollapsed }) => {
       clearTimeout(final);
     };
   }, [infoPanelCollapsed, map]);
+
+  // Mobile radar maximize / minimize — same `invalidateSize` brackets
+  // as the LayoutPi rail collapse PLUS a `setView` recenter on the
+  // user's coordinates. Leaflet keeps the same geographic centre
+  // across a container resize, so when the 220 px mini card pops up
+  // to fill the scroll (and back), the marker drifted to the top
+  // edge of the new viewport (user-reported on iOS). The recenter
+  // pins the marker back to the geometric centre of whatever size
+  // the card just became. Skipped when no valid coords are passed
+  // (defensive — should never happen since the parent only mounts
+  // when coords are set). */
+  useEffect(() => {
+    if (mobileRadarMaximized === undefined) return undefined;
+    const live = setTimeout(() => {
+      map.invalidateSize();
+      if (hasVal(latitude) && hasVal(longitude) && zoom) {
+        map.setView([latitude, longitude], zoom, { animate: false });
+      }
+    }, 50);
+    const final = setTimeout(() => {
+      map.invalidateSize();
+      if (hasVal(latitude) && hasVal(longitude) && zoom) {
+        map.setView([latitude, longitude], zoom, { animate: false });
+      }
+    }, 350);
+    return () => {
+      clearTimeout(live);
+      clearTimeout(final);
+    };
+  }, [mobileRadarMaximized, map, latitude, longitude, zoom]);
   return null;
 };
 
 MapResizer.propTypes = {
   infoPanelCollapsed: PropTypes.bool,
+  mobileRadarMaximized: PropTypes.bool,
+  latitude: PropTypes.number,
+  longitude: PropTypes.number,
+  zoom: PropTypes.number,
 };
 
 /**
@@ -1145,6 +1179,7 @@ const WeatherMap = ({ zoom, dark }) => {
     radarTimelineVisible,
     radarSource,
     infoPanelCollapsed,
+    mobileRadarMaximized,
     hideRadarLegend,
     aiSummaryAvailable,
     radarAnalysisEnabled,
@@ -1456,7 +1491,13 @@ const WeatherMap = ({ zoom, dark }) => {
         <RailOffsetTracker railOffset={railOffset} markerPosition={markerPosition} />
         <MapZoomTracker onZoomChange={setCurrentMapZoom} />
         <ZoomLevelHandler zoomToLevel={zoomToLevel} setZoomToLevel={setZoomToLevel} />
-        <MapResizer infoPanelCollapsed={infoPanelCollapsed} />
+        <MapResizer
+          infoPanelCollapsed={infoPanelCollapsed}
+          mobileRadarMaximized={mobileRadarMaximized}
+          latitude={latitude}
+          longitude={longitude}
+          zoom={zoom}
+        />
         {/* ArrowToggleControl lived here pre-2.14.15 as an imperative
          * Leaflet control at the topleft. Moved to BottomDock so the
          * top-left of the map stays uncluttered (and the dock has

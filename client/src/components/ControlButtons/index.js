@@ -75,7 +75,23 @@ const ControlButtons = () => {
     updateAvailable,
     updateModalOpen,
     setUpdateModalOpen,
+    mobileRadarMaximized,
   } = useContext(AppContext);
+
+  // When LayoutMobile is active and the radar card is in mini mode,
+  // the timeline scrubber and the precipitation legend are CSS-hidden
+  // (the 220 px mini card doesn't have readable room for either —
+  // see `LayoutMobile/styles.css`). Tapping the timeline / legend dock
+  // buttons in that state would flip state without any visible effect,
+  // confusing the user. Grey both buttons out and surface a short
+  // toast hint when tapped — same disabled-button pattern the
+  // direction-arrows button uses when `radarAnalysisEnabled` is off.
+  //
+  // The check uses strict `=== false` because the tri-state value is
+  // `null` on Pi / Desktop layouts (where the timeline + legend are
+  // always visible over the full-bleed map) — we only want to disable
+  // when actively on mobile mini.
+  const radarOverlaysDisabled = mobileRadarMaximized === false;
 
   // Toast state — short transient label shown just above the dock to
   // confirm "what just happened" when the user taps a toggle. Each
@@ -199,10 +215,25 @@ const ControlButtons = () => {
           and has no equivalent on the WMS layer). */}
       {radarSource === "rainviewer" && (
         <div
-          onClick={(e) => { toggleRadarTimelineVisible(); notify(radarTimelineVisible ? "toasts.timelineHidden" : "toasts.timelineShown", e); }}
-          className={`${radarTimelineVisible ? styles.buttonDown : ""}`}
-          title={t(radarTimelineVisible ? "controls.hideTimeline" : "controls.showTimeline")}
-          aria-label={t(radarTimelineVisible ? "controls.hideTimeline" : "controls.showTimeline")}
+          onClick={(e) => {
+            if (radarOverlaysDisabled) {
+              // Mobile mini mode — scrubber is hidden, tapping the
+              // button would have no visible effect. Surface a hint
+              // pointing the user to the radar's maximize button.
+              notify("toasts.radarOverlaysNeedMaximize", e);
+              return;
+            }
+            toggleRadarTimelineVisible();
+            notify(radarTimelineVisible ? "toasts.timelineHidden" : "toasts.timelineShown", e);
+          }}
+          className={`${radarOverlaysDisabled ? styles.buttonDisabled : ""} ${radarTimelineVisible && !radarOverlaysDisabled ? styles.buttonDown : ""}`}
+          title={radarOverlaysDisabled
+            ? t("controls.radarOverlaysNeedMaximize")
+            : t(radarTimelineVisible ? "controls.hideTimeline" : "controls.showTimeline")}
+          aria-label={radarOverlaysDisabled
+            ? t("controls.radarOverlaysNeedMaximize")
+            : t(radarTimelineVisible ? "controls.hideTimeline" : "controls.showTimeline")}
+          aria-disabled={radarOverlaysDisabled || undefined}
         >
           <InlineIcon icon={timePlotIcon} />
         </div>
@@ -256,10 +287,22 @@ const ControlButtons = () => {
        * load, the legend follows the preference. */}
       {radarSource === "rainviewer" && (
         <div
-          onClick={(e) => { saveHideRadarLegend(!hideRadarLegend); notify(hideRadarLegend ? "toasts.legendShown" : "toasts.legendHidden", e); }}
-          className={`${!hideRadarLegend ? styles.buttonDown : ""}`}
-          title={t(hideRadarLegend ? "controls.showRadarLegend" : "controls.hideRadarLegend")}
-          aria-label={t(hideRadarLegend ? "controls.showRadarLegend" : "controls.hideRadarLegend")}
+          onClick={(e) => {
+            if (radarOverlaysDisabled) {
+              notify("toasts.radarOverlaysNeedMaximize", e);
+              return;
+            }
+            saveHideRadarLegend(!hideRadarLegend);
+            notify(hideRadarLegend ? "toasts.legendShown" : "toasts.legendHidden", e);
+          }}
+          className={`${radarOverlaysDisabled ? styles.buttonDisabled : ""} ${!hideRadarLegend && !radarOverlaysDisabled ? styles.buttonDown : ""}`}
+          title={radarOverlaysDisabled
+            ? t("controls.radarOverlaysNeedMaximize")
+            : t(hideRadarLegend ? "controls.showRadarLegend" : "controls.hideRadarLegend")}
+          aria-label={radarOverlaysDisabled
+            ? t("controls.radarOverlaysNeedMaximize")
+            : t(hideRadarLegend ? "controls.showRadarLegend" : "controls.hideRadarLegend")}
+          aria-disabled={radarOverlaysDisabled || undefined}
         >
           <InlineIcon icon={legendIcon} />
         </div>

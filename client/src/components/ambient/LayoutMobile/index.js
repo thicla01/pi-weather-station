@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect, useRef } from "react";
+import React, { useContext, useEffect, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
 import maximize from "@iconify/icons-carbon/maximize";
@@ -72,14 +72,15 @@ const LayoutMobile = () => {
     darkMode,
     defaultMapZoom,
     mouseHide,
+    mobileRadarMaximized,
+    setMobileRadarMaximized,
   } = useContext(AppContext);
 
-  // Radar maximize state — toggled by the chevron in the map card's
-  // top-right corner. Lives here (not in AppContext) because no other
-  // layout has this affordance — LayoutPi and LayoutDesktop both
-  // already render the radar full-bleed, so the state has no value
-  // outside Mobile.
-  const [radarMaximized, setRadarMaximized] = useState(false);
+  // Radar maximize state lives in AppContext (see the field's comment
+  // there for the full rationale). LayoutMobile owns the toggle UI;
+  // WeatherMap reads the state to re-center / invalidateSize on
+  // change; ControlButtons reads it to grey out the timeline + legend
+  // dock buttons while the radar overlays they control are hidden.
   const mapCardRef = useRef(null);
 
   // When entering maximize mode, scroll the scroll container to the
@@ -91,7 +92,7 @@ const LayoutMobile = () => {
   // the user manually scrolled back up. Mirrors the same pattern in
   // AiSummaryInline.
   useEffect(() => {
-    if (!radarMaximized || !mapCardRef.current) return;
+    if (!mobileRadarMaximized || !mapCardRef.current) return;
     let el = mapCardRef.current.parentElement;
     while (el && el !== document.body) {
       const overflowY = window.getComputedStyle(el).overflowY;
@@ -101,7 +102,17 @@ const LayoutMobile = () => {
       }
       el = el.parentElement;
     }
-  }, [radarMaximized]);
+  }, [mobileRadarMaximized]);
+
+  // Lifecycle: signal to AppContext consumers that we're on the
+  // mobile layout. The tri-state value is `false` (mini, default)
+  // while we're mounted and `null` once we unmount — that way the
+  // dock's timeline + legend disable rule (which keys on `=== false`)
+  // only kicks in while LayoutMobile is actually active.
+  useEffect(() => {
+    setMobileRadarMaximized(false);
+    return () => setMobileRadarMaximized(null);
+  }, [setMobileRadarMaximized]);
 
   return (
     <div className={styles.layout}>
@@ -114,23 +125,23 @@ const LayoutMobile = () => {
         <IndoorBlock />
         <div
           ref={mapCardRef}
-          className={`${styles.mapCard} ${radarMaximized ? styles.mapCardMaximized : ""} map-container ${darkMode ? "map-dark-mode" : ""} ${mouseHide ? "map-mouse-hide" : ""}`}
-          data-mobile-radar-maximized={radarMaximized ? "true" : undefined}
+          className={`${styles.mapCard} ${mobileRadarMaximized ? styles.mapCardMaximized : ""} map-container ${darkMode ? "map-dark-mode" : ""} ${mouseHide ? "map-mouse-hide" : ""}`}
+          data-mobile-radar-maximized={mobileRadarMaximized ? "true" : undefined}
         >
           <WeatherMap zoom={defaultMapZoom} dark={darkMode} />
           <button
             type="button"
             className={styles.mapMaximizeButton}
-            onClick={() => setRadarMaximized((m) => !m)}
-            aria-pressed={radarMaximized}
-            aria-label={t(radarMaximized ? "controls.minimizeRadar" : "controls.maximizeRadar", {
-              defaultValue: radarMaximized ? "Restore radar size" : "Expand radar",
+            onClick={() => setMobileRadarMaximized(!mobileRadarMaximized)}
+            aria-pressed={mobileRadarMaximized}
+            aria-label={t(mobileRadarMaximized ? "controls.minimizeRadar" : "controls.maximizeRadar", {
+              defaultValue: mobileRadarMaximized ? "Restore radar size" : "Expand radar",
             })}
-            title={t(radarMaximized ? "controls.minimizeRadar" : "controls.maximizeRadar", {
-              defaultValue: radarMaximized ? "Restore radar size" : "Expand radar",
+            title={t(mobileRadarMaximized ? "controls.minimizeRadar" : "controls.maximizeRadar", {
+              defaultValue: mobileRadarMaximized ? "Restore radar size" : "Expand radar",
             })}
           >
-            <InlineIcon icon={radarMaximized ? minimize : maximize} />
+            <InlineIcon icon={mobileRadarMaximized ? minimize : maximize} />
           </button>
         </div>
         <ChartTabs />

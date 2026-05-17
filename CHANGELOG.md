@@ -5,6 +5,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.15.3] - 2026-05-17
+
+### Fixed
+- **Marker + analysis rings drift to the top edge after radar maximize on mobile** — Leaflet keeps the same geographic centre across a container resize, so promoting the 220 px mini card to fill the scroll left the user's lat/lon at the top edge of the new (taller) viewport. Added a maximize-aware `MapResizer` effect: when `mobileRadarMaximized` flips, it calls `invalidateSize()` then `setView([latitude, longitude], zoom)` so the marker pins back to the geometric centre of whatever size the card just became. Same 50 ms + 350 ms bracket the existing rail-collapse effect uses.
+- **Radar-timeline + legend dock buttons did nothing in mobile mini mode** — Both overlays are CSS-hidden while `.mapCard` is at 220 px (no readable room), so tapping the dock buttons flipped state without any visible effect. The buttons now grey out via `.buttonDisabled` (opacity 0.35 + cursor default) while in mobile mini mode and surface a `toasts.radarOverlaysNeedMaximize` hint when tapped, pointing the user to the radar's maximize chevron. Pi / Desktop layouts unaffected — the tri-state context value distinguishes "not on mobile" (null) from "mobile mini" (false).
+
+### Known limitation
+- **iOS Safari toolbar reappears on orientation change** — When the user rotates the phone into landscape, Safari re-shows its top toolbar even though the app is in `viewport-fit=cover`. This is platform-level behaviour for browser-tab mode and can't be suppressed from the page side. The PWA install path (add to home screen) avoids it: `apple-mobile-web-app-capable=yes` is already set, so installing as a home-screen icon launches in standalone mode without the Safari chrome.
+
+---
+
 ## [2.15.2] - 2026-05-16
 
 ### Fixed

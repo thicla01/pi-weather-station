@@ -105,6 +105,33 @@ export function AppContextProvider({ children }) {
   // and surfaced for everyone once Phase 8 (Settings panel refresh) lands.
   // See `docs/ui-direction-c-implementation-plan.md` for the full rollout.
   const [experimentalUiC, setExperimentalUiC] = useState(false);
+  // Mobile-only radar maximize state. LayoutMobile's `.mapCard` is
+  // 220 px tall by default; tapping the maximize chevron in the
+  // card's top-right corner promotes it to fill the scroll container
+  // so the radar timeline scrubber and the precipitation legend
+  // become readable. The flag lives in context (not local to
+  // LayoutMobile) so two consumers outside the layout can react:
+  //   (1) `WeatherMap` re-invalidates Leaflet's tile grid and
+  //       recenters on the user's lat/lon when the flag flips, so
+  //       the rings + marker stay centred after the container
+  //       resizes (Leaflet keeps the same geographic centre across
+  //       a size change, which made the marker drift to the top
+  //       edge after maximize — user-reported on iOS).
+  //   (2) `ControlButtons` greys out the radar-timeline + legend
+  //       dock toggles while the card is mini and the LayoutMobile
+  //       is active — the overlays they control are CSS-hidden in
+  //       mini mode (no readable real estate), so the buttons
+  //       would otherwise tap silently.
+  // Tri-state to let ControlButtons distinguish mobile-mini from
+  // non-mobile layouts (where the dock buttons should stay active):
+  //   `null`  — not on LayoutMobile (Pi / Desktop). Buttons enabled.
+  //   `false` — on LayoutMobile in mini mode. Timeline + legend
+  //             buttons disabled with a hint toast.
+  //   `true`  — on LayoutMobile, radar maximized. Buttons enabled.
+  // LayoutMobile owns the lifecycle: sets `false` on mount, toggles
+  // to `true` on user tap, resets to `null` on unmount. Session-only
+  // state; never persisted.
+  const [mobileRadarMaximized, setMobileRadarMaximized] = useState(null);
   // Display sub-tree (advanced.display.* in settings.json).
   // lightModeStyle / darkModeStyle drive the Mapbox style for each theme.
   // For light mode, the panel background tint also follows via the
@@ -1548,6 +1575,8 @@ export function AppContextProvider({ children }) {
     saveAdvancedSleepFlag,
     experimentalUiC,
     saveAdvancedExperimentalFlag,
+    mobileRadarMaximized,
+    setMobileRadarMaximized,
     setMapPosition,
     resetMapPosition,
     panToCoords,
