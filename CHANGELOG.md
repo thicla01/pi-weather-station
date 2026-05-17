@@ -5,6 +5,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.15.4] - 2026-05-17
+
+### Fixed
+- **Radar legend showed without its colour swatches in mobile maximize** — The v2.15.2 mini-mode hide rule used `[class*="radar-legend"]` to hide the legend container, which also matched descendant `.radar-legend-swatch` spans. The maximize state's `display: revert !important` reset those spans back to `inline`, at which point inline elements ignore the explicit `width: 16px` / `height: 8px` and the swatches collapsed to zero. Narrowed both selectors to the variant modifiers (`radar-legend-dark` / `radar-legend-light` / `radar-timeline-dark` / `radar-timeline-light`) which only exist on the outer container — the descendant swatches keep their natural inline-block display unchanged in both modes.
+- **Radar timeline stayed `visible` after minimizing on mobile** — If the user opened the scrubber while the radar was maximized, then minimized, the scrubber's `radarTimelineVisible` state remained `true`. The scrubber itself was CSS-hidden in mini mode and the dock's timeline button was greyed out (per v2.15.3), so the state was effectively unreachable without re-maximizing. Added a `useEffect` in `LayoutMobile` that auto-deactivates the scrubber when the radar minimizes — keeps the dock button's visual state aligned with the actually-rendered scrubber.
+- **White tile gaps appeared after zoom-in-then-zoom-out** — Leaflet's default `keepBuffer: 2` unloads tiles around the viewport too aggressively when the user zooms in, so zooming back out forced Leaflet to re-fetch the lower-zoom tiles and left a brief white gap until they arrived. Bumped `keepBuffer` to 4 on both the base Mapbox tile layer and the RainViewer radar layer. Costs a few extra tiles in memory but the Mapbox proxy cache + RainViewer's CDN make the re-display free. User-reported on iOS Safari AND Chrome macOS (this is a Leaflet behaviour, not platform-specific).
+
+---
+
 ## [2.15.3] - 2026-05-17
 
 ### Fixed

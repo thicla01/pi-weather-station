@@ -74,6 +74,8 @@ const LayoutMobile = () => {
     mouseHide,
     mobileRadarMaximized,
     setMobileRadarMaximized,
+    radarTimelineVisible,
+    toggleRadarTimelineVisible,
   } = useContext(AppContext);
 
   // Radar maximize state lives in AppContext (see the field's comment
@@ -103,6 +105,20 @@ const LayoutMobile = () => {
       el = el.parentElement;
     }
   }, [mobileRadarMaximized]);
+
+  // Auto-deactivate the radar timeline scrubber when the user
+  // minimizes the radar card. The scrubber is CSS-hidden in mini mode
+  // (no readable room), and the dock's timeline button is greyed out
+  // (see `ControlButtons` `radarOverlaysDisabled`), so a `true`
+  // scrubber state stuck across a minimize would be unreachable from
+  // the user's standpoint — they'd have to re-maximize just to flip
+  // it off. Resetting on minimize keeps the dock button's visual
+  // state aligned with the (invisible) scrubber state.
+  useEffect(() => {
+    if (mobileRadarMaximized === false && radarTimelineVisible) {
+      toggleRadarTimelineVisible();
+    }
+  }, [mobileRadarMaximized, radarTimelineVisible, toggleRadarTimelineVisible]);
 
   // Lifecycle: signal to AppContext consumers that we're on the
   // mobile layout. The tri-state value is `false` (mini, default)

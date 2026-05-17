@@ -1521,6 +1521,17 @@ const WeatherMap = ({ zoom, dark }) => {
           tileSize={512}
           zoomOffset={-1}
           maxZoom={20}
+          /* v2.15.4: keepBuffer bumped from Leaflet's default 2 → 4.
+           * When the user zoomed in then zoomed back out, the lower-
+           * zoom tiles around the new viewport had already been
+           * unloaded — Leaflet had to re-fetch them, leaving a brief
+           * white gap until they arrived. With 4, the surrounding
+           * tiles stay in the DOM longer and the zoom-out is
+           * seamless. Costs a few extra tiles in memory but the
+           * Mapbox proxy is cached server-side so the re-display is
+           * essentially free. User-reported on both iOS Safari and
+           * Chrome macOS. */
+          keepBuffer={4}
         />
         {radarSource === "eccc" ? (
           // Environment Canada radar (RADAR_1KM_RRAI = rain precipitation rate
@@ -1549,6 +1560,10 @@ const WeatherMap = ({ zoom, dark }) => {
             tileSize={512}
             zoomOffset={-1}
             maxNativeZoom={8}
+            /* Same keepBuffer rationale as the base Mapbox layer
+             * above — RainViewer's tile cache is direct-from-CDN so
+             * the re-display is free. */
+            keepBuffer={4}
           />
         ) : null}
         {markerIsVisible && markerPosition ? (
