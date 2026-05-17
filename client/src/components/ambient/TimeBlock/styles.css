@@ -101,14 +101,19 @@
   }
 }
 
-/* v2.15.9: Pi 7" merged hero row (800-1279 px viewports). The 300 px
- * rail collapses to ~261 px logical at fontSize=L (zoom 1.15);
- * each heroRow column gets ~125 px. The clock numeral is brought
- * to 46 px (down from the mobile rule's 56) to match the
- * HeroCompact left column's matching reduction — both columns
- * stay visually balanced. Right-align everything so the time
- * column hugs the right edge of its half, mirroring the merged
- * row's outward-facing symmetry on mobile. */
+/* v2.15.11: Pi 7" merged hero row (800-1279 px viewports). The
+ * right heroRow column is ~132 px wide on the 300 px rail; the
+ * `.time` element minus the 10 px padding-left and 1 px border
+ * leaves ~121 px for inline content. v2.15.9's 46 px clock + 18 px
+ * AM/PM exceeded that in 12h mode ("12:34 AM" rendered ~152 px
+ * wide), pushing the AM span past the rail's right edge so it was
+ * invisible — and the right-aligned line's left overhang spilled
+ * back across the divider into the icon zone (user-reported: "le
+ * chiffre 3 déborde de la zone horloge et AM n'apparait pas").
+ * Dialled back to 36 px clock + 13 px AM so the 12h max
+ * "12:34 AM" (~117 px wide) fits cleanly inside the column. The
+ * `white-space: nowrap` guard prevents any future text from
+ * wrapping silently if the column is squeezed further. */
 @media (min-width: 800px) and (max-width: 1279px) {
   .date {
     font-size: 11px;
@@ -117,14 +122,15 @@
     text-align: right;
   }
   .time {
-    font-size: 46px;
-    letter-spacing: -1px;
+    font-size: 36px;
+    letter-spacing: -0.5px;
     text-align: right;
+    white-space: nowrap;
   }
   .amPm {
-    font-size: 18px;
-    margin-left: 6px;
-    vertical-align: 10px;
+    font-size: 13px;
+    margin-left: 5px;
+    vertical-align: 8px;
   }
   .sunRow {
     font-size: 12px;

@@ -100,27 +100,23 @@
   }
 }
 
-/* v2.15.9: Pi 7" merged hero row (800-1279 px viewports). The
- * LayoutPi rail is 300 px wide (340 px on ≥ 1600 px secondary
- * screens). At fontSize=L (zoom 1.15) the rail's logical width
- * collapses to ~261 px, split between the two heroRow columns →
- * ~125 px each. The default 56 px temp + 56 px icon + the spacing
- * between them would crowd the right edge against the column
- * divider; dialling the typography back to ~46 px gives the row
- * room to breathe at every fontSize step.
- *
- * Same left-pack behaviour as mobile so the temp + icon read as
- * one cohesive block hugging the column's left edge. */
+/* v2.15.11: Pi 7" merged hero row (800-1279 px viewports). The
+ * LayoutPi rail is 300 px wide; each heroRow column gets ~132 px
+ * after the 12 px outer padding + 10 px grid gap. v2.15.9's 46 px
+ * typography was too aggressive — the icon's 46 px box overflowed
+ * the column by 2 px (user-reported: "L'icône déborde sur la zone
+ * horloge"). Dialled back to 36 px so the row breathes even in 12h
+ * mode where the time column needs room for "12:34 AM". */
 @media (min-width: 800px) and (max-width: 1279px) {
   .tempValue {
-    font-size: 46px;
-    letter-spacing: -1px;
+    font-size: 36px;
+    letter-spacing: -0.5px;
   }
   .tempUnit {
-    font-size: 18px;
+    font-size: 14px;
   }
   .iconBlock {
-    font-size: 46px;
+    font-size: 36px;
   }
   .description {
     font-size: 13px;

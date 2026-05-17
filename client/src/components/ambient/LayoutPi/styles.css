@@ -176,7 +176,10 @@
  * usable). */
 .heroRow {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  /* v2.15.11: switched from 1.1fr/1fr to 1fr/1fr after measuring on
+   * the 300 px rail — the right column needed parity with the left
+   * to hold "12:34 AM" in 12h mode without overflowing. */
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px;
   align-items: stretch;
   background-color: var(--c-surface);

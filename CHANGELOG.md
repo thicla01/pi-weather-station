@@ -5,6 +5,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.15.11] - 2026-05-17
+
+### Fixed
+- **Merged hero row on Pi 7" overflowed the rail in 12h mode** — User-reported with screenshot: the weather icon bled into the clock area, the right column's clock numeral overflowed the divider, and AM/PM was completely invisible past the rail's right edge. DOM measurements at 1136 px viewport confirmed:
+  - `iconBlock` (46 px) ended at x=989 while `heroLeft` ended at x=987 — icon overflowed the left column by 2 px
+  - `time` element at 46 px Geist Mono rendered "1:33AM" with the AM span at x=1121-1140, past the rail's right edge (x=1124) so it was clipped from view, while the right-aligned line's left overhang ("1:") spilled back across the divider into the icon zone
+  - v2.15.9's typography (46 px clock + 18 px AM) needed ~152 px to render "12:34 AM" inline, but the right column had only ~103 px of usable space
+
+  Dialled typography back from 46 → 36 px on temp/clock/icon and 18 → 13 px on AM/PM, switched the heroRow grid from `1.1fr/1fr` to `1fr/1fr` (parity columns since the time block needs as much room as the temperature block), and added `white-space: nowrap` to `.time` so the clock can never silently wrap. Verified: the 12h max "12:34 AM" now fits in ~105 px with margin to spare; AM/PM ends exactly at the column's inner right edge, fully visible.
+
+---
+
 ## [2.15.10] - 2026-05-17
 
 ### Fixed
