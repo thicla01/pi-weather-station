@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.78] - 2026-05-16
+
+### Fixed
+- **Daily-forecast icons missing for Tomorrow.io's extended composite codes** — User reported the 5-day columns rendered `c4210` / `c4205` / `c11030` / `c11031` placeholders instead of weather icons. Tomorrow.io's daily endpoint returns expanded composite codes (e.g. 4210 = "Mostly Cloudy and Rain", 1103 = "Partly Cloudy and Mostly Clear", 11030/11031 = 5-digit day/night variant of 1103) that were never mapped in `parseWeatherCode`. Added mappings for the 42xx rain family (4203-4205 drizzle, 4208-4210 rain, 4211-4213 heavy rain, 4214-4216 light rain), the 21xx fog family (2101-2103 light fog, 2106-2108 fog), the 51xx snow family (5102-5108, 5115-5122), and 1103 partly-cloudy. Each composite code reuses the closest existing icon for its primary phenomenon.
+
+---
+
 ## [2.14.77] - 2026-05-16
 
 ### Fixed
