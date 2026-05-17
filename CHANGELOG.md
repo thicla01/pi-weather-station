@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.15.1] - 2026-05-16
+
+### Fixed
+- **Radar map collapsed to a thin sliver on mobile** — `LayoutMobile`'s `.scroll` container was `display: flex; flex-direction: column`, which gave every child `flex-shrink: 1` by default. When the cumulative content height exceeded the viewport, flex squashed items with explicit pixel heights — the radar `.mapCard` lost the shrink battle and collapsed from 220 px to ~30 px, leaving only the Leaflet attribution row visible. Switched `.scroll` to block layout with `> * + * { margin-top: 10px }` recovering the 10 px rhythm. Explicit pixel heights are now respected unconditionally.
+- **AiSummary / ChartTabs maximize escaped the scroll container** — On mobile, the `position: absolute` maximize state in `AiSummaryInline` and `ChartTabs` pinned against `.ambientRoot` (the next positioned ancestor) instead of the scroll container, causing the slab to cover the wrong region. Added `position: relative` to `.scroll`, mirroring the same load-bearing rule on `LayoutPi/.rail`.
+
+---
+
 ## [2.15.0] - 2026-05-16
 
 ### Added

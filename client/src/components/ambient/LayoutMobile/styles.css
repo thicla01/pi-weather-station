@@ -32,12 +32,28 @@
 
 /* Scrollable content area. Padding on the sides matches the
  * `padding: 12px` used on `.dock` so vertical alignment of slabs
- * with the dock buttons reads consistently. Bottom padding clears
- * the dock height (~52 px) — the dock sits BELOW this in normal
- * flex flow, so we don't need explicit space here for the dock
- * itself; the padding just preserves room for the last item not
- * to butt against the dock border. */
+ * with the dock buttons reads consistently.
+ *
+ * v2.15.1 — switched from `display: flex; flex-direction: column`
+ * to plain block layout. With flex column, every child gets
+ * `flex-shrink: 1` by default and the overflowing total content
+ * caused flex to squash items with explicit pixel heights (the
+ * radar `.mapCard` collapsed from 220 px to ~30 px because it
+ * lost a shrink battle). Block flow respects explicit heights
+ * unconditionally; sibling spacing is recovered via
+ * `> * + * { margin-top: 10px }` further down.
+ *
+ * `position: relative` is load-bearing for `AiSummaryInline`'s and
+ * `ChartTabs`'s maximize modes: those slabs use `position: absolute`
+ * to detach from the flow, and `absolute` only works against the
+ * nearest *positioned* ancestor. Without `relative` here, the
+ * maximize state pinned against `.ambientRoot` (the next
+ * positioned ancestor up) instead of the scroll container —
+ * meaning the slab covered the wrong region of the screen. Mirrors
+ * `LayoutPi/.rail`, which carries the same comment for the same
+ * reason. */
 .scroll {
+  position: relative;
   flex: 1;
   min-height: 0;
   overflow-y: auto;
@@ -47,14 +63,16 @@
   padding-top: max(12px, env(safe-area-inset-top));
   padding-left: max(14px, env(safe-area-inset-left));
   padding-right: max(14px, env(safe-area-inset-right));
-  /* Stack inherits the gap from `.ambientRoot` defaults; explicit gap
-   * here so the slabs sit ~10 px apart (matching LayoutPi's rail flow). */
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
   /* Smooth-scroll on touch. -webkit-overflow-scrolling kept for older
    * iOS Safari (≤ 12), modern Safari handles momentum natively. */
   -webkit-overflow-scrolling: touch;
+}
+
+/* Adjacent-sibling spacing — replaces the previous flex `gap: 10px`
+ * since `.scroll` is now block layout. Same 10 px rhythm LayoutPi
+ * uses between rail items. */
+.scroll > * + * {
+  margin-top: 10px;
 }
 
 /* Radar card. Fixed height so the map doesn't try to be tall in a
