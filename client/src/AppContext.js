@@ -14,6 +14,13 @@ const DISTANCE_UNIT_STORAGE_KEY = "distanceUnit";
 const DEFAULT_MAP_ZOOM_STORAGE_KEY = "defaultMapZoom";
 const DEFAULT_MAP_ZOOM_FALLBACK = 7; // historical hard-coded value before the slider
 const DARK_MODE_STORAGE_KEY = "darkMode";
+// v2.15.5: sleepNightMode is *also* mirrored to localStorage so remote
+// clients can persist their own palette preference across reloads. The
+// canonical store is still `settings.json` (only the kiosk can write
+// it via the localhost-gated PATCH), but localStorage acts as the
+// per-device override when present. See `loadStoredData` and
+// `saveAdvancedSleepFlag` for the read/write sides.
+const NIGHT_MODE_STORAGE_KEY = "sleepNightMode";
 const DARK_MODE_AUTO_STORAGE_KEY = "darkModeAuto";
 const MARKER_VISIBLE_STORAGE_KEY = "markerIsVisible";
 const AI_USER_VISIBLE_STORAGE_KEY = "aiSummaryUserVisible";
@@ -722,6 +729,16 @@ export function AppContextProvider({ children }) {
     // only on explicit "false".
     const storedAiVisible = window.localStorage.getItem(AI_USER_VISIBLE_STORAGE_KEY);
     if (storedAiVisible === "false") setAiSummaryUserVisible(false);
+    // sleepNightMode override — restored AFTER any server fetch in
+    // `loadStoredData`'s caller chain so it wins. This makes the
+    // remote-client palette toggle stick across reloads (user-
+    // reported on iOS: tapping the moon button flipped the palette
+    // but a reload reverted it because the server `nightMode` value
+    // had stayed `true` while the local PATCH was 403'd).
+    const storedNightMode = window.localStorage.getItem(NIGHT_MODE_STORAGE_KEY);
+    if (storedNightMode === "true" || storedNightMode === "false") {
+      setSleepNightMode(storedNightMode === "true");
+    }
     if (clock) {
       setClockTime(clock);
     }
@@ -817,7 +834,24 @@ export function AppContextProvider({ children }) {
                 setSleepStage2Delay(advancedSleep.stage2Delay);
               }
               if (typeof advancedSleep.nightMode === "boolean") {
-                setSleepNightMode(advancedSleep.nightMode);
+                // localStorage takes precedence over the server-side
+                // value: a remote client's saveAdvancedSleepFlag
+                // optimistic-flips the local state but its PATCH is
+                // 403'd, so the server's settings.json keeps its old
+                // value. Without this guard, the next page load would
+                // pull the server's old value back into state and
+                // override the user's choice — the symptom reported
+                // on iOS ("le réglage du mode rouge n'est pas
+                // mémorisé"). On the kiosk's own browser the two
+                // stores agree (the PATCH succeeds AND localStorage
+                // gets the same value), so the guard is a no-op there.
+                const storedNightMode = (() => {
+                  try { return window.localStorage.getItem(NIGHT_MODE_STORAGE_KEY); }
+                  catch { return null; }
+                })();
+                if (storedNightMode !== "true" && storedNightMode !== "false") {
+                  setSleepNightMode(advancedSleep.nightMode);
+                }
               }
             }
           }
@@ -1315,7 +1349,17 @@ export function AppContextProvider({ children }) {
     if (key === "stage1Brightness") setSleepStage1Brightness(value);
     if (key === "stage2Enabled") setSleepStage2Enabled(value);
     if (key === "stage2Delay") setSleepStage2Delay(value);
-    if (key === "nightMode") setSleepNightMode(value);
+    if (key === "nightMode") {
+      setSleepNightMode(value);
+      // Mirror to localStorage so the choice survives a page reload
+      // on remote clients (where the server PATCH below will 403 and
+      // settings.json stays unchanged). On the kiosk's own browser
+      // this is harmless — the PATCH succeeds AND localStorage gets
+      // the same value, so the two stores agree.
+      try {
+        window.localStorage.setItem(NIGHT_MODE_STORAGE_KEY, String(Boolean(value)));
+      } catch { /* localStorage may be unavailable */ }
+    }
     return axios
       .patch("/setting", { key: "advanced", val: { ai: nextAi, display: nextDisplay, sleep: nextSleep, experimental: nextExperimental } })
       .catch((err) => {

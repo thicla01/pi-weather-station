@@ -75,6 +75,58 @@
   margin-top: 10px;
 }
 
+/* Combined hero row — flattens the standalone `HeroCompact` and
+ * `TimeBlock` slabs into one shared card with left (location + temp)
+ * and right (date + clock + sunrise/sunset) columns. Each child
+ * component still renders its own `.slab` wrapper internally; the
+ * styling below uses universal child selectors to strip those inner
+ * surfaces (border, background, padding) so the pair reads as a
+ * single card.
+ *
+ * The 50/50 columns work at iPhone widths (375-430 px portrait);
+ * narrower phones (≤ 360 px) shift the balance slightly with
+ * `grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr)` to give
+ * the longer location names more room. */
+.heroRow {
+  display: grid;
+  grid-template-columns: minmax(0, 1.1fr) minmax(0, 1fr);
+  gap: 12px;
+  align-items: stretch;
+  background-color: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: 10px;
+  padding: 12px 14px;
+}
+
+.heroLeft,
+.heroRight {
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+}
+
+/* Strip the inner `.slab` surfaces from HeroCompact and TimeBlock —
+ * the outer `.heroRow` already provides the shared card chrome. The
+ * universal child selector `> *` targets each component's root slab
+ * div regardless of its CSS Modules hash. */
+.heroLeft > *,
+.heroRight > * {
+  background: transparent !important;
+  border: 0 !important;
+  padding: 0 !important;
+  margin: 0 !important;
+}
+
+/* Right column gets a faint vertical divider so the two halves read
+ * as separate-but-related sections without needing an explicit
+ * border between them. Uses `--c-border` with reduced alpha by
+ * stacking against the `--c-surface` underneath. */
+.heroRight {
+  border-left: 1px solid var(--c-border);
+  padding-left: 12px;
+}
+
 /* Radar card. Fixed height so the map doesn't try to be tall in a
  * scrolling column. 220 px gives the rings + a meaningful slice of
  * the radar without dominating the screen. The map-container class
@@ -163,33 +215,45 @@
   display: revert !important;
 }
 
-/* Maximize / minimize toggle button. Top-right corner of the card,
- * same visual language as AiSummaryInline's and ChartTabs's action
- * buttons: 28×28 transparent button, dim icon, `accent-soft` fill on
- * hover and on `aria-pressed="true"`. Z-index above the Leaflet
- * controls (which top out at 1000) so the button is tappable even
- * over the +/- zoom stack in the top-left corner. */
+/* Maximize / minimize toggle button. Top-right corner of the card.
+ *
+ * v2.15.5: bumped to 36×36 with `--c-text` colour (was `--c-text-dim`)
+ * and a stronger border + 18 px icon — the v2.15.2 styling used
+ * `--c-text-dim` on `--c-surface`, which on the day palette is
+ * cream-on-cream and read as nearly invisible against the radar
+ * tiles. User-reported: "le symbole pour minimiser la carte radar
+ * est difficile à voir". The accent-soft active-state stays so the
+ * pressed-in look matches the other dock toggles, but the resting
+ * state now has enough contrast against any palette + over any
+ * radar pixel. Z-index above the Leaflet controls (which top out at
+ * 1000) so the button is tappable even over the +/- zoom stack in
+ * the top-left corner. */
 .mapMaximizeButton {
   position: absolute;
   top: 8px;
   right: 8px;
-  width: 28px;
-  height: 28px;
+  width: 36px;
+  height: 36px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   padding: 0;
   background-color: var(--c-surface);
-  border: 1px solid var(--c-border);
+  border: 1px solid var(--c-border-hybrid, var(--c-border));
   border-radius: 6px;
-  color: var(--c-text-dim);
+  color: var(--c-text);
   cursor: pointer;
   font-family: inherit;
-  font-size: 16px;
+  font-size: 18px;
   /* Above Leaflet's own controls (zoom, attribution): Leaflet uses
    * z-index up to 1000 on its panes/controls. */
   z-index: 1100;
   -webkit-tap-highlight-color: transparent;
+  /* Subtle drop-shadow lifts the button off the radar tiles in all
+   * palettes — without it the button can blend into a dark radar
+   * region in day mode (cream button over dark tile = invisible
+   * border). */
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
 }
 
 .mapMaximizeButton:focus-visible {
@@ -200,6 +264,7 @@
 .mapMaximizeButton[aria-pressed="true"] {
   color: var(--c-text);
   background-color: var(--c-accent-soft);
+  border-color: var(--c-accent);
 }
 
 /* Footer hint — subtle, dim, monospace caps. Tells the user the

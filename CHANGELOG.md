@@ -5,6 +5,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.15.5] - 2026-05-17
+
+### Fixed
+- **NightRed palette preference not persisted on remote clients** — Reloading the page on iOS reverted the user's palette choice. Cause: `sleepNightMode` was server-only (`advanced.sleep.nightMode` in settings.json), but a remote client's PATCH /setting is rejected by `localhostOnly` (HTTP 403). The v2.15.2 optimistic update kept the choice for the session, but the next page load pulled the unchanged server value back into state. Added a `NIGHT_MODE_STORAGE_KEY` localStorage mirror: every `saveAdvancedSleepFlag("nightMode", …)` now writes to localStorage AND attempts the server PATCH; on next boot, if localStorage has a value, it wins over the server's value. On the kiosk's own browser the two stores agree (the PATCH succeeds AND localStorage is set), so this is a no-op there.
+- **Radar maximize / minimize button hard to see** — The v2.15.2 button used `--c-text-dim` icon on `--c-surface` background, which reads as cream-on-cream in day mode and nearly disappears over the radar tiles. Bumped to 36×36 with `--c-text` icon, stronger `--c-border-hybrid` border, 18 px glyph, and a subtle drop shadow so the button stands out against any palette + any radar pixel.
+
+### Changed
+- **Merged hero row on mobile** — `HeroCompact` (location + temperature + condition) and `TimeBlock` (date + clock + sunrise/sunset) now render as a single shared card with two side-by-side columns instead of stacking as two separate cards. Saves ~120 px of vertical scroll on the iPhone reference viewport. The two child components still render their own `.slab` internally; the new `.heroRow` wrapper styling flattens those inner surfaces with universal child selectors so the pair reads as one card. Suggested by the user during the iOS field test.
+
+---
+
 ## [2.15.4] - 2026-05-17
 
 ### Fixed
