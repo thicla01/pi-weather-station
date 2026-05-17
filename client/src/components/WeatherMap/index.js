@@ -27,6 +27,22 @@ import L from "leaflet";
 // package above. Importing the CSS here ties stylesheet loading to
 // the component that actually needs it.
 import "leaflet/dist/leaflet.css";
+// Default marker icons — bundle them via webpack and re-point
+// L.Icon.Default so `<Marker>` without an explicit `icon` prop
+// renders correctly. Leaflet's defaults assume the images live
+// next to leaflet.js at runtime, which isn't the case when
+// react-leaflet pulls leaflet from the npm bundle. Without this
+// remap the marker fetches resolve to the site root and 404.
+import markerIconUrl from "leaflet/dist/images/marker-icon.png";
+import markerIcon2xUrl from "leaflet/dist/images/marker-icon-2x.png";
+import markerShadowUrl from "leaflet/dist/images/marker-shadow.png";
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconUrl: markerIconUrl,
+  iconRetinaUrl: markerIcon2xUrl,
+  shadowUrl: markerShadowUrl,
+});
 import PropTypes from "prop-types";
 import { AppContext } from "~/AppContext";
 import { useTimeOfDay } from "~/ui/hybrid";
