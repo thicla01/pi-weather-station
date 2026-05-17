@@ -25,6 +25,13 @@ const CRITICAL_SERVICES = new Set([
   "LocationIQ",
 ]);
 
+// A failure is only "live" if there has been no successful call in
+// this window. The main weather + geocode pollers run on intervals
+// well below this, so a single flaky response surrounded by
+// successes won't trip the health dot. Tuned at 10 min so a real
+// outage still surfaces within a couple of poll cycles.
+const RECENT_SUCCESS_WINDOW_MS = 10 * 60 * 1000;
+
 /**
  * Decide whether a serviceStatus entry counts as a failure for
  * health reporting. HTTP 2xx and 3xx are fine; 4xx/5xx + null
@@ -38,7 +45,18 @@ function isFailure(entry) {
   if (!entry || entry.status == null) return false;
   const code = Number(entry.status);
   if (!Number.isFinite(code)) return true;
-  return code >= 400;
+  if (code < 400) return false;
+  // Suppress the failure if there's been a successful call recently
+  // — protects against transient flakes and duplicate call paths
+  // (e.g. AI summary re-fetching Tomorrow.io and failing while the
+  // main weather poll just succeeded).
+  if (entry.lastSuccess) {
+    const successAge = Date.now() - new Date(entry.lastSuccess).getTime();
+    if (Number.isFinite(successAge) && successAge < RECENT_SUCCESS_WINDOW_MS) {
+      return false;
+    }
+  }
+  return true;
 }
 
 /**

@@ -20,9 +20,13 @@ function reverseGeocode({ lat, lon }) {
     axios
       .get(`/api/reverse-geocode?lat=${lat}&lon=${lon}`)
       .then((res) => {
+        // 204 No Content = the proxy succeeded but LocationIQ
+        // returned "no address for this coord" (ocean, etc.).
+        // Resolve to null so the caller can fall back to lat/lon.
+        const data = res.status === 204 ? null : res.data;
         prevCoords = { lat, lon };
-        prevResult = res.data;
-        resolve(res.data);
+        prevResult = data;
+        resolve(data);
       })
       .catch((err) => {
         reject(err);

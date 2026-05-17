@@ -15,6 +15,7 @@ function registerService(service) {
     serviceStatus[service] = {
       status: null,
       lastCall: null,
+      lastSuccess: null,
       comment: "Not yet called",
     };
   }
@@ -28,9 +29,19 @@ function registerService(service) {
  * @param {String} comment  Additional information (error message, "OK", etc.)
  */
 function recordServiceCall(service, status, comment) {
+  const now = new Date().toISOString();
+  const prev = serviceStatus[service];
+  const isSuccess = typeof status === "number" && status >= 200 && status < 400;
   serviceStatus[service] = {
     status,
-    lastCall: new Date().toISOString(),
+    lastCall: now,
+    // Preserve the timestamp of the most recent successful call so
+    // the health classifier can distinguish "service down" from
+    // "service flaked once but is working" (e.g. AI-summary path
+    // duplicates the Tomorrow.io call and may fail while the main
+    // weather fetch from proxyCtrl just succeeded — without this
+    // we'd flip to red on every AI summary failure).
+    lastSuccess: isSuccess ? now : (prev && prev.lastSuccess) || null,
     comment: comment || "",
   };
   console.log(`[service] ${service} → ${status}${comment ? " — " + comment : ""}`);

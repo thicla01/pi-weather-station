@@ -25,6 +25,13 @@ const LocationName = ({ stacked = false }) => {
       const { latitude: lat, longitude: lon } = mapGeo;
       reverseGeocode({ lat, lon })
         .then((res) => {
+          // null = LocationIQ had no address for this coord (ocean,
+          // unmapped area). Fall back to lat/lon rather than trying
+          // to parse a missing payload.
+          if (!res || !res.address) {
+            setName(`${lat}, ${lon}`);
+            return;
+          }
           setName(getName(res));
         })
         .catch((err) => {

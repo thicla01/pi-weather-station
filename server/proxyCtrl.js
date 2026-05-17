@@ -293,6 +293,18 @@ async function reverseGeocode(req, res) {
     const status = err?.response?.status || 500;
     const message = err?.response?.data?.error || "Reverse geocoding failed";
     increment("locationiq", "geocode");
+    // 404 from LocationIQ on a reverse geocode means "no address
+    // for this coordinate" (ocean, undeveloped area). The service
+    // is responding correctly — there's just no data. Record it
+    // as success so the health classifier doesn't paint a panicked
+    // red dot, and return 204 No Content to the client so devtools
+    // doesn't log it as a network error either. The client's
+    // reverseGeocode service resolves 204 to null and the caller
+    // falls back to displaying lat/lon.
+    if (status === 404) {
+      recordServiceCall("LocationIQ", 200, "no address for coord");
+      return res.status(204).end();
+    }
     recordServiceCall("LocationIQ", status, message);
     return res.status(500).json("Reverse geocoding failed").end();
   }
