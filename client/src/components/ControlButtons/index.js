@@ -1,4 +1,4 @@
-import React, { useContext, useState, useRef, useEffect } from "react";
+import React, { useContext, useState, useRef, useEffect, useLayoutEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { AppContext } from "~/AppContext";
 import styles from "./styles.css";
@@ -87,10 +87,41 @@ const ControlButtons = () => {
   const toastTimeoutRef = useRef(null);
   const toastIdRef = useRef(0);
   const containerRef = useRef(null);
+  const toastRef = useRef(null);
 
   useEffect(() => () => {
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
   }, []);
+
+  // After the toast renders, clamp its horizontal position so the box
+  // stays fully inside the viewport even when the tapped button is at
+  // a screen edge. Without this, the leftmost button's toast bleeds
+  // off the left edge and the rightmost button's toast bleeds off the
+  // right edge — first / last characters get clipped. We measure the
+  // rendered width here (vs. estimating from max-width) so short toasts
+  // stay tightly anchored on the button while long ones get nudged
+  // inward only as much as needed.
+  //
+  // Implementation: shift the toast's `translateX(-50%)` by an extra
+  // delta via the `--toast-tx` custom property so the keyframes inherit
+  // the same offset for free (their `translate(var(--toast-tx), …)`
+  // pulls from the same variable). 12 px viewport margin matches the
+  // `padding: 12px` on `.dock`.
+  useLayoutEffect(() => {
+    if (!toast.message || !toastRef.current || toast.x === null) return;
+    const el = toastRef.current;
+    el.style.setProperty("--toast-tx", "-50%");
+    const rect = el.getBoundingClientRect();
+    const margin = 12;
+    let shift = 0;
+    if (rect.left < margin) shift = margin - rect.left;
+    else if (rect.right > window.innerWidth - margin) {
+      shift = (window.innerWidth - margin) - rect.right;
+    }
+    if (shift !== 0) {
+      el.style.setProperty("--toast-tx", `calc(-50% + ${shift}px)`);
+    }
+  }, [toast.id, toast.message, toast.x]);
 
   // Notify is called from each toggle's onClick. The optional event lets
   // us anchor the toast horizontally above the actual button that was
@@ -341,6 +372,7 @@ const ControlButtons = () => {
       {toast.message && (
         <div
           key={toast.id}
+          ref={toastRef}
           className={styles.toast}
           role="status"
           aria-live="polite"

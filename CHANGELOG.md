@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.77] - 2026-05-16
+
+### Fixed
+- **Dock toast first/last letters clipped at viewport edges** — When tapping the leftmost or rightmost dock button, the toast was centred on the button via `translateX(-50%)` and bled past the viewport edge: the first one or two letters were cut off on the left side, the last on the right. Added a `useLayoutEffect` in `ControlButtons` that measures the rendered toast's bounding box and, if it overhangs the viewport by more than the 12 px dock-padding margin, shifts the `--toast-tx` CSS custom property by the exact overshoot. Short toasts stay tightly anchored on their button; only long ones get nudged inward, and only as much as needed.
+
+---
+
 ## [2.14.76] - 2026-05-16
 
 ### Fixed
