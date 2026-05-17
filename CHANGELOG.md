@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.15.17] - 2026-05-17
+
+### Changed
+- **Feels-like chip sized to feel like a sibling of the main temperature** — User-reported v2.15.15's 18 px value "looks a bit lost in its corner". Bumped the label from 9 → 11 px (base) and added viewport-aware scaling for the value: 32 px on mobile (was 18, against a 56 px headline), 20 px on Pi 7" (against a 30 px headline), and 22 px base for LayoutDesktop. The chip now reads as a confident secondary number rather than a footnote.
+
+---
+
 ## [2.15.16] - 2026-05-17
 
 ### Changed

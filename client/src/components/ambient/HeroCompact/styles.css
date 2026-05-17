@@ -80,30 +80,27 @@
   margin-top: 8px;
 }
 
-/* v2.15.15: feels-like chip — sits at the right edge of `.tempRow`
+/* v2.15.17: feels-like chip — sits at the right edge of `.tempRow`
  * via `margin-left: auto`, filling the horizontal space that was
- * freed when v2.15.14 packed the temp + icon to the left. Label on
- * top in dim mono small-caps (matches the .location caption rhythm),
- * value below in Geist Mono so the numeral lines up cleanly with
- * the big temp digits to its left. Rendered conditionally — only
- * shown when |feels - temp| ≥ 1 in the user's selected unit, so the
- * chip never just repeats the main numeral. */
+ * freed when v2.15.14 packed the temp + icon to the left. Sized to
+ * feel like a sibling of the main temp numeral (not a tiny outlier
+ * in the corner) — value scales by viewport via component-local
+ * media queries below. Label on top in dim mono small-caps (matches
+ * the .location caption rhythm), value below in Geist Mono so the
+ * numeral lines up cleanly with the big temp digits to its left. */
 .feels-like {
   margin-left: auto;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 1px;
-  /* Hairline left border separates the chip from the icon visually
-   * without needing extra padding. Picks up the active palette via
-   * --c-border for transparent-aware rendering against the slab. */
-  padding-left: 10px;
+  gap: 2px;
+  padding-left: 12px;
   border-left: 1px solid var(--c-border);
 }
 
 .feels-like-label {
   font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  font-size: 9px;
+  font-size: 11px;
   letter-spacing: 1px;
   color: var(--c-text-dim);
   text-transform: uppercase;
@@ -112,11 +109,40 @@
 
 .feels-like-value {
   font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  font-size: 18px;
+  /* Base 22 px — sized for the LayoutDesktop / v2 baseline where the
+   * main temperature is 56 px. Roughly 40 % of the headline, big
+   * enough to read at kiosk distance without competing for the eye.
+   * Viewport-specific overrides below scale the chip to match the
+   * reduced temp size on smaller layouts. */
+  font-size: 22px;
   font-weight: 500;
   color: var(--c-text);
   line-height: 1;
   font-variant-numeric: tabular-nums;
+}
+
+/* Mobile (< 800 px) — temp is at 56 px (.tempValue mobile rule).
+ * Match the chip value to ~58 % of that so it reads as a confident
+ * sibling next to the headline, not a tooltip footnote. */
+@media (max-width: 799px) {
+  .feels-like-label {
+    font-size: 12px;
+  }
+  .feels-like-value {
+    font-size: 32px;
+  }
+}
+
+/* Pi 7" + small desktop (800-1279 px) — temp dialled down to 30 px
+ * by the matching `.tempValue` media query. Scale the chip down
+ * proportionally so it doesn't dominate the slab. */
+@media (min-width: 800px) and (max-width: 1279px) {
+  .feels-like-label {
+    font-size: 10px;
+  }
+  .feels-like-value {
+    font-size: 20px;
+  }
 }
 
 /* v2.15.14: mobile (< 800 px) — same `flex-start` pack as the Pi
