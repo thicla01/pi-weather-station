@@ -1,45 +1,8 @@
 import React, { useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { AppContext } from "~/AppContext";
+import { uvTier, CATEGORY_COLORS, epaCategory } from "~/ui/severity";
 import styles from "./styles.css";
-
-// UV index colour scale, WMO categorisation:
-//   0-2  low        green
-//   3-5  moderate   yellow
-//   6-7  high       orange
-//   8-10 very high  red
-//   11+  extreme    purple
-function uvTier(value) {
-  if (value == null) return null;
-  if (value >= 11) return { color: "#7e3fb1", label: "extreme" };
-  if (value >= 8)  return { color: "#e60000", label: "veryHigh" };
-  if (value >= 6)  return { color: "#f08200", label: "high" };
-  if (value >= 3)  return { color: "#f0d000", label: "moderate" };
-  return { color: "#5cb85c", label: "low" };
-}
-
-// Shared four-tier colour map for the AQI badge — every source
-// (ECCC AQHI, MELCC IQA, EPA AQI) gets normalised to this four-tier
-// vocabulary on the server (or below for the Tomorrow.io fallback)
-// before reaching the badge.
-const CATEGORY_COLORS = {
-  low:      "#5cb85c",
-  moderate: "#f0d000",
-  high:     "#e60000",
-  veryHigh: "#7e3fb1",
-};
-
-// EPA category index (Tomorrow.io's epaIndex returns 1-6) → same
-// four-tier vocabulary, with sensitive/unhealthy mapping to "high".
-// Used only for the Tomorrow.io fallback path; the server-side
-// orchestrator already returns `category` for every other source.
-function epaCategory(idx) {
-  if (idx == null) return null;
-  if (idx >= 5) return "veryHigh";
-  if (idx >= 3) return "high";
-  if (idx >= 2) return "moderate";
-  return "low";
-}
 
 // AQI_REFRESH_MS lived here when this component owned the polling;
 // the interval now lives in AppContext alongside the weather refresh.

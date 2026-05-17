@@ -60,3 +60,16 @@
   color: var(--c-text-dim);
   margin-top: auto;
 }
+
+/* Severity qualifier — green / yellow / orange / red wording shown
+ * under the label for UV and AQ cells. Colour is set inline by
+ * MetricsGrid from the severity tier; this rule controls typography
+ * only. Slightly heavier weight than the dim grey label above so
+ * the colour reads without competing with the value. */
+.qualifier {
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.6px;
+  margin-top: 2px;
+}

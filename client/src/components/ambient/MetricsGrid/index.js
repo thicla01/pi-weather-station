@@ -8,6 +8,7 @@ import sunIcon from "@iconify/icons-wi/day-sunny";
 import leafIcon from "@iconify/icons-carbon/tree";
 import { AppContext } from "~/AppContext";
 import { convertSpeed, speedUnitLabel } from "~/services/conversions";
+import { uvTier, CATEGORY_COLORS } from "~/ui/severity";
 import styles from "./styles.css";
 
 /**
@@ -51,6 +52,16 @@ const MetricsGrid = () => {
       : aqhiInfo?.scale === "epa" ? "AQI"
         : "";
 
+  // Severity tiers drive icon colour + qualifier text below the
+  // value. Restores the green / yellow / orange / red signal the v2
+  // UvAqiBadges component provided — gives the user an at-a-glance
+  // "is this OK?" read without needing to know the absolute scale.
+  const uvT = uvTier(uvIndex);
+  const uvColor = uvT?.color;
+  const uvQualifier = uvT ? t(`badges.uvLevel.${uvT.label}`) : null;
+  const aqColor = aqiCategory ? CATEGORY_COLORS[aqiCategory] : null;
+  const aqQualifier = aqiCategory ? t(`badges.aqiLevel.${aqiCategory}`) : null;
+
   return (
     <div className={styles.grid}>
       <Cell
@@ -67,15 +78,21 @@ const MetricsGrid = () => {
       />
       <Cell
         icon={sunIcon}
+        iconColor={uvColor}
         value={uvIndex != null ? Math.round(uvIndex) : "—"}
         unit=""
         label={t("metrics.uv")}
+        qualifier={uvQualifier}
+        qualifierColor={uvColor}
       />
       <Cell
         icon={leafIcon}
+        iconColor={aqColor}
         value={aqi != null ? aqi : "—"}
         unit={aqiScaleLabel}
-        label={aqiCategory ? t(`badges.aqiLevel.${aqiCategory}`) : t("metrics.aqi")}
+        label={t("metrics.aqi")}
+        qualifier={aqQualifier}
+        qualifierColor={aqColor}
       />
     </div>
   );
@@ -91,28 +108,46 @@ const MetricsGrid = () => {
  * @param {string} props.label — caption shown below the value
  * @returns {JSX.Element} grid cell
  */
-const Cell = ({ icon, value, unit, label }) => (
+const Cell = ({ icon, iconColor, value, unit, label, qualifier, qualifierColor }) => (
   <div className={styles.cell}>
     <div className={styles.iconRow}>
-      <InlineIcon icon={icon} className={styles.icon} />
+      <InlineIcon
+        icon={icon}
+        className={styles.icon}
+        style={iconColor ? { color: iconColor } : undefined}
+      />
     </div>
     <div className={styles.valueRow}>
       <span className={styles.value}>{value}</span>
       {unit ? <span className={styles.unit}>{unit}</span> : null}
     </div>
     <div className={styles.label}>{label}</div>
+    {qualifier ? (
+      <div
+        className={styles.qualifier}
+        style={qualifierColor ? { color: qualifierColor } : undefined}
+      >
+        {qualifier}
+      </div>
+    ) : null}
   </div>
 );
 
 Cell.propTypes = {
   icon: PropTypes.object.isRequired,
+  iconColor: PropTypes.string,
   value: PropTypes.oneOfType([PropTypes.string, PropTypes.number]).isRequired,
   unit: PropTypes.string,
   label: PropTypes.string.isRequired,
+  qualifier: PropTypes.string,
+  qualifierColor: PropTypes.string,
 };
 
 Cell.defaultProps = {
+  iconColor: undefined,
   unit: "",
+  qualifier: null,
+  qualifierColor: undefined,
 };
 
 export default MetricsGrid;
