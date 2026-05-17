@@ -261,6 +261,8 @@
     "closeDebug": "Cerrar el panel de depuración",
     "enableRadarRings": "Mostrar los círculos de análisis radar",
     "disableRadarRings": "Ocultar los círculos de análisis radar",
+    "maximizeRadar": "Ampliar el radar",
+    "minimizeRadar": "Restaurar el tamaño del radar",
     "showAiSummary": "Mostrar la sección de IA",
     "hideAiSummary": "Ocultar la sección de IA",
     "openUpdate": "Mostrar la ventana de actualización",

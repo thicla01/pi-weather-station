@@ -98,6 +98,96 @@
   height: 100% !important;
 }
 
+/* Mini mode (default 220 px card): hide the radar legend and the
+ * timeline scrubber that `WeatherMap` paints over the Leaflet
+ * container. Both were designed for a full-bleed map; on a 220 px
+ * card the legend gets clipped at the bottom (its 6 rows exceed the
+ * available height) and the scrubber's `clamp(280px, 45vw, 480px)`
+ * width crowds the small tile area. The user can promote the card
+ * via the maximize button below; the maximized state un-hides both.
+ *
+ * `:global(...)` pierces CSS Modules — the WeatherMap module-hashed
+ * classnames aren't in scope here; we match on the unhashed names
+ * that Leaflet keeps. */
+.mapCard :global([class*="radar-legend"]),
+.mapCard :global([class*="radarLegend"]),
+.mapCard :global([class*="radar-timeline"]),
+.mapCard :global([class*="radarTimeline"]) {
+  display: none !important;
+}
+
+/* Maximized state — the card leaves the scroll's normal flow and
+ * pins absolute over the top of the scroll container. Tall enough to
+ * give the timeline scrubber readable room (it lives at the bottom of
+ * the map) and the legend + rings. Z-index lifted above ChartTabs /
+ * AiSummary maximize (which use 5) so the radar-maximize always
+ * wins; BottomDock toast at 1500 still covers everything per its own
+ * `position: fixed` rules.
+ *
+ * `--c-bg` rather than `--c-surface` so the card is fully opaque
+ * (the radar would bleed through `--c-surface`'s 85 % alpha
+ * underneath the Leaflet tiles); same recipe ChartTabs uses. */
+.mapCard.mapCardMaximized {
+  position: absolute;
+  top: 12px;
+  left: 12px;
+  right: 12px;
+  /* Reach down past the chart slab to give the radar real room. The
+   * remaining 20 px clears the dock's top edge. */
+  bottom: 12px;
+  height: auto;
+  z-index: 10;
+  background-color: var(--c-bg);
+}
+
+/* Un-hide the radar legend and timeline once the card is maximized —
+ * both fit comfortably in the larger space. */
+.mapCard.mapCardMaximized :global([class*="radar-legend"]),
+.mapCard.mapCardMaximized :global([class*="radarLegend"]),
+.mapCard.mapCardMaximized :global([class*="radar-timeline"]),
+.mapCard.mapCardMaximized :global([class*="radarTimeline"]) {
+  display: revert !important;
+}
+
+/* Maximize / minimize toggle button. Top-right corner of the card,
+ * same visual language as AiSummaryInline's and ChartTabs's action
+ * buttons: 28×28 transparent button, dim icon, `accent-soft` fill on
+ * hover and on `aria-pressed="true"`. Z-index above the Leaflet
+ * controls (which top out at 1000) so the button is tappable even
+ * over the +/- zoom stack in the top-left corner. */
+.mapMaximizeButton {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  width: 28px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+  background-color: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: 6px;
+  color: var(--c-text-dim);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 16px;
+  /* Above Leaflet's own controls (zoom, attribution): Leaflet uses
+   * z-index up to 1000 on its panes/controls. */
+  z-index: 1100;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.mapMaximizeButton:focus-visible {
+  outline: 2px dashed var(--c-text);
+  outline-offset: 1px;
+}
+
+.mapMaximizeButton[aria-pressed="true"] {
+  color: var(--c-text);
+  background-color: var(--c-accent-soft);
+}
+
 /* Footer hint — subtle, dim, monospace caps. Tells the user the
  * advanced settings live on the Pi. Matches the visual language of
  * the section labels in the rail. */

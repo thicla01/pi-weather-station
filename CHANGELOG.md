@@ -5,6 +5,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.15.2] - 2026-05-16
+
+### Fixed
+- **NightRed palette wouldn't disengage from a remote client** — Tapping the moon button on a phone hitting the Pi over the LAN flipped the toast but the palette stayed locked in nightRed. Cause: `saveAdvancedSleepFlag` called `setSleepNightMode(value)` inside the axios `.then()`, which never fires for remote clients because the PATCH /setting endpoint is `localhostOnly` (HTTP 403). Reordered to optimistic update — React state flips BEFORE the PATCH so remote clients get instant UI feedback. The Pi's persisted `settings.json` is intentionally left unchanged on remote (the 403 stands); the local state flip is session-only for that client. Same fix applied to `saveAdvancedAiFlag` for symmetry.
+
+### Added
+- **Mobile radar maximize toggle** — The mini radar card (220 px tall by default on `LayoutMobile`) gains a maximize chevron in its top-right corner, mirroring the affordance language used by `ChartTabs` and `AiSummaryInline`. Tapping promotes the card to `position: absolute; inset: 12px` so the radar fills the scroll container — at which point the timeline scrubber and the precipitation legend become readable. Same scroll-to-top behaviour `AiSummaryInline` uses so the maximized card always lands inside the visible area.
+- **Mini-mode hide for radar overlays** — In the 220 px mini state, the radar timeline scrubber (clamp-280-480 px wide) and the precipitation legend (6 rows of swatches) crowded or got clipped against the small tile area. Both are now hidden via CSS while `.mapCard` is mini; they re-appear when the card is maximized. 4 new i18n keys (`controls.maximizeRadar` / `controls.minimizeRadar`, EN/FR/ES).
+
+---
+
 ## [2.15.1] - 2026-05-16
 
 ### Fixed

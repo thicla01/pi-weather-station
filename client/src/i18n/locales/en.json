@@ -261,6 +261,8 @@
     "closeDebug": "Close debug panel",
     "enableRadarRings": "Show radar analysis rings",
     "disableRadarRings": "Hide radar analysis rings",
+    "maximizeRadar": "Expand radar",
+    "minimizeRadar": "Restore radar size",
     "showAiSummary": "Show AI summary section",
     "hideAiSummary": "Hide AI summary section",
     "openUpdate": "Show update modal",

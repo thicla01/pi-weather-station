@@ -1209,13 +1209,19 @@ export function AppContextProvider({ children }) {
     };
     const nextDisplay = { lightModeStyle, darkModeStyle, radarOpacityLight, radarOpacityDark };
     const nextExperimental = { uiC: experimentalUiC };
+    // v2.15.2: optimistic local update — see saveAdvancedSleepFlag for
+    // the rationale. Remote clients hit `localhostOnly` (HTTP 403);
+    // flipping state before the PATCH lets the UI reflect the toggle
+    // even when the server rejects the write.
+    if (key === "radarAnalysisEnabled") setRadarAnalysisEnabled(value);
+    if (key === "extendedRadius") setExtendedRadarRadius(value);
+    if (key === "showSamplingPoints") setShowSamplingPoints(value);
+    if (key === "calmDayFastPath") setCalmDayFastPath(value);
     return axios
       .patch("/setting", { key: "advanced", val: { ai: nextAi, display: nextDisplay, sleep: buildSleepSubtree(), experimental: nextExperimental } })
-      .then(() => {
-        if (key === "radarAnalysisEnabled") setRadarAnalysisEnabled(value);
-        if (key === "extendedRadius") setExtendedRadarRadius(value);
-        if (key === "showSamplingPoints") setShowSamplingPoints(value);
-        if (key === "calmDayFastPath") setCalmDayFastPath(value);
+      .catch((err) => {
+        if (err && err.response && err.response.status === 403) return;
+        console.warn("saveAdvancedAiFlag PATCH failed:", err && err.message);
       });
   }
 
@@ -1268,15 +1274,28 @@ export function AppContextProvider({ children }) {
     };
     const nextDisplay = { lightModeStyle, darkModeStyle, radarOpacityLight, radarOpacityDark };
     const nextExperimental = { uiC: experimentalUiC };
+    // v2.15.2: optimistic local update — flip React state BEFORE the
+    // PATCH so remote clients get UI feedback even though the server
+    // rejects their write. Pre-v2.15.2 the setter calls lived inside
+    // `.then()`, which never fired on remote because `localhostOnly`
+    // returns 403. Symptom the user reported: nightRed palette
+    // wouldn't disengage when tapping the moon button from an iOS
+    // browser hitting the Pi over the LAN. The kiosk's persisted
+    // setting is intentionally unchanged on remote (PATCH still
+    // 403's); the local state flip is session-only for that client.
+    if (key === "enabled") setSleepEnabled(value);
+    if (key === "stage1Delay") setSleepStage1Delay(value);
+    if (key === "stage1Brightness") setSleepStage1Brightness(value);
+    if (key === "stage2Enabled") setSleepStage2Enabled(value);
+    if (key === "stage2Delay") setSleepStage2Delay(value);
+    if (key === "nightMode") setSleepNightMode(value);
     return axios
       .patch("/setting", { key: "advanced", val: { ai: nextAi, display: nextDisplay, sleep: nextSleep, experimental: nextExperimental } })
-      .then(() => {
-        if (key === "enabled") setSleepEnabled(value);
-        if (key === "stage1Delay") setSleepStage1Delay(value);
-        if (key === "stage1Brightness") setSleepStage1Brightness(value);
-        if (key === "stage2Enabled") setSleepStage2Enabled(value);
-        if (key === "stage2Delay") setSleepStage2Delay(value);
-        if (key === "nightMode") setSleepNightMode(value);
+      .catch((err) => {
+        // 403 = remote client hit `localhostOnly`. Expected; UI state
+        // already updated above. Log other errors for diagnostics.
+        if (err && err.response && err.response.status === 403) return;
+        console.warn("saveAdvancedSleepFlag PATCH failed:", err && err.message);
       });
   }
 
