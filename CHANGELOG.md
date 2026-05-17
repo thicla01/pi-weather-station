@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.15.21] - 2026-05-18
+
+### Fixed
+- **iOS home-screen icon still fell back to "P" after v2.15.20** — User-reported the radar PNG was served correctly (visible at the direct URL) but iOS still showed the letter icon on add-to-home-screen, even after a full iPhone restart and across both Safari and Firefox iOS (which uses WebKit). Cause: the PNGs had transparent rounded corners (the source SVG used `rx="22"` on the outer rect, leaving the corner area outside the rounded shape transparent — measured alpha mean 0.97). iOS's add-to-home-screen flow expects fully-opaque apple-touch-icons because it applies its own corner rounding; combining transparent corners + iOS rounding produces a double-rounded artefact that iOS rejects, silently falling back to the letter glyph. Flattened all three PWA PNGs (180, 192, 512) over `#0A1628` (matches the SVG's outer rounded-rect colour, so the visible content is unchanged — just the corners are filled instead of transparent). Alpha mean now 1.0 across all three. iOS should now accept the icon on the next add-to-home-screen.
+
+---
+
 ## [2.15.20] - 2026-05-18
 
 ### Fixed
