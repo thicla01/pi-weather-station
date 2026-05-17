@@ -5,6 +5,7 @@ import { getPalette } from "~/ui/tokens";
 import { useTimeOfDay, useHybridMode } from "~/ui/hybrid";
 import LayoutPi from "~/components/ambient/LayoutPi";
 import LayoutDesktop from "~/components/ambient/LayoutDesktop";
+import LayoutMobile from "~/components/ambient/LayoutMobile";
 import { FONT_SIZE_ZOOM } from "~/ui/fontSize";
 
 // Global stylesheets — fonts (@font-face declarations) and the
@@ -13,13 +14,18 @@ import { FONT_SIZE_ZOOM } from "~/ui/fontSize";
 import "!style-loader!css-loader!~/ui/fonts.css";
 import "!style-loader!css-loader!~/ui/reset.css";
 
-// Desktop breakpoint — viewports at or above 1280 CSS pixels wide
-// get the desktop layout (full-bleed map + floating hero band + side
-// rail). Below that, the Pi 7"/10" composition takes over (split
-// grid + collapsible rail). The cutoff matches the Phase 3 / Phase 4
-// plan and lines up with the smallest "HD desktop" target (1366×768
-// — the Surface Go's native resolution, which is the floor for the
-// desktop variant).
+// Breakpoints. Three layouts now coexist:
+//   <  800 px  → LayoutMobile  (Variant A — Compagnon nomade)
+//   800-1279   → LayoutPi      (7"/10" Pi kiosk + small windows)
+//   ≥ 1280     → LayoutDesktop (full-bleed map + floating rail)
+//
+// 800 px matches the Pi 7" official screen width — anything below is
+// in phone-portrait territory (375-430 px iPhone/Android). 1280 px
+// matches the smallest HD desktop target (1366×768 minus chrome).
+// Both cutoffs are live-watched via `matchMedia` `change` events so
+// orientation changes and window resizes flip layouts without a
+// reload.
+const MOBILE_MQ = "(max-width: 799px)";
 const DESKTOP_MQ = "(min-width: 1280px)";
 
 // Font-size scaling — mirrors the v2 fontSize setting (S / M / L)
@@ -64,12 +70,21 @@ const AmbientLayers = () => {
   const [isDesktop, setIsDesktop] = useState(
     () => window.matchMedia(DESKTOP_MQ).matches,
   );
+  const [isMobile, setIsMobile] = useState(
+    () => window.matchMedia(MOBILE_MQ).matches,
+  );
 
   useEffect(() => {
-    const mq = window.matchMedia(DESKTOP_MQ);
-    const handler = (e) => setIsDesktop(e.matches);
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
+    const desktopMq = window.matchMedia(DESKTOP_MQ);
+    const mobileMq = window.matchMedia(MOBILE_MQ);
+    const onDesktop = (e) => setIsDesktop(e.matches);
+    const onMobile = (e) => setIsMobile(e.matches);
+    desktopMq.addEventListener("change", onDesktop);
+    mobileMq.addEventListener("change", onMobile);
+    return () => {
+      desktopMq.removeEventListener("change", onDesktop);
+      mobileMq.removeEventListener("change", onMobile);
+    };
   }, []);
 
   // Hybrid mode escalates the visual treatment when a severe gov alert
@@ -125,16 +140,25 @@ const AmbientLayers = () => {
     "--c-font-scale": FONT_SIZE_ZOOM[fontSizeKey],
   };
 
+  // Layout dispatch — mobile takes precedence over desktop because
+  // `MOBILE_MQ` (≤ 799 px) and `DESKTOP_MQ` (≥ 1280 px) can't both
+  // match at the same time, but reading mobile first keeps the
+  // ternary unambiguous (and lets `isMobile` short-circuit the Pi
+  // path for the 0-799 range).
+  // eslint-disable-next-line no-nested-ternary -- the three-layout dispatch reads more cleanly inline than via a temporary
+  const ActiveLayout = isMobile ? LayoutMobile : isDesktop ? LayoutDesktop : LayoutPi;
+  const layoutAttr = isMobile ? "mobile" : isDesktop ? "desktop" : "pi";
+
   return (
     <div
       className={`ambientRoot ${styles.container}`}
       style={cssVars}
       data-palette={tod}
       data-hybrid={hybridLevelValue}
-      data-layout={isDesktop ? "desktop" : "pi"}
+      data-layout={layoutAttr}
       data-font-size={fontSizeKey}
     >
-      {isDesktop ? <LayoutDesktop /> : <LayoutPi />}
+      <ActiveLayout />
     </div>
   );
 };

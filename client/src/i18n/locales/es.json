@@ -267,6 +267,9 @@
     "closeUpdate": "Cerrar la ventana de actualización",
     "updateAvailableRemote": "Actualización disponible — conéctese en local para instalar"
   },
+  "mobile": {
+    "settingsHint": "Para los ajustes avanzados, abre la app desde el Pi en local."
+  },
   "toasts": {
     "mapRecentered": "Mapa recentrado",
     "markerShown": "Marcador mostrado",

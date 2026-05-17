@@ -1,0 +1,106 @@
+/* LayoutMobile — single-column scrollable layout for portrait phones
+ * (< 800 px wide). Variant A · Compagnon nomade from the design
+ * package (see component JSDoc + DESIGN-NOTES §14).
+ *
+ * The layout is split into:
+ *   - `.scroll` — the main scrollable content area, padded for safe
+ *     areas (iOS notch on top, home indicator + dock height at the
+ *     bottom) and for the dock's chrome below.
+ *   - `.mapCard` — a constrained radar card (fixed height) so the
+ *     Leaflet map shows up at a sensible size inside the column
+ *     instead of trying to fill the viewport.
+ *   - `.footer` — a small attribution / settings hint near the
+ *     bottom of the scroll.
+ *
+ * The BottomDock sits below the scroll (always-visible action bar).
+ * The toast layer floats above the dock via `position: fixed` in
+ * `ControlButtons/styles.css` (z-index 1500), unchanged.
+ */
+
+.layout {
+  /* Full-viewport column. The root `.ambientRoot .container` already
+   * sets `height: 100dvh` so the layout fills the visible area on
+   * mobile browsers (where dvh accounts for the address bar's
+   * dynamic showing/hiding). */
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--c-bg);
+  color: var(--c-text);
+}
+
+/* Scrollable content area. Padding on the sides matches the
+ * `padding: 12px` used on `.dock` so vertical alignment of slabs
+ * with the dock buttons reads consistently. Bottom padding clears
+ * the dock height (~52 px) — the dock sits BELOW this in normal
+ * flex flow, so we don't need explicit space here for the dock
+ * itself; the padding just preserves room for the last item not
+ * to butt against the dock border. */
+.scroll {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overflow-x: hidden;
+  padding: 12px 14px 16px;
+  /* iOS PWA safe areas — clear the notch on top. */
+  padding-top: max(12px, env(safe-area-inset-top));
+  padding-left: max(14px, env(safe-area-inset-left));
+  padding-right: max(14px, env(safe-area-inset-right));
+  /* Stack inherits the gap from `.ambientRoot` defaults; explicit gap
+   * here so the slabs sit ~10 px apart (matching LayoutPi's rail flow). */
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  /* Smooth-scroll on touch. -webkit-overflow-scrolling kept for older
+   * iOS Safari (≤ 12), modern Safari handles momentum natively. */
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Radar card. Fixed height so the map doesn't try to be tall in a
+ * scrolling column. 220 px gives the rings + a meaningful slice of
+ * the radar without dominating the screen. The map-container class
+ * is inherited by `<WeatherMap>` for the dark-mode / cursor hide
+ * tokens (same as LayoutPi). */
+.mapCard {
+  position: relative;
+  width: 100%;
+  height: 220px;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid var(--c-border);
+  background-color: var(--c-surface);
+}
+
+/* Leaflet container fills the card. WeatherMap's own wrapper has
+ * `width: 100%; height: 100%` already, so this is mostly defensive
+ * against any future inline-style changes. */
+.mapCard :global(.leaflet-container) {
+  width: 100% !important;
+  height: 100% !important;
+}
+
+/* Footer hint — subtle, dim, monospace caps. Tells the user the
+ * advanced settings live on the Pi. Matches the visual language of
+ * the section labels in the rail. */
+.footer {
+  margin-top: 6px;
+  padding: 10px 4px 4px;
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10px;
+  letter-spacing: 0.6px;
+  color: var(--c-text-dim);
+  text-transform: uppercase;
+  text-align: center;
+  line-height: 1.45;
+}
+
+/* On very short mobile viewports (e.g. landscape phones < 480 px
+ * tall), the radar card consumes too much vertical real estate.
+ * Shrink it so the user can still see the hero and at least the
+ * first metrics row without scrolling. */
+@media (max-height: 520px) and (orientation: landscape) {
+  .mapCard {
+    height: 160px;
+  }
+}

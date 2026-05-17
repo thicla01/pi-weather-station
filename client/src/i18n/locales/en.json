@@ -267,6 +267,9 @@
     "closeUpdate": "Close update modal",
     "updateAvailableRemote": "Update available — connect locally to install"
   },
+  "mobile": {
+    "settingsHint": "Open the app on the Pi locally for advanced settings."
+  },
   "toasts": {
     "mapRecentered": "Map recentered",
     "markerShown": "Marker shown",

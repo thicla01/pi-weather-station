@@ -5,6 +5,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.15.0] - 2026-05-16
+
+### Added
+- **Mobile layout** (`LayoutMobile`) — third Direction C layout alongside `LayoutPi` (800-1279 px) and `LayoutDesktop` (≥ 1280 px), triggered for viewports < 800 px wide (portrait phones, ~375-430 px). Implements **Variant A · Compagnon nomade** from the Claude Design package (see `docs/design-brief-mobile.md` and the design package's `DESIGN-NOTES.md` §14). Single scrollable column stacking `TimeBlock`, `HeroCompact`, `AlertBanner`, `AlertDetailInline`, `MetricsGrid`, `IndoorBlock`, a constrained 220 px radar card, `ChartTabs`, and `AiSummaryInline`, with `BottomDock` pinned below the scroll. Reuses every existing Direction C primitive — no new tokens introduced. Safe-area-aware via `env(safe-area-inset-*)`, PWA-ready (Apple-mobile-web-app meta tags added in `index.html`).
+- **Three-way layout dispatch** in `AmbientLayers` — added `MOBILE_MQ` (`max-width: 799px`) alongside the existing `DESKTOP_MQ`. Layout flips live on viewport resize / orientation change via `matchMedia` listeners. `data-layout` attribute on the ambient root now surfaces `mobile` / `pi` / `desktop` for diagnostics.
+- **Footer hint on mobile** — small caps reminder that advanced settings live on the Pi (3 new i18n strings, `mobile.settingsHint`, EN/FR/ES).
+- **PWA-friendly meta tags** in `index.html` — `viewport-fit=cover` for iOS safe areas, `apple-mobile-web-app-capable` + status-bar style for add-to-home-screen, `theme-color` matching the night palette background.
+
+### Notes
+- Mobile layout is gated by `experimentalUiC` (same as the rest of Direction C). Users on the legacy v2 layout are unaffected until they opt in.
+- Direction C dock is kept on mobile (vs. the stricter Variant A spec, which omits it). Rationale captured inline in `LayoutMobile/index.js`: the dock buttons are pure view toggles (palette, marker, etc.) and remain useful from any browser — API keys, debug, and the full settings panel stay Pi-only via their own `isLocal` gates.
+
+---
+
 ## [2.14.78] - 2026-05-16
 
 ### Fixed
