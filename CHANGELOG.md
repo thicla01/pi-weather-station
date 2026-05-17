@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.15.10] - 2026-05-17
+
+### Fixed
+- **Updater missed `style:` commits → "À JOUR" reported despite SHA divergence** — User-reported: between v2.15.7 (`602b984`) and v2.15.9 (`954844c`) every commit was `style:` (right-align TimeBlock, left-pack tempRow, merged hero row on Pi), so the updater's regex filter — which only accepted `feat|fix|perf|release|chore(deps)` — collapsed `commits.length` to 0 and the kiosk reported "À JOUR" even though the version had bumped and the SHAs differed. CSS layout / alignment changes are genuinely user-visible, so `style:` is now in the allowed list. Added a `badgeStyle` teal pill in `UpdateModal` and `style: "Polish" / "Polish" / "Pulido"` strings in the three locales. Same fix shape as the earlier additions of `perf:` (radar prompt token compression) and `release:` (v2.14.0 promotion commit) — both also added after a real update slipped past the filter.
+
+---
+
 ## [2.15.9] - 2026-05-17
 
 ### Changed

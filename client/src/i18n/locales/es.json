@@ -145,6 +145,7 @@
     "perf": "Más rápido",
     "deps": "Deps",
     "release": "Versión",
+    "style": "Pulido",
     "deployArtefactsChanged": "Esta actualización modifica scripts o archivos de servicio instalados que el botón no puede actualizar por sí solo. Ejecuta el comando completo de arriba en el dispositivo — `bash deploy/install.sh` es idempotente y solo actualizará lo que ha divergido:",
     "needsManualUpgrade": "Tu versión instalada es demasiado antigua para la actualización con un clic (pre-v2.4.1, antes de que /api/update ejecutase npm install). La actualización automática fallaría con módulos faltantes. Ejecuta el comando completo de arriba para actualizar de forma segura vía deploy/install.sh."
   },

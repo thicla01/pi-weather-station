@@ -200,10 +200,10 @@ async function checkForUpdate() {
     const shasDiffer = Boolean(localSha && latestSha !== localSha);
 
     // Fetch the commits between current and latest, then keep only those that
-    // are user-visible changes (conventional `feat:` / `fix:` / `perf:`
-    // prefixes, plus `chore(deps):` for dependency upgrades). Other commit
-    // types — `docs:`, plain `chore:`, `refactor:`, etc. — are infrastructure
-    // and don't warrant a notification on their own.
+    // are user-visible changes (conventional `feat:` / `fix:` / `perf:` /
+    // `style:` prefixes, plus `chore(deps):` for dependency upgrades).
+    // Other commit types — `docs:`, plain `chore:`, `refactor:`, etc. — are
+    // infrastructure and don't warrant a notification on their own.
     // `perf:` was added after a token-compression commit on the radar prompt
     // didn't trigger an update notification on remote Pis: cost reduction is
     // exactly the kind of change the kiosk owner wants to know about.
@@ -217,6 +217,12 @@ async function checkForUpdate() {
     // `chore:` cleanup, both filtered out, so the kiosk reported "up to date"
     // even though a tagged release was sitting on master. A release commit
     // is by definition exactly what we want to notify users about.
+    // `style:` was added 2026-05-17 after the v2.15.7 → v2.15.9 layout pass
+    // (right-align TimeBlock, left-pack tempRow, merged hero row on Pi) was
+    // entirely under the `style:` prefix — versions bumped, SHAs differed,
+    // but the kiosk reported "up to date". Style commits CAN be visible UI
+    // changes (CSS layout, alignment, typography) and warrant a notification
+    // when the maintainer cuts a release for them.
     let commits = [];
     if (shasDiffer && localSha) {
       try {
@@ -227,7 +233,7 @@ async function checkForUpdate() {
         commits = compareRes.data.commits
           .map((c) => {
             const firstLine = c.commit.message.split("\n")[0];
-            const match = firstLine.match(/^(feat|fix|perf|release|chore\(deps\))(?:\(.+?\))?:\s*(.+)/);
+            const match = firstLine.match(/^(feat|fix|perf|style|release|chore\(deps\))(?:\(.+?\))?:\s*(.+)/);
             if (!match) return null;
             // Normalise the literal `chore(deps)` capture to a short `deps`
             // token so the client-side badge keys stay simple.

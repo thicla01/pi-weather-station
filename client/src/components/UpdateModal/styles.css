@@ -164,6 +164,14 @@
   color: #fff;
 }
 
+/* v2.15.10: style: commit type for CSS/layout changes that affect
+ * what the user sees. Soft teal — visually distinct from feat
+ * (blue / new) and fix (green / repair), reads as "polish". */
+.badge-style {
+  background: #0d9488;
+  color: #fff;
+}
+
 .commit-message {
   font-size: 10px;
   line-height: 1.45;
