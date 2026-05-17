@@ -18,10 +18,20 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="theme-color" content="#0d0d0c" />
-    <!-- Apple home-screen icon for PWA installs. Reuses the same
-         radar-themed favicon.svg that webpack already injects as
-         `rel="icon"`; iOS 14+ accepts SVG for apple-touch-icon. -->
-    <link rel="apple-touch-icon" href="favicon.svg" />
+    <!-- Apple home-screen icon for PWA installs. iOS Safari is
+         finicky about apple-touch-icon and silently falls back to
+         "first letter of title on solid background" when the SVG
+         doesn't decode at install time (user-reported v2.15.18: the
+         add-to-home-screen icon showed a generic "P" instead of the
+         radar). 180×180 PNG (apple-touch-icon-precomposed convention
+         size) is iOS's preferred format and the one path that works
+         consistently across versions. -->
+    <link rel="apple-touch-icon" href="apple-touch-icon.png" />
+    <!-- Additional favicon sizes — also serves as webpack's
+         dependency declaration so these PNGs get emitted to dist/.
+         The PWA manifest below references them by relative path. -->
+    <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png" />
+    <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png" />
     <!-- PWA manifest — used by Chrome / Android to enable
          "Add to Home Screen" with proper standalone display,
          icon, theme colour. iOS Safari uses the apple-*-meta

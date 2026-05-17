@@ -57,11 +57,26 @@ module.exports = (env) => {
         },
         {
           test: /\.(png|svg|jpg|gif)$/,
-          type: "asset",
-          parser: { dataUrlCondition: { maxSize: 8192 } },
-          generator: {
-            filename: PRODUCTION ? "[contenthash][ext]" : "[path][name][ext]?[contenthash]"
-          },
+          oneOf: [
+            {
+              // PWA install icons — referenced by manifest.json as
+              // bare relative paths ("icon-192.png" etc.). The browser
+              // resolves those relative to the manifest's own URL, so
+              // the files MUST be served at their original filenames.
+              // Use `asset/resource` (always emitted, never inlined as
+              // data URI) with the original name preserved.
+              test: /(?:apple-touch-icon|icon-192|icon-512)\.png$/,
+              type: "asset/resource",
+              generator: { filename: "[name][ext]" },
+            },
+            {
+              type: "asset",
+              parser: { dataUrlCondition: { maxSize: 8192 } },
+              generator: {
+                filename: PRODUCTION ? "[contenthash][ext]" : "[path][name][ext]?[contenthash]"
+              },
+            },
+          ],
         },
         {
           test: /\.(woff|woff2|eot|ttf|otf)$/,

@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.15.20] - 2026-05-18
+
+### Fixed
+- **iOS home-screen icon fell back to "P on black" instead of the radar glyph** — User-reported v2.15.18: adding the app to the iPhone home screen produced a generic letter icon. Cause: iOS Safari is finicky about `apple-touch-icon` SVG support and silently falls back to "first letter of title on solid background" when the SVG doesn't decode at install time. Replaced with a generated 180×180 PNG (rsvg-convert from the existing favicon.svg). iOS now decodes the icon reliably.
+
+### Added
+- **PWA icon PNGs at standard sizes** — Generated 192×192 and 512×512 PNGs for the manifest, plus the 180×180 for iOS. Manifest now lists all three (SVG kept as the fallback `"sizes": "any"` entry). Webpack rule split into a `oneOf` so these specific PWA icons keep their stable filenames (`apple-touch-icon.png`, `icon-192.png`, `icon-512.png`) instead of getting `[contenthash]`'d — required because the manifest references them by relative path, and the browser resolves those relative to the manifest's own URL. Other PNG/SVG assets keep their hashed names for cache busting.
+
+---
+
 ## [2.15.19] - 2026-05-18
 
 ### Added
