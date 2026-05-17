@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.15.9] - 2026-05-17
+
+### Changed
+- **Merged hero row on Pi 7" (800-1279 px viewports)** — Same fusion treatment that landed on mobile in v2.15.5/.8 now also applies to the LayoutPi rail. `HeroCompact` (location + temp + condition + icon, left-packed) and `TimeBlock` (date + clock + sunrise/sunset, right-packed) share a single card instead of stacking. Saves ~80 px of vertical scroll on the 480 px-tall 7" screen — meaningful when `MetricsGrid`, `IndoorBlock`, `ChartTabs`, and `AiSummaryInline` all want room below. Component-local typography is dialled down a notch (temp 56 → 46 px, clock 40 → 46 px, weather icon 56 → 46 px) via the `@media (min-width: 800px) and (max-width: 1279px)` blocks in `HeroCompact` and `TimeBlock` so the row fits even at fontSize=L (zoom 1.15) inside the rail's ~261 px logical width. Pi clock + temp now match each other visually (46 px both) — the v2 imbalance (56 vs 40) was a stacking-era leftover. Mobile and Desktop layouts unchanged.
+
+---
+
 ## [2.15.8] - 2026-05-17
 
 ### Changed

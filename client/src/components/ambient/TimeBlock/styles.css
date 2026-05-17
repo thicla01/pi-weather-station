@@ -100,3 +100,36 @@
     justify-content: flex-end;
   }
 }
+
+/* v2.15.9: Pi 7" merged hero row (800-1279 px viewports). The 300 px
+ * rail collapses to ~261 px logical at fontSize=L (zoom 1.15);
+ * each heroRow column gets ~125 px. The clock numeral is brought
+ * to 46 px (down from the mobile rule's 56) to match the
+ * HeroCompact left column's matching reduction — both columns
+ * stay visually balanced. Right-align everything so the time
+ * column hugs the right edge of its half, mirroring the merged
+ * row's outward-facing symmetry on mobile. */
+@media (min-width: 800px) and (max-width: 1279px) {
+  .date {
+    font-size: 11px;
+    letter-spacing: 0.6px;
+    margin-bottom: 6px;
+    text-align: right;
+  }
+  .time {
+    font-size: 46px;
+    letter-spacing: -1px;
+    text-align: right;
+  }
+  .amPm {
+    font-size: 18px;
+    margin-left: 6px;
+    vertical-align: 10px;
+  }
+  .sunRow {
+    font-size: 12px;
+    gap: 12px;
+    margin-top: 6px;
+    justify-content: flex-end;
+  }
+}

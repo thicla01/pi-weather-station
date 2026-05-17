@@ -88,8 +88,20 @@ const LayoutPi = () => {
         </button>
       </div>
       <aside className={styles.rail} aria-hidden={collapsed}>
-        <TimeBlock />
-        <HeroCompact />
+        {/* Merged hero row — HeroCompact (location, temp, condition)
+         * on the left and TimeBlock (date, clock, sunrise/sunset) on
+         * the right, sharing one slab. Same pattern LayoutMobile
+         * uses. Saves ~80 px of vertical scroll on the 7" Pi screen
+         * (480 px tall), which matters when MetricsGrid + IndoorBlock
+         * + ChartTabs + AiSummaryInline all want vertical real
+         * estate too. Component-local typography is dialled down
+         * via the `@media (max-width: 1279px) and (min-width: 800px)`
+         * block in HeroCompact + TimeBlock so the merged row fits
+         * inside the rail even at fontSize=L (zoom 1.15). */}
+        <div className={styles.heroRow}>
+          <div className={styles.heroLeft}><HeroCompact /></div>
+          <div className={styles.heroRight}><TimeBlock /></div>
+        </div>
         <AlertBanner />
         <AlertDetailInline />
         <MetricsGrid />
