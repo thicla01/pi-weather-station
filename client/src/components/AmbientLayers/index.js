@@ -65,6 +65,31 @@ const AmbientLayers = () => {
   // attribute hook is below.
   const fontSizeKey = fontSize && FONT_SIZE_ZOOM[fontSize] ? fontSize : "m";
 
+  // v2.16.3: mirror the active palette's background onto `<html>` and
+  // `<body>` so iOS PWA standalone mode doesn't fill the layout's
+  // safe-area gap with its default black. In standalone PWA on
+  // notched iPhones, `100dvh` doesn't always equal the physical
+  // screen height — iOS reserves the home-indicator zone (~34 px)
+  // PLUS sometimes additional rendering padding (~50 px observed),
+  // and fills any uncovered area with the body's background colour.
+  // The body had no explicit bg before, so iOS defaulted to black —
+  // user-reported "barre grise dans le bas" on PWA-installed iPhone.
+  // Setting body+html to the palette bg makes any uncovered zone
+  // blend naturally with the rest of the kiosk. Tokens are read via
+  // the JS `palette.bg` rather than the CSS variable because body /
+  // html live OUTSIDE the `.ambientRoot` subtree where the
+  // `--c-bg` custom property is defined.
+  useEffect(() => {
+    const prevBody = document.body.style.backgroundColor;
+    const prevHtml = document.documentElement.style.backgroundColor;
+    document.body.style.backgroundColor = palette.bg;
+    document.documentElement.style.backgroundColor = palette.bg;
+    return () => {
+      document.body.style.backgroundColor = prevBody;
+      document.documentElement.style.backgroundColor = prevHtml;
+    };
+  }, [palette.bg]);
+
   // Initialise from the current viewport — SSR not in play here, so
   // window is always defined at first render.
   const [isDesktop, setIsDesktop] = useState(

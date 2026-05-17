@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.16.3] - 2026-05-18
+
+### Fixed
+- **Black "grey bar" persisted at the bottom of the PWA install despite v2.16.2's dock padding** — Confirmed via user screenshots that the bar was ~80 px tall (much larger than the ~34 px home-indicator safe area), and was BLACK in day mode (the palette bg is cream `#f2eee5`), so it couldn't have been the palette bg bleeding through. Root cause: in iOS PWA standalone mode on notched iPhones, `100dvh` doesn't always equal the physical screen height — iOS reserves the home-indicator zone PLUS sometimes additional rendering padding, and fills any uncovered area with the BODY's background colour. The body had no explicit bg before, so iOS defaulted to black. Mirrored the active palette's bg onto `<html>` and `<body>` via a `useEffect` in `AmbientLayers` so any uncovered zone blends naturally with the rest of the kiosk. Tokens are read via JS (`palette.bg`) rather than the CSS variable because body / html live OUTSIDE the `.ambientRoot` subtree where `--c-bg` is defined.
+
+---
+
 ## [2.16.2] - 2026-05-18
 
 ### Fixed
