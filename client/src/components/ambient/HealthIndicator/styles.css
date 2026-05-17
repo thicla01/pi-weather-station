@@ -25,10 +25,28 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.dotButton:hover,
+/* Only fill the button on @media (hover: hover) so touch devices
+ * don't paint a sticky background after the tap (iOS / Android
+ * keep :hover active until the user taps elsewhere — read as
+ * "the button stayed pressed"). The dot itself carries its own
+ * box-shadow ring, so the resting state is already visible
+ * without a background. */
+@media (hover: hover) {
+  .dotButton:hover {
+    background-color: var(--c-accent-soft);
+  }
+}
+
 .dotButton:focus-visible {
+  outline: 2px dashed var(--c-text);
+  outline-offset: -2px;
+}
+
+/* While the popover is open, fill the button so the user sees
+ * the dot is the "source" of the open dialog. Drops back to
+ * transparent the moment aria-expanded flips to false. */
+.dotButton[aria-expanded="true"] {
   background-color: var(--c-accent-soft);
-  outline: none;
 }
 
 .dot {
