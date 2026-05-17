@@ -167,7 +167,16 @@
   overflow: hidden;
   text-overflow: ellipsis;
   pointer-events: none;
-  z-index: 20;
+  /* v2.14.76: z-index lifted from 20 → 1500 to clear the radar timeline
+   * (z-index 500) and Leaflet's internal controls (z-index up to 1000)
+   * that paint into the same root stacking context on LayoutPi. The
+   * dock's static `.container` doesn't form its own stacking context,
+   * so the toast competes directly with map siblings — 20 lost. On
+   * LayoutDesktop the dock is `position: absolute` so its descendants
+   * had their own context already, masking the problem there. Still
+   * below SettingsPanel / DebugPanel (5000) so an open overlay covers
+   * any stray toast that fires during overlay transitions. */
+  z-index: 1500;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
   backdrop-filter: blur(6px);
   -webkit-backdrop-filter: blur(6px);

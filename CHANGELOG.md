@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.76] - 2026-05-16
+
+### Fixed
+- **Dock toast still invisible on LayoutPi after the v2.14.75 fix** — the `position: fixed` switch had correctly escaped LayoutPi's overflow clip, but the toast was being painted underneath the radar timeline scrubber (`z-index: 500`) and Leaflet's internal controls (`z-index: 1000`). The dock's `.container` doesn't form its own stacking context on LayoutPi (it's `position: relative` with no z-index, statically positioned inside the grid), so the toast's `z-index: 20` was competing directly with map siblings in the root stacking context — and losing. On LayoutDesktop the dock is `position: absolute`, which created the toast's own context as a side effect and masked the problem there. Lifted the toast's `z-index` from 20 to 1500 — well above the scrubber and Leaflet but still below the modal overlays (SettingsPanel / DebugPanel at 5000). Verified via DevTools (rect + computed styles + ancestor stacking-context audit) on a viewport-resized macOS Chrome to confirm the fix.
+
+---
+
 ## [2.14.75] - 2026-05-16
 
 ### Fixed
