@@ -108,15 +108,20 @@
  * horloge"). Dialled back to 36 px so the row breathes even in 12h
  * mode where the time column needs room for "12:34 AM". */
 @media (min-width: 800px) and (max-width: 1279px) {
+  /* v2.15.12: matched to TimeBlock's reduced 30 px clock so both
+   * columns of the merged hero stay visually balanced. The 36 px
+   * v2.15.11 sizes overflowed the right column at fontSize=L
+   * (zoom 1.15 scaling); the smaller sizes give the merged row
+   * room to breathe at every fontSize step. */
   .tempValue {
-    font-size: 36px;
+    font-size: 30px;
     letter-spacing: -0.5px;
   }
   .tempUnit {
-    font-size: 14px;
+    font-size: 13px;
   }
   .iconBlock {
-    font-size: 36px;
+    font-size: 30px;
   }
   .description {
     font-size: 13px;

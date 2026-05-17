@@ -122,15 +122,36 @@
     text-align: right;
   }
   .time {
-    font-size: 36px;
+    /* v2.15.12: 30 px (down from 36) so the 5-char 12h max
+     * "10:37" still fits at fontSize=L (the rail's `zoom: 1.15`
+     * scales contents up 1.15× — at 36 px the text rendered ~121
+     * viewport px wide against the ~115 px column, overflowing by
+     * ~6 px on top of the AM stacking fix). */
+    font-size: 30px;
     letter-spacing: -0.5px;
     text-align: right;
     white-space: nowrap;
+    line-height: 1;
   }
+  /* v2.15.12: AM/PM stacks BELOW the time digits on Pi.
+   *
+   * The inline approach (v2.15.11) fit "1:33 AM" but not "10:37 AM"
+   * — at 36 px Geist Mono each char is ~21 CSS px wide, so a 5-char
+   * 12h time like "10:37" alone is ~104 CSS px and the AM span pushes
+   * the inline run to ~125 px against ~109 CSS px of column space.
+   * The 5-px column overflow was minor for "1:33 AM" but obvious for
+   * "10:37 AM" (user-reported: "le m déborde, et avec 10:37 le
+   * débordement sera encore plus grand"). Stacking AM on its own
+   * line frees the full column width for the digits and leaves room
+   * for the fontSize=L (zoom 1.15) case where the rail is effectively
+   * narrower in logical pixels. */
   .amPm {
+    display: block;
     font-size: 13px;
-    margin-left: 5px;
-    vertical-align: 8px;
+    margin-left: 0;
+    margin-top: 2px;
+    vertical-align: baseline;
+    line-height: 1;
   }
   .sunRow {
     font-size: 12px;

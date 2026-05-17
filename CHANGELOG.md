@@ -5,6 +5,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.15.12] - 2026-05-17
+
+### Fixed
+- **Pi merged hero — 5-char 12h time still overflowed at v2.15.11** — User-reported with even "1:37 AM" showing the "m" extending past the column edge, and noted "10:37 AM" would overflow more. Two compounding causes:
+  - The v2.15.11 inline AM at 13 px next to 36 px digits + 5 px margin made `2.93F + 1.172A ≈ 117 px` against the column's ~109 px content area, so 5-char times overflowed by ~8 px even at fontSize=M.
+  - At fontSize=L (`zoom: 1.15` on the rail), contents scale up 1.15× but the column box is grid-fixed at 300 px CSS, so the column shrinks in logical px (115 → ~100 viewport in inner content). A 36 px clock rendered ~121 viewport px wide against the ~100 px column, overflowing further.
+
+  Two fixes:
+  1. **AM/PM stacks below the time digits** (`display: block` in the Pi media query) so the inline run is just the digits — no horizontal contribution from AM/PM. "10:37" alone fits both fontSize=M and L.
+  2. **Reduced typography to 30 px** (clock + temp + icon) so `2.93 × 30 = 88 px` fits inside the column even after the zoom 1.15 expansion. AM 13 → 13 px stays.
+
+  Verified at fontSize=L with simulated "10:37": time overflow = 0, icon overflow = -14 (icon sits 14 px inside the column).
+
+---
+
 ## [2.15.11] - 2026-05-17
 
 ### Fixed
