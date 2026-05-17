@@ -30,7 +30,13 @@
  * outside the rail and aren't affected. */
 .slab.slabMaximized {
   position: absolute;
-  inset: 12px;
+  /* v2.16.5: top pushed past iOS PWA Control-Centre swipe zone —
+   * see the parallel comment in ChartTabs/styles.css. The inset
+   * shorthand is expanded so we can set top independently. */
+  top: max(12px, env(safe-area-inset-top, 0px));
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
   z-index: 5;
   max-height: none;
   min-height: 0;

@@ -74,21 +74,26 @@ const AmbientLayers = () => {
   // and fills any uncovered area with the body's background colour.
   // The body had no explicit bg before, so iOS defaulted to black —
   // user-reported "barre grise dans le bas" on PWA-installed iPhone.
-  // Setting body+html to the palette bg makes any uncovered zone
-  // blend naturally with the rest of the kiosk. Tokens are read via
-  // the JS `palette.bg` rather than the CSS variable because body /
-  // html live OUTSIDE the `.ambientRoot` subtree where the
-  // `--c-bg` custom property is defined.
+  //
+  // v2.16.5: nightRed bg (`#100404`) reads as essentially black on
+  // a phone — even though it's technically a dark red, the gap zone
+  // visually contrasts with the dock's brighter `surfaceHybrid` red
+  // tone above it. Use a derived "effective surface" colour for
+  // nightRed (computed from `surface` rgba composited over `bg`)
+  // so the gap blends with the dock instead of looking like a black
+  // stripe under it. Other palettes use `palette.bg` directly since
+  // the contrast is subtle enough to be invisible.
+  const bodyBg = tod === "nightRed" ? "#270c0c" : palette.bg;
   useEffect(() => {
     const prevBody = document.body.style.backgroundColor;
     const prevHtml = document.documentElement.style.backgroundColor;
-    document.body.style.backgroundColor = palette.bg;
-    document.documentElement.style.backgroundColor = palette.bg;
+    document.body.style.backgroundColor = bodyBg;
+    document.documentElement.style.backgroundColor = bodyBg;
     return () => {
       document.body.style.backgroundColor = prevBody;
       document.documentElement.style.backgroundColor = prevHtml;
     };
-  }, [palette.bg]);
+  }, [bodyBg]);
 
   // Initialise from the current viewport — SSR not in play here, so
   // window is always defined at first render.

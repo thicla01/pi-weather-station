@@ -5,6 +5,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.16.5] - 2026-05-18
+
+### Fixed
+- **Maximize buttons + 24h/5j tabs unresponsive when slabs are maximized on iOS PWA portrait** — Even after v2.16.4's 44×44 tap-target bump, user-reported the buttons only registered taps when touched on their **lower half**. Root cause: iOS reserves the **top-right quadrant of a notched iPhone in portrait** (~84 px tall × ~30 % of viewport width) for the Control-Centre swipe-down gesture. When `ChartTabs`, `AiSummaryInline`, and the mobile `mapCard` are pinned at `top: 12px` of the scroll, their top edges land inside that swipe-down lock-out zone — and the tab buttons (24h / 5 jours) plus the maximize chevron at top-right of each slab become unreachable for the iOS gesture system. Changed each slab's maximized `top:` to `max(12px, env(safe-area-inset-top, 0px))` so the slab — and all its top-edge controls — sit below the swipe zone. Fallback to 12 px on non-iOS / non-PWA contexts.
+- **Bottom dock icons appeared "slightly masked"** — v2.16.2 added a `padding-bottom: max(8px, env(safe-area-inset-bottom))` to the dock so its surface colour would fill the home-indicator gap. In iOS PWA standalone, `100dvh < physical screen height` (the v2.16.3 finding), which means the padding extended into a region that the page never paints — useless, AND it shifted the icons' visual position by reducing the available content-area height. Reverted to symmetric 8 px top/bottom; v2.16.3's body-bg fix already covers the gap with the palette colour.
+
+### Changed
+- **NightRed body bg uses a derived "effective surface" colour (`#270c0c`) instead of `palette.bg` (`#100404`)** — User-reported that on the nightRed palette, the v2.16.3 body bg fill read as plain black against the dock's brighter red `surfaceHybrid` above it. The new colour is the result of compositing `surface rgba(40,12,12,0.85)` over `bg #100404`, matching what the dock visually presents. Other palettes still use `palette.bg` directly since the contrast isn't visible.
+
+---
+
 ## [2.16.4] - 2026-05-18
 
 ### Fixed

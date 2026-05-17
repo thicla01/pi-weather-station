@@ -149,7 +149,14 @@
  * underneath the Leaflet tiles); same recipe ChartTabs uses. */
 .mapCard.mapCardMaximized {
   position: absolute;
-  top: 12px;
+  /* v2.16.5: pushed past iOS PWA Control-Centre swipe zone — same
+   * rationale as the matching slabs in ChartTabs and AiSummaryInline.
+   * Top-right corner of a notched iPhone in portrait is reserved by
+   * iOS for the swipe-down Control Centre gesture (top ~84 px ×
+   * right ~30 % of viewport); a maximize-restore button at top:8
+   * inside a slab pinned at top:12 of the scroll lands inside that
+   * zone, and iOS intercepts the touch. */
+  top: max(12px, env(safe-area-inset-top, 0px));
   left: 12px;
   right: 12px;
   /* Reach down past the chart slab to give the radar real room. The

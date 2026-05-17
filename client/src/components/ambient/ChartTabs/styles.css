@@ -36,7 +36,18 @@
  * size). */
 .slab.slabMaximized {
   position: absolute;
-  top: 12px;
+  /* v2.16.5: pushed the maximized slab further down on iOS PWA
+   * portrait — `top: 12` placed the tab-row buttons (24h/5j) and
+   * the maximize chevron inside iOS's Control-Centre swipe-down
+   * zone (top-right corner, ~84 px tall × ~30 % of viewport width
+   * on a notched iPhone in portrait). iOS intercepted the touches
+   * as Control-Centre opens, so the buttons looked unresponsive.
+   * The scroll container's padding-top already accounts for
+   * safe-area-inset-top; we just need ~30 px more clearance so the
+   * slab's top edge — and its top-right action button — sit below
+   * the swipe-gesture lock-out region. Falls back to 12 px on
+   * non-iOS / non-PWA contexts where env(safe-area-*) returns 0. */
+  top: max(12px, env(safe-area-inset-top, 0px));
   left: 12px;
   right: 12px;
   bottom: auto;

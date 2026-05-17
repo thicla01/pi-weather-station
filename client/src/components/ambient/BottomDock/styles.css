@@ -9,19 +9,20 @@
 .dock {
   background-color: var(--c-surface);
   border-top: 1px solid var(--c-border);
-  /* v2.16.2: bottom padding extends through the iOS home-indicator
-   * safe area (`env(safe-area-inset-bottom)`) so the dock's surface
-   * colour fills it. Without this, the area below the dock — where
-   * the home indicator floats — was painted in the default body
-   * background (grey on the night palette), reading as a stray
-   * "abandoned" strip below the dock. User-reported on PWA-installed
-   * iPhone after the v2.16.x trust-cert work made standalone mode
-   * usable. Sides use `max(...)` so a notch in landscape (Dynamic
-   * Island sideways) doesn't reach the dock controls. */
+  /* v2.16.5: reverted v2.16.2's safe-area-bottom padding. In iOS
+   * PWA standalone, `100dvh` < physical screen height, so the
+   * extra padding extended into a zone that the page doesn't
+   * actually paint — it landed in iOS's reserved area below the
+   * page bounds. v2.16.3's body bg fix covers that gap now (the
+   * palette bg fills any uncovered region). Keeping the symmetric
+   * 8 px top/bottom lets the dock icons sit at the real bottom of
+   * the visible page instead of getting pushed up by a buffer
+   * that never rendered. Side paddings keep the safe-area
+   * coverage in case landscape notches reach the controls. */
   padding:
     8px
     max(14px, env(safe-area-inset-right))
-    max(8px, env(safe-area-inset-bottom))
+    8px
     max(14px, env(safe-area-inset-left));
   display: flex;
   align-items: stretch;
