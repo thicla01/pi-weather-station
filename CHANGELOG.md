@@ -5,6 +5,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.15.15] - 2026-05-17
+
+### Added
+- **Feels-like temperature chip in `HeroCompact`** — Fills the horizontal space the v2.15.14 left-pack freed. Right-aligned via `margin-left: auto`, hairline left border separating it from the weather icon. Label in dim mono small-caps ("Ressenti" / "Feels like" / "Sensación") + value in 18 px Geist Mono so the numeral lines up with the big temperature digits to its left. Server now fetches `temperatureApparent` (Tomorrow.io's wind-chill / heat-index field) as part of `CURRENT_FIELDS` — adding the field auto-bumps `CURRENT_FIELDS_HASH`, which orphans the per-Pi cache on next request so the new field flows in without manual intervention.
+
+### Changed
+- **Feels-like only renders when meaningfully different from the actual temperature** — Specifically when `|feels - temp| ≥ 1` in the user's selected unit (after rounding). At calm-warm conditions the wind-chill / heat-index correction is often well under 1°, and rendering "20° · Feels 20°" just repeats the headline number. The threshold keeps the chip silent when it has nothing new to say.
+
+---
+
 ## [2.15.14] - 2026-05-17
 
 ### Fixed

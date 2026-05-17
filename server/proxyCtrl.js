@@ -62,7 +62,7 @@ const WEATHER_CACHE_TTL = {
  *     the v2 Chart.js DailyChart still consumes.
  */
 const CURRENT_FIELDS = [
-  "temperature", "humidity", "windSpeed", "precipitationIntensity",
+  "temperature", "temperatureApparent", "humidity", "windSpeed", "precipitationIntensity",
   "precipitationType", "precipitationProbability", "cloudCover",
   "weatherCode", "uvIndex", "epaIndex",
 ];

@@ -80,6 +80,45 @@
   margin-top: 8px;
 }
 
+/* v2.15.15: feels-like chip — sits at the right edge of `.tempRow`
+ * via `margin-left: auto`, filling the horizontal space that was
+ * freed when v2.15.14 packed the temp + icon to the left. Label on
+ * top in dim mono small-caps (matches the .location caption rhythm),
+ * value below in Geist Mono so the numeral lines up cleanly with
+ * the big temp digits to its left. Rendered conditionally — only
+ * shown when |feels - temp| ≥ 1 in the user's selected unit, so the
+ * chip never just repeats the main numeral. */
+.feels-like {
+  margin-left: auto;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 1px;
+  /* Hairline left border separates the chip from the icon visually
+   * without needing extra padding. Picks up the active palette via
+   * --c-border for transparent-aware rendering against the slab. */
+  padding-left: 10px;
+  border-left: 1px solid var(--c-border);
+}
+
+.feels-like-label {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 9px;
+  letter-spacing: 1px;
+  color: var(--c-text-dim);
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.feels-like-value {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 18px;
+  font-weight: 500;
+  color: var(--c-text);
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+
 /* v2.15.14: mobile (< 800 px) — same `flex-start` pack as the Pi
  * range below, so the 56 px temp + 56 px icon sit together at the
  * left of the slab instead of getting pushed apart by the base

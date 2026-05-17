@@ -73,6 +73,7 @@
     }
   },
   "weather": {
+    "feelsLike": "Ressenti",
     "heavyFreezingRain": "Pluie verglaçante forte",
     "freezingRain": "Pluie verglaçante",
     "lightFreezingRain": "Pluie verglaçante légère",

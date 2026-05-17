@@ -73,6 +73,7 @@
     }
   },
   "weather": {
+    "feelsLike": "Feels like",
     "heavyFreezingRain": "Heavy freezing rain",
     "freezingRain": "Freezing rain",
     "lightFreezingRain": "Light freezing rain",

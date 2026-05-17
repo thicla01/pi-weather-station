@@ -73,6 +73,7 @@
     }
   },
   "weather": {
+    "feelsLike": "Sensación",
     "heavyFreezingRain": "Lluvia helada intensa",
     "freezingRain": "Lluvia helada",
     "lightFreezingRain": "Lluvia helada ligera",

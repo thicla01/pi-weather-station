@@ -45,12 +45,26 @@ const HeroCompact = () => {
     );
   }
 
-  const { temperature, weatherCode } = weatherData;
+  const { temperature, temperatureApparent, weatherCode } = weatherData;
   const daylight = sunriseTime && sunsetTime
     ? isDaylight(sunriseTime, sunsetTime)
     : true;
   const parsed = parseWeatherCode(weatherCode, daylight);
   const tempUnitLabel = tempUnit === "k" ? "K" : `°${tempUnit.toUpperCase()}`;
+
+  // Feels-like: show only when meaningfully different from the
+  // actual temperature (≥ 1° in the user's selected unit after
+  // rounding). Otherwise the chip just repeats the big numeral and
+  // adds clutter. Tomorrow.io's `temperatureApparent` accounts for
+  // wind chill (cold + wind) and heat index (hot + humid), so this
+  // is the most contextually useful single number that fits in the
+  // freed space next to the icon.
+  const tempConverted = convertTemp(temperature, tempUnit);
+  const feelsConverted = temperatureApparent != null
+    ? convertTemp(temperatureApparent, tempUnit)
+    : null;
+  const showFeelsLike = feelsConverted != null
+    && Math.abs(feelsConverted - tempConverted) >= 1;
 
   return (
     <div className={styles.slab}>
@@ -59,12 +73,20 @@ const HeroCompact = () => {
       </div>
       <div className={styles.tempRow}>
         <div className={styles.tempBlock}>
-          <span className={styles.tempValue}>{convertTemp(temperature, tempUnit)}</span>
+          <span className={styles.tempValue}>{tempConverted}</span>
           <span className={styles.tempUnit}>{tempUnitLabel}</span>
         </div>
         {parsed?.icon ? (
           <div className={styles.iconBlock}>
             <InlineIcon icon={parsed.icon} />
+          </div>
+        ) : null}
+        {showFeelsLike ? (
+          <div className={styles.feelsLike}>
+            <span className={styles.feelsLikeLabel}>{t("weather.feelsLike")}</span>
+            <span className={styles.feelsLikeValue}>
+              {feelsConverted}°
+            </span>
           </div>
         ) : null}
       </div>
