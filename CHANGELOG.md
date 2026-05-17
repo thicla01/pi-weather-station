@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.15.19] - 2026-05-18
+
+### Added
+- **PWA manifest (`manifest.json`)** so the app is installable from Chrome / Android, not just iOS Safari. Declares the app's display name, short name, description, `display: standalone`, theme + background colours matching the night palette, and points to the existing `favicon.svg` as the icon (SVG with `"sizes": "any"`). Linked from `index.html` via `<link rel="manifest" href="manifest.json">` — webpack processes the JSON into a hashed asset and rewrites the link, the SVG icon resolves against the predictable `/favicon.svg` path.
+- **Chrome DevTools PWA testability** — with the manifest in place, the install icon appears in the URL bar when the criteria are met, the Application → Manifest panel shows the parsed metadata, and Lighthouse's PWA audit grades the install-readiness. Android Chrome will offer the "Add to Home Screen" install banner. iOS Safari install flow continues to work via the existing `apple-*` meta tags (manifest is mostly ignored by iOS, which is fine — the two flows coexist cleanly).
+
+---
+
 ## [2.15.18] - 2026-05-18
 
 ### Added
