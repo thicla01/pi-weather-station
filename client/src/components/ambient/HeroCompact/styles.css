@@ -79,3 +79,23 @@
   color: var(--c-text);
   margin-top: 8px;
 }
+
+/* v2.15.8: on mobile (< 800 px viewport — `LayoutMobile` path) the
+ * temperature row is fully left-aligned: temperature value, °C
+ * unit, AND the weather icon all pack to the left edge of the
+ * left column with a small gap between the temp group and the
+ * icon. This mirrors the location label above and the description
+ * below — every element in the left column hugs the same left
+ * margin, making the column read as a single left-justified
+ * block (the right column, TimeBlock, mirrors this on the
+ * opposite side with `text-align: right`).
+ *
+ * Pi 7" / Desktop layouts (≥ 800 px) keep the original
+ * `space-between` distribution — the larger containers have room
+ * for the icon at the right edge of its column without crowding. */
+@media (max-width: 799px) {
+  .tempRow {
+    justify-content: flex-start;
+    gap: 12px;
+  }
+}

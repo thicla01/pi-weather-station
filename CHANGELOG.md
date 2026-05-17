@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.15.8] - 2026-05-17
+
+### Changed
+- **Pack the temperature row to the left on mobile (icon included)** — `HeroCompact.tempRow` now uses `justify-content: flex-start` with a small `gap: 12px` on the < 800 px breakpoint, so the temperature numeric, unit, AND weather icon all hug the left edge together. The default `justify-content: space-between` is kept for Pi 7" / Desktop where the larger containers have plenty of room. With this and the v2.15.7 right-align on TimeBlock, the merged mobile hero row reads as a clean symmetric pair: the entire left column packs to the left margin (location → temp + icon → description), the entire right column packs to the right margin (date → time → sunrise/sunset).
+
+---
+
 ## [2.15.7] - 2026-05-17
 
 ### Changed
