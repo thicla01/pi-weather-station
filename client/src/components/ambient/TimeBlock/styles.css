@@ -51,3 +51,43 @@
   align-items: center;
   gap: 4px;
 }
+
+/* v2.15.6: mobile viewports (< 800 px wide — LayoutMobile path)
+ * scale up the inner typography so the time block matches the
+ * visual weight of the merged hero row's left column. On Pi 7"
+ * (800-1279 px) and desktop (≥ 1280 px) the slab stays at the
+ * compact original sizes. User-reported balance issue: "il faudrait
+ * peut-être harmoniser la taille des éléments du côté horloge pour
+ * avoir un rendu similaire de ce que nous avons à gauche du côté
+ * localisation + température".
+ *
+ *   date     11 → 12 px (matches HeroCompact `.location` 12 px)
+ *   time     40 → 56 px (matches HeroCompact `.tempValue` 56 px)
+ *   amPm     14 → 22 px (matches HeroCompact `.tempUnit` 22 px)
+ *   sunRow   12 → 14 px (matches HeroCompact `.description` 14 px)
+ *
+ * Verified at 390 px iPhone reference: "23:59" at 56 px Geist Mono
+ * is ~110 px wide and fits inside the right column's ~151 px
+ * content width (390 minus scroll padding, hero-row padding, grid
+ * gap, and heroRight left-padding). No overflow risk. */
+@media (max-width: 799px) {
+  .date {
+    font-size: 12px;
+    letter-spacing: 0.6px;
+    margin-bottom: 8px;
+  }
+  .time {
+    font-size: 56px;
+    letter-spacing: -1.5px;
+  }
+  .amPm {
+    font-size: 22px;
+    margin-left: 8px;
+    vertical-align: 12px;
+  }
+  .sunRow {
+    font-size: 14px;
+    gap: 16px;
+    margin-top: 8px;
+  }
+}

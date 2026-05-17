@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.15.6] - 2026-05-17
+
+### Changed
+- **Harmonised TimeBlock typography with HeroCompact on mobile** — In the v2.15.5 merged hero row, the right column's clock (40 px) read as visually smaller than the left column's temperature (56 px), and the date / sunrise-sunset chips matched the same imbalance against the location label and weather description. Added a `@media (max-width: 799px)` block in `TimeBlock/styles.css` that pumps `time` to 56 px, `date` to 12 px, `amPm` to 22 px, and the `sunRow` chips to 14 px — matching HeroCompact's `.tempValue`, `.location`, `.tempUnit`, and `.description` 1:1. Verified at 390 px iPhone reference: "23:59" at 56 px Geist Mono fits inside the right column's ~151 px content width with margin to spare. Pi 7" and Desktop layouts (≥ 800 px) keep the compact original sizes.
+
+---
+
 ## [2.15.5] - 2026-05-17
 
 ### Fixed
