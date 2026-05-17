@@ -54,3 +54,35 @@ export function epaCategory(idx) {
   if (idx >= 2) return "moderate";
   return "low";
 }
+
+/**
+ * Darker variants of CATEGORY_COLORS tuned for *text rendering* on
+ * the warm-cream day palette where bright #f0d000 yellow on
+ * #f4f0e8 cream measured ~1.4:1 contrast — effectively invisible.
+ * The hues stay in the same semantic family (still reads as
+ * green / amber / red / purple) but are dark enough to clear 4.5:1
+ * on day mode and still visible on dusk / night palettes.
+ *
+ * CATEGORY_COLORS is left untouched so the v2 UvAqiBadges (which
+ * uses the bright variants as solid badge backgrounds with
+ * adapted text colour) keeps its existing look.
+ */
+export const CATEGORY_TEXT_COLORS = {
+  low:      "#3a8a3a",
+  moderate: "#9b6e00",
+  high:     "#c44000",
+  veryHigh: "#b30000",
+  extreme:  "#6b3399",
+};
+
+/**
+ * UV index → text colour. Wrapper that pulls the darker text
+ * variant matching the tier returned by `uvTier`.
+ *
+ * @param {number|null|undefined} value
+ * @returns {string|null}
+ */
+export function uvTextColor(value) {
+  const tier = uvTier(value);
+  return tier ? CATEGORY_TEXT_COLORS[tier.label] : null;
+}

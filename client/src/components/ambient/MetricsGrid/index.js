@@ -8,7 +8,7 @@ import sunIcon from "@iconify/icons-wi/day-sunny";
 import leafIcon from "@iconify/icons-carbon/tree";
 import { AppContext } from "~/AppContext";
 import { convertSpeed, speedUnitLabel } from "~/services/conversions";
-import { uvTier, CATEGORY_COLORS } from "~/ui/severity";
+import { uvTier, uvTextColor, CATEGORY_TEXT_COLORS } from "~/ui/severity";
 import styles from "./styles.css";
 
 /**
@@ -56,10 +56,13 @@ const MetricsGrid = () => {
   // value. Restores the green / yellow / orange / red signal the v2
   // UvAqiBadges component provided — gives the user an at-a-glance
   // "is this OK?" read without needing to know the absolute scale.
+  // Use the darker text-tuned variants from severity.js so the
+  // yellow tier ("moderate") stays readable on the warm-cream day
+  // palette — bright #f0d000 on #f4f0e8 measured ~1.4:1 contrast.
   const uvT = uvTier(uvIndex);
-  const uvColor = uvT?.color;
+  const uvColor = uvTextColor(uvIndex);
   const uvQualifier = uvT ? t(`badges.uvLevel.${uvT.label}`) : null;
-  const aqColor = aqiCategory ? CATEGORY_COLORS[aqiCategory] : null;
+  const aqColor = aqiCategory ? CATEGORY_TEXT_COLORS[aqiCategory] : null;
   const aqQualifier = aqiCategory ? t(`badges.aqiLevel.${aqiCategory}`) : null;
 
   return (
