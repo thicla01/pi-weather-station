@@ -12,8 +12,55 @@ L'interface v3 sélectionne automatiquement une disposition selon la taille de l
 
 | Condition | Disposition |
 |-----------|-------------|
-| `max-height ≤ 520 px` (p. ex. Pi 7" officiel à 800×480) | **LayoutPi** |
+| `width ≤ 799 px` (téléphone portrait 375-430 px) | **LayoutMobile** |
+| `800 ≤ width ≤ 1279 px` (p. ex. Pi 7" officiel à 800×480) | **LayoutPi** |
 | `width ≥ 1280 px` (moniteur HD, Pi 10", bureau) | **LayoutDesktop** |
+
+Les transitions sont surveillées en direct via `matchMedia('change')` — les rotations d'orientation et les redimensionnements de fenêtre permutent les dispositions sans rechargement.
+
+---
+
+## LayoutMobile — téléphone portrait (< 800 px de large)
+
+Variante A « Compagnon nomade » du dossier de design. Colonne unique défilante optimisée pour 375-430 px portrait (iPhone / Android). L'utilisateur cible est **loin du Pi** et veut une lecture rapide des conditions et des alertes.
+
+```
+┌──────────────────────────────┐
+│ TimeBlock                    │  ◀ horloge + lever/coucher
+│ HeroCompact                  │  ◀ lieu, grosse temp, condition
+│ AlertBanner                  │  ◀ alerte gouvernementale (si active)
+│ AlertDetailInline            │  ◀ alerte développée (tap pour ouvrir)
+│ MetricsGrid                  │  ◀ tuiles vent / humidité / UV / AQ
+│ IndoorBlock                  │  ◀ températures Homebridge (si configuré)
+│ Carte radar mini (~220 px) [⛶] │ ◀ carte inset; bouton maximiser
+│ ChartTabs                    │  ◀ graphique horaire 24 h
+│ AiSummaryInline              │  ◀ résumé Claude
+│ Footer hint                  │  ◀ « réglages sur le Pi »
+├──────────────────────────────┤
+│ BottomDock                   │  ◀ palette + marqueur + recentrer + refresh
+└──────────────────────────────┘
+```
+
+### Carte radar maximisable
+
+- Bouton ⛶ dans le coin supérieur droit de la carte mini (44×44 px, conforme Apple HIG).
+- En mode mini (220 px), la **légende radar et le scrubber de chronologie sont cachés en CSS** — pas de place lisible. Les boutons correspondants du dock sont grisés et un toast invite à maximiser la carte.
+- En mode maximisé, la carte sort du flux (`position: absolute`) et s'épingle aux bords du conteneur défilant ; la légende et la chronologie réapparaissent.
+- Le `top:` maximisé utilise `max(12px, env(safe-area-inset-top))` pour éviter la **zone Control-Centre d'iOS** (coin supérieur droit ~84 px × 30 % de la largeur en portrait notché) qui interceptait les taps sur le bouton de minimiser.
+
+### Pull-to-refresh
+
+- Geste natif sur le conteneur `.scroll` quand `scrollTop === 0`.
+- Damping 0.5× sur le delta brut, cap à 120 px.
+- Seuil à 80 px : le spinner change de couleur (armé) ; relâcher au-dessus déclenche `window.location.reload()`, relâcher en-dessous ressort via transition CSS 180 ms.
+- Indicateur visuel en haut : spinner + label « Rafraîchir l'application » / « Rafraîchissement… ».
+- Listeners passifs (`touchstart` / `touchmove` / `touchend`), scopés au `.scroll` mobile — n'affecte ni LayoutPi ni LayoutDesktop.
+
+### Quirks PWA standalone iOS
+
+- **Fond hors-zone** : `100dvh < hauteur physique` en standalone sur iPhone notché ; le `body` et `<html>` sont peints à la couleur du palette via un `useEffect` dans `AmbientLayers` pour combler la zone réservée par iOS (sinon : barre noire visible sous le dock).
+- **Palette nightRed** : utilise `#270c0c` (surface effective composite) plutôt que `palette.bg` (`#100404`) pour éviter que la zone hors-page apparaisse noire face au dock rouge plus clair.
+- **Headers safe-area** : les SettingsPanel et DebugPanel ajoutent `padding-top: max(14px, env(safe-area-inset-top))` pour que le bouton de fermeture (×, 44×44) ne soit pas sous la Dynamic Island.
 
 ---
 
@@ -127,7 +174,7 @@ Le chevron (`›` / `‹`) sur le bord droit de la carte replie le rail. Le Hero
 
 ## BottomDock
 
-S'étend sur toute la largeur du viewport en bas des deux dispositions. Contient la rangée **ControlButtons**. Hauteur : 52 px. Icônes : 24 px.
+S'étend sur toute la largeur du viewport en bas des trois dispositions (Mobile / Pi / Desktop). Contient la rangée **ControlButtons**. Hauteur : 52 px. Icônes : 24 px.
 
 ### ControlButtons (de gauche à droite, configuration typique)
 
@@ -139,6 +186,9 @@ S'étend sur toute la largeur du viewport en bas des deux dispositions. Contient
 | ↗ Flèches direction | Afficher/masquer les flèches de direction des précipitations | Analyse radar activée |
 | ☰ Légende | Afficher/masquer la légende des couleurs radar | RainViewer + horodatages chargés |
 | ◑ Contraste | Basculer mode sombre / clair | Toujours |
+| ⏰ Auto | Mode auto sombre/clair selon lever/coucher | Toujours |
+| 🌙 Lune (rouge) | Activer/désactiver la palette nightRed | Toujours |
+| 🔄 Refresh | Recharger l'application (`window.location.reload()`) | Toujours — utile en PWA standalone sans barre d'adresse |
 | ⚙ Paramètres | Ouvrir le panneau Paramètres | Toujours |
 | 🐛 Debug | Ouvrir le panneau Debug | Localhost + `DEBUG=true` uniquement |
 | ⬆ Mise à jour | Ouvrir la fenêtre de mise à jour | Quand une nouvelle version est disponible |
@@ -171,3 +221,26 @@ La palette Direction C s'adapte automatiquement en fonction de l'heure du jour (
 | **nightRed** | Fin de nuit (vision nocturne / mode sommeil) | Fond rouge très sombre `#100404`, texte et accent en tons rouges |
 
 `nightRed` utilise `text: #d05050` (contraste ~5:1) et `textDim: #b84848` (contraste ~4:1) sur la surface de carte sombre — lisible aussi bien pour le texte gras que non gras.
+
+---
+
+## Installation PWA (iOS / Android)
+
+L'application peut être installée sur l'écran d'accueil d'un téléphone via la fonction « Ajouter à l'écran d'accueil » du navigateur. Une fois installée, elle se lance en mode standalone (sans la chrome du navigateur) et hérite de l'icône `apple-touch-icon.png` (PNG opaque 180×180) et du `manifest.json` (icônes 192 + 512).
+
+### Certificat TLS auto-signé
+
+Le serveur génère un certificat auto-signé au premier démarrage (CN : `Pi Weather Station - <hostname>`, SAN incluant `localhost`, `127.0.0.1`, l'IP LAN détectée et le hostname `.local`). Pour qu'iOS accepte le certificat en mode PWA :
+
+1. Télécharger le `.pem` depuis Paramètres → « Faire confiance à ce Pi sur cet appareil » (endpoint `/api/cert.pem`, MIME `application/x-x509-ca-cert`).
+2. Installer le profil iOS (Réglages → Profil téléchargé).
+3. Activer la confiance complète : Réglages → Général → Information → Réglages de confiance des certificats.
+
+Procédure détaillée par plateforme : [`docs/pwa-trust-cert.md`](pwa-trust-cert.md).
+
+### Rafraîchir une PWA installée
+
+En mode standalone, la barre d'adresse Safari est masquée — pas de bouton recharger natif. Deux mécanismes :
+
+- **Bouton 🔄 Refresh du dock** (universel — toutes dispositions).
+- **Pull-to-refresh** sur LayoutMobile (geste tactile depuis le haut du conteneur défilant — voir section LayoutMobile).

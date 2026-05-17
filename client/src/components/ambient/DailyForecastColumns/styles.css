@@ -9,7 +9,14 @@
 
 .strip {
   display: grid;
-  grid-template-columns: repeat(5, 1fr);
+  /* `minmax(0, 1fr)` instead of plain `1fr`: prevents a cell's
+   * min-content (icon + big mono-typeset temp) from pushing it wider
+   * than its share. Without this, on narrow viewports the maximized
+   * 5-day strip overflows on the right and clips the JEU column
+   * (observed on iPhone SE / 12 Pro portrait at fontSize=L). The
+   * mobile media query below also tightens the expanded layout's
+   * own padding / font sizes so the cells stay readable inside ~64 px. */
+  grid-template-columns: repeat(5, minmax(0, 1fr));
   /* Natural row height + center-aligned content. v2.14.55: with the
    * maximized chartArea now fixed at 280 px the previous
    * `align-items: stretch` + `justify-content: flex-start` on the
@@ -274,5 +281,59 @@
 
   .strip.expanded .dropletIcon {
     font-size: 16px;
+  }
+}
+
+/* Mobile-narrow overrides — LayoutMobile maximizes the chart slab to
+ * ~351-406 px wide (375-430 px viewport minus 24 px side padding),
+ * giving each of the 5 cells ~63-78 px. That's tighter than the
+ * baseline's 7" Pi assumption (~92 px per cell), so the icon column
+ * (24 px) + 4 px gap + mono "79°" (17 px bold) → ~67 px min-content
+ * per cell overflowed the slab and clipped the 5th day. Tighten icon
+ * column, gaps, and font sizes so the expanded layout fits inside
+ * ~64 px without losing the day/night-split richness. */
+@media (max-width: 799px) {
+  .strip.expanded {
+    gap: 4px;
+  }
+
+  .strip.expanded .column {
+    gap: 4px;
+    padding: 4px 1px;
+    min-width: 0;
+  }
+
+  .strip.expanded .dayNightRow {
+    grid-template-columns: 16px 1fr;
+    column-gap: 2px;
+    padding: 0;
+    min-width: 0;
+  }
+
+  .strip.expanded .iconCell {
+    font-size: 16px;
+  }
+
+  .strip.expanded .iconCellDim {
+    font-size: 13px;
+  }
+
+  .strip.expanded .tempMax {
+    font-size: 13px;
+  }
+
+  .strip.expanded .tempMin {
+    font-size: 11px;
+  }
+
+  .strip.expanded .precipLine,
+  .strip.expanded .rainLine,
+  .strip.expanded .snowLine {
+    font-size: 10px;
+    gap: 2px;
+  }
+
+  .strip.expanded .dropletIcon {
+    font-size: 11px;
   }
 }
