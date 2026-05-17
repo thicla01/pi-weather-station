@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.15.7] - 2026-05-17
+
+### Changed
+- **Right-align TimeBlock content in the mobile hero row** — Date, clock, and sunrise/sunset row now hug the right edge of their column so they mirror HeroCompact's left-aligned location/temperature/description in the opposite column. The merged hero row reads as a balanced pair of outward-facing blocks (temp left-justified ↔ time right-justified) rather than both hugging the centre divider. Pi 7" and Desktop layouts (≥ 800 px) keep the original left alignment.
+
+---
+
 ## [2.15.6] - 2026-05-17
 
 ### Changed

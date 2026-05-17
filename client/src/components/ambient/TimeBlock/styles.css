@@ -75,10 +75,16 @@
     font-size: 12px;
     letter-spacing: 0.6px;
     margin-bottom: 8px;
+    /* Right-aligned so the date hugs the right edge of the merged
+     * hero row's right column — visually balances against
+     * HeroCompact's left-aligned `.location` in the left column.
+     * User-suggested in the v2.15.6 review. */
+    text-align: right;
   }
   .time {
     font-size: 56px;
     letter-spacing: -1.5px;
+    text-align: right;
   }
   .amPm {
     font-size: 22px;
@@ -89,5 +95,8 @@
     font-size: 14px;
     gap: 16px;
     margin-top: 8px;
+    /* Pack the sunrise/sunset chips to the right edge so they
+     * mirror the date and time alignment above. */
+    justify-content: flex-end;
   }
 }
