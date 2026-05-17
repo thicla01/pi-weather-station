@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.15.14] - 2026-05-17
+
+### Fixed
+- **Large empty gap between temperature and weather icon after the v2.15.13 revert** — User-reported: "l'icône est complètement à droite, il y a un grand espace avec la température". The base `.tempRow` uses `justify-content: space-between`, which was sized for the v2 baseline (56 px temp + 56 px icon, both nearly filling the slab). With v2.15.13's reduced 30 px Pi sizes, the temp + icon together took ~80 px in a ~270 px rail content area, leaving a ~190 px empty gap between them. Same effect on mobile (smaller proportional gap but still visible). Added `justify-content: flex-start; gap: 12px` overrides in both the `(max-width: 799px)` and the `(min-width: 800px) and (max-width: 1279px)` media queries of `HeroCompact/styles.css` — the temp and icon now sit together at the left of the slab, restoring the v2 visual rhythm.
+
+---
+
 ## [2.15.13] - 2026-05-17
 
 ### Changed
