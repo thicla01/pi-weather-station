@@ -545,6 +545,84 @@
   margin-top: 8px;
 }
 
+/* Trust-this-Pi helper block at the bottom of section 1. Visually
+ * subordinate to the rest of the section (smaller text, dim border)
+ * because it's an action most users only need once per device. */
+.trust-cert {
+  margin-top: 14px;
+  padding: 10px 12px;
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  background-color: var(--c-surface-tint, transparent);
+}
+
+.trust-cert-label {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10px;
+  letter-spacing: 1.2px;
+  color: var(--c-text);
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.trust-cert-desc {
+  font-size: 11.5px;
+  line-height: 1.45;
+  color: var(--c-text-dim);
+  margin-bottom: 8px;
+  text-wrap: pretty;
+}
+
+.trust-cert-actions {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.trust-cert-link,
+.trust-cert-link-secondary {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10px;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  font-weight: 600;
+  padding: 6px 10px;
+  border-radius: 4px;
+  text-decoration: none;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  min-height: 28px;
+  display: inline-flex;
+  align-items: center;
+}
+
+.trust-cert-link {
+  background-color: var(--c-accent-soft);
+  border: 1px solid var(--c-accent);
+  color: var(--c-text);
+}
+
+.trust-cert-link:hover,
+.trust-cert-link:focus-visible {
+  background-color: var(--c-accent);
+  color: var(--c-bg);
+  outline: none;
+}
+
+.trust-cert-link-secondary {
+  background-color: transparent;
+  border: 1px solid var(--c-border);
+  color: var(--c-text-dim);
+}
+
+.trust-cert-link-secondary:hover,
+.trust-cert-link-secondary:focus-visible {
+  color: var(--c-text);
+  border-color: var(--c-text-dim);
+  outline: none;
+}
+
 /* ── API keys (variant B — tight list) ──────────────────────────── */
 
 .apiList {

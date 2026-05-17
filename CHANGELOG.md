@@ -5,6 +5,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.16.0] - 2026-05-18
+
+### Added
+- **Cert-download helper for remote-device trust** — Three-piece set that lets a user trust the Pi's self-signed certificate on any iPhone, Android, macOS, or Windows device they own. After trust install, the iOS PWA add-to-home-screen flow can fetch the `apple-touch-icon` over the now-trusted secure connection and shows the actual radar glyph instead of the "P" fallback (see the v2.15.18-21 thread for the diagnostic). The browser's "Not secure" warning also disappears.
+  - **`GET /api/cert.pem`** — server endpoint that streams the Pi's `cert.pem` with `Content-Type: application/x-x509-ca-cert` (the MIME iOS / Android / macOS recognise as a trust profile) and `Content-Disposition: attachment` so the browser opens its install flow rather than displaying the PEM inline. Not localhost-gated — remote users are exactly who need this, and the certificate is a public artefact (only `key.pem` is sensitive and never leaves the Pi).
+  - **"Trust this Pi on this device" block** in the AmbientSettingsPanel's Local-preferences section (section 1, always editable) — small mono-caps label + description + two CTA links (download cert + open the per-platform guide). EN / FR / ES.
+  - **`docs/pwa-trust-cert.md`** — long-form guide with per-platform steps (iOS, Android 11/13/14+, Samsung One UI, macOS Keychain, Windows Edge + Firefox, Linux NSS). Includes the rationale for why it's needed, where the trust expires (cert is 825 days, regen forces re-install), and a "what if I just don't want the icon" exit option.
+
+### Changed
+- **Cert SAN auto-includes every LAN address and the device hostname** — Without this, the Pi's TLS cert only listed `localhost` + `127.0.0.1` in the Subject Alternative Name, so accessing the Pi by its LAN IP (e.g. `https://192.168.6.25:8443`) flagged a hostname mismatch even when the cert was trusted at the OS level — and the iOS PWA install flow failed to fetch the apple-touch-icon over an "untrusted" connection. The cert-generator now collects every non-loopback IPv4 address from `os.networkInterfaces()` plus `os.hostname()` (with the `.local` mDNS variant) and stamps them all into the SAN. Existing certs that don't cover the current hosts are regenerated on next server boot — the new `certCoversCurrentHosts()` predicate compares the cert's SAN against what we'd generate today and forces a refresh when they diverge.
+
+---
+
 ## [2.15.21] - 2026-05-18
 
 ### Fixed

@@ -35,6 +35,7 @@ const bodyParser = require("body-parser");
 const path = require("path");
 const https = require("https");
 const fs = require("fs");
+const os = require("os");
 const { execSync, exec } = require("child_process");
 const ver = require("../package.json").version;
 const appName = require("../package.json").name;
@@ -110,6 +111,62 @@ const sslOptions = (() => {
   const keyPath = path.join(__dirname, "key.pem");
   const certPath = path.join(__dirname, "cert.pem");
 
+  // Collect all non-loopback, non-internal IPv4 LAN addresses + the
+  // device hostname so the cert's SubjectAltName covers every way
+  // the user might reach this Pi. Without this, accessing the Pi by
+  // its LAN IP (e.g. https://192.168.6.25:8443) flagged a hostname
+  // mismatch even when the cert was trusted at the OS level — which
+  // made the iOS PWA add-to-home-screen flow fail to fetch the
+  // apple-touch-icon in the background (user-reported v2.15.21).
+  const collectSanEntries = () => {
+    const entries = ["DNS:localhost", "IP:127.0.0.1"];
+    try {
+      const ifaces = os.networkInterfaces();
+      for (const name of Object.keys(ifaces)) {
+        for (const addr of ifaces[name] || []) {
+          if (addr.family === "IPv4" && !addr.internal) {
+            entries.push(`IP:${addr.address}`);
+          }
+        }
+      }
+    } catch { /* fall back to loopback-only */ }
+    try {
+      const hostname = os.hostname();
+      if (hostname && hostname !== "localhost") {
+        entries.push(`DNS:${hostname}`);
+        // mDNS / Bonjour name on Linux + macOS (avahi/Bonjour
+        // typically advertises `<hostname>.local`).
+        if (!hostname.endsWith(".local")) {
+          entries.push(`DNS:${hostname}.local`);
+        }
+      }
+    } catch { /* hostname collection optional */ }
+    // Deduplicate (interfaces with multiple IPv4s, e.g. eth0 + wlan0,
+    // can produce duplicate addresses in some configs).
+    return [...new Set(entries)];
+  };
+
+  // Read the SAN from an existing cert so we can decide whether it
+  // needs regeneration when the network configuration has changed
+  // since the cert was issued (e.g. the Pi got a new DHCP lease or
+  // a second interface came online).
+  const certCoversCurrentHosts = () => {
+    try {
+      const output = execSync(
+        `openssl x509 -in "${certPath}" -noout -ext subjectAltName 2>/dev/null`,
+        { stdio: ["pipe", "pipe", "pipe"] }
+      ).toString();
+      const wanted = collectSanEntries();
+      // The openssl output for the SAN extension uses spaces and the
+      // word "IP Address" rather than "IP:" — normalise both sides
+      // so we can do a substring check.
+      const normalised = output.replace(/IP Address/g, "IP").replace(/\s+/g, "");
+      return wanted.every((entry) => normalised.includes(entry.replace(/\s+/g, "")));
+    } catch {
+      return false;
+    }
+  };
+
   const certExpiresSoon = () => {
     try {
       const output = execSync(`openssl x509 -enddate -noout -in "${certPath}"`, { stdio: "pipe" }).toString();
@@ -123,17 +180,24 @@ const sslOptions = (() => {
     }
   };
 
-  if (!fs.existsSync(keyPath) || !fs.existsSync(certPath) || certExpiresSoon()) {
-    console.log("SSL certificates not found, generating self-signed certificates...");
+  const needsRegen =
+    !fs.existsSync(keyPath) ||
+    !fs.existsSync(certPath) ||
+    certExpiresSoon() ||
+    !certCoversCurrentHosts();
+
+  if (needsRegen) {
+    console.log("SSL certificates not found or outdated, generating self-signed certificates...");
     try {
+      const san = collectSanEntries().join(",");
       execSync(
         `openssl req -x509 -newkey rsa:2048 -keyout "${keyPath}" -out "${certPath}" -days 825 -nodes` +
         ` -subj "/CN=localhost"` +
-        ` -addext "subjectAltName=DNS:localhost,IP:127.0.0.1"`,
+        ` -addext "subjectAltName=${san}"`,
         { stdio: "pipe" }
       );
       fs.chmodSync(keyPath, 0o600);
-      console.log("SSL certificates generated successfully.");
+      console.log(`SSL certificates generated successfully with SAN: ${san}`);
     } catch (err) {
       console.error("Failed to generate SSL certificates:", err.message);
       return null;
@@ -290,6 +354,28 @@ app.get("/api/is-local", (req, res) => {
   const response = { isLocal, securityEnabled: true };
   if (isLocal) response.debugEnabled = DEBUG;
   return res.status(200).json(response);
+});
+
+// Serve the self-signed CA cert as a downloadable file. Browsers /
+// iOS recognise the `application/x-x509-ca-cert` MIME and offer to
+// install it as a trusted profile. Once trusted at the OS level,
+// the iOS add-to-home-screen flow can fetch the apple-touch-icon
+// over the secure connection without falling back to the letter
+// glyph (user-reported v2.15.21). Content-Disposition forces the
+// "download" behaviour rather than displaying the PEM inline.
+//
+// Not gated by `localhostOnly` because remote users are exactly
+// who need this — the cert is a public artefact (the public key
+// is in every TLS handshake anyway), only the private key in
+// `key.pem` is sensitive and never served.
+app.get("/api/cert.pem", (req, res) => {
+  const certPath = path.join(__dirname, "cert.pem");
+  fs.readFile(certPath, (err, data) => {
+    if (err) return res.status(404).send("cert.pem not found");
+    res.setHeader("Content-Type", "application/x-x509-ca-cert");
+    res.setHeader("Content-Disposition", "attachment; filename=\"pi-weather-cert.pem\"");
+    return res.status(200).send(data);
+  });
 });
 
 app.get("/api/reverse-geocode", apiLimiter, proxyReverseGeocode);

@@ -254,6 +254,42 @@ const SectionLocalPrefs = ({ ctx, lang }) => {
          * (carbon:legend, gated on the active RainViewer source).
          * State + setter still in AppContext for the dock button. */}
       </div>
+
+      {/* Trust-this-Pi helper. Downloads the self-signed CA cert
+       * with `Content-Type: application/x-x509-ca-cert` so iOS /
+       * Android offer to install it as a trusted profile. Solves
+       * the "P on black" home-screen icon issue (iOS rejects the
+       * apple-touch-icon background fetch over an untrusted cert)
+       * AND removes the "Not secure" warning when navigating to
+       * the Pi from a remote browser. See `docs/pwa-trust-cert.md`
+       * for the per-platform install steps. */}
+      <div className={styles.trustCert}>
+        <div className={styles.trustCertLabel}>
+          {lbl(lang,
+            "Trust this Pi on this device",
+            "Faire confiance à ce Pi sur cet appareil",
+            "Confiar en este Pi en este dispositivo")}
+        </div>
+        <div className={styles.trustCertDesc}>
+          {lbl(lang,
+            "Installs the Pi's certificate as a trusted profile. Fixes the home-screen icon on iOS and dismisses the security warning. See the guide for per-platform steps.",
+            "Installe le certificat du Pi comme profil de confiance. Corrige l'icône d'écran d'accueil sur iOS et fait disparaître l'avertissement de sécurité. Voir le guide pour les étapes par plateforme.",
+            "Instala el certificado del Pi como perfil de confianza. Corrige el icono de la pantalla de inicio en iOS y elimina la advertencia de seguridad. Vea la guía para los pasos por plataforma.")}
+        </div>
+        <div className={styles.trustCertActions}>
+          <a className={styles.trustCertLink} href="/api/cert.pem" download="pi-weather-cert.pem">
+            {lbl(lang, "Download cert", "Télécharger le cert", "Descargar cert")}
+          </a>
+          <a
+            className={styles.trustCertLinkSecondary}
+            href="https://github.com/thicla01/pi-weather-station/blob/master/docs/pwa-trust-cert.md"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            {lbl(lang, "Read the guide", "Lire le guide", "Leer la guía")} ↗
+          </a>
+        </div>
+      </div>
     </div>
   );
 };
