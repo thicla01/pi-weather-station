@@ -98,12 +98,20 @@
   color: var(--c-text-dim);
 }
 
+/* v2.16.4: bumped to 44×44 from 28×28 — Apple HIG minimum touch
+ * target. The smaller box was tappable on the kiosk's mouse pointer
+ * but user-reported as unresponsive in iOS PWA standalone portrait
+ * mode (works in landscape). iOS standalone mode reserves a top
+ * "edge swipe" zone for system gestures (notification centre swipe-
+ * down); a small button sitting near that zone has its touches
+ * intercepted. 44×44 + the existing position keeps the tap area
+ * clear of the system zone. */
 .actionButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 44px;
+  height: 44px;
   padding: 0;
   background-color: transparent;
   border: 0;

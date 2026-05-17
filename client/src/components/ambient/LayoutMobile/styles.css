@@ -188,8 +188,11 @@
   position: absolute;
   top: 8px;
   right: 8px;
-  width: 36px;
-  height: 36px;
+  /* v2.16.4: 36 → 44 px (Apple HIG minimum touch target). The 36 px
+   * variant was tappable on macOS / Pi kiosk but user-reported as
+   * unresponsive in iOS PWA standalone portrait mode. */
+  width: 44px;
+  height: 44px;
   display: inline-flex;
   align-items: center;
   justify-content: center;

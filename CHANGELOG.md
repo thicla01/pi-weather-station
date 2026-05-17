@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.16.4] - 2026-05-18
+
+### Fixed
+- **Maximize/minimize buttons unresponsive in iOS PWA portrait** — User-reported the action button on `AiSummaryInline`, `ChartTabs`, AND the mobile radar's `mapMaximizeButton` all failed to register taps in PWA standalone portrait mode, but worked in landscape and on the kiosk's mouse pointer. The smaller 28×28 / 36×36 px boxes were below Apple HIG's 44×44 minimum touch target. iOS PWA standalone mode also reserves a top "edge swipe" zone for system gestures (notification-centre swipe-down) that can intercept touches on undersized controls near the top edge in portrait orientation specifically (the zone doesn't extend to the same locations in landscape, which explains why landscape worked). Bumped all three buttons to 44×44 px so the tap area is robust against both factors.
+
+---
+
 ## [2.16.3] - 2026-05-18
 
 ### Fixed

@@ -204,13 +204,16 @@
 
 /* Action button (maximize / restore) lives at the right end of the tab
  * row. Same visual language as AiSummaryInline's button: transparent
- * background, dim icon, hover lights it up via `--c-accent-soft`. */
+ * background, dim icon, hover lights it up via `--c-accent-soft`.
+ * v2.16.4: bumped to 44×44 (Apple HIG minimum) — see the parallel
+ * comment in AiSummaryInline/styles.css for the iOS-PWA portrait-mode
+ * unresponsiveness diagnostic. */
 .actionButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 28px;
-  height: 28px;
+  width: 44px;
+  height: 44px;
   margin-left: 4px;
   padding: 0;
   background-color: transparent;
