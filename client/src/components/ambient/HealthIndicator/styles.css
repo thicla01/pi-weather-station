@@ -8,14 +8,27 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  /* Stay at the right edge of the dock even when ControlButtons
+   * is packed with icons (debug mode adds 3 extra, plus the
+   * refresh + update buttons can push the row past the iPhone SE
+   * width). Without flex-shrink:0 the dot button collapsed under
+   * the rightmost ControlButtons icon and the green dot painted
+   * on top of the bot. */
+  flex-shrink: 0;
+  margin-left: 4px;
 }
 
 .dotButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 44px;
-  height: 44px;
+  /* 36×36 instead of the 44 px Apple-HIG minimum: the dot is a
+   * secondary surface (status indicator + popover trigger), not a
+   * primary action, and the smaller footprint buys back room in
+   * the dock for the icon row on narrow viewports. The hit-area
+   * still clears 36 px which is comfortable for thumb taps. */
+  width: 36px;
+  height: 36px;
   padding: 0;
   background-color: transparent;
   border: 0;

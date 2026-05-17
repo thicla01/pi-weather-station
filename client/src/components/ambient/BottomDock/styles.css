@@ -61,6 +61,22 @@
   min-width: 0;
 }
 
+/* Narrow-portrait collapse — on iPhone-SE-class viewports the
+ * dock can hold 13+ icons (ControlButtons row + refresh + update +
+ * 3 debug + HealthIndicator) and the rightmost ones overlap or
+ * push past the dock edge. Hide buttons flagged with
+ * `data-dock-priority="secondary"` in this configuration; rotate
+ * the device to landscape (or use a wider device) to bring them
+ * back. Essentials kept visible in portrait: recenter, marker
+ * toggle, contrast, refresh, settings, and the health-indicator
+ * dot — plus any conditionally-shown buttons that don't carry the
+ * secondary flag (debug trio when isLocal, update when available). */
+@media (max-width: 479px) and (orientation: portrait) {
+  .dock [data-dock-priority="secondary"] {
+    display: none !important;
+  }
+}
+
 /* Reach into the existing ControlButtons markup to bring its colour
  * scheme in line with the warm-grey tokens. The component's own CSS
  * paints the icons against the v2 colour palette; without these

@@ -216,6 +216,13 @@ const ControlButtons = () => {
           and has no equivalent on the WMS layer). */}
       {radarSource === "rainviewer" && (
         <div
+          /* `data-dock-priority="secondary"` flags this button for
+           * the dock's narrow-portrait collapse rule (see
+           * BottomDock/styles.css). On phones in portrait the dock
+           * hides secondary buttons to keep room for the essentials
+           * (recenter, marker, contrast, refresh, settings, health
+           * dot); rotating to landscape brings them back. */
+          data-dock-priority="secondary"
           onClick={(e) => {
             if (radarOverlaysDisabled) {
               // Mobile mini mode — scrubber is hidden, tapping the
@@ -255,6 +262,7 @@ const ControlButtons = () => {
        * first…") so a tooltip / aria-label still communicates why the
        * control is inactive. */}
       <div
+        data-dock-priority="secondary"
         onClick={(e) => {
           if (!radarAnalysisEnabled) {
             // Tap on the disabled (dimmed) button surfaces a short
@@ -288,6 +296,7 @@ const ControlButtons = () => {
        * load, the legend follows the preference. */}
       {radarSource === "rainviewer" && (
         <div
+          data-dock-priority="secondary"
           onClick={(e) => {
             if (radarOverlaysDisabled) {
               notify("toasts.radarOverlaysNeedMaximize", e);
@@ -321,6 +330,7 @@ const ControlButtons = () => {
        * toggles: when ON, the button reads as "pressed in" via the
        * palette's accent-soft fill. */}
       <div
+        data-dock-priority="secondary"
         onClick={(e) => { saveDarkModeAuto(!darkModeAuto); notify(darkModeAuto ? "toasts.autoModeOff" : "toasts.autoModeOn", e); }}
         className={`${darkModeAuto ? styles.buttonDown : ""}`}
         title={t(darkModeAuto ? "controls.disableAutoMode" : "controls.enableAutoMode")}
@@ -338,6 +348,7 @@ const ControlButtons = () => {
        * the moon signals "currently active, tap to deactivate" —
        * same toggle affordance as the timeline button. */}
       <div
+        data-dock-priority="secondary"
         onClick={(e) => { saveAdvancedSleepFlag("nightMode", !sleepNightMode); notify(sleepNightMode ? "toasts.nightRedOff" : "toasts.nightRedOn", e); }}
         className={`${sleepNightMode ? styles.buttonDown : ""}`}
         title={t(sleepNightMode ? "controls.disableNightRed" : "controls.enableNightRed")}
