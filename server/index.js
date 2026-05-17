@@ -111,6 +111,30 @@ const sslOptions = (() => {
   const keyPath = path.join(__dirname, "key.pem");
   const certPath = path.join(__dirname, "cert.pem");
 
+  // Sanitised hostname — used in both the SAN and the Subject CN.
+  // Restricted to a hostname-safe whitelist (letters, digits, hyphen,
+  // dot) so a hostname with shell metacharacters can't break the
+  // openssl invocation, and so it renders cleanly in the iOS profile-
+  // install dialog without escape sequences.
+  const safeHostname = (() => {
+    try {
+      const h = os.hostname() || "";
+      const clean = h.replace(/[^a-zA-Z0-9.\-]/g, "");
+      return clean === "localhost" ? "" : clean;
+    } catch { return ""; }
+  })();
+
+  // Cert Subject Common Name shown by iOS / macOS / Android when the
+  // user inspects the profile before trusting it. v2.16.1: switched
+  // from the bare `localhost` default (which read as confusing on a
+  // user's iPhone — "trust localhost?") to "Pi Weather Station -
+  // <hostname>" so each Pi in a multi-Pi household shows up
+  // distinguishably. Falls back to the static label if hostname
+  // collection fails.
+  const targetCN = safeHostname
+    ? `Pi Weather Station - ${safeHostname}`
+    : "Pi Weather Station";
+
   // Collect all non-loopback, non-internal IPv4 LAN addresses + the
   // device hostname so the cert's SubjectAltName covers every way
   // the user might reach this Pi. Without this, accessing the Pi by
@@ -130,20 +154,39 @@ const sslOptions = (() => {
         }
       }
     } catch { /* fall back to loopback-only */ }
-    try {
-      const hostname = os.hostname();
-      if (hostname && hostname !== "localhost") {
-        entries.push(`DNS:${hostname}`);
-        // mDNS / Bonjour name on Linux + macOS (avahi/Bonjour
-        // typically advertises `<hostname>.local`).
-        if (!hostname.endsWith(".local")) {
-          entries.push(`DNS:${hostname}.local`);
-        }
+    if (safeHostname) {
+      // Add the hostname as reported by `os.hostname()` and the
+      // opposite-of-`.local` variant, so users can reach the Pi by
+      // either `<name>` or `<name>.local` (avahi / Bonjour mDNS)
+      // without hitting a hostname-mismatch warning.
+      entries.push(`DNS:${safeHostname}`);
+      if (safeHostname.endsWith(".local")) {
+        const bare = safeHostname.slice(0, -".local".length);
+        if (bare) entries.push(`DNS:${bare}`);
+      } else {
+        entries.push(`DNS:${safeHostname}.local`);
       }
-    } catch { /* hostname collection optional */ }
+    }
     // Deduplicate (interfaces with multiple IPv4s, e.g. eth0 + wlan0,
     // can produce duplicate addresses in some configs).
     return [...new Set(entries)];
+  };
+
+  // Does the existing cert's Subject CN match what we'd generate now?
+  // If not, regenerate so the iOS profile dialog shows the friendly
+  // "Pi Weather Station - <hostname>" name. openssl prints the
+  // subject as either `subject= /CN=value` (LibreSSL) or
+  // `subject=CN = value` (OpenSSL 3+) — match both.
+  const certHasTargetCN = () => {
+    try {
+      const output = execSync(
+        `openssl x509 -in "${certPath}" -noout -subject 2>/dev/null`,
+        { stdio: ["pipe", "pipe", "pipe"] }
+      ).toString();
+      return output.includes(`CN=${targetCN}`) || output.includes(`CN = ${targetCN}`);
+    } catch {
+      return false;
+    }
   };
 
   // Read the SAN from an existing cert so we can decide whether it
@@ -184,7 +227,8 @@ const sslOptions = (() => {
     !fs.existsSync(keyPath) ||
     !fs.existsSync(certPath) ||
     certExpiresSoon() ||
-    !certCoversCurrentHosts();
+    !certCoversCurrentHosts() ||
+    !certHasTargetCN();
 
   if (needsRegen) {
     console.log("SSL certificates not found or outdated, generating self-signed certificates...");
@@ -192,12 +236,12 @@ const sslOptions = (() => {
       const san = collectSanEntries().join(",");
       execSync(
         `openssl req -x509 -newkey rsa:2048 -keyout "${keyPath}" -out "${certPath}" -days 825 -nodes` +
-        ` -subj "/CN=localhost"` +
+        ` -subj "/CN=${targetCN}"` +
         ` -addext "subjectAltName=${san}"`,
         { stdio: "pipe" }
       );
       fs.chmodSync(keyPath, 0o600);
-      console.log(`SSL certificates generated successfully with SAN: ${san}`);
+      console.log(`SSL certificates generated successfully: CN="${targetCN}", SAN=${san}`);
     } catch (err) {
       console.error("Failed to generate SSL certificates:", err.message);
       return null;

@@ -5,6 +5,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.16.1] - 2026-05-18
+
+### Changed
+- **Cert Subject CN is now "Pi Weather Station - `<hostname>`"** instead of the bare `localhost` placeholder — user-reported in the iOS profile-install dialog, the certificate's name was just "localhost", which reads as confusing when trusting it from a phone ("trust localhost?"). The new CN makes each Pi distinguishable on devices that have multiple Pis trusted ("Pi Weather Station - weather-pi-1", "...-kitchen-pi", etc.), and immediately answers the "what am I trusting?" question. Hostname is sanitised to alphanumerics + dot + hyphen so a hostname with shell metacharacters can't break the openssl invocation. Existing certs with the old CN are auto-regenerated on next server boot via a new `certHasTargetCN()` predicate that compares the cert's CN against what we'd issue today.
+- **SAN now covers both hostname variants** (with and without the `.local` mDNS suffix). If `os.hostname()` returns `weather-pi`, the SAN includes both `weather-pi` AND `weather-pi.local`; if it returns `weather-pi.local`, the SAN includes both forms too. Users who reach the Pi by either name don't hit a hostname-mismatch warning.
+
+---
+
 ## [2.16.0] - 2026-05-18
 
 ### Added
