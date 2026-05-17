@@ -22,12 +22,67 @@
    * sets `height: 100dvh` so the layout fills the visible area on
    * mobile browsers (where dvh accounts for the address bar's
    * dynamic showing/hiding). */
+  position: relative;
   width: 100%;
   height: 100%;
   display: flex;
   flex-direction: column;
   background-color: var(--c-bg);
   color: var(--c-text);
+  overflow: hidden;
+}
+
+/* Pull-to-refresh indicator. Pinned above the .scroll content at the
+ * top of the layout; its inline `transform: translateY(px)` follows
+ * the user's pull. The .scroll container also gets a matching
+ * translateY (set inline) so the page contents shift down with the
+ * indicator. Both spring back to zero when the user releases below
+ * the threshold (state reset clears the inline transforms). Hidden
+ * by default (parent renders it conditionally). */
+.ptrIndicator {
+  position: absolute;
+  top: -56px;
+  left: 0;
+  right: 0;
+  height: 56px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  color: var(--c-text-dim);
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  pointer-events: none;
+  z-index: 5;
+}
+
+.ptrSpinner {
+  width: 18px;
+  height: 18px;
+  border: 2px solid var(--c-border);
+  border-top-color: var(--c-accent);
+  border-radius: 50%;
+  transition: border-top-color 120ms linear;
+}
+
+.ptrArmed {
+  border-top-color: var(--c-accent);
+  border-right-color: var(--c-accent);
+}
+
+.ptrSpinning {
+  animation: ptr-spin 800ms linear infinite;
+}
+
+@keyframes ptr-spin {
+  to { transform: rotate(360deg); }
+}
+
+.ptrLabel {
+  /* Slight pop on armed/refreshing so user feels the threshold. */
+  font-weight: 500;
 }
 
 /* Scrollable content area. Padding on the sides matches the
@@ -58,6 +113,14 @@
   min-height: 0;
   overflow-y: auto;
   overflow-x: hidden;
+  /* Smooth spring-back when the pull-to-refresh gesture is released
+   * below the threshold. During the active pull, React updates the
+   * inline `transform: translateY(...)` on every touchmove — that's
+   * fast enough that the transition's 180ms duration is masked by
+   * the rapid state churn (each new value resets the animation),
+   * so the pull tracks the finger. On release, the parent removes
+   * the inline transform → empty back to 0 → the transition fires. */
+  transition: transform 180ms ease-out;
   padding: 12px 14px 16px;
   /* iOS PWA safe areas — clear the notch on top. */
   padding-top: max(12px, env(safe-area-inset-top));

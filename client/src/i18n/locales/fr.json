@@ -255,6 +255,7 @@
     "disableAutoMode": "Désactiver la bascule sombre/clair automatique",
     "enableNightRed": "Activer la palette rouge (vision nocturne)",
     "disableNightRed": "Désactiver la palette rouge",
+    "refreshApp": "Rafraîchir l'application",
     "openSettings": "Ouvrir les paramètres",
     "closeSettings": "Fermer les paramètres",
     "collapsePanel": "Réduire le panneau d'information",
@@ -300,7 +301,8 @@
     "radarRingsOn": "Cercles radar affichés",
     "radarRingsOff": "Cercles radar masqués",
     "aiSummaryShown": "Section IA affichée",
-    "aiSummaryHidden": "Section IA masquée"
+    "aiSummaryHidden": "Section IA masquée",
+    "refreshing": "Rafraîchissement…"
   },
   "debug": {
     "title": "DÉBOGAGE",

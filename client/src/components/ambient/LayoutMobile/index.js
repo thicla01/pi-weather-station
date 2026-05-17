@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useRef } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
 import maximize from "@iconify/icons-carbon/maximize";
@@ -84,6 +84,67 @@ const LayoutMobile = () => {
   // change; ControlButtons reads it to grey out the timeline + legend
   // dock buttons while the radar overlays they control are hidden.
   const mapCardRef = useRef(null);
+  const scrollRef = useRef(null);
+
+  // Pull-to-refresh. Primary use case: PWA standalone mode on iOS
+  // where the browser's reload UI isn't reachable (no address bar,
+  // no Cmd+R). The .scroll container captures touch deltas while
+  // scrollTop === 0 and surfaces a small indicator. Crossing
+  // `PTR_THRESHOLD` triggers a `location.reload()`. Below the
+  // threshold the indicator springs back. The dock button is the
+  // discoverable counterpart of the same action.
+  const PTR_THRESHOLD = 80;
+  const PTR_MAX = 120;
+  const [pullDistance, setPullDistance] = useState(0);
+  const [pullArmed, setPullArmed] = useState(false);
+  const [refreshing, setRefreshing] = useState(false);
+  const ptrStateRef = useRef({ startY: 0, active: false });
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!el) return undefined;
+    const onStart = (e) => {
+      if (el.scrollTop > 0 || refreshing) return;
+      ptrStateRef.current = { startY: e.touches[0].clientY, active: true };
+    };
+    const onMove = (e) => {
+      const st = ptrStateRef.current;
+      if (!st.active) return;
+      const delta = e.touches[0].clientY - st.startY;
+      if (delta <= 0) {
+        if (pullDistance !== 0) setPullDistance(0);
+        if (pullArmed) setPullArmed(false);
+        return;
+      }
+      // Damped travel — pulls past PTR_MAX get diminishing returns.
+      const damped = Math.min(PTR_MAX, delta * 0.5);
+      setPullDistance(damped);
+      setPullArmed(damped >= PTR_THRESHOLD);
+    };
+    const onEnd = () => {
+      const st = ptrStateRef.current;
+      if (!st.active) return;
+      ptrStateRef.current = { startY: 0, active: false };
+      if (pullArmed && !refreshing) {
+        setRefreshing(true);
+        setPullDistance(PTR_THRESHOLD);
+        setTimeout(() => window.location.reload(), 200);
+      } else {
+        setPullDistance(0);
+        setPullArmed(false);
+      }
+    };
+    el.addEventListener("touchstart", onStart, { passive: true });
+    el.addEventListener("touchmove", onMove, { passive: true });
+    el.addEventListener("touchend", onEnd, { passive: true });
+    el.addEventListener("touchcancel", onEnd, { passive: true });
+    return () => {
+      el.removeEventListener("touchstart", onStart);
+      el.removeEventListener("touchmove", onMove);
+      el.removeEventListener("touchend", onEnd);
+      el.removeEventListener("touchcancel", onEnd);
+    };
+  }, [pullArmed, pullDistance, refreshing]);
 
   // When entering maximize mode, scroll the scroll container to the
   // top so the absolutely-positioned card (pinned to the scroll's
@@ -132,7 +193,31 @@ const LayoutMobile = () => {
 
   return (
     <div className={styles.layout}>
-      <div className={styles.scroll}>
+      {/* Pull-to-refresh indicator. Floats above the scroll content
+       * (position: absolute, top: 0) and translates down based on the
+       * current pull distance. Inert visual once `refreshing` is true. */}
+      {(pullDistance > 0 || refreshing) && (
+        <div
+          className={styles.ptrIndicator}
+          style={{ transform: `translateY(${pullDistance}px)` }}
+          role="status"
+          aria-live="polite"
+        >
+          <div className={`${styles.ptrSpinner} ${refreshing ? styles.ptrSpinning : ""} ${pullArmed ? styles.ptrArmed : ""}`} />
+          <span className={styles.ptrLabel}>
+            {refreshing
+              ? t("toasts.refreshing", { defaultValue: "Refreshing…" })
+              : pullArmed
+                ? t("toasts.refreshing", { defaultValue: "Refreshing…" })
+                : t("controls.refreshApp", { defaultValue: "Refresh app" })}
+          </span>
+        </div>
+      )}
+      <div
+        ref={scrollRef}
+        className={styles.scroll}
+        style={pullDistance > 0 ? { transform: `translateY(${pullDistance}px)` } : undefined}
+      >
         <TimeBlock />
         <HeroCompact />
         <AlertBanner />

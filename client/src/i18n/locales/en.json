@@ -255,6 +255,7 @@
     "disableAutoMode": "Disable auto dark/light mode",
     "enableNightRed": "Enable night-vision red palette",
     "disableNightRed": "Disable night-vision red palette",
+    "refreshApp": "Refresh app",
     "openSettings": "Open settings",
     "closeSettings": "Close settings",
     "collapsePanel": "Collapse info panel",
@@ -300,7 +301,8 @@
     "radarRingsOn": "Radar rings on",
     "radarRingsOff": "Radar rings off",
     "aiSummaryShown": "AI summary shown",
-    "aiSummaryHidden": "AI summary hidden"
+    "aiSummaryHidden": "AI summary hidden",
+    "refreshing": "Refreshing…"
   },
   "debug": {
     "title": "DEBUG",

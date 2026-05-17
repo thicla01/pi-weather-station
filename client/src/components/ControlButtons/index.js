@@ -23,6 +23,7 @@ import bugIcon from "@iconify/icons-carbon/debug";
 import upgradeIcon from "@iconify/icons-carbon/upgrade";
 import circleDashIcon from "@iconify/icons-carbon/circle-dash";
 import botIcon from "@iconify/icons-carbon/bot";
+import renewIcon from "@iconify/icons-carbon/renew";
 
 // Inline color for the moon icon — the "blood moon" / lunar-eclipse
 // red that's also the nightRed palette's accent. Applied as a literal
@@ -343,6 +344,21 @@ const ControlButtons = () => {
         aria-label={t(sleepNightMode ? "controls.disableNightRed" : "controls.enableNightRed")}
       >
         <InlineIcon icon={moonIcon} style={{ color: MOON_COLOR }} />
+      </div>
+      {/* App refresh — primarily for PWA standalone mode on iOS/Android
+       * where the browser's reload UI isn't reachable. Useful elsewhere
+       * too (Pi kiosk has no keyboard for Cmd/Ctrl+R). Short toast then
+       * a small delay so the user sees the confirmation before the page
+       * tears down. */}
+      <div
+        onClick={(e) => {
+          notify("toasts.refreshing", e);
+          setTimeout(() => window.location.reload(), 200);
+        }}
+        title={t("controls.refreshApp")}
+        aria-label={t("controls.refreshApp")}
+      >
+        <InlineIcon icon={renewIcon} />
       </div>
       <div
         onClick={(e) => { toggleSettingsMenuOpen(); notify(settingsMenuOpen ? "toasts.settingsClosed" : "toasts.settingsOpened", e); }}

@@ -255,6 +255,7 @@
     "disableAutoMode": "Desactivar alternancia oscuro/claro automática",
     "enableNightRed": "Activar paleta roja (visión nocturna)",
     "disableNightRed": "Desactivar paleta roja",
+    "refreshApp": "Actualizar la aplicación",
     "openSettings": "Abrir los ajustes",
     "closeSettings": "Cerrar los ajustes",
     "collapsePanel": "Ocultar el panel de información",
@@ -300,7 +301,8 @@
     "radarRingsOn": "Círculos radar mostrados",
     "radarRingsOff": "Círculos radar ocultados",
     "aiSummaryShown": "Sección IA mostrada",
-    "aiSummaryHidden": "Sección IA ocultada"
+    "aiSummaryHidden": "Sección IA ocultada",
+    "refreshing": "Actualizando…"
   },
   "debug": {
     "title": "DEPURACIÓN",

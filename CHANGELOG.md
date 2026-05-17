@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [Unreleased]
+
+### Added
+- **PWA refresh — dock button + pull-to-refresh on mobile** — iOS PWA standalone mode hides Safari's address bar and `reload` UI, leaving users with no built-in way to refresh the app after a fresh deploy short of force-quitting it from the app switcher. Two complementary mechanisms added: (1) a `carbon:renew` button sits in the bottom dock between the moon (night-red palette) and the gear (settings) — taps surface a short "Refreshing…" toast then call `window.location.reload()` after a 200 ms delay so the user sees the confirmation before the page tears down. Useful on the Pi kiosk too where there's no keyboard for `Ctrl+R`. (2) `LayoutMobile`'s scroll container now intercepts touch deltas while `scrollTop === 0`, surfacing a small spinner + "Refresh app" / "Refreshing…" label at the top of the screen as the user pulls down. Crossing the 80 px threshold arms the gesture (border colour deepens); release above the threshold reloads, release below springs back via a 180 ms CSS transition on the container's `transform: translateY()`. Damping factor of 0.5 on the raw delta + a 120 px cap prevents the indicator from running off the visible area on long pulls. Native `touchstart`/`touchmove`/`touchend` listeners are scoped to the `.scroll` element so non-mobile layouts aren't affected; passive flag preserves scroll smoothness elsewhere. New i18n strings `controls.refreshApp` and `toasts.refreshing` (EN/FR/ES).
+
+---
+
 ## [2.16.5] - 2026-05-18
 
 ### Fixed
