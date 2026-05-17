@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.15.18] - 2026-05-18
+
+### Added
+- **`apple-touch-icon` link** in `index.html` so the existing radar-themed `favicon.svg` is used as the home-screen icon when users add the app via Safari's "Add to Home Screen" (iOS 14+ accepts SVG for `apple-touch-icon`). Combined with the `apple-mobile-web-app-capable=yes` meta tag (already in place since v2.15.0), launching from the home-screen icon opens the app in standalone PWA mode — no Safari toolbar in either orientation. That's the iOS-native answer to the user's "can we hide the address bar?" question, since iOS Safari doesn't expose a page-side API to dismiss the toolbar in browser-tab mode.
+
+---
+
 ## [2.15.17] - 2026-05-17
 
 ### Changed

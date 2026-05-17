@@ -18,6 +18,10 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
     <meta name="theme-color" content="#0d0d0c" />
+    <!-- Apple home-screen icon for PWA installs. Reuses the same
+         radar-themed favicon.svg that webpack already injects as
+         `rel="icon"`; iOS 14+ accepts SVG for apple-touch-icon. -->
+    <link rel="apple-touch-icon" href="favicon.svg" />
     <title>Pi Weather Station</title>
   </head>
   <body>
