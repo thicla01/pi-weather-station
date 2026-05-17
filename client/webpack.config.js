@@ -39,20 +39,38 @@ module.exports = (env) => {
         },
         {
           test: /\.css$/,
-          use: [
-            "style-loader",
+          oneOf: [
             {
-              loader: "css-loader",
-              options: {
-                sourceMap: !PRODUCTION,
-                esModule: false,
-                modules: {
-                  exportLocalsConvention: "camelCase",
-                  localIdentName: "[path][name]__[local]--[hash:base64:5]",
-                },
-              },
+              // node_modules CSS (e.g. leaflet/dist/leaflet.css) must
+              // NOT go through CSS Modules — third-party stylesheets
+              // expect their class names verbatim (`.leaflet-container`
+              // etc.) because the JS that injects DOM uses the
+              // unhashed names. Without this branch the leaflet
+              // stylesheet was hashed by the project's css-loader and
+              // the map tiles rendered partially / off-position.
+              include: /node_modules/,
+              use: [
+                "style-loader",
+                { loader: "css-loader", options: { sourceMap: !PRODUCTION, esModule: false } },
+              ],
             },
-            { loader: "postcss-loader", options: { sourceMap: !PRODUCTION, postcssOptions: { config: true } } },
+            {
+              use: [
+                "style-loader",
+                {
+                  loader: "css-loader",
+                  options: {
+                    sourceMap: !PRODUCTION,
+                    esModule: false,
+                    modules: {
+                      exportLocalsConvention: "camelCase",
+                      localIdentName: "[path][name]__[local]--[hash:base64:5]",
+                    },
+                  },
+                },
+                { loader: "postcss-loader", options: { sourceMap: !PRODUCTION, postcssOptions: { config: true } } },
+              ],
+            },
           ],
         },
         {
