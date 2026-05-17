@@ -83,7 +83,7 @@ const ControlButtons = () => {
   // text content happens to be identical to the previous toast. The
   // timeout ref lets us cancel a pending dismissal when a new toast
   // supersedes the current one.
-  const [toast, setToast] = useState({ id: 0, message: "", x: null });
+  const [toast, setToast] = useState({ id: 0, message: "", x: null, bottom: null });
   const toastTimeoutRef = useRef(null);
   const toastIdRef = useRef(0);
   const containerRef = useRef(null);
@@ -97,17 +97,32 @@ const ControlButtons = () => {
   // tapped (rather than always centred on the dock) — important on the
   // 7" kiosk where the leftmost button's toast appearing in the middle
   // of the screen reads as "nothing happened, that button is broken".
+  //
+  // v2.14.75: coordinates are now viewport-relative (used with
+  // `position: fixed` in CSS) because the LayoutPi root has
+  // `overflow: hidden` on `.layout`, which clipped the previous
+  // container-relative `position: absolute` toast — on the 7" screen
+  // and on any browser window resized below ~1280 px, the toast bled
+  // upward out of the dock cell into the clipped region and only a
+  // tiny sliver of its border was visible. Switching to fixed makes
+  // the toast escape every ancestor's overflow clip.
+  //
+  // `x` is the centre X of the tapped button in viewport coordinates;
+  // `bottom` is the distance from the viewport bottom to the top of
+  // the tapped button (plus an 8 px gap), so the toast sits just above
+  // the button regardless of where the dock lives in the layout.
   // Falls back to centred when no event is provided.
   const notify = (key, e) => {
     let x = null;
-    if (e && e.currentTarget && containerRef.current) {
+    let bottom = null;
+    if (e && e.currentTarget) {
       const buttonRect = e.currentTarget.getBoundingClientRect();
-      const containerRect = containerRef.current.getBoundingClientRect();
-      x = buttonRect.left + buttonRect.width / 2 - containerRect.left;
+      x = buttonRect.left + buttonRect.width / 2;
+      bottom = window.innerHeight - buttonRect.top + 8;
     }
     toastIdRef.current += 1;
     const id = toastIdRef.current;
-    setToast({ id, message: t(key), x });
+    setToast({ id, message: t(key), x, bottom });
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
     toastTimeoutRef.current = setTimeout(() => {
       setToast((prev) => (prev.id === id ? { ...prev, message: "" } : prev));
@@ -329,15 +344,15 @@ const ControlButtons = () => {
           className={styles.toast}
           role="status"
           aria-live="polite"
-          /* When anchored above a specific button, the inline `left`
-           * positions the toast horizontally. Pair it with the CSS
-           * `transform: translateX(-50%)` (in styles.css) so the toast
-           * centres on its anchor point. `maxWidth` keeps it from
-           * spilling past either edge of the dock — the toast text
-           * truncates with `text-overflow: ellipsis` if it would.
-           * When `toast.x` is null (no event available) fall back to
-           * dock-centred. */
-          style={toast.x !== null ? { left: `${toast.x}px` } : undefined}
+          /* When anchored on a specific button, inline `left` and
+           * `bottom` position the toast in viewport coordinates (the
+           * CSS uses `position: fixed`). `translateX(-50%)` in CSS
+           * centres the toast on its anchor X. When `toast.x` is null
+           * (no event available — defensive fallback only) the CSS
+           * defaults take over (left:50%, bottom: dock height + 8px). */
+          style={toast.x !== null
+            ? { left: `${toast.x}px`, bottom: `${toast.bottom}px` }
+            : undefined}
         >
           {toast.message}
         </div>

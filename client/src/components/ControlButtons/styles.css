@@ -116,10 +116,18 @@
 }
 
 /* v2.14.74 — transient toast above the dock. Floats above the tapped
- * button (anchored via inline `left` set by the React component) and
- * fades in/out across a 2.5 s window driven by `TOAST_TIMEOUT` in
- * ControlButtons/index.js. Pointer-events disabled so the toast never
- * intercepts a follow-up tap.
+ * button (anchored via inline `left` + `bottom` set by the React
+ * component) and fades in/out across a 2.5 s window driven by
+ * `TOAST_TIMEOUT` in ControlButtons/index.js. Pointer-events disabled
+ * so the toast never intercepts a follow-up tap.
+ *
+ * v2.14.75: `position: fixed` (was `absolute`). LayoutPi's `.layout`
+ * root has `overflow: hidden`, and the 7" Pi screen + any browser
+ * window resized below ~1280 px renders LayoutPi. The previous
+ * absolute toast was clipped by that overflow — only a 1-2 px sliver
+ * of the border was visible, leaving users to see "a small hint that
+ * something happened" with no readable text. Fixed positioning
+ * escapes every ancestor's overflow clip.
  *
  * Specificity fix: `.container > div` above sets `width: 100%; height:
  * 100%; display: flex` on every direct div child, which would make the
@@ -128,12 +136,15 @@
  * the wildcard (0,1,1) so the toast keeps its intrinsic content width.
  *
  * The toast is centred on its anchor point via `translateX(-50%)`. The
- * inline `left` set in index.js places the anchor at the centre of the
- * tapped button (or 50 % when no event is available). `max-width` +
- * ellipsis keeps long messages contained on narrow viewports. */
+ * inline `left` + `bottom` set in index.js place the anchor at the
+ * centre of the tapped button, 8 px above its top edge — viewport
+ * coordinates because the element is fixed. `max-width` + ellipsis
+ * keeps long messages contained on narrow viewports. The defaults
+ * below (`left: 50%`, `bottom: 60px`) only activate in the defensive
+ * "no event provided" fallback path. */
 .container > div.toast {
-  position: absolute;
-  bottom: calc(100% + 8px);
+  position: fixed;
+  bottom: 60px;
   left: 50%;
   width: auto;
   height: auto;

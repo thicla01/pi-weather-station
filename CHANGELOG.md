@@ -5,6 +5,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ---
 
+## [2.14.75] - 2026-05-16
+
+### Fixed
+- **Dock toast clipped on small screens (7" Pi, narrow browser windows)** — The v2.14.74 toast used `position: absolute` inside the ControlButtons container, which on any viewport below ~1280 px (LayoutPi path, including the 7" Pi kiosk and resized desktop browser windows) got clipped by `.layout`'s `overflow: hidden`. Users reported "I see a tiny hint that something happened but no readable text". Switched to `position: fixed` with viewport-coordinate `left` + `bottom` set inline by the React handler, so the toast escapes every ancestor's overflow clip and consistently sits 8 px above the top of the tapped button.
+
+---
+
 ## [2.14.74] - 2026-05-16
 
 ### Added
