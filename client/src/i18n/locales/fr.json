@@ -304,6 +304,14 @@
     "aiSummaryHidden": "Section IA masquée",
     "refreshing": "Rafraîchissement…"
   },
+  "health": {
+    "title": "État des services",
+    "allOk": "Tous les services fonctionnent",
+    "degraded": "Certains services non critiques sont dégradés",
+    "criticalDown": "Un service critique est en panne",
+    "serverUnreachable": "Serveur injoignable",
+    "noIssues": "Rien à signaler."
+  },
   "debug": {
     "title": "DÉBOGAGE",
     "loading": "CHARGEMENT...",

@@ -437,6 +437,9 @@ app.get("/api/indoor-temperature",  apiLimiter, getIndoorTemperature);
 const { getAirQuality } = require("./airQualityCtrl");
 app.get("/api/air-quality",         apiLimiter, getAirQuality);
 
+const { getHealth } = require("./healthCtrl");
+app.get("/api/health",              apiLimiter, getHealth);
+
 const { getWeatherAlerts } = require("./govAlertsCtrl");
 app.get("/api/weather-alerts",      apiLimiter, getWeatherAlerts);
 

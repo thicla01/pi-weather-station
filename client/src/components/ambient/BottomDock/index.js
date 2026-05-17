@@ -1,5 +1,6 @@
 import React from "react";
 import ControlButtons from "~/components/ControlButtons";
+import HealthIndicator from "~/components/ambient/HealthIndicator";
 import styles from "./styles.css";
 
 /**
@@ -22,6 +23,7 @@ import styles from "./styles.css";
 const BottomDock = () => (
   <div className={styles.dock}>
     <ControlButtons />
+    <HealthIndicator />
   </div>
 );
 

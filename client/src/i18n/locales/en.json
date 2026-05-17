@@ -304,6 +304,14 @@
     "aiSummaryHidden": "AI summary hidden",
     "refreshing": "Refreshing…"
   },
+  "health": {
+    "title": "Service health",
+    "allOk": "All services OK",
+    "degraded": "Some non-critical services degraded",
+    "criticalDown": "A critical service is down",
+    "serverUnreachable": "Server unreachable",
+    "noIssues": "Nothing to report."
+  },
   "debug": {
     "title": "DEBUG",
     "loading": "LOADING...",
