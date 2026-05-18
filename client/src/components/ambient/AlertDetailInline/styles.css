@@ -1,21 +1,23 @@
 /* AlertDetailInline — collapsible slab pinned under AlertBanner.
  *
- * The flex chain (max-height cap on container, flex:1 on body,
- * flex:1+min-height:0 on scrollArea, flex-shrink:0 on footer) is
- * load-bearing — without it, long alerts push the QR footer off the
- * bottom of the screen. See the v2 GovAlertDetail PR #103 notes for
- * the original incident that motivated this layout. */
+ * Earlier (v2 / PR #103) the container carried a
+ * `max-height: calc(100vh - 280px)` cap with an internal scroll
+ * area so long alerts wouldn't push the QR off the bottom of the
+ * rail. User feedback (May 2026) reframed the priority: ECCC
+ * alerts deserve the room to display in full, and pushing the
+ * sibling cards (MetricsGrid / ChartTabs / AiSummaryInline) down
+ * inside the already-scrollable rail is the correct behaviour. So
+ * the cap is gone and the body lays out at natural height.
+ * Collapse returns to the compact strip. */
 
 .container {
   display: flex;
   flex-direction: column;
-  max-height: calc(100vh - 280px);
   background-color: var(--c-surface);
   border: 1px solid var(--c-border);
   border-radius: 8px;
   color: var(--c-text);
   font-family: "Geist", system-ui, -apple-system, sans-serif;
-  overflow: hidden;
 }
 
 .toggle {
@@ -53,17 +55,15 @@
 .body {
   display: flex;
   flex-direction: column;
-  flex: 1;
-  min-height: 0;
-  overflow: hidden;
   border-top: 1px solid var(--c-border);
 }
 
 .scrollArea {
-  flex: 1;
-  min-height: 0;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
+  /* Natural-height area — the rail (LayoutPi / LayoutDesktop)
+   * already provides outer scrolling, and on LayoutMobile the
+   * scroll container handles it. Long alerts grow the slab; the
+   * user scrolls the rail to read the rest. Class name kept for
+   * minimal churn even though it no longer scrolls. */
   padding: 12px 14px;
 }
 
@@ -84,7 +84,6 @@
 }
 
 .footer {
-  flex-shrink: 0;
   display: flex;
   align-items: center;
   gap: 12px;

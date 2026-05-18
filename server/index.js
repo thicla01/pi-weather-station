@@ -440,6 +440,9 @@ app.get("/api/air-quality",         apiLimiter, getAirQuality);
 const { getHealth } = require("./healthCtrl");
 app.get("/api/health",              apiLimiter, getHealth);
 
+const { getOpenMeteoWeather } = require("./openMeteoCtrl");
+app.get("/api/weather/openmeteo",   apiLimiter, getOpenMeteoWeather);
+
 const { getWeatherAlerts } = require("./govAlertsCtrl");
 app.get("/api/weather-alerts",      apiLimiter, getWeatherAlerts);
 
