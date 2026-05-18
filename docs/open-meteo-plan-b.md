@@ -76,7 +76,7 @@ EOF
 
 ## Empirical observations (Montreal, May 2026)
 
-Single spot-check at 2026-05-17 23:45 EDT (kiosk on macOS launchd):
+### Spot-check, 2026-05-17 23:45 EDT (kiosk on macOS launchd)
 
 | Field            | Tomorrow.io | Open-Meteo | Δ |
 |------------------|-------------|------------|---|
@@ -86,7 +86,43 @@ Single spot-check at 2026-05-17 23:45 EDT (kiosk on macOS launchd):
 | cloudCover       | 40.6 %      | 86 %       | +45.4 |
 | weatherCode      | 1101        | 1001       | partly cloudy → cloudy |
 
-The cloud-cover gap is the most notable — could be a real disagreement between the models (Tomorrow.io blends multiple sources; Open-Meteo's `current` is derived from the closest hourly grid point). Worth tracking over 24-48 h to see if it averages out.
+### Triangulation against AccuWeather + RainViewer (same evening)
+
+Same moment, four sources side-by-side. Cloud cover was the most divergent field:
+
+- **Tomorrow.io**: 33 % / "mostly clear"
+- **AccuWeather**: "Généralement dégagé"
+- **Open-Meteo**: 100 % / "cloudy"
+- **RainViewer**: 100 % / moon-with-cloud icon
+
+Split 2-2. The two big commercial blends (Tomorrow.io, AccuWeather) agreed on "partly cloudy"; the two direct-model sources (Open-Meteo via ICON/GFS, RainViewer) agreed on "100 %". Reframes the earlier "Open-Meteo wins on cloud cover" read — it's a model-choice difference, not an obvious accuracy win.
+
+### Longitudinal sample, overnight 2026-05-18 (19 samples, 04h13 → 12h43 UTC)
+
+Ran `tools/compare-weather.js --watch 30 --csv` on a production Pi (Montréal coords) for ~8 h:
+
+| Field                | Mean Δ (OM − TI) | Tendency                             | Read |
+|----------------------|------------------|--------------------------------------|------|
+| `temperatureApparent`| **−3.9 °C**      | OM always colder                     | Downstream of the wind delta below — bigger wind chill |
+| `windSpeed`          | **+5.0 km/h**    | OM always windier (2-7 km/h higher)  | OM likely on ICON-D2 / GFS — known to overestimate 10 m wind over urban / sub-grid terrain |
+| `cloudCover`         | **+25.6 %**      | OM stuck at 100 % in 16/19 samples; TI varies 33 → 100 % | OM appears to have near-binary "overcast / not" resolution; TI gradates more naturally |
+| `temperature`        | −1.1 °C          | OM slightly colder, within noise     | Acceptable, both within typical model band |
+| `humidity`           | ±4 %             | No sign bias                         | Equivalent |
+
+Precipitation: Tomorrow.io detected 0.20-0.22 mm/h light drizzle at 11h43 and 12h43 UTC; OM reported 0 at both samples. The two sources converged on `weatherCode = 1001` (cloudy) only once the actual sky genuinely became 100 % overcast (around 05h43 UTC).
+
+### What the longitudinal data settles
+
+- The cloud-cover "Open-Meteo wins" hypothesis from the spot-check **does not hold** over 8 h. OM's bias toward 100 % is systemic and matches neither the AccuWeather narrative nor the Tomorrow.io gradient.
+- The wind-speed delta IS consistent and significant. Which source is right depends on what we want — a smoothed multi-model blend (Tomorrow.io) or a raw model output (Open-Meteo). For a kiosk display, Tomorrow.io's smoother values are arguably more useful (less anxiety-inducing "windy" reports when the air outside is calm).
+- The `temperatureApparent` delta is entirely downstream of the wind delta (wind chill formula). Not an independent disagreement.
+- The drizzle-detection event (11h43-12h43) gives Tomorrow.io one point in the precipitation prediction column, modulo whether actual rain was observed on the ground that morning.
+
+### Operational verdict (revised)
+
+Tomorrow.io remains the better default for our kiosk use case: smoother gradient on cloud cover, more conservative wind values that match urban-environment intuition, slightly more sensitive precipitation detection. Open-Meteo is still a clean Plan B if Tomorrow.io ever becomes unavailable or quota-constrained, but it's NOT an upgrade — migrating today would change the visual character of the kiosk (more "windy and overcast" reads in conditions where the alternative says "calm and partly cloudy") without a clear accuracy win.
+
+Worth re-running the longitudinal comparison during a more dynamic weather episode (front passage, thunderstorm onset, sudden clearing) — that's where one source's tracking of reality would show up more clearly than a quiet overnight under marine layer.
 
 ## Migration effort estimate (if we ever pull the trigger)
 
@@ -105,4 +141,4 @@ The cloud-cover gap is the most notable — could be a real disagreement between
 
 ## Recommendation
 
-Keep Tomorrow.io as the default until a real reason to migrate emerges (quota pressure, pricing change, outage history). The PoC adapter stays in the repo as the prepared Plan B. If we want to be more confident, run the side-by-side comparison snippet daily for a week and log the deltas — most informative way to see whether Open-Meteo's numbers are within "good enough" tolerance of Tomorrow.io for our use cases.
+Keep Tomorrow.io as the default until a real reason to migrate emerges (quota pressure, pricing change, outage history). The PoC adapter stays in the repo as the prepared Plan B. The May 2026 longitudinal run (`Longitudinal sample` section above) clarified the picture: Open-Meteo is a legitimate fallback but is not an accuracy upgrade for our kiosk use case. Re-run the side-by-side comparison during a more dynamic weather episode if we ever want stronger evidence either way.
