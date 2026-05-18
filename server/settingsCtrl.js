@@ -192,14 +192,45 @@ function replaceSettings(req, res) {
   const fileExists = fs.existsSync(FILE_PATH);
   const sanitized = sanitizeSettings(body);
 
-  fs.writeFile(FILE_PATH, JSON.stringify(sanitized), ENCODING, (err) => {
-    if (err) {
-      return res.status(500).json(err).end();
-    } else {
+  // Preserve top-level subtrees that aren't in the body. The v2
+  // Settings panel only sends API keys + lat/lon on save, so a
+  // naive full replace silently wiped `advanced` (Direction C
+  // preview flag, AI flags, sleep mode, etc.) and `indoorTemperature`.
+  // Merge: keep the body's keys, plus any whitelisted top-level
+  // key from the current file that the body didn't touch.
+  const finalize = (existing) => {
+    const preserved = {};
+    if (existing && typeof existing === "object") {
+      for (const [k, v] of Object.entries(existing)) {
+        if (!ALLOWED_KEYS.has(k)) continue;
+        if (Object.prototype.hasOwnProperty.call(sanitized, k)) continue;
+        preserved[k] = v;
+      }
+    }
+    const merged = { ...preserved, ...sanitized };
+    fs.writeFile(FILE_PATH, JSON.stringify(merged), ENCODING, (err) => {
+      if (err) {
+        return res.status(500).json(err).end();
+      }
       return res
         .status(fileExists ? 200 : 201)
-        .json(sanitized)
+        .json(merged)
         .end();
+    });
+  };
+
+  if (!fileExists) {
+    return finalize({});
+  }
+  // Read existing settings to merge with. Defensive on parse errors —
+  // if the file is corrupt we fall back to body-only rather than
+  // crash the save.
+  fs.readFile(FILE_PATH, ENCODING, (err, data) => {
+    if (err) return finalize({});
+    try {
+      return finalize(JSON.parse(data));
+    } catch {
+      return finalize({});
     }
   });
 }
