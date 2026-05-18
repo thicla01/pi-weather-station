@@ -1,6 +1,6 @@
 # Pi Weather Station — Software Architecture
 
-*Last updated: 2026-04-27 — current as of v2.6.3*
+*Last updated: 2026-05-18 — current as of v2.16.5*
 
 ---
 
@@ -45,12 +45,17 @@ An always-on display mounted in a home, operated exclusively by touch with no ke
                                          │           HTTPS :8443                   │
                                          │                                         │
                                          │  /api/weather/*       → shared cache    │
+                                         │  /api/weather/openmeteo  (PoC adapter)  │
                                          │  /api/tiles/*         → shared cache    │
                                          │  /api/reverse-geocode                   │
-                                         │  /api/sunrise-sunset                    │
+                                         │  /api/sunrise-sunset  (date param)      │
                                          │  /api/weather-summary  → AI cache       │
+                                         │  /api/air-quality     → orchestrator    │
+                                         │  /api/weather-alerts  → gov alerts      │
                                          │  /api/sensehat        → cache + ipapi   │
                                          │  /api/indoor-temperature → 5-min cache  │
+                                         │  /api/health          → service status  │
+                                         │  /api/cert.pem        → PWA cert        │
                                          │  /api/update-check    → 1-hour cache    │
                                          │  /api/update          (localhost only)  │
                                          │  /api/debug           (localhost only)  │
@@ -197,52 +202,66 @@ The dev-only `open(URL)` (auto-launch the default browser at startup) is gated o
 
 The React frontend (`client/src/`) uses a single global context for shared state and CSS Modules for style isolation.
 
-### Component tree
+### Layout variants (v3 / Direction C)
+
+Since v2.14 the kiosk renders one of three responsive layouts under a shared `AmbientLayers` root. The dispatcher reads `window.matchMedia` and reflows live on viewport changes (no reload):
+
+| Width | Layout | Audience |
+|---|---|---|
+| ≤ 799 px | **LayoutMobile** | Phone portrait (375-430 px iPhone / Android) — single scrollable column, mini radar with maximize button, pull-to-refresh |
+| 800-1279 px | **LayoutPi** | 7" / 10" Pi kiosk + small windows — 2-column grid with collapsible rail |
+| ≥ 1280 px | **LayoutDesktop** | HD monitor + desktop — full-bleed map background, floating HeroBand + rail, focus-radar Leaflet control hides them for full radar view |
+
+Full layout reference (with safe-area / PWA notes) in [`docs/ui-layout_fr.md`](docs/ui-layout_fr.md) and [`_en.md`](docs/ui-layout_en.md).
+
+### Component tree (v3)
 
 ```
-App                          Root layout — CSS grid (map | info panel)
-│                            Manages: font size zoom, small-screen detection,
-│                            panel collapse, dark/light mode class
+AmbientLayers              CSS-variable root — sets palette tokens (day/dusk/night/
+│                          nightRed) per useTimeOfDay(), tracks viewport breakpoints,
+│                          paints body bg in JS for iOS PWA gap coverage, applies
+│                          --c-font-scale to scrollable subtrees
 │
-├── WeatherMap               Leaflet map with RainViewer radar tiles and
-│   ├── MapResizer           Mapbox base tiles (proxied through /api/tiles).
-│   ├── PanHandler           Renders the 45 km dashed circle showing the
-│   ├── MapClickHandler      area covered by the radar AI analysis when
-│   ├── RadarLegend          aiSummaryAvailable is true. When the
-│   └── (Leaflet Circle      advanced.ai.extendedRadius flag is on, a
-│       + CircleMarker)      second 90 km circle is added; when
-│                            advanced.ai.showSamplingPoints is on, small
-│                            dots mark each (direction, distance) sample.
+├── LayoutMobile / LayoutPi / LayoutDesktop   (one renders at a time)
+│   │
+│   ├── WeatherMap                Leaflet map with RainViewer radar + Mapbox tiles
+│   │   ├── MapResizer            invalidateSize on rail/maximize/focus toggles
+│   │   ├── PanHandler            Programmatic re-centering with rail-offset math
+│   │   ├── RailOffsetTracker     Pans marker when rail width changes
+│   │   ├── MapClickHandler       Click-to-recenter with 200 ms debounce
+│   │   ├── ArrowToggleControl    Leaflet bar — direction arrows on/off
+│   │   ├── RadarFocusControl     Leaflet bar — hides hero+rail on Desktop (v2.16.6)
+│   │   └── (Leaflet Circle       45 km / 100 km dashed analysis rings
+│   │       + Marker)             (Marker uses bundled L.Icon.Default + npm Leaflet)
+│   │
+│   ├── HeroBand / HeroCompact / TimeBlock    Layout-specific hero surfaces
+│   ├── AlertBanner               Severe-alert pill (gov alerts)
+│   ├── AlertDetailInline         Expandable detail w/ QR (grows natural height)
+│   ├── MetricsGrid               2×2 cells — wind / humidity / UV / AQ
+│   │                             (UV + AQ icon and qualifier colour-coded per
+│   │                              CATEGORY_TEXT_COLORS in ~/ui/severity.js)
+│   ├── IndoorBlock               Homebridge indoor temp (renders null when off)
+│   ├── ChartTabs                 24 h / 5 jours tabbed forecast (Chart.js)
+│   │   ├── HourlyForecastColumns
+│   │   └── DailyForecastColumns  (minmax(0,1fr) grid + sub-799px tightening)
+│   ├── AiSummaryInline           Claude summary w/ maximize button
+│   └── BottomDock
+│       ├── ControlButtons        Recenter, marker, timeline, arrows, legend,
+│       │                         contrast, auto, nightRed, refresh, settings
+│       │                         (secondary buttons hidden ≤479px portrait
+│       │                          via data-dock-priority="secondary")
+│       └── HealthIndicator       Coloured dot + popover — polls /api/health,
+│                                 green/yellow/red, listing failing services
 │
-├── UpdateModal              Slide-up modal triggered by the update badge;
-│                            shows changelog, manual command, and three
-│                            kinds of advisory notice (service file change,
-│                            needs-manual-upgrade, server failure message).
-│                            Auto-update button is disabled when the modal
-│                            knows one-click would fail or be unsafe.
-│
-└── InfoPanel                Right column (300 px, full height)
-    │
-    ├── (clock-container)    Flex row with IndoorTemperature on the left,
-    │   ├── IndoorTemperature  Clock on the right. IndoorTemperature renders
-    │   │                      null when the feature is not configured;
-    │   └── Clock             margin-inline-start: auto on the last child
-    │                         keeps the clock right-aligned in either case.
-    │
-    ├── WeatherInfo          Scrollable area — owns weather update intervals
-    │   │                    and the aiExpanded toggle state
-    │   ├── LocationName     Reverse-geocoded place name (LocationIQ)
-    │   ├── CurrentWeather   Temperature, weather icon, wind, humidity
-    │   ├── [ChartLegend]    Shared legend (hidden when AI expanded)
-    │   ├── [HourlyChart]    Chart.js — 24-hour forecast
-    │   ├── [DailyChart]     Chart.js — 5-day forecast
-    │   │   └── [ChartTabs]  Replaces stacked charts on screens ≤ 520 px
-    │   └── AiSummary        AI summary with expand/collapse toggle
-    │
-    └── ControlButtons       Bottom bar: settings, dark mode, location,
-        ├── Settings         radar play/stop, debug, update badge
-        └── Debug
+├── SettingsPanel                 Overlay — API keys, units, language, advanced,
+│                                 PWA cert download
+├── DebugPanel                    Overlay — services / quotas / system info
+│                                 (localhost only)
+├── UpdateModal                   In-app updater
+└── ScreenSaver                   Sleep-mode stage 1 (clock) + stage 2 (anti-burn-in dot)
 ```
+
+The legacy v2 components (`App` / `InfoPanel` / `CurrentWeather` / `Clock` / `WeatherInfo` / `UvAqiBadges`) remain in the tree as the source of unchanged primitives (e.g. `LocationName`, `Clock`, `UpdateModal`) and stayed accessible via the `experimentalUiC=false` flag before v3 became the default.
 
 ### State management
 
@@ -274,22 +293,21 @@ AppContext
 
 > ⚠️ `AppContext.js` is large and is a known technical debt item. See `ROADMAP.md`.
 
-### Responsive adaptations (≤ 520 px height)
+### Responsive adaptations
 
-Detected via `window.matchMedia("(max-height: 520px)")` with a `change` listener for live updates.
+Detected via `window.matchMedia` listeners that flip layouts and feature toggles live (no reload).
 
-| Feature | Normal screen | Small screen (7" Pi display) |
-|---|---|---|
-| Forecast charts | HourlyChart + DailyChart stacked | Single chart with 24h / 5d tabs |
-| Info panel | Always visible | Collapsible via floating PanelToggle button |
-| Font size zoom | Applied to InfoPanel | Same — counter-zoom on chart wrappers prevents overflow |
+| Trigger | Effect |
+|---|---|
+| `width ≤ 799 px` | Switch to `LayoutMobile` (single column, mini radar with maximize button, pull-to-refresh) |
+| `width 800-1279 px` | `LayoutPi` (2-column grid with collapsible rail) |
+| `width ≥ 1280 px` | `LayoutDesktop` (full-bleed map + floating panels + focus-radar control) |
+| `max-height ≤ 520 px` | ChartTabs replaces stacked charts; rail-collapse chevron appears (`LayoutPi`) |
+| `(max-width: 479px) and (orientation: portrait)` | Dock hides `data-dock-priority="secondary"` buttons (auto / nightRed / timeline / arrows / legend) — essentials only |
 
 ### Font size zoom model
 
-`zoom: fontSizeZoom` is applied to the InfoPanel container (S=0.85, M=1.0, L=1.15). Two compensations are required:
-
-- **Height**: `height: calc(100dvh / fontSizeZoom)` restores the logical height so controls stay in view
-- **Charts**: `zoom: 1 / fontSizeZoom` on each chart wrapper cancels the parent zoom, letting Chart.js measure the container in its natural coordinate space
+`zoom: fontSizeZoom` (S=0.85, M=1.0, L=1.15) is applied to scrollable subtrees only (`.rail` in LayoutPi/LayoutDesktop, `heroSlot` in LayoutDesktop). Applying it to the `AmbientLayers` root broke positioning of `position: absolute` children because `100dvh` references inside the layout no longer matched the zoomed root. Scoping to scrollables keeps the map at native resolution while the user's text-density preference still has visible effect.
 
 ---
 

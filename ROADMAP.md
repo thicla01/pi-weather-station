@@ -10,6 +10,21 @@ Items are organized by theme and annotated with an estimated impact (for the pri
 
 These items reuse data or infrastructure already in place and can be implemented in a single session.
 
+### ✅ ~~PWA mobile layout + installable kiosk~~ — **shipped May 2026 (v2.15-v2.16)**
+New `LayoutMobile` for viewports < 800 px (Variant A "Compagnon nomade" from the Claude Design package — single scrollable column with maximizable radar card and pull-to-refresh). PWA install on iOS/Android via `manifest.json` + opaque `apple-touch-icon.png` 180×180 + standard `mobile-web-app-capable` meta. iOS standalone-mode quirks handled: body bg painted in JS to cover the `100dvh` gap, safe-area-aware headers, Control-Centre swipe-zone clearance on maximized slabs, palette-specific nightRed bg (`#270c0c`). Self-signed cert workflow polished: friendlier CN (`Pi Weather Station - <hostname>`), LAN IP + mDNS hostname in SAN, downloadable `/api/cert.pem` endpoint, per-platform trust guide in `docs/pwa-trust-cert.md`.
+
+### ✅ ~~Health-status indicator dot~~ — **shipped May 2026 (v2.16+)**
+Small coloured dot in the BottomDock that aggregates `serviceStatus` into a three-tier verdict (green / yellow / red). Tap opens a popover listing services in trouble with their last HTTP status and the server's recorded comment. Backed by a new public `/api/health` endpoint. Two suppression layers prevent false-positive reds: `lastSuccess` window (10 min, protects against transient flakes + duplicate call paths) and `ALTERNATIVE_GROUPS` (cross-suppression for fallback chains — NWS+ECCC for alerts, MELCC/ECCC AQHI/AirNow/OpenAQ for air quality, so "wrong region for this user" failures don't pollute the dot). Client polls every 30 s.
+
+### ✅ ~~PWA refresh affordances~~ — **shipped May 2026 (v2.16+)**
+iOS PWA standalone hides Safari's address bar and reload UI. Two mechanisms address it: (1) a 🔄 refresh button in the BottomDock (`carbon:renew`) — universal across all layouts, shows a toast then `window.location.reload()` after 200 ms; (2) pull-to-refresh on LayoutMobile's scroll container — damped 0.5×, 80 px threshold, visual indicator at top, CSS spring-back on release below threshold.
+
+### ✅ ~~Radar focus mode on Desktop~~ — **shipped May 2026 (v2.16+)**
+Leaflet topleft control (⛶) on LayoutDesktop ≥ 1280 px. Tap → hides `HeroBand` + rail + chevron via a `.focused` class; the radar fills the entire viewport. Tap again → restore. Mirrors the mobile mapCard maximize pattern but reuses the existing Leaflet control stack so the dock doesn't grow another button. Marker re-pans to the geometric centre via the existing `useRailOffset` hook (gated on `desktopRadarMaximized`).
+
+### ✅ ~~Console hygiene + dependency baseline~~ — **shipped May 2026 (v2.16+)**
+Silenced three startup console errors (Leaflet CDN SRI mismatch → CSS now bundled via webpack + `L.Icon.Default` re-pointed to bundled markers; deprecated `apple-mobile-web-app-capable` warning → added the modern `mobile-web-app-capable` alongside; `/api/indoor-temperature` 404 spam → returns `200 + { enabled: false }` when Homebridge not configured). Also dependabot batch: anthropic-sdk 0.96, axios 1.16.1 (prototype pollution + cleartext leak security fixes), i18next minor, style-loader 4, postcss-preset-env 11, webpack-cli 7. (eslint 10 held — `@babel/eslint-parser` upstream peer constraint.)
+
 ### ✅ ~~UV index and air quality (AQI)~~ — **shipped May 2026**
 Both surfaces ended up far richer than the original "row below the current weather block" idea. UV badge reads from Tomorrow.io's `uvIndex` field. AQI badge chains through five government sources by proximity — MELCC RSQA Montreal first, RSQAQ provincial Quebec next, ECCC AQHI Canada-wide, EPA AirNow for the US, and OpenAQ as the global fallback — each with its own provider's threshold colour scale. The two badges sit in a colour-coded row under the wind/precipitation block in the InfoPanel; either or both hide when the source returns no useful coverage at the user's coordinates. AirNow and OpenAQ keys are optional (`airNowApiKey` / `openAqApiKey` in `settings.json`, prompted by `install.sh`).
 

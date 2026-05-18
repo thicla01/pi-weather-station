@@ -1,6 +1,6 @@
 # Pi Weather Station — API Reference
 
-*Current as of v2.6.3.*
+*Current as of v2.16.5.*
 
 All endpoints are served by the Express server on port **8443 (HTTPS)** or **8080 (HTTP)** as a fallback. Endpoints prefixed with `/api/` are subject to rate limiting unless noted otherwise.
 
@@ -164,7 +164,8 @@ Returns a human-readable location name for the given coordinates (via LocationIQ
 | `lat` | float | ✅ | Latitude |
 | `lon` | float | ✅ | Longitude |
 
-- **Response:** LocationIQ reverse geocoding JSON
+- **Response (200):** LocationIQ reverse geocoding JSON
+- **Response (204 — No Content):** LocationIQ returned no address for the coord (ocean, undeveloped area). The client's `reverseGeocode` service resolves this to `null` and the caller falls back to displaying lat/lon. Pre-v2.16.5 this was a 500 — switched to 204 so devtools no longer logs it as an error on accidental ocean-clicks.
 
 ---
 
@@ -180,6 +181,7 @@ Returns sunrise and sunset times for the given coordinates (via sunrise-sunset.o
 |---|---|:---:|---|
 | `lat` | float | ✅ | Latitude |
 | `lon` | float | ✅ | Longitude |
+| `date` | string `YYYY-MM-DD` | ⬜ | Optional. Forwarded to the upstream API. The client passes its LOCAL date so the returned sunrise/sunset belong to the user's day. Without it the upstream defaults to "today UTC" — and for users west of UTC during evening hours that's already the next UTC day, which skips over today's local sunset and flips auto dark-mode early. Strict regex match server-side so junk values can't reach the upstream URL. |
 
 - **Response:** sunrise-sunset.org JSON
 
@@ -440,7 +442,7 @@ When no location is configured in `settings.json` (`startingLat` / `startingLon`
 ### `GET /api/indoor-temperature`
 Returns the latest indoor temperature reading (and optionally humidity and HomeKit air-quality) for the configured Homebridge sensor. Polled server-side every 5 minutes; this endpoint just returns the cached result.
 
-The feature is opt-in: it is activated only when `settings.json` contains an `indoorTemperature` block with `enabled: true`. Otherwise this endpoint returns 404 with `{ "enabled": false }` and the client component renders nothing.
+The feature is opt-in: it is activated only when `settings.json` contains an `indoorTemperature` block with `enabled: true`. Otherwise this endpoint returns `200` with `{ "enabled": false }` and the client component renders nothing. (Pre-v2.16.5 returned `404` for the "not configured" case; switched to `200 + enabled:false` so browser devtools no longer paints it red on every poll for users without Homebridge.)
 
 See `docs/indoor-temperature.md` for setup details.
 
@@ -462,7 +464,7 @@ See `docs/indoor-temperature.md` for setup details.
 
 | Field | Type | Description |
 |---|---|---|
-| `enabled` | boolean | Always `true` here (this endpoint returns 404 when not configured) |
+| `enabled` | boolean | `true` when configured + cached data available; `false` when the `indoorTemperature` block is absent or its `enabled` flag is false |
 | `value` | float \| null | Temperature in °C; `null` until the first successful poll |
 | `humidity` | float \| null | Relative humidity in %, when the sensor exposes it (Dyson does, Hue doesn't) |
 | `airQuality` | integer \| null | HomeKit AirQuality 1..5 (1=Excellent..5=Poor); `null` when not exposed |
@@ -470,7 +472,7 @@ See `docs/indoor-temperature.md` for setup details.
 | `lastUpdated` | string \| null | ISO 8601 of the last successful poll |
 | `isStale` | boolean | `true` when the cached reading is older than 30 min |
 
-- **Response (not configured):** HTTP 404 `{ "enabled": false }`
+- **Response (not configured):** HTTP 200 `{ "enabled": false }`
 
 ---
 
@@ -595,3 +597,67 @@ Sets the screen brightness in percent (0–100). Floors at `minPercent` (10%) by
   - `403` — `{ error: "no-write-permission" }` (udev rule missing — install.sh adds it under `/etc/udev/rules.d/52-pi-weather-station-backlight.rules`)
   - `503` — `{ error: "no-device" }` (no `/sys/class/backlight/*` exposed; usually means the kernel `dtoverlay=rpi-backlight` line is missing from `/boot/firmware/config.txt`)
   - `500` — `{ error: "max-unreadable" }` or `write-failed`
+
+---
+
+## Health
+
+### `GET /api/health`
+Aggregates the in-memory `serviceStatus` map into a three-tier health verdict for the client-side `HealthIndicator` dot in the BottomDock. Drives the green / yellow / red signal users see at the bottom-right of every layout.
+
+- **Access:** 🌐 Public — rate limited (120 req/min)
+- **Query params:** none
+- **Response:**
+
+```json
+{
+  "status": "green" | "yellow" | "red",
+  "issues": [
+    { "service": "Tomorrow.io (daily)", "status": 429, "comment": "rate limited", "critical": true }
+  ],
+  "lastChecked": "2026-05-18T12:00:00.000Z"
+}
+```
+
+Classification logic:
+- **green**: every critical service is responding and no non-critical service is in a sustained-failure window.
+- **yellow**: at least one non-critical service is failing (Anthropic, RainViewer, Homebridge, ipapi.co, sunrise-sunset.org, AQ sources, gov alert sources).
+- **red**: at least one critical service is down (Tomorrow.io current/hourly/daily, Mapbox, LocationIQ).
+
+Two suppression layers prevent false-positive red dots:
+1. **`lastSuccess` window (10 min)**: a failure is suppressed if the same service had a successful call within the last 10 minutes. Protects against transient flakes and duplicate call paths (e.g. AI-summary re-fetching Tomorrow.io and failing while the main weather poll just succeeded).
+2. **`ALTERNATIVE_GROUPS` cross-suppression**: services orchestrated as alternative chains (NWS+ECCC alerts; MELCC-Mtl / MELCC-RSQAQ / ECCC AQHI / EPA AirNow / OpenAQ for air quality) — a failure on one member is suppressed if any sibling in the group has a recent success. Prevents "wrong region for this user" failures from polluting the dot.
+
+If the client itself cannot reach the server (network failure), the dot paints red with `Server unreachable` synthesized client-side.
+
+---
+
+## Cert
+
+### `GET /api/cert.pem`
+Serves the server's self-signed TLS certificate as a downloadable `.pem` file for the Settings panel's "Trust this Pi on this device" affordance. Lets users install + trust the cert in iOS / macOS / Android / Windows for a clean PWA experience without a security warning every visit.
+
+- **Access:** 🌐 Public — rate limit not applied (small static payload, served once per device)
+- **Query params:** none
+- **Response headers:** `Content-Type: application/x-x509-ca-cert` (triggers the iOS "install profile" flow when opened from Safari)
+- **Response body:** the PEM-encoded cert from `server/cert.pem`
+
+See [`docs/pwa-trust-cert.md`](pwa-trust-cert.md) for the per-platform trust-install walkthrough.
+
+---
+
+## Open-Meteo (Plan B)
+
+### `GET /api/weather/openmeteo`
+Proof-of-concept adapter that fetches the [Open-Meteo](https://open-meteo.com/) forecast API and normalises the response into the same envelope shape as the three Tomorrow.io proxy endpoints. Used for side-by-side comparison via `tools/compare-weather.js` — **not** wired into the kiosk UI. See [`docs/open-meteo-plan-b.md`](open-meteo-plan-b.md) for the full Plan B rationale and longitudinal observations.
+
+- **Access:** 🌐 Public — rate limited (120 req/min)
+- **Query params:**
+
+| Parameter | Type | Required | Description |
+|---|---|:---:|---|
+| `lat` | float | ✅ | Latitude |
+| `lon` | float | ✅ | Longitude |
+| `tz` | string | ⬜ | IANA timezone (e.g. `America/Toronto`). Defaults to `auto`. Strict regex match so junk values can't reach the upstream URL. |
+
+- **Response:** `{ current, hourly, daily, _raw }` — each of `current`/`hourly`/`daily` is a Tomorrow.io-shaped `data.timelines[0].intervals[]` envelope. `_raw` is the unaltered Open-Meteo response for debugging.
