@@ -32,18 +32,12 @@ const SOURCE_LINKS = {
  * QR-only footer) but renders against the slab surface and uses the
  * `QrCode` atomic component instead of an inline `QRCodeSVG`.
  *
- * Layout chain (essential — see also the v2 component's PR #103
- * incident notes):
- *   - container: `max-height: calc(100vh - 280px)`, `display: flex`
- *     column. Without the cap, long ECCC alerts (400+ chars with
- *     multiple paragraphs) push the QR footer off the bottom of the
- *     screen.
- *   - body: `flex: 1; overflow: hidden`.
- *   - scrollArea: `flex: 1; min-height: 0; overflow-y: auto` — the
- *     `min-height: 0` is the load-bearing rule that lets the scroll
- *     area shrink correctly inside its flex parent.
- *   - footer: `flex-shrink: 0` so the QR stays pinned regardless of
- *     body length.
+ * Layout note (May 2026 — see PR #103 in v2 for the pre-history):
+ * the container no longer carries a `max-height` cap. ECCC alerts
+ * take precedence and the expanded body is allowed to grow to its
+ * natural content height, pushing sibling rail slabs (MetricsGrid,
+ * ChartTabs, AiSummaryInline) down inside the already-scrollable
+ * rail. Collapsing the alert reverses the push immediately.
  *
  * @param {object} props
  * @param {boolean} [props.defaultExpanded] — start expanded? defaults
