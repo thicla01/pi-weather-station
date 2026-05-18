@@ -236,9 +236,23 @@ const sslOptions = (() => {
     try {
       const san = collectSanEntries().join(",");
       execSync(
+        // basicConstraints + keyUsage extensions turn this self-signed
+        // server certificate into a proper self-signed root CA that
+        // Firefox accepts in its Authorities trust store. Without
+        // them Firefox still trusts the cert via per-site exceptions
+        // but refuses to install it as a CA (treats it as a personal
+        // certificate). iOS / macOS / Android are lenient and trust
+        // either flavour, so adding the CA flag is non-breaking.
+        // The `digitalSignature + keyEncipherment` usages keep the
+        // cert usable as the server's TLS cert (same key serves both
+        // the CA root and the leaf-cert roles — the "self-signed
+        // root that's also the server cert" pattern used by mkcert
+        // and friends for local-dev / kiosk scenarios).
         `openssl req -x509 -newkey rsa:2048 -keyout "${keyPath}" -out "${certPath}" -days 825 -nodes` +
         ` -subj "/CN=${targetCN}"` +
-        ` -addext "subjectAltName=${san}"`,
+        ` -addext "subjectAltName=${san}"` +
+        ` -addext "basicConstraints=critical,CA:TRUE"` +
+        ` -addext "keyUsage=critical,digitalSignature,keyCertSign,keyEncipherment"`,
         { stdio: "pipe" }
       );
       fs.chmodSync(keyPath, 0o600);

@@ -160,6 +160,8 @@ Firefox has its own trust store independent of Windows.
 3. Pick `pi-weather-cert.pem`.
 4. Check **"Trust this CA to identify websites"**. Click **OK**.
 
+> **If Firefox refuses to import the cert as an Authority** (it shows up as a "personal certificate" with no way to confirm it as a CA): your Pi is still running the pre-May-2026 cert-generation code that didn't mark the cert with the CA flag. **Temporary workaround**: visit `https://<pi-ip>:8443`, click **Advanced** → **Accept the Risk and Continue**. Firefox remembers a per-site exception (you'll need to re-do it if the Pi's IP changes). **Permanent fix**: pull the latest server code, then force a cert regeneration (delete `server/cert.pem` + `server/key.pem` and restart — the server generates a new cert with the correct CA flag). Re-do the trust install on every device after that.
+
 ---
 
 ## Linux desktop (Chrome / Firefox)
