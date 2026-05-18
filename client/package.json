@@ -24,12 +24,12 @@
     "@iconify/icons-material-symbols": "^1.2.58",
     "@iconify/icons-wi": "^1.0.3",
     "@iconify/react": "^6.0.2",
-    "axios": "^1.16.0",
+    "axios": "^1.16.1",
     "babel-loader": "^10.1.1",
     "chart.js": "^4.5.1",
     "date-fns": "^4.1.0",
     "debounce": "^1.2.0",
-    "i18next": "^26.0.10",
+    "i18next": "^26.2.0",
     "i18next-browser-languagedetector": "^8.2.1",
     "leaflet": "^1.9.4",
     "prop-types": "^15.7.2",
@@ -37,7 +37,7 @@
     "react": "^18.3.1",
     "react-chartjs-2": "^5.3.1",
     "react-dom": "^18.3.1",
-    "react-i18next": "^17.0.7",
+    "react-i18next": "^17.0.8",
     "react-leaflet": "^4.2.1",
     "react-transition-group": "^4.4.1",
     "tz-lookup": "^6.1.25"
@@ -58,7 +58,7 @@
     "postcss": "^8.5.14",
     "postcss-loader": "^8.2.1",
     "postcss-preset-env": "^11.3.0",
-    "style-loader": "^3.3.4",
+    "style-loader": "^4.0.0",
     "webpack": "^5.106.2",
     "webpack-cli": "^5.1.4"
   }
