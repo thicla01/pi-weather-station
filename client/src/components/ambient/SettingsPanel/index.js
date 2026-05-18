@@ -29,6 +29,26 @@ import styles from "./styles.css";
 const lbl = (lang, en, fr, es) => (lang === "fr" ? fr : lang === "es" ? es : en);
 
 /**
+ * Map the four individual unit selections back to a single
+ * "Metric" / "Imperial" preset, or "custom" when the user has
+ * mixed them (e.g. °C + mph). Used by the unit-system Seg to
+ * highlight the active preset; "custom" results in neither
+ * button reading as active, which is the right signal for "your
+ * individual selectors below are the source of truth".
+ *
+ * @param {string} t tempUnit ("c" / "f" / "k")
+ * @param {string} s speedUnit ("kmh" / "ms" / "mph")
+ * @param {string} l lengthUnit ("mm" / "in")
+ * @param {string} d distanceUnit ("km" / "mi")
+ * @returns {"metric"|"imperial"|"custom"}
+ */
+function unitSystemPreset(t, s, l, d) {
+  if (t === "c" && s === "kmh" && l === "mm" && d === "km") return "metric";
+  if (t === "f" && s === "mph" && l === "in" && d === "mi") return "imperial";
+  return "custom";
+}
+
+/**
  * Direction C Settings panel — port of the Claude Design canvas at
  * `docs/design-references/settings-debug/project/lib/settings-panel.jsx`
  * variant B (tight list) for the API keys block.
@@ -216,6 +236,34 @@ const SectionLocalPrefs = ({ ctx, lang }) => {
           options={[{ v: "12", l: "12h" }, { v: "24", l: "24h" }]}
           value={clockTime}
           onChange={saveClockTime}
+        />
+        <Seg
+          label={lbl(lang, "Units", "Unités", "Unidades")}
+          /* One-tap preset that flips all four unit selectors below
+           * to a coherent system. Useful for users (or their friends)
+           * who don't want to know the difference between mph / m/s /
+           * km/h and just want everything in one or the other system.
+           * When the four selectors are in a mixed state (e.g. °C +
+           * mph), neither preset reads as active — the individual
+           * selectors remain authoritative. */
+          options={[
+            { v: "metric", l: lbl(lang, "Metric", "Métrique", "Métrico") },
+            { v: "imperial", l: lbl(lang, "Imperial", "Impérial", "Imperial") },
+          ]}
+          value={unitSystemPreset(tempUnit, speedUnit, lengthUnit, distanceUnit)}
+          onChange={(preset) => {
+            if (preset === "metric") {
+              saveTempUnit("c");
+              saveSpeedUnit("kmh");
+              saveLengthUnit("mm");
+              saveDistanceUnit("km");
+            } else if (preset === "imperial") {
+              saveTempUnit("f");
+              saveSpeedUnit("mph");
+              saveLengthUnit("in");
+              saveDistanceUnit("mi");
+            }
+          }}
         />
         <Seg
           label="Temp"
