@@ -111,6 +111,8 @@ const app = express();
 const sslOptions = (() => {
   const keyPath = path.join(__dirname, "key.pem");
   const certPath = path.join(__dirname, "cert.pem");
+  const caKeyPath = path.join(__dirname, "ca-key.pem");
+  const caCertPath = path.join(__dirname, "ca-cert.pem");
 
   // Sanitised hostname — used in both the SAN and the Subject CN.
   // Restricted to a hostname-safe whitelist (letters, digits, hyphen,
@@ -135,6 +137,9 @@ const sslOptions = (() => {
   const targetCN = safeHostname
     ? `Pi Weather Station - ${safeHostname}`
     : "Pi Weather Station";
+  const caTargetCN = safeHostname
+    ? `Pi Weather Station CA - ${safeHostname}`
+    : "Pi Weather Station CA";
 
   // Collect all non-loopback, non-internal IPv4 LAN addresses + the
   // device hostname so the cert's SubjectAltName covers every way
@@ -224,41 +229,122 @@ const sslOptions = (() => {
     }
   };
 
-  const needsRegen =
+  // Same checks for the CA. Re-issued only when hostname changes
+  // (CN mismatch) or it's missing — its long 10-year validity makes
+  // expiry-driven regen practically a non-issue. Cert SAN coverage
+  // doesn't apply to the CA (no SAN on a CA root).
+  const caHasTargetCN = () => {
+    try {
+      const output = execSync(
+        `openssl x509 -in "${caCertPath}" -noout -subject 2>/dev/null`,
+        { stdio: ["pipe", "pipe", "pipe"] }
+      ).toString();
+      return output.includes(`CN=${caTargetCN}`) || output.includes(`CN = ${caTargetCN}`);
+    } catch {
+      return false;
+    }
+  };
+
+  // Detect old-format certs (single self-signed file with CA:TRUE,
+  // pre-CA-chain refactor). When present, force regen so we move
+  // to the proper two-cert chain.
+  const certIsOldSelfSignedRoot = () => {
+    try {
+      // Old format: leaf and CA were the same file. Detect via
+      // basicConstraints=CA:TRUE on the file at certPath.
+      const output = execSync(
+        `openssl x509 -in "${certPath}" -noout -ext basicConstraints 2>/dev/null`,
+        { stdio: ["pipe", "pipe", "pipe"] }
+      ).toString();
+      // Detect when the LEAF still claims CA:TRUE — that's the old
+      // self-signed-root-as-server pattern Firefox 150 rejects with
+      // MOZILLA_PKIX_ERROR_CA_CERT_USED_AS_END_ENTITY.
+      return /CA:\s*TRUE/i.test(output);
+    } catch {
+      return false;
+    }
+  };
+
+  const caNeedsRegen =
+    !fs.existsSync(caKeyPath) ||
+    !fs.existsSync(caCertPath) ||
+    !caHasTargetCN();
+
+  const leafNeedsRegen =
     !fs.existsSync(keyPath) ||
     !fs.existsSync(certPath) ||
     certExpiresSoon() ||
     !certCoversCurrentHosts() ||
-    !certHasTargetCN();
+    !certHasTargetCN() ||
+    certIsOldSelfSignedRoot() ||
+    caNeedsRegen; // re-sign the leaf if we just regenerated the CA
 
-  if (needsRegen) {
-    console.log("SSL certificates not found or outdated, generating self-signed certificates...");
+  if (caNeedsRegen) {
+    console.log("Generating self-signed root CA...");
+    try {
+      execSync(
+        // Root CA — 10-year validity so the user trusts it once
+        // and re-trust is rare. `keyCertSign + cRLSign` are the
+        // standard CA usages; no `digitalSignature` here because
+        // the CA never serves traffic itself.
+        `openssl req -x509 -newkey rsa:2048 -keyout "${caKeyPath}" -out "${caCertPath}" -days 3650 -nodes` +
+        ` -subj "/CN=${caTargetCN}"` +
+        ` -addext "basicConstraints=critical,CA:TRUE"` +
+        ` -addext "keyUsage=critical,keyCertSign,cRLSign"`,
+        { stdio: "pipe" }
+      );
+      fs.chmodSync(caKeyPath, 0o600);
+      console.log(`Root CA generated: CN="${caTargetCN}"`);
+    } catch (err) {
+      console.error("Failed to generate root CA:", err.message);
+      return null;
+    }
+  }
+
+  if (leafNeedsRegen) {
+    console.log("Generating leaf server certificate signed by the CA...");
     try {
       const san = collectSanEntries().join(",");
+      const csrPath = path.join(__dirname, "leaf.csr");
+      const extPath = path.join(__dirname, "leaf-ext.conf");
+      const srlPath = path.join(__dirname, "ca-cert.srl");
+      // Write the leaf-specific extensions to a temp file. openssl
+      // `x509 -req -CA ...` doesn't pick up addext from the CSR, so
+      // we pass extensions via -extfile. `serverAuth` in the EKU is
+      // what tells Firefox 150 + Chrome that the leaf is a server
+      // cert (and only a server cert — explicitly NOT a CA).
+      fs.writeFileSync(extPath,
+        `subjectAltName=${san}\n`
+        + "basicConstraints=critical,CA:FALSE\n"
+        + "keyUsage=critical,digitalSignature,keyEncipherment\n"
+        + "extendedKeyUsage=serverAuth\n");
+      // 1) Generate leaf key + CSR (Subject CN only; SAN comes via extfile).
       execSync(
-        // basicConstraints + keyUsage extensions turn this self-signed
-        // server certificate into a proper self-signed root CA that
-        // Firefox accepts in its Authorities trust store. Without
-        // them Firefox still trusts the cert via per-site exceptions
-        // but refuses to install it as a CA (treats it as a personal
-        // certificate). iOS / macOS / Android are lenient and trust
-        // either flavour, so adding the CA flag is non-breaking.
-        // The `digitalSignature + keyEncipherment` usages keep the
-        // cert usable as the server's TLS cert (same key serves both
-        // the CA root and the leaf-cert roles — the "self-signed
-        // root that's also the server cert" pattern used by mkcert
-        // and friends for local-dev / kiosk scenarios).
-        `openssl req -x509 -newkey rsa:2048 -keyout "${keyPath}" -out "${certPath}" -days 825 -nodes` +
-        ` -subj "/CN=${targetCN}"` +
-        ` -addext "subjectAltName=${san}"` +
-        ` -addext "basicConstraints=critical,CA:TRUE"` +
-        ` -addext "keyUsage=critical,digitalSignature,keyCertSign,keyEncipherment"`,
+        `openssl req -new -newkey rsa:2048 -keyout "${keyPath}" -out "${csrPath}" -nodes` +
+        ` -subj "/CN=${targetCN}"`,
+        { stdio: "pipe" }
+      );
+      // 2) Sign the CSR with the root CA.
+      execSync(
+        `openssl x509 -req -in "${csrPath}" -CA "${caCertPath}" -CAkey "${caKeyPath}" -CAcreateserial` +
+        ` -out "${certPath}" -days 825 -sha256` +
+        ` -extfile "${extPath}"`,
         { stdio: "pipe" }
       );
       fs.chmodSync(keyPath, 0o600);
-      console.log(`SSL certificates generated successfully: CN="${targetCN}", SAN=${san}`);
+      // Clean up scratch files (CSR + ext config). The .srl serial
+      // file is kept — openssl needs a stable counter to issue
+      // future leaf certs without colliding serials.
+      try { fs.unlinkSync(csrPath); } catch { /* ignore */ }
+      try { fs.unlinkSync(extPath); } catch { /* ignore */ }
+      // Reassure that the serial file landed where expected — not
+      // strictly required for the boot path but useful for debugging.
+      if (!fs.existsSync(srlPath)) {
+        console.warn(`Expected CA serial file at ${srlPath} after signing`);
+      }
+      console.log(`Leaf cert signed by CA: CN="${targetCN}", SAN=${san}`);
     } catch (err) {
-      console.error("Failed to generate SSL certificates:", err.message);
+      console.error("Failed to generate leaf certificate:", err.message);
       return null;
     }
   }
@@ -266,7 +352,15 @@ const sslOptions = (() => {
   try {
     return {
       key: fs.readFileSync(keyPath),
-      cert: fs.readFileSync(certPath),
+      // Present leaf + CA as a chain. This isn't strictly required
+      // for clients that already trust the CA, but it helps any
+      // client doing eager chain validation (e.g. curl --cacert
+      // pointed at the CA, or a Node.js client without --insecure).
+      cert: Buffer.concat([
+        fs.readFileSync(certPath),
+        Buffer.from("\n"),
+        fs.readFileSync(caCertPath),
+      ]),
     };
   } catch {
     return null;
@@ -428,8 +522,18 @@ app.get("/api/is-local", (req, res) => {
 // is in every TLS handshake anyway), only the private key in
 // `key.pem` is sensitive and never served.
 app.get("/api/cert.pem", (req, res) => {
-  const certPath = path.join(__dirname, "cert.pem");
-  fs.readFile(certPath, (err, data) => {
+  // Serve the ROOT CA cert (ca-cert.pem) — that's the artefact
+  // users install in their device's trust store. The server's
+  // leaf cert (cert.pem) is presented in the TLS handshake and
+  // validated against the trusted root client-side. Pre-CA-chain
+  // refactor this endpoint served cert.pem directly because the
+  // leaf WAS the root; after the refactor we point at ca-cert.pem.
+  // Falls back to cert.pem if ca-cert.pem is missing (defensive —
+  // legacy installs that haven't regenerated yet).
+  const caCertPath = path.join(__dirname, "ca-cert.pem");
+  const legacyCertPath = path.join(__dirname, "cert.pem");
+  const sourcePath = fs.existsSync(caCertPath) ? caCertPath : legacyCertPath;
+  fs.readFile(sourcePath, (err, data) => {
     if (err) return res.status(404).send("cert.pem not found");
     res.setHeader("Content-Type", "application/x-x509-ca-cert");
     res.setHeader("Content-Disposition", "attachment; filename=\"pi-weather-cert.pem\"");
