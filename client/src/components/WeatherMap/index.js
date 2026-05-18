@@ -992,6 +992,16 @@ const RadarFocusControl = ({ active, onToggle, titleOn, titleOff }) => {
         L.DomEvent.preventDefault(e);
         L.DomEvent.stopPropagation(e);
         onToggleRef.current?.();
+        // Blur immediately so the anchor doesn't keep keyboard focus
+        // after the click. Without this the :focus / :focus-visible
+        // pseudo stayed on the link and (combined with sticky :hover
+        // while the cursor was still over the button) painted the
+        // accent-soft hover fill — user-reported as "the button
+        // stays pale after I tap to deactivate". Browsers don't
+        // promote mouse-click focus to :focus-visible, but blurring
+        // is the cleanest defence against the next user not getting
+        // bitten by future Chrome behaviour changes here.
+        link.blur();
       });
       linkRef.current = link;
       return container;
@@ -1008,13 +1018,14 @@ const RadarFocusControl = ({ active, onToggle, titleOn, titleOff }) => {
     if (!link) return;
     link.title = active ? titleOn : titleOff;
     link.setAttribute("aria-pressed", String(active));
-    if (active) {
-      link.style.backgroundColor = "var(--c-accent, #2563eb)";
-      link.style.color = "var(--c-bg, #fff)";
-    } else {
-      link.style.backgroundColor = "";
-      link.style.color = "";
-    }
+    // Toggle a class instead of setting inline styles. The Leaflet
+    // base rules in ui/reset.css use !important, so inline styles
+    // without !important can't win — and even if they did, the
+    // :hover rule (also !important) sticks after a tap on touch /
+    // devtools and the button never visually resets when the user
+    // toggles focus off. The radar-focus-active CSS rule (also in
+    // reset.css, with matching !important) wins cleanly both ways.
+    link.classList.toggle("radar-focus-active", !!active);
   }, [active, titleOn, titleOff]);
 
   return null;

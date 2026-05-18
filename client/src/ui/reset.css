@@ -77,11 +77,43 @@
   text-shadow: none !important;
 }
 
+/* Hover / focus-visible — NO visual change from the resting state.
+ *
+ * Earlier iterations tried (1) accent-soft background, (2) accent
+ * icon colour. Both painted a distinct visual on hover that the
+ * cursor's natural resting position over a just-tapped button
+ * latched onto — user-reported as "the button stayed selected"
+ * for both. Any visible hover-vs-rest difference reads as a
+ * stuck active state on desktop where the cursor doesn't move
+ * unless something is done.
+ *
+ * Trade-off: desktop users lose the hover affordance. Acceptable
+ * for a kiosk-first app where the buttons carry tooltips (title
+ * attribute) and the primary interaction surface is touch.
+ * :focus-visible is still inside the selector so a keyboard
+ * focus ring would still apply via the browser's default outline
+ * (not painted by these rules). */
 .ambientRoot .leaflet-bar a:hover,
-.ambientRoot .leaflet-bar a:focus,
+.ambientRoot .leaflet-bar a:focus-visible,
 .ambientRoot .leaflet-touch .leaflet-bar a:hover {
-  background-color: var(--c-accent-soft) !important;
+  background-color: var(--c-surface) !important;
   color: var(--c-text) !important;
+}
+
+/* Active state for the radar-focus Leaflet control (toggled via
+ * .classList.toggle("radar-focus-active") in RadarFocusControl).
+ * Needs !important to win over the base + hover rules above,
+ * AND needs to also win when the cursor / touch is still over
+ * the button after the tap that flipped the state. The hover
+ * selector below mirrors the base hover rule so the user gets
+ * the same visual on tap-release as on resting active. */
+.ambientRoot .leaflet-bar a.radar-focus-active,
+.ambientRoot .leaflet-bar a.radar-focus-active:hover,
+.ambientRoot .leaflet-bar a.radar-focus-active:focus,
+.ambientRoot .leaflet-touch .leaflet-bar a.radar-focus-active,
+.ambientRoot .leaflet-touch .leaflet-bar a.radar-focus-active:hover {
+  background-color: var(--c-accent) !important;
+  color: var(--c-bg) !important;
 }
 
 /* Push Leaflet's top-left control stack (zoom +/-) down + right to
