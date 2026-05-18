@@ -106,7 +106,7 @@ Firefox a son propre magasin de confiance indépendant de Windows.
 3. Sélectionnez `pi-weather-cert.pem`.
 4. Cochez **« Confirmer cette AC pour identifier des sites Web »**. Cliquez sur **OK**.
 
-> **Si Firefox refuse d'importer le certificat en tant qu'autorité** (il apparaît comme « certificat personnel » sans pouvoir le confirmer comme AC) : ton Pi roule encore le code de génération de certificat antérieur à mai 2026, qui ne marquait pas le certificat avec le flag CA. **Solution temporaire** : sur le site `https://<ip-du-pi>:8443`, clique sur **Avancé** → **Accepter le risque et poursuivre**. Firefox mémorise une exception par site (à refaire si l'IP du Pi change). **Solution permanente** : redémarre le serveur du Pi avec une version à jour, puis force la régénération du certificat (efface `server/cert.pem` + `server/key.pem` et redémarre — le serveur génère un nouveau certificat avec le flag CA correct). Refaire l'installation de confiance sur chaque appareil après ça.
+> **Si Firefox 150+ refuse d'importer le certificat en tant qu'autorité** avec `MOZILLA_PKIX_ERROR_CA_CERT_USED_AS_END_ENTITY` : ton Pi roule encore le code de génération de certificat antérieur à v2.16.x qui utilisait un seul cert auto-signé comme racine ET cert serveur. Tire la dernière version du code serveur, puis force la régénération (efface `server/cert.pem` + `server/key.pem` et redémarre). Le serveur génère maintenant une vraie chaîne AC racine + leaf que Firefox accepte. Voir la section « Quand refaire cette opération » en bas pour le reste de l'histoire.
 
 ---
 
@@ -130,9 +130,22 @@ Firefox a sa propre base ; utilisez soit l'interface Firefox (voir la section Wi
 
 ## Quand refaire cette opération
 
-Le certificat du Pi est généré avec une période de validité de **825 jours**. Le kiosque le regénère automatiquement lorsqu'il est à moins de 30 jours de l'expiration ou lorsque la configuration LAN change (p. ex. nouvelle IP statique attribuée au Pi). Chacun de ces événements invalide l'ancien profil de confiance, et il faudra recommencer le flux d'installation une fois par appareil.
+Depuis le refactor en chaîne de certificats v2.16.x, le Pi utilise **deux** certificats qui travaillent ensemble :
 
-Il n'y a pas de synchronisation automatique du renouvellement parce que le Pi est toute la chaîne de confiance — pas d'AC externe pour pousser des mises à jour. La fenêtre de 825 jours est suffisamment longue pour que ce soit essentiellement « set and forget » pour la plupart des installations.
+- **AC racine** (`ca-cert.pem`) — celui que tu installes dans le magasin de confiance. **Validité 10 ans**, CN `Pi Weather Station CA - <hostname>`. Le kiosque ne le régénère que si le hostname change — en pratique, jamais. C'est ce que sert `/api/cert.pem` et la seule chose à installer sur chaque appareil.
+- **Cert serveur (leaf)** (`cert.pem`) — celui que le Pi présente dans la poignée de main TLS. **Validité 825 jours**, CN `Pi Weather Station - <hostname>`, signé par l'AC racine. Régénération automatique quand l'expiration < 30 jours ou que la configuration LAN change (nouvelle IP, nouveau hostname). Comme le leaf est signé par l'AC à laquelle tu fais déjà confiance, la rotation du leaf est **transparente** — aucune re-confiance par appareil nécessaire.
+
+Concrètement : installe l'AC une fois par appareil. Le leaf peut tourner en arrière-plan sans casser ta confiance. La fenêtre de 10 ans de l'AC rend cela essentiellement « set and forget » pour la durée de vie du Pi.
+
+### Anciens installs à un seul certificat (pré-v2.16.x)
+
+Les installs qui ont roulé une version antérieure du serveur utilisaient un seul certificat qui était à la fois racine et leaf (le pattern « racine auto-signée qui sert aussi de cert serveur »). Le serveur détecte ce format au démarrage et force une régénération complète avec la nouvelle chaîne. Après ça :
+- Tous les appareils déjà trustés afficheront « Non sécurisé » parce que l'identité du certificat a changé.
+- Refais l'installation de confiance sur chaque appareil. À partir de là, les rotations du leaf ne nécessitent plus de re-confiance.
+
+### Caveat Firefox 150
+
+Firefox 150 applique RFC 5280 strictement : un certificat avec `basicConstraints=CA:TRUE` ne peut PAS être utilisé comme cert serveur leaf. L'ancien pattern à un seul cert échoue avec `MOZILLA_PKIX_ERROR_CA_CERT_USED_AS_END_ENTITY` sur Firefox 150. La nouvelle chaîne d'AC a `CA:TRUE` uniquement sur la racine (qui n'est jamais servie comme leaf) et `CA:FALSE` sur le leaf (que le serveur présente). Firefox 150 accepte ça proprement.
 
 ---
 

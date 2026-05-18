@@ -106,7 +106,7 @@ Firefox tiene su propio almacén de confianza independiente de Windows.
 3. Seleccione `pi-weather-cert.pem`.
 4. Marque **«Confiar en esta CA para identificar sitios web»**. Clic en **Aceptar**.
 
-> **Si Firefox se niega a importar el certificado como Autoridad** (aparece como «certificado personal» sin posibilidad de confirmarlo como CA): tu Pi todavía ejecuta el código de generación de certificado anterior a mayo de 2026 que no marcaba el certificado con el flag CA. **Solución temporal**: visita `https://<ip-del-pi>:8443`, clic en **Avanzado** → **Aceptar el riesgo y continuar**. Firefox recuerda una excepción por sitio (deberás repetirla si la IP del Pi cambia). **Solución permanente**: actualiza el código del servidor, luego fuerza la regeneración del certificado (elimina `server/cert.pem` + `server/key.pem` y reinicia — el servidor genera un nuevo certificado con el flag CA correcto). Vuelve a instalar la confianza en cada dispositivo después de esto.
+> **Si Firefox 150+ se niega a importar el certificado como Autoridad** con `MOZILLA_PKIX_ERROR_CA_CERT_USED_AS_END_ENTITY`: tu Pi todavía ejecuta el código de generación de certificado anterior a v2.16.x que usaba un único cert autofirmado como raíz Y cert servidor. Actualiza el código del servidor, luego fuerza la regeneración (elimina `server/cert.pem` + `server/key.pem` y reinicia). El servidor genera ahora una cadena CA raíz + leaf adecuada que Firefox acepta. Ver la sección «Cuándo repetir esta operación» al final para el resto de la historia.
 
 ---
 
@@ -130,9 +130,22 @@ Firefox tiene su propia base; o use la interfaz de Firefox (ver la sección Wind
 
 ## Cuándo repetir esta operación
 
-El certificado del Pi se genera con un período de validez de **825 días**. El kiosco lo regenera automáticamente cuando está a menos de 30 días de la expiración o cuando cambia la configuración LAN (p. ej. nueva IP estática asignada al Pi). Cualquiera de estos eventos invalida el perfil de confianza anterior, y deberá repetir el flujo de instalación una vez por dispositivo.
+Desde la refactorización de cadena de certificados v2.16.x, el Pi utiliza **dos** certificados que funcionan juntos:
 
-No hay sincronización automática de renovación porque el Pi es toda la cadena de confianza — sin AC externa de donde obtener actualizaciones. La ventana de 825 días es suficientemente larga como para que sea «set and forget» en la mayoría de las instalaciones.
+- **CA raíz** (`ca-cert.pem`) — el que instala en su almacén de confianza. **Validez 10 años**, CN `Pi Weather Station CA - <hostname>`. El kiosco lo regenera solo si el hostname cambia — en la práctica, nunca. Es lo que sirve `/api/cert.pem` y lo único que necesita instalar en cada dispositivo.
+- **Cert servidor (leaf)** (`cert.pem`) — el que el Pi presenta en el handshake TLS. **Validez 825 días**, CN `Pi Weather Station - <hostname>`, firmado por la CA raíz. Regeneración automática cuando la expiración < 30 días o cuando cambia la configuración LAN (nueva IP, nuevo hostname). Como el leaf está firmado por la CA en la que ya confía, la rotación del leaf es **transparente** — no requiere reconfianza por dispositivo.
+
+En la práctica: instale la CA una vez por dispositivo. El leaf puede rotar en segundo plano sin romper su confianza. La ventana de 10 años de la CA hace que sea esencialmente «set and forget» durante la vida útil del Pi.
+
+### Instalaciones antiguas con un solo certificado (pre-v2.16.x)
+
+Las instalaciones que ejecutaban una versión anterior del servidor usaban un único certificado que era tanto raíz como leaf (el patrón «raíz autofirmada que también es certificado servidor»). El servidor detecta este formato al arrancar y fuerza una regeneración completa con la nueva cadena. Después de esto:
+- Todos los dispositivos previamente confiados mostrarán «No seguro» porque la identidad del certificado cambió.
+- Repita la instalación de confianza en cada dispositivo. A partir de ahí, las rotaciones del leaf ya no requieren reconfianza.
+
+### Caveat Firefox 150
+
+Firefox 150 aplica RFC 5280 estrictamente: un certificado con `basicConstraints=CA:TRUE` no puede usarse como cert servidor leaf. El antiguo patrón de un solo cert falla con `MOZILLA_PKIX_ERROR_CA_CERT_USED_AS_END_ENTITY` en Firefox 150. La nueva cadena de CA tiene `CA:TRUE` solo en la raíz (que nunca se sirve como leaf) y `CA:FALSE` en el leaf (que el servidor presenta). Firefox 150 lo acepta limpiamente.
 
 ---
 

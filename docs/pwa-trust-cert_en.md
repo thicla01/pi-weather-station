@@ -160,7 +160,7 @@ Firefox has its own trust store independent of Windows.
 3. Pick `pi-weather-cert.pem`.
 4. Check **"Trust this CA to identify websites"**. Click **OK**.
 
-> **If Firefox refuses to import the cert as an Authority** (it shows up as a "personal certificate" with no way to confirm it as a CA): your Pi is still running the pre-May-2026 cert-generation code that didn't mark the cert with the CA flag. **Temporary workaround**: visit `https://<pi-ip>:8443`, click **Advanced** → **Accept the Risk and Continue**. Firefox remembers a per-site exception (you'll need to re-do it if the Pi's IP changes). **Permanent fix**: pull the latest server code, then force a cert regeneration (delete `server/cert.pem` + `server/key.pem` and restart — the server generates a new cert with the correct CA flag). Re-do the trust install on every device after that.
+> **If Firefox 150+ refuses to import the cert as an Authority** with `MOZILLA_PKIX_ERROR_CA_CERT_USED_AS_END_ENTITY`: your Pi is running the pre-v2.16.x cert-generation code that used a single self-signed cert as both root AND server cert. Pull the latest server code, then force a regen (delete `server/cert.pem` + `server/key.pem` and restart). The server now produces a proper CA root + leaf chain that Firefox accepts. See the "When to re-do this" section at the bottom for the rest of the migration story.
 
 ---
 
@@ -187,17 +187,22 @@ section above) or pass `-d sql:$HOME/.mozilla/firefox/<profile>/`.
 
 ## When to re-do this
 
-The Pi's certificate is generated with an **825-day** validity
-period. The kiosk regenerates it automatically when the cert is
-within 30 days of expiry or when the LAN configuration changes
-(e.g. you assigned a new static IP to the Pi). Either event
-invalidates the old trust profile, and you'll need to repeat the
-install flow once per device.
+Since the v2.16.x CA-chain refactor, the Pi runs **two** certificates working together:
 
-There is no automatic renewal sync because the Pi is the entire
-trust chain — no external CA to pull updates from. The 825-day
-window is far enough out that this is essentially "set and forget"
-for most installations.
+- **Root CA** (`ca-cert.pem`) — what you install in your trust store. **10-year validity**, CN `Pi Weather Station CA - <hostname>`. The kiosk regenerates it only when the hostname changes — in practice, never. This is the artefact `/api/cert.pem` serves and the only thing you need to install on each device.
+- **Server leaf** (`cert.pem`) — what the Pi presents in the TLS handshake. **825-day validity**, CN `Pi Weather Station - <hostname>`, signed by the root CA. Auto-regenerated when expiry < 30 days or when the LAN configuration changes (new IP, new hostname). Because the leaf is signed by the root you already trust, leaf rotation is **transparent** — no per-device re-trust needed.
+
+So in practice: install the CA once per device. The leaf can rotate in the background without breaking your trust. The 10-year CA window makes this essentially "set and forget" for the life of the Pi.
+
+### Legacy single-cert installs (pre-v2.16.x)
+
+Installs that ran an earlier server version used a single cert that was both root and leaf (the "self-signed root that's also the server cert" pattern). The server auto-detects this on boot and forces a full regen with the new chain. After that:
+- All previously trusted devices show "Not Secure" because the cert identity changed.
+- Re-do the trust install on each device. From this point on, leaf rotation no longer requires re-trust.
+
+### Firefox 150 caveat
+
+Firefox 150 enforces RFC 5280 strictly: a certificate with `basicConstraints=CA:TRUE` cannot be used as a server's leaf cert. The pre-refactor single-cert pattern fails Firefox 150 with `MOZILLA_PKIX_ERROR_CA_CERT_USED_AS_END_ENTITY`. The new CA chain has `CA:TRUE` only on the root (which is never served as a leaf) and `CA:FALSE` on the leaf (which is what the server presents). Firefox 150 accepts this cleanly.
 
 ---
 
