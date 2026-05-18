@@ -58,7 +58,7 @@
     "postcss": "^8.5.14",
     "postcss-loader": "^8.2.1",
     "postcss-preset-env": "^10.6.1",
-    "style-loader": "^3.3.4",
+    "style-loader": "^4.0.0",
     "webpack": "^5.106.2",
     "webpack-cli": "^5.1.4"
   }
