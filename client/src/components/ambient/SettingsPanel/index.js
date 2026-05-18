@@ -1006,17 +1006,54 @@ const DisclosureHeader = ({ index, title, subtitle, right, open, onToggle }) => 
   </button>
 );
 
-const RemoteNotice = ({ lang }) => (
-  <div className={styles.remoteNotice}>
-    <span className={styles.remoteNoticeIcon}>⚠</span>
-    <div>
-      {lbl(lang,
-        "Remote connection detected. To change these settings, open an SSH tunnel from your local machine.",
-        "Connexion distante détectée. Pour modifier ces paramètres, ouvrez un tunnel SSH depuis votre poste local.",
-        "Conexión remota detectada. Para modificar estos ajustes, abra un túnel SSH desde su equipo local.")}
+// Generic SSH tunnel command. The hostname placeholder `<host>`
+// stays literal so the user replaces it with their Pi's IP /
+// hostname before pasting. We can't pre-fill that here because
+// the kiosk's own LAN identity isn't reliably knowable from a
+// remote browser (could be reached via Tailscale, mDNS, raw IP,
+// reverse proxy, etc.).
+const SSH_TUNNEL_CMD = "ssh -L 8443:localhost:8443 user@<host>";
+
+const RemoteNotice = ({ lang }) => {
+  const [copied, setCopied] = useState(false);
+  const onCopy = () => {
+    if (!navigator.clipboard) return;
+    navigator.clipboard.writeText(SSH_TUNNEL_CMD).then(() => {
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1800);
+    }).catch(() => {
+      // clipboard.writeText fails silently on insecure contexts.
+      // The command remains visible — user can select + copy.
+    });
+  };
+  return (
+    <div className={styles.remoteNotice}>
+      <span className={styles.remoteNoticeIcon}>⚠</span>
+      <div className={styles.remoteNoticeBody}>
+        <div>
+          {lbl(lang,
+            "Remote connection detected. To change these settings, open an SSH tunnel from your local machine and reload the app from https://localhost:8443.",
+            "Connexion distante détectée. Pour modifier ces paramètres, ouvrez un tunnel SSH depuis votre poste local et rechargez l'application depuis https://localhost:8443.",
+            "Conexión remota detectada. Para modificar estos ajustes, abra un túnel SSH desde su equipo local y recargue la app desde https://localhost:8443.")}
+        </div>
+        <div className={styles.remoteNoticeCmdRow}>
+          <code className={styles.remoteNoticeCmd}>{SSH_TUNNEL_CMD}</code>
+          <button
+            type="button"
+            className={styles.remoteNoticeCopyBtn}
+            onClick={onCopy}
+            aria-label={lbl(lang, "Copy command", "Copier la commande", "Copiar comando")}
+            title={lbl(lang, "Copy command", "Copier la commande", "Copiar comando")}
+          >
+            {copied
+              ? lbl(lang, "Copied!", "Copié !", "¡Copiado!")
+              : lbl(lang, "Copy", "Copier", "Copiar")}
+          </button>
+        </div>
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const ApiKeysList = ({ providers, remote, draft, onChange, lang }) => (
   <div className={styles.apiList}>

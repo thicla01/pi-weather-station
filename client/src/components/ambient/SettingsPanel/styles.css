@@ -288,6 +288,67 @@
   flex-shrink: 0;
 }
 
+.remoteNoticeBody {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* SSH command row — monospace command sample with an inline Copy
+ * button. The `<host>` placeholder is shown literally so the user
+ * knows to replace it before pasting. Pre-formatted so the command
+ * doesn't wrap on whitespace and stays a single copy-pastable line. */
+.remoteNoticeCmdRow {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.remoteNoticeCmd {
+  flex: 1;
+  min-width: 0;
+  padding: 4px 8px;
+  background-color: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: 4px;
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  color: var(--c-text);
+  /* Allow overflow on the inline element so user can scroll
+   * horizontally on very narrow viewports instead of wrapping
+   * mid-flag. */
+  overflow-x: auto;
+  white-space: nowrap;
+  user-select: all;
+}
+
+.remoteNoticeCopyBtn {
+  flex-shrink: 0;
+  padding: 4px 10px;
+  background-color: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: 4px;
+  color: var(--c-text);
+  font-family: inherit;
+  font-size: 11px;
+  font-weight: 500;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.remoteNoticeCopyBtn:hover {
+  background-color: var(--c-accent-soft);
+  color: var(--c-text);
+}
+
+.remoteNoticeCopyBtn:focus-visible {
+  outline: 2px dashed var(--c-text);
+  outline-offset: 1px;
+}
+
 /* ── Toggle ─────────────────────────────────────────────────────── */
 
 .toggle {
