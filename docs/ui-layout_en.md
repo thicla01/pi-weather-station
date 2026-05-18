@@ -242,7 +242,7 @@ The server generates a self-signed cert on first boot (CN: `Pi Weather Station -
 2. Install the iOS profile (Settings → Downloaded profile).
 3. Enable full trust: Settings → General → About → Certificate Trust Settings.
 
-Per-platform walkthrough: [`docs/pwa-trust-cert.md`](pwa-trust-cert.md).
+Per-platform walkthrough: [`docs/pwa-trust-cert_en.md`](pwa-trust-cert_en.md).
 
 ### Refreshing an installed PWA
 

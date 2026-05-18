@@ -282,7 +282,11 @@ const SectionLocalPrefs = ({ ctx, lang }) => {
           </a>
           <a
             className={styles.trustCertLinkSecondary}
-            href="https://github.com/thicla01/pi-weather-station/blob/master/docs/pwa-trust-cert.md"
+            /* Resolve the guide URL to the matching language file —
+             * we only ship _en / _fr / _es. Any other locale (and
+             * the unlikely null/empty case) falls back to the
+             * English guide. */
+            href={`https://github.com/thicla01/pi-weather-station/blob/master/docs/pwa-trust-cert_${["fr", "es"].includes(lang) ? lang : "en"}.md`}
             target="_blank"
             rel="noopener noreferrer"
           >

@@ -642,7 +642,7 @@ Serves the server's self-signed TLS certificate as a downloadable `.pem` file fo
 - **Response headers:** `Content-Type: application/x-x509-ca-cert` (triggers the iOS "install profile" flow when opened from Safari)
 - **Response body:** the PEM-encoded cert from `server/cert.pem`
 
-See [`docs/pwa-trust-cert.md`](pwa-trust-cert.md) for the per-platform trust-install walkthrough.
+See [`docs/pwa-trust-cert_en.md`](pwa-trust-cert_en.md) for the per-platform trust-install walkthrough.
 
 ---
 

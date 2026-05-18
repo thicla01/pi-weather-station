@@ -242,7 +242,7 @@ Le serveur génère un certificat auto-signé au premier démarrage (CN : `Pi We
 2. Installer le profil iOS (Réglages → Profil téléchargé).
 3. Activer la confiance complète : Réglages → Général → Information → Réglages de confiance des certificats.
 
-Procédure détaillée par plateforme : [`docs/pwa-trust-cert.md`](pwa-trust-cert.md).
+Procédure détaillée par plateforme : [`docs/pwa-trust-cert_fr.md`](pwa-trust-cert_fr.md).
 
 ### Rafraîchir une PWA installée
 
