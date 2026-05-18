@@ -302,7 +302,7 @@ Detected via `window.matchMedia` listeners that flip layouts and feature toggles
 | `width ≤ 799 px` | Switch to `LayoutMobile` (single column, mini radar with maximize button, pull-to-refresh) |
 | `width 800-1279 px` | `LayoutPi` (2-column grid with collapsible rail) |
 | `width ≥ 1280 px` | `LayoutDesktop` (full-bleed map + floating panels + focus-radar control) |
-| `max-height ≤ 520 px` | ChartTabs replaces stacked charts; rail-collapse chevron appears (`LayoutPi`) |
+| `max-height ≤ 520 px` | SettingsPanel + DebugPanel switch to compact 2-column layouts; mobile mapCard maxi switches to landscape proportions. ChartTabs and the rail-collapse chevron are **always on** in `LayoutPi` / `LayoutDesktop` (no height gate). |
 | `(max-width: 479px) and (orientation: portrait)` | Dock hides `data-dock-priority="secondary"` buttons (auto / nightRed / timeline / arrows / legend) — essentials only |
 
 ### Font size zoom model

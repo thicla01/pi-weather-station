@@ -88,8 +88,7 @@ La carte occupe la colonne de gauche ; le rail (panneau d'information) occupe la
 │                          │ IndoorBlock (Homebridge)  │
 │                          ├──────────────────────────┤
 │                          │ ChartTabs                 │
-│                          │ (onglets 24 h / 5 jours   │
-│                          │  sur ≤ 520 px hauteur)    │
+│                          │ (onglets 24 h / 5 jours)  │
 │                          ├──────────────────────────┤
 │                          │ AiSummaryInline           │
 │                          │ (expansible ↑)            │
@@ -98,12 +97,19 @@ La carte occupe la colonne de gauche ; le rail (panneau d'information) occupe la
 └──────────────────────────────────────────────────────┘
 ```
 
-### Adaptations petit écran (≤ 520 px hauteur — affichage 7" officiel 800×480)
+### Adaptations toujours actives (toute hauteur en `LayoutPi`)
 
-- **ChartTabs** — HourlyChart et DailyChart sont affichés sous forme de deux onglets (`24 heures` / `5 jours`) au lieu d'être empilés, pour économiser l'espace vertical. L'état de l'onglet persiste pendant la session.
+- **ChartTabs** — HourlyChart et DailyChart sont rendus sous forme de deux onglets (`24 heures` / `5 jours`) avec un bouton maximiser ⛶. Remplace l'agencement v2 de graphiques empilés indépendamment de la hauteur du viewport. L'état de l'onglet persiste pendant la session.
 - **Basculement du panneau** — Un chevron (`›` / `‹`) est épinglé au bord droit de la carte pour replier/déplier le rail. Lorsque replié, la carte occupe toute la largeur ; Leaflet appelle `map.invalidateSize()` afin que les tuiles se réajustent.
 - **FloatingMiniBanner** — Lorsque le rail est replié et qu'une alerte météo gouvernementale sévère est active, une bannière compacte se superpose en haut à droite de la carte pour que l'alerte ne soit jamais silencieusement masquée. Appuyer dessus rouvre le rail.
-- **Grille SettingsPanel grid4** — Les grilles de la section Avancé basculent à 2 colonnes sur ≤ 520 px de hauteur, ce qui donne suffisamment d'espace aux curseurs et aux interrupteurs (corrige le débordement sur les curseurs d'opacité radar et le sous-texte du bouton IA).
+
+### Adaptations compactes pour superpositions (`max-height ≤ 520 px` — affichage 7" officiel 800×480)
+
+Ces ajustements ne se déclenchent que sur les viewports courts (l'écran Pi 7" et similaires). Les écrans 10" 1024×600 ne touchent PAS ces seuils — ils obtiennent la même mise en page à densité standard.
+
+- **Grille SettingsPanel grid4** — Les grilles de la section Avancé basculent à 2 colonnes, ce qui donne suffisamment d'espace aux curseurs et aux interrupteurs (corrige le débordement sur les curseurs d'opacité radar et le sous-texte du bouton IA).
+- **Mode compact DebugPanel** — Zoom de police réduit + interlignes resserrés pour que le viewport 800×480 montre plus de KPI / données services sans défilement.
+- **LayoutMobile mapCard landscape** — La carte radar mini passe de 220 → 160 px en paysage pour que le hero + la première rangée de métriques restent visibles sans scroll.
 
 ### Rail replié
 

@@ -88,8 +88,7 @@ The map occupies the left column; the rail (info panel) occupies the right colum
 │                          │ IndoorBlock (Homebridge)  │
 │                          ├──────────────────────────┤
 │                          │ ChartTabs                 │
-│                          │ (24 hours / 5 days tabs   │
-│                          │  on ≤ 520 px height)      │
+│                          │ (24 hours / 5 days tabs)  │
 │                          ├──────────────────────────┤
 │                          │ AiSummaryInline           │
 │                          │ (expandable ↑)            │
@@ -98,12 +97,19 @@ The map occupies the left column; the rail (info panel) occupies the right colum
 └──────────────────────────────────────────────────────┘
 ```
 
-### Small-screen adaptations (≤ 520 px height — official 7" display 800×480)
+### Always-on adaptations (any height in `LayoutPi`)
 
-- **ChartTabs** — HourlyChart and DailyChart are shown as two tabs (`24 hours` / `5 days`) instead of stacked, to save vertical space. Tab state persists across the session.
+- **ChartTabs** — HourlyChart and DailyChart render as two tabs (`24 hours` / `5 days`) with a maximize ⛶ button. Replaces the v2-era stacked-charts layout regardless of viewport height. Tab state persists across the session.
 - **Panel toggle** — A chevron (`›` / `‹`) is pinned to the map's right edge to collapse/expand the rail. When collapsed the map fills the full width; Leaflet calls `map.invalidateSize()` so the tiles re-fit.
 - **FloatingMiniBanner** — When the rail is collapsed and a government severe alert is active, a compact banner overlays the map's top-right so the alert is never silently hidden. Tapping it re-opens the rail.
-- **SettingsPanel grid4** — Advanced section grids switch to 2 columns on ≤ 520 px height, giving sliders and toggles enough room (fixes overflow on radar-opacity sliders and AI toggle sub-text).
+
+### Compact-overlay adaptations (`max-height ≤ 520 px` — official 7" display 800×480)
+
+These trigger only on short viewports (the 7" Pi screen and similar). 10"-class 1024×600 displays do NOT hit these — they get the same layout but in standard density.
+
+- **SettingsPanel grid4** — Advanced section grids switch to 2 columns, giving sliders and toggles enough room (fixes overflow on radar-opacity sliders and AI toggle sub-text).
+- **DebugPanel compact mode** — Smaller font zoom + tighter row gaps so the 800×480 viewport can show more KPI / service data without scrolling.
+- **LayoutMobile landscape mapCard** — Mini radar card height drops 220 → 160 px in landscape so the hero + first metrics row stay above the fold.
 
 ### Collapsed rail
 
