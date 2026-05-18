@@ -1092,8 +1092,15 @@ export function AppContextProvider({ children }) {
       }
       const { latitude, longitude } = coords;
 
+      // Pass today's LOCAL date so the upstream API returns sunrise /
+      // sunset for the user's day rather than "today UTC" — which,
+      // for users west of UTC during evening hours, is already the
+      // next UTC day and skips over today's local sunset (auto
+      // dark-mode flipped early as a result).
+      const d = new Date();
+      const localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
       axios
-        .get(`/api/sunrise-sunset?lat=${latitude}&lon=${longitude}`)
+        .get(`/api/sunrise-sunset?lat=${latitude}&lon=${longitude}&date=${localDate}`)
         .then((res) => {
           const { results } = res.data;
           if (results) {

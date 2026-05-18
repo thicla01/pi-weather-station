@@ -564,9 +564,22 @@ async function sunriseSunset(req, res) {
     return res.status(400).json("Invalid coordinates").end();
   }
 
+  // Optional `date` parameter (YYYY-MM-DD) is forwarded to the
+  // upstream API. The client passes its LOCAL date so the returned
+  // sunrise / sunset belong to the user's day. Without it the API
+  // defaults to "today UTC" — and for users west of UTC during
+  // evening hours that's already the next UTC day, which means
+  // the response skips over today's local sunset and the auto
+  // dark-mode toggle flips early. Strict regex match so a junk
+  // value can't reach the upstream URL.
+  const dateParam = typeof req.query.date === "string"
+    && /^\d{4}-\d{2}-\d{2}$/.test(req.query.date)
+    ? `&date=${req.query.date}`
+    : "";
+
   try {
     const result = await axios.get(
-      `https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lon}&formatted=0`,
+      `https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lon}&formatted=0${dateParam}`,
       { timeout: API_TIMEOUT_MS }
     );
     recordServiceCall("sunrise-sunset.org", 200, "OK");
