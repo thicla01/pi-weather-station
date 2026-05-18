@@ -1,8 +1,11 @@
 import React, { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
+import { InlineIcon } from "@iconify/react";
+import closeIcon from "@iconify/icons-carbon/close";
 import { AppContext } from "~/AppContext";
 import SourceBadge from "~/components/ambient/SourceBadge";
 import ConfidencePill from "~/components/ambient/ConfidencePill";
+import useDismissedAlerts from "~/hooks/useDismissedAlerts";
 import {
   isCurrentlyPrecipitating,
   getRadarAlertState,
@@ -45,11 +48,20 @@ const AlertBanner = () => {
     currentWeatherData,
   } = useContext(AppContext);
   const { t, i18n } = useTranslation();
+  const { isDismissed, dismiss } = useDismissedAlerts();
 
-  const allGovAlerts = useMemo(
-    () => (Array.isArray(govAlerts) ? govAlerts : []),
-    [govAlerts],
+  // Filter out user-dismissed alerts before the eligibility / cycling
+  // logic kicks in. Severity escalations (moderate → severe / extreme)
+  // are re-surfaced by useDismissedAlerts itself; the 4 h auto-resurface
+  // floor also runs there. This lets the banner stay silent while a
+  // government alert is "merely orange" but pop back up immediately if
+  // the same alert escalates.
+  const visibleGovAlerts = useMemo(
+    () => (Array.isArray(govAlerts) ? govAlerts.filter((a) => !isDismissed(a)) : []),
+    [govAlerts, isDismissed],
   );
+
+  const allGovAlerts = visibleGovAlerts;
   const hasEligibleGovAlert = useMemo(
     () => allGovAlerts.some((a) => a?.tier === "red" || a?.tier === "orange"),
     [allGovAlerts],
@@ -85,6 +97,32 @@ const AlertBanner = () => {
           {cyclable && <span className={styles.cycleBadge}>+{extras}</span>}
         </div>
         <div className={styles.title}>{title}</div>
+        {/* Dismiss button — hides the alert via localStorage for the
+         * next 4 h, OR until upstream severity escalates above the
+         * dismissed value. Tornado/tsunami "extreme" alerts are NOT
+         * unsilenceable per se (the user can still tap dismiss on an
+         * extreme), so we don't gate by severity here — but the
+         * auto-resurface ceiling + escalation re-show keep the user
+         * from going totally dark on a real event. */}
+        <button
+          type="button"
+          className={styles.dismissBtn}
+          onClick={(e) => {
+            e.stopPropagation();
+            dismiss(currentAlert);
+          }}
+          onKeyDown={(e) => {
+            // Don't let Enter/Space on the dismiss button bubble up
+            // and trigger the banner's own cycle handler.
+            if (e.key === "Enter" || e.key === " ") {
+              e.stopPropagation();
+            }
+          }}
+          aria-label={t("alert.dismiss", { defaultValue: "Dismiss" })}
+          title={t("alert.dismissTooltip", { defaultValue: "Hide for 4 h (re-surfaces if it escalates)" })}
+        >
+          <InlineIcon icon={closeIcon} />
+        </button>
       </div>
     );
   }

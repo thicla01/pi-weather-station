@@ -164,7 +164,16 @@
     "wind": "Wind",
     "humidity": "Humidity",
     "uv": "UV",
-    "aqi": "AQI"
+    "aqi": "AQI",
+    "detailValue": "Value",
+    "detailStation": "Station",
+    "detailSource": "Source",
+    "detailKind": "Reading type",
+    "detailPollutant": "Pollutant",
+    "detailWorst": "Highest",
+    "detailAllergens": "All allergens",
+    "pollen": "Pollen",
+    "pollenUnit": "gr/m³"
   },
   "badges": {
     "uv": "UV",
@@ -187,14 +196,31 @@
       "veryHigh": "Very high",
       "extreme": "Extreme"
     },
+    "uvGuidance": {
+      "low": "Minimal risk. No protection needed for most people.",
+      "moderate": "Wear sunglasses, use SPF 30+ sunscreen, seek shade near midday.",
+      "high": "Reduce time in the sun between 11 a.m. and 4 p.m. Sunscreen, hat, and sunglasses recommended.",
+      "veryHigh": "Take extra precautions. Avoid the sun between 11 a.m. and 4 p.m., cover up, and apply SPF 30+ generously.",
+      "extreme": "All exposure should be avoided. Unprotected skin can burn in minutes."
+    },
     "aqiLevel": {
       "low": "Low risk",
       "moderate": "Moderate",
       "high": "High",
       "veryHigh": "Very high"
+    },
+    "pollenAllergens": {
+      "alder_pollen": "Alder",
+      "birch_pollen": "Birch",
+      "grass_pollen": "Grass",
+      "mugwort_pollen": "Mugwort",
+      "olive_pollen": "Olive",
+      "ragweed_pollen": "Ragweed"
     }
   },
   "alert": {
+    "dismiss": "Dismiss",
+    "dismissTooltip": "Hide for 4 h (resurfaces if it escalates)",
     "orangeNear": "Heavy precipitation in your area",
     "orangeApproaching": "Heavy precipitation nearby",
     "orangeIntensifying": "Heavy precipitation intensifying",

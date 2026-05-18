@@ -80,6 +80,7 @@ function registerKnownServices() {
     "OpenAQ",
     "NWS (severe weather alerts)",
     "Environment Canada (severe weather alerts)",
+    "Open-Meteo (pollen)",
   ].forEach(registerService);
 }
 
@@ -442,6 +443,9 @@ app.get("/api/health",              apiLimiter, getHealth);
 
 const { getOpenMeteoWeather } = require("./openMeteoCtrl");
 app.get("/api/weather/openmeteo",   apiLimiter, getOpenMeteoWeather);
+
+const { getPollen } = require("./pollenCtrl");
+app.get("/api/pollen",              apiLimiter, getPollen);
 
 const { getWeatherAlerts } = require("./govAlertsCtrl");
 app.get("/api/weather-alerts",      apiLimiter, getWeatherAlerts);

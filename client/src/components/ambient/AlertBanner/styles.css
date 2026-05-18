@@ -89,3 +89,45 @@
   border-radius: 3px;
   vertical-align: 1px;
 }
+
+/* Dismiss (✕) button — pinned top-right of the banner. Tap hides
+ * the alert via localStorage for the next 4 h (or until severity
+ * escalates). `stopPropagation` on the click prevents the parent
+ * banner's cycle handler from firing when the user dismisses a
+ * cyclable banner. */
+.dismissBtn {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background-color: transparent;
+  border: 0;
+  border-radius: 4px;
+  color: var(--c-text-dim);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  z-index: 1;
+}
+
+.dismissBtn:hover {
+  color: var(--c-text);
+  background-color: var(--c-accent-soft);
+}
+
+.dismissBtn:focus-visible {
+  outline: 2px dashed var(--c-text);
+  outline-offset: -2px;
+}
+
+/* Make the banner the positioning context for the absolute
+ * dismiss button. Existing banner CSS doesn't declare position,
+ * so add it here without disturbing the rest. */
+.banner {
+  position: relative;
+  padding-right: 36px;
+}

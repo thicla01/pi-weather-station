@@ -1,0 +1,78 @@
+/* DetailsPopover — generic popover anchored to a cell or badge.
+ * Positioning is relative to the parent (parent must be
+ * position: relative). Pinned bottom-right by default so the
+ * popover grows downward + leftward, staying inside the rail. */
+
+.popover {
+  position: absolute;
+  top: calc(100% + 6px);
+  min-width: 220px;
+  max-width: min(320px, calc(100vw - 24px));
+  max-height: min(420px, calc(100vh - 120px));
+  overflow-y: auto;
+  background-color: var(--c-bg);
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+  padding: 10px 12px 12px;
+  color: var(--c-text);
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
+  font-size: 12px;
+  z-index: 1600;
+  cursor: default;
+}
+
+/* Anchor variants — pick the one that keeps the popover inside
+ * the rail. Cells in the LEFT column of the grid use `anchor="left"`
+ * (popover extends rightward); cells in the RIGHT column use
+ * `anchor="right"` (popover extends leftward, the default). */
+.popoverRight {
+  right: 0;
+}
+
+.popoverLeft {
+  left: 0;
+}
+
+.header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 8px;
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--c-border);
+}
+
+.title {
+  font-weight: 600;
+  font-size: 11px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--c-text-dim);
+}
+
+.closeBtn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  background-color: transparent;
+  border: 0;
+  border-radius: 4px;
+  cursor: pointer;
+  color: var(--c-text-dim);
+  -webkit-tap-highlight-color: transparent;
+}
+
+.closeBtn:hover {
+  color: var(--c-text);
+  background-color: var(--c-accent-soft);
+}
+
+.body {
+  font-size: 12px;
+  line-height: 1.5;
+}

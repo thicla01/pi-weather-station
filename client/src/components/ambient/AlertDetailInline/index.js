@@ -6,6 +6,7 @@ import chevronUp from "@iconify/icons-carbon/chevron-up";
 import chevronDown from "@iconify/icons-carbon/chevron-down";
 import { AppContext } from "~/AppContext";
 import QrCode from "~/components/ambient/QrCode";
+import useDismissedAlerts from "~/hooks/useDismissedAlerts";
 import styles from "./styles.css";
 
 // Source landing pages — see `GovAlertDetail` for the long-form
@@ -49,10 +50,15 @@ const AlertDetailInline = ({ defaultExpanded }) => {
   const { govAlerts, govAlertIdx } = useContext(AppContext);
   const { i18n, t } = useTranslation();
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const { isDismissed } = useDismissedAlerts();
 
+  // Hide the detail section for alerts the user has dismissed via
+  // the AlertBanner ✕ button. Same filter the banner applies — the
+  // two components stay in sync via the shared useDismissedAlerts
+  // localStorage hook.
   const allGovAlerts = useMemo(
-    () => (Array.isArray(govAlerts) ? govAlerts : []),
-    [govAlerts],
+    () => (Array.isArray(govAlerts) ? govAlerts.filter((a) => !isDismissed(a)) : []),
+    [govAlerts, isDismissed],
   );
   const hasEligible = useMemo(
     () => allGovAlerts.some((a) => a?.tier === "red" || a?.tier === "orange"),

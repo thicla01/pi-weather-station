@@ -164,7 +164,16 @@
     "wind": "Vent",
     "humidity": "Humidité",
     "uv": "UV",
-    "aqi": "IQA"
+    "aqi": "IQA",
+    "detailValue": "Valeur",
+    "detailStation": "Station",
+    "detailSource": "Source",
+    "detailKind": "Type de lecture",
+    "detailPollutant": "Polluant",
+    "detailWorst": "Plus élevé",
+    "detailAllergens": "Tous les allergènes",
+    "pollen": "Pollen",
+    "pollenUnit": "gr/m³"
   },
   "badges": {
     "uv": "UV",
@@ -187,14 +196,31 @@
       "veryHigh": "Très élevé",
       "extreme": "Extrême"
     },
+    "uvGuidance": {
+      "low": "Risque minimal. Aucune protection nécessaire pour la plupart des gens.",
+      "moderate": "Portez des lunettes de soleil, appliquez un écran solaire FPS 30+, recherchez l'ombre près de midi.",
+      "high": "Réduisez le temps au soleil entre 11 h et 16 h. Écran solaire, chapeau et lunettes recommandés.",
+      "veryHigh": "Précautions supplémentaires nécessaires. Évitez le soleil entre 11 h et 16 h, couvrez-vous, appliquez un FPS 30+ généreusement.",
+      "extreme": "Toute exposition est à éviter. La peau non protégée peut brûler en quelques minutes."
+    },
     "aqiLevel": {
       "low": "Risque faible",
       "moderate": "Modéré",
       "high": "Élevé",
       "veryHigh": "Très élevé"
+    },
+    "pollenAllergens": {
+      "alder_pollen": "Aulne",
+      "birch_pollen": "Bouleau",
+      "grass_pollen": "Graminées",
+      "mugwort_pollen": "Armoise",
+      "olive_pollen": "Olivier",
+      "ragweed_pollen": "Herbe à poux"
     }
   },
   "alert": {
+    "dismiss": "Masquer",
+    "dismissTooltip": "Masquer 4 h (réapparaît si ça s'aggrave)",
     "orangeNear": "Précipitations fortes sur votre zone",
     "orangeApproaching": "Précipitations fortes à proximité",
     "orangeIntensifying": "Précipitations fortes qui s'intensifient",

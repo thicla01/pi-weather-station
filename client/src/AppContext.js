@@ -267,6 +267,13 @@ export function AppContextProvider({ children }) {
   // name, distance, observation/forecast kind without refetching).
   // null = no fetch yet, out of coverage, or upstream failure.
   const [aqhiInfo, setAqhiInfo] = useState(null);
+  // Pollen badge — opt-in (advanced.pollen.enabled). Coverage is
+  // strong in Europe (CAMS native) and acceptable in North America
+  // (CAMS global via GEOS-CF), but blank in many regions. When
+  // /api/pollen returns `available: false` the MetricsGrid hides
+  // the 5th cell silently.
+  const [pollenInfo, setPollenInfo] = useState(null);
+  const [pollenEnabled, setPollenEnabled] = useState(false);
   // Active government weather alerts at mapGeo, sorted server-side by
   // descending severity. NWS for the US, ECCC for Canada — see
   // server/govAlertsCtrl.js. Empty array means "no upstream alert
@@ -796,6 +803,13 @@ export function AppContextProvider({ children }) {
                 setCalmDayFastPath(Boolean(advancedAi.calmDayFastPath));
               }
             }
+            // Pollen badge — opt-in via advanced.pollen.enabled.
+            // Defaults to OFF so installs that don't care about
+            // pollen never burn the upstream quota or grow the grid.
+            const advancedPollen = res.advanced && res.advanced.pollen;
+            if (advancedPollen && advancedPollen.enabled !== undefined) {
+              setPollenEnabled(Boolean(advancedPollen.enabled));
+            }
             // Experimental sub-tree — opt-in feature flags. The first
             // one is experimentalUiC (Direction C UI preview, Phase 0+
             // of the v3.0.0 rollout). Defaults to false; ignored unless
@@ -1292,10 +1306,30 @@ export function AppContextProvider({ children }) {
     if (key === "showSamplingPoints") setShowSamplingPoints(value);
     if (key === "calmDayFastPath") setCalmDayFastPath(value);
     return axios
-      .patch("/setting", { key: "advanced", val: { ai: nextAi, display: nextDisplay, sleep: buildSleepSubtree(), experimental: nextExperimental } })
+      .patch("/setting", { key: "advanced", val: { ai: nextAi, display: nextDisplay, sleep: buildSleepSubtree(), experimental: nextExperimental, pollen: { enabled: pollenEnabled } } })
       .catch((err) => {
         if (err && err.response && err.response.status === 403) return;
         console.warn("saveAdvancedAiFlag PATCH failed:", err && err.message);
+      });
+  }
+
+  /**
+   * Persist advanced.pollen.enabled to settings.json. Same instant-save
+   * pattern as saveAdvancedAiFlag.
+   *
+   * @param {Boolean} value new value
+   * @returns {Promise} Resolves when saved
+   */
+  function savePollenEnabled(value) {
+    setPollenEnabled(value);
+    const nextAi = { radarAnalysisEnabled, extendedRadius: extendedRadarRadius, showSamplingPoints, calmDayFastPath };
+    const nextDisplay = { lightModeStyle, darkModeStyle, radarOpacityLight, radarOpacityDark };
+    const nextExperimental = { uiC: experimentalUiC };
+    return axios
+      .patch("/setting", { key: "advanced", val: { ai: nextAi, display: nextDisplay, sleep: buildSleepSubtree(), experimental: nextExperimental, pollen: { enabled: value } } })
+      .catch((err) => {
+        if (err && err.response && err.response.status === 403) return;
+        console.warn("savePollenEnabled PATCH failed:", err && err.message);
       });
   }
 
@@ -1561,6 +1595,32 @@ export function AppContextProvider({ children }) {
     return () => { cancelled = true; clearInterval(interval); };
   }, [mapGeo]);
 
+  // Pollen — same cadence + skip pattern as the AQ poll above.
+  // Gated on the opt-in `advanced.pollen.enabled` flag so installs
+  // that don't care about pollen never burn the upstream quota.
+  useEffect(() => {
+    if (!mapGeo || !pollenEnabled) {
+      setPollenInfo(null);
+      return undefined;
+    }
+    const POLLEN_REFRESH_MS = 60 * 60 * 1000;
+    let cancelled = false;
+    const fetchPollen = () => {
+      const params = new URLSearchParams({
+        lat: mapGeo.latitude,
+        lon: mapGeo.longitude,
+      });
+      axios.get(`/api/pollen?${params}`)
+        .then((res) => {
+          if (!cancelled) setPollenInfo(res.data?.available ? res.data : null);
+        })
+        .catch(() => { if (!cancelled) setPollenInfo(null); });
+    };
+    fetchPollen();
+    const interval = setInterval(fetchPollen, POLLEN_REFRESH_MS);
+    return () => { cancelled = true; clearInterval(interval); };
+  }, [mapGeo, pollenEnabled]);
+
   // Auto dark/light at sunrise / sunset. Runs only when the user opted
   // in via Settings AND we have valid sunrise/sunset timestamps. Checks
   // every minute (cheap — no network), plus immediately on mount/toggle.
@@ -1680,6 +1740,9 @@ export function AppContextProvider({ children }) {
     toggleDirectionArrows,
     aqhiInfo,
     setAqhiInfo,
+    pollenInfo,
+    pollenEnabled,
+    savePollenEnabled,
     govAlerts,
     govAlertIdx,
     cycleGovAlert,

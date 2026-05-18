@@ -10,6 +10,11 @@
 }
 
 .cell {
+  /* `position: relative` is load-bearing for DetailsPopover —
+   * the popover uses `position: absolute; right: 0; top: 100%`
+   * to anchor against the cell. Without this it'd resolve
+   * against .grid (or further up), breaking placement. */
+  position: relative;
   background-color: var(--c-surface);
   border: 1px solid var(--c-border);
   border-radius: 8px;
@@ -19,8 +24,75 @@
   display: flex;
   flex-direction: column;
   min-height: 78px;
+  text-align: left;
   /* Hybrid-mode severity strip — propagates from AmbientLayers root. */
   box-shadow: inset 3px 0 0 var(--c-strip-color, transparent);
+}
+
+/* Interactive cells (UV + AQ) — render as a <button>. Reset the
+ * native button defaults so the cell still reads as a slab, then
+ * add a subtle hover/focus affordance so the user discovers the
+ * tap target. Keyboard accessibility comes from the underlying
+ * <button> element. */
+.cellInteractive {
+  cursor: pointer;
+  font: inherit;
+  -webkit-tap-highlight-color: transparent;
+}
+
+@media (hover: hover) {
+  .cellInteractive:hover {
+    border-color: var(--c-text-dim);
+  }
+}
+
+.cellInteractive:focus-visible {
+  outline: 2px dashed var(--c-text);
+  outline-offset: -2px;
+}
+
+/* Pollen cell uses col-span 2 so the 5th cell fills the bottom
+ * row cleanly instead of leaving a gap. The detail popover anchors
+ * bottom-right of the cell as usual. */
+.cellSpanFull {
+  grid-column: 1 / -1;
+}
+
+/* Tap-for-details hint — small ⓘ icon in the top-right corner of
+ * interactive cells. Discoverable affordance for touch users
+ * (where :hover doesn't help) without adding text labels that
+ * would need i18n. Dim by default so it doesn't compete with the
+ * value, brightens on hover/focus. */
+.cellInfoHint {
+  position: absolute;
+  top: 6px;
+  right: 6px;
+  font-size: 14px;
+  color: var(--c-text-dim);
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.cellInteractive:hover .cellInfoHint,
+.cellInteractive:focus-visible .cellInfoHint {
+  opacity: 1;
+  color: var(--c-text);
+}
+
+/* Pollen popover — per-allergen list with the allergen name on the
+ * left and the value (colour-coded by tier) on the right. */
+.allergenList {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.allergenRow {
+  display: flex;
+  justify-content: space-between;
+  font-size: 12px;
+  text-transform: capitalize;
 }
 
 .iconRow {
@@ -72,4 +144,39 @@
   text-transform: uppercase;
   letter-spacing: 0.6px;
   margin-top: 2px;
+}
+
+/* DetailsPopover content typography — label/value pairs stacked
+ * with a slight indent so the popover reads as a structured
+ * mini-table rather than a paragraph. Re-used by AQ + (future)
+ * Pollen popovers. */
+.detailRow {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-bottom: 8px;
+}
+
+.detailRow:last-child {
+  margin-bottom: 0;
+}
+
+.detailLabel {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--c-text-dim);
+}
+
+.detailValue {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.detailGuidance {
+  margin: 6px 0 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--c-text);
 }

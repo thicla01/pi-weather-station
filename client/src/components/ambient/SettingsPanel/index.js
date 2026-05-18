@@ -595,6 +595,8 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
     showSamplingPoints,
     calmDayFastPath,
     saveAdvancedAiFlag,
+    pollenEnabled,
+    savePollenEnabled,
   } = ctx;
   // Each save helper returns a promise (POST /api/settings). Errors
   // are non-critical for the UI — log + swallow so a transient
@@ -721,6 +723,20 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
                 "Skip Claude when weather is stable",
                 "Saute Claude quand le temps est stable",
                 "Omite Claude cuando el tiempo es estable")}
+            />
+            <Toggle
+              label={lbl(lang, "Pollen badge", "Badge pollen", "Insignia de polen")}
+              value={Boolean(pollenEnabled)}
+              onChange={(v) => {
+                if (typeof savePollenEnabled !== "function") return;
+                Promise.resolve(savePollenEnabled(v))
+                  .catch((err) => console.warn("[settings] pollen save failed", err));
+              }}
+              disabled={remote}
+              sub={lbl(lang,
+                "Show pollen in the metrics grid (Europe + most metros)",
+                "Affiche le pollen dans la grille (Europe + grandes villes)",
+                "Mostrar polen en la cuadrícula (Europa + grandes ciudades)")}
             />
           </div>
 

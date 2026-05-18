@@ -164,7 +164,16 @@
     "wind": "Viento",
     "humidity": "Humedad",
     "uv": "UV",
-    "aqi": "ICA"
+    "aqi": "ICA",
+    "detailValue": "Valor",
+    "detailStation": "Estación",
+    "detailSource": "Fuente",
+    "detailKind": "Tipo de lectura",
+    "detailPollutant": "Contaminante",
+    "detailWorst": "Máximo",
+    "detailAllergens": "Todos los alérgenos",
+    "pollen": "Polen",
+    "pollenUnit": "gr/m³"
   },
   "badges": {
     "uv": "UV",
@@ -187,14 +196,31 @@
       "veryHigh": "Muy alto",
       "extreme": "Extremo"
     },
+    "uvGuidance": {
+      "low": "Riesgo mínimo. No se necesita protección para la mayoría.",
+      "moderate": "Use gafas de sol, protector solar FPS 30+, busque sombra cerca del mediodía.",
+      "high": "Reduzca el tiempo al sol entre las 11 y las 16. Protector solar, sombrero y gafas recomendados.",
+      "veryHigh": "Precauciones adicionales necesarias. Evite el sol entre las 11 y las 16, cúbrase, aplique FPS 30+ generosamente.",
+      "extreme": "Evite toda exposición. La piel desprotegida puede quemarse en minutos."
+    },
     "aqiLevel": {
       "low": "Riesgo bajo",
       "moderate": "Moderado",
       "high": "Alto",
       "veryHigh": "Muy alto"
+    },
+    "pollenAllergens": {
+      "alder_pollen": "Aliso",
+      "birch_pollen": "Abedul",
+      "grass_pollen": "Gramíneas",
+      "mugwort_pollen": "Artemisa",
+      "olive_pollen": "Olivo",
+      "ragweed_pollen": "Ambrosía"
     }
   },
   "alert": {
+    "dismiss": "Ocultar",
+    "dismissTooltip": "Ocultar 4 h (reaparece si se agrava)",
     "orangeNear": "Precipitación fuerte en su zona",
     "orangeApproaching": "Precipitación fuerte en las cercanías",
     "orangeIntensifying": "Precipitación fuerte intensificándose",
