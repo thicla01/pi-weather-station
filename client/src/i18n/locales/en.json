@@ -260,6 +260,8 @@
     "closeSettings": "Close settings",
     "collapsePanel": "Collapse info panel",
     "expandPanel": "Expand info panel",
+    "focusRadar": "Focus radar (hide panels)",
+    "restorePanels": "Restore panels",
     "openDebug": "Open debug panel",
     "closeDebug": "Close debug panel",
     "enableRadarRings": "Show radar analysis rings",

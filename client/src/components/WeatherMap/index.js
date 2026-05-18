@@ -760,7 +760,7 @@ MapClickHandler.propTypes = {
  * @param {boolean} props.infoPanelCollapsed whether the info panel is collapsed
  * @returns {null} renders nothing
  */
-const MapResizer = ({ infoPanelCollapsed, mobileRadarMaximized, latitude, longitude, zoom }) => {
+const MapResizer = ({ infoPanelCollapsed, mobileRadarMaximized, desktopRadarMaximized, latitude, longitude, zoom }) => {
   const map = useMap();
   useEffect(() => {
     // Two invalidateSize() calls bracket the CSS grid-template-columns
@@ -780,7 +780,13 @@ const MapResizer = ({ infoPanelCollapsed, mobileRadarMaximized, latitude, longit
       clearTimeout(live);
       clearTimeout(final);
     };
-  }, [infoPanelCollapsed, map]);
+    // desktopRadarMaximized in the deps list lets the same
+    // invalidateSize brackets fire when the user toggles full-radar
+    // focus mode on LayoutDesktop (HeroBand + rail get hidden, so
+    // the Leaflet container gains roughly 320 + viewport-top px of
+    // canvas — needs a re-measure so tiles fill the new area).
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- desktopRadarMaximized purposely re-triggers the same handler
+  }, [infoPanelCollapsed, desktopRadarMaximized, map]);
 
   // Mobile radar maximize / minimize — same `invalidateSize` brackets
   // as the LayoutPi rail collapse PLUS a `setView` recenter on the
@@ -828,6 +834,7 @@ const MapResizer = ({ infoPanelCollapsed, mobileRadarMaximized, latitude, longit
 MapResizer.propTypes = {
   infoPanelCollapsed: PropTypes.bool,
   mobileRadarMaximized: PropTypes.bool,
+  desktopRadarMaximized: PropTypes.bool,
   latitude: PropTypes.number,
   longitude: PropTypes.number,
   zoom: PropTypes.number,
@@ -940,6 +947,87 @@ ArrowToggleControl.propTypes = {
 };
 
 /**
+ * Radar-focus toggle rendered as a Leaflet control in the topleft
+ * stack (sits under the zoom +/- and the direction-arrow toggle).
+ * Used on LayoutDesktop only: tapping it hides HeroBand and the
+ * right rail so the radar fills the entire viewport. Same imperative
+ * Leaflet control pattern as ArrowToggleControl above so the icon
+ * stack reads as a coherent set of map controls — no new visual
+ * vocabulary, and the click+scroll propagation is killed at the
+ * Leaflet layer so we don't re-centre the map underneath.
+ *
+ * @param {Object} props
+ * @param {Boolean} props.active Whether focus mode is currently on
+ * @param {Function} props.onToggle Click handler — flips `active`
+ * @param {String} props.titleOn Tooltip when active (e.g. "Restore panels")
+ * @param {String} props.titleOff Tooltip when inactive (e.g. "Hide panels")
+ * @returns {null} Renders nothing — control is added imperatively
+ */
+const RadarFocusControl = ({ active, onToggle, titleOn, titleOff }) => {
+  const map = useMap();
+  const linkRef = useRef(null);
+  const onToggleRef = useRef(onToggle);
+  onToggleRef.current = onToggle;
+
+  useEffect(() => {
+    const control = L.control({ position: "topleft" });
+    control.onAdd = () => {
+      const container = L.DomUtil.create("div", "leaflet-bar leaflet-control");
+      const link = L.DomUtil.create("a", "", container);
+      link.href = "#";
+      link.setAttribute("role", "button");
+      // U+26F6 (squared four-corner): renders as four L-brackets
+      // pointing outward — the universal "maximize / fill" affordance.
+      // When active we switch to a "←→ inward" approximation via a
+      // contrasting fill colour so the user gets a clear toggle signal
+      // without juggling two unicode glyphs (most fonts don't carry a
+      // matching "minimize" symbol).
+      link.innerHTML = "⛶";
+      link.style.fontWeight = "bold";
+      link.style.fontSize = "22px";
+      link.style.lineHeight = "30px";
+      L.DomEvent.disableClickPropagation(container);
+      L.DomEvent.disableScrollPropagation(container);
+      L.DomEvent.on(link, "click", (e) => {
+        L.DomEvent.preventDefault(e);
+        L.DomEvent.stopPropagation(e);
+        onToggleRef.current?.();
+      });
+      linkRef.current = link;
+      return container;
+    };
+    control.addTo(map);
+    return () => {
+      control.remove();
+      linkRef.current = null;
+    };
+  }, [map]);
+
+  useEffect(() => {
+    const link = linkRef.current;
+    if (!link) return;
+    link.title = active ? titleOn : titleOff;
+    link.setAttribute("aria-pressed", String(active));
+    if (active) {
+      link.style.backgroundColor = "var(--c-accent, #2563eb)";
+      link.style.color = "var(--c-bg, #fff)";
+    } else {
+      link.style.backgroundColor = "";
+      link.style.color = "";
+    }
+  }, [active, titleOn, titleOff]);
+
+  return null;
+};
+
+RadarFocusControl.propTypes = {
+  active: PropTypes.bool,
+  onToggle: PropTypes.func.isRequired,
+  titleOn: PropTypes.string.isRequired,
+  titleOff: PropTypes.string.isRequired,
+};
+
+/**
  * Pans the map when panToCoords changes
  *
  * @param {object} props
@@ -1015,10 +1103,16 @@ function panWithRailOffset(map, latLng, offset, opts = {}) {
  * @returns {Number} rail width in pixels (0 if no offset needed)
  */
 function useRailOffset() {
-  const { experimentalUiC, infoPanelCollapsed } = useContext(AppContext);
+  const { experimentalUiC, infoPanelCollapsed, desktopRadarMaximized } = useContext(AppContext);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   useEffect(() => {
-    if (!experimentalUiC || infoPanelCollapsed) {
+    // Focus mode hides HeroBand + rail via display:none. Bail with
+    // a zero offset so the marker pans to the geometric centre of
+    // the now-empty viewport. The flag is also in the dep array so
+    // toggling focus re-runs this effect (without it the offset
+    // stayed at the last-measured value and the marker stayed
+    // shifted as if the rail were still visible).
+    if (!experimentalUiC || infoPanelCollapsed || desktopRadarMaximized) {
       setOffset({ x: 0, y: 0 });
       return undefined;
     }
@@ -1052,7 +1146,7 @@ function useRailOffset() {
       cancelAnimationFrame(handle);
       window.removeEventListener("resize", measure);
     };
-  }, [experimentalUiC, infoPanelCollapsed]);
+  }, [experimentalUiC, infoPanelCollapsed, desktopRadarMaximized]);
   return offset;
 }
 
@@ -1193,6 +1287,7 @@ const WeatherMap = ({ zoom, dark }) => {
   // by both v2 and v3 layouts, so reading from useTimeOfDay keeps the
   // logic palette-aware without coupling to either layout.
   const nightRed = useTimeOfDay() === "nightRed";
+  const { t } = useTranslation();
   // Pixel width of the v3 right rail when visible. Drives the
   // off-centre projection trick that keeps the marker at the visual
   // centre of the non-rail area; see panWithRailOffset for the math.
@@ -1243,6 +1338,8 @@ const WeatherMap = ({ zoom, dark }) => {
     showDirectionArrows,
     innerDirectionVectors,
     outerDirectionVectors,
+    desktopRadarMaximized,
+    setDesktopRadarMaximized,
   } = useContext(AppContext);
 
   // Largest sample in each ring drives the circle radius. Multiplied by
@@ -1529,10 +1626,25 @@ const WeatherMap = ({ zoom, dark }) => {
         <MapResizer
           infoPanelCollapsed={infoPanelCollapsed}
           mobileRadarMaximized={mobileRadarMaximized}
+          desktopRadarMaximized={desktopRadarMaximized}
           latitude={latitude}
           longitude={longitude}
           zoom={zoom}
         />
+        {/* Focus / unfocus the radar — Leaflet control rendered only
+         * when LayoutDesktop is active (sentinel !== null). Sits in
+         * the topleft Leaflet bar alongside zoom +/− and the
+         * direction-arrow toggle. Tapping it hides HeroBand + rail
+         * so the radar fills the entire viewport. The dock stays
+         * uncluttered. */}
+        {desktopRadarMaximized !== null && desktopRadarMaximized !== undefined && (
+          <RadarFocusControl
+            active={desktopRadarMaximized}
+            onToggle={() => setDesktopRadarMaximized(!desktopRadarMaximized)}
+            titleOn={t("controls.restorePanels", { defaultValue: "Restore panels" })}
+            titleOff={t("controls.focusRadar", { defaultValue: "Focus radar" })}
+          />
+        )}
         {/* ArrowToggleControl lived here pre-2.14.15 as an imperative
          * Leaflet control at the topleft. Moved to BottomDock so the
          * top-left of the map stays uncluttered (and the dock has

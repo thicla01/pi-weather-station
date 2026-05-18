@@ -260,6 +260,8 @@
     "closeSettings": "Fermer les paramètres",
     "collapsePanel": "Réduire le panneau d'information",
     "expandPanel": "Afficher le panneau d'information",
+    "focusRadar": "Focus radar (masquer les panneaux)",
+    "restorePanels": "Restaurer les panneaux",
     "openDebug": "Ouvrir le panneau de débogage",
     "closeDebug": "Fermer le panneau de débogage",
     "enableRadarRings": "Afficher les cercles d'analyse radar",

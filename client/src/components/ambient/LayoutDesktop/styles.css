@@ -222,3 +222,16 @@
   height: var(--c-dock-height);
   z-index: 10;
 }
+
+/* Focus mode (toggled by the RadarFocusControl Leaflet button) —
+ * hide everything that floats on top of the map so the radar fills
+ * the entire viewport. Rail, HeroBand, and the rail-collapse chevron
+ * all go; the Leaflet focus control itself stays visible (rendered
+ * by Leaflet at the topleft, outside this CSS module's scope) so
+ * the user can tap it again to restore the panels. The dock stays
+ * visible too — those are kiosk navigation, not data overlays. */
+.layout.focused .heroSlot,
+.layout.focused .rail,
+.layout.focused .chevron {
+  display: none;
+}

@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useEffect } from "react";
 import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
 import chevronLeft from "@iconify/icons-carbon/chevron-left";
@@ -54,13 +54,26 @@ const LayoutDesktop = () => {
     infoPanelCollapsed,
     setInfoPanelCollapsed,
     mouseHide,
+    desktopRadarMaximized,
+    setDesktopRadarMaximized,
   } = useContext(AppContext);
 
   const collapsed = Boolean(infoPanelCollapsed);
   const toggleCollapse = () => setInfoPanelCollapsed(!collapsed);
+  // Same sentinel pattern as LayoutMobile uses for mobileRadarMaximized:
+  // flip to `false` on mount so the Leaflet focus control inside
+  // WeatherMap can render, and back to `null` on unmount so the
+  // control disappears when the user switches to LayoutPi or
+  // LayoutMobile (no orphaned button on those layouts).
+  useEffect(() => {
+    setDesktopRadarMaximized(false);
+    return () => setDesktopRadarMaximized(null);
+  }, [setDesktopRadarMaximized]);
+
+  const focused = desktopRadarMaximized === true;
 
   return (
-    <div className={`${styles.layout} ${collapsed ? styles.collapsed : ""}`}>
+    <div className={`${styles.layout} ${collapsed ? styles.collapsed : ""} ${focused ? styles.focused : ""}`}>
       {/* Full-bleed map fills the entire main area as the background. */}
       <div className={`${styles.mapArea} map-container ${darkMode ? "map-dark-mode" : ""} ${mouseHide ? "map-mouse-hide" : ""}`}>
         <WeatherMap zoom={defaultMapZoom} dark={darkMode} />

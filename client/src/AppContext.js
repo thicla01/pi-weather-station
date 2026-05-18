@@ -139,6 +139,12 @@ export function AppContextProvider({ children }) {
   // to `true` on user tap, resets to `null` on unmount. Session-only
   // state; never persisted.
   const [mobileRadarMaximized, setMobileRadarMaximized] = useState(null);
+  // Same sentinel pattern as mobileRadarMaximized — `null` means
+  // LayoutDesktop is not the active layout (so the focus control
+  // shouldn't render anywhere); LayoutDesktop flips it to false on
+  // mount and back to null on unmount. The Leaflet focus control
+  // in WeatherMap reads this to decide whether to render itself.
+  const [desktopRadarMaximized, setDesktopRadarMaximized] = useState(null);
   // Display sub-tree (advanced.display.* in settings.json).
   // lightModeStyle / darkModeStyle drive the Mapbox style for each theme.
   // For light mode, the panel background tint also follows via the
@@ -1628,6 +1634,8 @@ export function AppContextProvider({ children }) {
     saveAdvancedExperimentalFlag,
     mobileRadarMaximized,
     setMobileRadarMaximized,
+    desktopRadarMaximized,
+    setDesktopRadarMaximized,
     setMapPosition,
     resetMapPosition,
     panToCoords,
