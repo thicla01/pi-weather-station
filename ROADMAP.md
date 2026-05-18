@@ -157,12 +157,18 @@ A fourth badge in the UV / AQI row showing tree / grass / weed / ragweed pollen 
 - **Effort:** ~2-3h once the click-for-details overlay (item below) is in — the source itself is a one-call fetch + category mapping (same shape as MELCC RSQAQ), the UI is the larger piece.
 - **Caveat:** the EPA-AQI vocabulary doesn't apply to pollen — the badge would use Open-Meteo's own scale (low / moderate / high / very high) or a translated 4-tier mapping. Worth confirming the colour scale before implementing so it doesn't visually conflict with AQI's worst-case-red coding.
 
-### 🖱️ Click-for-details overlay on badges and the AlertBanner
-Both the badges (UV / AQI / future Pollen) and the `<AlertBanner>` already carry more data than what's surfaced — gov alerts have a full `description_en/fr` + `expiresAt` server-side; AirNow and OpenAQ track all six pollutants internally but only expose the worst-case one in the badge. A unifying `<DetailsPopover>` component anchored to the clicked element, with a content slot per source type (banner = alert body + expiry; AQI = per-pollutant breakdown + station info; Pollen = per-allergen breakdown), would turn glance-only badges into glance + tap-for-details — exactly the right interaction model for a kiosk.
+### 🖱️ Click-for-details overlay — partially shipped (badges still open)
 
-- **Server:** `/api/air-quality` extends to optionally include the per-pollutant breakdown when the source has one (AirNow + OpenAQ; MELCC and ECCC stay single-value). Same for `/api/weather-alerts` — the description fields are already in the payload, just unused by the client today.
-- **Client:** one shared `<DetailsPopover>` shell, content components per badge type. Backdrop click + Esc to close. Keeps the design language consistent across alert types.
-- **Effort:** ~3-4h. The server change is small; the bulk is the popover shell + per-type content.
+**Shipped May 2026** — the AlertBanner → detail expansion is live for both gov sources (NWS + ECCC). The `<AlertDetailInline>` slab pinned under the banner exposes the full localised `description_en/fr` + a QR code that opens the upstream alerts page on the user's phone, and as of v2.16.6 the slab is allowed to grow to its natural content height (rail-scroll picks up the rest) so verbose multi-paragraph ECCC alerts read in one go.
+
+**Still open** — the *badge-side* of this same pattern: a unifying `<DetailsPopover>` for the UV / AQ / future Pollen badges that turns glance-only chips into glance + tap-for-details. Specifically:
+- **UV badge** — could expose the WMO category description (e.g. *"6 — Élevé: protect skin"*) plus a 24 h UV curve preview from `hourly.uv_index`.
+- **AQ badge** — AirNow and OpenAQ track all six pollutants internally but only expose the worst-case one. Per-pollutant breakdown + station name + measurement age would surface that richer data without changing the badge itself.
+- **Pollen badge (when shipped)** — per-allergen breakdown (alder / birch / grass / mugwort / olive / ragweed) from Open-Meteo's allergen-by-allergen payload.
+
+- **Server changes:** `/api/air-quality` extends to optionally include the per-pollutant breakdown when the source has one (AirNow + OpenAQ; MELCC and ECCC stay single-value). `/api/weather-alerts` description fields are already in the payload — no change there.
+- **Client:** a shared `<DetailsPopover>` shell with content slots per badge type. Backdrop click + Esc to close. Reuses the popover affordance already proven by the HealthIndicator dot.
+- **Effort:** ~3 h. Mostly client-side; the server tweak for the pollutant breakdown is ~30 min.
 
 ### 👀 Acknowledge-and-dismiss on alerts
 "I've seen this, hide it for now" pattern. Stored as `localStorage`-keyed alert IDs with their `expiresAt`, so dismissed alerts auto-purge when they expire upstream. Two design rules need agreement before coding:
