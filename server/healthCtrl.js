@@ -32,6 +32,36 @@ const CRITICAL_SERVICES = new Set([
 // outage still surfaces within a couple of poll cycles.
 const RECENT_SUCCESS_WINDOW_MS = 10 * 60 * 1000;
 
+// Services orchestrated as alternative chains — the first one that
+// returns usable data wins, and the others are expected to fail or
+// return "no data" depending on the user's region. Surfacing those
+// expected failures as health issues paints the dot as degraded
+// when the feature is actually working perfectly.
+//
+//   - Alerts: NWS covers US territory, ECCC covers Canada. For a
+//     Montreal user NWS will 5xx or 400; for a Texan user ECCC
+//     returns nothing.
+//   - Air quality: MELCC (Montreal first, then rest of Quebec),
+//     ECCC AQHI Canada-wide, EPA AirNow for the US, OpenAQ as
+//     global fallback. Only the source matching the user's region
+//     returns data — others 404 or 503.
+//
+// A failure on a member of one of these groups is suppressed as
+// long as ANY sibling has a recent success.
+const ALTERNATIVE_GROUPS = [
+  [
+    "NWS (severe weather alerts)",
+    "Environment Canada (severe weather alerts)",
+  ],
+  [
+    "MELCC RSQA (Montreal)",
+    "MELCC RSQAQ (Quebec)",
+    "Environment Canada (AQHI)",
+    "EPA AirNow",
+    "OpenAQ",
+  ],
+];
+
 /**
  * Decide whether a serviceStatus entry counts as a failure for
  * health reporting. HTTP 2xx and 3xx are fine; 4xx/5xx + null
@@ -78,11 +108,36 @@ function isFailure(entry) {
  * @param {import("express").Request} req
  * @param {import("express").Response} res
  */
+/**
+ * True if `service` belongs to an alternative-chain group AND at
+ * least one sibling in that group has a recent successful call —
+ * meaning the feature backed by the group is working and this
+ * particular source's failure is just "wrong region for this user".
+ *
+ * @param {string} service
+ * @param {Object} all serviceStatus map
+ * @returns {boolean}
+ */
+function suppressedByGroupSibling(service, all) {
+  for (const group of ALTERNATIVE_GROUPS) {
+    if (!group.includes(service)) continue;
+    for (const sibling of group) {
+      if (sibling === service) continue;
+      const e = all[sibling];
+      if (!e || !e.lastSuccess) continue;
+      const age = Date.now() - new Date(e.lastSuccess).getTime();
+      if (Number.isFinite(age) && age < RECENT_SUCCESS_WINDOW_MS) return true;
+    }
+  }
+  return false;
+}
+
 function getHealth(req, res) {
   const all = getServiceStatus();
   const issues = [];
   for (const [service, entry] of Object.entries(all)) {
     if (!isFailure(entry)) continue;
+    if (suppressedByGroupSibling(service, all)) continue;
     issues.push({
       service,
       status: entry.status,
