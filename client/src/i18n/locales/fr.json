@@ -237,7 +237,13 @@
     },
     "solarEventIn": "{{event}} dans {{days}} j",
     "solarEventIn_one": "{{event}} dans {{days}} jour",
-    "solarEventIn_other": "{{event}} dans {{days}} jours"
+    "solarEventIn_other": "{{event}} dans {{days}} jours",
+    "moonDetails": "Lune",
+    "phase": "Phase",
+    "moonrise": "Lever de la lune",
+    "moonset": "Coucher de la lune",
+    "nextFullMoon": "Prochaine pleine lune",
+    "nextNewMoon": "Prochaine nouvelle lune"
   },
   "alert": {
     "dismiss": "Masquer",

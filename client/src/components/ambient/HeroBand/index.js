@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
 import bxsSun from "@iconify/icons-bx/bxs-sun";
@@ -7,6 +7,7 @@ import { AppContext } from "~/AppContext";
 import { convertTemp } from "~/services/conversions";
 import { parseWeatherCode, isDaylight } from "~/ui/weatherCodes";
 import { moonPhase, upcomingSolarEvent } from "~/ui/astronomy";
+import MoonDetailsPopover from "~/components/ambient/MoonDetailsPopover";
 import LocationName from "~/components/LocationName";
 import styles from "./styles.css";
 
@@ -102,6 +103,13 @@ const HeroBand = () => {
   const moon = moonPhase(now);
   const upcoming = upcomingSolarEvent(now);
 
+  // Tap-for-details on the moon chip (same pattern as TimeBlock).
+  // Anchored to the LEFT of the chip so the popover extends rightward
+  // and stays inside the desktop clock panel rather than hanging off
+  // the right edge.
+  const moonChipRef = useRef(null);
+  const [moonOpen, setMoonOpen] = useState(false);
+
   return (
     <div className={styles.band}>
       <div className={styles.panelPlace}>
@@ -145,14 +153,25 @@ const HeroBand = () => {
               <InlineIcon icon={bxsMoon} />
               {sunFormatter.format(new Date(sunsetTime))}
             </span>
-            <span
-              className={styles.clockSunChip}
+            <button
+              ref={moonChipRef}
+              type="button"
+              className={`${styles.clockSunChip} ${styles.moonChip}`}
               title={t(`astronomy.moonPhase.${moon.i18nKey}`)}
               aria-label={t(`astronomy.moonPhase.${moon.i18nKey}`)}
+              aria-expanded={moonOpen}
+              onClick={() => setMoonOpen((v) => !v)}
             >
               <span className={styles.moonGlyph}>{moon.glyph}</span>
               {Math.round(moon.illumination * 100)}%
-            </span>
+              <MoonDetailsPopover
+                open={moonOpen}
+                onClose={() => setMoonOpen(false)}
+                now={now}
+                triggerRef={moonChipRef}
+                anchor="right"
+              />
+            </button>
           </div>
         ) : null}
         {upcoming ? (

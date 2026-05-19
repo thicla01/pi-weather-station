@@ -1,0 +1,38 @@
+/* MoonDetailsPopover — mini-table styling matching MetricsGrid's
+ * popover rows (UV / AQ / Pollen). Same visual rhythm so all
+ * tap-for-details popovers feel consistent. */
+
+.detailRow {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-bottom: 8px;
+}
+
+.detailRow:last-child {
+  margin-bottom: 0;
+}
+
+.detailLabel {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--c-text-dim);
+}
+
+.detailValue {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Moon glyph rendered slightly bigger than the row's base font, with
+ * a small right margin so the phase name sits at the expected
+ * baseline next to it. */
+.glyph {
+  font-size: 1.2em;
+  line-height: 1;
+  margin-right: 6px;
+  position: relative;
+  top: -0.05em;
+}

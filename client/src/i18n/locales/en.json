@@ -237,7 +237,13 @@
     },
     "solarEventIn": "{{event}} in {{days}} day(s)",
     "solarEventIn_one": "{{event}} in {{days}} day",
-    "solarEventIn_other": "{{event}} in {{days}} days"
+    "solarEventIn_other": "{{event}} in {{days}} days",
+    "moonDetails": "Moon",
+    "phase": "Phase",
+    "moonrise": "Moonrise",
+    "moonset": "Moonset",
+    "nextFullMoon": "Next full moon",
+    "nextNewMoon": "Next new moon"
   },
   "alert": {
     "dismiss": "Dismiss",

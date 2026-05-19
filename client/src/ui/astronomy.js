@@ -87,6 +87,40 @@ export function moonPhase(date = new Date()) {
   };
 }
 
+/**
+ * Find the next time the moon reaches a given target phase fraction.
+ *
+ * Uses the synodic-month model: the phase advances linearly from 0 →
+ * 1 over `SYNODIC_MONTH_MS`. Given the current fraction at `now`, we
+ * jump forward the remaining fraction × month. Accurate to ~1 hour
+ * over the next decade or so — plenty for a "next full moon: 2026-05-31"
+ * display.
+ *
+ * @param {Date} now
+ * @param {number} target  0 for new moon, 0.5 for full moon
+ * @returns {Date}
+ */
+function nextPhaseDate(now, target) {
+  const current = moonPhaseFraction(now);
+  // Distance forward to the target, always positive (wraps past 1).
+  const delta = ((target - current) + 1) % 1;
+  // Guard: if we're exactly on the target the modulo gives 0; advance
+  // a full synodic month so we return the NEXT occurrence rather than
+  // the present moment.
+  const fraction = delta === 0 ? 1 : delta;
+  return new Date(now.getTime() + fraction * SYNODIC_MONTH_MS);
+}
+
+/** Next new moon after `date`. @param {Date} [date=new Date()] @returns {Date} */
+export function nextNewMoon(date = new Date()) {
+  return nextPhaseDate(date, 0);
+}
+
+/** Next full moon after `date`. @param {Date} [date=new Date()] @returns {Date} */
+export function nextFullMoon(date = new Date()) {
+  return nextPhaseDate(date, 0.5);
+}
+
 // Meeus chapter 27 tables — mean Julian-date polynomial coefficients
 // for each of the four annual solar events. Y = (year - 2000) / 1000.
 const MEEUS_TABLES = {

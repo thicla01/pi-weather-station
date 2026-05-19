@@ -1,10 +1,11 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
 import bxsSun from "@iconify/icons-bx/bxs-sun";
 import bxsMoon from "@iconify/icons-bx/bxs-moon";
 import { AppContext } from "~/AppContext";
 import { moonPhase, upcomingSolarEvent } from "~/ui/astronomy";
+import MoonDetailsPopover from "~/components/ambient/MoonDetailsPopover";
 import styles from "./styles.css";
 
 const I18N_LOCALE = { en: "en-US", fr: "fr-FR", es: "es-ES" };
@@ -90,6 +91,14 @@ const TimeBlock = () => {
   const moon = moonPhase(now);
   const upcoming = upcomingSolarEvent(now);
 
+  // Tap-for-details on the moon chip — same pattern as the
+  // UV / AQ / Pollen cells in MetricsGrid (a `triggerRef` on the
+  // chip + a `DetailsPopover` anchored to it). Popover anchored to
+  // the LEFT edge of the chip so it stays inside the rail / slab on
+  // narrow viewports.
+  const moonChipRef = useRef(null);
+  const [moonOpen, setMoonOpen] = useState(false);
+
   return (
     <div className={styles.slab}>
       <div className={styles.date}>{dateStr}</div>
@@ -107,14 +116,25 @@ const TimeBlock = () => {
             <InlineIcon icon={bxsMoon} />
             {sunFormatter.format(new Date(sunsetTime))}
           </span>
-          <span
-            className={styles.sunChip}
+          <button
+            ref={moonChipRef}
+            type="button"
+            className={`${styles.sunChip} ${styles.moonChip}`}
             title={t(`astronomy.moonPhase.${moon.i18nKey}`)}
             aria-label={t(`astronomy.moonPhase.${moon.i18nKey}`)}
+            aria-expanded={moonOpen}
+            onClick={() => setMoonOpen((v) => !v)}
           >
             <span className={styles.moonGlyph}>{moon.glyph}</span>
             {Math.round(moon.illumination * 100)}%
-          </span>
+            <MoonDetailsPopover
+              open={moonOpen}
+              onClose={() => setMoonOpen(false)}
+              now={now}
+              triggerRef={moonChipRef}
+              anchor="right"
+            />
+          </button>
         </div>
       ) : null}
       {upcoming ? (

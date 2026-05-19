@@ -89,6 +89,12 @@ const DAILY_FIELDS = [
   // pick up the new shape. No manual cache wipe needed.
   "weatherCodeDay", "weatherCodeNight",
   "rainAccumulation", "snowAccumulation",
+  // v2.16.x — moonriseTime / moonsetTime feed the moon-phase chip's
+  // tap-for-details popover (alongside locally-computed next full /
+  // new moon dates). Adding to the list bumps DAILY_FIELDS_HASH and
+  // orphans every cached daily entry on the fleet; fresh fetches on
+  // next request pick up the new shape.
+  "moonriseTime", "moonsetTime",
 ];
 
 // Computed once at module load. Used in every cache key — see
