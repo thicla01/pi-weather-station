@@ -219,6 +219,23 @@ A Pi 4B / 5 with two HDMI outputs can drive two screens, but the current `start-
 
 These items have real value but require a more significant investment.
 
+### 🇺🇸 NOAA MRMS as a high-resolution US radar source
+[Multi-Radar/Multi-Sensor System](https://www.nssl.noaa.gov/projects/mrms/) is the NOAA/NSSL operational platform that fuses 150+ radars, surface stations, lightning detection, satellite, and forecast models into 100+ products at **1 km resolution** with a **2-minute update cycle** — substantially higher fidelity than RainViewer's ~5 km / 10-min composite and even tighter than ECCC's 6-min cadence. Free and publicly available. Coverage is **US only** (CONUS, Alaska, Hawaii, Caribbean, Guam — plus a few cross-border feeds with Mexico).
+
+Fits naturally as a 3rd regional radar source alongside the planned ECCC item: `MRMS for US users` + `ECCC for Canadian users` + `RainViewer as global fallback`. Same chain-of-fallbacks logic the air-quality + alerts pipelines already use.
+
+- **Format friction.** MRMS publishes in **GRIB2** (gridded binary, NWP industry standard), not pre-rendered tiles. The Leaflet side would need a GRIB2 → PNG/raster pipeline server-side — fetch the latest product, decode with `wgrib2` CLI or a JS lib like `grib-js`, slice into 256×256 tiles, cache. Significantly more infrastructure than the WMS endpoint ECCC offers.
+- **Bandwidth.** Individual MRMS product files are ~10-50 MB. At a 2-min cadence that's ~1 GB/hour to keep one product warm — fine for a Pi with broadband, but a real consideration vs RainViewer's slim CDN tiles.
+- **Authority.** MRMS is the reference operational composite for the entire US National Weather Service — same data the official severe-weather alert pipeline runs on. For US users this is the highest-fidelity source available without paying for radar-vendor APIs.
+- **Effort estimate: ~10-15h** for an MVP. The bulk is the GRIB2 decoder + tile pipeline, not the client-side integration (a 2nd `radarSource` value gates the URL like the existing `rainviewer` / `eccc` plan already does).
+
+Triggered if any of the following materializes:
+1. A US user joins the fleet who values the resolution upgrade.
+2. The project pivots toward an aviation / agriculture audience where MRMS's auxiliary products (icing, hail, MESH) are valuable.
+3. RainViewer's free tier degrades or imposes new restrictions affecting US coverage specifically.
+
+Until then, RainViewer is "good enough" for US users in the existing fleet, and ECCC is the more impactful next radar source for the Quebec-heavy current install base.
+
 ### 🔔 Browser push notifications (severe weather)
 If the Pi also serves remote clients on the local network, the Web Push API could deliver severe weather alerts to those devices even when the browser tab is not active. Requires a service worker, VAPID key generation, and a subscription management endpoint.
 
