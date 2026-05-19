@@ -18,3 +18,8 @@ report/
 # macOS Finder metadata — should never be tracked
 .DS_Store
 .claude/
+server/ca-key.pem
+server/ca-cert.pem
+server/ca-cert.srl
+server/leaf.csr
+server/leaf-ext.conf
