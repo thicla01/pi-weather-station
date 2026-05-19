@@ -63,11 +63,18 @@
 
 .panelTemp {
   display: grid;
+  /* Three columns: temp digit, weather icon, then a flex column
+   * (`tempInfo`) that stacks the description above the feels-like
+   * chip. Earlier iterations put the feels-like chip in its own
+   * 4ᵗʰ grid column with a left border, but at viewports just
+   * above the LayoutPi breakpoint (~1280-1320 px) the panel's
+   * min-content exceeded its grid track and the clock panel's
+   * divider overlapped "RESSENTI 23°". Stacking inside col 3
+   * keeps the min-content narrow enough for the band to fit at
+   * any LayoutDesktop width. */
   grid-template-columns: auto auto 1fr;
-  grid-template-rows: auto auto;
-  align-items: end;
+  align-items: center;
   column-gap: 16px;
-  row-gap: 4px;
   padding: 16px 24px;
 }
 
@@ -82,7 +89,6 @@
   align-items: flex-start;
   gap: 2px;
   grid-column: 1;
-  grid-row: 1 / span 2;
 }
 
 .tempValue {
@@ -107,19 +113,55 @@
 
 .tempIcon {
   grid-column: 2;
-  grid-row: 1 / span 2;
   font-size: 64px;
   color: var(--c-accent);
   line-height: 1;
-  align-self: center;
+}
+
+/* `tempInfo` column — stacks the description on top and the
+ * feels-like chip below. Vertical centring inside the column
+ * pairs the stack with the temp digit's mid-line. */
+.tempInfo {
+  grid-column: 3;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 8px;
+  min-width: 0;
 }
 
 .tempDesc {
-  grid-column: 3;
-  grid-row: 1 / span 2;
   font-size: 16px;
   font-weight: 500;
-  align-self: center;
+}
+
+/* Feels-like chip — sits under the description as a horizontal
+ * row (label + value) so the stack fits naturally in the same
+ * grid column as the desc. Label in mono caps small-print,
+ * value in Geist Mono at ~38 % of the headline temp digit. */
+.feelsLike {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.feelsLikeLabel {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  letter-spacing: 1px;
+  color: var(--c-text-dim);
+  text-transform: uppercase;
+  line-height: 1;
+}
+
+.feelsLikeValue {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  /* Inline next to the label rather than stacked below, so the
+   * whole feels-like row stays a single line — keeps the panel
+   * compact at the narrow end of the LayoutDesktop range. */
+  font-size: 20px;
+  font-weight: 500;
+  line-height: 1;
 }
 
 /* Bigger content on wider viewports — keeps the hero band feeling
@@ -135,6 +177,7 @@
   .tempUnit { font-size: 34px; }
   .tempIcon { font-size: 76px; }
   .tempDesc { font-size: 17px; }
+  .feelsLikeValue { font-size: 24px; }
   .panelTemp { padding: 24px 32px; }
 
   /* Location panel — larger city name to fill the panel proportionally

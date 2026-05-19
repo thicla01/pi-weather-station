@@ -62,12 +62,22 @@ const HeroBand = () => {
 
   const values = currentWeatherData?.data?.timelines?.[0]?.intervals?.[0]?.values;
   const temperature = values?.temperature;
+  const temperatureApparent = values?.temperatureApparent;
   const weatherCode = values?.weatherCode;
   const daylight = sunriseTime && sunsetTime
     ? isDaylight(sunriseTime, sunsetTime)
     : true;
   const parsed = parseWeatherCode(weatherCode, daylight);
   const tempUnitLabel = tempUnit === "k" ? "K" : `°${tempUnit.toUpperCase()}`;
+
+  // Feels-like — parity with HeroCompact (LayoutPi / LayoutMobile),
+  // where this chip ships always-on whenever Tomorrow.io returns a
+  // value. Without it the desktop hero panel reads as "missing" data
+  // that mobile/Pi users can see.
+  const feelsConverted = temperatureApparent != null
+    ? convertTemp(temperatureApparent, tempUnit)
+    : null;
+  const showFeelsLike = feelsConverted != null;
 
   const hour12 = clockTime === "12";
   const dateStr = new Intl.DateTimeFormat(locale, {
@@ -130,8 +140,18 @@ const HeroBand = () => {
                 <InlineIcon icon={parsed.icon} />
               </div>
             ) : null}
-            {parsed?.descKey ? (
-              <div className={styles.tempDesc}>{t(parsed.descKey)}</div>
+            {(parsed?.descKey || showFeelsLike) ? (
+              <div className={styles.tempInfo}>
+                {parsed?.descKey ? (
+                  <div className={styles.tempDesc}>{t(parsed.descKey)}</div>
+                ) : null}
+                {showFeelsLike ? (
+                  <div className={styles.feelsLike}>
+                    <span className={styles.feelsLikeLabel}>{t("weather.feelsLike")}</span>
+                    <span className={styles.feelsLikeValue}>{feelsConverted}°</span>
+                  </div>
+                ) : null}
+              </div>
             ) : null}
           </>
         ) : null}
