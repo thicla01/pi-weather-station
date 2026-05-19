@@ -89,9 +89,24 @@ const LayoutDesktop = () => {
         <HeroBand />
       </div>
 
-      {/* Floating mini-banner overlays the map area when the rail is
-          folded and a severe gov alert is active. */}
-      {collapsed && <FloatingMiniBanner onExpand={toggleCollapse} />}
+      {/* Floating mini-banner overlays the map area whenever the
+          rail isn't visible AND a red/orange gov alert is active.
+          Two trigger states:
+            - rail collapsed via chevron (`collapsed`)
+            - radar focus mode hides hero + rail + chevron (`focused`)
+          Severe-alert visibility is a kiosk-grade safety property —
+          we should never make the user blind to an active Tornado
+          Warning just because they're zoomed into the radar. Tapping
+          the banner in focus mode exits focus AND re-opens the rail
+          so the full alert detail is one tap away. */}
+      {(collapsed || focused) && (
+        <FloatingMiniBanner
+          onExpand={() => {
+            if (focused) setDesktopRadarMaximized(false);
+            if (collapsed) setInfoPanelCollapsed(false);
+          }}
+        />
+      )}
 
       {/* Chevron toggle on the map's right edge. */}
       <button
