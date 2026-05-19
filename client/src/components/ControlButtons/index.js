@@ -465,6 +465,8 @@ const ControlButtons = () => {
           title={t("controls.updateAvailableRemote")}
           aria-label={t("controls.updateAvailableRemote")}
           aria-disabled="true"
+          role="button"
+          onClick={(e) => notify("toasts.updateRemoteNotice", e)}
         >
           <InlineIcon icon={upgradeIcon} />
           <span className={styles.updateBadge} />

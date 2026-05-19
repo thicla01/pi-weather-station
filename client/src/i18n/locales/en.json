@@ -357,7 +357,8 @@
     "radarRingsOff": "Radar rings off",
     "aiSummaryShown": "AI summary shown",
     "aiSummaryHidden": "AI summary hidden",
-    "refreshing": "Refreshing…"
+    "refreshing": "Refreshing…",
+    "updateRemoteNotice": "Update available — ask the kiosk admin to install it"
   },
   "health": {
     "title": "Service health",

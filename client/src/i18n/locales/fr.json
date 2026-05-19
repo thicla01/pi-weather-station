@@ -357,7 +357,8 @@
     "radarRingsOff": "Cercles radar masqués",
     "aiSummaryShown": "Section IA affichée",
     "aiSummaryHidden": "Section IA masquée",
-    "refreshing": "Rafraîchissement…"
+    "refreshing": "Rafraîchissement…",
+    "updateRemoteNotice": "Mise à jour disponible — demandez à l'admin du kiosque de l'installer"
   },
   "health": {
     "title": "État des services",
