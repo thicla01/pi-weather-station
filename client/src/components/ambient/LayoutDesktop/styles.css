@@ -160,7 +160,8 @@
   transition:
     opacity 150ms ease-out,
     transform 200ms ease-out,
-    width 200ms ease-out;
+    width 200ms ease-out,
+    visibility 0s linear 0s;
 }
 
 .layout.collapsed {
@@ -172,7 +173,18 @@
 .layout.collapsed .rail {
   opacity: 0;
   pointer-events: none;
+  visibility: hidden;
   transform: translateX(calc(var(--c-rail-width) + var(--c-edge-gap)));
+  /* Hold visibility hidden until the 200 ms transform + 150 ms
+   * opacity fades complete. Defends against children that create
+   * their own stacking context (transform / filter / will-change)
+   * and would otherwise bypass the parent's `opacity: 0` and leak
+   * painted artefacts over the map. */
+  transition:
+    opacity 150ms ease-out,
+    transform 200ms ease-out,
+    width 200ms ease-out,
+    visibility 0s linear 200ms;
 }
 
 /* Chevron toggle — pinned to the map's right edge, vertically

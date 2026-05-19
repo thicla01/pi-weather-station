@@ -110,7 +110,19 @@
   overflow-x: hidden;
   border-left: 1px solid var(--c-border);
   background-color: var(--c-bg);
-  transition: opacity 150ms ease-out;
+  /* `visibility` flips synchronously with `opacity` when expanding
+   * (delay 0s) so the rail's content becomes interactive instantly.
+   * When collapsing, visibility waits for the 150 ms opacity fade
+   * to finish (delay matches transition duration) so the rail stays
+   * visible during the fade but is fully removed from the paint
+   * tree once invisible — defends against children that create
+   * their own stacking context (transform / filter / will-change)
+   * and would otherwise bypass the parent `opacity: 0` and leak
+   * visible artefacts over the map. Seen on the 7" Pi kiosk with
+   * an active NWS alert: the AlertDetailInline header would remain
+   * painted over the radar even though the parent rail was at
+   * opacity 0. */
+  transition: opacity 150ms ease-out, visibility 0s linear 0s;
   /* Font-size preference scopes its zoom to the rail subtree only —
    * the map stays at native scale so Leaflet's pixel↔coordinate math
    * remains correct. Falls back to 1 when no preference is set. */
@@ -120,6 +132,10 @@
 .layout.collapsed .rail {
   opacity: 0;
   pointer-events: none;
+  visibility: hidden;
+  /* Hold visibility until after the opacity fade completes so the
+   * collapse stays smooth. */
+  transition: opacity 150ms ease-out, visibility 0s linear 150ms;
 }
 
 /* Chevron toggle — vertical bar pinned to the right edge of the map

@@ -2,7 +2,20 @@
  * collapsed. Uses a `<button>` so keyboard / screen-reader users can
  * activate it the same way they do the v2 cycle banner. */
 
-.banner {
+/* Selector is `.banner.banner` (doubled class trick) to win the
+ * specificity war against `reset.css`'s `.ambientRoot button {
+ * background: transparent; }` rule (0,1,1). A single `.banner`
+ * has specificity (0,1,0) — loses outright. A `button.banner`
+ * ties at (0,1,1) and *should* win on source-order, but the
+ * webpack/CSS-Modules bundle order isn't actually reset-first
+ * → component-second the way we'd expect at runtime: empirical
+ * test on the Pi 7" kiosk showed the reset still winning. The
+ * doubled class bumps specificity to (0,2,0) and removes the
+ * ambiguity entirely. User-visible symptom before this fix: the
+ * FloatingMiniBanner appeared as floating text with no chip
+ * background; tapping it briefly painted the chip (because
+ * `:focus-visible`'s (0,2,0) won), then it vanished on next tap. */
+.banner.banner {
   position: absolute;
   top: 12px;
   right: 12px;
