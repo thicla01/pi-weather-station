@@ -1621,7 +1621,21 @@ const WeatherMap = ({ zoom, dark }) => {
       <MapContainer
         center={[latitude, longitude]}
         zoom={zoom}
-        maxZoom={20}
+        /* Capped at 16 (was 20) so the map peaks at "city block /
+         * street" detail rather than indoor / building zoom — which
+         * Mapbox raster doesn't have meaningful detail for anyway,
+         * and which made Safari iPad freeze under the cumulative
+         * memory pressure of tile cache + CSS transforms.
+         *
+         * User-reported (May 2026, brother + M4 iPad Pro): zooming
+         * progressively from z=9 (50 km circle visible) to z=17
+         * showed a step-function degradation — slight slowdown at
+         * z=11, 1 s response delay at z=13, 5-7 s at z=15, frozen
+         * white-screen at z=17. The radar TileLayer has a tighter
+         * cap (12) — see below — and the basemap below adds
+         * `updateWhenIdle` + a tighter keepBuffer to throttle
+         * Safari's continuous-redraw behaviour. */
+        maxZoom={16}
         style={{ width: "100%", height: "100%" }}
         attributionControl={false}
         touchZoom={true}
@@ -1678,18 +1692,25 @@ const WeatherMap = ({ zoom, dark }) => {
           url={`/api/tiles/${dark ? darkModeStyle : lightModeStyle}/{z}/{x}/{y}`}
           tileSize={512}
           zoomOffset={-1}
-          maxZoom={20}
-          /* v2.15.4: keepBuffer bumped from Leaflet's default 2 → 4.
-           * When the user zoomed in then zoomed back out, the lower-
-           * zoom tiles around the new viewport had already been
-           * unloaded — Leaflet had to re-fetch them, leaving a brief
-           * white gap until they arrived. With 4, the surrounding
-           * tiles stay in the DOM longer and the zoom-out is
-           * seamless. Costs a few extra tiles in memory but the
-           * Mapbox proxy is cached server-side so the re-display is
-           * essentially free. User-reported on both iOS Safari and
-           * Chrome macOS. */
-          keepBuffer={4}
+          maxZoom={16}
+          /* `keepBuffer: 2` (Leaflet default, was 4 in v2.15.4) —
+           * the wider buffer made zoom-out seamless on desktop but
+           * doubled the resident tile count, which combined with
+           * the 512px @2x tiles to balloon Safari iPad's tile-cache
+           * memory at high zoom (the freeze trigger in May 2026
+           * reports). 2 trades a brief white flash on rapid zoom-
+           * out for ~half the memory footprint — acceptable since
+           * the Mapbox tile proxy caches server-side and re-fetches
+           * are essentially free. */
+          keepBuffer={2}
+          /* `updateWhenIdle: true` defers tile re-rendering until
+           * the user finishes panning / zooming. Safari iOS's
+           * default redraw-on-every-move was the dominant cost
+           * during a sustained pan at z=14+: every touchmove
+           * fired tile checks, transforms, and decode. Idle-mode
+           * defers all that until the gesture ends. Lower CPU
+           * on Pi kiosk too. */
+          updateWhenIdle={true}
         />
         {radarSource === "eccc" ? (
           // Environment Canada radar (RADAR_1KM_RRAI = rain precipitation rate
@@ -1709,6 +1730,12 @@ const WeatherMap = ({ zoom, dark }) => {
               version: "1.3.0",
             }}
             opacity={dark ? radarOpacityDark : radarOpacityLight}
+            /* Radar has no useful resolution beyond z=12 (~1 km
+             * per pixel native). Capping here also stops Safari
+             * from upscaling the WMS PNG response via CSS transform
+             * past ~z=15, which is the iPad freeze trigger. The
+             * basemap keeps zooming up to z=18; only radar disappears. */
+            maxZoom={12}
           />
         ) : mapTimestamp ? (
           <TileLayer
@@ -1718,10 +1745,26 @@ const WeatherMap = ({ zoom, dark }) => {
             tileSize={512}
             zoomOffset={-1}
             maxNativeZoom={8}
-            /* Same keepBuffer rationale as the base Mapbox layer
-             * above — RainViewer's tile cache is direct-from-CDN so
-             * the re-display is free. */
-            keepBuffer={4}
+            /* Radar tiles disappear at z=13+. RainViewer's native
+             * zoom maxes at 8; the previous config inherited the
+             * map's maxZoom (20), so Leaflet upscaled z=8 tiles by
+             * up to 4096× via CSS transform — which crashed Safari
+             * iPad Pro M4 and earlier on extended street-level
+             * zoom. Capping at 12 keeps the radar useful (still
+             * showing 1 km resolution at city blocks) without the
+             * extreme upscale that iOS's tile compositor can't
+             * keep up with. The basemap below keeps zooming up to
+             * 18; only the radar overlay disappears past z=12. */
+            maxZoom={12}
+            /* `updateWhenIdle: true` defers tile re-rendering until
+             * the user finishes panning / zooming — easier on
+             * Safari iOS's GPU than the default continuous redraw
+             * on every move event. Side benefit: lower CPU on the
+             * Pi kiosk too. */
+            updateWhenIdle={true}
+            /* keepBuffer matched to the basemap (2, default) so the
+             * cache footprint stays bounded. */
+            keepBuffer={2}
           />
         ) : null}
         {markerIsVisible && markerPosition ? (
