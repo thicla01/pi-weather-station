@@ -86,6 +86,7 @@ const MoonDetailsPopover = ({ open, onClose, now, triggerRef, anchor }) => {
       title={t("astronomy.moonDetails")}
       anchor={anchor}
       triggerRef={triggerRef}
+      portal
     >
       <div className={styles.detailRow}>
         <span className={styles.detailLabel}>{t("astronomy.phase")}</span>

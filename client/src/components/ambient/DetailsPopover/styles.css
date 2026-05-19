@@ -34,6 +34,22 @@
   left: 0;
 }
 
+/* Portal mode: the popover is rendered into document.body with
+ * `position: fixed` and explicit top/left/right from JS. Override
+ * the default `top: calc(100% + 6px)` (which assumes an offset
+ * parent) so the inline style is the sole source of position. The
+ * anchor classes' `right: 0` / `left: 0` are also moot here — JS
+ * sets the precise viewport offset directly. */
+.popoverPortal {
+  top: auto;
+}
+
+.popoverPortal.popoverRight,
+.popoverPortal.popoverLeft {
+  right: auto;
+  left: auto;
+}
+
 .header {
   display: flex;
   align-items: center;
