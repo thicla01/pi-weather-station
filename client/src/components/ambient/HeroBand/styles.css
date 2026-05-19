@@ -182,11 +182,34 @@
 
 .clockSunRow {
   display: flex;
-  gap: 14px;
+  flex-wrap: wrap;
+  gap: 6px 14px;
   justify-content: flex-end;
   margin-top: 8px;
   font-size: 14px;
   color: var(--c-text-dim);
+}
+
+/* Moon-phase glyph in the sun row — mirrors TimeBlock styling so the
+ * chip baseline stays stable next to the Iconify sun/moon SVGs. */
+.moonGlyph {
+  font-size: 1.2em;
+  line-height: 1;
+  margin-right: 2px;
+  position: relative;
+  top: -0.05em;
+}
+
+/* Solstice / equinox marker — small italic line below the sun row,
+ * visible only when within 14 days. Right-aligned to match the
+ * desktop clock panel's right-aligned date/time. */
+.solarEventMarker {
+  margin-top: 4px;
+  font-size: 12px;
+  font-style: italic;
+  color: var(--c-text-dim);
+  letter-spacing: 0.2px;
+  text-align: right;
 }
 
 .clockSunChip {

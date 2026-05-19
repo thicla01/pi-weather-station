@@ -218,6 +218,27 @@
       "ragweed_pollen": "Herbe à poux"
     }
   },
+  "astronomy": {
+    "moonPhase": {
+      "newMoon": "Nouvelle lune",
+      "waxingCrescent": "Premier croissant",
+      "firstQuarter": "Premier quartier",
+      "waxingGibbous": "Gibbeuse croissante",
+      "fullMoon": "Pleine lune",
+      "waningGibbous": "Gibbeuse décroissante",
+      "lastQuarter": "Dernier quartier",
+      "waningCrescent": "Dernier croissant"
+    },
+    "solarEvent": {
+      "marchEquinox": "Équinoxe de mars",
+      "juneSolstice": "Solstice de juin",
+      "septemberEquinox": "Équinoxe de septembre",
+      "decemberSolstice": "Solstice de décembre"
+    },
+    "solarEventIn": "{{event}} dans {{days}} j",
+    "solarEventIn_one": "{{event}} dans {{days}} jour",
+    "solarEventIn_other": "{{event}} dans {{days}} jours"
+  },
   "alert": {
     "dismiss": "Masquer",
     "dismissTooltip": "Masquer 4 h (réapparaît si ça s'aggrave)",

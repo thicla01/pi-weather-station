@@ -218,6 +218,27 @@
       "ragweed_pollen": "Ambrosía"
     }
   },
+  "astronomy": {
+    "moonPhase": {
+      "newMoon": "Luna nueva",
+      "waxingCrescent": "Creciente",
+      "firstQuarter": "Cuarto creciente",
+      "waxingGibbous": "Gibosa creciente",
+      "fullMoon": "Luna llena",
+      "waningGibbous": "Gibosa menguante",
+      "lastQuarter": "Cuarto menguante",
+      "waningCrescent": "Menguante"
+    },
+    "solarEvent": {
+      "marchEquinox": "Equinoccio de marzo",
+      "juneSolstice": "Solsticio de junio",
+      "septemberEquinox": "Equinoccio de septiembre",
+      "decemberSolstice": "Solsticio de diciembre"
+    },
+    "solarEventIn": "{{event}} en {{days}} d",
+    "solarEventIn_one": "{{event}} en {{days}} día",
+    "solarEventIn_other": "{{event}} en {{days}} días"
+  },
   "alert": {
     "dismiss": "Ocultar",
     "dismissTooltip": "Ocultar 4 h (reaparece si se agrava)",

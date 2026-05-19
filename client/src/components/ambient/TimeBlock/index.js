@@ -4,6 +4,7 @@ import { InlineIcon } from "@iconify/react";
 import bxsSun from "@iconify/icons-bx/bxs-sun";
 import bxsMoon from "@iconify/icons-bx/bxs-moon";
 import { AppContext } from "~/AppContext";
+import { moonPhase, upcomingSolarEvent } from "~/ui/astronomy";
 import styles from "./styles.css";
 
 const I18N_LOCALE = { en: "en-US", fr: "fr-FR", es: "es-ES" };
@@ -25,7 +26,7 @@ const I18N_LOCALE = { en: "en-US", fr: "fr-FR", es: "es-ES" };
  */
 const TimeBlock = () => {
   const { clockTime, mapTimezone, sunriseTime, sunsetTime } = useContext(AppContext);
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const localeKey = i18n.language.startsWith("fr")
     ? "fr"
     : i18n.language.startsWith("es")
@@ -75,6 +76,20 @@ const TimeBlock = () => {
   });
   const hasSun = sunriseTime && sunsetTime;
 
+  // Astronomy add-ons (v2.16.x). Moon phase glyph + illumination %
+  // travels in the sunrise/sunset row as a third chip — same
+  // glanceable density as the existing chips, no API call, no
+  // network cost (purely a date-driven calculation). The phase
+  // moves slowly enough that recomputing on every `now` tick is
+  // fine — JS does the trig in microseconds.
+  //
+  // The solstice / equinox marker surfaces ONLY when within 14
+  // days of the next event. The rest of the year `upcoming` is
+  // null and the row collapses, so the marker doesn't compete
+  // with the always-on sun row for attention.
+  const moon = moonPhase(now);
+  const upcoming = upcomingSolarEvent(now);
+
   return (
     <div className={styles.slab}>
       <div className={styles.date}>{dateStr}</div>
@@ -92,6 +107,22 @@ const TimeBlock = () => {
             <InlineIcon icon={bxsMoon} />
             {sunFormatter.format(new Date(sunsetTime))}
           </span>
+          <span
+            className={styles.sunChip}
+            title={t(`astronomy.moonPhase.${moon.i18nKey}`)}
+            aria-label={t(`astronomy.moonPhase.${moon.i18nKey}`)}
+          >
+            <span className={styles.moonGlyph}>{moon.glyph}</span>
+            {Math.round(moon.illumination * 100)}%
+          </span>
+        </div>
+      ) : null}
+      {upcoming ? (
+        <div className={styles.solarEventMarker}>
+          {t("astronomy.solarEventIn", {
+            event: t(`astronomy.solarEvent.${upcoming.event}`),
+            days: upcoming.daysAway,
+          })}
         </div>
       ) : null}
     </div>

@@ -40,7 +40,8 @@
 
 .sunRow {
   display: flex;
-  gap: 14px;
+  flex-wrap: wrap;
+  gap: 6px 14px;
   margin-top: 8px;
   font-size: 12px;
   color: var(--c-text-dim);
@@ -120,7 +121,35 @@
   }
   .sunRow {
     font-size: 12px;
-    gap: 12px;
+    /* 7" Pi rail is 300 px wide — three chips (sun, moon, phase) don't
+     * fit on one line. Allow row wrap and tighten the column gap so
+     * the moon-phase chip wraps onto a 2nd line rather than being
+     * clipped by the rail's `overflow-x: hidden`. */
+    gap: 4px 10px;
     margin-top: 6px;
   }
+}
+
+/* Moon-phase glyph in the sun row. Emoji rendering varies wildly by
+ * platform — slightly bigger font-size + tabular alignment keeps
+ * the chip baseline stable next to the sun/moon icons (which are
+ * Iconify SVGs at the row's font-size). */
+.moonGlyph {
+  font-size: 1.2em;
+  line-height: 1;
+  margin-right: 2px;
+  /* Some fonts render moon emoji vertically off-baseline; nudge up */
+  position: relative;
+  top: -0.05em;
+}
+
+/* Solstice / equinox marker — small italic line below the sun row,
+ * visible only when within 14 days. Sized small + dim so it's a
+ * "by the way" detail, not a primary information chunk. */
+.solarEventMarker {
+  margin-top: 4px;
+  font-size: 11px;
+  font-style: italic;
+  color: var(--c-text-dim);
+  letter-spacing: 0.2px;
 }

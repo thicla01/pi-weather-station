@@ -6,6 +6,7 @@ import bxsMoon from "@iconify/icons-bx/bxs-moon";
 import { AppContext } from "~/AppContext";
 import { convertTemp } from "~/services/conversions";
 import { parseWeatherCode, isDaylight } from "~/ui/weatherCodes";
+import { moonPhase, upcomingSolarEvent } from "~/ui/astronomy";
 import LocationName from "~/components/LocationName";
 import styles from "./styles.css";
 
@@ -95,6 +96,12 @@ const HeroBand = () => {
     timeZone: mapTimezone,
   });
 
+  // Astronomy add-ons (v2.16.x) — mirror TimeBlock so the desktop
+  // hero band carries the moon-phase chip and the optional
+  // solstice/equinox marker just like the Pi/mobile clock slab.
+  const moon = moonPhase(now);
+  const upcoming = upcomingSolarEvent(now);
+
   return (
     <div className={styles.band}>
       <div className={styles.panelPlace}>
@@ -138,6 +145,22 @@ const HeroBand = () => {
               <InlineIcon icon={bxsMoon} />
               {sunFormatter.format(new Date(sunsetTime))}
             </span>
+            <span
+              className={styles.clockSunChip}
+              title={t(`astronomy.moonPhase.${moon.i18nKey}`)}
+              aria-label={t(`astronomy.moonPhase.${moon.i18nKey}`)}
+            >
+              <span className={styles.moonGlyph}>{moon.glyph}</span>
+              {Math.round(moon.illumination * 100)}%
+            </span>
+          </div>
+        ) : null}
+        {upcoming ? (
+          <div className={styles.solarEventMarker}>
+            {t("astronomy.solarEventIn", {
+              event: t(`astronomy.solarEvent.${upcoming.event}`),
+              days: upcoming.daysAway,
+            })}
           </div>
         ) : null}
       </div>
