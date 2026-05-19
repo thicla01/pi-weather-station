@@ -56,9 +56,23 @@ const LocationName = ({ stacked = false }) => {
     const lastComma = name.lastIndexOf(",");
     const primary = lastComma === -1 ? name : name.slice(0, lastComma).trim();
     const secondary = lastComma === -1 ? "" : name.slice(lastComma + 1).trim();
+    // Adaptive font-size for very long place names so they don't blow
+    // out the panel vertically. Real-world worst case in our test set:
+    // "Sainte-Madeleine-de-la-Rivière-Madeleine" (40 chars, longest
+    // municipality name in Quebec — confirmed by Toponymie Québec).
+    // Tier thresholds picked empirically from the names we see most:
+    // most US/CA/EU cities fall in the base tier; provincial or
+    // historical compound names (Trois-Rivières, Saint-Jean-sur-
+    // Richelieu) land in `medium`; the hyphenated outliers land in
+    // `long` or `verylong`.
+    const len = primary.length;
+    let lengthClass = "";
+    if (len > 35) lengthClass = styles.verylong;
+    else if (len > 26) lengthClass = styles.long;
+    else if (len > 18) lengthClass = styles.medium;
     return (
       <div className={`${styles.container} ${styles.stacked}`}>
-        <div className={styles.primary}>
+        <div className={`${styles.primary} ${lengthClass}`}>
           <InlineIcon icon={locationIcon} /> {primary}
         </div>
         {secondary ? <div className={styles.secondary}>{secondary}</div> : null}

@@ -15,9 +15,50 @@
   font-size: inherit;
   font-weight: inherit;
   line-height: 1.1;
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
+  /* `display: block` (not inline-flex) so the pin icon and the place
+   * name flow as siblings in normal inline text rather than as
+   * separate flex items — with flex-wrap, the icon got orphaned on
+   * its own line above the first word for long names. Block + inline
+   * SVG keeps the icon hugging the first word, and `overflow-wrap`
+   * breaks long hyphenated tokens at the hyphen so multi-line
+   * locations (Quebec compound municipalities) stay inside the
+   * panel rather than overflowing horizontally. */
+  display: block;
+  overflow-wrap: break-word;
+  min-width: 0;
+}
+
+/* Inline pin icon — align with the cap-height of the first line so
+ * it doesn't sit baseline-dropped. `0.15em` is a slight nudge up
+ * from the default `-0.125em` Iconify ships, calibrated against
+ * Geist at this size. `flex-shrink: 0` is unused here (we left the
+ * flex layout) but kept margin-right so the icon doesn't kiss the
+ * first letter when the text wraps to a 2ⁿᵈ line. */
+.stacked .primary > svg {
+  vertical-align: -0.15em;
+  margin-right: 6px;
+}
+
+/* Adaptive font-size for long place names. Sizes are `em` so they
+ * scale relative to whatever the parent declares — keeps the
+ * proportions intact when HeroBand bumps `.placeLabel` from 28 px
+ * to 34 px at ≥1600 px viewports. Roughly:
+ *   medium    → 78 %  (28 → 22 px, 34 → 27 px)
+ *   long      → 64 %  (28 → 18 px, 34 → 22 px)
+ *   verylong  → 50 %  (28 → 14 px, 34 → 17 px)
+ * The icon inside `.primary` is `1em` so it also shrinks with the
+ * text — wanted behaviour, otherwise a small name + big pin reads
+ * weirdly. */
+.stacked .primary.medium {
+  font-size: 0.78em;
+}
+
+.stacked .primary.long {
+  font-size: 0.64em;
+}
+
+.stacked .primary.verylong {
+  font-size: 0.5em;
 }
 
 .stacked .secondary {
