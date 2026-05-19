@@ -419,7 +419,14 @@
 .field {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  /* `gap` is the spacing between the small caps label and the
+   * control box below. Kept in lock-step with `.seg` (Source radar,
+   * map style segmented buttons) and `.brightnessLabel` so that
+   * neighbouring controls in the same grid row share the same
+   * label-to-box rhythm and bottom-align cleanly. Last calibrated
+   * at 4 px in v2.16.x — was 2 px before, which gave Lat/Lon a
+   * 2 px shorter total height than the seg controls beside them. */
+  gap: 4px;
 }
 
 .fieldDisabled {
@@ -441,12 +448,20 @@
 
 .fieldBox {
   display: flex;
-  align-items: baseline;
+  align-items: center;
   gap: 4px;
   padding: 4px 8px;
   background-color: var(--c-accent-soft);
   border: 1px solid var(--c-border);
   border-radius: 4px;
+  /* Common control-row height. Aligns Lat/Lon `fieldBox` with the
+   * `segTrack` (RainViewer/ECCC, map style v10/v11/Streets) and the
+   * `brightnessRow` (opacité radar sliders) so all three controls
+   * sit on the same vertical baseline when they share a row in the
+   * Settings grid. Picked from the tallest natural height (segTrack
+   * at ~28 px) with a small safety margin. */
+  min-height: 30px;
+  box-sizing: border-box;
 }
 
 .fieldValue {
@@ -543,6 +558,12 @@
   padding: 2px;
   border-radius: 4px;
   border: 1px solid var(--c-border);
+  /* See .fieldBox for the rationale of the shared 30 px control-row
+   * height — keeps Lat/Lon, Source radar, opacity sliders, and map
+   * style segs all on the same vertical baseline. */
+  min-height: 30px;
+  box-sizing: border-box;
+  align-items: stretch;
 }
 
 .segButton {
@@ -867,6 +888,12 @@
   background-color: var(--c-accent-soft);
   border: 1px solid var(--c-border);
   border-radius: 4px;
+  /* Shared 30 px control-row height (see .fieldBox). The brightness
+   * and radar-opacity sliders pair vertically with `segTrack`-based
+   * neighbours in the Display section — without this they were ~3 px
+   * shorter and the grid read as visually uneven. */
+  min-height: 30px;
+  box-sizing: border-box;
 }
 
 .brightnessSlider {
