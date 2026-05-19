@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useRef, useCallback } from "
 import { getSettings } from "~/settings";
 import PropTypes from "prop-types";
 import { getCoordsFromApi } from "~/services/geolocation";
+import { detectSystemDefaults } from "~/ui/systemPrefs";
 import axios from "axios";
 import tzlookup from "tz-lookup";
 
@@ -32,6 +33,15 @@ const RADAR_SOURCE_STORAGE_KEY = "radarSource";
 const RADAR_SOURCE_VALUES = ["rainviewer", "eccc"];
 const SKIPPED_SHA_STORAGE_KEY = "skippedSha";
 const UPDATE_CHECK_INTERVAL = 6 * 60 * 60 * 1000; // 6 hours
+
+// Marker that flags "we've completed the one-time first-launch seeding
+// of unit + clock defaults from the browser's locale". The version
+// suffix lets us bump this if we ever expand what gets seeded (so
+// new keys are seeded on the next load without re-seeding the old
+// ones). Existing installs that already have any persisted unit
+// preference are NOT re-seeded — see `loadStoredData` for the
+// detection logic.
+const SYSTEM_PREFS_SEEDED_KEY = "systemPrefsSeeded_v1";
 
 /**
  * App context provider
@@ -676,6 +686,27 @@ export function AppContextProvider({ children }) {
     const storedDarkAuto = window.localStorage.getItem(DARK_MODE_AUTO_STORAGE_KEY);
     const clock = window.localStorage.getItem(CLOCK_UNIT_STORAGE_KEY);
 
+    // First-launch system-preferences seeding (v2.16.x). Compute
+    // sensible defaults from the browser's locale (en-US → imperial
+    // + 12 h, fr-CA → metric + 24 h, etc.) — but apply them ONLY
+    // when (a) the one-time `SYSTEM_PREFS_SEEDED_KEY` marker is
+    // absent AND (b) none of the unit/clock keys have explicit
+    // values yet. This protects existing installs that have been
+    // running with the hard-coded "f / mph / in / mi / 12" defaults
+    // — their next reload won't suddenly flip to metric even if
+    // their browser locale says fr-CA. Only genuinely fresh installs
+    // (cold browser profile, freshly imaged Pi) inherit system prefs.
+    const alreadySeeded = window.localStorage.getItem(SYSTEM_PREFS_SEEDED_KEY) === "true";
+    const noUnitKeysSet = !temp && !speed && !length && !distance && !clock;
+    const sys = (!alreadySeeded && noUnitKeysSet) ? detectSystemDefaults() : null;
+    if (sys) {
+      window.localStorage.setItem(SYSTEM_PREFS_SEEDED_KEY, "true");
+    } else if (!alreadySeeded) {
+      // Existing install — flip the marker without seeding so we
+      // skip the cost on subsequent loads.
+      window.localStorage.setItem(SYSTEM_PREFS_SEEDED_KEY, "true");
+    }
+
     let mouseHide;
     try {
       mouseHide = JSON.parse(
@@ -707,15 +738,27 @@ export function AppContextProvider({ children }) {
 
     if (temp) {
       setTempUnit(temp);
+    } else if (sys) {
+      setTempUnit(sys.tempUnit);
+      window.localStorage.setItem(TEMP_UNIT_STORAGE_KEY, sys.tempUnit);
     }
     if (speed) {
       setSpeedUnit(speed);
+    } else if (sys) {
+      setSpeedUnit(sys.speedUnit);
+      window.localStorage.setItem(SPEED_UNIT_STORAGE_KEY, sys.speedUnit);
     }
     if (length) {
       setLengthUnit(length);
+    } else if (sys) {
+      setLengthUnit(sys.lengthUnit);
+      window.localStorage.setItem(LENGTH_UNIT_STORAGE_KEY, sys.lengthUnit);
     }
     if (distance === "mi" || distance === "km") {
       setDistanceUnit(distance);
+    } else if (sys) {
+      setDistanceUnit(sys.distanceUnit);
+      window.localStorage.setItem(DISTANCE_UNIT_STORAGE_KEY, sys.distanceUnit);
     }
     const parsedZoom = parseInt(storedZoom, 10);
     if (Number.isFinite(parsedZoom)) {
@@ -754,6 +797,9 @@ export function AppContextProvider({ children }) {
     }
     if (clock) {
       setClockTime(clock);
+    } else if (sys) {
+      setClockTime(sys.clockTime);
+      window.localStorage.setItem(CLOCK_UNIT_STORAGE_KEY, sys.clockTime);
     }
     const fs = window.localStorage.getItem(FONT_SIZE_STORAGE_KEY);
     if (fs) {

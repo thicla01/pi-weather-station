@@ -9,3 +9,21 @@ html, body {
 body {
   font-family: Rubik;
 }
+
+/* Respect the OS-level "Reduce Motion" preference (macOS / iOS
+ * Accessibility → Motion, Android "Remove animations", Windows
+ * "Show animations off") silently — no UI toggle in Settings, the
+ * user has already told us at the OS level. Standard WCAG approach:
+ * crush every animation and transition duration to ~0 so the visual
+ * end state still applies but the motion is removed. Specific
+ * imperative animations (Leaflet zoom-easing, RainViewer timeline
+ * playback) honour this preference via JS checks; this rule
+ * covers all CSS-driven transitions across the app in one shot. */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
