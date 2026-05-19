@@ -233,7 +233,17 @@ async function checkForUpdate() {
         commits = compareRes.data.commits
           .map((c) => {
             const firstLine = c.commit.message.split("\n")[0];
-            const match = firstLine.match(/^(feat|fix|perf|style|release|chore\(deps\))(?:\(.+?\))?:\s*(.+)/);
+            // User-visible commit types that warrant a "What's new"
+            // entry. `polish` and `ux` were added in v2.16.x after a
+            // string of `polish(toast)` / `ux(debug)` commits landed
+            // and the in-app update check incorrectly reported
+            // UP-TO-DATE even though the SHAs differed — the regex
+            // filtered them out, commits.length stayed 0, and
+            // `updateAvailable = shasDiffer && commits.length > 0`
+            // silently swallowed the update. Internal-only types
+            // (docs, test, refactor, chore) are still excluded so
+            // documentation-only pushes don't ping users.
+            const match = firstLine.match(/^(feat|fix|perf|style|polish|ux|release|chore\(deps\))(?:\(.+?\))?:\s*(.+)/);
             if (!match) return null;
             // Normalise the literal `chore(deps)` capture to a short `deps`
             // token so the client-side badge keys stay simple.

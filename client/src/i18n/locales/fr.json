@@ -147,6 +147,8 @@
     "deps": "Deps",
     "release": "Version",
     "style": "Polish",
+    "polish": "Polish",
+    "ux": "UX",
     "deployArtefactsChanged": "Cette mise à jour modifie des scripts ou fichiers de service installés que le bouton ne peut pas rafraîchir automatiquement. Exécute la commande complète ci-dessus sur l'appareil — `bash deploy/install.sh` est idempotent et ne rafraîchira que ce qui a divergé :",
     "needsManualUpgrade": "Ta version installée est trop ancienne pour la mise à jour en un clic (pré-v2.4.1, avant que /api/update lance npm install). L'auto-update planterait sur des modules manquants. Exécute la commande complète ci-dessus pour mettre à jour proprement via deploy/install.sh."
   },
