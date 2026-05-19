@@ -28,8 +28,8 @@ import styles from "./styles.css";
  * Structure (single scrollable column):
  *   ┌──────────────────────────────┐
  *   │ TimeBlock                    │  ◀ clock + sunrise/sunset
- *   │ HeroCompact                  │  ◀ location, big temp, condition
  *   │ AlertBanner                  │  ◀ government alert (when active)
+ *   │ HeroCompact                  │  ◀ location, big temp, condition
  *   │ AlertDetailInline            │  ◀ expanded alert (tap to open)
  *   │ MetricsGrid                  │  ◀ wind / humid / UV / AQ tiles
  *   │ IndoorBlock                  │  ◀ Homebridge temps (when configured)
@@ -219,9 +219,14 @@ const LayoutMobile = () => {
         style={pullDistance > 0 ? { transform: `translateY(${pullDistance}px)` } : undefined}
       >
         <TimeBlock />
-        <HeroCompact />
+        {/* AlertBanner + AlertDetailInline placed just under
+         * TimeBlock (ABOVE HeroCompact), matching the v2 InfoPanel
+         * .alertArea position and the LayoutPi ordering. Both
+         * components return null when no eligible alert is active,
+         * so this slot is invisible on calm days. */}
         <AlertBanner />
         <AlertDetailInline />
+        <HeroCompact />
         <MetricsGrid />
         <IndoorBlock />
         <div

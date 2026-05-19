@@ -704,11 +704,28 @@ async function getWeatherSummary(req, res) {
     const client = new Anthropic({ apiKey: settings.anthropicApiKey });
     const message = await client.messages.create({
       model: "claude-haiku-4-5-20251001",
-      max_tokens: radarText ? 280 : 150,
+      // Token budget: 150 for the no-radar 2-paragraph response,
+      // 400 for the 3-paragraph response that includes the radar
+      // analysis. Bumped from 280 -> 400 (May 2026) after a user
+      // reported the radar paragraph truncating mid-sentence in
+      // French ("...attendue dans les 1<EOF>"): French weather
+      // narration runs ~20% longer than English, and a rich radar
+      // paragraph that names quadrants + distances + temporal
+      // evolution easily uses ~300 tokens on its own. 400 gives
+      // Claude headroom to finish sentences cleanly. Cost impact
+      // is negligible — the cap is only hit at the upper bound
+      // when the radar block is genuinely busy.
+      max_tokens: radarText ? 400 : 150,
       temperature: 0,
       messages: [{ role: "user", content: prompt }],
     });
     const summary = message.content[0].text.trim();
+    // Log when Claude hit the token cap so we have visibility on
+    // future truncations. `stop_reason: "max_tokens"` is the
+    // signal; "end_turn" is the normal completion.
+    if (message.stop_reason && message.stop_reason !== "end_turn") {
+      console.warn(`[ai-summary] Claude stopped early: stop_reason=${message.stop_reason}, lang=${lang}, summary tail="${summary.slice(-80)}"`);
+    }
     summaryCache[cacheKey] = { summary, expiresAt: Date.now() + SUMMARY_CACHE_TTL };
     pushRadarSnapshot({
       lat, lon, lang, source: "claude",

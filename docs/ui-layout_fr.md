@@ -27,9 +27,9 @@ Variante A « Compagnon nomade » du dossier de design. Colonne unique défilant
 ```
 ┌──────────────────────────────┐
 │ TimeBlock                    │  ◀ horloge + lever/coucher
-│ HeroCompact                  │  ◀ lieu, grosse temp, condition
 │ AlertBanner                  │  ◀ alerte gouvernementale (si active)
 │ AlertDetailInline            │  ◀ alerte développée (tap pour ouvrir)
+│ HeroCompact                  │  ◀ lieu, grosse temp, condition
 │ MetricsGrid                  │  ◀ tuiles vent / humidité / UV / AQ
 │ IndoorBlock                  │  ◀ températures Homebridge (si configuré)
 │ Carte radar mini (~220 px) [⛶] │ ◀ carte inset; bouton maximiser
@@ -73,13 +73,13 @@ La carte occupe la colonne de gauche ; le rail (panneau d'information) occupe la
 │                          │ TimeBlock                 │
 │                          │ (date · horloge · soleil) │
 │                          ├──────────────────────────┤
-│   WeatherMap             │ HeroCompact               │
-│   (Leaflet + tuiles radar│ (lieu · temp · icône ·   │
-│    RainViewer)           │  description)             │
+│   WeatherMap             │ AlertBanner               │
+│   (Leaflet + tuiles radar├──────────────────────────┤
+│    RainViewer)           │ AlertDetailInline         │
 │                          ├──────────────────────────┤
-│                          │ AlertBanner               │
-│         [›]              ├──────────────────────────┤
-│    (chevron repliable)   │ AlertDetailInline         │
+│         [›]              │ HeroCompact               │
+│    (chevron repliable)   │ (lieu · temp · icône ·   │
+│                          │  description)             │
 │                          ├──────────────────────────┤
 │                          │ MetricsGrid               │
 │                          │ (vent · humidité · UV ·   │

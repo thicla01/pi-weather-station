@@ -89,9 +89,18 @@ const LayoutPi = () => {
       </div>
       <aside className={styles.rail} aria-hidden={collapsed}>
         <TimeBlock />
-        <HeroCompact />
+        {/* AlertBanner + AlertDetailInline kept together at the top
+         * of the rail (just under TimeBlock, ABOVE HeroCompact).
+         * Restores parity with v2 InfoPanel where gov alerts sat in
+         * the .alertArea div between the Clock and CurrentWeather.
+         * Both components return null when no eligible alert is
+         * active, so this position is invisible in calm weather —
+         * no layout cost. When something fires, the alert reads as
+         * the highest-priority piece of info in the rail rather
+         * than sitting below the location + temperature card. */}
         <AlertBanner />
         <AlertDetailInline />
+        <HeroCompact />
         <MetricsGrid />
         <IndoorBlock />
         <ChartTabs />

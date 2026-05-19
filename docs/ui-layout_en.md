@@ -27,9 +27,9 @@ Variant A "Compagnon nomade" from the design package. Single scrollable column t
 ```
 ┌──────────────────────────────┐
 │ TimeBlock                    │  ◀ clock + sunrise/sunset
-│ HeroCompact                  │  ◀ location, big temp, condition
 │ AlertBanner                  │  ◀ government alert (when active)
 │ AlertDetailInline            │  ◀ expanded alert (tap to open)
+│ HeroCompact                  │  ◀ location, big temp, condition
 │ MetricsGrid                  │  ◀ wind / humid / UV / AQ tiles
 │ IndoorBlock                  │  ◀ Homebridge temps (when configured)
 │ Radar mini (~220 px) [⛶]    │  ◀ small inset map; maximize toggle
@@ -73,13 +73,13 @@ The map occupies the left column; the rail (info panel) occupies the right colum
 │                          │ TimeBlock                 │
 │                          │ (date · clock · sun row)  │
 │                          ├──────────────────────────┤
-│   WeatherMap             │ HeroCompact               │
-│   (Leaflet + RainViewer  │ (location · temp · icon · │
-│    radar tiles)          │  description)             │
+│   WeatherMap             │ AlertBanner               │
+│   (Leaflet + RainViewer  ├──────────────────────────┤
+│    radar tiles)          │ AlertDetailInline         │
 │                          ├──────────────────────────┤
-│                          │ AlertBanner               │
-│         [›]              ├──────────────────────────┤
-│    (chevron toggle)      │ AlertDetailInline         │
+│         [›]              │ HeroCompact               │
+│    (chevron toggle)      │ (location · temp · icon · │
+│                          │  description)             │
 │                          ├──────────────────────────┤
 │                          │ MetricsGrid               │
 │                          │ (wind · humidity · UV ·   │
