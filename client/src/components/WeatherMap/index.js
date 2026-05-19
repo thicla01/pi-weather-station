@@ -76,6 +76,17 @@ const RADAR_GEOMETRY = {
 };
 const EARTH_R_KM = 6371;
 
+/* Zoom threshold above which the analysis-zone dashed circles AND
+ * the sampling-point dots stop rendering. At z=13 the inner 50 km
+ * circle has a pixel radius of ~3700 px (≈ 2.7× the iPad viewport
+ * width) so most of it is already off-screen; by z=14 it's ~7460 px
+ * (entirely off-screen). Beyond that the SVG element is dead
+ * weight in the DOM — invisible but still maintained by the
+ * renderer, contributing to the pan-jank observed on macOS Firefox
+ * and Safari iPad at high zoom. Hiding them frees the SVG layer
+ * and restores smooth panning. */
+const RING_HIDE_ZOOM = 13;
+
 /**
  * Compute a destination lat/lon from a starting point, distance, and bearing.
  * Mirrors offsetLatLon in server/radarAnalyzerCtrl.js (great-circle formula).
@@ -1331,6 +1342,7 @@ const WeatherMap = ({ zoom, dark }) => {
     radarOpacityLight,
     radarOpacityDark,
     distanceUnit,
+    currentMapZoom,
     setCurrentMapZoom,
     zoomToLevel,
     setZoomToLevel,
@@ -1800,13 +1812,13 @@ const WeatherMap = ({ zoom, dark }) => {
             so curious users can see exactly what the analyzer reads. Inner
             ring is always 16 directions × 10 distances; outer ring is 32
             directions × 10 distances when extendedRadius is on. */}
-        {radarAnalysisEnabled && markerPosition ? (
+        {radarAnalysisEnabled && markerPosition && currentMapZoom < RING_HIDE_ZOOM ? (
           <RiskRing center={markerPosition} radius={innerRadiusMeters} risk={innerRisk} dark={dark} aiOff={!aiSummaryAvailable} nightRed={nightRed} />
         ) : null}
-        {radarAnalysisEnabled && markerPosition && extendedRadarRadius ? (
+        {radarAnalysisEnabled && markerPosition && extendedRadarRadius && currentMapZoom < RING_HIDE_ZOOM ? (
           <RiskRing center={markerPosition} radius={outerRadiusMeters} risk={outerRisk} dark={dark} aiOff={!aiSummaryAvailable} nightRed={nightRed} />
         ) : null}
-        {radarAnalysisEnabled && markerPosition && showSamplingPoints
+        {radarAnalysisEnabled && markerPosition && showSamplingPoints && currentMapZoom < RING_HIDE_ZOOM
           ? buildSamplingPoints(markerPosition, extendedRadarRadius, distanceUnit).map(
               ({ position, key }, idx) => {
                 // Each dot picks its colour from the sample's own intensity.
