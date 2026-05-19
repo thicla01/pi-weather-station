@@ -149,13 +149,8 @@ Global coverage (~150 countries) of government-monitoring stations live via a fr
 
 > **Heads-up on the v2-vs-v3 trap.** Earlier roadmap text claimed OpenAQ was "no-key" — that was the v2 API. v3 (current since 2024) requires `X-API-Key` per request. Keep the per-install-key mental model when discussing AQI sources going forward.
 
-### 🌼 Pollen badge for allergy-aware users
-A fourth badge in the UV / AQI row showing tree / grass / weed / ragweed pollen levels — useful for the chunk of the audience who treat pollen counts the same way others treat AQI. Tomorrow.io exposes `treeIndex` / `grassIndex` / `weedIndex` in its Pollen data layer, but that layer is paid-only (same gate as `epaIndex` was for AQI before AirNow / OpenAQ shipped), and the kiosk owner is on the free tier — so the right path is the same as the AQI chain: free public APIs, per-install opt-in.
-
-- **Source:** [Open-Meteo Air Quality API](https://open-meteo.com/en/docs/air-quality-api) — free, no API key, returns `alder_pollen`, `birch_pollen`, `grass_pollen`, `mugwort_pollen`, `olive_pollen`, `ragweed_pollen` in grains/m³ (CAMS European scale). Coverage is solid for Europe (CAMS native) and acceptable for North America via the global GEOS-CF model — finely-resolved metro areas like Montréal and Paris read well; remote regions read worse but still better than nothing.
-- **Implementation:** new `server/pollenSources/openmeteo.js` exposing `tryPollen(lat, lon)` at the same contract shape as the AQI sources (normalised payload with per-allergen index + a worst-case category for the badge colour). New `GET /api/pollen?lat&lon` endpoint, client `<UvAqiBadges>` extends to a third badge "POLLEN" (or 4th, if we keep UV separate) gated by an opt-in toggle in Settings — pollen is seasonal and audience-specific, so default-hidden is the right floor. Reuse the click-for-details pattern from item below to surface the per-allergen breakdown when the user taps the badge.
-- **Effort:** ~2-3h once the click-for-details overlay (item below) is in — the source itself is a one-call fetch + category mapping (same shape as MELCC RSQAQ), the UI is the larger piece.
-- **Caveat:** the EPA-AQI vocabulary doesn't apply to pollen — the badge would use Open-Meteo's own scale (low / moderate / high / very high) or a translated 4-tier mapping. Worth confirming the colour scale before implementing so it doesn't visually conflict with AQI's worst-case-red coding.
+### ✅ ~~Pollen badge for allergy-aware users~~ — **shipped May 2026 (v2.16.x)**
+Open-Meteo Air Quality API (free, no key) feeds a 5th cell in MetricsGrid covering the six standard allergens (alder / birch / grass / mugwort / olive / ragweed). Opt-in via `advanced.pollen.enabled` in Settings (default OFF). Server normalises into worst-case + per-allergen array; client renders col-span 2 cell with the click-for-details popover showing the full breakdown colour-coded by tier. Caveat noted in the docs: CAMS coverage is strong for Europe, sparse for North America — the cell hides silently when all allergens are null.
 
 ### 🖱️ Click-for-details overlay — partially shipped (badges still open)
 
@@ -170,13 +165,10 @@ A fourth badge in the UV / AQI row showing tree / grass / weed / ragweed pollen 
 - **Client:** a shared `<DetailsPopover>` shell with content slots per badge type. Backdrop click + Esc to close. Reuses the popover affordance already proven by the HealthIndicator dot.
 - **Effort:** ~3 h. Mostly client-side; the server tweak for the pollutant breakdown is ~30 min.
 
-### 👀 Acknowledge-and-dismiss on alerts
-"I've seen this, hide it for now" pattern. Stored as `localStorage`-keyed alert IDs with their `expiresAt`, so dismissed alerts auto-purge when they expire upstream. Two design rules need agreement before coding:
-
-- **Resurface on severity bump?** A dismissed orange-tier alert that escalates to red should re-show — losing visibility on a real escalation is the worst-case UX.
-- **Auto-resurface after N hours?** A "set-and-forget" kiosk where someone dismisses a tornado warning and the kiosk goes silent for the rest of the storm is dangerous. Suggested floor: `dismiss = hide for max(4h, until severity rises)`.
-
-The pattern composes cleanly with the click-for-details overlay above (the popover is the natural place to put the "Vu" button).
+### ✅ ~~Acknowledge-and-dismiss on alerts~~ — **shipped May 2026 (v2.16.x)**
+New `useDismissedAlerts()` hook persists dismissed alert IDs in localStorage keyed by their `expiresAt`. A ✕ button on the `AlertBanner` triggers the dismissal — both the banner AND the `AlertDetailInline` slab hide. Both design rules from the original scope landed:
+- **Severity escalation re-surfaces immediately**: a dismissed moderate-tier alert that climbs to severe / extreme bypasses the dismissal — the safety case that the kiosk must never silence.
+- **4 h auto-resurface floor**: the dismissal expires after 4 hours regardless of upstream lifetime, so a "set-and-forget" kiosk can't go dark for the entire duration of a 36 h heat warning. Stale entries also purge every minute as their upstream `expiresAt` passes.
 
 ### 🌙 Moon phase + upcoming solstice/equinox marker
 A small inline addition to the InfoPanel rather than a dedicated astronomy view: a moon-phase glyph (🌑 → 🌕 → 🌘) shown alongside the existing sunrise/sunset row, plus a transient mini-marker that surfaces the next solstice or equinox **only when within ~14 days of it** (e.g. *"Spring equinox in 8 days"*). Both computed locally — no API, no token cost, no quota.
