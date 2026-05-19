@@ -152,18 +152,14 @@ Global coverage (~150 countries) of government-monitoring stations live via a fr
 ### ✅ ~~Pollen badge for allergy-aware users~~ — **shipped May 2026 (v2.16.x)**
 Open-Meteo Air Quality API (free, no key) feeds a 5th cell in MetricsGrid covering the six standard allergens (alder / birch / grass / mugwort / olive / ragweed). Opt-in via `advanced.pollen.enabled` in Settings (default OFF). Server normalises into worst-case + per-allergen array; client renders col-span 2 cell with the click-for-details popover showing the full breakdown colour-coded by tier. Caveat noted in the docs: CAMS coverage is strong for Europe, sparse for North America — the cell hides silently when all allergens are null.
 
-### 🖱️ Click-for-details overlay — partially shipped (badges still open)
+### ✅ ~~Click-for-details overlay on badges and the AlertBanner~~ — **shipped May 2026 (v2.16.x)**
+- **AlertBanner / AlertDetailInline** — the slab pinned under the banner exposes the full localised `description_en/fr` + a QR code that opens the upstream alerts page on the user's phone, and grows to natural content height so verbose multi-paragraph ECCC alerts read in one go.
+- **`<DetailsPopover>` shared component** — anchored to the parent cell with left/right edge selection so the popover stays inside the rail regardless of which column the cell lives in. Backdrop click + Esc + tap-on-trigger all close cleanly (the `triggerRef` prop prevents the pointerdown-close + click-reopen flash). Discoverable via a small ⓘ hint icon in the top-right of interactive cells.
+- **UV cell** — popover shows the WMO category description ("Faible / Modéré / Élevé / Très élevé / Extrême") + per-tier skin-protection guidance.
+- **AQ cell** — popover shows value + tier + station name & distance + source label + reading type (observation / forecast / NowCast) + pollutant code.
+- **Pollen cell** — popover shows worst-case allergen + per-allergen breakdown colour-coded by tier.
 
-**Shipped May 2026** — the AlertBanner → detail expansion is live for both gov sources (NWS + ECCC). The `<AlertDetailInline>` slab pinned under the banner exposes the full localised `description_en/fr` + a QR code that opens the upstream alerts page on the user's phone, and as of v2.16.6 the slab is allowed to grow to its natural content height (rail-scroll picks up the rest) so verbose multi-paragraph ECCC alerts read in one go.
-
-**Still open** — the *badge-side* of this same pattern: a unifying `<DetailsPopover>` for the UV / AQ / future Pollen badges that turns glance-only chips into glance + tap-for-details. Specifically:
-- **UV badge** — could expose the WMO category description (e.g. *"6 — Élevé: protect skin"*) plus a 24 h UV curve preview from `hourly.uv_index`.
-- **AQ badge** — AirNow and OpenAQ track all six pollutants internally but only expose the worst-case one. Per-pollutant breakdown + station name + measurement age would surface that richer data without changing the badge itself.
-- **Pollen badge (when shipped)** — per-allergen breakdown (alder / birch / grass / mugwort / olive / ragweed) from Open-Meteo's allergen-by-allergen payload.
-
-- **Server changes:** `/api/air-quality` extends to optionally include the per-pollutant breakdown when the source has one (AirNow + OpenAQ; MELCC and ECCC stay single-value). `/api/weather-alerts` description fields are already in the payload — no change there.
-- **Client:** a shared `<DetailsPopover>` shell with content slots per badge type. Backdrop click + Esc to close. Reuses the popover affordance already proven by the HealthIndicator dot.
-- **Effort:** ~3 h. Mostly client-side; the server tweak for the pollutant breakdown is ~30 min.
+**Future enrichment (separate item)** — the AQ popover currently shows the single dominant pollutant the server returns. AirNow and OpenAQ both track all six pollutants internally; surfacing the full per-pollutant breakdown would require a small server change (extend `/api/air-quality` to return the array). ~30 min of server work + 30 min UI. Not urgent — most users only need the worst-case readout the badge already shows.
 
 ### ✅ ~~Acknowledge-and-dismiss on alerts~~ — **shipped May 2026 (v2.16.x)**
 New `useDismissedAlerts()` hook persists dismissed alert IDs in localStorage keyed by their `expiresAt`. A ✕ button on the `AlertBanner` triggers the dismissal — both the banner AND the `AlertDetailInline` slab hide. Both design rules from the original scope landed:
