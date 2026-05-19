@@ -163,9 +163,18 @@
   font-size: 13px;
   font-weight: 500;
   letter-spacing: 0.2px;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* `white-space: normal` (instead of `nowrap`) lets longer toasts
+   * wrap to a second line — the remote-update notice in EN/FR/ES
+   * runs 50-75 chars, which doesn't fit on a single 280 px line at
+   * 13 px Geist. Short toasts ("Marker shown", "Light mode on")
+   * stay on one line naturally because their content is shorter
+   * than the max-width. text-align centres both single- and multi-
+   * line content under the tapped button. Line-height 1.3 gives
+   * enough breathing room for two lines without enlarging the
+   * single-line case visibly. */
+  white-space: normal;
+  line-height: 1.3;
+  text-align: center;
   pointer-events: none;
   /* v2.14.76: z-index lifted from 20 → 1500 to clear the radar timeline
    * (z-index 500) and Leaflet's internal controls (z-index up to 1000)
