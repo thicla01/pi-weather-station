@@ -578,14 +578,14 @@
 
 .grid8 {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   margin-bottom: 8px;
 }
 
 @media (min-width: 640px) {
   .grid8 {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
@@ -600,14 +600,21 @@
  * Always stays at 2 columns regardless of viewport width. */
 .grid2 {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   align-items: start;
 }
 
 .grid4 {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  /* `minmax(0, 1fr)` (not bare `1fr`) so the cells truly shrink with
+   * the parent — bare `1fr` is `minmax(auto, 1fr)` which floors the
+   * cell width at its content's min-content. Inputs with no explicit
+   * `size` attribute have a ~20ch min-content (~144 px at Geist Mono
+   * 12 px), which prevented the Lat/Lon cells from shrinking below
+   * ~340 px combined and pushed the section past narrow-viewport
+   * edges. minmax(0, …) removes that floor cleanly. */
+  grid-template-columns: repeat(2, minmax(0, 1fr));
   gap: 10px;
   /* Top-align cells so a two-line label in one cell doesn't push the
    * control track down relative to single-line siblings. */
@@ -616,7 +623,7 @@
 
 @media (min-width: 720px) {
   .grid4 {
-    grid-template-columns: repeat(4, 1fr);
+    grid-template-columns: repeat(4, minmax(0, 1fr));
   }
 }
 
@@ -627,7 +634,38 @@
  * tighter combined condition (height + width both constrained). */
 @media (max-height: 520px) {
   .grid4 {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Location & hardware section override. The 4 cells in this section
+ * are Latitude / Longitude / Source radar / Brightness — at narrow
+ * viewports (≤720 px) Lat/Lon stay side-by-side as equivalent
+ * coordinate fields, but Source radar and Brightness each get their
+ * own row so their full controls have room (segmented buttons land
+ * equally wide via flex:1 once stretched across the full row, and
+ * the brightness slider gets its label + track + percentage on a
+ * single readable line). At wide viewports the override is reverted
+ * via the auto-placement default. */
+.gridLocationHardware > :nth-child(3),
+.gridLocationHardware > :nth-child(4) {
+  grid-column: 1 / -1;
+}
+
+@media (min-width: 720px) {
+  .gridLocationHardware > :nth-child(3),
+  .gridLocationHardware > :nth-child(4) {
+    grid-column: auto;
+  }
+}
+
+/* Re-apply the span rule when the height-constrained 2-col rule
+ * fires (7" Pi kiosk at 800×480), so the Pi gets the same stacked
+ * layout as a narrow desktop window. */
+@media (max-height: 520px) {
+  .gridLocationHardware > :nth-child(3),
+  .gridLocationHardware > :nth-child(4) {
+    grid-column: 1 / -1;
   }
 }
 
@@ -732,7 +770,7 @@
    * (Each apiRow is an independent grid instance inside the flex
    * column — without fixed ratios the `auto` description column
    * would vary per row and pull the `1fr` key column with it.) */
-  grid-template-columns: auto 110px 2fr 1fr;
+  grid-template-columns: auto 110px minmax(0, 2fr) minmax(0, 1fr);
   gap: 8px;
   align-items: center;
   padding: 6px 8px;
@@ -774,6 +812,11 @@
 
 .apiKeyInput {
   width: 100%;
+  /* Belt-and-braces: parent `.apiValueBlock` already has min-width: 0,
+   * and the grid track is now minmax(0, 2fr). The input itself also
+   * gets min-width: 0 so its intrinsic ~20ch default never floors the
+   * cell width at narrow viewports. */
+  min-width: 0;
   /* Soft-accent fill matches the Lat/Lon `fieldBox` rows so the
    * affordance "this is an editable input" reads the same way across
    * the panel. Was `var(--c-bg)` previously, which sat too close to

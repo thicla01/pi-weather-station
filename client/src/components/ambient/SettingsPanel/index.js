@@ -520,7 +520,7 @@ const SectionConfig = ({ ctx, lang, remote }) => {
       <div className={`${styles.subhead} ${styles.subheadGap}`}>
         {lbl(lang, "Location & hardware", "Localisation & matériel", "Ubicación y hardware")}
       </div>
-      <div className={styles.grid4}>
+      <div className={`${styles.grid4} ${styles.gridLocationHardware}`}>
         {/* Pre-2.14.21 the Latitude field carried a "Copier" CopyButton
          * trailing the input. That belonged on the Debug panel's
          * Current-Position row (where it's still useful — diagnostic
