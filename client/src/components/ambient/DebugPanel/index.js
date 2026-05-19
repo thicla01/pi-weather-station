@@ -1199,19 +1199,13 @@ const BucketAbout = ({ data, lang, gridTwoWide }) => {
       </div>
 
       <SectionTitle title={lbl(lang, "Update check", "Vérification MAJ", "Comprobación actualización")} gap />
-      <div className={`${styles.gridTwo} ${gridTwoWide ? styles.gridTwoWide : ""}`}>
-        <KV k="local sha"   v={u.localSha || v.commit || "—"} />
-        <KV k="latest sha"  v={latestSha || u.latestSha || "—"} />
-        <KV k={lbl(lang, "latest ver", "dernière ver", "última ver")}  v={latestVersion || u.latestVersion || "—"} />
-        <KV k={lbl(lang, "available", "disponible", "disponible")}   v={<Tag kind={updateAvailable ? "warn" : "ok"}>{updateAvailable
-          ? lbl(lang, "YES", "OUI", "SÍ")
-          : lbl(lang, "UP-TO-DATE", "À JOUR", "AL DÍA")
-        }</Tag>} />
-        {updateAvailable && commitCount > 0 ? (
-          <KV k="new commits" v={String(commitCount)} />
-        ) : null}
-      </div>
-
+      {/* Install button hoisted ABOVE the SHA/version grid (v2.16.x).
+       * Previously it sat at the BOTTOM of the section, which on a
+       * 7" Pi or any short viewport meant it was partly or entirely
+       * below the fold — users had to scroll the debug panel to see
+       * the primary action of this section. Lifting it to the top
+       * keeps the action discoverable while the SHA / version
+       * details that follow are diagnostic rather than primary. */}
       {updateAvailable ? (
         <div className={styles.updateActionRow}>
           {needsManualUpgrade ? (
@@ -1247,6 +1241,19 @@ const BucketAbout = ({ data, lang, gridTwoWide }) => {
           )}
         </div>
       ) : null}
+
+      <div className={`${styles.gridTwo} ${gridTwoWide ? styles.gridTwoWide : ""}`}>
+        <KV k="local sha"   v={u.localSha || v.commit || "—"} />
+        <KV k="latest sha"  v={latestSha || u.latestSha || "—"} />
+        <KV k={lbl(lang, "latest ver", "dernière ver", "última ver")}  v={latestVersion || u.latestVersion || "—"} />
+        <KV k={lbl(lang, "available", "disponible", "disponible")}   v={<Tag kind={updateAvailable ? "warn" : "ok"}>{updateAvailable
+          ? lbl(lang, "YES", "OUI", "SÍ")
+          : lbl(lang, "UP-TO-DATE", "À JOUR", "AL DÍA")
+        }</Tag>} />
+        {updateAvailable && commitCount > 0 ? (
+          <KV k="new commits" v={String(commitCount)} />
+        ) : null}
+      </div>
 
       <SectionTitle title={lbl(lang, "Vulnerability scan", "Analyse vulnérabilités", "Análisis vulnerabilidades")} gap />
       <div className={styles.vulnNotice}>
