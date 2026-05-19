@@ -358,7 +358,7 @@
     "aiSummaryShown": "Sección IA mostrada",
     "aiSummaryHidden": "Sección IA ocultada",
     "refreshing": "Actualizando…",
-    "updateRemoteNotice": "Actualización disponible — pídele al administrador del kiosco que la instale"
+    "updateRemoteNotice": "Actualización disponible — avisa al admin del kiosco"
   },
   "health": {
     "title": "Estado de los servicios",

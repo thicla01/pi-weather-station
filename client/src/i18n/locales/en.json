@@ -358,7 +358,7 @@
     "aiSummaryShown": "AI summary shown",
     "aiSummaryHidden": "AI summary hidden",
     "refreshing": "Refreshing…",
-    "updateRemoteNotice": "Update available — ask the kiosk admin to install it"
+    "updateRemoteNotice": "Update available — ask the kiosk admin"
   },
   "health": {
     "title": "Service health",

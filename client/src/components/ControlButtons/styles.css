@@ -149,7 +149,12 @@
   width: auto;
   height: auto;
   display: block;
-  max-width: min(280px, calc(100vw - 24px));
+  /* Bumped from 280 → 360 (v2.16.x) to give the longer remote-
+   * update notice room on viewports between ~400 px and ~720 px,
+   * where the previous 280 px cap forced 3-4 line wraps for
+   * 50-75 char strings. On narrower viewports `calc(100vw - 24px)`
+   * still wins so the toast never extends past the screen edges. */
+  max-width: min(360px, calc(100vw - 24px));
   /* Frosted-glass look: translucent surface + backdrop blur. User
    * preferred the lighter "ice" effect over the accent-soft tint that
    * was tried briefly — keeps the toast visually distinct from the
