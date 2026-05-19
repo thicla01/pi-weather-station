@@ -100,7 +100,7 @@ const ControlButtons = () => {
   // text content happens to be identical to the previous toast. The
   // timeout ref lets us cancel a pending dismissal when a new toast
   // supersedes the current one.
-  const [toast, setToast] = useState({ id: 0, message: "", x: null, bottom: null });
+  const [toast, setToast] = useState({ id: 0, message: "", x: null, bottom: null, fullWidth: false });
   const toastTimeoutRef = useRef(null);
   const toastIdRef = useRef(0);
   const containerRef = useRef(null);
@@ -126,6 +126,11 @@ const ControlButtons = () => {
   // `padding: 12px` on `.dock`.
   useLayoutEffect(() => {
     if (!toast.message || !toastRef.current || toast.x === null) return;
+    // Skip clamp in full-width mode — the toast already has both
+    // `left` and `right` set to viewport-edge margins, so there's
+    // nothing to shift and resetting `--toast-tx` here would undo
+    // the inline `0%` override.
+    if (toast.fullWidth) return;
     const el = toastRef.current;
     el.style.setProperty("--toast-tx", "-50%");
     const rect = el.getBoundingClientRect();
@@ -138,7 +143,7 @@ const ControlButtons = () => {
     if (shift !== 0) {
       el.style.setProperty("--toast-tx", `calc(-50% + ${shift}px)`);
     }
-  }, [toast.id, toast.message, toast.x]);
+  }, [toast.id, toast.message, toast.x, toast.fullWidth]);
 
   // Notify is called from each toggle's onClick. The optional event lets
   // us anchor the toast horizontally above the actual button that was
@@ -163,14 +168,30 @@ const ControlButtons = () => {
   const notify = (key, e) => {
     let x = null;
     let bottom = null;
+    let fullWidth = false;
     if (e && e.currentTarget) {
       const buttonRect = e.currentTarget.getBoundingClientRect();
       x = buttonRect.left + buttonRect.width / 2;
       bottom = window.innerHeight - buttonRect.top + 8;
+      // On narrow viewports (≤ 600 px) the per-button anchoring
+      // results in a toast width starved by the browser's shrink-
+      // to-fit calc — `width: auto` with only `left` set computes
+      // available width as `viewport - left`, which is small when
+      // the tapped button is near the right edge of the dock.
+      // `translateX(-50%)` shifts visually but the layout box
+      // stays narrow. User-visible symptom: 6+ line wraps on a
+      // 70-char French toast that should fit on 2 lines.
+      //
+      // Fallback to viewport-edges positioning (left: 12, right: 12)
+      // so the toast has the full available width on phones. We
+      // lose the per-button visual anchor — accepted trade-off:
+      // on phones the dock is small, the user's finger is right
+      // there, and a readable toast wins over precise pointing.
+      fullWidth = window.innerWidth <= 600;
     }
     toastIdRef.current += 1;
     const id = toastIdRef.current;
-    setToast({ id, message: t(key), x, bottom });
+    setToast({ id, message: t(key), x, bottom, fullWidth });
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
     toastTimeoutRef.current = setTimeout(() => {
       setToast((prev) => (prev.id === id ? { ...prev, message: "" } : prev));
@@ -446,15 +467,36 @@ const ControlButtons = () => {
           className={styles.toast}
           role="status"
           aria-live="polite"
-          /* When anchored on a specific button, inline `left` and
-           * `bottom` position the toast in viewport coordinates (the
-           * CSS uses `position: fixed`). `translateX(-50%)` in CSS
-           * centres the toast on its anchor X. When `toast.x` is null
-           * (no event available — defensive fallback only) the CSS
-           * defaults take over (left:50%, bottom: dock height + 8px). */
-          style={toast.x !== null
-            ? { left: `${toast.x}px`, bottom: `${toast.bottom}px` }
-            : undefined}
+          /* Three positioning modes:
+           *   1. Button-anchored (wide viewport with `toast.x` set):
+           *      inline `left` + `bottom` place the toast at the
+           *      button's centre in viewport coords; CSS
+           *      `translateX(-50%)` then centres it visually.
+           *   2. Full-width (narrow viewport ≤ 600 px): both `left`
+           *      AND `right` are set to 12 px so the toast spans
+           *      the full viewport minus margins. The button-centre
+           *      visual anchor is lost but the toast finally has
+           *      room to read on 2-3 lines instead of being squeezed
+           *      into a 120 px column on phones.
+           *   3. Default (no event provided): CSS handles it
+           *      (left:50%, default bottom). */
+          style={(() => {
+            if (toast.x === null) return undefined;
+            if (toast.fullWidth) {
+              // `--toast-tx: 0%` cancels the CSS default `-50%`
+              // translate (which we use to centre on the button
+              // anchor) — in full-width mode both `left` and
+              // `right` are set so the box is already correctly
+              // positioned and we don't want to shift it.
+              return {
+                left: "12px",
+                right: "12px",
+                bottom: `${toast.bottom}px`,
+                "--toast-tx": "0%",
+              };
+            }
+            return { left: `${toast.x}px`, bottom: `${toast.bottom}px` };
+          })()}
         >
           {toast.message}
         </div>
