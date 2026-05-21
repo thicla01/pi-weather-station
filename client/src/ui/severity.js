@@ -39,19 +39,29 @@ export const CATEGORY_COLORS = {
 };
 
 /**
- * EPA AQI index (Tomorrow.io's `epaIndex`, 1-6) → same four-tier
- * vocabulary, with sensitive / unhealthy mapping to "high". Used
- * only for the Tomorrow.io fallback path; the server-side
- * orchestrator already returns `category` for every other source.
+ * EPA AQI value (Tomorrow.io's `epaIndex`, raw 0-500 scale per
+ * 40 CFR Part 58 App. G) → same four-tier vocabulary. Used only
+ * for the Tomorrow.io fallback path; the server-side orchestrator
+ * already returns `category` for every other source via
+ * `categoryForEpaAqi` in `server/airQualitySources/_shared.js`.
  *
- * @param {number|null|undefined} idx
+ * History: an earlier version of this function bucketed by a 1-6
+ * index (1→low, 2→moderate, 3-4→high, 5+→veryHigh) under the
+ * (mistaken) assumption that Tomorrow.io's `epaIndex` field was
+ * the EPA category number rather than the raw AQI. In fact
+ * Tomorrow.io returns the canonical 0-500 EPA AQI, so the old
+ * thresholds were wildly off — a "Good" value of 29 was labeled
+ * "very high" (issue #149, mlcampbe). Thresholds now mirror the
+ * server-side function exactly.
+ *
+ * @param {number|null|undefined} value EPA AQI value (0-500)
  * @returns {"low"|"moderate"|"high"|"veryHigh"|null}
  */
-export function epaCategory(idx) {
-  if (idx == null) return null;
-  if (idx >= 5) return "veryHigh";
-  if (idx >= 3) return "high";
-  if (idx >= 2) return "moderate";
+export function epaCategory(value) {
+  if (value == null) return null;
+  if (value > 150) return "veryHigh";
+  if (value > 100) return "high";
+  if (value > 50) return "moderate";
   return "low";
 }
 
