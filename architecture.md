@@ -113,12 +113,12 @@ server/index.js  ─── entry point, routes, middleware, HTTPS server
     │
     ├── radarAnalyzerCtrl.js Samples the RainViewer radar around the user at
     │                        3 timestamps (now, -15, -45 min). Geometry is
-    │                        configurable: inner ring is always 8 directions ×
-    │                        4 distances (5/15/30/45 km); outer ring (60/75/90
-    │                        km) is opt-in via advanced.ai.extendedRadius and
-    │                        uses 8 or 16 directions per advanced.ai.double-
-    │                        OuterPoints. Disabled entirely when advanced.ai.
-    │                        radarAnalysisEnabled is false.
+    │                        configurable: inner ring is always 16 directions
+    │                        × 10 distances (5 km steps from 5 to 50 km);
+    │                        outer ring (32 directions × 10 distances, 5 km
+    │                        steps from 55 to 100 km) is opt-in via
+    │                        advanced.ai.extendedRadius. Disabled entirely
+    │                        when advanced.ai.radarAnalysisEnabled is false.
     │                        Reads tile pixels via pngjs, classifies against
     │                        the 6-level NEXRAD palette, returns a compact
     │                        textual grid for inclusion in the AI prompt.
