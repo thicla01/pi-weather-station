@@ -21,7 +21,7 @@ pi-weather-station/
 │   ├── index.js          # Entry point, routes, middleware, /api/update flow
 │   ├── proxyCtrl.js      # Proxies all external API calls (weather, maps, geocoding)
 │   ├── aiSummaryCtrl.js  # Claude AI weather summary endpoint (current + radar paragraph)
-│   ├── radarAnalyzerCtrl.js # Parses RainViewer tile pixels for the 45 km zone
+│   ├── radarAnalyzerCtrl.js # Parses RainViewer tile pixels for the 50 km zone
 │   ├── indoorTempCtrl.js # Polls Homebridge for indoor temperature/humidity/air quality
 │   ├── sensehatCtrl.js   # Reads Sense HAT JSON dropped by tools/sensehat_weather.py
 │   ├── debugCtrl.js      # Debug panel data endpoint (localhost-only)
@@ -49,7 +49,7 @@ pi-weather-station/
 │   │   │   ├── SunRiseSet/           # Sunrise/sunset times display
 │   │   │   ├── UpdateModal/          # In-app updater UX (commits, warnings, errors)
 │   │   │   ├── WeatherInfo/          # Weather information container
-│   │   │   ├── WeatherMap/           # Radar map (Leaflet + RainViewer tiles + 45 km circle)
+│   │   │   ├── WeatherMap/           # Radar map (Leaflet + RainViewer tiles + 50 km circle)
 │   │   │   ├── weatherCharts/        # Hourly and daily forecast charts
 │   │   │   └── ControlButtons/       # Bottom control bar (settings, debug, dark mode)
 │   │   ├── hooks/
@@ -182,7 +182,7 @@ These rules apply to every change, regardless of size. They exist to keep the co
 |---|---|---|
 | Tomorrow.io | Weather data (current, hourly, daily) | `weatherApiKey` in settings.json |
 | Mapbox | Base map tiles | `mapApiKey` in settings.json |
-| RainViewer | Radar tiles + 45 km zone analysis | No key required |
+| RainViewer | Radar tiles + 50 km zone analysis | No key required |
 | LocationIQ | Reverse geocoding | `reverseGeoApiKey` in settings.json |
 | Anthropic Claude | AI weather summary (claude-haiku-4-5) | `anthropicApiKey` in settings.json |
 | Homebridge (`homebridge-config-ui-x`) | Indoor temperature/humidity/air quality | `indoorTemperature.*` in settings.json |

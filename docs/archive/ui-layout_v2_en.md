@@ -16,7 +16,7 @@ This document describes the screen layout, panel names, and section names used i
 │                                         │ └───────────────┘ │
 │                                         │ ╔═══════════════╗ │
 │  WEATHERMAP (Leaflet + RainViewer       │ ║ LocationName  ║ │
-│  radar tiles, 45 km analysis circle)    │ ╠═══════════════╣ │
+│  radar tiles, 50 km analysis circle)    │ ╠═══════════════╣ │
 │                                         │ ║CurrentWeather ║ │
 │                                         │ ║  temp, icon   ║ │
 │                                         │ ║  wind, humidity║ │
