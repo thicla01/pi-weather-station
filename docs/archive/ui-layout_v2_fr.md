@@ -16,7 +16,7 @@ Ce document décrit la disposition de l'écran, les noms des panneaux et des sec
 │                                         │ └───────────────┘ │
 │                                         │ ╔═══════════════╗ │
 │  WEATHERMAP (Leaflet + tuiles radar     │ ║ LocationName  ║ │
-│  RainViewer, cercle d'analyse 45 km)    │ ╠═══════════════╣ │
+│  RainViewer, cercle d'analyse 50 km)    │ ╠═══════════════╣ │
 │                                         │ ║CurrentWeather ║ │
 │                                         │ ║  temp, icône  ║ │
 │                                         │ ║  vent, humidité║ │

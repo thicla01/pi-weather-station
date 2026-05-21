@@ -130,7 +130,7 @@ Tracks outbound calls to paid/rate-limited external services. Counters are persi
 
 > Counters with `—` for a period mean no limit is tracked for that period; the counter still increments and is displayed in the debug panel.
 
-> RainViewer (radar tiles + 45 km zone analysis), Homebridge (indoor temperature polling), and the Sense HAT JSON reader are not tracked here — RainViewer has no published quota, while Homebridge and Sense HAT are local-network sources without rate limits.
+> RainViewer (radar tiles + 50 km zone analysis), Homebridge (indoor temperature polling), and the Sense HAT JSON reader are not tracked here — RainViewer has no published quota, while Homebridge and Sense HAT are local-network sources without rate limits.
 
 ---
 

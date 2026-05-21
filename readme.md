@@ -49,7 +49,7 @@ The current v2 layout includes:
 | | |
 |---|---|
 | ![Full layout — InfoPanel open](docs/screenshots/full-layout.png) | ![Radar full-width — InfoPanel collapsed](docs/screenshots/radar-fullscreen.png) |
-| **Full layout (7" Pi)** — InfoPanel header shows the Homebridge-backed indoor temperature/humidity/air quality next to the clock; the dashed circle on the map is the 45 km radar-analysis zone fed to the AI summary. | **Radar full-width** — On screens ≤ 520 px tall, the floating chevron collapses the InfoPanel so the radar takes the full viewport. |
+| **Full layout (7" Pi)** — InfoPanel header shows the Homebridge-backed indoor temperature/humidity/air quality next to the clock; the dashed circle on the map is the 50 km radar-analysis zone fed to the AI summary. | **Radar full-width** — On screens ≤ 520 px tall, the floating chevron collapses the InfoPanel so the radar takes the full viewport. |
 | ![AI summary expanded](docs/screenshots/ai-summary.png) | ![Debug panel](docs/screenshots/debug-panel.png) |
 | **AI summary expanded** — Tapping the chevron hides the charts and slides the summary up; the third paragraph (`Radar analysis:`) describes precipitation movement around the user, sampled from RainViewer tiles server-side. | **Debug panel** — Localhost-only, enabled with `DEBUG=true`. Server config, KPIs (uptime, heap, cache hit rate), per-endpoint response times, provider status, quota counters, security events, and logs. |
 | ![Severe weather alert + extended-radius radar — 10" Pi](docs/screenshots/severe-alert.png) | ![Sleep mode — night-red variant](docs/screenshots/sleep-mode.png) |

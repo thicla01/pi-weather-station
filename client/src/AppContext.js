@@ -89,7 +89,7 @@ export function AppContextProvider({ children }) {
   // Whether the AI weather summary feature is operational on this Pi.
   // Starts true (optimistic) and is flipped to false when the server returns
   // 503 (no Anthropic API key configured). Used by WeatherMap to conditionally
-  // show the 45 km radar-analysis circle around mapGeo.
+  // show the 50 km radar-analysis circle around mapGeo.
   const [aiSummaryAvailable, setAiSummaryAvailable] = useState(true);
   // v2.14.74: user-controlled AI summary visibility. `aiSummaryAvailable`
   // tracks whether the server has an Anthropic key configured (server-

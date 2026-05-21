@@ -231,7 +231,7 @@ AmbientLayers              CSS-variable root — sets palette tokens (day/dusk/n
 │   │   ├── MapClickHandler       Click-to-recenter with 200 ms debounce
 │   │   ├── ArrowToggleControl    Leaflet bar — direction arrows on/off
 │   │   ├── RadarFocusControl     Leaflet bar — hides hero+rail on Desktop (v2.16.6)
-│   │   └── (Leaflet Circle       45 km / 100 km dashed analysis rings
+│   │   └── (Leaflet Circle       50 km / 100 km dashed analysis rings
 │   │       + Marker)             (Marker uses bundled L.Icon.Default + npm Leaflet)
 │   │
 │   ├── HeroBand / HeroCompact / TimeBlock    Layout-specific hero surfaces
@@ -349,7 +349,7 @@ User clicks map
   → GET /api/weather/hourly, /daily (same)
   → AiSummary useEffect fires (mapGeo dependency) → GET /api/weather-summary
   → LocationName fires → GET /api/reverse-geocode?lat=…&lon=…
-  → WeatherMap re-renders the 45 km circle around the new mapGeo
+  → WeatherMap re-renders the 50 km circle around the new mapGeo
 ```
 
 ### AI summary request (with radar paragraph)
