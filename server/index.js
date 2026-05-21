@@ -701,6 +701,19 @@ app.post("/api/update", localhostOnly, (req, res) => {
       exec("git pull --ff-only", { cwd: projectRoot, timeout: 30_000 }, (pullErr, pullStdout, pullStderr) => {
         if (pullErr) {
           console.error("[update] git pull failed:", pullStderr);
+          // File-ownership problem: some tracked files are owned by root
+          // (caused by a previous `sudo git pull` or `sudo bash deploy/install.sh`).
+          // git can't overwrite root-owned files when running as the normal user.
+          if (/Permission denied/i.test(pullStderr)) {
+            return res.status(409).json({
+              error: true,
+              reason: "permission-denied",
+              message:
+                "Some repository files are owned by root and cannot be updated. " +
+                "Fix with this command on your device, then retry:\n\n" +
+                "sudo chown -R $(whoami):$(whoami) ~/pi-weather-station",
+            });
+          }
           return res.status(500).json({
             error: true,
             reason: "pull-failed",
