@@ -23,14 +23,20 @@ done
 # DEBUG=true npm start >> /tmp/weather-server.log 2>&1 &
 npm start >> /tmp/weather-server.log 2>&1 &
 
-# Wait for server on 8443 (HTTPS) or 8080 (HTTP)
-for i in $(seq 1 30); do
+# Wait for server on 8443 (HTTPS) or 8080 (HTTP). Allow up to 5 min so
+# cold boots after a power outage (router/switch still booting, slow
+# DNS) don't expire the wait window before `npm start` is ready.
+SERVER_WAIT_TIMEOUT=300
+for i in $(seq 1 $SERVER_WAIT_TIMEOUT); do
     if (echo > /dev/tcp/localhost/8443) 2>/dev/null; then
         URL="https://localhost:8443"
         break
     elif (echo > /dev/tcp/localhost/8080) 2>/dev/null; then
         URL="http://localhost:8080"
         break
+    fi
+    if [ $((i % 30)) -eq 0 ]; then
+        echo "start-weather: still waiting for pi-weather-server (${i}/${SERVER_WAIT_TIMEOUT}s)..." >&2
     fi
     sleep 1
 done

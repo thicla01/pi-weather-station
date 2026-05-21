@@ -7,8 +7,16 @@
 # backward compatibility with older installations.
 
 # --- 1. Wait for the local pi-weather-server (HTTPS preferred) -----------
+# Cold boots after a power outage need more patience than a clean `sudo
+# reboot`: the router/switch reboot in parallel with the Pi, so the
+# server's ExecStartPre DNS wait can spend its full 60 s before `npm
+# start` even launches. A 30 s window expires while the service is still
+# in ExecStartPre, leaving the kiosk dark with no retry (XDG autostart
+# fires once per session). 5 min covers any reasonable cold-boot
+# recovery; progress is logged every 30 s for diagnosis.
 URL=""
-for i in $(seq 1 30); do
+SERVER_WAIT_TIMEOUT=300
+for i in $(seq 1 $SERVER_WAIT_TIMEOUT); do
     if (echo > /dev/tcp/localhost/8443) 2>/dev/null; then
         URL="https://localhost:8443"
         break
@@ -16,11 +24,14 @@ for i in $(seq 1 30); do
         URL="http://localhost:8080"
         break
     fi
+    if [ $((i % 30)) -eq 0 ]; then
+        echo "start-server: still waiting for pi-weather-server (${i}/${SERVER_WAIT_TIMEOUT}s)..." >&2
+    fi
     sleep 1
 done
 
 if [ -z "$URL" ]; then
-    echo "start-server: pi-weather-server not reachable after 30s — aborting." >&2
+    echo "start-server: pi-weather-server not reachable after ${SERVER_WAIT_TIMEOUT}s — aborting." >&2
     exit 1
 fi
 
