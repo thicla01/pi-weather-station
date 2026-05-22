@@ -489,8 +489,10 @@
 
 .row {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
-  gap: 10px;
+  column-gap: 10px;
+  row-gap: 4px;
   padding: 6px 8px;
   background-color: var(--c-surface);
   border: 1px solid var(--c-border);
@@ -503,9 +505,21 @@
   color: var(--c-text);
 }
 
+/* `.rowDim` lives on the same flex line as the Tag + rowName when the
+ * comment is short (the typical "OK", "OK (cached)", "200 ms" case).
+ * For long comments — chiefly the 429 / 500 / 503 error bodies that
+ * an upstream service can return as a full sentence — the parent
+ * row's `flex-wrap: wrap` lets the comment drop onto its own line
+ * below, preserving the service name's readability. `max-width: 100%`
+ * caps it to the parent, and `overflow-wrap: anywhere` lets a single
+ * unbreakable token (rare but possible — long URLs, base64) wrap on
+ * any character rather than blowing out the row width.
+ */
 .rowDim {
   color: var(--c-text-dim);
   font-size: 10px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
 }
 
 .rowName {
@@ -513,6 +527,7 @@
   min-width: 0;
   overflow: hidden;
   text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
 /* ── Quota ─────────────────────────────────────────────────────── */
