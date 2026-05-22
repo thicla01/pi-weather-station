@@ -404,7 +404,11 @@ const QuotaSection = ({ counters }) => {
         });
 
         const showHour  = quotas.hour  != null;
-        const showDay   = quotas.day   != null;
+        // Always show today's count, even for services without an
+        // explicit quota cap (ECCC, MELCC, NWS, AirNow, OpenAQ). It's
+        // the most universally useful frequency signal and otherwise
+        // the row would render with only the endpoint name visible.
+        const showDay   = true;
         const showMonth = quotas.month != null;
 
         return (
