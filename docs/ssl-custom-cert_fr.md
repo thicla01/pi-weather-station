@@ -40,10 +40,16 @@ Pour remplacer la chaîne auto-générée par votre propre certificat (Let's Enc
 |---|---|---|
 | `server/cert.pem` | Votre certificat serveur (+ chaîne d'intermédiaires concaténés si nécessaire) | PEM (X.509) |
 | `server/key.pem` | Clé privée non chiffrée correspondant à `cert.pem` | PEM (PKCS#1 ou PKCS#8) |
-| `server/ca-cert.pem` | Le certificat de votre CA racine (Let's Encrypt ISRG Root X1, votre CA interne, etc.) — c'est ce que `/api/cert.pem` servira aux clients | PEM (X.509) |
-| `server/ca-key.pem` | Fichier placeholder (peut être vide ou contenir une fausse clé) — son existence empêche le serveur de régénérer la CA. **Ne jamais y placer votre vraie clé CA si vous en avez une.** | Quelconque |
+| `server/ca-cert.pem` *(optionnel)* | Le certificat de votre CA racine (Let's Encrypt ISRG Root X1, votre CA interne, etc.) — c'est ce que `/api/cert.pem` servira aux clients. À omettre si `cert.pem` contient déjà la chaîne complète (par exemple le `fullchain.pem` de Let's Encrypt). | PEM (X.509) |
 
-> ⚠ **Limitation V3 connue** : la logique d'auto-régénération (voir section dédiée plus bas) déclenche un re-signage du leaf si `ca-cert.pem` ne contient pas le CN auto-attendu (`Pi Weather Station - <hostname>`). En pratique, votre cert custom risque d'être écrasé au prochain démarrage du serveur. Le contournement actuel est de commenter la logique de régénération dans `server/index.js`. Une variable d'environnement `SKIP_CERT_AUTOGEN=true` serait une amélioration propre — à proposer en pull request.
+Vous devez aussi définir `SKIP_CERT_AUTOGEN=true` dans l'environnement
+du serveur (voir [Désactiver l'auto-régénération](#désactiver-lauto-régénération)
+plus bas) — sans ça, la logique d'auto-régénération du serveur détecte
+que les fichiers ne correspondent pas au pattern attendu (CN, SAN,
+séparation CA/leaf) et les écrase par une nouvelle chaîne auto-signée
+au prochain redémarrage. Avec la variable d'environnement définie, le
+serveur utilise les fichiers tels quels et ne génère rien ; aucun
+fichier `ca-key.pem` placeholder n'est requis.
 
 > **Note PKCS#12** : si votre certificat est livré en **PKCS#12 (`.pfx`/`.p12`)**, il faut
 > d'abord le convertir en PEM. Voir la section [Conversion de format](#conversion-de-format) plus bas.
@@ -119,19 +125,53 @@ Si seule la condition leaf se déclenche, le serveur régénère uniquement le l
 
 ---
 
-## Désactiver l'auto-régénération (optionnel)
+## Désactiver l'auto-régénération
 
-Si vous préférez que le serveur échoue plutôt que de tomber en fallback
-self-signed (par exemple en environnement où un cert non-conforme est
-inacceptable), commenter les deux blocs `if (caNeedsRegen) { ... }` et
-`if (leafNeedsRegen) { ... }` dans la fonction `sslOptions()` de
-`server/index.js` (autour de la ligne 280).
+Définir `SKIP_CERT_AUTOGEN=true` dans l'environnement du serveur. Le
+serveur saute alors toutes les vérifications d'auto-régénération (CA +
+leaf) et utilise `cert.pem`, `key.pem` et `ca-cert.pem` (si présent)
+tels quels. Si `cert.pem` ou `key.pem` est manquant alors que le drapeau
+est actif, le serveur échoue bruyamment plutôt que de retomber sur une
+chaîne auto-signée.
 
-> **Note** : c'est un changement de code local, donc à reproduire à
-> chaque `git pull` qui modifierait ce fichier. Une alternative plus propre
-> serait d'ajouter une variable d'environnement `SKIP_CERT_AUTOGEN=true` —
-> petite amélioration à proposer en pull request si ce besoin est
-> récurrent.
+### Linux (service systemd utilisateur)
+
+Créer un drop-in pour que le changement survive aux `git pull` :
+
+```bash
+mkdir -p ~/.config/systemd/user/pi-weather-server.service.d
+cat > ~/.config/systemd/user/pi-weather-server.service.d/byo-cert.conf <<'EOF'
+[Service]
+Environment=SKIP_CERT_AUTOGEN=true
+EOF
+systemctl --user daemon-reload
+systemctl --user restart pi-weather-server
+```
+
+### macOS (agent launchd)
+
+Éditer `~/Library/LaunchAgents/com.pi-weather-station.plist` et ajouter
+la clé dans le `<dict>` qui suit `<key>EnvironmentVariables</key>` :
+
+```xml
+<key>EnvironmentVariables</key>
+<dict>
+    <key>SKIP_CERT_AUTOGEN</key>
+    <string>true</string>
+    <!-- les clés existantes (ALLOW_REMOTE, NODE_ENV, etc.) restent telles quelles -->
+</dict>
+```
+
+Puis recharger :
+
+```bash
+launchctl unload ~/Library/LaunchAgents/com.pi-weather-station.plist
+launchctl load   ~/Library/LaunchAgents/com.pi-weather-station.plist
+```
+
+### Vérification
+
+Le serveur affiche `SKIP_CERT_AUTOGEN=true — using existing certificate files as-is, no auto-regeneration` au démarrage quand le drapeau est pris en compte.
 
 ---
 

@@ -106,6 +106,12 @@ const HTTPS_PORT = 8443;
 const ALLOW_REMOTE = process.env.ALLOW_REMOTE === "true";
 const HOST = ALLOW_REMOTE ? "0.0.0.0" : "127.0.0.1";
 const DEBUG = process.env.DEBUG === "true";
+// When true, the server uses cert.pem / key.pem / ca-cert.pem as-is and
+// never auto-generates anything — for users who supply their own cert
+// (Let's Encrypt, internal CA, mkcert). If cert.pem or key.pem is
+// missing, boot fails loudly rather than silently falling back to a
+// self-signed chain. See docs/ssl-custom-cert_{en,fr}.md.
+const SKIP_CERT_AUTOGEN = process.env.SKIP_CERT_AUTOGEN === "true";
 const app = express();
 
 const sslOptions = (() => {
@@ -264,6 +270,33 @@ const sslOptions = (() => {
       return false;
     }
   };
+
+  // Bring-your-own-cert short-circuit: skip every auto-regen check
+  // (and every openssl invocation that backs them) and use the files
+  // on disk as-is. Missing cert/key here is a hard failure — the user
+  // has explicitly opted out of the fallback by setting the env var.
+  if (SKIP_CERT_AUTOGEN) {
+    console.log("SKIP_CERT_AUTOGEN=true — using existing certificate files as-is, no auto-regeneration");
+    if (!fs.existsSync(certPath) || !fs.existsSync(keyPath)) {
+      const missing = !fs.existsSync(certPath) ? "cert.pem" : "key.pem";
+      console.error(`SKIP_CERT_AUTOGEN=true but server/${missing} is missing — refusing to fall back to auto-generation. Provide your own certificate or unset SKIP_CERT_AUTOGEN.`);
+      return null;
+    }
+    try {
+      // ca-cert.pem is optional in BYO-cert mode: many users already
+      // have the chain concatenated in cert.pem (e.g. Let's Encrypt's
+      // fullchain.pem). Concatenate the CA only if a separate file is
+      // present.
+      const certBuf = fs.readFileSync(certPath);
+      const chain = fs.existsSync(caCertPath)
+        ? Buffer.concat([certBuf, Buffer.from("\n"), fs.readFileSync(caCertPath)])
+        : certBuf;
+      return { key: fs.readFileSync(keyPath), cert: chain };
+    } catch (err) {
+      console.error("SKIP_CERT_AUTOGEN=true but failed to read certificate files:", err.message);
+      return null;
+    }
+  }
 
   const caNeedsRegen =
     !fs.existsSync(caKeyPath) ||
