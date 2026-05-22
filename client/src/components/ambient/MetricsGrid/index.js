@@ -11,6 +11,7 @@ import informationIcon from "@iconify/icons-carbon/information";
 import { AppContext } from "~/AppContext";
 import { convertSpeed, speedUnitLabel } from "~/services/conversions";
 import { uvTier, uvTextColor, CATEGORY_TEXT_COLORS } from "~/ui/severity";
+import { formatAge } from "~/ui/formatAge";
 import DetailsPopover from "~/components/ambient/DetailsPopover";
 import styles from "./styles.css";
 
@@ -55,7 +56,7 @@ const MetricsGrid = () => {
     aqhiInfo,
     pollenInfo,
   } = useContext(AppContext);
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   // Single source of truth for which cell's popover is open. Tapping
   // a cell flips this; tapping the same cell again, the close icon,
   // outside the popover, or pressing Esc all close it.
@@ -192,6 +193,12 @@ const MetricsGrid = () => {
                 <div className={styles.detailRow}>
                   <span className={styles.detailLabel}>{t("metrics.detailKind")}</span>
                   <span>{t(AQ_KIND_LABEL_KEY[aqhiInfo.kind] || "badges.aqiKindObservation")}</span>
+                </div>
+              ) : null}
+              {aqhiInfo.observedAt ? (
+                <div className={styles.detailRow}>
+                  <span className={styles.detailLabel}>{t("metrics.detailAge")}</span>
+                  <span>{formatAge(aqhiInfo.observedAt, i18n.language)}</span>
                 </div>
               ) : null}
               {aqhiInfo.pollutant ? (

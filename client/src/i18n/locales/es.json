@@ -171,6 +171,7 @@
     "detailStation": "Estación",
     "detailSource": "Fuente",
     "detailKind": "Tipo de lectura",
+    "detailAge": "Antigüedad de la lectura",
     "detailPollutant": "Contaminante",
     "detailWorst": "Máximo",
     "detailAllergens": "Todos los alérgenos",

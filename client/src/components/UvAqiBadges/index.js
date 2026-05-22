@@ -2,6 +2,7 @@ import React, { useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { AppContext } from "~/AppContext";
 import { uvTier, CATEGORY_COLORS, epaCategory } from "~/ui/severity";
+import { formatAge } from "~/ui/formatAge";
 import styles from "./styles.css";
 
 // AQI_REFRESH_MS lived here when this component owned the polling;
@@ -54,8 +55,8 @@ function formatValueForScale(scale, value) {
  */
 const UvAqiBadges = () => {
   const { currentWeatherData, darkMode, aqhiInfo } = useContext(AppContext);
-  const { t } = useTranslation();
-  const aqi = aqhiInfo; // { value, category, source, scale, kind, stationName, stationDistanceKm } | null
+  const { t, i18n } = useTranslation();
+  const aqi = aqhiInfo; // { value, category, source, scale, kind, stationName, stationDistanceKm, observedAt? } | null
 
   // Air-quality polling now lives in AppContext (see the "Air-quality"
   // useEffect there) so v3 layouts — which don't mount UvAqiBadges —
@@ -88,8 +89,9 @@ const UvAqiBadges = () => {
     : t(SCALE_BADGE_LABEL[aqiScale] || "badges.aqi");
   const aqiDisplay = aqiValue != null && aqiScale ? formatValueForScale(aqiScale, aqiValue) : null;
 
+  const aqiAge = aqi && formatAge(aqi.observedAt, i18n.language);
   const aqiTooltip = aqi
-    ? `${t(SOURCE_LABEL_KEY[aqiSource] || "badges.aqiSourceEccc")} — ${aqi.stationName} (${aqi.stationDistanceKm} km, ${t(KIND_LABEL_KEY[aqi.kind] || "badges.aqiKindObservation")})`
+    ? `${t(SOURCE_LABEL_KEY[aqiSource] || "badges.aqiSourceEccc")} — ${aqi.stationName} (${aqi.stationDistanceKm} km, ${t(KIND_LABEL_KEY[aqi.kind] || "badges.aqiKindObservation")}${aqiAge ? `, ${aqiAge}` : ""})`
     : t("badges.aqiSourceEpa");
 
   // Yellow "moderate" tier is light enough that the default white

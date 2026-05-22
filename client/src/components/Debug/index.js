@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import styles from "./styles.css";
 import { AppContext } from "~/AppContext";
 import useDragScroll from "~/hooks/useDragScroll";
+import { formatAge } from "~/ui/formatAge";
 import { CSSTransition } from "react-transition-group";
 import { InlineIcon } from "@iconify/react";
 import closeSharp from "@iconify/icons-ion/close-sharp";
@@ -1436,7 +1437,7 @@ RadarCompressionRow.propTypes = {
  * @returns {JSX.Element} Client KPI section
  */
 const ClientKpiSection = ({ fps, setFps, clientMetrics, setClientMetrics }) => {
-  const { t } = useTranslation();
+  const { t, i18n } = useTranslation();
   const { currentMapZoom, mapGeo, aqhiInfo } = useContext(AppContext);
   const rafRef = useRef(null);
   const [coordsCopied, setCoordsCopied] = useState(false);
@@ -1598,7 +1599,7 @@ const ClientKpiSection = ({ fps, setFps, clientMetrics, setClientMetrics }) => {
           <div className={styles.kpiItem}>
             <span className={styles.kpiLabel}>{t("debug.aqiSource")}</span>
             <span className={styles.kpiValue}>
-              {aqhiInfo.stationName} — {aqhiInfo.stationDistanceKm} km — {t(aqhiInfo.kind === "forecast" ? "badges.aqiKindForecast" : aqhiInfo.kind === "nowcast" ? "badges.aqiKindNowcast" : "badges.aqiKindObservation")} — {(aqhiInfo.scale || "aqhi").toUpperCase()} {aqhiInfo.scale === "aqhi" ? Number(aqhiInfo.value).toFixed(1) : Math.round(Number(aqhiInfo.value))}
+              {aqhiInfo.stationName} — {aqhiInfo.stationDistanceKm} km — {t(aqhiInfo.kind === "forecast" ? "badges.aqiKindForecast" : aqhiInfo.kind === "nowcast" ? "badges.aqiKindNowcast" : "badges.aqiKindObservation")}{aqhiInfo.observedAt ? ` (${formatAge(aqhiInfo.observedAt, i18n.language)})` : ""} — {(aqhiInfo.scale || "aqhi").toUpperCase()} {aqhiInfo.scale === "aqhi" ? Number(aqhiInfo.value).toFixed(1) : Math.round(Number(aqhiInfo.value))}
             </span>
           </div>
         )}

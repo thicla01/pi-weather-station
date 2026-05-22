@@ -171,6 +171,7 @@
     "detailStation": "Station",
     "detailSource": "Source",
     "detailKind": "Type de lecture",
+    "detailAge": "Âge de la lecture",
     "detailPollutant": "Polluant",
     "detailWorst": "Plus élevé",
     "detailAllergens": "Tous les allergènes",

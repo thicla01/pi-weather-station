@@ -116,6 +116,28 @@ function cacheKey(lat, lon) {
 }
 
 /**
+ * Short, English, log-friendly age formatter for the Debug panel
+ * service-status line. Client-side rendering uses the localised
+ * `formatAge` helper instead (see client/src/services/conversions.js).
+ *
+ * @param {String} observedAtIso ISO 8601 timestamp
+ * @returns {String} e.g. "5m", "1h 20m", "3d"
+ */
+function formatAgeShort(observedAtIso) {
+  const ms = Date.now() - new Date(observedAtIso).getTime();
+  if (!isFinite(ms) || ms < 0) return "?";
+  const mins = Math.round(ms / 60_000);
+  if (mins < 60) return `${mins}m`;
+  if (mins < 1440) {
+    const h = Math.floor(mins / 60);
+    const m = mins % 60;
+    return m ? `${h}h ${m}m` : `${h}h`;
+  }
+  const days = Math.floor(mins / 1440);
+  return `${days}d`;
+}
+
+/**
  * Fetch every location within SEARCH_RADIUS_M of the given point
  * and return the geographically nearest one. v3 only supports
  * `order_by=id` for the locations endpoint (sending `distance`
@@ -232,6 +254,7 @@ async function tryAqi(lat, lon, options = {}) {
   const sensorIndex = buildSensorIndex(location);
   let worstAqi = null;
   let worstParameter = null;
+  let worstObservedAt = null;
 
   for (const m of measurements) {
     const sensorMeta = sensorIndex.get(m.sensorsId);
@@ -244,6 +267,11 @@ async function tryAqi(lat, lon, options = {}) {
     if (worstAqi == null || aqi > worstAqi) {
       worstAqi = aqi;
       worstParameter = sensorMeta.name;
+      // OpenAQ v3 typically returns `datetime: { utc, local }` per
+      // measurement, but some legacy stations expose the timestamp
+      // under `period.datetimeTo` (averaging window end). Defensive:
+      // try both shapes so a schema variant doesn't silently null us.
+      worstObservedAt = m.datetime?.utc || m.period?.datetimeTo?.utc || null;
     }
   }
 
@@ -268,9 +296,11 @@ async function tryAqi(lat, lon, options = {}) {
     stationName: location.name || `OpenAQ #${location.id}`,
     stationDistanceKm,
     pollutant: worstParameter,
+    observedAt: worstObservedAt,
   };
   cache.set(key, { payload, expiresAt: Date.now() + TTL_MS });
-  recordServiceCall(SERVICE_NAME, 200, `${location.name || location.id} aqi=${worstAqi} (${worstParameter}, ${stationDistanceKm} km)`);
+  const ageSuffix = worstObservedAt ? `, ${formatAgeShort(worstObservedAt)} old` : "";
+  recordServiceCall(SERVICE_NAME, 200, `${location.name || location.id} aqi=${worstAqi} (${worstParameter}, ${stationDistanceKm} km${ageSuffix})`);
   increment("openaq", "latest");
   return payload;
 }

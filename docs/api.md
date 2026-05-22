@@ -312,7 +312,8 @@ For each ECCC candidate, defunct stations are skipped automatically: the control
   "scale": "iqa",
   "kind": "observation",
   "stationName": "75 Ontario Est",
-  "stationDistanceKm": 1
+  "stationDistanceKm": 1,
+  "observedAt": "2026-05-21T17:00:00Z"
 }
 ```
 
@@ -326,6 +327,7 @@ For each ECCC candidate, defunct stations are skipped automatically: the control
 | `stationName` | string | Human-readable station name (or municipal address for the Montreal source, `{ReportingArea}, {StateCode}` for AirNow, the OpenAQ-published name for OpenAQ) |
 | `stationDistanceKm` | integer | Great-circle distance from the requested point, rounded to the nearest km |
 | `pollutant` | string | (AirNow + OpenAQ only) The pollutant that drove the worst-case AQI — `pm25`, `pm10`, `o3`, `no2`, `so2`, or `co`. Surfaced for the Debug panel; not displayed by the badge. |
+| `observedAt` | string\|null | (OpenAQ only as of v2.17) ISO 8601 UTC timestamp of the measurement that won the worst-case AQI. Surfaced in the badge tooltip and the Debug panel as a human-readable "X ago" so the user can tell live readings from stale ones — OpenAQ's `/latest` endpoint doesn't enforce a freshness window the way AirNow's observation API does, so a station may return its last reading from hours or days ago. Other sources will populate this field as the data becomes available upstream; clients should `&&`-guard the field rather than assume it's always present. |
 
 Category cut-points per scale:
 
