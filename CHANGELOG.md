@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [2.18.0] - 2026-05-22
+
 ### Changed
 - **v3 "Ambient Layers" interface is now the default** (`experimentalUiC` flag flipped from `false` to `true` in `AppContext`). Every fresh install now boots into the v3 layout — `LayoutDesktop` / `LayoutMobile` / `LayoutPi`, `HeroBand`, `MetricsGrid`, `BottomDock`, `ChartTabs`, the ambient `SettingsPanel` and `DebugPanel`, the alert banner with collapsible detail slab, etc. Decision made during the Phase 3 tech-debt session after surfacing that active development had been on v3 for weeks (every May 2026 feature shipped first into the `components/ambient/` tree) while v2 only saw bug fixes mirrored from v3 — the dual-UI maintenance cost was paying itself daily. The toggle stays in Settings → Advanced as an escape hatch ("disable to fall back to v2 if you hit an issue") so anyone who finds a v3-only regression can roll back per-device while the fix lands; the v2 `components/Settings/`, `components/Debug/`, and the rest of the non-ambient subtree will be removed wholesale in a future minor version once a few weeks of field testing pass without user-visible regressions. i18n strings updated in en/fr/es so the toggle no longer reads "preview"/"off by default".
 
