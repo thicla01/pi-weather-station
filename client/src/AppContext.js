@@ -2,18 +2,14 @@ import React, { createContext, useState, useEffect, useRef, useCallback } from "
 import { getSettings } from "~/settings";
 import PropTypes from "prop-types";
 import { getCoordsFromApi } from "~/services/geolocation";
-import { detectSystemDefaults } from "~/ui/systemPrefs";
 import { useUpdateChecker } from "~/hooks/useUpdateChecker";
 import { useScreenSaver } from "~/hooks/useScreenSaver";
+import { useUiPreferences } from "~/hooks/useUiPreferences";
 import axios from "axios";
 import tzlookup from "tz-lookup";
 
 export const AppContext = createContext();
 
-const TEMP_UNIT_STORAGE_KEY = "tempUnit";
-const SPEED_UNIT_STORAGE_KEY = "speedUnit";
-const LENGTH_UNIT_STORAGE_KEY = "lengthUnit";
-const DISTANCE_UNIT_STORAGE_KEY = "distanceUnit";
 const DEFAULT_MAP_ZOOM_STORAGE_KEY = "defaultMapZoom";
 const DEFAULT_MAP_ZOOM_FALLBACK = 7; // historical hard-coded value before the slider
 const DARK_MODE_STORAGE_KEY = "darkMode";
@@ -27,21 +23,10 @@ const NIGHT_MODE_STORAGE_KEY = "sleepNightMode";
 const DARK_MODE_AUTO_STORAGE_KEY = "darkModeAuto";
 const MARKER_VISIBLE_STORAGE_KEY = "markerIsVisible";
 const AI_USER_VISIBLE_STORAGE_KEY = "aiSummaryUserVisible";
-const CLOCK_UNIT_STORAGE_KEY = "clockTime";
 const MOUSE_HIDE_STORAGE_KEY = "mouseHide";
-const FONT_SIZE_STORAGE_KEY = "fontSize";
 const HIDE_RADAR_LEGEND_STORAGE_KEY = "hideRadarLegend";
 const RADAR_SOURCE_STORAGE_KEY = "radarSource";
 const RADAR_SOURCE_VALUES = ["rainviewer", "eccc"];
-
-// Marker that flags "we've completed the one-time first-launch seeding
-// of unit + clock defaults from the browser's locale". The version
-// suffix lets us bump this if we ever expand what gets seeded (so
-// new keys are seeded on the next load without re-seeding the old
-// ones). Existing installs that already have any persisted unit
-// preference are NOT re-seeded — see `loadStoredData` for the
-// detection logic.
-const SYSTEM_PREFS_SEEDED_KEY = "systemPrefsSeeded_v1";
 
 /**
  * App context provider
@@ -211,10 +196,19 @@ export function AppContextProvider({ children }) {
   const [dailyWeatherDataErrMsg, setDailyWeatherDataErrMsg] = useState(null);
   const [panToCoords, setPanToCoords] = useState(null);
   const [markerIsVisible, setMarkerIsVisible] = useState(true);
-  const [tempUnit, setTempUnit] = useState("f"); // fahrenheit or celsius
-  const [speedUnit, setSpeedUnit] = useState("mph"); // mph or ms for m/s
-  const [lengthUnit, setLengthUnit] = useState("in"); // in or mm
-  const [distanceUnit, setDistanceUnit] = useState("mi"); // mi or km — drives radar circles, AI summary
+  // Display preferences (units + clock + fontSize) — localStorage-backed
+  // with one-time first-launch seeding from the browser locale. Owned by
+  // ~/hooks/useUiPreferences. The save* helpers each update React state
+  // AND write localStorage in one step (the same pattern AppContext used
+  // inline before the extraction).
+  const {
+    tempUnit, saveTempUnit,
+    speedUnit, saveSpeedUnit,
+    lengthUnit, saveLengthUnit,
+    distanceUnit, saveDistanceUnit,
+    clockTime, saveClockTime,
+    fontSize, saveFontSize,
+  } = useUiPreferences();
   // Map zoom — three pieces of state working together:
   //   - defaultMapZoom : the user's preferred starting zoom, used on next mount
   //                      (Leaflet's MapContainer reads `zoom` only on init).
@@ -313,7 +307,6 @@ export function AppContextProvider({ children }) {
     const len = Array.isArray(govAlerts) ? govAlerts.length : 0;
     if (len > 0 && govAlertIdx >= len) setGovAlertIdx(0);
   }, [govAlerts, govAlertIdx]);
-  const [clockTime, setClockTime] = useState("12"); // 12h or 24h time for clock
   const [animateWeatherMap, setAnimateWeatherMap] = useState(false);
   // Radar animation playback speed multiplier — 1× / 2× / 4× cycling.
   // Drives the per-frame interval in WeatherMap (MAP_CYCLE_RATE / radarSpeed).
@@ -376,7 +369,6 @@ export function AppContextProvider({ children }) {
   // setting only affects the visible tile layer.
   const [radarSource, setRadarSource] = useState("rainviewer");
   const [infoPanelCollapsed, setInfoPanelCollapsed] = useState(false);
-  const [fontSize, setFontSize] = useState("m"); // s, m, l
   const [sunriseTime, setSunriseTime] = useState(null);
   const [sunsetTime, setSunsetTime] = useState(null);
   const [isLocal, setIsLocal] = useState(true);
@@ -454,55 +446,9 @@ export function AppContextProvider({ children }) {
     window.localStorage.setItem(RADAR_SOURCE_STORAGE_KEY, newVal);
   }
 
-  /**
-   * Save clock time
-   *
-   * @param {String} newVal `12` or `24`
-   */
-  function saveClockTime(newVal) {
-    setClockTime(newVal);
-    window.localStorage.setItem(CLOCK_UNIT_STORAGE_KEY, newVal);
-  }
-
-  /**
-   * Save temp unit
-   *
-   * @param {String} newVal `f` or `c`
-   */
-  function saveTempUnit(newVal) {
-    setTempUnit(newVal);
-    window.localStorage.setItem(TEMP_UNIT_STORAGE_KEY, newVal);
-  }
-
-  /**
-   * Save speed unit
-   *
-   * @param {String} newVal `mph` or `ms`
-   */
-  function saveSpeedUnit(newVal) {
-    setSpeedUnit(newVal);
-    window.localStorage.setItem(SPEED_UNIT_STORAGE_KEY, newVal);
-  }
-
-  /**
-   * Save length unit
-   *
-   * @param {String} newVal  `in` or `mm`
-   */
-  function saveLengthUnit(newVal) {
-    setLengthUnit(newVal);
-    window.localStorage.setItem(LENGTH_UNIT_STORAGE_KEY, newVal);
-  }
-
-  /**
-   * Save distance unit
-   *
-   * @param {String} newVal `mi` or `km`
-   */
-  function saveDistanceUnit(newVal) {
-    setDistanceUnit(newVal);
-    window.localStorage.setItem(DISTANCE_UNIT_STORAGE_KEY, newVal);
-  }
+  // saveClockTime / saveTempUnit / saveSpeedUnit / saveLengthUnit /
+  // saveDistanceUnit / saveFontSize all live in ~/hooks/useUiPreferences
+  // now and are destructured at the top of this provider.
 
   /**
    * Save the auto-dark-mode preference. Persisted under
@@ -572,16 +518,6 @@ export function AppContextProvider({ children }) {
     window.localStorage.setItem(DEFAULT_MAP_ZOOM_STORAGE_KEY, String(n));
   }
 
-  /**
-   * Save font size preference
-   *
-   * @param {String} newVal `s`, `m`, or `l`
-   */
-  function saveFontSize(newVal) {
-    setFontSize(newVal);
-    window.localStorage.setItem(FONT_SIZE_STORAGE_KEY, newVal);
-  }
-
   function checkIsLocal() {
     axios.get("/api/is-local").then((res) => {
       setIsLocal(res.data.isLocal);
@@ -601,34 +537,14 @@ export function AppContextProvider({ children }) {
   }
 
   function loadStoredData() {
-    const temp = window.localStorage.getItem(TEMP_UNIT_STORAGE_KEY);
-    const speed = window.localStorage.getItem(SPEED_UNIT_STORAGE_KEY);
-    const length = window.localStorage.getItem(LENGTH_UNIT_STORAGE_KEY);
-    const distance = window.localStorage.getItem(DISTANCE_UNIT_STORAGE_KEY);
+    // Unit + clock + fontSize prefs (including first-launch system-prefs
+    // seeding from the browser locale) are owned by useUiPreferences —
+    // see `~/hooks/useUiPreferences`. That hook runs its own one-time
+    // bootstrap effect on AppContext mount, so by the time App calls
+    // loadStoredData() the unit state is already hydrated. The rest of
+    // this function handles the other localStorage-backed keys.
     const storedZoom = window.localStorage.getItem(DEFAULT_MAP_ZOOM_STORAGE_KEY);
     const storedDarkAuto = window.localStorage.getItem(DARK_MODE_AUTO_STORAGE_KEY);
-    const clock = window.localStorage.getItem(CLOCK_UNIT_STORAGE_KEY);
-
-    // First-launch system-preferences seeding (v2.16.x). Compute
-    // sensible defaults from the browser's locale (en-US → imperial
-    // + 12 h, fr-CA → metric + 24 h, etc.) — but apply them ONLY
-    // when (a) the one-time `SYSTEM_PREFS_SEEDED_KEY` marker is
-    // absent AND (b) none of the unit/clock keys have explicit
-    // values yet. This protects existing installs that have been
-    // running with the hard-coded "f / mph / in / mi / 12" defaults
-    // — their next reload won't suddenly flip to metric even if
-    // their browser locale says fr-CA. Only genuinely fresh installs
-    // (cold browser profile, freshly imaged Pi) inherit system prefs.
-    const alreadySeeded = window.localStorage.getItem(SYSTEM_PREFS_SEEDED_KEY) === "true";
-    const noUnitKeysSet = !temp && !speed && !length && !distance && !clock;
-    const sys = (!alreadySeeded && noUnitKeysSet) ? detectSystemDefaults() : null;
-    if (sys) {
-      window.localStorage.setItem(SYSTEM_PREFS_SEEDED_KEY, "true");
-    } else if (!alreadySeeded) {
-      // Existing install — flip the marker without seeding so we
-      // skip the cost on subsequent loads.
-      window.localStorage.setItem(SYSTEM_PREFS_SEEDED_KEY, "true");
-    }
 
     let mouseHide;
     try {
@@ -656,30 +572,6 @@ export function AppContextProvider({ children }) {
       setRadarSource(storedRadarSource);
     }
 
-    if (temp) {
-      setTempUnit(temp);
-    } else if (sys) {
-      setTempUnit(sys.tempUnit);
-      window.localStorage.setItem(TEMP_UNIT_STORAGE_KEY, sys.tempUnit);
-    }
-    if (speed) {
-      setSpeedUnit(speed);
-    } else if (sys) {
-      setSpeedUnit(sys.speedUnit);
-      window.localStorage.setItem(SPEED_UNIT_STORAGE_KEY, sys.speedUnit);
-    }
-    if (length) {
-      setLengthUnit(length);
-    } else if (sys) {
-      setLengthUnit(sys.lengthUnit);
-      window.localStorage.setItem(LENGTH_UNIT_STORAGE_KEY, sys.lengthUnit);
-    }
-    if (distance === "mi" || distance === "km") {
-      setDistanceUnit(distance);
-    } else if (sys) {
-      setDistanceUnit(sys.distanceUnit);
-      window.localStorage.setItem(DISTANCE_UNIT_STORAGE_KEY, sys.distanceUnit);
-    }
     const parsedZoom = parseInt(storedZoom, 10);
     if (Number.isFinite(parsedZoom)) {
       setDefaultMapZoom(parsedZoom);
@@ -714,16 +606,6 @@ export function AppContextProvider({ children }) {
     const storedNightMode = window.localStorage.getItem(NIGHT_MODE_STORAGE_KEY);
     if (storedNightMode === "true" || storedNightMode === "false") {
       setSleepNightMode(storedNightMode === "true");
-    }
-    if (clock) {
-      setClockTime(clock);
-    } else if (sys) {
-      setClockTime(sys.clockTime);
-      window.localStorage.setItem(CLOCK_UNIT_STORAGE_KEY, sys.clockTime);
-    }
-    const fs = window.localStorage.getItem(FONT_SIZE_STORAGE_KEY);
-    if (fs) {
-      setFontSize(fs);
     }
   }
 
