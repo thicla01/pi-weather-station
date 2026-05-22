@@ -43,6 +43,28 @@ function sanitizeSettings(obj) {
 }
 
 /**
+ * Returns a copy of the parsed settings safe to send to a remote client.
+ * Two layers of protection are applied:
+ *   1. Top-level keys in REMOTE_HIDDEN_KEYS (e.g. `indoorTemperature`) are
+ *      stripped entirely — host / credentials are not even masked, the
+ *      subtree is simply absent from the response.
+ *   2. API key fields are replaced with a boolean (true when set, false
+ *      otherwise) so the remote sees whether a key is configured without
+ *      ever receiving the value.
+ *
+ * @param {Object} data parsed settings object as read from disk
+ * @returns {Object} masked view safe for remote clients
+ */
+function maskForRemote(data) {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return {};
+  return Object.fromEntries(
+    Object.entries(data)
+      .filter(([k]) => !REMOTE_HIDDEN_KEYS.has(k))
+      .map(([k, v]) => [k, API_KEY_FIELDS.has(k) ? Boolean(v) : v])
+  );
+}
+
+/**
  * Read the settings.json file
  *
  * @param {Object} callbacks
@@ -103,14 +125,7 @@ function getSettings(req, res) {
       if (req.isLocal) {
         return res.status(200).json(data).end();
       }
-      // Remote clients: mask top-level API key fields to booleans and strip
-      // out any sub-object that may contain secrets (REMOTE_HIDDEN_KEYS).
-      const masked = Object.fromEntries(
-        Object.entries(data)
-          .filter(([k]) => !REMOTE_HIDDEN_KEYS.has(k))
-          .map(([k, v]) => [k, API_KEY_FIELDS.has(k) ? Boolean(v) : v])
-      );
-      return res.status(200).json(masked).end();
+      return res.status(200).json(maskForRemote(data)).end();
     },
     errorCb: () => {
       return res.status(500).end();
@@ -311,4 +326,13 @@ module.exports = {
   createSettingsFile,
   replaceSettings,
   getSettingsData,
+  // Exported for regression testing only — internal helpers, not part of
+  // the public surface. See test/settingsCtrl.test.js.
+  __test: {
+    sanitizeSettings,
+    maskForRemote,
+    ALLOWED_KEYS,
+    API_KEY_FIELDS,
+    REMOTE_HIDDEN_KEYS,
+  },
 };
