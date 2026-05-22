@@ -147,3 +147,17 @@ export function buildRingLayers(risk, dark, aiOff = false, nightRed = false) {
     },
   ];
 }
+
+/**
+ * Truthy-aware predicate that treats the integer 0 as a valid value.
+ * Used by MapResizer to gate `setView` calls on the user's coordinates —
+ * `latitude === 0` is the equator (legitimate), but `latitude === null`
+ * or `latitude === undefined` is "not yet loaded" and must skip the
+ * setView. A plain `!!latitude` check would conflate the two.
+ *
+ * @param {*} i
+ * @returns {Boolean} true if `i` is truthy OR exactly the number 0
+ */
+export function hasVal(i) {
+  return !!(i || i === 0);
+}
