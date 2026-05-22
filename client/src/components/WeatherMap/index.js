@@ -576,6 +576,18 @@ const RadarTimeline = ({ frames, currentIdx, onScrub, timezone, dark }) => {
   // works through the same pointer-event path since Chrome unifies
   // mouse and touch into pointer events.
   const scrubberRef = useRef(null);
+
+  // Wall-clock seconds used to compute the frame's "now / +5 min / -15 min"
+  // label. Lifted out of render into a state + 30 s interval so calling
+  // Date.now() doesn't become a side effect every parent re-render — the
+  // label only flips when a real minute passes. 30 s is half the label's
+  // minute precision, enough to never miss a boundary without overshooting.
+  const [nowSec, setNowSec] = useState(() => Math.floor(Date.now() / 1000));
+  useEffect(() => {
+    const id = setInterval(() => setNowSec(Math.floor(Date.now() / 1000)), 30_000);
+    return () => clearInterval(id);
+  }, []);
+
   const updateFromClientX = useCallback((clientX) => {
     const el = scrubberRef.current;
     if (!el || !frames || frames.length < 2) return;
@@ -620,8 +632,8 @@ const RadarTimeline = ({ frames, currentIdx, onScrub, timezone, dark }) => {
   // Build the time labels. "Now" is wall-clock at the kiosk; the frame
   // offset compares against it in minutes (negative for past frames,
   // positive for nowcast). Round to the nearest minute so a 9-minute
-  // -aged frame doesn't read as -8.97 min.
-  const nowSec = Math.floor(Date.now() / 1000);
+  // -aged frame doesn't read as -8.97 min. nowSec ticks once per 30 s
+  // via the effect at the top of this component.
   const offsetMin = Math.round((frame.time - nowSec) / 60);
   // Honour the user's 12h/24h preference from Settings — toLocaleTimeString
   // would otherwise pick the locale's default, which produced "22:30" on a

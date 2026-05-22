@@ -51,27 +51,24 @@ const WeatherInfo = () => {
     () => window.matchMedia("(max-height: 520px)").matches
   );
 
-  // Auto-cycle between charts on small screens
+  // Auto-cycle between charts on small screens. cycleKey doubles as the
+  // React key on the progress-ring SVG (animation restart) and as the
+  // useEffect dependency that lets a user tap reset the interval — bumping
+  // cycleKey tears down the current interval and creates a fresh one.
   const [cycleKey, setCycleKey] = useState(0);
-  const cycleTimerRef = useRef(null);
 
   const restartCycle = useCallback(() => {
-    clearTimeout(cycleTimerRef.current);
-    cycleTimerRef.current = setTimeout(() => {
-      setActiveChart((prev) => (prev === "hourly" ? "daily" : "hourly"));
-      setCycleKey((k) => k + 1);
-      restartCycle();
-    }, CHART_CYCLE_DURATION);
+    setCycleKey((k) => k + 1);
   }, []);
 
   useEffect(() => {
-    if (isSmallScreen) {
-      restartCycle();
-    } else {
-      clearTimeout(cycleTimerRef.current);
-    }
-    return () => clearTimeout(cycleTimerRef.current);
-  }, [isSmallScreen, restartCycle]);
+    if (!isSmallScreen) return undefined;
+    const id = setInterval(() => {
+      setActiveChart((prev) => (prev === "hourly" ? "daily" : "hourly"));
+      setCycleKey((k) => k + 1);
+    }, CHART_CYCLE_DURATION);
+    return () => clearInterval(id);
+  }, [isSmallScreen, cycleKey]);
 
   useEffect(() => {
     const mq = window.matchMedia("(max-height: 520px)");
