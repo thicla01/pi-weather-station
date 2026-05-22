@@ -229,10 +229,18 @@ AmbientLayers              CSS-variable root — sets palette tokens (day/dusk/n
 │   │   ├── PanHandler            Programmatic re-centering with rail-offset math
 │   │   ├── RailOffsetTracker     Pans marker when rail width changes
 │   │   ├── MapClickHandler       Click-to-recenter with 200 ms debounce
-│   │   ├── ArrowToggleControl    Leaflet bar — direction arrows on/off
 │   │   ├── RadarFocusControl     Leaflet bar — hides hero+rail on Desktop (v2.16.6)
-│   │   └── (Leaflet Circle       50 km / 100 km dashed analysis rings
-│   │       + Marker)             (Marker uses bundled L.Icon.Default + npm Leaflet)
+│   │   ├── RiskRing              Dashed analysis rings (one or two stacked circles
+│   │   │                          based on risk tier + theme; see geometry.js)
+│   │   ├── RadarTimeline         Bottom-of-map scrubber + playhead + speed cycler
+│   │   ├── RadarLegend           Precipitation-tier legend overlay
+│   │   └── (Leaflet Marker)      Marker uses bundled L.Icon.Default + npm Leaflet
+│   │
+│   │   Pure helpers in `WeatherMap/geometry.js`:
+│   │   - offsetLatLon, buildArrowPath, buildSamplingPoints, panWithRailOffset
+│   │   - tierForIntensity, buildRingLayers, hasVal
+│   │   - RING_RISK_STYLE / DOT_COLOR_BY_TIER / ARROW_COLOR / RADAR_GEOMETRY
+│   │     / KM_PER_UNIT / METERS_PER_UNIT / BEARING_TO_DIR_* + reverse maps
 │   │
 │   ├── HeroBand / HeroCompact / TimeBlock    Layout-specific hero surfaces
 │   ├── AlertBanner               Severe-alert pill (gov alerts)
@@ -265,33 +273,55 @@ The legacy v2 components (`App` / `InfoPanel` / `CurrentWeather` / `Clock` / `We
 
 ### State management
 
-All shared state lives in `AppContext.js` (React Context + `useState`). Components read from context and call setter functions exposed by the context value.
+All shared state lives in `AppContext.js` (React Context + `useState`). Components read from context and call setter functions exposed by the context value. As of v2.18, three coherent clusters have been extracted into dedicated hooks under `~/hooks/` — AppContext composes them via `useUpdateChecker()` / `useScreenSaver()` / `useUiPreferences()` and re-exports their returns through the context, so consumers don't see any difference at the call site.
 
 ```
 AppContext
-  ├── Settings (from server)   weatherApiKey, mapApiKey, reverseGeoApiKey,
-  │                            anthropicApiKey, customLat, customLon
+  ├── Settings (from server)        weatherApiKey, mapApiKey, reverseGeoApiKey,
+  │                                 anthropicApiKey, customLat, customLon
   │
-  ├── Weather data             currentWeatherData, hourlyWeatherData,
-  │                            dailyWeatherData, sunriseSunset, mapGeo
+  ├── Weather data                  currentWeatherData, hourlyWeatherData,
+  │                                 dailyWeatherData, sunriseSunset, mapGeo
   │
-  ├── Feature availability     aiSummaryAvailable    (gates radar circle)
-  │                            isLocal, debugEnabled, isSystemd
+  ├── Feature availability          aiSummaryAvailable (gates radar circle),
+  │                                 isLocal, debugEnabled, isSystemd
   │
-  ├── UI preferences           darkMode, mouseHide, tempUnit, speedUnit,
-  │   (localStorage)           lengthUnit, clockTime, fontSize
+  ├── useUiPreferences hook         tempUnit, speedUnit, lengthUnit,
+  │   (localStorage-backed,         distanceUnit, clockTime, fontSize +
+  │    first-launch locale seed)    save* helpers
   │
-  ├── UI state                 settingsMenuOpen, debugMenuOpen,
-  │                            infoPanelCollapsed, ...
+  ├── useScreenSaver hook           brightnessPercent + setBrightnessLive
+  │   (brightness + sleep mode)     sleepEnabled, sleepStage1Delay,
+  │                                 sleepStage1Brightness, sleepStage2*,
+  │                                 sleepNightMode + their setters
   │
-  └── Update flow              updateAvailable, latestVersion, latestSha,
-                               updateCommits, serviceFileChanged,
-                               needsManualUpgrade, skippedSha,
-                               updateModalOpen, updateState,
-                               updateErrorMessage
+  ├── useUpdateChecker hook         updateAvailable, latestVersion, latestSha,
+  │   (in-app update flow)          updateCommits, changedDeployFiles,
+  │                                 needsManualUpgrade, skippedSha,
+  │                                 updateModalOpen, updateState,
+  │                                 updateErrorMessage, serverPlatform,
+  │                                 isSystemd, refreshUpdateCheck,
+  │                                 triggerUpdate, saveSkippedSha
+  │
+  ├── UI preferences (inline)       darkMode, mouseHide,
+  │                                 hideRadarLegend, radarSource
+  │
+  ├── UI state (inline)             settingsMenuOpen, debugMenuOpen,
+  │                                 infoPanelCollapsed, panToCoords,
+  │                                 mobileRadarMaximized,
+  │                                 desktopRadarMaximized, ...
+  │
+  ├── Weather poll effect           gated on `weatherApiKey && mapGeo`,
+  │                                 fires current/hourly/daily updates +
+  │                                 the periodic 10 min / 1 h / 24 h
+  │                                 intervals
+  │
+  └── advanced.* PATCH chain        buildAdvancedSubtree(overrides) +
+                                    5 saveAdvanced*Flag helpers
+                                    (centralised in v2.18.1)
 ```
 
-> ⚠️ `AppContext.js` is large and is a known technical debt item. See `ROADMAP.md`.
+> ⚠️ `AppContext.js` is still ~1670 lines after Phase 3 — further hook extractions (useLocation, useWeatherData) are tracked in `ROADMAP.md` as past the diminishing-returns line. The current arrangement is a workable middle ground: the three highest-value clusters live in their own hooks, the rest stays inline.
 
 ### Responsive adaptations
 

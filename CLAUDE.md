@@ -34,28 +34,26 @@ pi-weather-station/
 │   └── updateChecker.js  # GitHub release check + needsManualUpgrade detection (cached 1 h)
 ├── client/               # React frontend
 │   ├── src/
-│   │   ├── AppContext.js             # Global state (settings, units, dark mode, etc.)
+│   │   ├── AppContext.js             # Global state (composes useUpdateChecker, useScreenSaver, useUiPreferences hooks; inline state for the rest — weather data, geo, advanced.* save chain, UI state)
 │   │   ├── components/
 │   │   │   ├── App/                  # Root layout (CSS grid)
-│   │   │   ├── CurrentWeather/       # Temperature, weather icon, wind, humidity
-│   │   │   ├── IndoorTemperature/    # Indoor temp/humidity/air-quality block (Homebridge)
-│   │   │   ├── InfoPanel/            # Right panel with all weather info + controls
-│   │   │   ├── Settings/             # Settings overlay (API keys, units, language, indoor)
-│   │   │   ├── Debug/                # Debug panel (localhost only)
-│   │   │   ├── AiSummary/            # AI-generated weather summary
-│   │   │   ├── Clock/                # Digital clock display (12/24 h, scaled AM/PM)
-│   │   │   ├── LocationName/         # Current location name display
-│   │   │   ├── Spinner/              # Loading spinner
-│   │   │   ├── SunRiseSet/           # Sunrise/sunset times display
+│   │   │   ├── ambient/              # v3 "Ambient Layers" tree (default since v2.18) — LayoutDesktop/Mobile/Pi, HeroBand, HeroCompact, MetricsGrid, ChartTabs, BottomDock, alert banner + detail slab, ambient SettingsPanel/DebugPanel, MoonDetailsPopover, etc. (24 components)
+│   │   │   ├── AmbientLayers/        # Palette dispatcher (day/dusk/night/nightRed), viewport breakpoints, iOS PWA bg paint
+│   │   │   ├── WeatherMap/           # Leaflet radar — index.js + RadarTimeline + RadarLegend + RiskRing + MapResizer + RadarFocusControl + WeatherLayer + geometry.js (pure helpers + style tables)
 │   │   │   ├── UpdateModal/          # In-app updater UX (commits, warnings, errors)
-│   │   │   ├── WeatherInfo/          # Weather information container
-│   │   │   ├── WeatherMap/           # Radar map (Leaflet + RainViewer tiles + 50 km circle)
-│   │   │   ├── weatherCharts/        # Hourly and daily forecast charts
-│   │   │   └── ControlButtons/       # Bottom control bar (settings, debug, dark mode)
+│   │   │   ├── ScreenSaver/          # Sleep mode (stage 1 minimal clock, stage 2 anti-burn-in dot)
+│   │   │   ├── LocationName/         # Reverse-geocoded place name (shared by v2 + v3)
+│   │   │   ├── Spinner/              # Loading spinner
+│   │   │   ├── Settings/, Debug/, InfoPanel/, CurrentWeather/, AiSummary/, Clock/, SunRiseSet/, WeatherInfo/, weatherCharts/, ControlButtons/, IndoorTemperature/  # Legacy v2 tree — still mounts when `experimentalUiC=false`, queued for wholesale removal once the v2.18 field-test trigger fires (no v3-only regression for 4 weeks)
 │   │   ├── hooks/
-│   │   │   └── useDragScroll.js      # Drag-to-scroll via pointer events (callback ref pattern)
+│   │   │   ├── useDragScroll.js      # Drag-to-scroll via pointer events (callback ref pattern)
+│   │   │   ├── useUpdateChecker.js   # In-app update flow (state + periodic poll + actions)
+│   │   │   ├── useScreenSaver.js     # Brightness + sleep-mode state (debounced slider + initial /api/brightness fetch)
+│   │   │   ├── useUiPreferences.js   # Units / clock / fontSize (localStorage + first-launch locale seed)
+│   │   │   ├── useIdleDetection.js   # Idle-watcher driving ScreenSaver
+│   │   │   └── useDismissedAlerts.js # Per-device dismissal tracking for AlertBanner (4 h auto-resurface floor)
 │   │   ├── i18n/locales/             # EN / FR / ES translations
-│   │   └── services/conversions.js   # Unit conversions (temp, speed, length)
+│   │   └── services/conversions.js   # Unit conversions (temp, speed, length, distance)
 │   └── dist/             # Compiled bundle (committed to git)
 ├── deploy/               # Multi-distro install.sh, systemd units, autostart, kiosk launcher,
 │                          # harden-kiosk.sh, logrotate, launchd plist, uninstall.sh

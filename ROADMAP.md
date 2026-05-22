@@ -286,19 +286,47 @@ Audited the 9 `react-hooks/exhaustive-deps` suppressions one by one. Every site 
 ### ✅ ~~Version history duplicated between `readme.md` and `CHANGELOG.md`~~ — **resolved May 2026**
 `readme.md` no longer carries any per-version section. The "Version history" block now contains a 3-line pointer to `CHANGELOG.md` and the GitHub Releases page, plus a short v1 → v2 ClimaCell note for users who land on the readme with an old API key. The matching policy line in `CLAUDE.md` was updated from "the existing ones will be trimmed over time" (an aspirational instruction nobody acted on) to "no per-version highlight sections in the readme at all" — explicit and enforceable.
 
-### 🧪 No automated tests
-There are no unit or integration tests. The highest-value starting points would be:
-- Unit tests for `services/conversions.js` (pure functions, easy to cover)
-- Integration tests for the Express endpoints most likely to break silently (`/settings`, `/api/weather/*`, `/api/update`)
-- A GitHub Actions workflow running ESLint and the test suite on every push
+### 🧪 Automated tests — server side covered, client side still bare
+The May 2026 tech-debt session brought the server-side test suite from 0 to 105 cases via `node --test`:
+- `test/conversions.test.js` (31 cases) — every export of `services/conversions.js`, including the -40 °F/°C crossover, the 0-input guard, and the `speedUnit` → `kph` rename
+- `test/aiSummary.cache.test.js` (12 cases) — locks `SUMMARY_CACHE_TTL = 15 min` + every documented cache-key invalidation (lang change, every unit toggle, period swap)
+- `test/settingsCtrl.test.js` (16 cases) — `sanitizeSettings` whitelist + the `maskForRemote` strip (the CLAUDE.md "indoor credentials never even masked, fully stripped" contract is locked verbatim)
+- Plus the pre-existing `alertLogic.test.js` / `radarTrend.test.js` / `uiHybrid.test.js` (46 cases)
 
-Without tests, every change to shared utilities or server middleware carries an invisible regression risk.
+A GitHub Actions workflow (`.github/workflows/ci.yml`) runs the suite + the client production build on every push to master and on PRs. A regression in a covered area now turns CI red within ~45 s.
+
+**Still uncovered** — the entire client tree (React components, hooks, AppContext). The integration test path is "boot the app in Chrome, eyeball the layout" — the v2.18.0 / v2.18.1 missing-data regression that the Phase 3 session caught only surfaced because a Pi user reported it from the field. Client unit tests (with React Testing Library + jsdom, or Vitest) are the highest-value follow-up but require a build-tool decision because the client source is ESM and the current `node --test` runner is CommonJS. Estimate: ~half-day to wire up the harness, then incremental coverage per refactor.
 
 ### 🪦 `experimentalUiC` migration — v3 now default, v2 removal queued
 v2.18 flipped `experimentalUiC` from `false` to `true`. v3 ("Ambient Layers") is now the default interface on every install; the toggle in Settings → Advanced stays as a per-device escape hatch that falls back to the v2 tree when disabled. The full removal of the v2 code path (`components/Settings/`, `components/Debug/`, `components/InfoPanel/`, `components/CurrentWeather/`, `components/AiSummary/`, `components/WeatherInfo/`, `components/Clock/`, `components/SunRiseSet/`, `components/ControlButtons/`, `components/IndoorTemperature/`, `components/LocationName/`, `components/weatherCharts/`, plus the `<Settings>` / `<Debug>` branches in `App/index.js`) waits on a few weeks of field testing — once no user reports a v3-only regression, the v2 tree comes out in a single dedicated PR. **Trigger to schedule the removal**: 4 weeks after the v2.18 release with no v3-only issue filed at github.com/thicla01/pi-weather-station/issues, OR the moment we deliberately decide to drop the escape hatch. Removal also takes out `experimentalUiC` itself (no longer needed once v2 is gone) and the `previewGroup` row in AdvancedSettings.
 
-### 🗂️ `AppContext.js` size and responsibility — partial progress
-`AppContext.js` held all global state in one 1877-line file. Phase 3 of the May 2026 tech-debt remediation extracted two coherent clusters into dedicated hooks: `~/hooks/useUpdateChecker` (the in-app update flow — 12 state values + the periodic `/api/update-check` poll + the post-update reload polling) and `~/hooks/useScreenSaver` (brightness + sleep-mode state with the debounced slider setter). AppContext is now 1764 lines and re-exports the hook returns through its context surface unchanged. **Still to extract** (each is its own well-bounded cluster): `useWeatherData` (current/hourly/daily payloads + risk/trend/alerts — biggest remaining slice, ~30 state pieces), `useUiPreferences` (units + clock format + fontSize, all the localStorage-backed display prefs), `useLocation` (browserGeo / mapGeo / mapTimezone / customLat / customLon), and the `saveAdvanced*Flag` family which all rebuild the full `advanced.*` PATCH payload — a `buildAdvancedSubtree()` helper extracted from all five would unblock the sleep-mode save's full move into `useScreenSaver`.
+### 🗂️ `AppContext.js` size and responsibility — diminishing returns
+`AppContext.js` held all global state in one 1877-line file. Phase 3 of the May 2026 tech-debt remediation extracted **three** coherent clusters into dedicated hooks:
+- `~/hooks/useUpdateChecker` — in-app update flow (12 state values + the periodic `/api/update-check` poll + post-update reload polling + the three actions)
+- `~/hooks/useScreenSaver` — brightness + sleep-mode state with the debounced slider setter
+- `~/hooks/useUiPreferences` — units + clock format + fontSize, including the first-launch browser-locale seeding logic
+
+Plus a `buildAdvancedSubtree()` helper that centralised the `advanced.*` PATCH payload assembly across the five `saveAdvanced*Flag` functions — that one also fixed two latent bugs by construction (`darkModeStyle` and `pollen.enabled` were being wiped on certain toggles because the inline assembly was incomplete in 3 of the 5 functions).
+
+AppContext.js is now ~1670 lines. **Remaining slice candidates** are deferred — past the point of diminishing returns:
+- `useLocation` (browserGeo / mapGeo / mapTimezone / customLat / customLon, ~5 state pieces + getBrowserGeo + tz-lookup effect): `mapGeo` is the single most cross-cutting variable in the app — every weather fetch, the radar, the location name, the alerts, the AI summary all key on it. Refactor blast radius is large; estimated gain ~100 lines.
+- `useWeatherData` (~30 state pieces — current/hourly/daily payloads + risk/trend/alerts + their err states, plus 3 update fns and 2 polling effects): the beating heart of the app. Cross-cutting deps on `weatherApiKey` × `mapGeo` × poll intervals. Gain ~250 lines, risk **high**, no client unit tests to catch a regression.
+
+The remaining clusters share state via React context anyway, so an extra hook is more of a file move than a true module boundary. Better near-term ROI on (a) deleting the entire v2 tree once the field-test trigger fires, (b) the React 19 migration which forces the `set-state-in-effect` cluster cleanup, or (c) wiring up a client test harness. Not "never" — just not next.
+
+### 🪦 `WeatherMap/index.js` size — mostly resolved (1981 → 967 lines)
+The largest single file in the codebase. Phase 3 cut it roughly in half across five extractions, all into sibling files under `client/src/components/WeatherMap/`:
+- `RadarTimeline.js` — the bottom-of-map scrubber + playhead + speed cycler (its own state, effect, pointer-event handlers)
+- `RadarLegend.js` — the precipitation-tier legend overlay (with its RADAR_LEGEND_ITEMS palette)
+- `WeatherLayer.js` — the inert OpenWeatherMap tile overlay (kept as dead-code-for-reference per its JSDoc)
+- `RiskRing.js` — the dashed-circles wrapper, reading buildRingLayers from geometry.js
+- `MapResizer.js` — the hook-only invalidate-size + LayoutMobile-recenter bracket
+- `RadarFocusControl.js` — the ⛶ Leaflet control for LayoutDesktop focus mode
+- `geometry.js` — pure JS helpers: offsetLatLon, buildArrowPath, buildSamplingPoints, tierForIntensity, panWithRailOffset, hasVal, buildRingLayers, plus all the ring-style + arrow-colour + dot-colour tables and the bearing/distance tables (RADAR_GEOMETRY, BEARING_TO_DIR_*, etc.)
+
+`ArrowToggleControl` was deleted outright — surfaced as dead code during the extraction (was moved to BottomDock pre-v2.14.15 but the inline definition lingered in WeatherMap until grep confirmed no other file imported it).
+
+**Remaining inside index.js** (~967 lines): the main `WeatherMap` component (radar layer + JSX composition + the effects that don't extract cleanly), plus small tightly-coupled sub-components (`MapClickHandler`, `MapZoomTracker`, `ZoomLevelHandler`, `PanHandler`, `RailOffsetTracker`, `InitialOffsetCentering`, the `useRailOffset` hook), plus the Leaflet-dependent `buildLocationMarkerIcon` + the axios-dependent `getMapTimestamps`. Each ~25-60 lines and tightly bound to the parent's render flow — past the diminishing-returns line for further extraction.
 
 ### ✅ ~~Two React anti-patterns surfaced by the React Compiler~~ — **resolved in v2.17.0**
 Both pre-existing fragility issues fixed in the Phase 1 tech-debt pass: `Math.floor(Date.now() / 1000)` no longer called during render in `WeatherMap/RadarTimeline` (lifted into a `useState` ticked by a 30 s interval), and `WeatherInfo`'s self-recursive `useCallback` replaced with a `useEffect`-bound `setInterval` keyed on `cycleKey`. See the v2.17.0 CHANGELOG entry for the full reasoning.
@@ -349,6 +377,6 @@ The three items I would prioritize above all others if returning to this project
 
 ---
 
-*Last updated: 2026-05-07 (added a medium-term entry for dual-monitor kiosk support — pick which screen the kiosk lands on + optionally drive two screens with one Chromium instance per output; ~3-5 h, gated on a Wayland-positioning sanity check across labwc/wayfire variants)*
+*Last updated: 2026-05-23 (Phase 3 tech-debt remediation reflected in this file: AppContext split — three hooks extracted with two more deferred past the diminishing-returns line; WeatherMap split — 1981 → 967 lines across six new files plus geometry.js; client-side test gap explicitly called out; v2 removal still on a 4-week field-test timer post-v2.18.1)*
 
 
