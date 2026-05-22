@@ -979,6 +979,31 @@ export function AppContextProvider({ children }) {
     });
   }
 
+  // Load the weather + reverse-geo API keys on AppContext mount.
+  // Historically this was triggered by the v2 `WeatherInfo` component
+  // mounting (see `components/WeatherInfo/index.js`). v2.18 made v3
+  // the default, and v3 layouts (LayoutPi / LayoutDesktop / LayoutMobile)
+  // don't mount WeatherInfo at all — so the two keys stayed null
+  // forever and the useEffect at the weather-poll site never fired,
+  // leaving `currentWeatherData` null + `LocationName` falling back to
+  // raw lat/lon. Same mount-trigger bug pattern the air-quality fetch
+  // already had to solve (see the `aqhiInfo` polling effect below).
+  // The map API key isn't loaded here because WeatherMap still mounts
+  // in both v2 and v3 and triggers its own getMapApiKey().
+  useEffect(() => {
+    if (!weatherApiKey) {
+      getWeatherApiKey().catch((err) => {
+        console.log("error getting weather api key:", err);
+      });
+    }
+    if (!reverseGeoApiKey) {
+      getReverseGeoApiKey().catch((err) => {
+        console.log("error getting reverse geo api key:", err);
+      });
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- the getter functions are stable per provider mount but not memoized; keying on the keys themselves so we no-op once they land.
+  }, [weatherApiKey, reverseGeoApiKey]);
+
   /**
    * Updates hourly weather data
    *
