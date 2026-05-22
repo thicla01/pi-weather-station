@@ -3,6 +3,7 @@ import { getSettings } from "~/settings";
 import PropTypes from "prop-types";
 import { getCoordsFromApi } from "~/services/geolocation";
 import { detectSystemDefaults } from "~/ui/systemPrefs";
+import { useUpdateChecker } from "~/hooks/useUpdateChecker";
 import axios from "axios";
 import tzlookup from "tz-lookup";
 
@@ -31,8 +32,6 @@ const FONT_SIZE_STORAGE_KEY = "fontSize";
 const HIDE_RADAR_LEGEND_STORAGE_KEY = "hideRadarLegend";
 const RADAR_SOURCE_STORAGE_KEY = "radarSource";
 const RADAR_SOURCE_VALUES = ["rainviewer", "eccc"];
-const SKIPPED_SHA_STORAGE_KEY = "skippedSha";
-const UPDATE_CHECK_INTERVAL = 6 * 60 * 60 * 1000; // 6 hours
 
 // Marker that flags "we've completed the one-time first-launch seeding
 // of unit + clock defaults from the browser's locale". The version
@@ -382,20 +381,31 @@ export function AppContextProvider({ children }) {
   const [remoteSecurityEnabled, setRemoteSecurityEnabled] = useState(false);
   const [debugEnabled, setDebugEnabled] = useState(false);
   const [debugMenuOpen, setDebugMenuOpen] = useState(false);
-  const [updateAvailable, setUpdateAvailable] = useState(false);
-  const [latestVersion, setLatestVersion] = useState(null);
-  const [latestSha, setLatestSha] = useState(null);
-  const [updateCommits, setUpdateCommits] = useState([]);
-  const [changedDeployFiles, setChangedDeployFiles] = useState([]);
-  const [needsManualUpgrade, setNeedsManualUpgrade] = useState(false);
-  const [skippedSha, setSkippedSha] = useState(null);
-  const [updateModalOpen, setUpdateModalOpen] = useState(false);
-  const [updateState, setUpdateState] = useState("idle"); // idle|updating|restarting|stopped|failed
-  const [updateErrorMessage, setUpdateErrorMessage] = useState(null);
-  const updatePollRef = useRef(null);
   const infoPanelScrollRef = useRef(null); // set by InfoPanel on the scroll container
-  const [serverPlatform, setServerPlatform] = useState(null);
-  const [isSystemd, setIsSystemd] = useState(false);
+
+  // In-app update flow — state, the periodic /api/update-check poll, and
+  // the three actions (refreshUpdateCheck, triggerUpdate, saveSkippedSha)
+  // live in `~/hooks/useUpdateChecker`. The setters are still surfaced
+  // through this context for back-compat with Debug/index.js, which
+  // seeds updateInfo from /api/debug rather than calling
+  // refreshUpdateCheck directly.
+  const {
+    updateAvailable, setUpdateAvailable,
+    latestVersion, setLatestVersion,
+    latestSha, setLatestSha,
+    updateCommits, setUpdateCommits,
+    changedDeployFiles,
+    needsManualUpgrade,
+    skippedSha,
+    updateModalOpen, setUpdateModalOpen,
+    updateState, setUpdateState,
+    updateErrorMessage,
+    serverPlatform,
+    isSystemd,
+    refreshUpdateCheck,
+    triggerUpdate,
+    saveSkippedSha,
+  } = useUpdateChecker();
 
   /**
    * Save mouse hide state
@@ -441,55 +451,6 @@ export function AppContextProvider({ children }) {
     setRadarSource(newVal);
     window.localStorage.setItem(RADAR_SOURCE_STORAGE_KEY, newVal);
   }
-
-  /**
-   * Save skipped update SHA so the indicator is suppressed for that version
-   *
-   * @param {string} sha Short commit SHA returned by /api/update-check
-   */
-  function saveSkippedSha(sha) {
-    setSkippedSha(sha);
-    window.localStorage.setItem(SKIPPED_SHA_STORAGE_KEY, sha);
-  }
-
-  /** Poll /api/is-local until the server responds, then reload the page. */
-  const pollUntilReady = useCallback(() => {
-    let attempts = 0;
-    const poll = () => {
-      attempts++;
-      if (attempts > 30) { setUpdateState("failed"); return; }
-      axios.get("/api/is-local")
-        .then(() => window.location.reload())
-        .catch(() => { updatePollRef.current = setTimeout(poll, 2000); });
-    };
-    updatePollRef.current = setTimeout(poll, 3000);
-  }, []);
-
-  /**
-   * Trigger an automatic update via the server API
-   */
-  const triggerUpdate = useCallback(() => {
-    setUpdateState("updating");
-    setUpdateErrorMessage(null);
-    axios.post("/api/update")
-      .then(() => {
-        if (isSystemd) {
-          setUpdateState("restarting");
-          pollUntilReady();
-        } else {
-          setUpdateState("stopped");
-        }
-      })
-      .catch((err) => {
-        // The server returns a structured { error, reason, message } body
-        // for known failure modes (detached HEAD, wrong branch, local
-        // changes, npm install failure...). Surface the message so the
-        // user sees what to fix instead of a generic "Failed".
-        const message = err?.response?.data?.message || err?.message || null;
-        setUpdateErrorMessage(message);
-        setUpdateState("failed");
-      });
-  }, [isSystemd, pollUntilReady]);
 
   /**
    * Save clock time
@@ -637,46 +598,6 @@ export function AppContextProvider({ children }) {
     setDebugMenuOpen(!debugMenuOpen);
   }
 
-  /**
-   * Fetch /api/update-check (or /force) and propagate every relevant field
-   * into AppContext state. Shared by the periodic background poll and the
-   * Debug panel's "Check for update" button so both call sites end up with
-   * the same set of state updates — including changedDeployFiles and
-   * needsManualUpgrade, which UpdateModal reads to gate the Update button.
-   *
-   * @param {Boolean} [force] When true, hits /api/update-check/force which
-   *   clears the server cache before re-evaluating
-   * @returns {Promise<Object|null>} Resolves with the response data, or null
-   *   on network error
-   */
-  const refreshUpdateCheck = useCallback((force) => {
-    const url = force ? "/api/update-check/force" : "/api/update-check";
-    return axios.get(url).then((res) => {
-      setUpdateAvailable(res.data.updateAvailable ?? false);
-      setLatestVersion(res.data.latestVersion ?? null);
-      setLatestSha(res.data.latestSha ?? null);
-      setUpdateCommits(res.data.commits ?? []);
-      setChangedDeployFiles(Array.isArray(res.data.changedDeployFiles) ? res.data.changedDeployFiles : []);
-      setNeedsManualUpgrade(Boolean(res.data.needsManualUpgrade));
-      setServerPlatform(res.data.platform ?? null);
-      setIsSystemd(res.data.isSystemd ?? false);
-      return res.data;
-    }).catch(() => {
-      // non-critical — silently ignore errors
-      return null;
-    });
-  }, []);
-
-  useEffect(() => {
-    const fetchUpdateStatus = () => {
-      refreshUpdateCheck();
-    };
-
-    fetchUpdateStatus();
-    const interval = setInterval(fetchUpdateStatus, UPDATE_CHECK_INTERVAL);
-    return () => clearInterval(interval);
-  }, [refreshUpdateCheck]);
-
   function loadStoredData() {
     const temp = window.localStorage.getItem(TEMP_UNIT_STORAGE_KEY);
     const speed = window.localStorage.getItem(SPEED_UNIT_STORAGE_KEY);
@@ -732,9 +653,6 @@ export function AppContextProvider({ children }) {
     if (RADAR_SOURCE_VALUES.includes(storedRadarSource)) {
       setRadarSource(storedRadarSource);
     }
-
-    const savedSkippedSha = window.localStorage.getItem(SKIPPED_SHA_STORAGE_KEY);
-    if (savedSkippedSha) setSkippedSha(savedSkippedSha);
 
     if (temp) {
       setTempUnit(temp);
