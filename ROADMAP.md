@@ -294,20 +294,14 @@ There are no unit or integration tests. The highest-value starting points would 
 
 Without tests, every change to shared utilities or server middleware carries an invisible regression risk.
 
-### 🗂️ `AppContext.js` size and responsibility
-`AppContext.js` currently holds all global state: settings, units, geolocation, dark mode, font size, panel state, and all update functions. As the project grows, this single file becomes harder to navigate and reason about. Splitting it into focused context providers (e.g. `SettingsContext`, `WeatherContext`, `UIContext`) would improve maintainability without changing any observable behaviour.
+### 🗂️ `AppContext.js` size and responsibility — partial progress
+`AppContext.js` held all global state in one 1877-line file. Phase 3 of the May 2026 tech-debt remediation extracted two coherent clusters into dedicated hooks: `~/hooks/useUpdateChecker` (the in-app update flow — 12 state values + the periodic `/api/update-check` poll + the post-update reload polling) and `~/hooks/useScreenSaver` (brightness + sleep-mode state with the debounced slider setter). AppContext is now 1764 lines and re-exports the hook returns through its context surface unchanged. **Still to extract** (each is its own well-bounded cluster): `useWeatherData` (current/hourly/daily payloads + risk/trend/alerts — biggest remaining slice, ~30 state pieces), `useUiPreferences` (units + clock format + fontSize, all the localStorage-backed display prefs), `useLocation` (browserGeo / mapGeo / mapTimezone / customLat / customLon), and the `saveAdvanced*Flag` family which all rebuild the full `advanced.*` PATCH payload — a `buildAdvancedSubtree()` helper extracted from all five would unblock the sleep-mode save's full move into `useScreenSaver`.
 
-### 🪤 Two React anti-patterns surfaced by the React Compiler
-Discovered 2026-05-07 when test-running `eslint-plugin-react-hooks@7.x` locally. Both are pre-existing bugs the v5 plugin doesn't catch:
+### ✅ ~~Two React anti-patterns surfaced by the React Compiler~~ — **resolved in v2.17.0**
+Both pre-existing fragility issues fixed in the Phase 1 tech-debt pass: `Math.floor(Date.now() / 1000)` no longer called during render in `WeatherMap/RadarTimeline` (lifted into a `useState` ticked by a 30 s interval), and `WeatherInfo`'s self-recursive `useCallback` replaced with a `useEffect`-bound `setInterval` keyed on `cycleKey`. See the v2.17.0 CHANGELOG entry for the full reasoning.
 
-- **`Math.floor(Date.now() / 1000)` called during render** in [`WeatherMap/index.js:408`](client/src/components/WeatherMap/index.js:408). The value feeds the timeline label computation and is consumed by downstream `useMemo` blocks — calling it during render makes those memos effectively non-stable (every render produces a fresh `nowSec`, defeating the memoisation). Fix: store `nowSec` in a `useState` with a `setInterval` ticking once per minute (or once per 10 s to match the radar frame cadence), so the value only changes on a real time tick rather than on every parent re-render.
-
-- **Self-recursive `useCallback` reference before declaration** in [`WeatherInfo/index.js:91-98`](client/src/components/WeatherInfo/index.js:91). `restartCycle` calls itself inside its own `setTimeout` callback, which the compiler flags as a TDZ access. Works at runtime (the closure resolves at timer fire, not at definition), but is fragile and confusing. Fix: replace with a `useRef` that holds the latest scheduling function, or restructure as a `useEffect` that re-arms its own timeout on each tick.
-
-Neither is a production bug today — both have been running on the deployed kiosk for months — but they're real fragility that will bite when we eventually touch those components. Worth fixing in a small dedicated PR rather than under the cover of an unrelated change.
-
-### 🛠️ React Compiler readiness — `set-state-in-effect` cluster
-The same `eslint-plugin-react-hooks@7.x` test surfaced **13 instances** of the new `set-state-in-effect` rule across:
+### 🛠️ React Compiler readiness — `set-state-in-effect` cluster (gated on React 19 migration)
+The `eslint-plugin-react-hooks@7.x` test in May 2026 surfaced **13 instances** of the new `set-state-in-effect` rule:
 
 - `WeatherMap/index.js` (8 sites — radar frame index initialisation, scrubber state resets, sample-cache invalidation)
 - `App/index.js` (1 site)
@@ -320,7 +314,7 @@ Most are the legitimate "compute derived state from props on change" pattern, wh
 - `useMemo` / `useReducer` for expensive derivations, or
 - a state-lifting refactor when the dependency truly belongs to the parent.
 
-This is the gating debt for upgrading `eslint-plugin-react-hooks` past v6. The v5 plugin we're pinned to is still maintained, so there's no urgency — but if we ever want the v7+ improvements (skip-non-React-files perf, better Flow typing, ESLint v10 compat), the 13 sites need a coordinated refactor. Estimate: half-day session, with regression risk concentrated on the radar scrubber (which we just stabilised through PRs #33-#49).
+**Now bundled with the React 19 migration below.** May 2026 finding from the Phase 3 tech-debt session: tackling these 13 sites without `eslint-plugin-react-hooks@7.x` actively enforcing the rule means refactoring blind on every site, with no automated check that the new shape is correct. We can't pin to v7 today because v7 requires React 19. So the cluster waits for the bundled migration: bump react + react-hooks lint together, then walk the 13 sites with the linter as the safety net. Estimate: half-day session once the migration is on deck, with regression risk concentrated on the radar scrubber.
 
 ### ⏳ React 18 → 19 + react-leaflet 4 → 5 (must be bundled)
 Discovered 2026-05-22 during the Phase 2 tech-debt remediation. The `react-leaflet@5` upgrade looks like an isolated dep bump but has React 19 as a hard peer requirement (`peerDependencies: { react: '^19.0.0' }`); attempting it under React 18 errors out at `npm install` and would risk runtime failures on internal React 19 API usage even with `--legacy-peer-deps`. The other v5 breaking change — removal of `LeafletProvider` — is a non-issue here (we don't import it).
