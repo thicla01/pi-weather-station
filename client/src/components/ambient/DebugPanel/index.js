@@ -987,7 +987,12 @@ const SERVICE_LABELS = {
 const QuotaTable = ({ service, quotas, endpoints }) => {
   const label = (SERVICE_LABELS[service] || service).toUpperCase();
   const showHour = quotas.hour != null;
-  const showDay = quotas.day != null;
+  // Always show today's count, even for services without an explicit
+  // quota cap (ECCC, MELCC, NWS, AirNow, OpenAQ — see the same fix in
+  // ../../Debug/index.js for context). Hour and Month stay conditional
+  // on an explicit quota since they're mainly useful when there's a
+  // ceiling to compare against.
+  const showDay = true;
   const showMonth = quotas.month != null;
   const total = { hour: 0, day: 0, month: 0 };
   endpoints.forEach(([, c]) => {

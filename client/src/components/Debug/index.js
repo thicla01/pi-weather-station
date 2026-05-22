@@ -1017,7 +1017,7 @@ export function exportDebugCsv(data, clientMetrics, fps) {
     Object.entries(data.counters).forEach(([service, { quotas, endpoints }]) => {
       section(`QUOTAS — ${(SERVICE_LABELS[service] || service).toUpperCase()}`);
       const showHour  = quotas.hour  != null;
-      const showDay   = quotas.day   != null;
+      const showDay   = true; // mirror the UI: always include today in the CSV
       const showMonth = quotas.month != null;
       const headers = [q("ENDPOINT")];
       if (showHour)  headers.push(q("THIS HOUR"));
