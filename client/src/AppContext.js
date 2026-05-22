@@ -1133,21 +1133,59 @@ export function AppContextProvider({ children }) {
   }
 
   /**
-   * Helper: build the current advanced.sleep.* subtree as it lives in
-   * settings.json. Used by every saveAdvanced*Flag helper so the full
-   * tree is always written (the server's settingsCtrl uses the whole
-   * `advanced` blob — partial writes would clobber unrelated branches).
+   * Build the full `advanced.*` PATCH payload as a single object,
+   * optionally with per-section overrides spliced in. The server-side
+   * PATCH /setting endpoint replaces the entire `advanced` blob when
+   * called with `key: "advanced"`, so the body must always carry every
+   * section the kiosk still cares about — omitting one wipes it.
    *
-   * @returns {object} Sleep subtree mirroring `advanced.sleep` in settings.json
+   * Pre-2026-05-23 each saveAdvanced*Flag function re-assembled the
+   * tree inline, and three of them silently dropped sections
+   * (saveAdvancedDisplayFlag missed `darkModeStyle` inside its display
+   * branch; saveAdvancedDisplayFlag, saveAdvancedSleepFlag, and
+   * saveAdvancedExperimentalFlag all missed `pollen` entirely — toggling
+   * any of those flags would wipe `pollen.enabled` on the server side,
+   * silently disabling the pollen badge for that install). Centralising
+   * the assembly here fixes those by construction.
+   *
+   * @param {object} [overrides] optional per-section override, e.g.
+   *   `{ sleep: { nightMode: true } }` to flip one key while preserving
+   *   the rest of the sleep branch.
+   * @returns {object} the full `advanced.*` blob ready for PATCH
    */
-  function buildSleepSubtree() {
+  function buildAdvancedSubtree(overrides = {}) {
     return {
-      enabled: sleepEnabled,
-      stage1Delay: sleepStage1Delay,
-      stage1Brightness: sleepStage1Brightness,
-      stage2Enabled: sleepStage2Enabled,
-      stage2Delay: sleepStage2Delay,
-      nightMode: sleepNightMode,
+      ai: {
+        radarAnalysisEnabled,
+        extendedRadius: extendedRadarRadius,
+        showSamplingPoints,
+        calmDayFastPath,
+        ...(overrides.ai || {}),
+      },
+      display: {
+        lightModeStyle,
+        darkModeStyle,
+        radarOpacityLight,
+        radarOpacityDark,
+        ...(overrides.display || {}),
+      },
+      sleep: {
+        enabled: sleepEnabled,
+        stage1Delay: sleepStage1Delay,
+        stage1Brightness: sleepStage1Brightness,
+        stage2Enabled: sleepStage2Enabled,
+        stage2Delay: sleepStage2Delay,
+        nightMode: sleepNightMode,
+        ...(overrides.sleep || {}),
+      },
+      experimental: {
+        uiC: experimentalUiC,
+        ...(overrides.experimental || {}),
+      },
+      pollen: {
+        enabled: pollenEnabled,
+        ...(overrides.pollen || {}),
+      },
     };
   }
 
@@ -1161,25 +1199,19 @@ export function AppContextProvider({ children }) {
    * @returns {Promise} Resolves when saved
    */
   function saveAdvancedAiFlag(key, value) {
-    const nextAi = {
-      radarAnalysisEnabled,
-      extendedRadius: extendedRadarRadius,
-      showSamplingPoints,
-      calmDayFastPath,
-      [key]: value,
-    };
-    const nextDisplay = { lightModeStyle, darkModeStyle, radarOpacityLight, radarOpacityDark };
-    const nextExperimental = { uiC: experimentalUiC };
     // v2.15.2: optimistic local update — see saveAdvancedSleepFlag for
     // the rationale. Remote clients hit `localhostOnly` (HTTP 403);
     // flipping state before the PATCH lets the UI reflect the toggle
-    // even when the server rejects the write.
+    // even when the server rejects the write. Note: the legacy ai
+    // key `extendedRadius` maps to React state `extendedRadarRadius`
+    // — settings.json uses the shorter name for compatibility with
+    // earlier installs.
     if (key === "radarAnalysisEnabled") setRadarAnalysisEnabled(value);
     if (key === "extendedRadius") setExtendedRadarRadius(value);
     if (key === "showSamplingPoints") setShowSamplingPoints(value);
     if (key === "calmDayFastPath") setCalmDayFastPath(value);
     return axios
-      .patch("/setting", { key: "advanced", val: { ai: nextAi, display: nextDisplay, sleep: buildSleepSubtree(), experimental: nextExperimental, pollen: { enabled: pollenEnabled } } })
+      .patch("/setting", { key: "advanced", val: buildAdvancedSubtree({ ai: { [key]: value } }) })
       .catch((err) => {
         if (err && err.response && err.response.status === 403) return;
         console.warn("saveAdvancedAiFlag PATCH failed:", err && err.message);
@@ -1195,11 +1227,8 @@ export function AppContextProvider({ children }) {
    */
   function savePollenEnabled(value) {
     setPollenEnabled(value);
-    const nextAi = { radarAnalysisEnabled, extendedRadius: extendedRadarRadius, showSamplingPoints, calmDayFastPath };
-    const nextDisplay = { lightModeStyle, darkModeStyle, radarOpacityLight, radarOpacityDark };
-    const nextExperimental = { uiC: experimentalUiC };
     return axios
-      .patch("/setting", { key: "advanced", val: { ai: nextAi, display: nextDisplay, sleep: buildSleepSubtree(), experimental: nextExperimental, pollen: { enabled: value } } })
+      .patch("/setting", { key: "advanced", val: buildAdvancedSubtree({ pollen: { enabled: value } }) })
       .catch((err) => {
         if (err && err.response && err.response.status === 403) return;
         console.warn("savePollenEnabled PATCH failed:", err && err.message);
@@ -1215,16 +1244,8 @@ export function AppContextProvider({ children }) {
    * @returns {Promise} Resolves when saved
    */
   function saveAdvancedDisplayFlag(key, value) {
-    const nextDisplay = { lightModeStyle, radarOpacityLight, radarOpacityDark, [key]: value };
-    const nextAi = {
-      radarAnalysisEnabled,
-      extendedRadius: extendedRadarRadius,
-      showSamplingPoints,
-      calmDayFastPath,
-    };
-    const nextExperimental = { uiC: experimentalUiC };
     return axios
-      .patch("/setting", { key: "advanced", val: { ai: nextAi, display: nextDisplay, sleep: buildSleepSubtree(), experimental: nextExperimental } })
+      .patch("/setting", { key: "advanced", val: buildAdvancedSubtree({ display: { [key]: value } }) })
       .then(() => {
         if (key === "lightModeStyle") setLightModeStyle(value);
         if (key === "darkModeStyle") setDarkModeStyle(value);
@@ -1246,15 +1267,6 @@ export function AppContextProvider({ children }) {
    * @returns {Promise} Resolves when saved
    */
   function saveAdvancedSleepFlag(key, value) {
-    const nextSleep = { ...buildSleepSubtree(), [key]: value };
-    const nextAi = {
-      radarAnalysisEnabled,
-      extendedRadius: extendedRadarRadius,
-      showSamplingPoints,
-      calmDayFastPath,
-    };
-    const nextDisplay = { lightModeStyle, darkModeStyle, radarOpacityLight, radarOpacityDark };
-    const nextExperimental = { uiC: experimentalUiC };
     // v2.15.2: optimistic local update — flip React state BEFORE the
     // PATCH so remote clients get UI feedback even though the server
     // rejects their write. Pre-v2.15.2 the setter calls lived inside
@@ -1281,7 +1293,7 @@ export function AppContextProvider({ children }) {
       } catch { /* localStorage may be unavailable */ }
     }
     return axios
-      .patch("/setting", { key: "advanced", val: { ai: nextAi, display: nextDisplay, sleep: nextSleep, experimental: nextExperimental } })
+      .patch("/setting", { key: "advanced", val: buildAdvancedSubtree({ sleep: { [key]: value } }) })
       .catch((err) => {
         // 403 = remote client hit `localhostOnly`. Expected; UI state
         // already updated above. Log other errors for diagnostics.
@@ -1305,16 +1317,8 @@ export function AppContextProvider({ children }) {
    * @returns {Promise} Resolves when saved
    */
   function saveAdvancedExperimentalFlag(key, value) {
-    const nextExperimental = { uiC: experimentalUiC, [key]: value };
-    const nextAi = {
-      radarAnalysisEnabled,
-      extendedRadius: extendedRadarRadius,
-      showSamplingPoints,
-      calmDayFastPath,
-    };
-    const nextDisplay = { lightModeStyle, darkModeStyle, radarOpacityLight, radarOpacityDark };
     return axios
-      .patch("/setting", { key: "advanced", val: { ai: nextAi, display: nextDisplay, sleep: buildSleepSubtree(), experimental: nextExperimental } })
+      .patch("/setting", { key: "advanced", val: buildAdvancedSubtree({ experimental: { [key]: value } }) })
       .then(() => {
         if (key === "uiC") setExperimentalUiC(value);
       });
