@@ -322,6 +322,16 @@ Most are the legitimate "compute derived state from props on change" pattern, wh
 
 This is the gating debt for upgrading `eslint-plugin-react-hooks` past v6. The v5 plugin we're pinned to is still maintained, so there's no urgency — but if we ever want the v7+ improvements (skip-non-React-files perf, better Flow typing, ESLint v10 compat), the 13 sites need a coordinated refactor. Estimate: half-day session, with regression risk concentrated on the radar scrubber (which we just stabilised through PRs #33-#49).
 
+### ⏳ React 18 → 19 + react-leaflet 4 → 5 (must be bundled)
+Discovered 2026-05-22 during the Phase 2 tech-debt remediation. The `react-leaflet@5` upgrade looks like an isolated dep bump but has React 19 as a hard peer requirement (`peerDependencies: { react: '^19.0.0' }`); attempting it under React 18 errors out at `npm install` and would risk runtime failures on internal React 19 API usage even with `--legacy-peer-deps`. The other v5 breaking change — removal of `LeafletProvider` — is a non-issue here (we don't import it).
+
+Net: these are **one bundled migration**, not two independent ones. Plan when it becomes worth tackling:
+1. Wait for the ecosystem (Mapbox GL React, react-i18next, react-router if ever added) to stabilise on React 19. ~Q3 2026.
+2. Verify `eslint-plugin-react-hooks@7.x` is on a React 19-compatible release path (currently v7.1.1 is, but the `set-state-in-effect` cluster above is also gating).
+3. Single PR: bump react + react-dom + react-leaflet together. CI catches obvious build / lint regressions; the radar scrubber and the `nowSec` interval fix from v2.17.0 are the highest-risk surfaces and need a manual smoke on a real Pi kiosk before merging.
+
+Until then, react-leaflet stays on 4.2.1 — fully maintained, no security issues, no functional gap for our use case.
+
 ### ✅ ~~Service-file customizations should live in a systemd drop-in, not the main unit~~ — **resolved in v2.8.1**
 `install.sh` and `toggle-remote.sh` now write `ALLOW_REMOTE=true` into a drop-in (`pi-weather-server.service.d/local.conf`) instead of editing the main service file. The canonical `deploy/pi-weather-server.service` stays a clean upstream mirror, and the in-app updater's `serviceFileChanged` warning only fires on real upstream changes. `toggle-remote.sh` migrates legacy installs by re-commenting the leftover line on the next toggle.
 
