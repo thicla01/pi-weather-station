@@ -83,11 +83,16 @@ async function getSenseHatData(req, res) {
     return res.status(500).json({ error: "Could not read settings" });
   }
 
-  let lat = settings.startingLat;
-  let lon = settings.startingLon;
+  // Coerce to Number — settings.json stores startingLat/Lon as strings
+  // ("45.5" / "" / null depending on whether the user filled the
+  // Advanced → Custom location field or cleared it). parseFloat("")
+  // returns NaN, and Number.isFinite(NaN) is false — so the guard
+  // below catches both "no value" and "garbage value" uniformly.
+  let lat = parseFloat(settings.startingLat);
+  let lon = parseFloat(settings.startingLon);
 
   // ── Fallback to IP-based geolocation when no location is configured ──────
-  if (lat == null || lon == null) {
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
     if (_geoCache && Date.now() < _geoExpiry) {
       ({ lat, lon } = _geoCache);
     } else {
