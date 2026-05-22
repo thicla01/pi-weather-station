@@ -22,6 +22,26 @@ const { analyzeRadar } = require("./radarAnalyzerCtrl");
 const SUMMARY_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 const summaryCache = {};
 
+/**
+ * Build the cache key for a weather summary request. Lat/lon are quantised
+ * to 4 decimal places (~11 m precision) so two phones a few metres apart
+ * share the same cache bucket. Unit preferences are included verbatim so
+ * toggling Settings (°C → °F, etc.) invalidates the cached entry — a
+ * stale summary built with the previous unit set would render with the
+ * wrong numbers.
+ *
+ * @param {Number} lat latitude in degrees
+ * @param {Number} lon longitude in degrees
+ * @param {String} lang locale string (en / fr / es)
+ * @param {String} period summary period identifier
+ * @param {String} tempUnit f / c / k
+ * @param {String} speedUnit mph / ms / kmh
+ * @param {String} distanceUnit mi / km
+ * @returns {String} stable cache key
+ */
+const buildSummaryCacheKey = (lat, lon, lang, period, tempUnit, speedUnit, distanceUnit) =>
+  `${lat.toFixed(4)}:${lon.toFixed(4)}:${lang}:${period}:${tempUnit}:${speedUnit}:${distanceUnit}`;
+
 // Ring buffer of the most recent radar snapshots that fed an AI summary,
 // surfaced through the debug panel so a maintainer can compare what the
 // analyzer reported against what Claude (or the fast-path template) said
@@ -440,9 +460,7 @@ async function getWeatherSummary(req, res) {
     return res.status(503).json("Anthropic API key not configured").end();
   }
 
-  // Cache key includes unit preferences so toggling Settings (e.g. °C → °F)
-  // doesn't keep serving a stale summary built with the previous units.
-  const cacheKey = `${lat.toFixed(4)}:${lon.toFixed(4)}:${lang}:${period}:${tempUnit}:${speedUnit}:${distanceUnit}`;
+  const cacheKey = buildSummaryCacheKey(lat, lon, lang, period, tempUnit, speedUnit, distanceUnit);
   const cached = summaryCache[cacheKey];
   if (cached && Date.now() < cached.expiresAt) {
     return res.status(200).json({ summary: cached.summary }).end();
@@ -744,4 +762,14 @@ async function getWeatherSummary(req, res) {
   }
 }
 
-module.exports = { getWeatherSummary, summaryCache, getRecentRadarSnapshots };
+module.exports = {
+  getWeatherSummary,
+  summaryCache,
+  getRecentRadarSnapshots,
+  // Exported for regression testing only — internal helpers, not part of
+  // the public surface. See test/aiSummary.cache.test.js.
+  __test: {
+    buildSummaryCacheKey,
+    SUMMARY_CACHE_TTL,
+  },
+};
