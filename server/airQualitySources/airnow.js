@@ -26,7 +26,7 @@ const { TIMEOUT_MS, haversineKm, categoryForEpaAqi } = require("./_shared");
 
 const SERVICE_NAME = "EPA AirNow";
 const ENDPOINT = "https://www.airnowapi.org/aq/observation/latLong/current/";
-const SEARCH_RADIUS_KM = 50;            // upstream `distance` parameter — EPA recommends 25–50 mi (40–80 km)
+const SEARCH_RADIUS_MI = 50;            // AirNow's `distance` parameter is in MILES (≈ 80 km); 50 mi is the maximum the API accepts and what EPA recommends
 const TTL_MS = 30 * 60 * 1000;          // 30 min — AirNow updates hourly; halving smooths repeats without staleness
 const US_BBOX = { latMin: 17, latMax: 72, lonMin: -180, lonMax: -65 }; // continental + AK + HI + PR/VI
 
@@ -34,8 +34,8 @@ const cache = new Map();                // cacheKey → { payload, expiresAt }
 
 /**
  * 0.1° rounded grid for cache keys (~11 km cells). AirNow's
- * `distance=50` smooths out fine local variation already, so two
- * polls 5 km apart legitimately share a cached reading.
+ * 50 mi (~80 km) search radius smooths out fine local variation
+ * already, so two polls 5 km apart legitimately share a cached reading.
  *
  * @param {Number} lat
  * @param {Number} lon
@@ -101,7 +101,7 @@ async function tryAqi(lat, lon, options = {}) {
     format: "application/json",
     latitude: lat.toFixed(4),
     longitude: lon.toFixed(4),
-    distance: String(SEARCH_RADIUS_KM),
+    distance: String(SEARCH_RADIUS_MI),
     API_KEY: apiKey,
   });
 
@@ -116,7 +116,7 @@ async function tryAqi(lat, lon, options = {}) {
   const records = Array.isArray(resp.data) ? resp.data : [];
   if (!records.length) {
     cache.set(key, { payload: null, expiresAt: Date.now() + TTL_MS });
-    recordServiceCall(SERVICE_NAME, 200, `no station within ${SEARCH_RADIUS_KM} km`);
+    recordServiceCall(SERVICE_NAME, 200, `no active monitor within ${SEARCH_RADIUS_MI} mi (~80 km)`);
     return null;
   }
 
