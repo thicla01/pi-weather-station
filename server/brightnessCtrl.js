@@ -181,13 +181,36 @@ function edDdcWrite(percent, opts) {
 
 // ─── Backend selector ───────────────────────────────────────────────
 // Auto-detected once at first call; results cached for the lifetime of
-// the process. Order matters: sysfs first because (a) it's faster (no
-// fork/exec), (b) it doesn't require sudo. ed-ddc-server is the
-// fallback for HDMI panels that don't expose a kernel backlight.
+// the process.
+//
+// Order: ed-ddc-server FIRST, sysfs as fallback. The ordering matters
+// because Pi OS loads the `rpi_backlight` kernel driver by default
+// when the device-tree overlay is on — which is the default on
+// Bookworm/Trixie — even when no DSI display is physically attached.
+// The kernel happily exposes `/sys/class/backlight/rpi_backlight`
+// with a max_brightness of 255, accepts writes, but the writes go
+// nowhere observable: the kiosk's actual display (an HDMI panel)
+// stays at full brightness while the sysfs `brightness` file dutifully
+// reports whatever we wrote.
+//
+// Reversing the order fixes this: ed-ddc-server requires an explicit
+// `apt install ed-ddcci-mib-tool` and only succeeds when a DDC/CI-
+// compliant monitor responds on the i2c bus — both are strong signals
+// that the user actually wants this backend. If ed-ddc-server isn't
+// installed (Pi 7" DSI kiosks, mac dev box, etc.), the detect() call
+// fails fast (~10 ms fork/exec of a missing binary) and we fall
+// through to sysfs the way we did before.
+//
+// Caveat: a kiosk that has BOTH a DSI screen (sysfs is real, not
+// ghost) AND an ED-MONITOR connected over HDMI would now drive only
+// the HDMI panel from the slider, even though sysfs would correctly
+// dim the DSI screen too. No such deployment exists in the current
+// fleet; the day one shows up, we'll revisit (probably via a
+// settings.json preference for the backend selector).
 
 const BACKENDS = [
-  { name: "sysfs", detect: sysfsDetect, read: sysfsRead, write: sysfsWrite },
   { name: "ed-ddc-server", detect: edDdcDetect, read: edDdcRead, write: edDdcWrite },
+  { name: "sysfs", detect: sysfsDetect, read: sysfsRead, write: sysfsWrite },
 ];
 
 let _activeBackend = null;
