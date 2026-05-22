@@ -15,14 +15,37 @@ modification de code requise.
 
 ---
 
+## Architecture du certificat (chaîne CA + leaf)
+
+Le serveur entretient une chaîne à deux certificats dans `server/` :
+
+| Fichier | Rôle | Durée | Sert le TLS ? |
+|---|---|---|---|
+| `ca-cert.pem` + `ca-key.pem` | Root CA auto-signée. `basicConstraints=CA:TRUE`, `keyUsage=keyCertSign,cRLSign`. C'est ce que l'utilisateur installe dans son trust store (téléphone, laptop). | 10 ans | Non |
+| `cert.pem` + `key.pem` | Leaf serveur, signé par la CA. `basicConstraints=CA:FALSE`, `keyUsage=digitalSignature,keyEncipherment`, `extendedKeyUsage=serverAuth`, SAN qui couvre `localhost` + toutes les IPv4 LAN + hostname (`<host>` et `<host>.local`). | 825 jours | Oui (présenté dans le handshake avec la CA concaténée) |
+
+Pourquoi deux fichiers ? Firefox 150 applique strictement RFC 5280 et rejette un cert avec `CA:TRUE` servi comme leaf (`MOZILLA_PKIX_ERROR_CA_CERT_USED_AS_END_ENTITY`). La séparation CA-racine / leaf-serveur résout cela.
+
+Le serveur régénère uniquement le leaf quand la configuration réseau change (nouvelle IP DHCP, hostname différent, second interface), gardant `ca-cert.pem` intact — les clients qui ont déjà installé la CA restent automatiquement de confiance pour le nouveau leaf.
+
+`GET /api/cert.pem` sert `ca-cert.pem` (l'artéfact à installer dans le trust store), pas le leaf.
+
+---
+
 ## Fichiers à remplacer
+
+Pour remplacer la chaîne auto-générée par votre propre certificat (Let's Encrypt, CA d'entreprise, mkcert) :
 
 | Fichier | Contenu | Format |
 |---|---|---|
-| `server/cert.pem` | Certificat (+ chaîne d'intermédiaires concaténés si nécessaire) | PEM (X.509) |
-| `server/key.pem` | Clé privée non chiffrée | PEM (PKCS#1 ou PKCS#8) |
+| `server/cert.pem` | Votre certificat serveur (+ chaîne d'intermédiaires concaténés si nécessaire) | PEM (X.509) |
+| `server/key.pem` | Clé privée non chiffrée correspondant à `cert.pem` | PEM (PKCS#1 ou PKCS#8) |
+| `server/ca-cert.pem` | Le certificat de votre CA racine (Let's Encrypt ISRG Root X1, votre CA interne, etc.) — c'est ce que `/api/cert.pem` servira aux clients | PEM (X.509) |
+| `server/ca-key.pem` | Fichier placeholder (peut être vide ou contenir une fausse clé) — son existence empêche le serveur de régénérer la CA. **Ne jamais y placer votre vraie clé CA si vous en avez une.** | Quelconque |
 
-> **Note** : si votre certificat est livré en **PKCS#12 (`.pfx`/`.p12`)**, il faut
+> ⚠ **Limitation V3 connue** : la logique d'auto-régénération (voir section dédiée plus bas) déclenche un re-signage du leaf si `ca-cert.pem` ne contient pas le CN auto-attendu (`Pi Weather Station - <hostname>`). En pratique, votre cert custom risque d'être écrasé au prochain démarrage du serveur. Le contournement actuel est de commenter la logique de régénération dans `server/index.js`. Une variable d'environnement `SKIP_CERT_AUTOGEN=true` serait une amélioration propre — à proposer en pull request.
+
+> **Note PKCS#12** : si votre certificat est livré en **PKCS#12 (`.pfx`/`.p12`)**, il faut
 > d'abord le convertir en PEM. Voir la section [Conversion de format](#conversion-de-format) plus bas.
 
 ---
@@ -64,9 +87,22 @@ Sur macOS, remplacer les commandes `systemctl --user` par
 ## À savoir : auto-régénération du certificat
 
 Le serveur a une logique d'auto-régénération définie dans
-`server/index.js` autour de la ligne 95 : si `cert.pem` n'existe pas ou
-est expiré au démarrage, il génère automatiquement un certificat
-self-signed pour qu'au moins HTTPS soit fonctionnel.
+`server/index.js` (fonction `sslOptions`, environ ligne 130). Au
+démarrage il évalue séparément deux conditions :
+
+**Régénération de la CA** (`caNeedsRegen`) — déclenchée si :
+- `ca-cert.pem` ou `ca-key.pem` est manquant
+- Le subject CN de la CA ne correspond pas à `Pi Weather Station - <hostname>` (changement d'hostname machine)
+
+**Régénération du leaf** (`leafNeedsRegen`) — déclenchée si :
+- `cert.pem` ou `key.pem` est manquant
+- Le cert expire dans moins de 30 jours
+- Le SAN du cert ne couvre plus toutes les IPs LAN actuelles (changement DHCP, nouvel interface)
+- Le subject CN du leaf ne correspond pas à `localhost`
+- Le cert est un ancien format pré-V3 (single self-signed root avec `CA:TRUE`)
+- La CA vient d'être régénérée (alors il faut re-signer le leaf)
+
+Si seule la condition leaf se déclenche, le serveur régénère uniquement le leaf en utilisant la CA existante — les clients qui ont déjà la CA dans leur trust store ne voient aucun warning.
 
 > ⚠ **Important** — si votre certificat custom expire et n'est pas
 > renouvelé à temps, le serveur le remplacera au prochain redémarrage par
@@ -87,8 +123,9 @@ self-signed pour qu'au moins HTTPS soit fonctionnel.
 
 Si vous préférez que le serveur échoue plutôt que de tomber en fallback
 self-signed (par exemple en environnement où un cert non-conforme est
-inacceptable), commenter le bloc `try/catch` qui appelle
-`openssl req -x509` dans `server/index.js` autour de la ligne 95.
+inacceptable), commenter les deux blocs `if (caNeedsRegen) { ... }` et
+`if (leafNeedsRegen) { ... }` dans la fonction `sslOptions()` de
+`server/index.js` (autour de la ligne 280).
 
 > **Note** : c'est un changement de code local, donc à reproduire à
 > chaque `git pull` qui modifierait ce fichier. Une alternative plus propre

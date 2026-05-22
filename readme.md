@@ -403,15 +403,7 @@ ALLOW_REMOTE=true npm start
 
 The server will now serve the app across your network on port 8443 (HTTPS).
 
-> **SSL certificate:** The auto-generated certificate only covers `localhost` and `127.0.0.1`. When accessing from another machine, your browser will show a certificate warning. To avoid this, regenerate the certificate with your Pi's IP as a SAN:
-> ```bash
-> openssl req -x509 -newkey rsa:2048 \
->     -keyout server/key.pem -out server/cert.pem \
->     -days 825 -nodes -subj "/CN=localhost" \
->     -addext "subjectAltName=DNS:localhost,IP:127.0.0.1,IP:<your-pi-ip>"
-> chmod 600 server/key.pem
-> ```
-> Then restart the server.
+> **SSL certificate:** The server generates a self-signed root CA + a leaf server certificate on first boot. The leaf's SubjectAltName covers `localhost`, `127.0.0.1`, and every active LAN IPv4 plus the device hostname (and its `.local` variant), discovered via `os.networkInterfaces()`. If your Pi's IP changes the server detects the SAN mismatch at the next restart and re-signs the leaf using the same root CA — clients that already trust the CA stay trusted. See [`docs/pwa-trust-cert_en.md`](docs/pwa-trust-cert_en.md) for installing the CA on phones / laptops, and [`docs/ssl-custom-cert_en.md`](docs/ssl-custom-cert_en.md) for replacing the auto-generated chain with your own certificate.
 
 ## Debug panel
 
