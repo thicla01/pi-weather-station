@@ -631,6 +631,8 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
     sleepStage2Enabled,
     sleepStage2Delay,
     sleepNightMode,
+    brightnessAvailable,
+    brightnessMinPercent,
     debugEnabled,
     saveAdvancedSleepFlag,
     // Display group (Phase 8b — ported in 2.14.22)
@@ -815,20 +817,33 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
             />
           </div>
           <div className={styles.grid4}>
-            <Field
+            <DelaySelect
               label={lbl(lang, "Stage 1 · delay", "Stage 1 · délai", "Etapa 1 · retraso")}
-              value={sleepStage1Delay ?? "—"}
-              unit="min"
-              mono
+              value={sleepStage1Delay}
+              options={SLEEP_STAGE1_DELAY_OPTIONS}
+              onChange={(v) => sleep("stage1Delay")(v)}
               disabled={remote}
+              lang={lang}
             />
-            <Field
-              label={lbl(lang, "Stage 1 · brightness", "Stage 1 · lum.", "Etapa 1 · brillo")}
-              value={sleepStage1Brightness ?? "—"}
-              unit="%"
-              mono
-              disabled={remote}
-            />
+            {brightnessAvailable ? (
+              <RangeSlider
+                label={lbl(lang, "Stage 1 · brightness", "Stage 1 · lum.", "Etapa 1 · brillo")}
+                value={sleepStage1Brightness}
+                min={brightnessMinPercent ?? 10}
+                max={100}
+                step={5}
+                onChange={(v) => sleep("stage1Brightness")(Math.round(v))}
+                disabled={remote}
+              />
+            ) : (
+              <Field
+                label={lbl(lang, "Stage 1 · brightness", "Stage 1 · lum.", "Etapa 1 · brillo")}
+                value={sleepStage1Brightness ?? "—"}
+                unit="%"
+                mono
+                disabled
+              />
+            )}
           </div>
           {/* Stage 2 — same pattern: toggle then fields */}
           <div className={styles.toggleRow} style={{ marginTop: 10 }}>
@@ -839,15 +854,18 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
               disabled={remote}
             />
           </div>
-          <div className={styles.grid4}>
-            <Field
-              label={lbl(lang, "Stage 2 · delay", "Stage 2 · délai", "Etapa 2 · retraso")}
-              value={sleepStage2Delay ?? "—"}
-              unit="min"
-              mono
-              disabled={remote}
-            />
-          </div>
+          {sleepStage2Enabled ? (
+            <div className={styles.grid4}>
+              <DelaySelect
+                label={lbl(lang, "Stage 2 · delay", "Stage 2 · délai", "Etapa 2 · retraso")}
+                value={sleepStage2Delay}
+                options={SLEEP_STAGE2_DELAY_OPTIONS}
+                onChange={(v) => sleep("stage2Delay")(v)}
+                disabled={remote}
+                lang={lang}
+              />
+            </div>
+          ) : null}
 
           <div className={`${styles.subhead} ${styles.subheadGap}`}>
             {lbl(lang, "Diagnostic", "Diagnostic", "Diagnóstico")}
@@ -964,6 +982,72 @@ const Toggle = ({ label, value, onChange, disabled, sub }) => (
     {label ? <span className={styles.toggleLabel}>{label}</span> : null}
     {sub ? <span className={styles.toggleSub}>{sub}</span> : null}
   </label>
+);
+
+// Sleep-stage delay options. Pre-2026-05 these lived inline in the v2
+// AdvancedSettings panel as `<select>` choices. Brought into v3 here with
+// extended coverage: the original presets (1/2/5/10/15/30 min for stage 1,
+// 5/10/20/30 min for stage 2) plus 1 h / 2 h / 3 h — useful for the
+// "leave the kiosk on for the evening, fade out after a while" use case
+// that came up in field feedback.
+const SLEEP_STAGE1_DELAY_OPTIONS = [1, 2, 5, 10, 15, 30, 60, 120, 180];
+const SLEEP_STAGE2_DELAY_OPTIONS = [5, 10, 20, 30, 60, 120, 180];
+
+/**
+ * Format a delay in whole minutes as a human label. Values < 60 use the
+ * existing `sleepMinutes` i18n key for the localised "n min" rendering;
+ * values that are exact multiples of an hour collapse to "n h" so the
+ * dropdown doesn't read as "120 min" / "180 min".
+ *
+ * @param {number} minutes
+ * @param {string} lang `en` / `fr` / `es`
+ * @returns {string}
+ */
+const formatDelayLabel = (minutes, lang) => {
+  if (minutes >= 60 && minutes % 60 === 0) {
+    const h = minutes / 60;
+    return `${h} h`;
+  }
+  return lbl(
+    lang,
+    `${minutes} min`,
+    `${minutes} min`,
+    `${minutes} min`,
+  );
+};
+
+/**
+ * Dropdown specifically for sleep-stage delay selection. Wraps a native
+ * `<select>` in the same `.field` + `.fieldBox` chrome as `Field` /
+ * `EditableField` / `RangeSlider` so it inherits the panel's visual
+ * vocabulary without forking the styles. Coerces the string-typed
+ * `<option value>` back to a number before calling `onChange`.
+ *
+ * @param {object} props
+ * @param {string} props.label
+ * @param {number|null} props.value current selection in minutes
+ * @param {Array<number>} props.options minute values, ascending
+ * @param {Function} props.onChange called with the new minute value
+ * @param {boolean} [props.disabled]
+ * @param {string} props.lang
+ * @returns {JSX.Element}
+ */
+const DelaySelect = ({ label, value, options, onChange, disabled, lang }) => (
+  <div className={`${styles.field} ${disabled ? styles.fieldDisabled : ""}`}>
+    <div className={styles.fieldLabel}>{label}</div>
+    <div className={styles.fieldBox}>
+      <select
+        className={styles.fieldInput}
+        value={value ?? ""}
+        disabled={disabled}
+        onChange={(e) => onChange(parseInt(e.target.value, 10))}
+      >
+        {options.map((m) => (
+          <option key={m} value={m}>{formatDelayLabel(m, lang)}</option>
+        ))}
+      </select>
+    </div>
+  </div>
 );
 
 const Field = ({ label, value, unit, mono, disabled, selectable, trailing }) => (
