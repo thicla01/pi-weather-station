@@ -13,8 +13,9 @@ const MIN_PERCENT = 10;
 // enough to cover slow buses without blocking the event loop forever
 // if the monitor unplugs mid-write).
 const ED_DDC_TIMEOUT_MS = 2_000;
-// Detect timeout — non-interactive sudo bails immediately when no
-// passwordless rule is configured, so 1.5 s is plenty.
+// Detect timeout — a fork/exec of a missing binary fails fast (~10 ms);
+// a successful read on a real ED-MONITOR is ~150 ms. 1.5 s covers both
+// without blocking the event loop if the i2c bus is stuck.
 const ED_DDC_DETECT_TIMEOUT_MS = 1_500;
 
 // ─── sysfs backend ──────────────────────────────────────────────────
@@ -89,39 +90,33 @@ function sysfsWrite(percent, opts) {
 // write operate as percent 0-100 directly. See
 // https://edatec.cn/docs/monitor-156c/um/3-using-the-device/
 //
-// `sudo` is required by the EDATEC binary because it needs root to
-// open the i2c device node. We invoke with `sudo -n` (non-interactive)
-// so detection fails immediately when no NOPASSWD rule is configured
-// rather than hanging on a password prompt. To enable the backend,
-// run on the Pi once (path confirmed via `which ed-ddc-server` —
-// adjust if your install put it elsewhere):
-//
-//   echo 'pi ALL=(root) NOPASSWD: /usr/sbin/ed-ddc-server' \
-//     | sudo tee /etc/sudoers.d/ed-ddc-server > /dev/null
-//   sudo chmod 440 /etc/sudoers.d/ed-ddc-server
-//
-// Verify with `sudo -n ed-ddc-server brightness read` — output is
-// `Backlight: [N]` and the prompt returns without asking for a
-// password. Until that's in place the detect() call below returns
-// false, the backend stays inactive, and the brightness slider in
-// the v3 SettingsPanel renders the read-only fallback as if no
-// hardware backlight was available.
+// No `sudo` needed. Field-validated on the SenseHat Pi (May 2026,
+// EDATEC `ed-ddcci-mib-tool` 1.x): `ed-ddc-server` works as the
+// `pi` user directly. The binary is either setuid-root or the
+// /dev/i2c-* device node is group-readable/writable by the `i2c`
+// group that the package's postinst adds the `pi` user to.
+// (Earlier docs and the first cut of this file used `sudo -n`,
+// which is technically still functional via password-cached or
+// NOPASSWD-configured sessions but adds an unnecessary failure
+// mode — a passwordless-sudo misconfiguration would silently
+// disable the backend with no diagnostic. The bare command is
+// strictly more robust.)
 
 let _edDdcDetectResult = null;
 function edDdcDetect() {
   if (_edDdcDetectResult !== null) return _edDdcDetectResult;
   try {
-    // Non-interactive sudo + the actual read command. A successful read
-    // proves three things at once: the binary is installed, passwordless
-    // sudo is configured for the `pi` user, and the DDC bus is alive.
-    execSync("sudo -n ed-ddc-server brightness read", {
+    // The actual read command — a successful invocation proves the
+    // binary is installed, the i2c bus is accessible to the `pi`
+    // user, and the attached monitor responds to DDC/CI. Any of
+    // these missing makes the call throw and we fall through to
+    // the next backend.
+    execSync("ed-ddc-server brightness read", {
       timeout: ED_DDC_DETECT_TIMEOUT_MS,
       stdio: ["ignore", "pipe", "ignore"],
     });
     _edDdcDetectResult = true;
   } catch {
-    // Binary missing, sudo prompts, or no DDC monitor attached — any
-    // of these means we fall through to the next backend / "unavailable".
     _edDdcDetectResult = false;
   }
   return _edDdcDetectResult;
@@ -154,7 +149,7 @@ function edDdcParsePercent(stdout) {
 
 function edDdcRead() {
   try {
-    const out = execSync("sudo -n ed-ddc-server brightness read", {
+    const out = execSync("ed-ddc-server brightness read", {
       timeout: ED_DDC_TIMEOUT_MS,
       stdio: ["ignore", "pipe", "ignore"],
     }).toString();
@@ -173,7 +168,7 @@ function edDdcWrite(percent, opts) {
   const floor = opts.allowOff ? 0 : MIN_PERCENT;
   const clamped = Math.max(floor, Math.min(100, Math.round(percent)));
   try {
-    execSync(`sudo -n ed-ddc-server brightness write -v ${clamped}`, {
+    execSync(`ed-ddc-server brightness write -v ${clamped}`, {
       timeout: ED_DDC_TIMEOUT_MS,
       stdio: ["ignore", "ignore", "ignore"],
     });
