@@ -50,6 +50,7 @@ import { useTranslation } from "react-i18next";
 import debounce from "debounce";
 import axios from "axios";
 import styles from "./styles.css";
+import RadarLegend from "./RadarLegend";
 import RadarTimeline from "./RadarTimeline";
 
 // Sampling geometry — must match server/radarAnalyzerCtrl.js exactly so the
@@ -492,43 +493,8 @@ RiskRing.propTypes = {
   nightRed: PropTypes.bool,
 };
 
-const RADAR_LEGEND_ITEMS = [
-  { color: "#00d0d0", key: "veryLight" },
-  { color: "#00c800", key: "light"     },
-  { color: "#f0e600", key: "moderate"  },
-  { color: "#f08200", key: "heavy"     },
-  { color: "#e60000", key: "veryHeavy" },
-  { color: "#7800b4", key: "extreme"   },
-];
-
 // Mapbox basemaps served via the server proxy (keeps the API key off the client).
 const MAPBOX_ATTRIBUTION = '© <a href="https://www.mapbox.com/feedback/">Mapbox</a>';
-
-/**
- * Radar precipitation legend overlay
- *
- * @param {object} props
- * @param {boolean} props.dark Dark mode
- * @returns {JSX.Element} Legend overlay
- */
-const RadarLegend = ({ dark }) => {
-  const { t } = useTranslation();
-  return (
-    <div className={`${styles.radarLegend} ${dark ? styles.radarLegendDark : styles.radarLegendLight}`}>
-      <div className={styles.radarLegendTitle}>{t("radar.legend")}</div>
-      {RADAR_LEGEND_ITEMS.map(({ color, key }) => (
-        <div key={key} className={styles.radarLegendItem}>
-          <span className={styles.radarLegendSwatch} style={{ background: color }} />
-          <span className={styles.radarLegendLabel}>{t(`radar.${key}`)}</span>
-        </div>
-      ))}
-    </div>
-  );
-};
-
-RadarLegend.propTypes = {
-  dark: PropTypes.bool,
-};
 
 
 /**
@@ -1701,31 +1667,6 @@ WeatherMap.propTypes = {
   dark: PropTypes.bool,
 };
 
-/**
- * Weather layer — OpenWeatherMap tile overlay. Inert in the current
- * deployment (the project moved to RainViewer + Tomorrow.io for radar
- * and conditions); kept around for the eventual return-to-OWM path
- * tracked in the OpenWeatherMap variant of CurrentWeather.
- *
- * @param {object} props
- * @param {String} props.layer One of OpenWeatherMap's tile layer names — `precipitation_new`, `clouds_new`, `temp_new`, etc.
- * @param {String} props.weatherApiKey OpenWeatherMap API key, appended to the tile URL as the `appid` query parameter.
- * @returns {JSX.Element} Weather layer
- */
-const WeatherLayer = ({ layer, weatherApiKey }) => {
-  return (
-    <TileLayer
-      attribution='&amp;copy <a href="https://openweathermap.org/">OpenWeather</a>'
-      url={`https://tile.openweathermap.org/map/${layer}/{z}/{x}/{y}.png?appid=${weatherApiKey}`}
-      apiKey
-    />
-  );
-};
-
-WeatherLayer.propTypes = {
-  layer: PropTypes.string.isRequired,
-  weatherApiKey: PropTypes.string,
-};
 
 /**
  * Determines if truthy, but returns true for 0
