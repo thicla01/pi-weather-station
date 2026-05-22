@@ -7,6 +7,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [2.18.1] - 2026-05-22
+
+### Fixed
+- **v3 default UI showed missing weather data + raw lat/lon location** — regression introduced by the v3-as-default flip in v2.18.0. The v2 `WeatherInfo` component was the trigger for `getWeatherApiKey()` and `getReverseGeoApiKey()` (it ran them in a mount-time useEffect); v3 layouts don't mount WeatherInfo, so the two API keys stayed null on the client, the polling useEffect (gated on `weatherApiKey && mapGeo`) never fired, and `LocationName` fell back to printing the raw latitude/longitude because `reverseGeoApiKey` was missing. Symptom on first paint after upgrade: location row read `45.5604, -73.5341` instead of "Montreal", `MetricsGrid` wind/humidity/UV tiles rendered "—", and `HeroCompact` collapsed to its empty-state slab (the LocationName row alone, no temperature or icon). Air quality kept working because that fetch had already been lifted into AppContext for exactly this kind of mount-dependence bug. Fix: an AppContext-level useEffect that runs both getters on mount, gated on the key not already being set so the optimistic-update path from WeatherInfo's own effect (still present for the v2 fallback) stays a no-op. Validated end-to-end via Chrome DevTools — the missing `/api/weather/current`, `/api/weather/hourly`, `/api/weather/daily`, `/api/reverse-geocode`, `/api/sunrise-sunset` requests now fire on first paint and the UI renders the full Montreal forecast (15 °C / Dégagé / 9 kph / 22% / UV 5 / sunrise 05:13 / sunset 20:27 + hourly strip).
+
 ## [2.18.0] - 2026-05-22
 
 ### Changed
