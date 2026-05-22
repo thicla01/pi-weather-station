@@ -12,7 +12,6 @@ import {
   WMSTileLayer,
   AttributionControl,
   Marker,
-  Circle,
   CircleMarker,
   Polyline,
   useMap,
@@ -52,6 +51,7 @@ import axios from "axios";
 import styles from "./styles.css";
 import RadarLegend from "./RadarLegend";
 import RadarTimeline from "./RadarTimeline";
+import RiskRing from "./RiskRing";
 
 // Sampling geometry — must match server/radarAnalyzerCtrl.js exactly so the
 // dots rendered on the map line up with the points the AI summary actually
@@ -285,51 +285,6 @@ const DOT_COLOR_BY_TIER = {
   dark:  { yellow: "#f0e600", orange: "#f08200", red: "#e60000" },
 };
 
-// Risk-level colour mapping for the dashed radar circles. The four tiers
-// match the server's RISK_LEVELS in radarAnalyzerCtrl.js. Both themes
-// now use the radar-tile palette directly (yellow / orange / red); the
-// pure yellow used to drown against the cream basemap as a 3-px stroke,
-// but buildRingPathOptions now renders coloured rings as a dark outline
-// + bright stroke on top in light mode (the same trick the dot renderer
-// uses) — that gives the bright tier colours back without sacrificing
-// readability. Dark mode keeps the single-stroke look since the dark
-// basemap gives the colours enough contrast on its own. Bumped weight
-// on the red tier makes the severe-tier alert glanceable at the
-// 7" / 10" kiosk distance.
-const RING_RISK_STYLE = {
-  light: {
-    yellow: { color: "#f0e600", weight: 3 },
-    orange: { color: "#f08200", weight: 3 },
-    red:    { color: "#e60000", weight: 4 },
-  },
-  dark: {
-    yellow: { color: "#f0e600", weight: 3 },
-    orange: { color: "#f08200", weight: 3 },
-    red:    { color: "#e60000", weight: 4 },
-  },
-  // nightRed (sleep-stage-1 long-wavelength palette) — keeps every tier
-  // inside the red family so the radar rings don't visually break the
-  // night-vision palette. The bright yellow / orange / red used in
-  // light + dark mode read as alien intrusions against the
-  // anthracite-red background. Alarm escalation here works on THREE
-  // axes (the colour hue contribution is intentionally narrow):
-  //
-  //   1. Saturation: warn (muted) → mid (mid) → danger (deepest)
-  //   2. Stroke weight: 4 → 5 → 7 (vs 2 for calm)
-  //   3. Pattern: dashed 6 6 → dashed 4 4 → SOLID
-  //
-  // The solid stroke for the severe-tier creates a clear visual
-  // rupture from the dashed tiers below — readable even on a 7"
-  // kiosk at glance distance, and survives the dark-adapted vision
-  // the nightRed palette aims to preserve.
-  nightRed: {
-    yellow: { color: "#a82828", weight: 4, dashArray: "6 6" },
-    orange: { color: "#8c1818", weight: 5, dashArray: "4 4" },
-    red:    { color: "#6b0808", weight: 7, solid: true },
-  },
-};
-const RING_OUTLINE_COLOR = "#3a3938";   // dark-grey halo behind coloured strokes in light mode
-const RING_OUTLINE_EXTRA_WEIGHT = 2;    // outline extends ~1 px on each side of the coloured stroke
 
 /**
  * Build the custom DivIcon used for the user's location marker. v2.14.64
@@ -357,141 +312,8 @@ function buildLocationMarkerIcon() {
 }
 const LOCATION_MARKER_ICON = buildLocationMarkerIcon();
 
-/**
- * Build the Leaflet pathOptions stack for a dashed radar circle. Returns
- * one or two layers: a single neutral stroke for calm rings (and dark-
- * mode coloured rings, where the dark basemap provides natural contrast),
- * or a darker outline + bright coloured stroke pair for light-mode
- * coloured rings. The two-layer trick lets us keep the bright radar-tile
- * palette (#f0e600 / #f08200 / #e60000) without it drowning against the
- * cream basemap — the outline does the heavy lifting on contrast.
- *
- * Dark-mode calm uses a warm desaturated grey instead of near-white. The
- * previous #f6f6f4 read as "alarm" against the dark basemap even when
- * there was no precipitation; #a8a097 picks up the dark-panel tones.
- *
- * @param {String|null} risk Risk level, or null when not yet loaded
- * @param {Boolean} dark Dark-mode flag
- * @param {Boolean} [aiOff] When true, the AI summary is unavailable
- *   (no Anthropic key). Calm-tier rings are rendered with reduced
- *   opacity and a sparser dash pattern to signal "analysis zone
- *   present, AI narrative absent". Coloured tiers (yellow / orange /
- *   red) intentionally ignore this flag — alerts need to be loud
- *   regardless of the AI's availability.
- * @returns {Array<object>} Ordered list of pathOptions; render in order
- *   so the coloured stroke sits on top of the outline.
- */
-function buildRingLayers(risk, dark, aiOff = false, nightRed = false) {
-  // Pick the palette: nightRed wins over dark when both are active.
-  const paletteKey = nightRed ? "nightRed" : (dark ? "dark" : "light");
-  const overlay = risk && RING_RISK_STYLE[paletteKey][risk];
-  const baseDash = "6 6";
-  // Calm / not yet loaded — single neutral ring, theme-aware.
-  // nightRed (sleep-stage-1 long-wavelength mode) tints the ring to
-  // match the rest of the palette. Originally tried #8c5a5a (brick
-  // grey) but the user wanted the dominant red that defines the
-  // night-red look — same hue family as the card text & surfaces.
-  // `#c04848` is exactly the nightRed.text token — it harmonises
-  // the ring with the rest of the UI without crossing into "alert"
-  // territory (deeper reds are still reserved for the actual risk
-  // overlays, which use both deeper saturation and wider strokes).
-  if (!overlay) {
-    return [{
-      color: nightRed ? "#c04848" : (dark ? "#a8a097" : "#3a3938"),
-      weight: 2,
-      // Subdued treatment when AI is off: opacity dropped from 0.85
-      // to 0.35 and the dash made sparser ("3 9" gives short marks
-      // with wide gaps, reading as a faint guide line). The zone is
-      // still locatable but visually recedes, so users without an
-      // Anthropic key understand the AlertBanner driving them is
-      // computed locally rather than narrated by Claude.
-      opacity: aiOff ? 0.35 : 0.85,
-      dashArray: aiOff ? "3 9" : baseDash,
-      fill: false,
-    }];
-  }
-  // nightRed coloured tier — single stroke, alarm conveyed by the
-  // per-tier weight escalation (4 → 5 → 7) and dash pattern
-  // (6 6 → 4 4 → solid). All tiers stay in the deep-red family so
-  // the alert reads as "more of the same" rather than introducing a
-  // colour-mode-breaking yellow / bright-red against the
-  // anthracite-red basemap. See RING_RISK_STYLE.nightRed for the
-  // per-tier rationale.
-  if (nightRed) {
-    const layer = {
-      color: overlay.color,
-      weight: overlay.weight,
-      opacity: 0.95,
-      fill: false,
-    };
-    if (!overlay.solid) {
-      layer.dashArray = overlay.dashArray || baseDash;
-    }
-    return [layer];
-  }
-  // Dark mode coloured tier — single bright stroke; basemap contrasts it.
-  if (dark) {
-    return [{
-      color: overlay.color,
-      weight: overlay.weight,
-      opacity: 0.85,
-      dashArray: baseDash,
-      fill: false,
-    }];
-  }
-  // Light mode coloured tier — dark continuous outline beneath, bright
-  // dashed stroke on top. The outline is intentionally NOT dashed: if it
-  // shared the dash pattern, the gap zones would have no outline either
-  // and the visual effect collapsed to "fat coloured dashes". A solid
-  // outline gives a clean dark ring with bright dashes embedded in it.
-  return [
-    {
-      color: RING_OUTLINE_COLOR,
-      weight: overlay.weight + RING_OUTLINE_EXTRA_WEIGHT,
-      opacity: 0.85,
-      fill: false,
-    },
-    {
-      color: overlay.color,
-      weight: overlay.weight,
-      opacity: 1,
-      dashArray: baseDash,
-      fill: false,
-    },
-  ];
-}
 
-/**
- * Wrapper that renders one or two stacked dashed circles based on the
- * risk tier — see buildRingLayers for the layering logic.
- *
- * @param {object} props
- * @param {Array<Number>} props.center [lat, lng] pair for the circle centre
- * @param {Number} props.radius Circle radius in metres
- * @param {String|null} props.risk Risk level, or null when not yet loaded
- * @param {Boolean} props.dark Dark-mode flag
- * @param {Boolean} [props.aiOff] AI summary unavailable — see buildRingLayers
- * @returns {JSX.Element} One or two stacked Circles
- */
-const RiskRing = ({ center, radius, risk, dark, aiOff, nightRed }) => {
-  const layers = buildRingLayers(risk, dark, aiOff, nightRed);
-  return (
-    <>
-      {layers.map((opts, i) => (
-        <Circle key={i} center={center} radius={radius} pathOptions={opts} />
-      ))}
-    </>
-  );
-};
 
-RiskRing.propTypes = {
-  center: PropTypes.array.isRequired,
-  radius: PropTypes.number.isRequired,
-  risk: PropTypes.string,
-  dark: PropTypes.bool,
-  aiOff: PropTypes.bool,
-  nightRed: PropTypes.bool,
-};
 
 // Mapbox basemaps served via the server proxy (keeps the API key off the client).
 const MAPBOX_ATTRIBUTION = '© <a href="https://www.mapbox.com/feedback/">Mapbox</a>';
