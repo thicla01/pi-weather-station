@@ -39,10 +39,15 @@ To replace the auto-generated chain with your own certificate (Let's Encrypt, co
 |---|---|---|
 | `server/cert.pem` | Your server certificate (+ intermediate chain concatenated if needed) | PEM (X.509) |
 | `server/key.pem` | Unencrypted private key matching `cert.pem` | PEM (PKCS#1 or PKCS#8) |
-| `server/ca-cert.pem` | Your root CA certificate (Let's Encrypt ISRG Root X1, your internal CA, etc.) — this is what `/api/cert.pem` will serve to clients | PEM (X.509) |
-| `server/ca-key.pem` | Placeholder file (can be empty or contain a dummy key) — its existence prevents the server from regenerating the CA. **Never put your real CA private key here if you have one.** | Anything |
+| `server/ca-cert.pem` *(optional)* | Your root CA certificate (Let's Encrypt ISRG Root X1, your internal CA, etc.) — this is what `/api/cert.pem` will serve to clients. Skip if `cert.pem` already contains the full chain (e.g. Let's Encrypt's `fullchain.pem`). | PEM (X.509) |
 
-> ⚠ **Known V3 limitation**: the auto-regeneration logic (see dedicated section below) triggers a leaf re-signing if `ca-cert.pem` does not carry the expected auto-generated CN (`Pi Weather Station - <hostname>`). In practice, your custom certificate is at risk of being overwritten on the next server start. The current workaround is to comment out the regeneration logic in `server/index.js`. A `SKIP_CERT_AUTOGEN=true` environment variable would be a cleaner solution — worth proposing as a pull request.
+You must also set `SKIP_CERT_AUTOGEN=true` in the server's environment
+(see [Disabling auto-regeneration](#disabling-auto-regeneration) below) —
+otherwise the server's auto-regen logic detects that the certificate
+files don't match its expected pattern (CN, SAN, CA-leaf split) and
+overwrites them with a fresh self-signed chain on the next restart.
+With the env var set, the server uses the files on disk as-is and never
+generates anything; no placeholder `ca-key.pem` is needed.
 
 > **PKCS#12 note**: if your certificate ships in **PKCS#12 (`.pfx` / `.p12`)** form, you
 > must convert it to PEM first. See the [Format conversion](#format-conversion) section below.
@@ -118,18 +123,52 @@ When only the leaf condition fires, the server regenerates the leaf using the ex
 
 ---
 
-## Disabling auto-regeneration (optional)
+## Disabling auto-regeneration
 
-If you'd rather have the server fail loudly than silently fall back to
-a self-signed certificate (e.g. in an environment where a non-compliant
-cert is unacceptable), comment out both the `if (caNeedsRegen) { ... }`
-and `if (leafNeedsRegen) { ... }` blocks in the `sslOptions()` function
-in `server/index.js` (around line 280).
+Set `SKIP_CERT_AUTOGEN=true` in the server's environment. The server
+then skips every auto-regen check (CA + leaf) and uses `cert.pem`,
+`key.pem`, and `ca-cert.pem` (if present) as-is. If `cert.pem` or
+`key.pem` is missing while the flag is set, the server fails loudly
+rather than falling back to a self-signed chain.
 
-> **Note**: this is a local code change, so it has to be re-applied on
-> every `git pull` that touches this file. A cleaner alternative would
-> be to add a `SKIP_CERT_AUTOGEN=true` environment variable — a small
-> improvement worth proposing as a pull request if this need recurs.
+### Linux (systemd user service)
+
+Create a drop-in so the change survives `git pull`:
+
+```bash
+mkdir -p ~/.config/systemd/user/pi-weather-server.service.d
+cat > ~/.config/systemd/user/pi-weather-server.service.d/byo-cert.conf <<'EOF'
+[Service]
+Environment=SKIP_CERT_AUTOGEN=true
+EOF
+systemctl --user daemon-reload
+systemctl --user restart pi-weather-server
+```
+
+### macOS (launchd agent)
+
+Edit `~/Library/LaunchAgents/com.pi-weather-station.plist` and add the
+key inside the `<dict>` that follows `<key>EnvironmentVariables</key>`:
+
+```xml
+<key>EnvironmentVariables</key>
+<dict>
+    <key>SKIP_CERT_AUTOGEN</key>
+    <string>true</string>
+    <!-- existing keys (ALLOW_REMOTE, NODE_ENV, etc.) stay as-is -->
+</dict>
+```
+
+Then reload:
+
+```bash
+launchctl unload ~/Library/LaunchAgents/com.pi-weather-station.plist
+launchctl load   ~/Library/LaunchAgents/com.pi-weather-station.plist
+```
+
+### Verifying
+
+The server logs `SKIP_CERT_AUTOGEN=true — using existing certificate files as-is, no auto-regeneration` on startup when the flag takes effect.
 
 ---
 
