@@ -1,12 +1,78 @@
-// Shared geometry + styling for the radar dashed circles. This is the
-// FIRST file of the planned `WeatherMap/geometry.js` accretion: more
-// pure helpers (offsetLatLon, buildArrowPath, buildSamplingPoints,
-// panWithRailOffset, hasVal, getMapTimestamps, the bearing tables)
-// will move here in follow-up slices. Today's extraction focuses on
-// what RiskRing needed to be liberated from index.js — the four
-// items below were inlined in WeatherMap/index.js for historical
-// reasons; nothing about them depends on react-leaflet, hooks, or
-// styles.css.
+// Shared geometry + styling for the radar overlay. Pure JS, no
+// react-leaflet / no hooks / no styles.css — every export here works
+// equally well in a sub-component file, in `index.js`, or in a unit
+// test under node:test.
+//
+// Three families of exports live together because they share concepts:
+//
+//   1. Sampling geometry — direction tables, distance grids, the
+//      great-circle `offsetLatLon` formula. Mirrors
+//      `server/radarAnalyzerCtrl.js` so a client-side sample dot lines
+//      up exactly with the point the AI summary reads from RainViewer.
+//
+//   2. Style tables — the colour palettes for the dashed risk rings,
+//      the sample-point dots, and the motion-trend arrows. All keyed
+//      by theme (light / dark / nightRed) so a palette switch resolves
+//      via lookup rather than per-component branching.
+//
+//   3. Pure helpers — small standalone functions: `tierForIntensity`,
+//      `buildRingLayers`, `buildArrowPath`, `buildSamplingPoints`,
+//      `panWithRailOffset`, `hasVal`. None take React state, none
+//      mutate anything outside their return value (or — in
+//      panWithRailOffset's case — the Leaflet map argument the caller
+//      passes in).
+
+// ─── Sampling geometry ──────────────────────────────────────────────
+
+// Sampling-point bearings (clockwise from north). Dense layout
+// (May 2026): 16 inner directions, 32 outer directions, 10 distance
+// steps per ring per unit (every 5 km / 3 mi). 481 points total when
+// extendedRadius is on. KM_PER_UNIT converts user units to km for the
+// great-circle math; METERS_PER_UNIT is what Leaflet's Circle takes.
+export const INNER_BEARINGS = Array.from({ length: 16 }, (_, i) => i * 22.5);
+export const OUTER_BEARINGS = Array.from({ length: 32 }, (_, i) => i * 11.25);
+export const KM_PER_UNIT = { km: 1, mi: 1.609344 };
+export const METERS_PER_UNIT = { km: 1000, mi: 1609.344 };
+export const RADAR_GEOMETRY = {
+  km: {
+    inner: [5, 10, 15, 20, 25, 30, 35, 40, 45, 50],
+    outer: [55, 60, 65, 70, 75, 80, 85, 90, 95, 100],
+  },
+  mi: {
+    inner: [3, 6, 9, 12, 15, 18, 21, 24, 27, 30],
+    outer: [33, 36, 39, 42, 45, 48, 51, 54, 57, 60],
+  },
+};
+const EARTH_R_KM = 6371;
+
+// Bearing → direction-name maps. Names must match the server side
+// (radarAnalyzerCtrl.js INNER_DIRECTIONS / OUTER_DIRECTIONS) exactly
+// so the per-sample lookup key `${direction}:${distance}` resolves.
+// - INNER (16 directions): standard compass names (N, NNE, NE, …, NNW)
+// - OUTER (32 directions): compass name where bearing matches one of
+//   the 16 main bearings, otherwise the bearing value itself as a
+//   string ("11.25", "33.75", …, "348.75").
+const COMPASS_16 = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",
+                    "S", "SSW", "SW", "WSW", "W", "WNW", "NW", "NNW"];
+export const BEARING_TO_DIR_INNER = Object.fromEntries(
+  INNER_BEARINGS.map((b, i) => [b, COMPASS_16[i]])
+);
+export const BEARING_TO_DIR_OUTER = Object.fromEntries(
+  OUTER_BEARINGS.map((b, i) => [b, i % 2 === 0 ? COMPASS_16[i / 2] : b.toString()])
+);
+
+// Reverse direction-name → bearing maps so the arrow renderer can
+// place each arrow at the right azimuth. Server's directionVectors
+// only carries the label; the lat/lon position is computed client-
+// side via offsetLatLon, same approach as buildSamplingPoints.
+export const DIR_INNER_TO_BEARING = Object.fromEntries(
+  Object.entries(BEARING_TO_DIR_INNER).map(([b, d]) => [d, Number(b)])
+);
+export const DIR_OUTER_TO_BEARING = Object.fromEntries(
+  Object.entries(BEARING_TO_DIR_OUTER).map(([b, d]) => [d, Number(b)])
+);
+
+// ─── Style tables ───────────────────────────────────────────────────
 
 // Risk-level colour mapping for the dashed radar circles. The three
 // tiers match the server's RISK_LEVELS in radarAnalyzerCtrl.js. Both
@@ -50,6 +116,193 @@ export const RING_RISK_STYLE = {
 
 export const RING_OUTLINE_COLOR = "#3a3938";   // dark-grey halo behind coloured strokes in light mode
 export const RING_OUTLINE_EXTRA_WEIGHT = 2;    // outline extends ~1 px on each side of the coloured stroke
+
+// Sampling-point dot palette. Diverges from RING_RISK_STYLE only on
+// the light-mode yellow: the rings' goldenrod (#c9a200) reads cleanly
+// as a 4-px stroke but drowns as a small filled disc on cream —
+// bright pure yellow #f0e600 has more visible area at dot scale.
+// Orange and red have enough mid-tone luminance to stay readable in
+// either treatment.
+export const DOT_COLOR_BY_TIER = {
+  light: { yellow: "#f0e600", orange: "#f08200", red: "#e60000" },
+  dark:  { yellow: "#f0e600", orange: "#f08200", red: "#e60000" },
+};
+
+// Stroke colour by trend. Approaching uses a warm hue (alarm-leaning),
+// leaving a cool hue (relaxed), and drifting an amber middle hue —
+// "movement detected, not urgent". All independent of the dashed-
+// circle tier colour so the arrows don't blend into the ring they
+// sit on.
+export const ARROW_COLOR = {
+  approaching: { dark: "#f87171", light: "#dc2626" }, // red-400 / red-600
+  leaving: { dark: "#60a5fa", light: "#2563eb" },     // blue-400 / blue-600
+  drifting: { dark: "#fbbf24", light: "#d97706" },    // amber-400 / amber-700
+};
+
+// ─── Pure helpers ───────────────────────────────────────────────────
+
+/**
+ * Truthy-aware predicate that treats the integer 0 as a valid value.
+ * Used by MapResizer to gate `setView` calls on the user's coordinates —
+ * `latitude === 0` is the equator (legitimate), but `latitude === null`
+ * or `latitude === undefined` is "not yet loaded" and must skip the
+ * setView. A plain `!!latitude` check would conflate the two.
+ *
+ * @param {*} i
+ * @returns {Boolean} true if `i` is truthy OR exactly the number 0
+ */
+export function hasVal(i) {
+  return !!(i || i === 0);
+}
+
+/**
+ * Intensity → tier mapping matching the server's RISK_LEVELS array.
+ * Returns null for clear (intensity 0) so the caller can keep the
+ * neutral default colour for that case.
+ *
+ * @param {Number|null} intensity
+ * @returns {"red"|"orange"|"yellow"|null}
+ */
+export function tierForIntensity(intensity) {
+  if (intensity == null || intensity <= 0) return null;
+  if (intensity >= 5) return "red";
+  if (intensity >= 4) return "orange";
+  return "yellow";
+}
+
+/**
+ * Compute a destination lat/lon from a starting point, distance, and bearing.
+ * Mirrors offsetLatLon in server/radarAnalyzerCtrl.js (great-circle formula).
+ *
+ * @param {Number} lat Starting latitude (deg)
+ * @param {Number} lon Starting longitude (deg)
+ * @param {Number} distanceKm Distance in kilometres
+ * @param {Number} bearingDeg Bearing clockwise from north (deg)
+ * @returns {{lat: Number, lon: Number}} Destination coordinates
+ */
+export function offsetLatLon(lat, lon, distanceKm, bearingDeg) {
+  const lat1 = (lat * Math.PI) / 180;
+  const lon1 = (lon * Math.PI) / 180;
+  const bearing = (bearingDeg * Math.PI) / 180;
+  const d = distanceKm / EARTH_R_KM;
+  const lat2 = Math.asin(
+    Math.sin(lat1) * Math.cos(d) + Math.cos(lat1) * Math.sin(d) * Math.cos(bearing)
+  );
+  const lon2 =
+    lon1 +
+    Math.atan2(
+      Math.sin(bearing) * Math.sin(d) * Math.cos(lat1),
+      Math.cos(d) - Math.sin(lat1) * Math.sin(lat2)
+    );
+  return { lat: (lat2 * 180) / Math.PI, lon: (lon2 * 180) / Math.PI };
+}
+
+/**
+ * Build the polyline points for a single direction arrow. Anchors the
+ * tail at the peak sample (peakDistance along the bearing) and points
+ * the head toward the centre when the band is approaching, away from
+ * the centre when leaving. The head includes a small V (~30° wing
+ * angle) so the direction reads even at a glance on a busy radar map.
+ *
+ * Length scales with magnitude (clamped 0.4× to 1.5× of half the peak
+ * distance) so a fast-moving band reads visually heavier than a small
+ * drift, but a single long arrow can't cross the entire ring and
+ * obscure other arrows. All distances are in the user's distance unit
+ * for the offsetLatLon math; result is an array of [lat, lng] pairs
+ * suitable for direct use as Polyline `positions`.
+ *
+ * @param {Array<Number>} center [lat, lng] pair (the user's location)
+ * @param {Number} bearing Bearing of this direction in degrees from north
+ * @param {Number} peakDistance Distance to the peak sample, in user units
+ * @param {Number} magnitude Inward shift over the trend window, in user units
+ * @param {String} trend "approaching" | "leaving" | "drifting"
+ * @param {Number} kmPerUnit Conversion factor for offsetLatLon
+ * @returns {Array<Array<Number>>} Polyline positions [[lat,lng], ...]
+ */
+export function buildArrowPath(center, bearing, peakDistance, magnitude, trend, kmPerUnit) {
+  const [centerLat, centerLng] = center;
+  // Arrow length: between 0.4× and 1.5× of half the peak distance, with
+  // magnitude (inward shift over 45 min) driving the scaling. A 5 km
+  // shift on a 100 km outer ring gets a short arrow; a 40 km shift gets
+  // a long one. Lower bound keeps tiny shifts visible at all.
+  const halfPeak = peakDistance * 0.5;
+  const scale = Math.max(0.4, Math.min(1.5, magnitude / 20));
+  const arrowLen = halfPeak * scale;
+  // Tail anchored at the peak sample; head offset by arrowLen along the
+  // bearing toward (approaching/drifting) or away from (leaving) the
+  // centre. Drifting bands are technically moving inward — they just
+  // didn't pass the ETA gate — so geometrically they look like
+  // approaching arrows. The colour distinguishes them.
+  const inward = trend === "approaching" || trend === "drifting";
+  const tail = offsetLatLon(centerLat, centerLng, peakDistance * kmPerUnit, bearing);
+  const headDistance = inward
+    ? Math.max(0, peakDistance - arrowLen)
+    : peakDistance + arrowLen;
+  const head = offsetLatLon(centerLat, centerLng, headDistance * kmPerUnit, bearing);
+  // V-shape arrowhead: two short wings angled 30° from the line at the
+  // head, pointing BACK toward the tail. The wings should open opposite
+  // to the direction of motion so the V reads as a normal arrow tip
+  // (apex forward, legs trailing). Direction of motion:
+  //   - approaching: tail far → head near = inward (bearing + 180)
+  //     → wings should trail outward (bearing).
+  //   - leaving: tail near → head far = outward (bearing)
+  //     → wings should trail inward (bearing + 180).
+  // The previous implementation had this inverted, which placed the
+  // wings forward of the head and made arrows read like Y-shapes —
+  // user reported "j'ai de la difficulté à interpréter les flèches".
+  const wingLen = arrowLen * 0.25;
+  const wingBearing = (inward ? bearing : bearing + 180) % 360;
+  const leftWing = offsetLatLon(head.lat, head.lon, wingLen * kmPerUnit, (wingBearing - 30 + 360) % 360);
+  const rightWing = offsetLatLon(head.lat, head.lon, wingLen * kmPerUnit, (wingBearing + 30) % 360);
+  return [
+    [tail.lat, tail.lon],
+    [head.lat, head.lon],
+    [leftWing.lat, leftWing.lon],
+    [head.lat, head.lon],
+    [rightWing.lat, rightWing.lon],
+  ];
+}
+
+/**
+ * Build the list of sampling points around a center, using the same
+ * geometry as the server radar analyzer. Each entry carries the
+ * lat/lng pair plus a `${direction}:${distance}` key that matches the
+ * server's per-sample shape — the renderer uses the key to look up
+ * the sample's intensity in the polled risk payload and colour the
+ * dot accordingly. Inner ring is always 16 directions; outer ring
+ * (when extended) is 32 directions. Sample distances vary by unit
+ * (km or mi). The centre point matches the "C" direction the server
+ * samples directly at (lat, lon) so a cell sitting right on the
+ * marker still registers in the analyzer and the risk score.
+ *
+ * @param {Array<Number>} center [lat, lng] pair
+ * @param {Boolean} extended Whether to include the outer ring
+ * @param {String} unit "km" or "mi" — selects the geometry table
+ * @returns {Array<{position: Array<Number>, key: String}>} Sample points
+ */
+export function buildSamplingPoints(center, extended, unit) {
+  const [centerLat, centerLng] = center;
+  const geometry = RADAR_GEOMETRY[unit];
+  const kmPerUnit = KM_PER_UNIT[unit];
+  const points = [{ position: [centerLat, centerLng], key: "C:0" }];
+  for (const bearing of INNER_BEARINGS) {
+    const dir = BEARING_TO_DIR_INNER[bearing];
+    for (const distance of geometry.inner) {
+      const p = offsetLatLon(centerLat, centerLng, distance * kmPerUnit, bearing);
+      points.push({ position: [p.lat, p.lon], key: `${dir}:${distance}` });
+    }
+  }
+  if (extended) {
+    for (const bearing of OUTER_BEARINGS) {
+      const dir = BEARING_TO_DIR_OUTER[bearing];
+      for (const distance of geometry.outer) {
+        const p = offsetLatLon(centerLat, centerLng, distance * kmPerUnit, bearing);
+        points.push({ position: [p.lat, p.lon], key: `${dir}:${distance}` });
+      }
+    }
+  }
+  return points;
+}
 
 /**
  * Build the Leaflet pathOptions stack for a dashed radar circle. Returns
@@ -149,15 +402,54 @@ export function buildRingLayers(risk, dark, aiOff = false, nightRed = false) {
 }
 
 /**
- * Truthy-aware predicate that treats the integer 0 as a valid value.
- * Used by MapResizer to gate `setView` calls on the user's coordinates —
- * `latitude === 0` is the equator (legitimate), but `latitude === null`
- * or `latitude === undefined` is "not yet loaded" and must skip the
- * setView. A plain `!!latitude` check would conflate the two.
+ * Pan the map so `latLng` ends up at the *visual* centre of the area
+ * NOT covered by the right rail. Leaflet's stock centring puts the
+ * latLng at viewport-centre, but in v3 ambient layouts the rail
+ * covers the right ~320 px of the map; that shifts the marker to the
+ * north-east visually even though it's geographically centred.
  *
- * @param {*} i
- * @returns {Boolean} true if `i` is truthy OR exactly the number 0
+ * Trick: project the target latLng to pixel coords at the current
+ * zoom, push the pixel point right by half the rail width, then
+ * unproject. The new map centre is geographically to the right of
+ * the marker — Leaflet centres on it, which puts the marker visually
+ * to the LEFT of viewport-centre, which is exactly the centre of the
+ * non-rail area.
+ *
+ * When `offset` is zero (v2 layout, rail collapsed, full-screen radar
+ * mode) the function falls back to a plain panTo / setView and the
+ * marker sits at the true viewport centre.
+ *
+ * Not a hook — takes the Leaflet map as an argument, returns nothing,
+ * has no React state. Safe to call from any component or imperative
+ * handler that has a map reference.
+ *
+ * @param {object} map — Leaflet map instance
+ * @param {Array<Number>} latLng — `[lat, lon]`
+ * @param {{x: Number, y: Number}} offset — pixels covered by rail / HeroBand
+ * @param {object} [opts]
+ * @param {boolean} [opts.animate=true] — true for panTo, false for
+ *   setView without animation (used on initial mount where animation
+ *   looks janky)
  */
-export function hasVal(i) {
-  return !!(i || i === 0);
+export function panWithRailOffset(map, latLng, offset, opts = {}) {
+  const { animate = true } = opts;
+  const offsetX = (offset && offset.x) || 0;
+  const offsetY = (offset && offset.y) || 0;
+  if (!offsetX && !offsetY) {
+    if (animate) map.panTo(latLng);
+    else map.setView(latLng, map.getZoom(), { animate: false });
+    return;
+  }
+  const zoom = map.getZoom();
+  const point = map.project(latLng, zoom);
+  // X: positive offset means rail covers the right edge; push the
+  //    map centre RIGHT, which moves the marker visually LEFT.
+  // Y: positive offset means the HeroBand covers the top; push the
+  //    map centre UP (smaller pixel Y), which moves the marker
+  //    visually DOWN past the band. Subtract because Leaflet's
+  //    pixel Y points DOWN.
+  const adjusted = point.add([offsetX / 2, -offsetY / 2]);
+  const newCenter = map.unproject(adjusted, zoom);
+  if (animate) map.panTo(newCenter);
+  else map.setView(newCenter, zoom, { animate: false });
 }
