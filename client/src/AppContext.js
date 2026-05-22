@@ -4,6 +4,7 @@ import PropTypes from "prop-types";
 import { getCoordsFromApi } from "~/services/geolocation";
 import { detectSystemDefaults } from "~/ui/systemPrefs";
 import { useUpdateChecker } from "~/hooks/useUpdateChecker";
+import { useScreenSaver } from "~/hooks/useScreenSaver";
 import axios from "axios";
 import tzlookup from "tz-lookup";
 
@@ -168,27 +169,25 @@ export function AppContextProvider({ children }) {
   // floor of 0.05 prevents the radar from disappearing entirely.
   const [radarOpacityLight, setRadarOpacityLight] = useState(0.7);
   const [radarOpacityDark, setRadarOpacityDark] = useState(0.3);
-  // Display brightness — null until the server reports its state. If the
-  // server says no backlight device is exposed (HDMI screens, x86, missing
-  // overlay), brightnessAvailable stays false and the slider is hidden.
-  const [brightnessPercent, setBrightnessPercent] = useState(null);
-  const [brightnessAvailable, setBrightnessAvailable] = useState(false);
-  const [brightnessMinPercent, setBrightnessMinPercent] = useState(10);
-  // Sleep mode (advanced.sleep.* in settings.json). Two-stage screensaver:
-  // stage 1 fades to a stylish minimal clock at reduced brightness after
-  // sleepStage1Delay minutes of inactivity; stage 2 (optional) goes to a
-  // black screen with an anti-burn-in moving dot at minimum brightness
-  // after another sleepStage2Delay minutes. sleepNightMode flips the stage-1
-  // colour palette to a red-tinted variant in dark mode (long-wavelength red
-  // doesn't suppress melatonin via melanopsin receptors — same reason
-  // astronomers and pilots use red lighting at night). All defaults OFF
-  // so existing installs see no change.
-  const [sleepEnabled, setSleepEnabled] = useState(false);
-  const [sleepStage1Delay, setSleepStage1Delay] = useState(10); // minutes
-  const [sleepStage1Brightness, setSleepStage1Brightness] = useState(30); // percent
-  const [sleepStage2Enabled, setSleepStage2Enabled] = useState(true);
-  const [sleepStage2Delay, setSleepStage2Delay] = useState(20); // minutes (after stage 1)
-  const [sleepNightMode, setSleepNightMode] = useState(true);
+  // Brightness + sleep-mode state live in `~/hooks/useScreenSaver`.
+  // The hook owns the /api/brightness fetch + the debounced slider
+  // setter; the sleep setters are exposed back through here so
+  // saveAdvancedSleepFlag below can still flip them optimistically
+  // before the localhost-only PATCH that persists the value to
+  // settings.json. (All sleep defaults match settings.json fallbacks:
+  // disabled by default, two-stage with night-mode red palette.)
+  const {
+    brightnessPercent,
+    brightnessAvailable,
+    brightnessMinPercent,
+    setBrightnessLive,
+    sleepEnabled, setSleepEnabled,
+    sleepStage1Delay, setSleepStage1Delay,
+    sleepStage1Brightness, setSleepStage1Brightness,
+    sleepStage2Enabled, setSleepStage2Enabled,
+    sleepStage2Delay, setSleepStage2Delay,
+    sleepNightMode, setSleepNightMode,
+  } = useScreenSaver();
   const [darkMode, setDarkMode] = useState(true);
   // When darkModeAuto is on, an interval flips darkMode at sunrise /
   // sunset based on AppContext's sunriseTime / sunsetTime. Manual taps
@@ -1430,36 +1429,6 @@ export function AppContextProvider({ children }) {
     radarOpacitySaveTimerRef.current = setTimeout(() => {
       saveAdvancedDisplayFlag("radarOpacityDark", v).catch(() => undefined);
     }, 500);
-  };
-
-  // Brightness state is fetched once on mount from /api/brightness. The
-  // server tells us whether the device exposes a backlight (sysfs path),
-  // the current value, and the floor — so the client doesn't have to
-  // hardcode anything platform-specific.
-  useEffect(() => {
-    axios.get("/api/brightness").then((res) => {
-      if (res.data?.available) {
-        setBrightnessAvailable(true);
-        setBrightnessPercent(res.data.percent);
-        if (typeof res.data.minPercent === "number") {
-          setBrightnessMinPercent(res.data.minPercent);
-        }
-      }
-    }).catch(() => undefined);
-  }, []);
-
-  // Debounced setter for the brightness slider. Same pattern as the radar
-  // opacity sliders — local state updates immediately so the slider thumb
-  // tracks the cursor smoothly, but the actual brightness write to sysfs
-  // is debounced. 250 ms here (faster than radar opacity) because users
-  // typically expect dimming to react quickly to feedback.
-  const brightnessSaveTimerRef = useRef(null);
-  const setBrightnessLive = (v) => {
-    setBrightnessPercent(v);
-    clearTimeout(brightnessSaveTimerRef.current);
-    brightnessSaveTimerRef.current = setTimeout(() => {
-      axios.post("/api/brightness", { percent: v }).catch(() => undefined);
-    }, 250);
   };
 
   // Reflect lightModeStyle into a CSS custom property so the panel,
