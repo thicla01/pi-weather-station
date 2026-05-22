@@ -7,6 +7,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+- **v3 "Ambient Layers" interface is now the default** (`experimentalUiC` flag flipped from `false` to `true` in `AppContext`). Every fresh install now boots into the v3 layout — `LayoutDesktop` / `LayoutMobile` / `LayoutPi`, `HeroBand`, `MetricsGrid`, `BottomDock`, `ChartTabs`, the ambient `SettingsPanel` and `DebugPanel`, the alert banner with collapsible detail slab, etc. Decision made during the Phase 3 tech-debt session after surfacing that active development had been on v3 for weeks (every May 2026 feature shipped first into the `components/ambient/` tree) while v2 only saw bug fixes mirrored from v3 — the dual-UI maintenance cost was paying itself daily. The toggle stays in Settings → Advanced as an escape hatch ("disable to fall back to v2 if you hit an issue") so anyone who finds a v3-only regression can roll back per-device while the fix lands; the v2 `components/Settings/`, `components/Debug/`, and the rest of the non-ambient subtree will be removed wholesale in a future minor version once a few weeks of field testing pass without user-visible regressions. i18n strings updated in en/fr/es so the toggle no longer reads "preview"/"off by default".
+
+### Added
+- **Phase 3 tech-debt: AppContext partial split + WeatherMap partial split.** Two coherent slices of the 1877-line `AppContext.js` extracted into self-contained hooks — `~/hooks/useUpdateChecker` (the in-app update flow: 12 state values + the periodic `/api/update-check` poll + the post-update reload poll + the three actions `refreshUpdateCheck` / `triggerUpdate` / `saveSkippedSha`) and `~/hooks/useScreenSaver` (brightness + sleep-mode state with the debounced slider setter). AppContext re-exports the hook returns through its context surface so every consumer keeps working with no call-site change. AppContext.js: 1877 → 1764 lines (-113). Similarly, three sub-components extracted out of the 1981-line `WeatherMap/index.js` into their own files: `RadarTimeline.js`, `RadarLegend.js`, `WeatherLayer.js`. WeatherMap/index.js: 1981 → 1704 lines (-277). Remaining slices (useWeatherData, useUiPreferences, useLocation, the `buildAdvancedSubtree` extraction; WeatherMap's Leaflet control sub-components + geometry helpers) tracked in ROADMAP.md.
+
 ## [2.17.0] - 2026-05-22
 
 ### Added

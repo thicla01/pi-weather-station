@@ -476,16 +476,15 @@ const AdvancedSettings = ({ readOnly }) => {
             </>
           )}
 
-          {/* Experimental group — DEBUG=true only during the v3.0.0
-              rollout (Phase 0+). Once Phase 8 (Settings refresh) lands,
-              this group migrates into the new "Expérimental" section
-              and becomes visible to all local users. Hidden entirely
-              for remote and for production kiosks until then.
-              See `docs/ui-direction-c-implementation-plan.md`.
-              Phase-out plan: gate removed in v2.14 so all users can opt in
-              to the v3 preview. v3 becomes the default in 3.0; the toggle
-              stays for one or two more minor releases as an escape hatch
-              before the v2 code path is removed entirely. */}
+          {/* Interface group — v2.14 removed the DEBUG=true gate so any
+              local user could opt into the v3 preview. v2.18 flipped the
+              default to true: every install now boots into v3. The
+              toggle stays here as an escape hatch until a future minor
+              version removes the v2 code path entirely
+              (`components/Settings/`, `components/Debug/`, and the
+              non-ambient subtree). See `docs/ui-direction-c-
+              implementation-plan.md` for the original rollout plan and
+              ROADMAP.md for the removal trigger. */}
           <div className={styles.groupLabel} style={{ marginTop: "1em" }}>
             {t("settings.advanced.previewGroup")}
           </div>

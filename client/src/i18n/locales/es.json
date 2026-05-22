@@ -67,9 +67,9 @@
       "sleepNightMode": "Texto rojo de noche",
       "sleepNightModeHint": "Cuando el modo oscuro está activo, usa texto rojo en lugar de crema. La luz roja de longitud de onda larga tiene impacto mínimo en la melatonina — más amable en un dormitorio o pasillo visible de noche.",
       "sleepMinutes": "{{count}} min",
-      "previewGroup": "Vista previa",
-      "ambientPreview": "Interfaz ambient (vista previa v3)",
-      "ambientPreviewHint": "Prueba la próxima interfaz v3 «Ambient Layers» — reconstrucción completa del panel principal, ajustes y depuración con un nuevo aspecto y soporte para teléfono próximamente. Desactivada por defecto; la interfaz v2 sigue siendo la versión en producción. Informa cualquier problema en github.com/thicla01/pi-weather-station/issues para que v3 se estabilice antes de convertirse en la versión predeterminada."
+      "previewGroup": "Interfaz",
+      "ambientPreview": "Interfaz ambient v3",
+      "ambientPreviewHint": "v3 es la interfaz por defecto desde v2.18 — reconstrucción completa del panel principal, ajustes y depuración con un nuevo aspecto y diseños adaptados a teléfonos. Desactiva esta opción para volver temporalmente a la interfaz v2 si encuentras un problema, e informa de él en github.com/thicla01/pi-weather-station/issues para que se corrija antes de la eliminación definitiva del código v2 en una versión futura."
     }
   },
   "weather": {

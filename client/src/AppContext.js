@@ -113,15 +113,18 @@ export function AppContextProvider({ children }) {
   // weather summary → "Calm-day fast path".
   const [calmDayFastPath, setCalmDayFastPath] = useState(true);
   // Experimental sub-tree (advanced.experimental.* in settings.json).
-  // Hosts feature flags for opt-in beta functionality. The first inhabitant
-  // is `experimentalUiC` — toggles the new Direction C UI placeholder
-  // (later: the full Ambient Layers composition). Default off so existing
-  // installs see the v2 layout unchanged until the cycle stabilises and
-  // the flag is flipped at v3.0.0. Toggle exposed in Advanced settings,
-  // gated by DEBUG=true during the development phase (May-June 2026),
-  // and surfaced for everyone once Phase 8 (Settings panel refresh) lands.
-  // See `docs/ui-direction-c-implementation-plan.md` for the full rollout.
-  const [experimentalUiC, setExperimentalUiC] = useState(false);
+  // Hosts feature flags. `experimentalUiC` originally toggled the new
+  // "Ambient Layers" v3 interface as an opt-in preview; v2.18 flipped
+  // the default to true so every install gets v3 by default. The flag
+  // stays for now as an escape hatch: a user who hits a v3-only bug can
+  // flip it off in Advanced settings and fall back to the v2 stack
+  // until a fix ships. v3-default + v2-fallback is a transition arc
+  // — once the v3 stack absorbs a few weeks of field testing without
+  // user-visible regressions, both the flag and the entire
+  // `components/Settings/`, `components/Debug/`, and other v2 trees
+  // will be removed in a single dedicated PR. Tracked in ROADMAP under
+  // "experimentalUiC migration".
+  const [experimentalUiC, setExperimentalUiC] = useState(true);
   // Mobile-only radar maximize state. LayoutMobile's `.mapCard` is
   // 220 px tall by default; tapping the maximize chevron in the
   // card's top-right corner promotes it to fill the scroll container

@@ -67,9 +67,9 @@
       "sleepNightMode": "Red text at night",
       "sleepNightModeHint": "When dark mode is active, use red-tinted text instead of cream. Long-wavelength red light has minimal impact on melatonin — friendlier in a bedroom or hallway visible at night.",
       "sleepMinutes": "{{count}} min",
-      "previewGroup": "Preview",
-      "ambientPreview": "Ambient interface (v3 preview)",
-      "ambientPreviewHint": "Try the upcoming v3 \"Ambient Layers\" interface — a full rebuild of the dashboard, settings, and debug panels with refreshed visuals and phone-friendly layouts coming. Off by default; the v2 interface remains production. Report any issue at github.com/thicla01/pi-weather-station/issues so we can stabilise v3 before it becomes the default."
+      "previewGroup": "Interface",
+      "ambientPreview": "Ambient interface v3",
+      "ambientPreviewHint": "v3 is the default interface since v2.18 — a full rebuild of the dashboard, settings, and debug panels with refreshed visuals and phone-friendly layouts. Disable this to temporarily fall back to the legacy v2 interface if you hit an issue, and please report it at github.com/thicla01/pi-weather-station/issues so we can fix it before the v2 code path is removed in a future release."
     }
   },
   "weather": {
