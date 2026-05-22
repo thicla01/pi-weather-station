@@ -110,15 +110,10 @@ if [ "$TARGET" = "enabled" ]; then
     REMOTE_IP=${CUSTOM_IP:-$DETECTED_IP}
 
     echo ""
-    echo ">> Regenerating SSL certificate for localhost and $REMOTE_IP..."
-    openssl req -x509 -newkey rsa:2048 \
-        -keyout "$REPO_DIR/server/key.pem" \
-        -out "$REPO_DIR/server/cert.pem" \
-        -days 825 -nodes \
-        -subj "/CN=localhost" \
-        -addext "subjectAltName=DNS:localhost,IP:127.0.0.1,IP:$REMOTE_IP" 2>/dev/null
-    chmod 600 "$REPO_DIR/server/key.pem"
-    echo ">> SSL certificate regenerated."
+    echo ">> The server will detect the new SAN coverage requirement on restart"
+    echo "   and re-sign the leaf cert to include $REMOTE_IP. The root CA file"
+    echo "   (ca-cert.pem) is preserved, so clients that already installed the"
+    echo "   CA stay trusted — no re-trust on phones/laptops required."
 fi
 
 # --- Apply the toggle -------------------------------------------------------
@@ -177,9 +172,6 @@ if [ "$TARGET" = "enabled" ]; then
     echo ""
     echo "  Remote clients have read-only access — settings writes"
     echo "  (API keys, coordinates) remain restricted to localhost."
-    echo ""
-    echo "  *** Note: if your IP changes, the SSL cert will no longer"
-    echo "      match. Re-run this script (or install.sh) to refresh it."
     echo "==============================================================="
 else
     echo "==============================================================="

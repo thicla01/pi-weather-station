@@ -364,20 +364,11 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
     read -p "   IP address [$DETECTED_IP]: " CUSTOM_IP
     REMOTE_IP=${CUSTOM_IP:-$DETECTED_IP}
     echo ""
-    echo ">> Generating SSL certificate for localhost and $REMOTE_IP..."
-    openssl req -x509 -newkey rsa:2048 \
-        -keyout "$REPO_DIR/server/key.pem" \
-        -out "$REPO_DIR/server/cert.pem" \
-        -days 825 -nodes \
-        -subj "/CN=localhost" \
-        -addext "subjectAltName=DNS:localhost,IP:127.0.0.1,IP:$REMOTE_IP" 2>/dev/null
-    chmod 600 "$REPO_DIR/server/key.pem"
-    echo ">> SSL certificate generated."
-    echo ""
-    echo "   *** WARNING: If your IP address changes, the SSL certificate"
-    echo "       will no longer be valid for remote connections."
-    echo "       Re-run install.sh to regenerate it with the new address."
-    echo ""
+    echo ">> The server will auto-generate its SSL certificate on first start,"
+    echo "   covering every active LAN interface (including $REMOTE_IP)."
+    echo "   If the Pi's IP changes later, the server detects the SAN mismatch"
+    echo "   on restart and re-signs the leaf cert — the root CA is preserved,"
+    echo "   so clients that already trust this Pi stay trusted."
 else
     ALLOW_REMOTE="no"
 fi
@@ -1058,10 +1049,6 @@ echo ""
 if [ "$ALLOW_REMOTE" = "yes" ]; then
     echo "   Remote access enabled — https://$REMOTE_IP:8443"
     echo "   Remote users have read-only access (settings writes always restricted to localhost)."
-    if [[ "$PLATFORM" != "Darwin" ]]; then
-        echo "   NOTE: If your Pi's IP address changes, re-run install.sh to"
-        echo "         regenerate the SSL certificate with the new address."
-    fi
     echo ""
 fi
 if [ "$DEBUG_MODE" = "yes" ]; then
