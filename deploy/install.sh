@@ -948,10 +948,18 @@ if [ "$SENSEHAT_MODE" = "yes" ]; then
         fi
     fi
     cp "$REPO_DIR/deploy/pi-sensehat.service" ~/.config/systemd/user/
+    # Also stage the clock service unit. NOT enabled / NOT started — the
+    # weather service is the default and stays enabled at boot. The clock
+    # service is parked, ready for the in-app toggle in Settings → Advanced
+    # → Sense HAT to start it via `systemctl --user start pi-sensehat-clock`.
+    # See server/sensehatModeCtrl.js for the runtime switch logic, and
+    # tools/horloge.py for the clock daemon itself.
+    cp "$REPO_DIR/deploy/pi-sensehat-clock.service" ~/.config/systemd/user/
     systemctl --user daemon-reload
     systemctl --user enable pi-sensehat
     systemctl --user start pi-sensehat
     echo ">> Service pi-sensehat enabled and started."
+    echo ">> pi-sensehat-clock.service unit installed (parked — toggled via Settings → Advanced → Sense HAT)."
     echo ">> Sense HAT logs: journalctl --user -u pi-sensehat -f"
 fi
 

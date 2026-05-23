@@ -5,6 +5,7 @@ import { getCoordsFromApi } from "~/services/geolocation";
 import { useUpdateChecker } from "~/hooks/useUpdateChecker";
 import { useScreenSaver } from "~/hooks/useScreenSaver";
 import { useUiPreferences } from "~/hooks/useUiPreferences";
+import { useSenseHatMode } from "~/hooks/useSenseHatMode";
 import axios from "axios";
 import tzlookup from "tz-lookup";
 
@@ -209,6 +210,18 @@ export function AppContextProvider({ children }) {
     clockTime, saveClockTime,
     fontSize, saveFontSize,
   } = useUiPreferences();
+
+  // Sense HAT display-mode toggle — server side probes `import sense_hat`
+  // once and toggles between pi-sensehat.service (weather animations) and
+  // pi-sensehat-clock.service (HH:MM clock). Available only on the one
+  // Pi in the current fleet that has the HAT physically attached;
+  // `senseHatAvailable` gates the UI toggle on every other host.
+  const {
+    senseHatAvailable,
+    senseHatMode,
+    saveSenseHatMode,
+  } = useSenseHatMode();
+
   // Map zoom — three pieces of state working together:
   //   - defaultMapZoom : the user's preferred starting zoom, used on next mount
   //                      (Leaflet's MapContainer reads `zoom` only on init).
@@ -1537,6 +1550,9 @@ export function AppContextProvider({ children }) {
     sleepStage2Delay,
     sleepNightMode,
     saveAdvancedSleepFlag,
+    senseHatAvailable,
+    senseHatMode,
+    saveSenseHatMode,
     experimentalUiC,
     saveAdvancedExperimentalFlag,
     mobileRadarMaximized,

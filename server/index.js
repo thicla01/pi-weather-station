@@ -47,6 +47,12 @@ const debugCtrl = require("./debugCtrl");
 const { getBrightness, setBrightness } = require("./brightnessCtrl");
 const aiSummaryCtrl = require("./aiSummaryCtrl");
 const { getSenseHatData } = require("./sensehatCtrl");
+const {
+  getSenseHatAvailable,
+  getSenseHatMode,
+  setSenseHatMode,
+  applySenseHatModeOnBoot,
+} = require("./sensehatModeCtrl");
 const { initIndoorTemperature, getIndoorTemperature } = require("./indoorTempCtrl");
 const { registerService } = require("./serviceStatus");
 
@@ -502,6 +508,10 @@ if (sslOptions) {
     initServerInfo(HTTPS_PORT, "https");
     initIndoorTemperature();
     registerKnownServices();
+    // Re-apply the persisted Sense HAT display mode (weather/clock).
+    // No-op on hosts without a Sense HAT. Fire-and-forget; the call
+    // does its own logging.
+    applySenseHatModeOnBoot().catch(() => undefined);
     await openInBrowserIfDev(`https://localhost:${HTTPS_PORT}`);
     console.log(`${appName} v${ver} has started on port ${HTTPS_PORT} (HTTPS, bound to ${HOST})`);
   });
@@ -510,6 +520,7 @@ if (sslOptions) {
     initServerInfo(PORT, "http");
     initIndoorTemperature();
     registerKnownServices();
+    applySenseHatModeOnBoot().catch(() => undefined);
     await openInBrowserIfDev(`http://localhost:${PORT}`);
     console.log(`${appName} v${ver} has started on port ${PORT} (HTTP, bound to ${HOST})`);
   });
@@ -584,6 +595,9 @@ app.get("/api/sunrise-sunset", apiLimiter, sunriseSunset);
 
 app.get("/api/weather-summary", apiLimiter, getWeatherSummary);
 app.get("/api/sensehat",            apiLimiter, getSenseHatData);
+app.get("/api/sensehat-available",  apiLimiter, getSenseHatAvailable);
+app.get("/api/sensehat-mode",       apiLimiter, getSenseHatMode);
+app.post("/api/sensehat-mode",      localhostOnly, setSenseHatMode);
 app.get("/api/indoor-temperature",  apiLimiter, getIndoorTemperature);
 
 const { getAirQuality } = require("./airQualityCtrl");

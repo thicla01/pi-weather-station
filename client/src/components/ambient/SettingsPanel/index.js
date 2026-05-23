@@ -635,6 +635,9 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
     brightnessMinPercent,
     debugEnabled,
     saveAdvancedSleepFlag,
+    senseHatAvailable,
+    senseHatMode,
+    saveSenseHatMode,
     // Display group (Phase 8b — ported in 2.14.22)
     lightModeStyle,
     darkModeStyle,
@@ -865,6 +868,31 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
                 lang={lang}
               />
             </div>
+          ) : null}
+
+          {/* Sense HAT display-mode toggle — only rendered on the one
+            * Pi in the fleet that has the HAT physically attached.
+            * `senseHatAvailable` is set by useSenseHatMode after a
+            * one-shot `python3 -c "import sense_hat"` probe on the
+            * server side. */}
+          {senseHatAvailable ? (
+            <>
+              <div className={`${styles.subhead} ${styles.subheadGap}`}>
+                {lbl(lang, "Sense HAT", "Sense HAT", "Sense HAT")}
+              </div>
+              <div className={styles.grid4}>
+                <Seg
+                  label={lbl(lang, "Display", "Affichage", "Pantalla")}
+                  options={[
+                    { v: "weather", l: lbl(lang, "Weather", "Météo", "Tiempo") },
+                    { v: "clock",   l: lbl(lang, "Clock",   "Horloge", "Reloj") },
+                  ]}
+                  value={senseHatMode || "weather"}
+                  onChange={saveSenseHatMode}
+                  disabled={remote}
+                />
+              </div>
+            </>
           ) : null}
 
           <div className={`${styles.subhead} ${styles.subheadGap}`}>

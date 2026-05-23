@@ -1,0 +1,30 @@
+[Unit]
+Description=Pi Weather Station — Sense HAT Clock Display
+# No dependency on pi-weather-server.service — the clock daemon talks
+# directly to the Sense HAT hardware and the system clock; it doesn't
+# need the weather server to be up.
+After=network.target
+
+[Service]
+Type=simple
+WorkingDirectory=%h/pi-weather-station
+ExecStart=/usr/bin/python3 %h/pi-weather-station/tools/horloge.py
+Restart=on-failure
+RestartSec=15
+# After 3 consecutive failures within 2 minutes, stop retrying.
+# Same reasoning as pi-sensehat.service: keeps us from a tight restart
+# loop when the HAT is not physically present.
+# Check status with: journalctl --user -u pi-sensehat-clock -n 20
+StartLimitIntervalSec=120
+StartLimitBurst=3
+# Flush Python print/log output immediately (no buffering).
+Environment=PYTHONUNBUFFERED=1
+
+[Install]
+# NOT enabled by default. The pi-weather-server's /api/sensehat-mode
+# endpoint starts/stops this service in response to the toggle in the
+# v3 SettingsPanel — mutual exclusion with pi-sensehat.service is
+# enforced at the server level, not at the systemd Conflicts= level,
+# because we want graceful sequencing (stop A, then start B) rather
+# than systemd's hard-kill semantics.
+WantedBy=default.target
