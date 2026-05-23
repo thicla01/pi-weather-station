@@ -73,6 +73,26 @@ export function AppContextProvider({ children }) {
       setMapTimezone(undefined);
     }
   }, [mapGeo]);
+
+  // Push the current map view to the server's kiosk-location cache so
+  // background daemons that don't know about React state — currently
+  // just `tools/sensehat_weather.py` via `/api/sensehat` — can follow
+  // what the user is looking at. Debounced 1 s so a quick pan across
+  // the map doesn't spam the endpoint with every interim coordinate.
+  // The post is best-effort: on a remote client (POST is
+  // localhostOnly) the server returns 403, which we swallow — the
+  // SenseHat at the friend's place still tracks its own kiosk, not
+  // ours, which is the intended per-Pi semantics.
+  useEffect(() => {
+    if (!mapGeo || mapGeo.latitude == null || mapGeo.longitude == null) return undefined;
+    const t = setTimeout(() => {
+      axios.post("/api/kiosk-location", {
+        lat: mapGeo.latitude,
+        lon: mapGeo.longitude,
+      }).catch(() => undefined);
+    }, 1000);
+    return () => clearTimeout(t);
+  }, [mapGeo]);
   // Whether the AI weather summary feature is operational on this Pi.
   // Starts true (optimistic) and is flipped to false when the server returns
   // 503 (no Anthropic API key configured). Used by WeatherMap to conditionally

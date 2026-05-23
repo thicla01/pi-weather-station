@@ -47,6 +47,7 @@ const debugCtrl = require("./debugCtrl");
 const { getBrightness, setBrightness } = require("./brightnessCtrl");
 const aiSummaryCtrl = require("./aiSummaryCtrl");
 const { getSenseHatData } = require("./sensehatCtrl");
+const { postKioskLocation } = require("./kioskLocationCtrl");
 const {
   getSenseHatAvailable,
   getSenseHatMode,
@@ -602,6 +603,7 @@ app.get("/api/sensehat-mode",       apiLimiter, getSenseHatMode);
 app.post("/api/sensehat-mode",      localhostOnly, setSenseHatMode);
 app.get("/api/sensehat-clock-brightness",  apiLimiter, getClockBrightness);
 app.post("/api/sensehat-clock-brightness", localhostOnly, setClockBrightness);
+app.post("/api/kiosk-location",            localhostOnly, postKioskLocation);
 app.get("/api/indoor-temperature",  apiLimiter, getIndoorTemperature);
 
 const { getAirQuality } = require("./airQualityCtrl");

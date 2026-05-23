@@ -16,6 +16,7 @@ const https = require("https");
 const { getSettingsData }    = require("./settingsCtrl");
 const { weatherCache }       = require("./proxyCtrl");
 const { getActiveAlertsAt }  = require("./govAlertsCtrl");
+const { getKioskLocation }   = require("./kioskLocationCtrl");
 
 // Severity tiers that warrant overriding the SenseHat display with an
 // alert pulse. "red" covers extreme + severe (tornado, hurricane,
@@ -85,6 +86,26 @@ function _computeIsDay(sunrise, sunset) {
  */
 async function getSenseHatData(req, res) {
   // ── 1. Location ─────────────────────────────────────────────────────────────
+  // Resolution order:
+  //   1. Kiosk in-memory cache (`/api/kiosk-location` POSTed by the
+  //      client when the user pans the map). Follows what's on screen.
+  //   2. `settings.json` `startingLat` / `startingLon` (user-chosen
+  //      persistent default).
+  //   3. ipapi.co IP-based fallback (last-resort coarse location).
+  //
+  // The kiosk cache takes precedence so the Sense HAT alert override
+  // tracks the user's current view — same alerts the AlertBanner is
+  // showing on the kiosk get reflected on the LED matrix without the
+  // user having to also save them as the persistent default.
+  let lat;
+  let lon;
+
+  const kioskLoc = getKioskLocation();
+  if (kioskLoc) {
+    lat = kioskLoc.lat;
+    lon = kioskLoc.lon;
+  }
+
   let settings;
   try {
     settings = await getSettingsData();
@@ -97,8 +118,10 @@ async function getSenseHatData(req, res) {
   // Advanced → Custom location field or cleared it). parseFloat("")
   // returns NaN, and Number.isFinite(NaN) is false — so the guard
   // below catches both "no value" and "garbage value" uniformly.
-  let lat = parseFloat(settings.startingLat);
-  let lon = parseFloat(settings.startingLon);
+  if (!Number.isFinite(lat) || !Number.isFinite(lon)) {
+    lat = parseFloat(settings.startingLat);
+    lon = parseFloat(settings.startingLon);
+  }
 
   // ── Fallback to IP-based geolocation when no location is configured ──────
   if (!Number.isFinite(lat) || !Number.isFinite(lon)) {

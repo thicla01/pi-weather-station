@@ -446,6 +446,20 @@ The optional `alert` field is included when an ECCC or NWS alert of tier `red` (
 | `sunsetTs` | integer \| null | Unix timestamp (ms) for today's sunset |
 | `alert` | object \| absent | Optional: top active gov alert (tier ≥ orange). Object shape: `{ tier: "red"\|"orange", severity: "extreme"\|"severe"\|"moderate", source: "ECCC"\|"NWS", event: string }` |
 
+**Location resolution order** (the coordinates fed into the weather + alert lookups):
+
+1. **Kiosk in-memory cache** — set by `POST /api/kiosk-location` whenever the user pans the map in the browser. Takes priority so the Sense HAT alert override tracks what the user is currently looking at on the kiosk.
+2. **`settings.json` `startingLat` / `startingLon`** — user-chosen persistent default (Settings → Avancé → Position personnalisée).
+3. **ipapi.co** — IP-based geolocation fallback when neither of the above is set. Cached server-side for 1 hour.
+
+### `POST /api/kiosk-location`
+Push the kiosk's currently-viewed map coordinates into a server-side in-memory cache. Consumed by `GET /api/sensehat` (see resolution order above) so background daemons that don't share React state with the client — currently just `tools/sensehat_weather.py` — can follow what the user is looking at.
+
+- **Access:** 🏠 Local only (kiosk runs on the same Pi as the server)
+- **Body:** `{ "lat": <number>, "lon": <number> }` — must be a finite number, `lat ∈ [-90, 90]`, `lon ∈ [-180, 180]`
+- **Response:** `204 No Content` on success, `400` with `{ "error": "..." }` on validation failure
+- **Cache lifetime:** no TTL — last write wins, cleared on server restart. The kiosk client posts (debounced 1 s) every time `mapGeo` changes; restart of `pi-weather-server` reverts the Sense HAT location source to `settings.json` → ipapi.
+
 ---
 
 ## Indoor Temperature
