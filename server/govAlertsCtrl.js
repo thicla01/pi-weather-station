@@ -39,6 +39,27 @@ function sortBySeverity(alerts) {
 }
 
 /**
+ * Merge every regional source's normalised alerts at the given
+ * point and return them sorted by severity. Exposed as a reusable
+ * helper so other controllers (notably `sensehatCtrl` for the LED
+ * matrix alert override) can resolve "is there an active gov alert
+ * here?" without duplicating the source-fan-out + sort logic. Each
+ * source's `tryAlerts` is wrapped in `.catch(() => null)` so one
+ * upstream failure doesn't blank the others.
+ *
+ * @param {Number} lat
+ * @param {Number} lon
+ * @returns {Promise<Array<Object>>} Sorted alerts, possibly empty.
+ */
+async function getActiveAlertsAt(lat, lon) {
+  const results = await Promise.all(
+    Object.values(sources).map((src) => src.tryAlerts(lat, lon).catch(() => null))
+  );
+  const merged = results.filter(Array.isArray).flat();
+  return sortBySeverity(merged);
+}
+
+/**
  * GET /api/weather-alerts?lat&lon
  * Merge every regional source's normalised alerts at the given
  * point and return them sorted by severity. Always 200; an empty
@@ -57,11 +78,7 @@ async function getWeatherAlerts(req, res) {
     return res.status(400).json("Invalid coordinates").end();
   }
 
-  const results = await Promise.all(
-    Object.values(sources).map((src) => src.tryAlerts(lat, lon).catch(() => null))
-  );
-  const merged = results.filter(Array.isArray).flat();
-  const sorted = sortBySeverity(merged);
+  const sorted = await getActiveAlertsAt(lat, lon);
 
   // 5 min HTTP cache aligns with the per-source server cache so a
   // remote client polling at the recommended 10 min cadence sees
@@ -70,4 +87,4 @@ async function getWeatherAlerts(req, res) {
   return res.status(200).json({ alerts: sorted }).end();
 }
 
-module.exports = { getWeatherAlerts };
+module.exports = { getWeatherAlerts, getActiveAlertsAt };

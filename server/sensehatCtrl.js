@@ -13,8 +13,17 @@
 
 const axios = require("axios");
 const https = require("https");
-const { getSettingsData } = require("./settingsCtrl");
-const { weatherCache }    = require("./proxyCtrl");
+const { getSettingsData }    = require("./settingsCtrl");
+const { weatherCache }       = require("./proxyCtrl");
+const { getActiveAlertsAt }  = require("./govAlertsCtrl");
+
+// Severity tiers that warrant overriding the SenseHat display with an
+// alert pulse. "red" covers extreme + severe (tornado, hurricane,
+// severe thunderstorm); "orange" covers moderate (winter storm
+// warning, freeze warning). "yellow" (minor advisories) is below the
+// override threshold — alerts at that level are routine and would
+// just spam the LED matrix.
+const SENSEHAT_ALERT_TIERS = new Set(["red", "orange"]);
 
 const API_TIMEOUT_MS   = 10_000;
 const SUN_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
@@ -155,6 +164,28 @@ async function getSenseHatData(req, res) {
   const sunriseTs = sunData?.results?.sunrise ? new Date(sunData.results.sunrise).getTime() : null;
   const sunsetTs  = sunData?.results?.sunset  ? new Date(sunData.results.sunset).getTime()  : null;
 
+  // ── 5. Government alert (best-effort) ───────────────────────────────────
+  // Hits the same ECCC + NWS orchestration the AlertBanner uses. Each
+  // source has a 5 min internal cache so polling at the LED-script
+  // cadence (60 s) only triggers an upstream fetch once per cache
+  // window. Failure here is non-fatal — we just omit the alert field
+  // and the script keeps rendering weather.
+  let alertField;
+  try {
+    const alerts = await getActiveAlertsAt(lat, lon);
+    const top = alerts.find((a) => SENSEHAT_ALERT_TIERS.has(a.tier));
+    if (top) {
+      alertField = {
+        tier:     top.tier,     // "red" | "orange"
+        severity: top.severity, // "extreme" | "severe" | "moderate"
+        source:   top.source,   // "ECCC" | "NWS"
+        event:    top.event,    // short event name e.g. "Tornado Warning"
+      };
+    }
+  } catch {
+    // Upstream errored — leave alertField undefined, no override.
+  }
+
   return res.json({
     weatherCode:       values.weatherCode       ?? null,
     precipitationType: values.precipitationType ?? 0,
@@ -163,6 +194,7 @@ async function getSenseHatData(req, res) {
     isDay,
     sunriseTs,
     sunsetTs,
+    ...(alertField ? { alert: alertField } : {}),
   });
 }
 

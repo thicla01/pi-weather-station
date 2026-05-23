@@ -32,12 +32,50 @@ Historical note
 
 import json
 import logging
+import math
 import os
 import signal
 import sys
 import time
+import urllib3
+
+import requests
 
 from sense_hat import SenseHat
+
+# ── ALERT OVERRIDE ───────────────────────────────────────────────────────────
+#
+# When a gov alert (ECCC / NWS) of severity ≥ moderate is active, the
+# clock display is replaced by the same red/orange breathing pulse that
+# `sensehat_weather.py` shows in weather mode — alerts take precedence
+# over both modes so a tornado warning at 3 a.m. isn't hidden behind
+# the user's chosen display preference. The clock fetches alert state
+# from /api/sensehat (same endpoint as the weather daemon); the
+# `alert` field is included server-side when the tier warrants the
+# override.
+#
+# Cadence: alert poll runs at 60 s. While idle (no alert) the daemon
+# wakes once per minute to refresh the clock — same as before. When
+# an alert is active, the main loop switches to FRAME_DELAY (0.12 s)
+# so the pulse animates smoothly.
+
+SERVER_URL              = "https://localhost:8443"
+ALERT_POLL_INTERVAL_SEC = 60      # how often to refetch /api/sensehat for alert state
+FRAME_DELAY_SEC         = 0.12    # animation cadence during an active alert
+
+_ALERT_COLORS = {
+    "red":    [255,  30,  30],
+    "orange": [255, 140,   0],
+}
+_ALERT_PULSE_PERIOD_TICKS = {
+    "red":    25,
+    "orange": 33,
+}
+_ALERT_BRIGHTNESS_FLOOR = 0.50
+_ALERT_BRIGHTNESS_CEILING = 1.00
+
+# Suppress InsecureRequestWarning for the localhost self-signed cert.
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
 
 # Settings file path — resolved relative to this script so we don't
 # hard-code a $HOME path that breaks for non-pi users. The kiosk's
@@ -154,6 +192,53 @@ def seconds_until_next_minute():
     return 60.0 - (time.time() % 60.0)
 
 
+def fetch_active_alert():
+    """Hit /api/sensehat and return the `alert` field if present.
+
+    The endpoint may return 200 with no `alert` key (no active alert),
+    200 with an `alert` object (active alert ≥ orange tier), or fail
+    entirely (server down / network blip). Failure returns None — the
+    daemon falls back to plain clock rendering rather than locking up.
+
+    @returns: dict|None  {"tier", "severity", "source", "event"} or None
+    """
+    try:
+        r = requests.get(
+            f"{SERVER_URL}/api/sensehat",
+            timeout=10,
+            verify=False,  # self-signed localhost cert
+        )
+        r.raise_for_status()
+        return r.json().get("alert")
+    except Exception:
+        return None
+
+
+def build_alert_frame(tier, tick, brightness_percent):
+    """Build the 64-pixel alert pulse frame.
+
+    Mirrors `_alert_frame()` from sensehat_weather.py so the display
+    is identical whether the user is in weather mode or clock mode at
+    alert onset. The user-configured clock brightness applies on top
+    of the alert's own sine pulse so the override doesn't bypass the
+    dimming the user set for night-time clock visibility.
+
+    @param tier: str  "red" or "orange"
+    @param tick: int  animation frame counter
+    @param brightness_percent: int  0-100, user's clock brightness setting
+    @returns: list of 64 [r, g, b] triples
+    """
+    base = _ALERT_COLORS.get(tier, _ALERT_COLORS["red"])
+    period = _ALERT_PULSE_PERIOD_TICKS.get(tier, _ALERT_PULSE_PERIOD_TICKS["red"])
+    amplitude = _ALERT_BRIGHTNESS_CEILING - _ALERT_BRIGHTNESS_FLOOR
+    phase = (tick / period) * 2 * math.pi
+    pulse = _ALERT_BRIGHTNESS_FLOOR + amplitude * (math.sin(phase) + 1.0) / 2.0
+    user_dim = max(0, min(100, brightness_percent)) / 100.0
+    factor = pulse * user_dim
+    scaled = [int(round(c * factor)) for c in base]
+    return [scaled] * 64
+
+
 def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
     sense = SenseHat()
@@ -180,16 +265,79 @@ def main():
     signal.signal(signal.SIGINT, cleanup_and_exit)
 
     logging.info("clock daemon started")
+
+    # Two-mode loop:
+    #   - idle (no active alert): sleep until the next minute, render
+    #     the clock once, then sleep again. Wakes briefly every
+    #     ALERT_POLL_INTERVAL_SEC to refetch alert state.
+    #   - alert active: tight FRAME_DELAY loop that renders the
+    #     breathing pulse. Refetches alert state every
+    #     ALERT_POLL_INTERVAL_SEC; transitions back to idle when the
+    #     alert clears.
+    #
+    # Both modes carry a single `tick` counter so the pulse animation
+    # advances smoothly across re-renders.
+    active_alert         = fetch_active_alert()  # initial fetch — may be None
+    next_alert_poll      = time.time() + ALERT_POLL_INTERVAL_SEC
+    tick                 = 0
+    last_rendered_minute = -1
+    last_alert_tier      = active_alert and active_alert.get("tier")
+
+    if active_alert:
+        logging.info(
+            "Active alert at startup: tier=%s source=%s event=%s — overriding clock",
+            active_alert.get("tier"), active_alert.get("source"), active_alert.get("event"),
+        )
+
     while True:
-        now = time.localtime()
+        now = time.time()
+
+        # ── Refetch alert state at fixed cadence ───────────────────
+        if now >= next_alert_poll:
+            new_alert = fetch_active_alert()
+            new_tier = new_alert and new_alert.get("tier")
+            if new_tier != last_alert_tier:
+                if new_alert:
+                    logging.info(
+                        "Alert became active: tier=%s source=%s event=%s",
+                        new_alert.get("tier"), new_alert.get("source"), new_alert.get("event"),
+                    )
+                elif last_alert_tier:
+                    logging.info("Alert cleared — returning to clock display")
+                last_alert_tier = new_tier
+                last_rendered_minute = -1  # force a clock redraw on next idle frame
+            active_alert = new_alert
+            next_alert_poll = now + ALERT_POLL_INTERVAL_SEC
+
         try:
-            sense.set_pixels(build_clock_frame(now.tm_hour, now.tm_min, hour_color, minute_color))
+            if active_alert and active_alert.get("tier") in _ALERT_COLORS:
+                # Alert mode — animate the breathing pulse.
+                sense.set_pixels(build_alert_frame(
+                    active_alert["tier"], tick, brightness,
+                ))
+                tick += 1
+                time.sleep(FRAME_DELAY_SEC)
+            else:
+                # Idle mode — redraw the clock once per minute boundary,
+                # then sleep until the next alert poll or the next
+                # minute, whichever comes first. The longer of two short
+                # sleeps keeps the daemon responsive to alert arrivals
+                # without burning CPU during quiet periods.
+                local = time.localtime()
+                if local.tm_min != last_rendered_minute:
+                    sense.set_pixels(build_clock_frame(
+                        local.tm_hour, local.tm_min, hour_color, minute_color,
+                    ))
+                    last_rendered_minute = local.tm_min
+                wait_for_alert  = max(0.5, next_alert_poll - time.time())
+                wait_for_minute = seconds_until_next_minute()
+                time.sleep(min(wait_for_alert, wait_for_minute))
         except Exception as exc:
             # Don't crash the daemon on a single bad frame — the i2c
-            # bus can occasionally drop a transaction. Log it, wait
-            # for the next minute, try again.
-            logging.warning("set_pixels failed: %s", exc)
-        time.sleep(seconds_until_next_minute())
+            # bus can occasionally drop a transaction. Log it, wait a
+            # short tick, try again.
+            logging.warning("render failed: %s", exc)
+            time.sleep(1.0)
 
 
 if __name__ == "__main__":

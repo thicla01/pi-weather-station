@@ -51,7 +51,15 @@ except Exception as exc:
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 
 SERVER_URL    = "https://localhost:8443"  # pi-weather-station server (same Pi)
-POLL_INTERVAL = 10 * 60                  # seconds between weather API calls
+# Poll cadence. 60 s lets us pick up an incoming gov alert within a
+# minute of it appearing in the ECCC / NWS feed — short enough that a
+# tornado warning doesn't sit invisible for 10 minutes, long enough
+# that the server's internal alert-source caches (5 min TTL) absorb
+# most calls without an upstream fetch. Weather state from
+# `/api/sensehat` is fetched in the same call but updates slowly; the
+# "Updated" log line below is gated on actual state change so the
+# faster cadence doesn't add log noise.
+POLL_INTERVAL = 60                       # seconds between /api/sensehat calls
 FRAME_DELAY   = 0.12                     # seconds between animation frames
 
 # Rotation of the LED matrix (degrees): 0 / 90 / 180 / 270.
@@ -479,6 +487,56 @@ def _clear_night_frame(tick):
     return frame
 
 
+# ── GOV ALERT OVERRIDE ───────────────────────────────────────────────────────
+#
+# Active gov alert (ECCC / NWS) of severity ≥ moderate takes precedence
+# over every other display state. The whole 8×8 matrix becomes a slow
+# sinusoidal breathing pulse in the tier colour — red for extreme /
+# severe (tornado, severe thunderstorm), orange for moderate (winter
+# storm warning, freeze warning). Yellow-tier minor advisories don't
+# trigger the override (filtered server-side in `sensehatCtrl`); they
+# would be routine and just spam the LED matrix.
+#
+# Two design choices worth flagging for future maintainers:
+#   1. Full-matrix override rather than a coloured border around the
+#      weather frame. The compromise version was tried in mockups and
+#      reads as "fancy weather decoration" rather than "look at me" —
+#      not what an alert needs to convey at 3 a.m. across a dark room.
+#   2. Red pulses faster (~3 s) than orange (~4 s). Period encodes
+#      urgency, not just colour — a glance picks up "urgent" vs
+#      "preoccupant" even before the eye registers the hue.
+
+_ALERT_COLORS = {
+    "red":    (255,  30,  30),   # extreme / severe — tornado, hurricane, severe T-storm
+    "orange": (255, 140,   0),   # moderate         — winter storm warning, freeze, etc.
+}
+_ALERT_PULSE_PERIOD_TICKS = {
+    "red":    25,                 # ~3 s at FRAME_DELAY=0.12 s
+    "orange": 33,                 # ~4 s at FRAME_DELAY=0.12 s
+}
+# Floor lifted to 0.50 (rather than the star-twinkle 0.65) because the
+# whole matrix is lit here — at 0.65 the "off" phase is barely
+# distinguishable from "on" so the pulse vanishes. 0.50 gives a clearly
+# perceptible 50 → 100 % swing without the dim phase reading as off.
+_ALERT_BRIGHTNESS_FLOOR = 0.50
+_ALERT_BRIGHTNESS_CEILING = 1.00
+
+
+def _alert_frame(tier, tick):
+    """Full-matrix breathing pulse in the alert tier colour.
+
+    @param tier: str  "red" or "orange" (validated server-side)
+    @param tick: int  animation frame counter
+    @returns: list    64-element flat list of RGB tuples
+    """
+    base = _ALERT_COLORS.get(tier, _ALERT_COLORS["red"])
+    period = _ALERT_PULSE_PERIOD_TICKS.get(tier, _ALERT_PULSE_PERIOD_TICKS["red"])
+    amplitude = _ALERT_BRIGHTNESS_CEILING - _ALERT_BRIGHTNESS_FLOOR
+    phase = (tick / period) * 2 * math.pi
+    brightness = _ALERT_BRIGHTNESS_FLOOR + amplitude * (math.sin(phase) + 1.0) / 2.0
+    return [_scale_color(base, brightness)] * 64
+
+
 def _sunset_frame(sun_row, sun_col):
     """
     Clear day sky + red horizon glow when the sun is low (sun_row >= 4).
@@ -789,26 +847,23 @@ def _find_sensehat_fb():
 _FB_PATH = None  # resolved once at first render
 
 
-def _render(sense, state, is_day, tick, sun_row=0, sun_col=3):
-    """
-    Build and push one frame to the Sense HAT.
+def _push_frame(sense, frame):
+    """Push a 64-pixel frame buffer to the Sense HAT framebuffer.
 
-    Writes directly to the framebuffer device in RGB565 format, bypassing
-    the sense_hat library's internal pixel cache which only sends changed
-    pixels and causes previous pixel colours to bleed into new frames.
+    Writes directly to the framebuffer device in RGB565 format,
+    bypassing the sense_hat library's internal pixel cache which only
+    sends changed pixels and causes previous pixel colours to bleed
+    into new frames. Falls back to `sense.set_pixels` when the
+    framebuffer device can't be opened.
 
-    @param sense:   SenseHat instance (fallback only)
-    @param state:   str  display state
-    @param is_day:  bool true between sunrise and sunset
-    @param tick:    int  animation frame counter
-    @param sun_row: int  top row of the sun block (0=zenith … 6=horizon)
-    @param sun_col: int  left col of the sun block (0=east … 6=west)
+    Shared by the weather (`_render`) and alert (`_render_alert`)
+    render paths — both produce a 64-pixel buffer and want the same
+    rotation + RGB565 + framebuffer pipeline.
+
+    @param sense: SenseHat instance (fallback only)
+    @param frame: list of 64 RGB tuples in row-major order
     """
     global _FB_PATH
-
-    brightness = BRIGHTNESS_DAY if is_day else BRIGHTNESS_NIGHT
-    frame = get_frame(state, is_day, tick, sun_row, sun_col)
-    frame = apply_brightness(frame, brightness)
 
     # ── Build rotated 8×8 grid ────────────────────────────────────────────
     grid = [frame[y * 8 + x] for y in range(8) for x in range(8)]
@@ -848,6 +903,42 @@ def _render(sense, state, is_day, tick, sun_row=0, sun_col=3):
         log.error("set_pixels fallback failed: %s", exc)
 
 
+def _render(sense, state, is_day, tick, sun_row=0, sun_col=3):
+    """Build the weather frame and push it.
+
+    @param sense:   SenseHat instance (fallback only)
+    @param state:   str  display state
+    @param is_day:  bool true between sunrise and sunset
+    @param tick:    int  animation frame counter
+    @param sun_row: int  top row of the sun block (0=zenith … 6=horizon)
+    @param sun_col: int  left col of the sun block (0=east … 6=west)
+    """
+    brightness = BRIGHTNESS_DAY if is_day else BRIGHTNESS_NIGHT
+    frame = get_frame(state, is_day, tick, sun_row, sun_col)
+    frame = apply_brightness(frame, brightness)
+    _push_frame(sense, frame)
+
+
+def _render_alert(sense, tier, tick, is_day):
+    """Build the alert pulse frame and push it.
+
+    Renders the full-matrix breathing pulse override that takes
+    precedence over weather (and clock, in the clock daemon's
+    parallel implementation). Brightness is still gated by day/night
+    so the override doesn't blind at 3 a.m. — the dim multiplier
+    applies on top of the alert frame's own sine pulse.
+
+    @param sense:  SenseHat instance (fallback only)
+    @param tier:   str  "red" or "orange"
+    @param tick:   int  animation frame counter
+    @param is_day: bool true between sunrise and sunset
+    """
+    brightness = BRIGHTNESS_DAY if is_day else BRIGHTNESS_NIGHT
+    frame = _alert_frame(tier, tick)
+    frame = apply_brightness(frame, brightness)
+    _push_frame(sense, frame)
+
+
 # ── MAIN LOOP ─────────────────────────────────────────────────────────────────
 
 def run():
@@ -859,12 +950,14 @@ def run():
     # suppressed in that case so we don't show a misleading default scene
     # (e.g. midday sun at midnight) when pi-sensehat starts before the
     # weather server is responsive.
-    base_state  = None
-    is_day      = None
-    sunrise_ts  = None
-    sunset_ts   = None
-    tick        = 0
-    last_render = None  # (state, is_day, sun_row, sun_col) of the last rendered frame
+    base_state    = None
+    is_day        = None
+    sunrise_ts    = None
+    sunset_ts     = None
+    active_alert  = None   # None or {"tier", "severity", "source", "event"} from /api/sensehat
+    tick          = 0
+    last_render   = None   # (state, is_day, sun_row, sun_col) of the last rendered static frame
+    last_log_key  = None   # cache key for the "Updated" log — gates noise at 60 s polling
 
     log.info("Sense HAT display started (rotation=%d°, poll every %ds)", ROTATION, POLL_INTERVAL)
 
@@ -873,15 +966,18 @@ def run():
     sense.clear((0, 0, 0))
     initial = fetch_weather_with_retry()
     if initial:
-        base_state = classify(initial.get("weatherCode"), initial.get("cloudCover", 0))
-        is_day     = initial.get("isDay", True)
-        sunrise_ts = initial.get("sunriseTs")
-        sunset_ts  = initial.get("sunsetTs")
+        base_state   = classify(initial.get("weatherCode"), initial.get("cloudCover", 0))
+        is_day       = initial.get("isDay", True)
+        sunrise_ts   = initial.get("sunriseTs")
+        sunset_ts    = initial.get("sunsetTs")
+        active_alert = initial.get("alert")
         log.info(
-            "Initial state — code=%s state=%s isDay=%s temp=%s°C",
+            "Initial state — code=%s state=%s isDay=%s temp=%s°C alert=%s",
             initial.get("weatherCode"), base_state, is_day,
             f"{initial['temperature']:.1f}" if initial.get("temperature") is not None else "?",
+            (active_alert and f"{active_alert.get('tier')}/{active_alert.get('source')}/{active_alert.get('event')}") or "none",
         )
+        last_log_key = (base_state, is_day, active_alert and active_alert.get("tier"))
     else:
         log.warning("Server unreachable after retries — display blank until a fetch succeeds")
 
@@ -890,20 +986,30 @@ def run():
     while True:
         now = time.time()
 
-        # ── Re-fetch weather every POLL_INTERVAL seconds ──────────────────────
+        # ── Re-fetch weather + alert every POLL_INTERVAL seconds ─────────────
         if now >= next_poll:
             data = fetch_weather()
             if data:
-                was_blank  = base_state is None
-                base_state = classify(data.get("weatherCode"), data.get("cloudCover", 0))
-                is_day     = data.get("isDay", True)
-                sunrise_ts = data.get("sunriseTs")
-                sunset_ts  = data.get("sunsetTs")
-                log.info(
-                    "Updated — code=%s state=%s isDay=%s temp=%s°C",
-                    data.get("weatherCode"), base_state, is_day,
-                    f"{data['temperature']:.1f}" if data.get("temperature") is not None else "?",
-                )
+                was_blank    = base_state is None
+                base_state   = classify(data.get("weatherCode"), data.get("cloudCover", 0))
+                is_day       = data.get("isDay", True)
+                sunrise_ts   = data.get("sunriseTs")
+                sunset_ts    = data.get("sunsetTs")
+                active_alert = data.get("alert")  # dict or None
+                # Gate the "Updated" log on actual state change. With
+                # POLL_INTERVAL=60 s we'd otherwise emit 60 lines/hour
+                # for what's typically static weather; this drops it to
+                # one line per real transition (state, day↔night, or
+                # alert tier change).
+                log_key = (base_state, is_day, active_alert and active_alert.get("tier"))
+                if log_key != last_log_key:
+                    log.info(
+                        "Updated — code=%s state=%s isDay=%s temp=%s°C alert=%s",
+                        data.get("weatherCode"), base_state, is_day,
+                        f"{data['temperature']:.1f}" if data.get("temperature") is not None else "?",
+                        (active_alert and f"{active_alert.get('tier')}/{active_alert.get('source')}/{active_alert.get('event')}") or "none",
+                    )
+                    last_log_key = log_key
                 if was_blank:
                     log.info("Display now active after recovery")
             elif base_state is None:
@@ -915,6 +1021,18 @@ def run():
         # Suppress rendering until at least one successful fetch.
         if base_state is None:
             time.sleep(FRAME_DELAY)
+            continue
+
+        # ── Gov alert override (highest priority) ───────────────────────────
+        # Active red/orange tier alert from ECCC/NWS → full-matrix
+        # breathing pulse, replaces every weather animation. Yellow/minor
+        # is filtered out server-side so we don't need to re-check the
+        # tier here. Always animated.
+        if active_alert and active_alert.get("tier") in ("red", "orange"):
+            _render_alert(sense, active_alert["tier"], tick, is_day)
+            last_render = None  # invalidate the static cache so weather redraws on alert clear
+            time.sleep(FRAME_DELAY)
+            tick += 1
             continue
 
         # ── Resolve final display state (sunset override on clear days) ───────

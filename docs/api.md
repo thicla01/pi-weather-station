@@ -423,9 +423,17 @@ When no location is configured in `settings.json` (`startingLat` / `startingLon`
   "temperature":       14.2,
   "isDay":             true,
   "sunriseTs":         1777110561000,
-  "sunsetTs":          1777161287000
+  "sunsetTs":          1777161287000,
+  "alert": {
+    "tier":     "red",
+    "severity": "extreme",
+    "source":   "ECCC",
+    "event":    "Tornado Warning"
+  }
 }
 ```
+
+The optional `alert` field is included when an ECCC or NWS alert of tier `red` (extreme/severe) or `orange` (moderate) is active for the resolved coordinates. Yellow-tier minor advisories are filtered out — they're routine and would just spam the LED matrix. The Sense HAT script renders a tier-coloured breathing-pulse override over the full 8×8 matrix when this field is present; the absence of the field means "no override, show weather as normal".
 
 | Field | Type | Description |
 |---|---|---|
@@ -436,6 +444,7 @@ When no location is configured in `settings.json` (`startingLat` / `startingLon`
 | `isDay` | boolean | `true` between sunrise and sunset (hour-based fallback if sunrise-sunset.org unavailable) |
 | `sunriseTs` | integer \| null | Unix timestamp (ms) for today's sunrise — used by the Python script to position the sun on its arc |
 | `sunsetTs` | integer \| null | Unix timestamp (ms) for today's sunset |
+| `alert` | object \| absent | Optional: top active gov alert (tier ≥ orange). Object shape: `{ tier: "red"\|"orange", severity: "extreme"\|"severe"\|"moderate", source: "ECCC"\|"NWS", event: string }` |
 
 ---
 
