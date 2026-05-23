@@ -197,7 +197,12 @@ FRAME_PARTLY_CLOUDY_DAY = [
     B,  B,  B,  B,  B,  B,  B,  B,
 ]
 
-# 🌤🌙  Partly cloudy — night: same cloud on dark sky with stars peeking below
+# 🌤🌙  Partly cloudy — night: same cloud on dark sky with stars peeking
+# below. Pre-2026-05 this was rendered as the static frame below; it is now
+# built dynamically by `_partly_cloudy_night_frame(tick)` so the cloud
+# drifts horizontally and the stars beneath twinkle. The constant is kept
+# as documentation of the canonical star positions, which are extracted
+# into `_PARTLY_CLOUDY_NIGHT_STARS` for the animated builder.
 FRAME_PARTLY_CLOUDY_NIGHT = [
     N,  N,  CL, CL, CL, CL, N,  N,
     N,  CL, CL, CL, CL, CL, CL, N,
@@ -207,6 +212,36 @@ FRAME_PARTLY_CLOUDY_NIGHT = [
     S,  N,  N,  S,  N,  N,  N,  S,
     N,  N,  S,  N,  N,  N,  N,  N,
     N,  N,  N,  N,  S,  N,  S,  N,
+]
+
+# Base cloud shape (row, col, color) shared by `_partly_cloudy_day_frame`
+# and `_partly_cloudy_night_frame`. The animated builders apply a
+# horizontal offset modulo 8, so the cloud drifts across the screen and
+# wraps at the edge — when half the cloud exits on the right, the other
+# half re-enters from the left, giving the illusion of an endless
+# parade of clouds across the sky.
+_CLOUD_BASE_PIXELS = [
+    (0, 2, CL), (0, 3, CL), (0, 4, CL), (0, 5, CL),
+    (1, 1, CL), (1, 2, CL), (1, 3, CL), (1, 4, CL), (1, 5, CL), (1, 6, CL),
+    (2, 1, CL), (2, 2, CD), (2, 3, CD), (2, 4, CD), (2, 5, CD), (2, 6, CL),
+    (3, 2, CD), (3, 3, CD), (3, 4, CD), (3, 5, CD),
+]
+
+# Drift rate. 100 ticks @ FRAME_DELAY=0.12 s ≈ 12 s per pixel of drift,
+# so a full 8-px traversal takes ~1.6 minutes. The pace is intentionally
+# slow — fast enough that a 30-second glance reveals motion, slow enough
+# that a quick look reads as a still picture rather than a screensaver.
+_CLOUD_DRIFT_PERIOD_TICKS = 100
+
+# Star positions for partly-cloudy night, extracted from
+# `FRAME_PARTLY_CLOUDY_NIGHT` above. All sit in rows 5-7 because the
+# upper half of the sky is occluded by the drifting cloud. The animated
+# builder twinkles these on the same sine cycle as the clear-night
+# stars.
+_PARTLY_CLOUDY_NIGHT_STARS = [
+    (5, 0), (5, 3), (5, 7),
+    (6, 2),
+    (7, 4), (7, 6),
 ]
 
 # ☁️  Overcast: textured grey checkerboard to suggest thick cloud cover
@@ -305,31 +340,75 @@ def _clear_day_frame(sun_row, sun_col):
     return frame
 
 
-def _partly_cloudy_day_frame(sun_row, sun_col):
+def _cloud_offset(tick):
+    """Return the current horizontal cloud-drift offset in [0, 7].
+    Increments by 1 every `_CLOUD_DRIFT_PERIOD_TICKS` ticks, then wraps.
+    Used by both partly-cloudy builders so the day and night versions
+    drift at exactly the same rate.
+    """
+    return (tick // _CLOUD_DRIFT_PERIOD_TICKS) % 8
+
+
+def _draw_cloud(frame, offset):
+    """Overlay `_CLOUD_BASE_PIXELS` onto `frame` with a horizontal shift
+    of `offset` columns, wrapping at the edge so the cloud appears to
+    drift continuously across the screen.
+    """
+    for r, c, color in _CLOUD_BASE_PIXELS:
+        frame[r * 8 + ((c + offset) % 8)] = color
+
+
+def _partly_cloudy_day_frame(sun_row, sun_col, tick):
     """
     Blue sky with the dynamic sun at (sun_row, sun_col) and a grey cloud
-    overlaid on the upper portion. The cloud draws on top of the sun, so
-    when the sun is high (rows 0–3) it is partially or fully hidden behind
-    the cloud — just like real partly-cloudy conditions.
+    drifting horizontally across the upper portion. The cloud draws on
+    top of the sky+sun base, so when the sun is high (rows 0–3) it is
+    partially or fully hidden as the cloud passes over it — just like
+    real partly-cloudy conditions where the sun ducks behind a cloud.
 
     @param sun_row: int  top row of the sun (0–6)
     @param sun_col: int  left col of the sun (0–6)
+    @param tick:    int  animation frame counter — drives cloud drift
     @returns: list  64-element flat list of RGB tuples
     """
     frame = _clear_day_frame(sun_row, sun_col)
-    # Cloud pixels overlaid on top of the sky+sun base
-    cloud_pixels = [
-        (0, 2, CL), (0, 3, CL), (0, 4, CL), (0, 5, CL),
-        (1, 1, CL), (1, 2, CL), (1, 3, CL), (1, 4, CL), (1, 5, CL), (1, 6, CL),
-        (2, 1, CL), (2, 2, CD), (2, 3, CD), (2, 4, CD), (2, 5, CD), (2, 6, CL),
-        (3, 2, CD), (3, 3, CD), (3, 4, CD), (3, 5, CD),
-    ]
-    for r, c, color in cloud_pixels:
-        frame[r * 8 + c] = color
+    _draw_cloud(frame, _cloud_offset(tick))
     # Horizon glow when sun is low — same behaviour as sunset frame
     if sun_row >= 4:
         for c in range(max(0, sun_col - 1), min(8, sun_col + 3)):
             frame[7 * 8 + c] = R
+    return frame
+
+
+def _partly_cloudy_night_frame(tick):
+    """
+    Dark sky with twinkling stars in the lower half (rows 5–7) and a
+    drifting cloud occluding the upper half. The cloud uses the same
+    base shape and drift period as the day version, and the stars use
+    the same sine-pulse twinkle as the clear-night frame (slightly
+    different positions because the upper half is occupied by the
+    cloud).
+
+    No shooting star here — its diagonal path runs through the cloud
+    occlusion zone, so it would visibly clip in and out and look broken.
+    The clear-night frame keeps the shooting star to itself.
+
+    @param tick: int — animation frame counter
+    @returns: list — 64-element flat list of RGB tuples
+    """
+    frame = [NIGHT_SKY] * 64
+
+    # ── Twinkling stars (lower half only) ─────────────────────────
+    amplitude = _STAR_BRIGHTNESS_CEILING - _STAR_BRIGHTNESS_FLOOR
+    for i, (row, col) in enumerate(_PARTLY_CLOUDY_NIGHT_STARS):
+        phase = (tick / _STAR_TWINKLE_PERIOD_TICKS
+                 + i / len(_PARTLY_CLOUDY_NIGHT_STARS)) * 2 * math.pi
+        brightness = _STAR_BRIGHTNESS_FLOOR + amplitude * (math.sin(phase) + 1.0) / 2.0
+        frame[row * 8 + col] = _scale_color(STAR_WHITE, brightness)
+
+    # ── Drifting cloud (upper half) ────────────────────────────────
+    _draw_cloud(frame, _cloud_offset(tick))
+
     return frame
 
 
@@ -551,8 +630,8 @@ def get_frame(state, is_day, tick, sun_row=0, sun_col=3):
         return list(FRAME_OVERCAST)
     if state == "partly_cloudy":
         if is_day:
-            return _partly_cloudy_day_frame(sun_row, sun_col)
-        return list(FRAME_PARTLY_CLOUDY_NIGHT)
+            return _partly_cloudy_day_frame(sun_row, sun_col, tick)
+        return _partly_cloudy_night_frame(tick)
     if state == "sunset":
         return _sunset_frame(sun_row, sun_col)
     # "clear"
@@ -637,9 +716,35 @@ def is_sunset_soon(sunset_ts):
     return 0 < seconds_to_sunset < SUNSET_WINDOW_SEC
 
 
-# States that require continuous redraws (animation).
-# All other states are static: set_pixels is called only when state changes.
-_ANIMATED_STATES = {"rain", "rain_light", "snow", "ice", "storm"}
+# States that require continuous redraws regardless of day/night.
+# Other states may still need redraws conditionally — see `_is_animated`.
+_ANIMATED_STATES = {"rain", "rain_light", "snow", "ice", "storm", "partly_cloudy"}
+
+
+def _is_animated(state, is_day):
+    """Return True if `state` (in current day/night context) needs a
+    fresh frame on every tick. The main loop uses this to decide
+    whether to advance the animation counter or fall through to the
+    static-cache branch.
+
+    Most state/day-night combinations are static (clear day, sunset,
+    overcast, fog) — they only redraw when the cache key changes. Two
+    cases need per-tick redraws even though their `state` value isn't
+    in `_ANIMATED_STATES` outright:
+
+      * `clear` + night: the night sky has subtle star twinkle and an
+        occasional shooting star, both driven by `tick`.
+
+    Without this helper the clear-night animation built in
+    `_clear_night_frame(tick)` would never play — the cache key
+    `("clear", False, 0, 3)` is constant overnight, so the static
+    branch would render the very first frame and never update.
+    """
+    if state in _ANIMATED_STATES:
+        return True
+    if state == "clear" and not is_day:
+        return True
+    return False
 
 
 def _find_sensehat_fb():
@@ -816,7 +921,7 @@ def run():
             sun_row, sun_col = 0, 3
 
         # ── Render ────────────────────────────────────────────────────────────
-        if state in _ANIMATED_STATES:
+        if _is_animated(state, is_day):
             # Animated: redraw every frame to advance the animation.
             _render(sense, state, is_day, tick, sun_row, sun_col)
             time.sleep(FRAME_DELAY)
@@ -881,7 +986,7 @@ def run_test():
                         _render(sense, state, is_day, tick, sun_row, sun_col)
                         time.sleep(FRAME_DELAY)
                         tick += 1
-                elif state not in _ANIMATED_STATES:
+                elif not _is_animated(state, is_day):
                     _render(sense, state, is_day, tick, 0, 3)
                     while time.time() < deadline:
                         time.sleep(FRAME_DELAY)

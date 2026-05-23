@@ -7,6 +7,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- **Sense HAT — partly-cloudy day and night now animate (cloud drift + star twinkle).** Both partly-cloudy frames were static pre-2026-05; they now share a drifting-cloud builder that shifts the canonical cloud shape one column every ~12 s, wrapping at the screen edge so the cloud reappears on the other side. At night the same drift overlays a sky of twinkling stars in the lower half (the upper half is occupied by the cloud), reusing the sine-pulse twinkle from the clear-night animation. The shooting star stays exclusive to the clear-night frame — its diagonal path would clip in and out of the cloud occlusion zone and read as broken.
+
+### Fixed
+- **Sense HAT — clear-night twinkle and shooting star never actually played.** Yesterday's `acfbf97` commit added the animation builder but didn't widen the main loop's animation gate, so the clear-night cache key `("clear", False, 0, 3)` was static and only the first frame ever reached the framebuffer. Replaced the bare `state in _ANIMATED_STATES` checks in both `run()` and `run_test()` with a new `_is_animated(state, is_day)` helper that ORs the explicit animated set with the "clear at night" case. Same helper now covers the partly-cloudy day/night drift (`partly_cloudy` is now in `_ANIMATED_STATES` outright).
+
 ## [2.18.1] - 2026-05-22
 
 ### Fixed
