@@ -132,7 +132,20 @@ X  = STORM_BG
 # ☀️  Sunset: same as clear_day but with 4 red pixels at the bottom row (horizon glow).
 # Both are built dynamically by _clear_day_frame() / _sunset_frame() using sun_row.
 
-# 🌙  Clear sky — night: black with scattered warm-white stars
+# 🌙  Clear sky — night. Pre-2026-05 this was a static frame (black
+# background + scattered warm-white stars at fixed brightness). The
+# new `_clear_night_frame(tick)` builder below animates the same star
+# positions with two effects:
+#   1. Each star independently pulses brightness on a slow sine cycle
+#      (~4 s) with a per-star phase offset, giving the screen a
+#      breathing "alive" feel that the static frame lacked.
+#   2. Every ~90 s a shooting star streaks diagonally across the
+#      grid (~1.4 s total) — a brief delightful moment that you'd
+#      catch only if you happened to glance at the HAT.
+# Both effects are subtle by design: stars never fully extinguish
+# (floor at 40 % brightness), and the shooting star is short enough
+# that it reads as a "did I just see that?" event rather than a
+# distraction.
 FRAME_CLEAR_NIGHT = [
     N,  N,  S,  N,  N,  N,  S,  N,
     N,  N,  N,  N,  S,  N,  N,  N,
@@ -143,6 +156,34 @@ FRAME_CLEAR_NIGHT = [
     N,  N,  S,  N,  N,  S,  N,  N,
     S,  N,  N,  N,  N,  N,  N,  N,
 ]
+
+# Extracted star positions (row, col) from FRAME_CLEAR_NIGHT above,
+# in source order. The animation builder uses the list index as the
+# per-star phase offset so adjacent stars never twinkle in lockstep.
+_NIGHT_STARS = [
+    (0, 2), (0, 6),
+    (1, 4),
+    (2, 0), (2, 7),
+    (3, 3),
+    (4, 1), (4, 6),
+    (5, 4),
+    (6, 2), (6, 5),
+    (7, 0),
+]
+
+# Twinkle parameters. The cycle is intentionally slow — fast pulsing
+# reads as "broken pixel" rather than "stars in the sky".
+_STAR_TWINKLE_PERIOD_TICKS = 33   # ~4 s at FRAME_DELAY=0.12 s
+_STAR_BRIGHTNESS_FLOOR = 0.40     # never fully dark (stars don't blink off)
+_STAR_BRIGHTNESS_CEILING = 1.00
+
+# Shooting-star parameters. Diagonal path top-right → bottom-left
+# (visually right-to-left + top-to-bottom, the conventional Western
+# direction for shooting-star drawings). The streak is one bright
+# head pixel + a 2-pixel decaying trail behind.
+_SHOOTING_STAR_PERIOD_TICKS = 750     # ~90 s at FRAME_DELAY=0.12 s
+_SHOOTING_STAR_DURATION_TICKS = 12    # ~1.4 s start to finish
+_SHOOTING_STAR_TRAIL_LEN = 3          # head + 2 trailing pixels
 
 # 🌤  Partly cloudy — day: blue sky with grey cloud on upper half
 FRAME_PARTLY_CLOUDY_DAY = [
@@ -289,6 +330,66 @@ def _partly_cloudy_day_frame(sun_row, sun_col):
     if sun_row >= 4:
         for c in range(max(0, sun_col - 1), min(8, sun_col + 3)):
             frame[7 * 8 + c] = R
+    return frame
+
+
+def _scale_color(rgb, brightness):
+    """Multiply each channel of an RGB tuple by a 0.0–1.0 factor.
+    Clamped to [0, 255] so the math can't overflow into invalid pixels.
+    Returned as a tuple so the SenseHat library accepts it directly.
+    """
+    return tuple(max(0, min(255, int(round(c * brightness)))) for c in rgb)
+
+
+def _clear_night_frame(tick):
+    """Animated night sky: same star positions as the original
+    `FRAME_CLEAR_NIGHT` constant, plus per-star twinkle (slow sine
+    pulse) and an occasional shooting star streak.
+
+    @param tick: int — animation frame counter, monotonically incremented
+                       once per FRAME_DELAY in the main loop.
+    @returns: list — 64-element flat list of RGB tuples
+    """
+    frame = [NIGHT_SKY] * 64
+
+    # ── Twinkling stars ───────────────────────────────────────────
+    # Each star pulses on the same period but with a phase offset
+    # derived from its index, so they never all peak together. The
+    # brightness curve is `floor + amplitude × (sin(...) + 1) / 2`
+    # which spans cleanly between floor and floor+amplitude with no
+    # overshoot.
+    amplitude = _STAR_BRIGHTNESS_CEILING - _STAR_BRIGHTNESS_FLOOR
+    for i, (row, col) in enumerate(_NIGHT_STARS):
+        # Phase: each star is offset by 2π × (i / N) within the cycle.
+        # Sin input cycles 0 → 2π every _STAR_TWINKLE_PERIOD_TICKS frames.
+        phase = (tick / _STAR_TWINKLE_PERIOD_TICKS + i / len(_NIGHT_STARS)) * 2 * math.pi
+        brightness = _STAR_BRIGHTNESS_FLOOR + amplitude * (math.sin(phase) + 1.0) / 2.0
+        frame[row * 8 + col] = _scale_color(STAR_WHITE, brightness)
+
+    # ── Shooting star ─────────────────────────────────────────────
+    # `tick % PERIOD` gives the current position within a 90-second
+    # cycle. The streak only renders during the first
+    # DURATION ticks of that cycle (≈ 1.4 s out of 90 s). The rest of
+    # the cycle is "calm" — just twinkling stars.
+    phase_in_cycle = tick % _SHOOTING_STAR_PERIOD_TICKS
+    if phase_in_cycle < _SHOOTING_STAR_DURATION_TICKS:
+        # Head position: top-right → bottom-left diagonal. At t=0 the
+        # head is at (row 0, col 7); at t=DURATION-1 it's at
+        # (row ≈ 7, col ≈ 0). Linear interpolation.
+        progress = phase_in_cycle / max(1, _SHOOTING_STAR_DURATION_TICKS - 1)
+        head_row = round(7 * progress)
+        head_col = round(7 * (1.0 - progress))
+        # Bright head + dim trail. Each trail pixel sits one step
+        # behind the head along the same diagonal (so the trail
+        # "follows" naturally as the head advances).
+        for t in range(_SHOOTING_STAR_TRAIL_LEN):
+            r = head_row - t
+            c = head_col + t
+            if 0 <= r < 8 and 0 <= c < 8:
+                # Head = 100 %, trail decays linearly to ~20 %.
+                pixel_brightness = 1.0 - 0.4 * t
+                frame[r * 8 + c] = _scale_color(STAR_WHITE, pixel_brightness)
+
     return frame
 
 
@@ -457,7 +558,7 @@ def get_frame(state, is_day, tick, sun_row=0, sun_col=3):
     # "clear"
     if is_day:
         return _clear_day_frame(sun_row, sun_col)
-    return list(FRAME_CLEAR_NIGHT)
+    return _clear_night_frame(tick)
 
 
 # ── BRIGHTNESS ────────────────────────────────────────────────────────────────
