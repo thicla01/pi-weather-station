@@ -172,9 +172,16 @@ _NIGHT_STARS = [
 ]
 
 # Twinkle parameters. The cycle is intentionally slow — fast pulsing
-# reads as "broken pixel" rather than "stars in the sky".
+# reads as "broken pixel" rather than "stars in the sky". The floor
+# is held at 0.65, not 0.40 as in the initial design, because the
+# Sense HAT pipeline multiplies again by BRIGHTNESS_NIGHT (0.35) at
+# render time: floor 0.40 × 0.35 = 14 % effective brightness, which
+# is below the Sense HAT LED's visibility threshold and reads as
+# "off" — defeats the point of subtle twinkling. Floor 0.65 keeps
+# the dim phase at ~23 % effective brightness, clearly visible while
+# still producing a ~12 % perceptible swing against the ceiling.
 _STAR_TWINKLE_PERIOD_TICKS = 33   # ~4 s at FRAME_DELAY=0.12 s
-_STAR_BRIGHTNESS_FLOOR = 0.40     # never fully dark (stars don't blink off)
+_STAR_BRIGHTNESS_FLOOR = 0.65     # never fully dark (stars don't blink off)
 _STAR_BRIGHTNESS_CEILING = 1.00
 
 # Shooting-star parameters. Diagonal path top-right → bottom-left

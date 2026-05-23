@@ -12,6 +12,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 - **Sense HAT — clear-night twinkle and shooting star never actually played.** Yesterday's `acfbf97` commit added the animation builder but didn't widen the main loop's animation gate, so the clear-night cache key `("clear", False, 0, 3)` was static and only the first frame ever reached the framebuffer. Replaced the bare `state in _ANIMATED_STATES` checks in both `run()` and `run_test()` with a new `_is_animated(state, is_day)` helper that ORs the explicit animated set with the "clear at night" case. Same helper now covers the partly-cloudy day/night drift (`partly_cloudy` is now in `_ANIMATED_STATES` outright).
+- **Sense HAT — twinkling stars dropped to "off" for ~1.5 s on every cycle.** Field-test feedback: stars appeared to fully extinguish during the dim phase of the 4 s sine pulse rather than just dimming. Root cause was a math chain I missed when picking the floor: `_clear_night_frame` produces star pixels at brightness in [0.40, 1.00], then `apply_brightness` multiplies the whole frame by `BRIGHTNESS_NIGHT = 0.35` for night-time dimming — combined floor is `0.40 × 0.35 = 0.14` (14 %), below the Sense HAT LED's perceived-on threshold. The sine spends roughly a third of each cycle near its extrema, which matches the reported "1-2 seconds off" perfectly. Bumped `_STAR_BRIGHTNESS_FLOOR` from 0.40 → 0.65 so the effective floor lands at ~23 %, clearly visible, while keeping a ~12 % perceptible swing against the 35 % ceiling.
 
 ## [2.18.1] - 2026-05-22
 
