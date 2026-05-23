@@ -30,12 +30,52 @@ Historical note
   overhead, and matches the lifecycle pattern of sensehat_weather.py.
 """
 
+import json
 import logging
+import os
 import signal
 import sys
 import time
 
 from sense_hat import SenseHat
+
+# Settings file path — resolved relative to this script so we don't
+# hard-code a $HOME path that breaks for non-pi users. The kiosk's
+# pi-weather-server reads/writes the same file from server/settingsCtrl.js.
+SETTINGS_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "settings.json",
+)
+
+# Default brightness percent if the setting is absent / unreadable.
+# Picked at the midpoint so the very first user-pull-without-config
+# gets a comfortable level rather than the original full-blast Red+Cyan.
+DEFAULT_BRIGHTNESS_PERCENT = 50
+
+
+def read_clock_brightness():
+    """Read advanced.sensehat.clockBrightness from settings.json.
+    Returns an integer in [0, 100], or DEFAULT_BRIGHTNESS_PERCENT on
+    any read / parse error. The systemd service is restarted by the
+    server when the user changes this slider, so this read happens
+    once at process start.
+    """
+    try:
+        with open(SETTINGS_PATH, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        v = data.get("advanced", {}).get("sensehat", {}).get("clockBrightness")
+        if isinstance(v, (int, float)) and 0 <= v <= 100:
+            return int(v)
+    except Exception:
+        pass
+    return DEFAULT_BRIGHTNESS_PERCENT
+
+
+def scale_color(rgb, brightness_percent):
+    """Scale an [r, g, b] triple by a 0-100 percent factor."""
+    factor = max(0, min(100, brightness_percent)) / 100.0
+    return [int(round(c * factor)) for c in rgb]
+
 
 # 4x4 bitmap font, digits 0-9. Each row of the digit is 4 pixels; four
 # rows stack to form one digit. Two digits side-by-side fill one half
@@ -64,15 +104,21 @@ EMPTY = [0, 0, 0]             # Off
 ROTATION_DEGREES = 180
 
 
-def build_clock_frame(hour, minute):
+def build_clock_frame(hour, minute, hour_color=HOUR_COLOR, minute_color=MINUTE_COLOR):
     """Return the 64-pixel buffer for HH:MM.
 
-    Top 4 rows = hour digits (red). Bottom 4 rows = minute digits (cyan).
+    Top 4 rows = hour digits (`hour_color`, defaults to red).
+    Bottom 4 rows = minute digits (`minute_color`, defaults to cyan).
     Leading zero on the hour is suppressed (rendered blank); leading
     zero on the minute is shown.
 
+    The two colour overrides let `main()` apply the user's brightness
+    setting once at start without re-scaling on every frame.
+
     @param hour: int in [0, 23]
     @param minute: int in [0, 59]
+    @param hour_color: [r, g, b] for the top half
+    @param minute_color: [r, g, b] for the bottom half
     @returns: list of 64 [r, g, b] triples, row-major
     """
     pixels = []
@@ -88,12 +134,12 @@ def build_clock_frame(hour, minute):
     for index in range(0, 4):
         pixels.extend(NUMBER[minute // 10][index])
         pixels.extend(NUMBER[minute % 10][index])
-    # Map the binary on/off mask to RGB triples — red for the top half
-    # (pixels [0, 32)), cyan for the bottom half.
+    # Map the binary on/off mask to RGB triples — hour colour for the
+    # top half (pixels [0, 32)), minute colour for the bottom half.
     coloured = []
     for i, on in enumerate(pixels):
         if on:
-            coloured.append(HOUR_COLOR if i < 32 else MINUTE_COLOR)
+            coloured.append(hour_color if i < 32 else minute_color)
         else:
             coloured.append(EMPTY)
     return coloured
@@ -112,6 +158,11 @@ def main():
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(message)s")
     sense = SenseHat()
     sense.set_rotation(ROTATION_DEGREES)
+
+    brightness = read_clock_brightness()
+    hour_color = scale_color(HOUR_COLOR, brightness)
+    minute_color = scale_color(MINUTE_COLOR, brightness)
+    logging.info("clock brightness: %d%% (hour=%s, minute=%s)", brightness, hour_color, minute_color)
 
     def cleanup_and_exit(*_):
         """Handler for SIGTERM (systemctl stop) and SIGINT (Ctrl-C).
@@ -132,7 +183,7 @@ def main():
     while True:
         now = time.localtime()
         try:
-            sense.set_pixels(build_clock_frame(now.tm_hour, now.tm_min))
+            sense.set_pixels(build_clock_frame(now.tm_hour, now.tm_min, hour_color, minute_color))
         except Exception as exc:
             # Don't crash the daemon on a single bad frame — the i2c
             # bus can occasionally drop a transaction. Log it, wait

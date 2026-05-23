@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
 
 /**
@@ -22,9 +22,24 @@ import axios from "axios";
  *
  * @returns {object} { senseHatAvailable, senseHatMode, saveSenseHatMode }
  */
+// Debounce window for clock-brightness writes. Same rationale as the
+// radar-opacity sliders elsewhere — local state flips immediately as
+// the user drags so the UI is responsive, but the POST to the server
+// (which restarts the systemd service) is coalesced into one call
+// when the drag settles.
+const BRIGHTNESS_SAVE_DEBOUNCE_MS = 500;
+
+/**
+ * Hook owning the Sense HAT toggle + clock brightness state. Returns
+ * `senseHatAvailable`, `senseHatMode`, `saveSenseHatMode(mode)`,
+ * `senseHatClockBrightness`, `setSenseHatClockBrightnessLive(percent)`.
+ *
+ * @returns {object}
+ */
 export function useSenseHatMode() {
   const [available, setAvailable] = useState(false);
   const [mode, setMode] = useState("weather");
+  const [clockBrightness, setClockBrightness] = useState(50);
 
   useEffect(() => {
     let cancelled = false;
@@ -36,6 +51,14 @@ export function useSenseHatMode() {
         if (!cancelled) {
           const m = res?.data?.mode;
           if (m === "weather" || m === "clock") setMode(m);
+        }
+      })
+      .catch(() => undefined);
+    axios.get("/api/sensehat-clock-brightness")
+      .then((res) => {
+        if (!cancelled) {
+          const b = res?.data?.brightness;
+          if (typeof b === "number" && b >= 0 && b <= 100) setClockBrightness(b);
         }
       })
       .catch(() => undefined);
@@ -57,9 +80,28 @@ export function useSenseHatMode() {
       });
   }, [mode]);
 
+  // Debounced live setter for the clock-brightness slider. UI state
+  // flips on every drag tick, but the POST (which restarts the
+  // systemd unit) only fires after the user pauses dragging for
+  // ~500 ms — avoids restart-storming the service.
+  const brightnessSaveTimerRef = useRef(null);
+  const setClockBrightnessLive = useCallback((v) => {
+    setClockBrightness(v);
+    if (brightnessSaveTimerRef.current) clearTimeout(brightnessSaveTimerRef.current);
+    brightnessSaveTimerRef.current = setTimeout(() => {
+      axios.post("/api/sensehat-clock-brightness", { brightness: v })
+        .catch((err) => {
+          if (err && err.response && err.response.status === 403) return;
+          console.warn("[sensehat] brightness save failed:", err && err.message);
+        });
+    }, BRIGHTNESS_SAVE_DEBOUNCE_MS);
+  }, []);
+
   return {
     senseHatAvailable: available,
     senseHatMode: mode,
     saveSenseHatMode: saveMode,
+    senseHatClockBrightness: clockBrightness,
+    setSenseHatClockBrightnessLive: setClockBrightnessLive,
   };
 }

@@ -638,6 +638,8 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
     senseHatAvailable,
     senseHatMode,
     saveSenseHatMode,
+    senseHatClockBrightness,
+    setSenseHatClockBrightnessLive,
     // Display group (Phase 8b — ported in 2.14.22)
     lightModeStyle,
     darkModeStyle,
@@ -891,6 +893,23 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
                   onChange={saveSenseHatMode}
                   disabled={remote}
                 />
+                {/* Clock brightness slider — only shown when clock mode
+                  * is active (the weather animations have their own
+                  * intensity curve and didn't need adjustment per
+                  * field feedback). Restarts pi-sensehat-clock.service
+                  * server-side when the value lands, picking up the
+                  * new brightness on the next minute boundary. */}
+                {senseHatMode === "clock" ? (
+                  <RangeSlider
+                    label={lbl(lang, "Clock brightness", "Luminosité horloge", "Brillo del reloj")}
+                    value={senseHatClockBrightness}
+                    min={0}
+                    max={100}
+                    step={5}
+                    onChange={setSenseHatClockBrightnessLive}
+                    disabled={remote}
+                  />
+                ) : null}
               </div>
             </>
           ) : null}

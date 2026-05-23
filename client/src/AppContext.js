@@ -220,6 +220,8 @@ export function AppContextProvider({ children }) {
     senseHatAvailable,
     senseHatMode,
     saveSenseHatMode,
+    senseHatClockBrightness,
+    setSenseHatClockBrightnessLive,
   } = useSenseHatMode();
 
   // Map zoom — three pieces of state working together:
@@ -1553,6 +1555,8 @@ export function AppContextProvider({ children }) {
     senseHatAvailable,
     senseHatMode,
     saveSenseHatMode,
+    senseHatClockBrightness,
+    setSenseHatClockBrightnessLive,
     experimentalUiC,
     saveAdvancedExperimentalFlag,
     mobileRadarMaximized,

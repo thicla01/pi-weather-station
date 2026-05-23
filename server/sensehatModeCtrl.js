@@ -42,6 +42,10 @@ const VALID_MODES = ["weather", "clock"];
 const DEFAULT_MODE = "weather";
 const WEATHER_SERVICE = "pi-sensehat.service";
 const CLOCK_SERVICE = "pi-sensehat-clock.service";
+// Default for `advanced.sensehat.clockBrightness` if absent. Mirrors
+// the DEFAULT_BRIGHTNESS_PERCENT constant in tools/horloge.py — kept
+// in sync manually since the two run in different language runtimes.
+const DEFAULT_CLOCK_BRIGHTNESS = 50;
 
 // Detection caching — `import sense_hat` is a non-trivial probe
 // (~150 ms on a Pi 4, longer on first import after boot due to
@@ -85,13 +89,35 @@ async function readPersistedMode() {
 }
 
 /**
- * Write the new mode into settings.json via the same atomic-replace
- * machinery the v3 SettingsPanel uses. Uses settingsCtrl directly
- * to avoid bouncing through the HTTP layer.
+ * Read the persisted clock brightness from settings.json. Falls back
+ * to DEFAULT_CLOCK_BRIGHTNESS (50%) on any missing / unparseable
+ * value.
  *
- * @param {"weather"|"clock"} mode
+ * @returns {Promise<number>} integer 0-100
  */
-async function persistMode(mode) {
+async function readPersistedBrightness() {
+  try {
+    const settings = await getSettingsData();
+    const v = settings && settings.advanced && settings.advanced.sensehat && settings.advanced.sensehat.clockBrightness;
+    if (typeof v === "number" && v >= 0 && v <= 100) return Math.round(v);
+  } catch {
+    /* fall through */
+  }
+  return DEFAULT_CLOCK_BRIGHTNESS;
+}
+
+/**
+ * Merge a partial sensehat config into settings.json. The body is
+ * spread into `advanced.sensehat` — only keys present in `patch` get
+ * written, so calling with `{mode: "clock"}` doesn't reset the
+ * clockBrightness already saved.
+ *
+ * Bypasses the HTTP /api/settings round-trip to keep the toggle's
+ * latency low (one file write instead of three HTTP calls).
+ *
+ * @param {object} patch e.g. {mode: "clock"} or {clockBrightness: 70}
+ */
+async function persistSensehat(patch) {
   const fs = require("fs");
   const path = require("path");
   const FILE = path.join(__dirname, "..", "settings.json");
@@ -105,7 +131,7 @@ async function persistMode(mode) {
   if (!existing.advanced.sensehat || typeof existing.advanced.sensehat !== "object") {
     existing.advanced.sensehat = {};
   }
-  existing.advanced.sensehat.mode = mode;
+  Object.assign(existing.advanced.sensehat, patch);
   fs.writeFileSync(FILE, JSON.stringify(existing), "utf8");
 }
 
@@ -185,9 +211,73 @@ async function setSenseHatMode(req, res) {
     return res.status(503).json({ error: "Sense HAT not detected on this host" }).end();
   }
   try {
-    await persistMode(mode);
+    await persistSensehat({ mode });
     await applyMode(mode);
     return res.status(200).json({ mode }).end();
+  } catch (err) {
+    return res.status(500).json({ error: err.message }).end();
+  }
+}
+
+/**
+ * Check whether pi-sensehat-clock.service is currently active.
+ *
+ * @returns {Promise<boolean>}
+ */
+async function isClockServiceActive() {
+  try {
+    // systemctl --user is-active exits 0 with "active" / non-zero with
+    // "inactive" / "failed" / etc. We swallow the non-zero and read
+    // the stdout to disambiguate.
+    const { stdout } = await execFileAsync("systemctl", ["--user", "is-active", CLOCK_SERVICE], { timeout: 5_000 });
+    return stdout.trim() === "active";
+  } catch (err) {
+    // Non-zero exit lands here too. Check the stdout when present.
+    if (err && err.stdout && err.stdout.trim() === "active") return true;
+    return false;
+  }
+}
+
+/**
+ * GET /api/sensehat-clock-brightness
+ */
+async function getClockBrightness(req, res) {
+  const brightness = await readPersistedBrightness();
+  return res.status(200).json({ brightness }).end();
+}
+
+/**
+ * POST /api/sensehat-clock-brightness  body: {brightness: 0-100}
+ *
+ * Persists the new value. Restarts pi-sensehat-clock.service only
+ * when it's currently active — the script reads the value at start,
+ * so a restart is how the change takes effect immediately. When
+ * the clock service isn't running (weather mode), we skip the
+ * restart; the new value will be picked up the next time the user
+ * flips to clock mode.
+ */
+async function setClockBrightness(req, res) {
+  const { brightness } = req.body || {};
+  if (typeof brightness !== "number" || !Number.isFinite(brightness) || brightness < 0 || brightness > 100) {
+    return res.status(400).json({ error: "brightness must be a number 0-100" }).end();
+  }
+  if (!(await probeAvailable())) {
+    return res.status(503).json({ error: "Sense HAT not detected on this host" }).end();
+  }
+  const rounded = Math.round(brightness);
+  try {
+    await persistSensehat({ clockBrightness: rounded });
+    if (await isClockServiceActive()) {
+      try {
+        await execFileAsync("systemctl", ["--user", "restart", CLOCK_SERVICE], { timeout: 10_000 });
+      } catch (err) {
+        // Persisted, but couldn't restart — the next start will pick
+        // up the value. Surface as a partial success.
+        return res.status(200).json({ brightness: rounded, restarted: false, warning: err.message }).end();
+      }
+      return res.status(200).json({ brightness: rounded, restarted: true }).end();
+    }
+    return res.status(200).json({ brightness: rounded, restarted: false }).end();
   } catch (err) {
     return res.status(500).json({ error: err.message }).end();
   }
@@ -197,10 +287,13 @@ module.exports = {
   getSenseHatAvailable,
   getSenseHatMode,
   setSenseHatMode,
+  getClockBrightness,
+  setClockBrightness,
   applySenseHatModeOnBoot,
   // Exported for regression testing only.
   __test: {
     VALID_MODES,
     DEFAULT_MODE,
+    DEFAULT_CLOCK_BRIGHTNESS,
   },
 };
