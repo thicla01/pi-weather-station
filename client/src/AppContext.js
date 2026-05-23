@@ -6,6 +6,7 @@ import { useUpdateChecker } from "~/hooks/useUpdateChecker";
 import { useScreenSaver } from "~/hooks/useScreenSaver";
 import { useUiPreferences } from "~/hooks/useUiPreferences";
 import { useSenseHatMode } from "~/hooks/useSenseHatMode";
+import useIdleDetection from "~/hooks/useIdleDetection";
 import axios from "axios";
 import tzlookup from "tz-lookup";
 
@@ -177,6 +178,21 @@ export function AppContextProvider({ children }) {
     sleepStage2Delay, setSleepStage2Delay,
     sleepNightMode, setSleepNightMode,
   } = useScreenSaver();
+
+  // Runtime sleep-stage value (0/1/2). Hoisted into AppContext (rather
+  // than living in App/index.js) so background-fetching components can
+  // suspend their polling while the screensaver is up — currently
+  // consumed by AiSummary + AiSummaryInline to stop the 15 min Claude
+  // poll during sleep mode (each unwatched poll either burns a cache
+  // miss → one Anthropic call, or a cache hit → still wasted CPU for
+  // a screen nobody is looking at). The hook returns stage=0 when
+  // sleepEnabled is false, so the cost stays zero for opt-out users.
+  const { stage: sleepStage } = useIdleDetection({
+    enabled: sleepEnabled,
+    stage1Delay: sleepStage1Delay,
+    stage2Enabled: sleepStage2Enabled,
+    stage2Delay: sleepStage2Delay,
+  });
   const [darkMode, setDarkMode] = useState(true);
   // When darkModeAuto is on, an interval flips darkMode at sunrise /
   // sunset based on AppContext's sunriseTime / sunsetTime. Manual taps
@@ -1551,6 +1567,7 @@ export function AppContextProvider({ children }) {
     sleepStage2Enabled,
     sleepStage2Delay,
     sleepNightMode,
+    sleepStage,
     saveAdvancedSleepFlag,
     senseHatAvailable,
     senseHatMode,

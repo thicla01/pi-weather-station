@@ -37,6 +37,7 @@ const AiSummaryInline = () => {
     tempUnit,
     speedUnit,
     distanceUnit,
+    sleepStage,
   } = useContext(AppContext);
   // The slab renders only when BOTH the server has a working
   // Anthropic key (`serverAvailable`) AND the user hasn't hidden the
@@ -86,7 +87,12 @@ const AiSummaryInline = () => {
   const lang = ["fr", "es"].find((l) => i18n.language.startsWith(l)) || "en";
 
   useEffect(() => {
-    if (!mapGeo || !available) return undefined;
+    // Suspend polling while the screensaver is up — the slab is
+    // hidden behind the overlay and the user can't see the result. On
+    // wake (sleepStage transitions back to 0) this effect re-runs and
+    // `fetchSummary()` fires immediately so the displayed summary is
+    // fresh by the time the overlay finishes its 300 ms fade-out.
+    if (!mapGeo || !available || sleepStage > 0) return undefined;
 
     const fetchSummary = () => {
       const now = new Date();
@@ -126,7 +132,7 @@ const AiSummaryInline = () => {
     if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = setInterval(fetchSummary, REFRESH_INTERVAL);
     return () => clearInterval(intervalRef.current);
-  }, [mapGeo, lang, available, setAvailable, tempUnit, speedUnit, distanceUnit]);
+  }, [mapGeo, lang, available, setAvailable, tempUnit, speedUnit, distanceUnit, sleepStage]);
 
   if (!available || !summary) return null;
 

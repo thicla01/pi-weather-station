@@ -32,6 +32,7 @@ const AiSummary = ({ expanded, onToggle, containerRef }) => {
     tempUnit,
     speedUnit,
     distanceUnit,
+    sleepStage,
   } = useContext(AppContext);
   // See AiSummaryInline for the rationale on splitting server vs.
   // user visibility — same pattern here for the v2 layout's
@@ -44,7 +45,10 @@ const AiSummary = ({ expanded, onToggle, containerRef }) => {
   const lang = ["fr", "es"].find((l) => i18n.language.startsWith(l)) || "en";
 
   useEffect(() => {
-    if (!mapGeo || !available) return;
+    // Mirror AiSummaryInline: suspend polling while the screensaver
+    // is up. On wake, the effect re-runs and fetchSummary() fires
+    // immediately. See AiSummaryInline for the cost rationale.
+    if (!mapGeo || !available || sleepStage > 0) return;
 
     const { latitude, longitude } = mapGeo;
 
@@ -91,7 +95,7 @@ const AiSummary = ({ expanded, onToggle, containerRef }) => {
     intervalRef.current = setInterval(fetchSummary, REFRESH_INTERVAL);
 
     return () => clearInterval(intervalRef.current);
-  }, [mapGeo, lang, available, setAvailable, tempUnit, speedUnit, distanceUnit]);
+  }, [mapGeo, lang, available, setAvailable, tempUnit, speedUnit, distanceUnit, sleepStage]);
 
   if (!available || !summary) return null;
 

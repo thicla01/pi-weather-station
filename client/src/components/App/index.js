@@ -12,7 +12,6 @@ import Debug from "~/components/Debug";
 import AmbientDebugPanel from "~/components/ambient/DebugPanel";
 import UpdateModal from "~/components/UpdateModal";
 import ScreenSaver from "~/components/ScreenSaver";
-import useIdleDetection from "~/hooks/useIdleDetection";
 
 import "!style-loader!css-loader!./overrides.css";
 
@@ -42,26 +41,18 @@ const App = () => {
     setInfoPanelCollapsed,
     fontSize,
     defaultMapZoom,
-    sleepEnabled,
-    sleepStage1Delay,
     sleepStage1Brightness,
-    sleepStage2Enabled,
-    sleepStage2Delay,
+    sleepStage: stage,
     brightnessAvailable,
     brightnessPercent,
     brightnessMinPercent,
     experimentalUiC,
   } = useContext(AppContext);
 
-  // Idle detection drives the screensaver. The hook is a no-op when
-  // sleepEnabled is false (no listeners attached, stage stays 0), so the
-  // cost is zero for users who haven't opted in.
-  const { stage } = useIdleDetection({
-    enabled: sleepEnabled,
-    stage1Delay: sleepStage1Delay,
-    stage2Enabled: sleepStage2Enabled,
-    stage2Delay: sleepStage2Delay,
-  });
+  // `stage` (0/1/2) now comes from AppContext — the underlying
+  // `useIdleDetection` call lives there since v2.18.2 so background
+  // pollers (AiSummary, AiSummaryInline) can suspend on sleep without
+  // prop-drilling through AmbientLayers.
 
   // Hardware-brightness orchestration on stage transitions.
   //

@@ -7,6 +7,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+- **AI summary polling now suspends during sleep mode, resumes instantly on wake.** Before: the 15-min Anthropic poll kept ticking through sleep stages 1 and 2, burning one `claude-haiku-4-5` call per cache miss for a screen nobody was looking at (~32 needless summaries on an 8 h overnight sleep). The `ScreenSaver` overlay covers the UI visually but doesn't unmount anything underneath, so `AiSummaryInline` / `AiSummary` kept polling. Hoisted the runtime sleep stage (0/1/2) out of `App/index.js` into `AppContext` so background-fetching components can read it without prop-drilling through `AmbientLayers → LayoutPi → AiSummaryInline`. Both AI summary components now gate their fetch effect on `sleepStage > 0` (early return + cleanup), and since `sleepStage` is in the effect deps, the natural re-run on the `2 → 0` transition triggers an immediate `fetchSummary()` so the slab is fresh by the time the screensaver's 300 ms fade-out completes. Server-side 15-min cache still absorbs back-to-back wake events without paying Anthropic twice.
+
 ### Added
 - **Sense HAT — partly-cloudy day and night now animate (cloud drift + star twinkle).** Both partly-cloudy frames were static pre-2026-05; they now share a drifting-cloud builder that shifts the canonical cloud shape one column every ~12 s, wrapping at the screen edge so the cloud reappears on the other side. At night the same drift overlays a sky of twinkling stars in the lower half (the upper half is occupied by the cloud), reusing the sine-pulse twinkle from the clear-night animation. The shooting star stays exclusive to the clear-night frame — its diagonal path would clip in and out of the cloud occlusion zone and read as broken.
 
