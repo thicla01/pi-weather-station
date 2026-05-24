@@ -659,6 +659,39 @@ _FOG_BREATH_PERIOD_TICKS = 50            # ~6 s for one full breath cycle
 _FOG_BRIGHTNESS_FLOOR = 0.55
 _FOG_BRIGHTNESS_CEILING = 1.00
 
+# 8×8 Bayer dithering matrix. Field-tested on the SenseHat: without
+# dither, the fog breath read as stroboscopic — all 64 uniform pixels
+# crossed the same RGB565 quantization threshold on the same tick
+# (the framebuffer uses 5-bit R/B and 6-bit G, so the slow 6 s breath
+# crosses ~11 R-levels in 3 s → one synchronized jump every ~270 ms
+# → 3.7 Hz flash perceived as strobe). Bayer assigns each pixel a
+# fixed sub-threshold offset so neighbouring pixels cross the
+# quantization at slightly different base brightnesses; transitions
+# are then perceived as smooth fades rather than synchronized flashes
+# because the eye averages the resulting fine-grained spatial
+# pattern. Values 0-63 mapped to a centred range via `i / 64 - 0.5`
+# at call-site, so the dither distribution is symmetric around zero.
+_BAYER_8X8 = [
+     0, 32,  8, 40,  2, 34, 10, 42,
+    48, 16, 56, 24, 50, 18, 58, 26,
+    12, 44,  4, 36, 14, 46,  6, 38,
+    60, 28, 52, 20, 62, 30, 54, 22,
+     3, 35, 11, 43,  1, 33,  9, 41,
+    51, 19, 59, 27, 49, 17, 57, 25,
+    15, 47,  7, 39, 13, 45,  5, 37,
+    63, 31, 55, 23, 61, 29, 53, 21,
+]
+
+# Dither magnitude in brightness units. Calibrated to ±0.5 of one
+# RGB565 R-quantization step at peak FOG_COLOR — 8 RGB888 units of
+# R-precision is 8/190 ≈ 0.042 in brightness units, so a span of
+# 0.042 centred on zero (i.e., values from `(0 − 0.5) × 0.042` to
+# `(1 − 0.5) × 0.042`) puts the Bayer pixels evenly across one full
+# quantization step. Smaller than that and the dither doesn't always
+# cover a transition; larger and the matrix starts to look noisy
+# rather than uniformly foggy.
+_FOG_DITHER_AMPLITUDE = 0.042
+
 
 def _overcast_frame(tick):
     """Rolling diagonal wave through GREY_DARK ↔ GREY_MID ↔ GREY_LIGHT.
@@ -691,17 +724,28 @@ def _overcast_frame(tick):
 
 
 def _fog_frame(tick):
-    """Uniform breathing pulse — all 64 pixels share one slow sine
-    cycle of brightness modulation. Like the matrix exhaling through
-    the fog. Same colour as the original static FRAME_FOG at peak.
+    """Near-uniform breathing pulse — all 64 pixels share one slow
+    sine cycle of brightness modulation, with a static Bayer 8×8
+    dither pattern applied per-pixel to break the RGB565 quantization
+    strobe (see the `_BAYER_8X8` comment for the field-test rationale).
+    Like the matrix exhaling through the fog. Peak brightness matches
+    the original static `FRAME_FOG` colour.
 
     @param tick: int — animation frame counter
     @returns: list — 64-element flat list of RGB tuples
     """
     amplitude = _FOG_BRIGHTNESS_CEILING - _FOG_BRIGHTNESS_FLOOR
     phase = (tick / _FOG_BREATH_PERIOD_TICKS) * 2 * math.pi
-    brightness = _FOG_BRIGHTNESS_FLOOR + amplitude * (math.sin(phase) + 1.0) / 2.0
-    return [_scale_color(FOG_COLOR, brightness)] * 64
+    base = _FOG_BRIGHTNESS_FLOOR + amplitude * (math.sin(phase) + 1.0) / 2.0
+    return [
+        _scale_color(
+            FOG_COLOR,
+            max(0.0, min(1.0,
+                base + (_BAYER_8X8[i] / 64.0 - 0.5) * _FOG_DITHER_AMPLITUDE
+            )),
+        )
+        for i in range(64)
+    ]
 
 
 # ── STATE CLASSIFICATION ──────────────────────────────────────────────────────
