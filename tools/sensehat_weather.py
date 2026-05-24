@@ -1142,6 +1142,89 @@ def run():
 
 # ── TEST MODE ─────────────────────────────────────────────────────────────────
 
+# CLI slug → (internal state name, is_day) mapping for `--state`. Slugs
+# are kebab-case so they're shell-friendly (no shell-special chars,
+# unambiguous on a tab-completion line). Day/night variants get
+# explicit suffixes — defaulting to one or the other would be a
+# guessing game, so the user picks.
+_TEST_STATE_SLUGS = {
+    "clear-day":           ("clear",         True),
+    "clear-night":         ("clear",         False),
+    "sunset":              ("sunset",        True),
+    "partly-cloudy-day":   ("partly_cloudy", True),
+    "partly-cloudy-night": ("partly_cloudy", False),
+    "overcast":            ("overcast",      True),
+    "fog":                 ("fog",           True),
+    "rain-light":          ("rain_light",    True),
+    "rain":                ("rain",          True),
+    "snow":                ("snow",          False),
+    "ice":                 ("ice",           True),
+    "storm":               ("storm",         False),
+}
+
+# In single-state mode, the sun arc has no natural deadline to compress
+# into, so we just loop the arc on a slow period. 30 s feels right —
+# fast enough to see the motion start to finish, slow enough not to
+# read as cartoonish.
+_SUN_ARC_LOOP_SECONDS = 30
+
+
+def run_test_single(state, is_day):
+    """Render ONE state continuously until Ctrl-C, for visual
+    validation of a specific animation without the strobe-like
+    transitions and 12-state churn of the full cycle.
+
+    Mirrors the per-state branches of `run_test()`: sun-arc loop for
+    clear/sunset day, animated tick loop for everything in
+    `_ANIMATED_STATES` (plus clear-night), single-shot render + sleep
+    for static states. The sun-arc loop wraps every
+    `_SUN_ARC_LOOP_SECONDS` so the user sees the full east→west
+    motion in a comfortable timescale rather than waiting for the
+    accelerated 15 s of the cycle test.
+
+    @param state:  str   internal state name (e.g. "fog", "partly_cloudy")
+    @param is_day: bool  whether to render the day or night variant
+    """
+    sense = SenseHat()
+    sense.set_rotation(ROTATION)
+    sense.low_light = False
+    sense.clear()
+
+    log.info("Single-state test: state=%s is_day=%s — Ctrl-C to exit",
+             state, is_day)
+
+    tick = 0
+    try:
+        if state in ("clear", "sunset") and is_day:
+            # Loop the sun arc on a slow period.
+            arc_start = time.time()
+            while True:
+                elapsed  = (time.time() - arc_start) % _SUN_ARC_LOOP_SECONDS
+                progress = elapsed / _SUN_ARC_LOOP_SECONDS
+                sun_row  = round(6.0 * (1.0 - math.sin(progress * math.pi)))
+                sun_col  = round(6.0 * progress) if SUN_EAST_LEFT \
+                           else round(6.0 * (1.0 - progress))
+                _render(sense, state, is_day, tick, sun_row, sun_col)
+                time.sleep(FRAME_DELAY)
+                tick += 1
+        elif not _is_animated(state, is_day):
+            # Static state: render once, then idle. Sleep in short
+            # chunks so Ctrl-C is responsive.
+            _render(sense, state, is_day, tick, 0, 3)
+            while True:
+                time.sleep(FRAME_DELAY)
+        else:
+            while True:
+                _render(sense, state, is_day, tick, 0, 3)
+                time.sleep(FRAME_DELAY)
+                tick += 1
+    except KeyboardInterrupt:
+        pass
+    finally:
+        sense.clear()
+        log.info("Single-state test ended — display cleared")
+
+
 def run_test():
     """
     Cycle through all display states for TEST_STATE_DURATION seconds each.
@@ -1214,10 +1297,20 @@ if __name__ == "__main__":
         "--test", action="store_true",
         help="Cycle through all display states for testing"
     )
+    parser.add_argument(
+        "--state", metavar="SLUG", choices=sorted(_TEST_STATE_SLUGS),
+        help="Show only the named state continuously. Useful for visual "
+             "validation of a specific animation without the strobe-like "
+             "transitions of the full cycle. Implies test mode. "
+             "Available: " + ", ".join(sorted(_TEST_STATE_SLUGS))
+    )
     args = parser.parse_args()
 
     try:
-        if args.test:
+        if args.state:
+            state, is_day = _TEST_STATE_SLUGS[args.state]
+            run_test_single(state, is_day)
+        elif args.test:
             run_test()
         else:
             run()
