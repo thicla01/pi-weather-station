@@ -352,7 +352,19 @@
 /* ── Toggle ─────────────────────────────────────────────────────── */
 
 .toggle {
-  display: inline-flex;
+  /* Block-level flex (not inline-flex) so the toggle fills its grid
+   * cell width when used inside .grid2 / .grid4. inline-flex sized
+   * the toggle to its content's preferred width — at narrow viewports
+   * (≤ ~430 px) the AI-section toggles' sub-text wanted ~400 px per
+   * cell and overflowed sideways into the adjacent cell, visibly
+   * overlapping the next toggle. Block-level lets the cell's
+   * minmax(0, 1fr) actually constrain the toggle.
+   *
+   * Safe in .toggleRow too: flex items get their display "blockified"
+   * inside a flex container, so the change is invisible there — the
+   * toggle's width still comes from `flex: 0 1 auto` (default), which
+   * sizes by content and wraps via the row's flex-wrap. */
+  display: flex;
   align-items: center;
   gap: 8px;
   padding: 4px 0;
@@ -403,15 +415,24 @@
   pointer-events: none;
 }
 
+/* Both spans get min-width: 0 so they can shrink below their content's
+ * min-content (longest word) and wrap inside the .toggle flex parent.
+ * Without this, on very narrow viewports (< ~360 px, e.g. small phones
+ * in landscape compressed by browser chrome), a long single word like
+ * "d'échantillonnage" would floor the flex item at its own width and
+ * push the sibling sub past the cell edge. Same pattern as the
+ * brightnessSlider fix — opt out of the auto min-content floor. */
 .toggleLabel {
   font-size: 12px;
   color: var(--c-text);
+  min-width: 0;
 }
 
 .toggleSub {
   font-size: 10.5px;
   color: var(--c-text-dim);
   margin-left: 4px;
+  min-width: 0;
 }
 
 /* ── Field ──────────────────────────────────────────────────────── */
@@ -618,12 +639,41 @@
 
 /* Two-column grid — used for content that never benefits from 4
  * columns (e.g. toggles with long sub-text labels in the AI section).
- * Always stays at 2 columns regardless of viewport width. */
+ *
+ * Mobile-first: defaults to 1 column so a narrow viewport gives each
+ * toggle the full panel width (~340 px on a 375 px iPhone), enough to
+ * fit `[track][label][sub]` side-by-side without label and sub
+ * overlapping. Expands to 2 columns at ≥ 720 px (same breakpoint as
+ * .grid4) once cells are wide enough (~345 px each) to hold the
+ * longest AI-section toggle. */
 .grid2 {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: minmax(0, 1fr);
   gap: 10px;
   align-items: start;
+}
+
+@media (min-width: 720px) {
+  .grid2 {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
+}
+
+/* Fixed-width label column for AI-section toggles so the sub-text
+ * starts at the same X across all rows (visual column alignment).
+ * Scoped to .grid2 because .toggleRow toggles (Sleep section's
+ * "Activer la veille" / "Texte rouge nuit") have no sub-text and
+ * don't need the alignment — and a fixed 150 px width would push
+ * them to wrap earlier on narrow viewports for no benefit.
+ *
+ * 150 px fits the longest FR label "Points d'échantillonnage"
+ * (24 chars × ~6 px in Geist 12 px ≈ 144 px) on a single line with
+ * a small safety margin. EN and ES equivalents are shorter; if a
+ * future label exceeds this, it wraps to two lines (sub stays
+ * aligned, label just gets taller). Sub then auto-sizes to fill
+ * the remaining cell width via its flex: 0 1 auto default. */
+.grid2 .toggleLabel {
+  flex: 0 0 150px;
 }
 
 .grid4 {
@@ -978,6 +1028,15 @@
 
 .brightnessSlider {
   flex: 1;
+  /* Native <input type="range"> has min-width: auto = its intrinsic
+   * width (~129 px in Chromium / Firefox). With flex: 1 the basis is
+   * 0 but min-width: auto floors the actual width at the intrinsic,
+   * so on narrow grid cells the slider refuses to shrink and the
+   * whole .brightnessRow overflows its cell (the % span gets clipped
+   * past the right edge of the panel). min-width: 0 overrides the
+   * auto floor and lets the track shrink down to whatever the cell
+   * gives it — the thumb stays draggable at any track length. */
+  min-width: 0;
   -webkit-appearance: none;
   appearance: none;
   height: 4px;
