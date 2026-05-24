@@ -716,7 +716,14 @@ _FOG_DRIFT_AMPLITUDE     = 0.04      # ±4 % brightness per column
 _FOG_RIFT_PERIOD_TICKS   = 750       # ~90 s between rift events
 _FOG_RIFT_DURATION_TICKS = 25        # ~3 s for the rift to traverse
 _FOG_RIFT_WIDTH_SIGMA    = 1.2       # Gaussian falloff in columns
-_FOG_RIFT_MAX_BOOST      = 0.15      # peak brightness boost at rift centre
+# Peak brightness boost at rift centre. Initial value was 0.15 but
+# field test (2026-05-24) showed that combined with the breath at
+# trough, the rift centre reached ~0.70 brightness — visually too
+# close to a "flashlight beam" on the matrix in a dark room. Lowered
+# to 0.10 so the rift now caps at ~0.65 over a 0.55 base trough,
+# clearly visible as a brighter zone but reading as "patch of
+# thinning fog" rather than "bright spot".
+_FOG_RIFT_MAX_BOOST      = 0.10      # peak brightness boost at rift centre
 
 
 def _fog_density_offset(col, tick):
