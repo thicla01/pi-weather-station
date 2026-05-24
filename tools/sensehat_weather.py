@@ -259,7 +259,12 @@ _PARTLY_CLOUDY_NIGHT_STARS = [
     (7, 4), (7, 6),
 ]
 
-# ☁️  Overcast: textured grey checkerboard to suggest thick cloud cover
+# ☁️  Overcast: textured grey checkerboard to suggest thick cloud
+# cover. Pre-2026-05 this was the rendered frame; it's now built
+# dynamically by `_overcast_frame(tick)` so the three grey shades
+# roll across the matrix in diagonal waves. Kept as documentation of
+# the canonical three-tone palette (GL / GM / GD) that the wave
+# interpolation reproduces in motion.
 FRAME_OVERCAST = [
     GL, GM, GL, GM, GL, GM, GL, GM,
     GM, GD, GM, GD, GM, GD, GM, GD,
@@ -271,7 +276,11 @@ FRAME_OVERCAST = [
     GM, GL, GM, GL, GM, GL, GM, GL,
 ]
 
-# 🌫  Fog: uniform pale grey-blue
+# 🌫  Fog: uniform pale grey-blue. Now built dynamically by
+# `_fog_frame(tick)` so the matrix breathes — all 64 pixels modulate
+# together between 55 % and 100 % brightness on a 6 s sine cycle.
+# This constant is the peak-brightness reference (what the breathing
+# pulse equals at its maximum).
 FRAME_FOG = [FOG_COLOR] * 64
 
 # ⛈  Thunderstorm: background + static lightning bolt (flashed on/off)
@@ -624,6 +633,77 @@ def _ice_frame(tick):
     return grid
 
 
+# ── OVERCAST / FOG ANIMATION PARAMETERS ──────────────────────────────────────
+#
+# Overcast: diagonal rolling waves through the three canonical grey
+# shades (GREY_DARK ↔ GREY_MID ↔ GREY_LIGHT). Each pixel's brightness
+# is modulated by sin((row + col) × spatial − tick × 2π / period), so
+# bands of brightness drift south-west → north-east across the matrix
+# in a way that evokes overcast clouds shifting overhead. The sine
+# midpoint lands exactly on GREY_MID, so the wave passes through all
+# three shades of the original static checkerboard frame — same
+# palette, just animated.
+#
+# Fog: uniform breathing pulse — all 64 pixels exhale together on a
+# slow sine cycle. Period 6 s (slower than the 4 s star twinkle)
+# because fog feels heavy / dense; a faster pulse reads as nervous.
+# Floor at 55 % keeps the dim phase clearly visible after the
+# BRIGHTNESS_NIGHT (0.35) multiplier — 0.55 × 0.35 = 19 % effective,
+# above the visibility threshold the star twinkle calibration
+# established earlier.
+
+_OVERCAST_WAVE_PERIOD_TICKS = 100        # ~12 s for one full sine cycle
+_OVERCAST_WAVE_SPATIAL = math.pi / 8     # radians of phase per (row + col) step
+
+_FOG_BREATH_PERIOD_TICKS = 50            # ~6 s for one full breath cycle
+_FOG_BRIGHTNESS_FLOOR = 0.55
+_FOG_BRIGHTNESS_CEILING = 1.00
+
+
+def _overcast_frame(tick):
+    """Rolling diagonal wave through GREY_DARK ↔ GREY_MID ↔ GREY_LIGHT.
+
+    Brightness at pixel (row, col) on tick `tick` follows
+    `sin((row + col) × _OVERCAST_WAVE_SPATIAL − tick × 2π / period)`.
+    The diagonal phase term `(row + col)` produces bands perpendicular
+    to the anti-diagonal; the time term advances those bands across
+    the matrix tick by tick. The sine midpoint is reached at exactly
+    GREY_MID (interpolated halfway between GREY_DARK and GREY_LIGHT),
+    so the wave reproduces the static checkerboard's three-tone
+    palette in smooth transition.
+
+    @param tick: int — animation frame counter
+    @returns: list — 64-element flat list of RGB tuples
+    """
+    frame = []
+    for row in range(8):
+        for col in range(8):
+            wave = math.sin(
+                (row + col) * _OVERCAST_WAVE_SPATIAL
+                - (tick * 2 * math.pi / _OVERCAST_WAVE_PERIOD_TICKS)
+            )
+            t = (wave + 1.0) / 2.0  # map sin range [-1, 1] to [0, 1]
+            r_chan = round(GREY_DARK[0] + t * (GREY_LIGHT[0] - GREY_DARK[0]))
+            g_chan = round(GREY_DARK[1] + t * (GREY_LIGHT[1] - GREY_DARK[1]))
+            b_chan = round(GREY_DARK[2] + t * (GREY_LIGHT[2] - GREY_DARK[2]))
+            frame.append((r_chan, g_chan, b_chan))
+    return frame
+
+
+def _fog_frame(tick):
+    """Uniform breathing pulse — all 64 pixels share one slow sine
+    cycle of brightness modulation. Like the matrix exhaling through
+    the fog. Same colour as the original static FRAME_FOG at peak.
+
+    @param tick: int — animation frame counter
+    @returns: list — 64-element flat list of RGB tuples
+    """
+    amplitude = _FOG_BRIGHTNESS_CEILING - _FOG_BRIGHTNESS_FLOOR
+    phase = (tick / _FOG_BREATH_PERIOD_TICKS) * 2 * math.pi
+    brightness = _FOG_BRIGHTNESS_FLOOR + amplitude * (math.sin(phase) + 1.0) / 2.0
+    return [_scale_color(FOG_COLOR, brightness)] * 64
+
+
 # ── STATE CLASSIFICATION ──────────────────────────────────────────────────────
 
 # Tomorrow.io weatherCode → display state
@@ -690,9 +770,9 @@ def get_frame(state, is_day, tick, sun_row=0, sun_col=3):
     if state in ("rain", "rain_light"):
         return _rain_frame(tick, light=(state == "rain_light"))
     if state == "fog":
-        return list(FRAME_FOG)
+        return _fog_frame(tick)
     if state == "overcast":
-        return list(FRAME_OVERCAST)
+        return _overcast_frame(tick)
     if state == "partly_cloudy":
         if is_day:
             return _partly_cloudy_day_frame(sun_row, sun_col, tick)
@@ -783,7 +863,7 @@ def is_sunset_soon(sunset_ts):
 
 # States that require continuous redraws regardless of day/night.
 # Other states may still need redraws conditionally — see `_is_animated`.
-_ANIMATED_STATES = {"rain", "rain_light", "snow", "ice", "storm", "partly_cloudy"}
+_ANIMATED_STATES = {"rain", "rain_light", "snow", "ice", "storm", "partly_cloudy", "overcast", "fog"}
 
 
 def _is_animated(state, is_day):
