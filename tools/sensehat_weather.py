@@ -657,6 +657,20 @@ def _ice_frame(tick):
 _OVERCAST_WAVE_PERIOD_TICKS = 100        # ~12 s for one full sine cycle
 _OVERCAST_WAVE_SPATIAL = math.pi / 8     # radians of phase per (row + col) step
 
+# Overcast sun glow: when the sun is up, a Gaussian-shaped warmer /
+# brighter zone marks its position behind the clouds. Captures the
+# familiar effect where you can usually guess where the sun is on
+# overcast days because that patch of sky is noticeably brighter,
+# sometimes with a faint warm tint from diffused sunlight. Boost
+# adds to the wave colour rather than replacing it, so the
+# checkered animation continues underneath the glow. Disabled at
+# night (no analogous moon-glow yet — could be added in a future
+# iteration).
+_OVERCAST_SUN_GLOW_SIGMA   = 1.5    # Gaussian width in pixels (~3-px halo)
+_OVERCAST_SUN_GLOW_R_BOOST = 30     # peak R boost at glow centre
+_OVERCAST_SUN_GLOW_G_BOOST = 25     # slightly less on G → warm tint
+_OVERCAST_SUN_GLOW_B_BOOST = 10     # least on B (away from neutral white)
+
 _FOG_BREATH_PERIOD_TICKS = 50            # ~6 s for one full breath cycle
 _FOG_BRIGHTNESS_FLOOR = 0.55
 _FOG_BRIGHTNESS_CEILING = 1.00
@@ -758,10 +772,28 @@ def _fog_rift_offset(col, tick):
     return _FOG_RIFT_MAX_BOOST * gauss
 
 
-def _overcast_frame(tick):
-    """Rolling diagonal wave through GREY_DARK ↔ GREY_MID ↔ GREY_LIGHT.
+def _overcast_sun_glow(row, col, sun_row, sun_col):
+    """Gaussian-shaped brightness contribution from the sun glowing
+    through the overcast clouds. Returns a scalar in [0, 1] that
+    callers multiply by the per-channel boost constants to produce
+    the additive colour offset.
 
-    Brightness at pixel (row, col) on tick `tick` follows
+    Sun centre is at `(sun_row + 0.5, sun_col + 0.5)` to match the
+    centre of the 2×2 sun block used in clear-day rendering — keeps
+    the glow position consistent with where the sun would be drawn
+    on a clear day.
+    """
+    dr = row - (sun_row + 0.5)
+    dc = col - (sun_col + 0.5)
+    dist_sq = dr * dr + dc * dc
+    return math.exp(-dist_sq / (2 * _OVERCAST_SUN_GLOW_SIGMA ** 2))
+
+
+def _overcast_frame(sun_row, sun_col, tick, is_day):
+    """Rolling diagonal wave through GREY_DARK ↔ GREY_MID ↔ GREY_LIGHT,
+    plus a soft Gaussian sun-glow halo when `is_day` is True.
+
+    Wave: brightness at pixel (row, col) on tick `tick` follows
     `sin((row + col) × _OVERCAST_WAVE_SPATIAL − tick × 2π / period)`.
     The diagonal phase term `(row + col)` produces bands perpendicular
     to the anti-diagonal; the time term advances those bands across
@@ -770,8 +802,18 @@ def _overcast_frame(tick):
     so the wave reproduces the static checkerboard's three-tone
     palette in smooth transition.
 
-    @param tick: int — animation frame counter
-    @returns: list — 64-element flat list of RGB tuples
+    Sun glow: when `is_day`, a Gaussian-shaped warm-white boost is
+    added on top of the wave colour at the sun's current position
+    (computed by the caller via `_compute_sun_pos`). The glow rides
+    on top — it brightens what's already there rather than replacing
+    it — so the wave animation continues underneath. Falls off over
+    ~3 pixels (sigma 1.5) so the halo is local, not the whole sky.
+
+    @param sun_row: int  top row of the sun block (0=zenith … 6=horizon)
+    @param sun_col: int  left col of the sun block (0=east … 6=west)
+    @param tick:    int  animation frame counter
+    @param is_day:  bool true between sunrise and sunset
+    @returns: list  64-element flat list of RGB tuples
     """
     frame = []
     for row in range(8):
@@ -784,6 +826,11 @@ def _overcast_frame(tick):
             r_chan = round(GREY_DARK[0] + t * (GREY_LIGHT[0] - GREY_DARK[0]))
             g_chan = round(GREY_DARK[1] + t * (GREY_LIGHT[1] - GREY_DARK[1]))
             b_chan = round(GREY_DARK[2] + t * (GREY_LIGHT[2] - GREY_DARK[2]))
+            if is_day:
+                glow = _overcast_sun_glow(row, col, sun_row, sun_col)
+                r_chan = min(255, round(r_chan + glow * _OVERCAST_SUN_GLOW_R_BOOST))
+                g_chan = min(255, round(g_chan + glow * _OVERCAST_SUN_GLOW_G_BOOST))
+                b_chan = min(255, round(b_chan + glow * _OVERCAST_SUN_GLOW_B_BOOST))
             frame.append((r_chan, g_chan, b_chan))
     return frame
 
@@ -893,7 +940,7 @@ def get_frame(state, is_day, tick, sun_row=0, sun_col=3):
     if state == "fog":
         return _fog_frame(tick)
     if state == "overcast":
-        return _overcast_frame(tick)
+        return _overcast_frame(sun_row, sun_col, tick, is_day)
     if state == "partly_cloudy":
         if is_day:
             return _partly_cloudy_day_frame(sun_row, sun_col, tick)
@@ -1360,7 +1407,7 @@ def run_test_single(state, is_day):
 
     tick = 0
     try:
-        if state in ("clear", "sunset") and is_day:
+        if state in ("clear", "sunset", "overcast") and is_day:
             # Loop the sun arc on a slow period.
             arc_start = time.time()
             while True:
@@ -1430,7 +1477,7 @@ def run_test():
                 sense.clear()
                 # For clear/sunset states: animate the sun arc over the test duration
                 # so the viewer can see the sun move up and down.
-                if state in ("clear", "sunset") and is_day:
+                if state in ("clear", "sunset", "overcast") and is_day:
                     # Animate full east→west arc over the test duration.
                     while time.time() < deadline:
                         elapsed  = time.time() - state_start
