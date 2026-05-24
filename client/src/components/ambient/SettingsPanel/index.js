@@ -3,7 +3,7 @@
  * this file. Their shapes are documented via JSDoc on the exported
  * SettingsPanel; declaring PropTypes for every helper adds ~80 lines
  * of boilerplate for components no other file imports. */
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
 import closeSharp from "@iconify/icons-ion/close-sharp";
@@ -1064,11 +1064,23 @@ const formatDelayLabel = (minutes, lang) => {
 };
 
 /**
- * Dropdown specifically for sleep-stage delay selection. Wraps a native
- * `<select>` in the same `.field` + `.fieldBox` chrome as `Field` /
- * `EditableField` / `RangeSlider` so it inherits the panel's visual
- * vocabulary without forking the styles. Coerces the string-typed
- * `<option value>` back to a number before calling `onChange`.
+ * Dropdown for sleep-stage delay selection. Custom popup (not a native
+ * `<select>`) so the option list renders in the active palette (night /
+ * nightRed) instead of the browser/OS theme.
+ *
+ * Why custom: native `<select>` popups are owned by the browser process —
+ * Chromium and Firefox each apply their own forced text colour and OS
+ * vibrancy regardless of CSS (`option { color: ... }`, `color-scheme`,
+ * `select { background-color: ... }` all ignored to varying degrees).
+ * v2.18 polish iterated on every CSS hack and confirmed both browsers
+ * refuse to honour the palette in the popup. Replacing with a button +
+ * `<ul role="listbox">` rendered in the React DOM gives us full
+ * palette fidelity on all four kiosk targets (Chromium / Firefox on
+ * Pi, Chrome / Firefox on macOS dev).
+ *
+ * Open-state dismissal mirrors `DetailsPopover`: pointerdown outside +
+ * Escape key. Pointerdown is deferred via `setTimeout(_, 0)` so the
+ * click that opened the menu doesn't immediately close it.
  *
  * @param {object} props
  * @param {string} props.label
@@ -1079,23 +1091,68 @@ const formatDelayLabel = (minutes, lang) => {
  * @param {string} props.lang
  * @returns {JSX.Element}
  */
-const DelaySelect = ({ label, value, options, onChange, disabled, lang }) => (
-  <div className={`${styles.field} ${disabled ? styles.fieldDisabled : ""}`}>
-    <div className={styles.fieldLabel}>{label}</div>
-    <div className={styles.fieldBox}>
-      <select
-        className={styles.fieldInput}
-        value={value ?? ""}
-        disabled={disabled}
-        onChange={(e) => onChange(parseInt(e.target.value, 10))}
-      >
-        {options.map((m) => (
-          <option key={m} value={m}>{formatDelayLabel(m, lang)}</option>
-        ))}
-      </select>
+const DelaySelect = ({ label, value, options, onChange, disabled, lang }) => {
+  const [open, setOpen] = useState(false);
+  const wrapperRef = useRef(null);
+
+  useEffect(() => {
+    if (!open) return undefined;
+    const onPointerDown = (e) => {
+      if (wrapperRef.current && !wrapperRef.current.contains(e.target)) {
+        setOpen(false);
+      }
+    };
+    const onKey = (e) => { if (e.key === "Escape") setOpen(false); };
+    // Defer the pointerdown listener so the click that opened the
+    // menu (which is still propagating) doesn't immediately close it.
+    const id = setTimeout(() => {
+      document.addEventListener("pointerdown", onPointerDown);
+    }, 0);
+    document.addEventListener("keydown", onKey);
+    return () => {
+      clearTimeout(id);
+      document.removeEventListener("pointerdown", onPointerDown);
+      document.removeEventListener("keydown", onKey);
+    };
+  }, [open]);
+
+  return (
+    <div className={`${styles.field} ${disabled ? styles.fieldDisabled : ""}`}>
+      <div className={styles.fieldLabel}>{label}</div>
+      <div className={styles.dropdownWrap} ref={wrapperRef}>
+        <button
+          type="button"
+          className={`${styles.fieldBox} ${styles.dropdownTrigger}`}
+          onClick={() => { if (!disabled) setOpen((o) => !o); }}
+          disabled={disabled}
+          aria-haspopup="listbox"
+          aria-expanded={open}
+        >
+          <span className={styles.dropdownValue}>{formatDelayLabel(value, lang)}</span>
+          <span className={styles.dropdownChevron} aria-hidden="true">▾</span>
+        </button>
+        {open ? (
+          <ul role="listbox" className={styles.dropdownMenu}>
+            {options.map((m) => {
+              const selected = value === m;
+              return (
+                <li
+                  key={m}
+                  role="option"
+                  aria-selected={selected}
+                  className={`${styles.dropdownOption} ${selected ? styles.dropdownOptionSelected : ""}`}
+                  onClick={() => { onChange(m); setOpen(false); }}
+                >
+                  {formatDelayLabel(m, lang)}
+                </li>
+              );
+            })}
+          </ul>
+        ) : null}
+      </div>
     </div>
-  </div>
-);
+  );
+};
 
 const Field = ({ label, value, unit, mono, disabled, selectable, trailing }) => (
   <div className={`${styles.field} ${disabled ? styles.fieldDisabled : ""}`}>

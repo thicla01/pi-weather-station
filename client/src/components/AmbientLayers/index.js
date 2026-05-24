@@ -168,6 +168,13 @@ const AmbientLayers = () => {
     // map at native resolution while the user's text-density
     // preference still has visible effect on the slabs and metrics.
     "--c-font-scale": FONT_SIZE_ZOOM[fontSizeKey],
+    // Tells the UA to render native form-control chrome (select
+    // dropdown panel, scrollbars, focus rings) in light or dark
+    // tone. Without this, Chromium falls back to the OS theme and
+    // ignores our palette — most visibly on the sleep-stage delay
+    // <select> in Settings, where night/nightRed produced an
+    // unreadable dark-on-dark popup.
+    colorScheme: tod === "day" ? "light" : "dark",
   };
 
   // Layout dispatch — mobile takes precedence over desktop because

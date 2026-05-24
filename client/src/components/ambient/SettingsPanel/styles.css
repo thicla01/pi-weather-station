@@ -874,6 +874,86 @@
   outline: none;
 }
 
+/* Custom dropdown for DelaySelect — replaces the native <select>
+ * popup, which neither Chromium nor Firefox renders in the active
+ * palette (each browser+OS combination forces its own text colour
+ * and panel vibrancy, ignoring `option { ... }`, `color-scheme`,
+ * `select { background-color: ... }`). v2.18 polish iterated on
+ * every CSS hack and confirmed the native popup is hopeless;
+ * implementing a button + listbox in the React DOM is the only
+ * way to guarantee palette fidelity on Chromium and Firefox,
+ * Pi and macOS. See the DelaySelect JSDoc for the rationale. */
+.dropdownWrap {
+  position: relative;
+}
+
+/* The trigger reuses .fieldBox visuals (border, accent-soft fill,
+ * radius, height) and adds button-element resets so it doesn't
+ * inherit native button chrome that would clash. */
+.dropdownTrigger {
+  width: 100%;
+  border: 1px solid var(--c-border);
+  font: inherit;
+  color: var(--c-text);
+  cursor: pointer;
+  text-align: left;
+}
+
+.dropdownTrigger:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.dropdownValue {
+  flex: 1;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+.dropdownChevron {
+  color: var(--c-text-dim);
+  font-size: 10px;
+  margin-left: auto;
+}
+
+/* Popup panel — positioned just below the trigger, full width of
+ * the cell. `z-index: 10` clears neighbouring grid cells in the
+ * Advanced section but stays well under the settings overlay
+ * itself (z-index: 5000). */
+.dropdownMenu {
+  position: absolute;
+  top: calc(100% + 4px);
+  left: 0;
+  right: 0;
+  z-index: 10;
+  background-color: var(--c-bg);
+  border: 1px solid var(--c-border);
+  border-radius: 4px;
+  padding: 4px 0;
+  margin: 0;
+  list-style: none;
+  max-height: 220px;
+  overflow-y: auto;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
+}
+
+.dropdownOption {
+  padding: 6px 10px;
+  font-size: 12px;
+  color: var(--c-text);
+  cursor: pointer;
+  font-variant-numeric: tabular-nums;
+}
+
+.dropdownOption:hover {
+  background-color: var(--c-accent-soft);
+}
+
+.dropdownOptionSelected {
+  background-color: var(--c-accent-soft);
+  color: var(--c-accent);
+}
+
 /* Brightness slider — replaces the read-only Field in the Location
  * & hardware row. Keeps the same `.field` outer column so the label
  * lines up with siblings, then a custom row that combines a real
