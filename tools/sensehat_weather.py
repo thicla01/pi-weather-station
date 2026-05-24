@@ -657,19 +657,34 @@ def _ice_frame(tick):
 _OVERCAST_WAVE_PERIOD_TICKS = 100        # ~12 s for one full sine cycle
 _OVERCAST_WAVE_SPATIAL = math.pi / 8     # radians of phase per (row + col) step
 
-# Overcast sun glow: when the sun is up, a Gaussian-shaped warmer /
-# brighter zone marks its position behind the clouds. Captures the
-# familiar effect where you can usually guess where the sun is on
-# overcast days because that patch of sky is noticeably brighter,
-# sometimes with a faint warm tint from diffused sunlight. Boost
-# adds to the wave colour rather than replacing it, so the
-# checkered animation continues underneath the glow. Disabled at
-# night (no analogous moon-glow yet — could be added in a future
-# iteration).
-_OVERCAST_SUN_GLOW_SIGMA   = 1.5    # Gaussian width in pixels (~3-px halo)
-_OVERCAST_SUN_GLOW_R_BOOST = 30     # peak R boost at glow centre
-_OVERCAST_SUN_GLOW_G_BOOST = 25     # slightly less on G → warm tint
-_OVERCAST_SUN_GLOW_B_BOOST = 10     # least on B (away from neutral white)
+# Overcast sun glow: when the sun is up, a Gaussian-shaped warm
+# zone marks its position behind the clouds. Captures the familiar
+# effect where you can usually guess where the sun is on overcast
+# days because that patch of sky is noticeably brighter, sometimes
+# with a faint warm tint from diffused sunlight.
+#
+# Initial implementation (commit 1359e44) used additive +R/+G/+B
+# boosts on top of the wave colour. Field test revealed the glow
+# was invisible at wave peaks (a +30 R boost against an already
+# 140-bright wave is only ~20 % brighter — buried in the wave's
+# own bright bands) and only barely discernible when a dark wave
+# band happened to pass over the sun position. The fix is to blend
+# toward a fixed "sun behind clouds" target colour instead — at the
+# glow centre, the pixel is pulled `_OVERCAST_SUN_GLOW_INTENSITY`
+# of the way from its current wave colour toward
+# `_OVERCAST_SUN_GLOW_COLOR`. The glow then stays visible regardless
+# of which phase of the wave happens to be at the sun position,
+# because the target colour is far enough from any wave colour that
+# the blend is always perceptibly different.
+_OVERCAST_SUN_GLOW_SIGMA     = 1.5             # Gaussian width in pixels (~3-px halo)
+_OVERCAST_SUN_GLOW_COLOR     = (230, 215, 150) # warm yellow-white "sun through cloud"
+# Field-test iteration: 0.65 left the sun position too easy to lose
+# when the wave's bright band passed through (the wave is already at
+# ~140 R, blending to 230 gives only +50 R lift). 0.85 reaches ~204 R
+# at the centre even when the wave is bright there, distinct from the
+# surrounding 140 R wave peaks. Centre stays below 255 so there's no
+# clipping headroom issue.
+_OVERCAST_SUN_GLOW_INTENSITY = 0.85            # max blend factor at sun centre
 
 _FOG_BREATH_PERIOD_TICKS = 50            # ~6 s for one full breath cycle
 _FOG_BRIGHTNESS_FLOOR = 0.55
@@ -827,10 +842,15 @@ def _overcast_frame(sun_row, sun_col, tick, is_day):
             g_chan = round(GREY_DARK[1] + t * (GREY_LIGHT[1] - GREY_DARK[1]))
             b_chan = round(GREY_DARK[2] + t * (GREY_LIGHT[2] - GREY_DARK[2]))
             if is_day:
-                glow = _overcast_sun_glow(row, col, sun_row, sun_col)
-                r_chan = min(255, round(r_chan + glow * _OVERCAST_SUN_GLOW_R_BOOST))
-                g_chan = min(255, round(g_chan + glow * _OVERCAST_SUN_GLOW_G_BOOST))
-                b_chan = min(255, round(b_chan + glow * _OVERCAST_SUN_GLOW_B_BOOST))
+                # Blend the wave colour toward the sun-glow target.
+                # `blend` runs from 0 (no glow) at far edges to
+                # `_OVERCAST_SUN_GLOW_INTENSITY` at the sun centre.
+                blend = _overcast_sun_glow(row, col, sun_row, sun_col) * _OVERCAST_SUN_GLOW_INTENSITY
+                if blend > 0:
+                    target = _OVERCAST_SUN_GLOW_COLOR
+                    r_chan = round(r_chan + blend * (target[0] - r_chan))
+                    g_chan = round(g_chan + blend * (target[1] - g_chan))
+                    b_chan = round(b_chan + blend * (target[2] - b_chan))
             frame.append((r_chan, g_chan, b_chan))
     return frame
 
