@@ -686,6 +686,18 @@ _OVERCAST_SUN_GLOW_COLOR     = (230, 215, 150) # warm yellow-white "sun through 
 # clipping headroom issue.
 _OVERCAST_SUN_GLOW_INTENSITY = 0.85            # max blend factor at sun centre
 
+# Glow dim floor — when a dark wave band (dense cloud patch) drifts
+# over the sun position, the halo gets attenuated to reflect the
+# extra cloud thickness between the sun and the observer. The local
+# wave value at the sun centre runs from t=0 (densest band) to t=1
+# (thinnest band); the glow's effective intensity becomes
+# `floor + (1 − floor) × t`. Floor at 0.4 means the densest cloud
+# patch still leaves 40 % of the glow visible — you can lose the
+# sun's brightness, but you don't lose its position completely
+# (real overcast suns stay locatable even under their densest
+# patches).
+_OVERCAST_SUN_GLOW_FLOOR     = 0.4
+
 _FOG_BREATH_PERIOD_TICKS = 50            # ~6 s for one full breath cycle
 _FOG_BRIGHTNESS_FLOOR = 0.55
 _FOG_BRIGHTNESS_CEILING = 1.00
@@ -818,11 +830,20 @@ def _overcast_frame(sun_row, sun_col, tick, is_day):
     palette in smooth transition.
 
     Sun glow: when `is_day`, a Gaussian-shaped warm-white boost is
-    added on top of the wave colour at the sun's current position
+    blended toward the wave colour at the sun's current position
     (computed by the caller via `_compute_sun_pos`). The glow rides
-    on top — it brightens what's already there rather than replacing
-    it — so the wave animation continues underneath. Falls off over
-    ~3 pixels (sigma 1.5) so the halo is local, not the whole sky.
+    on top — it shifts the local pixels toward a warm sun colour
+    rather than replacing them — so the wave animation continues
+    underneath. Falls off over ~3 pixels (sigma 1.5) so the halo is
+    local, not the whole sky.
+
+    The glow's effective intensity is also modulated by the wave's
+    value AT the sun centre: when a dense cloud band (dark wave
+    value) drifts over the sun's position, the halo gets dimmer
+    proportionally, never falling below `_OVERCAST_SUN_GLOW_FLOOR`
+    of full intensity. Same physical intuition as observing real
+    overcast skies — denser cloud patches obscure the sun more,
+    but you can still usually tell where it is.
 
     @param sun_row: int  top row of the sun block (0=zenith … 6=horizon)
     @param sun_col: int  left col of the sun block (0=east … 6=west)
@@ -830,6 +851,19 @@ def _overcast_frame(sun_row, sun_col, tick, is_day):
     @param is_day:  bool true between sunrise and sunset
     @returns: list  64-element flat list of RGB tuples
     """
+    # ── Glow dim factor (computed once per frame) ────────────────
+    # Evaluate the wave at the sun's centre to determine how much
+    # cloud thickness is between observer and sun right now.
+    if is_day:
+        sun_centre_phase = math.sin(
+            ((sun_row + 0.5) + (sun_col + 0.5)) * _OVERCAST_WAVE_SPATIAL
+            - (tick * 2 * math.pi / _OVERCAST_WAVE_PERIOD_TICKS)
+        )
+        t_at_sun = (sun_centre_phase + 1.0) / 2.0
+        glow_dim = _OVERCAST_SUN_GLOW_FLOOR + (1.0 - _OVERCAST_SUN_GLOW_FLOOR) * t_at_sun
+    else:
+        glow_dim = 0.0  # not used — glow disabled at night
+
     frame = []
     for row in range(8):
         for col in range(8):
@@ -844,8 +878,14 @@ def _overcast_frame(sun_row, sun_col, tick, is_day):
             if is_day:
                 # Blend the wave colour toward the sun-glow target.
                 # `blend` runs from 0 (no glow) at far edges to
-                # `_OVERCAST_SUN_GLOW_INTENSITY` at the sun centre.
-                blend = _overcast_sun_glow(row, col, sun_row, sun_col) * _OVERCAST_SUN_GLOW_INTENSITY
+                # `_OVERCAST_SUN_GLOW_INTENSITY × glow_dim` at the sun
+                # centre — `glow_dim` attenuates the whole halo when a
+                # dense cloud patch covers the sun position.
+                blend = (
+                    _overcast_sun_glow(row, col, sun_row, sun_col)
+                    * _OVERCAST_SUN_GLOW_INTENSITY
+                    * glow_dim
+                )
                 if blend > 0:
                     target = _OVERCAST_SUN_GLOW_COLOR
                     r_chan = round(r_chan + blend * (target[0] - r_chan))
