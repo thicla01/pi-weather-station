@@ -246,7 +246,15 @@
     "moonrise": "Moonrise",
     "moonset": "Moonset",
     "nextFullMoon": "Next full moon",
-    "nextNewMoon": "Next new moon"
+    "nextNewMoon": "Next new moon",
+    "sunDetails": "Sun",
+    "today": "Today",
+    "tomorrow": "Tomorrow",
+    "firstLight": "First light",
+    "lastLight": "Last light",
+    "sunrise": "Sunrise",
+    "sunset": "Sunset",
+    "dayLength": "Day length"
   },
   "alert": {
     "dismiss": "Dismiss",

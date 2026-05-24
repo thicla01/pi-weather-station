@@ -6,6 +6,7 @@ import bxsMoon from "@iconify/icons-bx/bxs-moon";
 import { AppContext } from "~/AppContext";
 import { moonPhase, upcomingSolarEvent } from "~/ui/astronomy";
 import MoonDetailsPopover from "~/components/ambient/MoonDetailsPopover";
+import SunDetailsPopover from "~/components/ambient/SunDetailsPopover";
 import styles from "./styles.css";
 
 const I18N_LOCALE = { en: "en-US", fr: "fr-FR", es: "es-ES" };
@@ -98,6 +99,13 @@ const TimeBlock = () => {
   // narrow viewports.
   const moonChipRef = useRef(null);
   const [moonOpen, setMoonOpen] = useState(false);
+  // Sunrise + sunset chips both open the same SunDetailsPopover.
+  // Mutual exclusivity with the moon popover so the two never visually
+  // collide in the narrow Pi/mobile rail.
+  const sunChipRef = useRef(null);
+  const [sunOpen, setSunOpen] = useState(false);
+  const toggleSun = () => { setMoonOpen(false); setSunOpen((v) => !v); };
+  const toggleMoon = () => { setSunOpen(false); setMoonOpen((v) => !v); };
 
   return (
     <div className={styles.slab}>
@@ -108,14 +116,29 @@ const TimeBlock = () => {
       </div>
       {hasSun ? (
         <div className={styles.sunRow}>
-          <span className={styles.sunChip}>
+          <button
+            ref={sunChipRef}
+            type="button"
+            className={`${styles.sunChip} ${styles.moonChip}`}
+            title={t("astronomy.sunDetails")}
+            aria-label={t("astronomy.sunDetails")}
+            aria-expanded={sunOpen}
+            onClick={toggleSun}
+          >
             <InlineIcon icon={bxsSun} />
             {sunFormatter.format(new Date(sunriseTime))}
-          </span>
-          <span className={styles.sunChip}>
+          </button>
+          <button
+            type="button"
+            className={`${styles.sunChip} ${styles.moonChip}`}
+            title={t("astronomy.sunDetails")}
+            aria-label={t("astronomy.sunDetails")}
+            aria-expanded={sunOpen}
+            onClick={toggleSun}
+          >
             <InlineIcon icon={bxsMoon} />
             {sunFormatter.format(new Date(sunsetTime))}
-          </span>
+          </button>
           <button
             ref={moonChipRef}
             type="button"
@@ -123,7 +146,7 @@ const TimeBlock = () => {
             title={t(`astronomy.moonPhase.${moon.i18nKey}`)}
             aria-label={t(`astronomy.moonPhase.${moon.i18nKey}`)}
             aria-expanded={moonOpen}
-            onClick={() => setMoonOpen((v) => !v)}
+            onClick={toggleMoon}
           >
             <span className={styles.moonGlyph}>{moon.glyph}</span>
             {Math.round(moon.illumination * 100)}%
@@ -135,6 +158,12 @@ const TimeBlock = () => {
               anchor="right"
             />
           </button>
+          <SunDetailsPopover
+            open={sunOpen}
+            onClose={() => setSunOpen(false)}
+            triggerRef={sunChipRef}
+            anchor="right"
+          />
         </div>
       ) : null}
       {upcoming ? (

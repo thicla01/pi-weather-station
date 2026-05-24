@@ -422,6 +422,14 @@ export function AppContextProvider({ children }) {
   const [infoPanelCollapsed, setInfoPanelCollapsed] = useState(false);
   const [sunriseTime, setSunriseTime] = useState(null);
   const [sunsetTime, setSunsetTime] = useState(null);
+  // Full sunrise-sunset.org payloads for today AND tomorrow, used by
+  // SunDetailsPopover. Keys mirror the upstream API ('sunrise', 'sunset',
+  // 'civil_twilight_begin', 'civil_twilight_end', 'day_length') so the
+  // popover can read fields directly without renaming. Each side is
+  // `null` until the first fetch resolves, or if the upstream call for
+  // that day failed (the popover renders em-dashes in that case).
+  const [sunriseSunsetToday, setSunriseSunsetToday] = useState(null);
+  const [sunriseSunsetTomorrow, setSunriseSunsetTomorrow] = useState(null);
   const [isLocal, setIsLocal] = useState(true);
   const [remoteSecurityEnabled, setRemoteSecurityEnabled] = useState(false);
   const [debugEnabled, setDebugEnabled] = useState(false);
@@ -1044,22 +1052,30 @@ export function AppContextProvider({ children }) {
       const d = new Date();
       const localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
       axios
-        .get(`/api/sunrise-sunset?lat=${latitude}&lon=${longitude}&date=${localDate}`)
+        .get(`/api/sunrise-sunset?lat=${latitude}&lon=${longitude}&date=${localDate}&tomorrow=1`)
         .then((res) => {
-          const { results } = res.data;
+          const { results, tomorrowResults } = res.data;
           if (results) {
             const { sunrise, sunset } = results;
             setSunriseTime(sunrise);
             setSunsetTime(sunset);
+            setSunriseSunsetToday(results);
           } else {
             setSunriseTime(null);
             setSunsetTime(null);
+            setSunriseSunsetToday(null);
           }
+          // `tomorrowResults` is only present when the upstream
+          // tomorrow call succeeded server-side (failure there is
+          // non-fatal and just omits the field). Mirror that here.
+          setSunriseSunsetTomorrow(tomorrowResults || null);
           resolve(results);
         })
         .catch((err) => {
           setSunriseTime(null);
           setSunsetTime(null);
+          setSunriseSunsetToday(null);
+          setSunriseSunsetTomorrow(null);
           reject(err);
         });
     });
@@ -1691,6 +1707,8 @@ export function AppContextProvider({ children }) {
     updateSunriseSunset,
     sunriseTime,
     sunsetTime,
+    sunriseSunsetToday,
+    sunriseSunsetTomorrow,
     isLocal,
     remoteSecurityEnabled,
     checkIsLocal,

@@ -8,6 +8,7 @@ import { convertTemp } from "~/services/conversions";
 import { parseWeatherCode, isDaylight } from "~/ui/weatherCodes";
 import { moonPhase, upcomingSolarEvent } from "~/ui/astronomy";
 import MoonDetailsPopover from "~/components/ambient/MoonDetailsPopover";
+import SunDetailsPopover from "~/components/ambient/SunDetailsPopover";
 import LocationName from "~/components/LocationName";
 import styles from "./styles.css";
 
@@ -119,6 +120,14 @@ const HeroBand = () => {
   // the right edge.
   const moonChipRef = useRef(null);
   const [moonOpen, setMoonOpen] = useState(false);
+  // Tap-for-details on the sun chips (sunrise + sunset). Both chips
+  // open the same SunDetailsPopover anchored to the sunrise chip;
+  // opening one closes the moon popover so the two never visually
+  // collide in the narrow clock panel.
+  const sunChipRef = useRef(null);
+  const [sunOpen, setSunOpen] = useState(false);
+  const toggleSun = () => { setMoonOpen(false); setSunOpen((v) => !v); };
+  const toggleMoon = () => { setSunOpen(false); setMoonOpen((v) => !v); };
 
   return (
     <div className={styles.band}>
@@ -165,14 +174,29 @@ const HeroBand = () => {
         </div>
         {sunriseTime && sunsetTime ? (
           <div className={styles.clockSunRow}>
-            <span className={styles.clockSunChip}>
+            <button
+              ref={sunChipRef}
+              type="button"
+              className={`${styles.clockSunChip} ${styles.moonChip}`}
+              title={t("astronomy.sunDetails")}
+              aria-label={t("astronomy.sunDetails")}
+              aria-expanded={sunOpen}
+              onClick={toggleSun}
+            >
               <InlineIcon icon={bxsSun} />
               {sunFormatter.format(new Date(sunriseTime))}
-            </span>
-            <span className={styles.clockSunChip}>
+            </button>
+            <button
+              type="button"
+              className={`${styles.clockSunChip} ${styles.moonChip}`}
+              title={t("astronomy.sunDetails")}
+              aria-label={t("astronomy.sunDetails")}
+              aria-expanded={sunOpen}
+              onClick={toggleSun}
+            >
               <InlineIcon icon={bxsMoon} />
               {sunFormatter.format(new Date(sunsetTime))}
-            </span>
+            </button>
             <button
               ref={moonChipRef}
               type="button"
@@ -180,7 +204,7 @@ const HeroBand = () => {
               title={t(`astronomy.moonPhase.${moon.i18nKey}`)}
               aria-label={t(`astronomy.moonPhase.${moon.i18nKey}`)}
               aria-expanded={moonOpen}
-              onClick={() => setMoonOpen((v) => !v)}
+              onClick={toggleMoon}
             >
               <span className={styles.moonGlyph}>{moon.glyph}</span>
               {Math.round(moon.illumination * 100)}%
@@ -192,6 +216,12 @@ const HeroBand = () => {
                 anchor="right"
               />
             </button>
+            <SunDetailsPopover
+              open={sunOpen}
+              onClose={() => setSunOpen(false)}
+              triggerRef={sunChipRef}
+              anchor="right"
+            />
           </div>
         ) : null}
         {upcoming ? (

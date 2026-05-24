@@ -554,12 +554,27 @@ async function weatherDaily(req, res) {
 }
 
 /**
- * Proxy: sunrise-sunset.org, avoiding mixed-content issues and enabling service tracking
+ * Proxy: sunrise-sunset.org, avoiding mixed-content issues and enabling service tracking.
+ *
+ * Response shape:
+ *   - Default (no `tomorrow` param): pass-through of the upstream JSON
+ *     `{ status, results: {...} }`. Preserved for backward compatibility
+ *     with any caller that only needs today.
+ *   - With `tomorrow=1`: enriches into
+ *     `{ status, results: {...today...}, tomorrowResults: {...tomorrow...} }`
+ *     where `tomorrowResults` is the result of a second upstream call
+ *     for the day after `date` (or after today UTC if no date supplied).
+ *     Both upstream calls run in parallel. The tomorrow call's failure
+ *     does NOT fail the whole response — `tomorrowResults` is omitted
+ *     and the today payload is still returned (the SunDetailsPopover
+ *     degrades to em-dashes for the tomorrow rows).
  *
  * @param {Object} req
  * @param {Object} req.query
  * @param {String} req.query.lat
  * @param {String} req.query.lon
+ * @param {String} [req.query.date]      YYYY-MM-DD, local date for "today"
+ * @param {String} [req.query.tomorrow]  truthy → also fetch the day after `date`
  * @param {Object} res
  */
 async function sunriseSunset(req, res) {
@@ -578,18 +593,52 @@ async function sunriseSunset(req, res) {
   // the response skips over today's local sunset and the auto
   // dark-mode toggle flips early. Strict regex match so a junk
   // value can't reach the upstream URL.
-  const dateParam = typeof req.query.date === "string"
+  const todayDate = typeof req.query.date === "string"
     && /^\d{4}-\d{2}-\d{2}$/.test(req.query.date)
-    ? `&date=${req.query.date}`
-    : "";
+    ? req.query.date
+    : null;
+  const dateParam = todayDate ? `&date=${todayDate}` : "";
+
+  // Compute tomorrow's YYYY-MM-DD from `date` (or from today UTC if
+  // none was supplied). Done locally via Date arithmetic so we don't
+  // round-trip a third upstream call just to learn the date.
+  const wantsTomorrow = Boolean(req.query.tomorrow);
+  let tomorrowParam = "";
+  if (wantsTomorrow) {
+    const base = todayDate ? new Date(`${todayDate}T12:00:00Z`) : new Date();
+    base.setUTCDate(base.getUTCDate() + 1);
+    const y = base.getUTCFullYear();
+    const m = String(base.getUTCMonth() + 1).padStart(2, "0");
+    const d = String(base.getUTCDate()).padStart(2, "0");
+    tomorrowParam = `&date=${y}-${m}-${d}`;
+  }
 
   try {
-    const result = await axios.get(
+    const todayPromise = axios.get(
       `https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lon}&formatted=0${dateParam}`,
       { timeout: API_TIMEOUT_MS }
     );
-    recordServiceCall("sunrise-sunset.org", 200, "OK");
-    return res.status(200).json(result.data).end();
+    const tomorrowPromise = wantsTomorrow
+      ? axios.get(
+        `https://api.sunrise-sunset.org/json?lat=${lat}&lng=${lon}&formatted=0${tomorrowParam}`,
+        { timeout: API_TIMEOUT_MS }
+      ).catch((err) => {
+        // Tomorrow's failure is non-fatal — log and return null so the
+        // main response still ships today's data. `Promise.all` below
+        // would otherwise reject the whole thing for one bad call.
+        recordServiceCall("sunrise-sunset.org", err?.response?.status || 500,
+          `tomorrow: ${String(err?.message || "fail").slice(0, 80)}`);
+        return null;
+      })
+      : Promise.resolve(null);
+
+    const [todayRes, tomorrowRes] = await Promise.all([todayPromise, tomorrowPromise]);
+    recordServiceCall("sunrise-sunset.org", 200, wantsTomorrow ? "OK (+tomorrow)" : "OK");
+    const payload = { ...todayRes.data };
+    if (tomorrowRes && tomorrowRes.data && tomorrowRes.data.results) {
+      payload.tomorrowResults = tomorrowRes.data.results;
+    }
+    return res.status(200).json(payload).end();
   } catch (err) {
     const status = err?.response?.status || 500;
     const message = err?.response?.data?.status || "Sunrise/sunset request failed";

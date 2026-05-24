@@ -246,7 +246,15 @@
     "moonrise": "Lever de la lune",
     "moonset": "Coucher de la lune",
     "nextFullMoon": "Prochaine pleine lune",
-    "nextNewMoon": "Prochaine nouvelle lune"
+    "nextNewMoon": "Prochaine nouvelle lune",
+    "sunDetails": "Soleil",
+    "today": "Aujourd'hui",
+    "tomorrow": "Demain",
+    "firstLight": "Aube civile",
+    "lastLight": "Crépuscule civil",
+    "sunrise": "Lever",
+    "sunset": "Coucher",
+    "dayLength": "Durée du jour"
   },
   "alert": {
     "dismiss": "Masquer",

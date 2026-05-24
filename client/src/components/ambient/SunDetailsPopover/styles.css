@@ -1,0 +1,45 @@
+/* SunDetailsPopover — reuses MoonDetailsPopover's row rhythm so the
+ * two tap-for-details popovers feel consistent. Adds a sectionHead
+ * row for the "Today" / "Tomorrow" group labels. */
+
+.detailRow {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-bottom: 8px;
+}
+
+.detailRow:last-child {
+  margin-bottom: 0;
+}
+
+.detailLabel {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--c-text-dim);
+}
+
+.detailValue {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Group header for "Today" / "Tomorrow". Slightly bigger than the
+ * detailLabel and uses the accent colour so the two sections are
+ * easy to scan apart. The first sectionHead has no extra top margin
+ * (the DetailsPopover body already provides its own padding); the
+ * second one gets 12 px so the two groups visibly separate. */
+.sectionHead {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: var(--c-accent);
+  margin-bottom: 6px;
+}
+
+.sectionHead:not(:first-child) {
+  margin-top: 12px;
+}
