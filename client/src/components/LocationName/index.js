@@ -1,13 +1,18 @@
-import React, { useEffect, useState, useContext } from "react";
+import React, { useContext } from "react";
 import PropTypes from "prop-types";
 import { AppContext } from "~/AppContext";
 import { InlineIcon } from "@iconify/react";
-import reverseGeocode from "~/services/reverseGeocode";
 import locationIcon from "@iconify/icons-ion/location-sharp";
 import styles from "./styles.css";
 
 /**
  * Map location.
+ *
+ * Pure display component — the reverse-geocode fetch lives in
+ * `AppContext` (see `reverseGeoResult` + its effect). This component
+ * just formats whatever the context currently holds, so any consumer
+ * that also wants the raw payload (e.g. `LocationDetailsPopover`)
+ * reads from the same source without duplicating the fetch.
  *
  * @param {object} props
  * @param {boolean} [props.stacked] — When true, render the primary place
@@ -17,32 +22,20 @@ import styles from "./styles.css";
  * @returns {JSX.Element} Location name
  */
 const LocationName = ({ stacked = false }) => {
-  const { mapGeo, reverseGeoApiKey } = useContext(AppContext);
-  const [name, setName] = useState(null);
+  const { mapGeo, reverseGeoResult } = useContext(AppContext);
 
-  useEffect(() => {
-    if (mapGeo && reverseGeoApiKey) {
-      const { latitude: lat, longitude: lon } = mapGeo;
-      reverseGeocode({ lat, lon })
-        .then((res) => {
-          // null = LocationIQ had no address for this coord (ocean,
-          // unmapped area). Fall back to lat/lon rather than trying
-          // to parse a missing payload.
-          if (!res || !res.address) {
-            setName(`${lat}, ${lon}`);
-            return;
-          }
-          setName(getName(res));
-        })
-        .catch((err) => {
-          setName(`${lat}, ${lon}`);
-          console.log("err!", err);
-        });
-    } else if (mapGeo && !reverseGeoApiKey) {
-      const { latitude: lat, longitude: lon } = mapGeo;
-      setName(`${lat}, ${lon}`);
-    }
-  }, [mapGeo, reverseGeoApiKey]);
+  // Three-state read on `reverseGeoResult` (see AppContext for the
+  // sentinel meanings):
+  //   object   → format via getName()
+  //   null     → settled empty (no key, 204, failure) → lat/lon fallback
+  //   undefined→ in-flight → empty placeholder so the layout doesn't
+  //              reflow and we don't flash raw coords pre-resolution
+  let name = null;
+  if (reverseGeoResult && reverseGeoResult.address) {
+    name = getName(reverseGeoResult);
+  } else if (reverseGeoResult === null && mapGeo) {
+    name = `${mapGeo.latitude}, ${mapGeo.longitude}`;
+  }
 
   if (!name) {
     return <div className={`${styles.container}`} />;

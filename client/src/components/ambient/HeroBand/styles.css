@@ -59,6 +59,39 @@
  * `.primary` rule, so this only affects the legacy inline path. */
 .placeLabel > div:not([class*="stacked"]) { display: inline-flex; align-items: center; gap: 6px; }
 
+/* When the location panel is rendered as a <button> (tap-for-details
+ * popover trigger), reset all native button chrome so the visual
+ * matches the non-clickable <div> variant — same font, colour,
+ * alignment, no border, no background. Keep the cursor as a pointer
+ * and an accessible focus ring for keyboard navigation. Sits INSIDE
+ * `.placeLabel`, not stacked alongside it — the previous version
+ * combined both classes on the button, but `.placeButton`'s
+ * `font: inherit` is declared later in this stylesheet and was
+ * overriding `.placeLabel`'s `font-size: 28px`, shrinking the city
+ * name down to whatever the parent inherited (16 px default).
+ * `display: block; width: 100%` so the click target covers the full
+ * panel like the old div did. */
+.placeButton {
+  display: block;
+  width: 100%;
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.placeButton:focus-visible {
+  outline: 1px solid var(--c-accent);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+
 /* ── Temperature panel ──────────────────────────────────────────── */
 
 .panelTemp {

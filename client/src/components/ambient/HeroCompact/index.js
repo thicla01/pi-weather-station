@@ -1,10 +1,11 @@
-import React, { useContext } from "react";
+import React, { useContext, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
 import { AppContext } from "~/AppContext";
 import { convertTemp } from "~/services/conversions";
 import { parseWeatherCode, isDaylight } from "~/ui/weatherCodes";
 import LocationName from "~/components/LocationName";
+import LocationDetailsPopover from "~/components/ambient/LocationDetailsPopover";
 import styles from "./styles.css";
 
 /**
@@ -33,14 +34,54 @@ const HeroCompact = () => {
     tempUnit,
     sunriseTime,
     sunsetTime,
+    reverseGeoResult,
   } = useContext(AppContext);
   const { t } = useTranslation();
+
+  // Tap-for-details on the location row (same UX as HeroBand on desktop).
+  // Anchored to the left edge so the popover extends rightward — the
+  // HeroCompact slab is right-side-of-rail in mobile/Pi layouts, but
+  // its location row hugs the slab's left edge, so left-anchored is
+  // the safer choice across viewports.
+  const locationRef = useRef(null);
+  const [locationOpen, setLocationOpen] = useState(false);
+  const toggleLocation = () => setLocationOpen((v) => !v);
+  const locationClickable = !!reverseGeoResult;
+
+  // Reusable location row — same markup in the empty placeholder and
+  // the populated layout, so the popover trigger is consistent across
+  // both states. When we don't yet have geocode data the row falls
+  // back to the non-interactive <div> variant.
+  const locationRow = locationClickable ? (
+    <button
+      ref={locationRef}
+      type="button"
+      className={styles.locationButton}
+      onClick={toggleLocation}
+      aria-expanded={locationOpen}
+      aria-label={t("location.details")}
+      title={t("location.details")}
+    >
+      <LocationName />
+    </button>
+  ) : (
+    <LocationName />
+  );
+  const locationPopover = (
+    <LocationDetailsPopover
+      open={locationOpen}
+      onClose={() => setLocationOpen(false)}
+      triggerRef={locationRef}
+      anchor="left"
+    />
+  );
 
   const weatherData = currentWeatherData?.data?.timelines?.[0]?.intervals?.[0]?.values;
   if (!weatherData) {
     return (
       <div className={`${styles.slab} ${styles.empty}`}>
-        <LocationName />
+        {locationRow}
+        {locationPopover}
       </div>
     );
   }
@@ -71,7 +112,8 @@ const HeroCompact = () => {
   return (
     <div className={styles.slab}>
       <div className={styles.location}>
-        <LocationName />
+        {locationRow}
+        {locationPopover}
       </div>
       <div className={styles.tempRow}>
         <div className={styles.tempBlock}>

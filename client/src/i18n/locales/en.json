@@ -256,6 +256,18 @@
     "sunset": "Sunset",
     "dayLength": "Day length"
   },
+  "location": {
+    "details": "Location",
+    "locality": "City",
+    "district": "Neighbourhood",
+    "county": "County",
+    "region": "State / Region",
+    "country": "Country",
+    "postcode": "Postal code",
+    "coordinates": "Coordinates",
+    "source": "Source: LocationIQ",
+    "noAddress": "No address found at this point."
+  },
   "alert": {
     "dismiss": "Dismiss",
     "dismissTooltip": "Hide for 4 h (resurfaces if it escalates)",

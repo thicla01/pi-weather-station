@@ -256,6 +256,18 @@
     "sunset": "Atardecer",
     "dayLength": "Duración del día"
   },
+  "location": {
+    "details": "Ubicación",
+    "locality": "Ciudad",
+    "district": "Barrio",
+    "county": "Condado",
+    "region": "Estado / Región",
+    "country": "País",
+    "postcode": "Código postal",
+    "coordinates": "Coordenadas",
+    "source": "Fuente: LocationIQ",
+    "noAddress": "No se encontró una dirección en este punto."
+  },
   "alert": {
     "dismiss": "Ocultar",
     "dismissTooltip": "Ocultar 4 h (reaparece si se agrava)",

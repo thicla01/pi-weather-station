@@ -1,0 +1,63 @@
+/* LocationDetailsPopover — same mini-table rhythm as
+ * MoonDetailsPopover / SunDetailsPopover so the tap-for-details
+ * popovers feel consistent across the hero band. */
+
+.detailRow {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-bottom: 8px;
+}
+
+.detailRow:last-child {
+  margin-bottom: 0;
+}
+
+.detailLabel {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--c-text-dim);
+}
+
+.detailValue {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* ISO country code rendered slightly dimmer alongside the country
+ * name so it reads as supplementary metadata, not a second equal-
+ * weight token. */
+.code {
+  font-weight: 500;
+  color: var(--c-text-dim);
+  font-variant-numeric: tabular-nums;
+}
+
+/* Footer "Source: LocationIQ" — small, dim, separated from the
+ * data rows by a subtle top border. Mirrors the unobtrusive
+ * attribution pattern used by the air-quality popover. */
+.source {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--c-border);
+  font-size: 10px;
+  color: var(--c-text-dim);
+  letter-spacing: 0.4px;
+}
+
+/* Fallback when the reverse-geocode hasn't returned a usable
+ * address (ocean / unmapped / no API key). Keeps the popover
+ * useful — at minimum the user sees the precise marker coords. */
+.empty {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.note {
+  font-size: 11px;
+  color: var(--c-text-dim);
+  font-style: italic;
+}

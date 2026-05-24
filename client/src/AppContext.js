@@ -2,6 +2,7 @@ import React, { createContext, useState, useEffect, useRef, useCallback } from "
 import { getSettings } from "~/settings";
 import PropTypes from "prop-types";
 import { getCoordsFromApi } from "~/services/geolocation";
+import reverseGeocode from "~/services/reverseGeocode";
 import { useUpdateChecker } from "~/hooks/useUpdateChecker";
 import { useScreenSaver } from "~/hooks/useScreenSaver";
 import { useUiPreferences } from "~/hooks/useUiPreferences";
@@ -73,6 +74,40 @@ export function AppContextProvider({ children }) {
       setMapTimezone(undefined);
     }
   }, [mapGeo]);
+
+  // Full LocationIQ reverse-geocode payload for the current `mapGeo`.
+  // Hoisted from `LocationName` so a second consumer
+  // (`LocationDetailsPopover` on the v3 ambient hero) reads from the
+  // same source without duplicating the fetch. The underlying service
+  // caches by coord pair so re-pointing the marker at a previously
+  // seen location is free.
+  //
+  // Three states the consumers care about:
+  //   `undefined` — initial / fetch in-flight (no settle yet for the
+  //                 current mapGeo). Consumers wait.
+  //   `null`      — settled with no usable address: no mapGeo, no
+  //                 API key, 204 (ocean), or upstream failure.
+  //                 Consumers fall back to lat/lon.
+  //   object      — the LocationIQ payload (with `.address`).
+  //
+  // Initial state is undefined so LocationName doesn't briefly flash
+  // raw lat/lon before the first fetch resolves on a cold boot.
+  // Across a mapGeo change we deliberately leave the *previous*
+  // result in place until the new fetch settles, so the panel shows
+  // the old city for a beat rather than going blank — matches the
+  // pre-hoist LocationName behaviour.
+  const [reverseGeoResult, setReverseGeoResult] = useState(undefined);
+  useEffect(() => {
+    if (!mapGeo || !reverseGeoApiKey) {
+      setReverseGeoResult(null);
+      return undefined;
+    }
+    let cancelled = false;
+    reverseGeocode({ lat: mapGeo.latitude, lon: mapGeo.longitude })
+      .then((res) => { if (!cancelled) setReverseGeoResult(res || null); })
+      .catch(() => { if (!cancelled) setReverseGeoResult(null); });
+    return () => { cancelled = true; };
+  }, [mapGeo, reverseGeoApiKey]);
 
   // Push the current map view to the server's kiosk-location cache so
   // background daemons that don't know about React state — currently
@@ -1577,6 +1612,7 @@ export function AppContextProvider({ children }) {
     mapGeo,
     setMapGeo,
     mapTimezone,
+    reverseGeoResult,
     aiSummaryAvailable,
     setAiSummaryAvailable,
     aiSummaryUserVisible,

@@ -256,6 +256,18 @@
     "sunset": "Coucher",
     "dayLength": "Durée du jour"
   },
+  "location": {
+    "details": "Lieu",
+    "locality": "Ville",
+    "district": "Quartier",
+    "county": "Comté / MRC",
+    "region": "Province / Région",
+    "country": "Pays",
+    "postcode": "Code postal",
+    "coordinates": "Coordonnées",
+    "source": "Source : LocationIQ",
+    "noAddress": "Aucune adresse trouvée à ce point."
+  },
   "alert": {
     "dismiss": "Masquer",
     "dismissTooltip": "Masquer 4 h (réapparaît si ça s'aggrave)",

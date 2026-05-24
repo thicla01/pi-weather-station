@@ -35,6 +35,33 @@
  * its container inline so it doesn't break the row alignment. */
 .location > div { display: inline-flex; align-items: center; gap: 4px; }
 
+/* When the location row is rendered as a <button> (tap-for-details
+ * popover trigger), reset all native button chrome so the visual
+ * matches the non-clickable variant — same uppercase mini-caps,
+ * same dim colour, no border, no background. */
+.locationButton {
+  background: transparent;
+  border: 0;
+  padding: 0;
+  margin: 0;
+  text-align: left;
+  font: inherit;
+  color: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  cursor: pointer;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+  display: inline-flex;
+  align-items: center;
+}
+
+.locationButton:focus-visible {
+  outline: 1px solid var(--c-accent);
+  outline-offset: 3px;
+  border-radius: 4px;
+}
+
 .tempRow {
   display: flex;
   align-items: center;

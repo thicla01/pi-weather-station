@@ -9,6 +9,7 @@ import { parseWeatherCode, isDaylight } from "~/ui/weatherCodes";
 import { moonPhase, upcomingSolarEvent } from "~/ui/astronomy";
 import MoonDetailsPopover from "~/components/ambient/MoonDetailsPopover";
 import SunDetailsPopover from "~/components/ambient/SunDetailsPopover";
+import LocationDetailsPopover from "~/components/ambient/LocationDetailsPopover";
 import LocationName from "~/components/LocationName";
 import styles from "./styles.css";
 
@@ -44,6 +45,7 @@ const HeroBand = () => {
     mapTimezone,
     sunriseTime,
     sunsetTime,
+    reverseGeoResult,
   } = useContext(AppContext);
   const { t, i18n } = useTranslation();
   const localeKey = i18n.language.startsWith("fr")
@@ -129,12 +131,43 @@ const HeroBand = () => {
   const toggleSun = () => { setMoonOpen(false); setSunOpen((v) => !v); };
   const toggleMoon = () => { setSunOpen(false); setMoonOpen((v) => !v); };
 
+  // Tap-for-details on the location panel — surfaces the full
+  // LocationIQ reverse-geocode payload (admin hierarchy, postcode,
+  // precise coords) that `LocationName` necessarily truncates. Only
+  // wire up the button when we actually have geocode data OR a
+  // mapGeo to fall back to coords; otherwise the panel is just a
+  // placeholder and a tap would open an empty popover.
+  const locationRef = useRef(null);
+  const [locationOpen, setLocationOpen] = useState(false);
+  const toggleLocation = () => setLocationOpen((v) => !v);
+  const locationClickable = !!reverseGeoResult;
+
   return (
     <div className={styles.band}>
       <div className={styles.panelPlace}>
         <div className={styles.placeLabel}>
-          <LocationName stacked />
+          {locationClickable ? (
+            <button
+              ref={locationRef}
+              type="button"
+              className={styles.placeButton}
+              onClick={toggleLocation}
+              aria-expanded={locationOpen}
+              aria-label={t("location.details")}
+              title={t("location.details")}
+            >
+              <LocationName stacked />
+            </button>
+          ) : (
+            <LocationName stacked />
+          )}
         </div>
+        <LocationDetailsPopover
+          open={locationOpen}
+          onClose={() => setLocationOpen(false)}
+          triggerRef={locationRef}
+          anchor="left"
+        />
       </div>
       <div className={styles.divider} />
       <div className={styles.panelTemp}>
