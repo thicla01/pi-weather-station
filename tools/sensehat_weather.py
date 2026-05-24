@@ -27,6 +27,8 @@ import logging
 import math
 import os
 import struct
+import subprocess
+import sys
 import time
 import urllib3
 
@@ -688,6 +690,66 @@ _FOG_PIXEL_DITHER = [
 ]
 del _random
 
+# ── FOG density drift (D-A: continuous secondary effect) ─────────────
+#
+# Slow horizontal wave layered on top of the breath. Adds ±4 % of
+# brightness to each pixel depending on its column and a slow
+# time-drift, so denser/thinner patches of fog seem to glide
+# horizontally across the matrix at ~one matrix-width per 60 s. The
+# breath remains the dominant effect; this gives the fog spatial
+# character (real fog isn't uniform — pockets vary) and a sense of
+# wind-driven motion without competing with the unified pulse.
+_FOG_DRIFT_PERIOD_TICKS  = 500       # ~60 s for one full drift cycle
+_FOG_DRIFT_SPATIAL       = math.pi / 4   # one wavelength fits ~the matrix
+_FOG_DRIFT_AMPLITUDE     = 0.04      # ±4 % brightness per column
+
+# ── FOG rift (D-B: occasional surprise event) ────────────────────────
+#
+# Every _FOG_RIFT_PERIOD_TICKS, a brighter zone slides horizontally
+# across the matrix in _FOG_RIFT_DURATION_TICKS — like a brief patch
+# of sunlight breaking through the fog. The boost is Gaussian-shaped
+# in horizontal position so the brighter zone has soft edges that
+# blend into the surrounding mist rather than a hard-edged spotlight.
+# Same philosophy as the clear-night shooting star: 95 % of the time
+# the animation is calm, every minute or two a delightful event you'd
+# only catch if you happened to be glancing.
+_FOG_RIFT_PERIOD_TICKS   = 750       # ~90 s between rift events
+_FOG_RIFT_DURATION_TICKS = 25        # ~3 s for the rift to traverse
+_FOG_RIFT_WIDTH_SIGMA    = 1.2       # Gaussian falloff in columns
+_FOG_RIFT_MAX_BOOST      = 0.15      # peak brightness boost at rift centre
+
+
+def _fog_density_offset(col, tick):
+    """Slow horizontal-drift density variation. Returns a brightness
+    offset in [-_FOG_DRIFT_AMPLITUDE, +_FOG_DRIFT_AMPLITUDE] for the
+    given column at the given tick.
+    """
+    return math.sin(
+        col * _FOG_DRIFT_SPATIAL
+        + tick * 2 * math.pi / _FOG_DRIFT_PERIOD_TICKS
+    ) * _FOG_DRIFT_AMPLITUDE
+
+
+def _fog_rift_offset(col, tick):
+    """Occasional traversing rift (sunlight breaking through fog).
+    Returns a brightness boost in [0, _FOG_RIFT_MAX_BOOST] for the
+    given column at the given tick. Returns 0 when no rift is active.
+
+    The rift centre travels from column -2 (off-screen left) to
+    column +9 (off-screen right) over `_FOG_RIFT_DURATION_TICKS`, so
+    the rift enters and exits the matrix smoothly without popping in
+    at the edge. Gaussian falloff with sigma = `_FOG_RIFT_WIDTH_SIGMA`
+    softens the brighter zone's edges.
+    """
+    phase_in_cycle = tick % _FOG_RIFT_PERIOD_TICKS
+    if phase_in_cycle >= _FOG_RIFT_DURATION_TICKS:
+        return 0.0
+    progress = phase_in_cycle / max(1, _FOG_RIFT_DURATION_TICKS - 1)
+    rift_centre = -2 + progress * 11.0     # -2 → +9 over the duration
+    distance = col - rift_centre
+    gauss = math.exp(-(distance * distance) / (2 * _FOG_RIFT_WIDTH_SIGMA ** 2))
+    return _FOG_RIFT_MAX_BOOST * gauss
+
 
 def _overcast_frame(tick):
     """Rolling diagonal wave through GREY_DARK ↔ GREY_MID ↔ GREY_LIGHT.
@@ -720,24 +782,40 @@ def _overcast_frame(tick):
 
 
 def _fog_frame(tick):
-    """Near-uniform breathing pulse — all 64 pixels share one slow
-    sine cycle of brightness modulation, with a static random
-    per-pixel dither offset (`_FOG_PIXEL_DITHER`) applied to break
-    the RGB565 quantization strobe. Like the matrix exhaling through
-    the fog. Peak brightness matches the original static FRAME_FOG
-    colour; the static noise pattern is invisible at peak (most
-    pixels clamp at 1.0) and most visible at trough/mid-cycle.
+    """Layered fog animation:
+      1. Unified breath (6 s sine cycle, full matrix in lockstep) —
+         the dominant effect, gives the fog its "exhaling" character.
+      2. Slow horizontal density drift (60 s cycle, ±4 % brightness
+         per column) — denser/thinner patches glide across the matrix
+         as if the fog were drifting on a light wind.
+      3. Occasional Gaussian-shaped rift (every ~90 s, ~3 s traversal,
+         +15 % brightness at the peak) — a brief patch where sunlight
+         breaks through, soft-edged so it blends rather than spotlights.
+      4. Static random per-pixel dither — kills the RGB565 quantization
+         strobe without introducing visible spatial patterns.
 
     @param tick: int — animation frame counter
     @returns: list — 64-element flat list of RGB tuples
     """
     amplitude = _FOG_BRIGHTNESS_CEILING - _FOG_BRIGHTNESS_FLOOR
     phase = (tick / _FOG_BREATH_PERIOD_TICKS) * 2 * math.pi
-    base = _FOG_BRIGHTNESS_FLOOR + amplitude * (math.sin(phase) + 1.0) / 2.0
-    return [
-        _scale_color(FOG_COLOR, max(0.0, min(1.0, base + _FOG_PIXEL_DITHER[i])))
-        for i in range(64)
-    ]
+    breath = _FOG_BRIGHTNESS_FLOOR + amplitude * (math.sin(phase) + 1.0) / 2.0
+
+    frame = []
+    for i in range(64):
+        col = i % 8
+        # Layers compose additively: breath + drift ± a few percent,
+        # plus the rare rift boost, plus the static dither. The clamp
+        # guarantees the final value stays inside [0, 1] regardless of
+        # how the layers stack.
+        brightness = (
+            breath
+            + _fog_density_offset(col, tick)
+            + _fog_rift_offset(col, tick)
+            + _FOG_PIXEL_DITHER[i]
+        )
+        frame.append(_scale_color(FOG_COLOR, max(0.0, min(1.0, brightness))))
+    return frame
 
 
 # ── STATE CLASSIFICATION ──────────────────────────────────────────────────────
@@ -1178,6 +1256,48 @@ def run():
 
 # ── TEST MODE ─────────────────────────────────────────────────────────────────
 
+def _production_service_active():
+    """Return True if `pi-sensehat.service` is currently `active`
+    according to `systemctl --user`. False on any other status, on
+    error, or when systemctl is unavailable (typical for dev hosts:
+    macOS, non-systemd Linux). Used to bail out of `--test` and
+    `--state` before two processes start fighting over the framebuffer
+    — the field-test scenario that produced the "fog + rain
+    superimposed" artifact during the 2026-05-24 session.
+    """
+    try:
+        result = subprocess.run(
+            ["systemctl", "--user", "is-active", "pi-sensehat.service"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+            check=False,
+        )
+        return result.stdout.strip() == "active"
+    except (subprocess.TimeoutExpired, FileNotFoundError, OSError):
+        return False
+
+
+def _abort_if_service_running():
+    """If the production daemon is active, refuse to start a test mode
+    so the user doesn't end up with two processes writing interleaved
+    frames to the same framebuffer (visually: chaotic "two
+    animations playing simultaneously" — completely defeats the
+    purpose of a calibration test).
+    """
+    if not _production_service_active():
+        return
+    log.error(
+        "pi-sensehat.service is currently active — test mode would write "
+        "frames in parallel with the production daemon, producing visual "
+        "chaos on the LED matrix. Stop the service first:"
+    )
+    log.error("    systemctl --user stop pi-sensehat")
+    log.error("…and restart it when you're done testing:")
+    log.error("    systemctl --user start pi-sensehat")
+    sys.exit(1)
+
+
 # CLI slug → (internal state name, is_day) mapping for `--state`. Slugs
 # are kebab-case so they're shell-friendly (no shell-special chars,
 # unambiguous on a tab-completion line). Day/night variants get
@@ -1221,6 +1341,8 @@ def run_test_single(state, is_day):
     @param state:  str   internal state name (e.g. "fog", "partly_cloudy")
     @param is_day: bool  whether to render the day or night variant
     """
+    _abort_if_service_running()
+
     sense = SenseHat()
     sense.set_rotation(ROTATION)
     sense.low_light = False
@@ -1267,6 +1389,8 @@ def run_test():
     Useful for verifying colours, animations and rotation without waiting
     for real weather changes.  Run with: python3 sensehat_weather.py --test
     """
+    _abort_if_service_running()
+
     sense = SenseHat()
     sense.set_rotation(ROTATION)
     sense.low_light = False
