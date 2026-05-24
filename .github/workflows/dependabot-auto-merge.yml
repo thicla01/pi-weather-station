@@ -1,0 +1,67 @@
+# Auto-merge Dependabot PRs that fix a published security advisory
+# (GHSA / CVE), provided the bump is patch or minor and the required
+# CI checks have passed.
+#
+# Rationale (2026-05-24): Dependabot already opens security PRs and
+# the CI workflow ("server tests" + "client build (lint + webpack)")
+# runs against each one. The maintainer just wasn't seeing them in
+# time — the qs CVE-2026-8723 patch sat open as PR #157 for 24 h
+# until a direct manual push superseded it. This workflow lets
+# security patches flow to master automatically when:
+#   - the PR was opened by `dependabot[bot]`, AND
+#   - Dependabot's metadata identifies it as a security update
+#     (the `ghsa-id` output is set), AND
+#   - the bump is `version-update:semver-patch` or
+#     `version-update:semver-minor`, AND
+#   - the required status checks pass (gated by branch protection
+#     on `master` — `gh pr merge --auto` waits for them).
+#
+# Major-version security bumps still need manual review (breaking
+# changes are common across major boundaries; a CVE fix that's only
+# available in a major bump deserves a careful look). Non-security
+# Dependabot PRs (weekly minor/patch maintenance bumps) also stay
+# manual — keeps the maintainer in the loop for the regular cadence.
+
+name: Dependabot auto-merge security PRs
+
+on:
+  pull_request:
+    branches: [master]
+
+permissions:
+  # `contents: write` lets the auto-merge actually land the squash
+  # commit on `master`; `pull-requests: write` lets `gh pr merge`
+  # toggle the auto-merge flag on the PR. Both are required for the
+  # Dependabot auto-merge pattern documented at
+  # https://docs.github.com/en/code-security/dependabot/working-with-dependabot/automating-dependabot-with-github-actions
+  contents: write
+  pull-requests: write
+
+jobs:
+  dependabot-auto-merge:
+    # Only run on PRs authored by Dependabot. Other PRs are unaffected.
+    if: ${{ github.actor == 'dependabot[bot]' }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch Dependabot metadata
+        id: metadata
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Enable auto-merge for security patch/minor bumps
+        # Gated on:
+        #   - `ghsa-id` non-empty → this PR fixes a published security
+        #     advisory (Dependabot only sets this for security PRs).
+        #   - update-type ∈ {semver-patch, semver-minor} → major bumps
+        #     still need human eyes for breaking-change review.
+        if: |
+          steps.metadata.outputs.ghsa-id != '' &&
+          (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
+           steps.metadata.outputs.update-type == 'version-update:semver-minor')
+        run: |
+          echo "Auto-merging security ${{ steps.metadata.outputs.update-type }} for ${{ steps.metadata.outputs.dependency-names }} (advisory ${{ steps.metadata.outputs.ghsa-id }})"
+          gh pr merge --auto --squash "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
