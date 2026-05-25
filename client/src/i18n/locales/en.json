@@ -349,7 +349,10 @@
     "hideAiSummary": "Hide AI summary section",
     "openUpdate": "Show update modal",
     "closeUpdate": "Close update modal",
-    "updateAvailableRemote": "Update available — connect locally to install"
+    "updateAvailableRemote": "Update available — connect locally to install",
+    "groupMap": "Map",
+    "groupDisplay": "Display",
+    "groupSystem": "System"
   },
   "mobile": {
     "settingsHint": "Open the app on the Pi locally for advanced settings."
@@ -389,7 +392,12 @@
     "degraded": "Some non-critical services degraded",
     "criticalDown": "A critical service is down",
     "serverUnreachable": "Server unreachable",
-    "noIssues": "Nothing to report."
+    "noIssues": "Nothing to report.",
+    "chipPrefix": "Services",
+    "shortOk": "OK",
+    "shortDegraded": "Degraded",
+    "shortCritical": "Critical",
+    "shortOffline": "Offline"
   },
   "debug": {
     "title": "DEBUG",

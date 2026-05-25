@@ -9,6 +9,22 @@
 .dock {
   background-color: var(--c-surface);
   border-top: 1px solid var(--c-border);
+  /* `backdrop-filter: blur` homogenises the dock background by blurring
+   * the map / radar tiles that show through the surface's 15 % alpha.
+   * Without it, bright radar pixels (yellow / blue precipitation behind
+   * the dock) create variable-luminance patches under the text — the
+   * font's sub-pixel anti-aliasing then has to blend against a moving
+   * target and the group labels read as soft / blurry in palettes
+   * where the radar contrasts strongly with the dock surface (night
+   * dock is dark warm grey, the radar's blue/yellow patches pop
+   * through visibly). Day's cream surface and night-red's saturated
+   * red both absorb the radar's colour cast enough that this issue
+   * doesn't surface in those modes — but the blur is harmless there
+   * (radar still shows the geographic content, just frosted under the
+   * dock). Same pattern the synthesis design uses on the radar slider
+   * and hero overlays. */
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
   /* v2.16.5: reverted v2.16.2's safe-area-bottom padding. In iOS
    * PWA standalone, `100dvh` < physical screen height, so the
    * extra padding extended into a zone that the page doesn't

@@ -349,7 +349,10 @@
     "hideAiSummary": "Masquer la section IA",
     "openUpdate": "Afficher la fenêtre de mise à jour",
     "closeUpdate": "Fermer la fenêtre de mise à jour",
-    "updateAvailableRemote": "Mise à jour disponible — connectez-vous en local pour installer"
+    "updateAvailableRemote": "Mise à jour disponible — connectez-vous en local pour installer",
+    "groupMap": "Carte",
+    "groupDisplay": "Affichage",
+    "groupSystem": "Système"
   },
   "mobile": {
     "settingsHint": "Pour les réglages avancés, ouvre l'app depuis le Pi en local."
@@ -389,7 +392,12 @@
     "degraded": "Certains services non critiques sont dégradés",
     "criticalDown": "Un service critique est en panne",
     "serverUnreachable": "Serveur injoignable",
-    "noIssues": "Rien à signaler."
+    "noIssues": "Rien à signaler.",
+    "chipPrefix": "Services",
+    "shortOk": "OK",
+    "shortDegraded": "Dégradé",
+    "shortCritical": "Critique",
+    "shortOffline": "Hors ligne"
   },
   "debug": {
     "title": "DÉBOGAGE",

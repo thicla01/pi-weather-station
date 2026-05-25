@@ -208,3 +208,202 @@
   100% { opacity: 0; transform: translate(var(--toast-tx), -2px); }
 }
 
+/* ============================================================
+ * GROUPED MODE — used by the v3 BottomDock (Phase 1 of the v3.1
+ * synthesis design). The flat-row CSS above is preserved for the
+ * legacy v2 InfoPanel; everything below activates only when the
+ * container carries `.grouped`.
+ *
+ * Layout: three flex groups with a small gap, a hairline
+ * separator between groups, optional uppercase labels left of
+ * each group (hidden on the 7" Pi and on phones), and a chip
+ * pushed to the right via the HealthIndicator's own
+ * `margin-left: auto` rule.
+ *
+ * Crucially, the `.container > div` background / border rules
+ * from the flat layout target direct children of the container.
+ * In grouped mode the direct children are the `.group` wrappers,
+ * which DO match `.container.dark > div` etc. We strip those
+ * inherited rules below so the group wrappers stay transparent
+ * and only the buttons (now grandchildren) carry the dock styles.
+ * ============================================================ */
+.container.grouped {
+  /* Override `space-evenly`: groups should pack from the left so
+   * the status chip's `margin-left: auto` can claim the remaining
+   * width and float to the right. */
+  justify-content: flex-start;
+  align-items: center;
+  gap: 0;
+  /* The dock parent already pads us; keep inner padding minimal so
+   * the groups can use most of the available width. */
+  padding: 0;
+}
+
+/* Strip the inherited dark/light gradients from the group wrappers
+ * (they're not buttons — they hold buttons). Higher specificity
+ * than `.container.dark > div` via the extra `.grouped` class. */
+.container.grouped.dark > div.group,
+.container.grouped.light > div.group {
+  background: transparent;
+  border-left: 0;
+  border-right: 0;
+}
+.container.grouped.dark > div.group:active,
+.container.grouped.light > div.group:active {
+  background: transparent;
+}
+
+.container.grouped .group {
+  display: flex;
+  align-items: center;
+  /* 2 px gap matches the design's tight in-group rhythm — the
+   * separators between groups carry the visual break, not the
+   * intra-group spacing. */
+  gap: 2px;
+  /* 6 px padding on the sides creates room for the absolutely-
+   * positioned hairline separators added below. */
+  padding: 0 6px;
+  position: relative;
+  /* Buttons inside use `width: 100%` from the .container > div
+   * rule; in grouped mode we don't want them to stretch — let
+   * each button take its intrinsic 40 px width. */
+  flex-wrap: nowrap;
+  /* Override `.container > div { width: 100%; height: 100% }` (the
+   * flat-mode rule scoped to direct children of `.container`). Without
+   * this each group inherits `width: 100%` and the flex algorithm
+   * distributes them evenly across the dock instead of letting the
+   * `justify-content: flex-start` on the parent pack them at the
+   * left. Setting `flex: 0 0 auto` + `width: auto` makes each group
+   * content-sized; height auto so the group doesn't stretch
+   * vertically beyond what its inner 40 px buttons need. */
+  flex: 0 0 auto;
+  width: auto;
+  height: auto;
+}
+
+/* Hairline separator between adjacent groups. Drawn as an
+ * absolutely-positioned 1 px column on the leading edge of every
+ * group except the first one (the `+ .group` sibling combinator
+ * scopes the rule to "this group comes after another group"). The
+ * 8 px insets at top / bottom keep the line shorter than the
+ * dock height so it reads as a separator, not a full border. */
+.container.grouped .group + .group::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 1px;
+  background: var(--c-border-hybrid, var(--c-border, rgba(255, 255, 255, 0.18)));
+  opacity: 0.7;
+}
+
+.container.grouped .groupLabel {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 9px;
+  letter-spacing: 0.16em;
+  text-transform: uppercase;
+  /* Use `--c-text-dim` at full opacity rather than `--c-text-dim` +
+   * `opacity: 0.7`. The opacity trick reads as a soft-edged / blurry
+   * label because the browser renders the glyphs opaque first and then
+   * multiplies the entire layer by alpha — sub-pixel anti-aliasing
+   * happens on the opaque pass, not on the final composited pixels,
+   * so glyph edges no longer blend correctly with the dock surface.
+   * Matching the design's approach (a directly dim token, no alpha)
+   * gives crisp glyph edges + better contrast against the dock. */
+  color: var(--c-text-dim, var(--c-text));
+  margin-right: 6px;
+  padding-left: 4px;
+  white-space: nowrap;
+  /* Don't let the label react to flex sizing — its width is its
+   * content's intrinsic width. */
+  flex: 0 0 auto;
+  /* No pointer-events: the label isn't a control. Keeps tap
+   * targets clear when a finger lands on the cap text by mistake. */
+  pointer-events: none;
+}
+
+/* Per-button styles in grouped mode. We want the existing button
+ * states (`.buttonDown` active fill, `.buttonDisabled` greyed out,
+ * `.updateButton` badge) to still work, but the resting state
+ * should be a compact 40×40 cell with rounded corners — not the
+ * full-height gradient slab of the flat layout. */
+.container.grouped .group > div {
+  /* Override the flat `width: 100%` so each button takes its
+   * intrinsic size. */
+  width: 40px;
+  height: 40px;
+  /* Re-establish the icon-centring rules that `.container > div`
+   * provides for the flat layout. In grouped mode the buttons are
+   * grandchildren of `.container` (nested inside `.group`), so they
+   * don't inherit the flat-mode centring — without these declarations
+   * the InlineIcon SVGs would sit at the top-left of each 40×40 cell. */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: transparent;
+  border: 0;
+  border-radius: 7px;
+  flex: 0 0 auto;
+  /* Reset the flex `space-evenly`-driven stretch to a tight icon
+   * cell. The inner icon is centred via the existing flex rules. */
+  padding: 0;
+  transition: background-color 0.15s ease, color 0.15s ease;
+}
+
+.container.grouped .group > div:active {
+  background: transparent;
+}
+
+/* Hover affordance — only on devices that actually have a hover
+ * state (matches the same pattern HealthIndicator uses). Sticky
+ * hover on touch devices reads as "this button is stuck in a
+ * pressed state". */
+@media (hover: hover) {
+  .container.grouped .group > div:hover {
+    background-color: var(--c-accent-soft, rgba(255, 255, 255, 0.06));
+  }
+}
+
+/* `.buttonDown` active-toggle fill — same accent-soft surface as
+ * the existing pattern but with grouped specificity so it wins
+ * over the resting transparent background. */
+.container.grouped.dark .group > div.button-down,
+.container.grouped.light .group > div.button-down {
+  background: var(--c-accent-soft) !important;
+}
+
+/* Narrow viewports — hide group labels and tighten gaps. The
+ * design CSS hides labels at 7" + mobile sizes; the same threshold
+ * here (≤ 980 px) covers both the 7" Pi (932 px) and any phone
+ * landscape orientation. Group labels eat ~70 px each (3 = ~210
+ * px) which a 932-px-wide dock can't afford. */
+@media (max-width: 980px) {
+  .container.grouped .groupLabel {
+    display: none;
+  }
+  .container.grouped .group {
+    padding: 0 4px;
+  }
+}
+
+/* On phones in portrait the BottomDock already collapses secondary
+ * buttons (see BottomDock/styles.css `data-dock-priority="secondary"`).
+ * Keep the group spacing extra-tight in that range so the remaining
+ * essentials fit. */
+@media (max-width: 479px) and (orientation: portrait) {
+  .container.grouped .group {
+    padding: 0 2px;
+    gap: 0;
+  }
+  .container.grouped .group + .group::before {
+    /* Move the separator further out on the leftmost edge to
+     * preserve some breathing room around the first icon. */
+    left: -2px;
+  }
+  .container.grouped .group > div {
+    width: 36px;
+    height: 36px;
+  }
+}
+

@@ -349,7 +349,10 @@
     "hideAiSummary": "Ocultar la sección de IA",
     "openUpdate": "Mostrar la ventana de actualización",
     "closeUpdate": "Cerrar la ventana de actualización",
-    "updateAvailableRemote": "Actualización disponible — conéctese en local para instalar"
+    "updateAvailableRemote": "Actualización disponible — conéctese en local para instalar",
+    "groupMap": "Mapa",
+    "groupDisplay": "Visualización",
+    "groupSystem": "Sistema"
   },
   "mobile": {
     "settingsHint": "Para los ajustes avanzados, abre la app desde el Pi en local."
@@ -389,7 +392,12 @@
     "degraded": "Algunos servicios no críticos están degradados",
     "criticalDown": "Un servicio crítico está caído",
     "serverUnreachable": "Servidor inaccesible",
-    "noIssues": "Nada que reportar."
+    "noIssues": "Nada que reportar.",
+    "chipPrefix": "Servicios",
+    "shortOk": "OK",
+    "shortDegraded": "Degradado",
+    "shortCritical": "Crítico",
+    "shortOffline": "Sin conexión"
   },
   "debug": {
     "title": "DEPURACIÓN",
