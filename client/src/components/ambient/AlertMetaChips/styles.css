@@ -1,0 +1,62 @@
+/* AlertMetaChips — row of small mono pills under the alert title.
+ *
+ * Three slots: source · freshness · expiration. The `.fresh` chip
+ * carries the palette accent to draw the eye to "how old is this
+ * alert" — the design's deliberate F16 fix. */
+
+.row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.05em;
+  color: var(--c-text-dim);
+  background: var(--c-surface-hybrid, var(--c-surface));
+  border: 1px solid var(--c-border-hybrid, var(--c-border));
+  border-radius: 999px;
+  padding: 2px 8px;
+  white-space: nowrap;
+}
+
+.chip svg {
+  width: 10px;
+  height: 10px;
+  opacity: 0.7;
+  flex-shrink: 0;
+}
+
+/* Fresh chip — tinted with the palette accent so the freshness
+ * info reads as "the thing to glance at first". Mirrors the
+ * design's `.chip.fresh` variant. */
+.fresh {
+  color: var(--c-accent);
+  background: var(--c-accent-soft);
+  border-color: transparent;
+}
+
+/* In night-red mode the accent IS the palette text colour, so the
+ * `--c-accent` rule above would render as the same red as the
+ * surrounding ink — visually losing the "this is the fresh chip"
+ * cue. Use the brighter text for emphasis instead. */
+[data-palette="nightRed"] .fresh {
+  color: var(--c-text);
+}
+
+/* Smaller chips on the 7" Pi and on phones — same letter-spacing
+ * intent, just tighter pads so 3 chips fit horizontally in a
+ * narrow rail without wrapping. */
+@media (max-width: 980px) {
+  .chip {
+    font-size: 9px;
+    padding: 2px 7px;
+    gap: 4px;
+  }
+  .chip svg { width: 9px; height: 9px; }
+}

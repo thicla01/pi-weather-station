@@ -1,10 +1,14 @@
-/* Direction C AlertBanner — slab-style with left-edge severity strip.
+/* Direction C AlertBanner — v3.1 Phase 4 head row.
  *
- * The strip is the visual "loud" element; the rest of the banner stays
- * calm against the warm-grey surface. This is deliberately different
- * from v2's full-banner colour wash — at kiosk distance the strip is
- * just as visible as the full wash, but reading the title back is
- * easier without competing against a saturated background. */
+ * Two layouts in this file:
+ *   1. `.govAlert` — full Phase 4 head (severity chip + title +
+ *      chevron + meta chips), tappable to toggle the detail body.
+ *      Left-edge severity strip in the alert's tier colour.
+ *   2. Radar-derived banner (no `.govAlert` class) — keeps the
+ *      pre-4 chips-row + title visual. No expansion mechanism.
+ *
+ * The strip is the visual "loud" element across both layouts;
+ * the rest stays calm against the warm-grey surface. */
 
 .banner {
   position: relative;
@@ -14,13 +18,7 @@
   padding: 12px 14px 12px 18px;
   color: var(--c-text);
   font-family: "Geist", system-ui, -apple-system, sans-serif;
-  /* No `overflow: hidden` here — the original variant of this rule had
-   * one to keep the severity strip's left corners from poking out of
-   * the slab's rounded edges, but it had a nasty side-effect: long
-   * alert titles wrapping to a second line had that second line
-   * silently clipped (the slab itself was constrained by some flex
-   * interaction we couldn't pin down). The strip now carries its own
-   * border-radius via `::before`, so we don't need the overflow gate. */
+  padding-right: 36px;
 }
 
 /* Severity strip — absolute-positioned along the left edge so the slab
@@ -31,22 +29,146 @@
   position: absolute;
   inset: 0 auto 0 0;
   width: 4px;
-  /* Match the parent's left-side radius so the strip's corners stay
-   * flush against the slab's rounded edges. Without this the strip
-   * had square corners that poked outside the banner (visible only
-   * before we relied on `overflow: hidden` to clip them). */
   border-radius: 8px 0 0 8px;
-  background-color: var(--c-cool); /* default for unknown tiers */
+  background-color: var(--c-cool);
 }
 
-.tier-orange::before {
-  background-color: var(--c-warn);
+.tier-orange::before { background-color: var(--c-warn); }
+.tier-red::before    { background-color: var(--c-danger); }
+
+/* ============================================================
+ * GOV-ALERT LAYOUT — Phase 4 head row
+ * ============================================================
+ *
+ * The `.govAlert` modifier swaps the banner's content from the
+ * pre-4 "chips row + title" stack into the Phase 4 head:
+ *   - top row: severity chip + title (truncated) + chevron
+ *   - bottom row: meta chips (source · freshness · expiration)
+ *
+ * The whole head is a single tappable surface (the `<div role=
+ * "button">` in JSX). The chevron rotates 180° when expanded
+ * via the `[data-state="expanded"]` attribute on the banner.
+ */
+.govAlert {
+  padding: 0;
+  /* The clickable head supplies its own padding so the hit area
+   * matches the visible chip row exactly. */
 }
 
-.tier-red::before {
-  background-color: var(--c-danger);
+.govAlert .head {
+  /* Right padding 44 px (was 16) reserves room for the absolutely-
+   * positioned dismiss ✕ button at `right: 6px` (width 28 + 6 px
+   * inset = 34 px occupied) plus a 10 px breathing margin. Without
+   * this, the chevron at the end of the topRow flex sat at the
+   * head's right edge — directly under the dismiss button, both
+   * visually invisible AND triggering dismiss instead of expand
+   * when the user aimed for it. */
+  padding: 14px 44px 12px 18px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  border-radius: 8px;
+  transition: background-color 0.15s ease;
 }
 
+.govAlert .head:hover {
+  background-color: var(--c-surface-hybrid, var(--c-surface));
+}
+
+.govAlert .head:focus-visible {
+  outline: 2px dashed var(--c-text);
+  outline-offset: -2px;
+}
+
+.topRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Meta row — wraps `AlertMetaChips` and the optional cycle pill on
+ * the same horizontal line. AlertMetaChips renders its own internal
+ * flex wrap, so this outer row only needs to align its two slots
+ * (chips on the left, cycle pill flush right via margin-left:auto
+ * on the pill itself). When there's no cycle pill, AlertMetaChips
+ * just expands to the natural width and the row reads exactly the
+ * same as a bare chip row. */
+.metaRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  /* Tight to the head's bottom edge — the row's intrinsic height
+   * is driven by the meta-chips and cycle pill (~20 px tall). */
+}
+
+/* The cycle pill, when present, lives at the right end of `.metaRow`.
+ * `margin-left: auto` pushes it past the meta chips so the row stays
+ * balanced even when there are no chips at all (e.g. a source with
+ * no sentAt / expiresAt). */
+.metaRow .cycleBtn {
+  margin-left: auto;
+}
+
+.govAlert .title {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 500;
+  color: var(--c-text);
+  letter-spacing: -0.005em;
+  line-height: 1.3;
+  /* Truncate long titles to a single line — the structured body
+   * carries the detail when the user wants to read it. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.chevron {
+  width: 14px;
+  height: 14px;
+  color: var(--c-text-dim);
+  flex-shrink: 0;
+  transition: transform 0.2s ease;
+}
+
+[data-state="expanded"] .chevron {
+  transform: rotate(180deg);
+}
+
+/* Cycle pill — sits inline between the title and the chevron in
+ * the head's flex row. Small mono pill in the palette accent so
+ * it reads as a secondary affordance, not a primary control. */
+.cycleBtn {
+  display: inline-flex;
+  align-items: center;
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.08em;
+  color: var(--c-accent);
+  background: var(--c-accent-soft);
+  border: 1px solid transparent;
+  border-radius: 999px;
+  padding: 3px 8px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  flex-shrink: 0;
+}
+
+[data-palette="nightRed"] .cycleBtn { color: var(--c-text); }
+
+.cycleBtn:hover { background-color: var(--c-accent-soft); border-color: var(--c-accent); }
+
+.cycleBtn:focus-visible {
+  outline: 2px dashed var(--c-text);
+  outline-offset: 2px;
+}
+
+/* ============================================================
+ * RADAR-DERIVED LAYOUT — unchanged from v3.0
+ * ============================================================ */
 .chips {
   display: flex;
   align-items: center;
@@ -54,7 +176,7 @@
   margin-bottom: 6px;
 }
 
-.title {
+.banner > .title:not(.govAlert .title) {
   display: block;
   min-height: 20px;
   font-size: 14px;
@@ -63,38 +185,9 @@
   color: var(--c-text);
 }
 
-.cyclable {
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.cyclable:hover,
-.cyclable:focus-visible {
-  background-color: var(--c-surface-hybrid);
-  outline: none;
-}
-
-/* "+N" cycle indicator — same pill family as SourceBadge so the chip
- * row reads as a coherent cluster, but tinted with the active accent
- * to nudge the eye toward "this is interactive". */
-.cycleBadge {
-  display: inline-block;
-  background-color: var(--c-accent-soft);
-  color: var(--c-accent);
-  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  font-size: 11px;
-  font-weight: 500;
-  letter-spacing: 0.4px;
-  padding: 2px 7px;
-  border-radius: 3px;
-  vertical-align: 1px;
-}
-
-/* Dismiss (✕) button — pinned top-right of the banner. Tap hides
- * the alert via localStorage for the next 4 h (or until severity
- * escalates). `stopPropagation` on the click prevents the parent
- * banner's cycle handler from firing when the user dismisses a
- * cyclable banner. */
+/* ============================================================
+ * Dismiss button (shared by both layouts)
+ * ============================================================ */
 .dismissBtn {
   position: absolute;
   top: 6px;
@@ -111,7 +204,7 @@
   color: var(--c-text-dim);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  z-index: 1;
+  z-index: 2;
 }
 
 .dismissBtn:hover {
@@ -124,10 +217,17 @@
   outline-offset: -2px;
 }
 
-/* Make the banner the positioning context for the absolute
- * dismiss button. Existing banner CSS doesn't declare position,
- * so add it here without disturbing the rest. */
-.banner {
-  position: relative;
-  padding-right: 36px;
+/* ============================================================
+ * Narrow-viewport tweaks — 7" Pi and phone landscape
+ * ============================================================ */
+@media (max-width: 980px) {
+  /* Same logic as the base rule — preserve a 44 px right cushion
+   * so the chevron clears the dismiss button on narrow rails too. */
+  .govAlert .head { padding: 12px 44px 10px 16px; gap: 6px; }
+  .govAlert .title { font-size: 13.5px; }
+  .cycleBtn { font-size: 9px; padding: 2px 7px; }
+}
+
+@media (max-width: 479px) {
+  .govAlert .title { font-size: 13px; }
 }

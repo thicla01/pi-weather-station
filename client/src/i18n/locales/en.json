@@ -285,7 +285,18 @@
     "redLeavingHedged": "Severe precipitation appears to be moving away",
     "orangeDrifting": "Heavy precipitation drifting around you",
     "redDrifting": "Severe precipitation drifting around you",
-    "cycleAria": "Tap to cycle through {{count}} active alerts"
+    "cycleAria": "Tap to cycle through {{count}} active alerts",
+    "severityAdvisory": "Advisory",
+    "severityWatch": "Watch",
+    "severityWarning": "Warning",
+    "severityEmergency": "Emergency",
+    "issuedHoursAgo": "Issued {{hours}}h ago",
+    "issuedMinutesAgo": "Issued {{minutes}} min ago",
+    "issuedDaysAgo": "Issued {{days}}d ago",
+    "issuedJustNow": "Just issued",
+    "expiresAt": "Expires {{when}}",
+    "expandRow": "Tap to read detail",
+    "collapseRow": "Tap to collapse"
   },
   "govAlertDetail": {
     "title": "{{source}} alert detail",

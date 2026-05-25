@@ -1,0 +1,71 @@
+/* SeverityChip — pill badge that leads the v3.1 alert head row.
+ *
+ * Visual structure: triangle SVG + uppercase mono label, all painted
+ * with the palette's `--sev-{tier}-{ink|bg|border}` tokens. The
+ * tier-suffixed classes (`tier-advisory|watch|warning`) are added
+ * by the React component based on the alert's severity.
+ *
+ * `currentColor` on the inner SVG follows the `color` set by the
+ * tier rule, so the icon stays in sync with the label colour without
+ * additional rules per tier. */
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 4px 9px 4px 7px;
+  border-radius: 999px;
+  border: 1px solid;
+  flex-shrink: 0;
+  white-space: nowrap;
+  /* Default colour is overridden by a tier rule below — the var
+   * fallback prevents a flash of unstyled chip on first paint
+   * before the React tier class lands. */
+  color: var(--sev-watch-ink, var(--c-text));
+  background: var(--sev-watch-bg, transparent);
+  border-color: var(--sev-watch-border, var(--c-border));
+}
+
+.chip svg {
+  width: 11px;
+  height: 11px;
+  flex-shrink: 0;
+  /* Stroke + fill resolve to `currentColor` (set in the SVG markup)
+   * which inherits from the tier-coloured `color` on `.chip`. */
+}
+
+.label {
+  /* Empty rule kept as a hook in case we ever want a per-label
+   * micro-tweak (e.g. tighter letter-spacing on the warning tier
+   * to land its 7 chars in the same width as 5-char watch). */
+  display: inline-block;
+}
+
+/* ============================================================
+ * Tier-specific palettes — each rotates the bg/border/ink trio
+ * through the palette's severity tokens. Adding a new tier means
+ * adding a `sev{Name}{Bg|Border|Ink}` token set in `ui/tokens.js`
+ * and one rule here.
+ * ============================================================ */
+.tier-advisory {
+  color: var(--sev-adv-ink);
+  background: var(--sev-adv-bg);
+  border-color: var(--sev-adv-border);
+}
+
+.tier-watch {
+  color: var(--sev-watch-ink);
+  background: var(--sev-watch-bg);
+  border-color: var(--sev-watch-border);
+}
+
+.tier-warning {
+  color: var(--sev-warn-ink);
+  background: var(--sev-warn-bg);
+  border-color: var(--sev-warn-border);
+}

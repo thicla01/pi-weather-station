@@ -36,6 +36,14 @@
  * the root so CSS Modules can also read them via `var(--c-bg)` etc.
  */
 
+// Severity sub-palettes — used by the v3.1 Phase 4 alert chips.
+// Three tiers (advisory / watch / warning) each carry a bg / border /
+// ink triplet so a chip can be painted with consistent visual weight
+// across palettes. Values mirror the synthesis design's `--sev-*`
+// tokens. The `_emergency` slug doesn't exist as a distinct tier —
+// `extreme`-severity alerts collapse to `warning` visually (the
+// wall-of-red palette + the `EMERGENCY` label inside the chip carry
+// the extra urgency).
 const day = {
   bg: "#f4f0e8",
   text: "#2a2620",
@@ -49,6 +57,15 @@ const day = {
   warn: "#c47a18",
   danger: "#b03028",
   cool: "#3a5a78",
+  sevAdvBg: "rgba(232, 200, 122, 0.18)",
+  sevAdvBorder: "rgba(232, 200, 122, 0.5)",
+  sevAdvInk: "#8a6a18",
+  sevWatchBg: "rgba(232, 150, 87, 0.20)",
+  sevWatchBorder: "rgba(232, 150, 87, 0.55)",
+  sevWatchInk: "#b85a2d",
+  sevWarnBg: "rgba(220, 80, 80, 0.18)",
+  sevWarnBorder: "rgba(220, 80, 80, 0.55)",
+  sevWarnInk: "#b03030",
 };
 
 const dusk = {
@@ -64,6 +81,15 @@ const dusk = {
   warn: "#e8a050",
   danger: "#d8503c",
   cool: "#7a98b8",
+  sevAdvBg: "rgba(232, 200, 122, 0.12)",
+  sevAdvBorder: "rgba(232, 200, 122, 0.40)",
+  sevAdvInk: "#e8c87a",
+  sevWatchBg: "rgba(232, 150, 87, 0.15)",
+  sevWatchBorder: "rgba(232, 150, 87, 0.48)",
+  sevWatchInk: "#f0b27a",
+  sevWarnBg: "rgba(220, 80, 80, 0.16)",
+  sevWarnBorder: "rgba(220, 80, 80, 0.48)",
+  sevWarnInk: "#ee9090",
 };
 
 const night = {
@@ -79,6 +105,15 @@ const night = {
   warn: "#c47030",
   danger: "#b04030",
   cool: "#5a7898",
+  sevAdvBg: "rgba(232, 200, 122, 0.10)",
+  sevAdvBorder: "rgba(232, 200, 122, 0.35)",
+  sevAdvInk: "#e8c87a",
+  sevWatchBg: "rgba(232, 150, 87, 0.14)",
+  sevWatchBorder: "rgba(232, 150, 87, 0.45)",
+  sevWatchInk: "#f0b27a",
+  sevWarnBg: "rgba(220, 80, 80, 0.14)",
+  sevWarnBorder: "rgba(220, 80, 80, 0.45)",
+  sevWarnInk: "#ee9090",
 };
 
 const nightRed = {
@@ -100,6 +135,19 @@ const nightRed = {
   warn: "#c44040",
   danger: "#e04040",
   cool: "#783838",
+  // In night-red mode every severity tier collapses to the palette's
+  // red — the design's deliberate constraint for night-vision
+  // preservation. The icon + label inside the chip carry the tier
+  // discrimination; the colour just signals "alert" generically.
+  sevAdvBg: "rgba(232, 80, 80, 0.10)",
+  sevAdvBorder: "rgba(232, 80, 80, 0.30)",
+  sevAdvInk: "#d04848",
+  sevWatchBg: "rgba(232, 80, 80, 0.14)",
+  sevWatchBorder: "rgba(232, 80, 80, 0.40)",
+  sevWatchInk: "#e05858",
+  sevWarnBg: "rgba(232, 80, 80, 0.20)",
+  sevWarnBorder: "rgba(232, 80, 80, 0.55)",
+  sevWarnInk: "#f06060",
 };
 
 export const tokens = { day, dusk, night, nightRed };

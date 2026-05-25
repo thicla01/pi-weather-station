@@ -285,7 +285,18 @@
     "redLeavingHedged": "Precipitación severa parece estar alejándose",
     "orangeDrifting": "Precipitación fuerte desplazándose en su zona",
     "redDrifting": "Precipitación severa desplazándose en su zona",
-    "cycleAria": "Toque para recorrer las {{count}} alertas activas"
+    "cycleAria": "Toque para recorrer las {{count}} alertas activas",
+    "severityAdvisory": "Aviso",
+    "severityWatch": "Vigilancia",
+    "severityWarning": "Advertencia",
+    "severityEmergency": "Emergencia",
+    "issuedHoursAgo": "Emitido hace {{hours}} h",
+    "issuedMinutesAgo": "Emitido hace {{minutes}} min",
+    "issuedDaysAgo": "Emitido hace {{days}} d",
+    "issuedJustNow": "Emitido ahora",
+    "expiresAt": "Expira {{when}}",
+    "expandRow": "Toque para leer el detalle",
+    "collapseRow": "Toque para replegar"
   },
   "govAlertDetail": {
     "title": "Detalle alerta {{source}}",

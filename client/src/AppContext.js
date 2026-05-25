@@ -393,6 +393,21 @@ export function AppContextProvider({ children }) {
     const len = Array.isArray(govAlerts) ? govAlerts.length : 0;
     if (len > 0 && govAlertIdx >= len) setGovAlertIdx(0);
   }, [govAlerts, govAlertIdx]);
+  // v3.1 Phase 4: the alert head (AlertBanner) is now the user-facing
+  // toggle for the detail body (AlertDetailInline). Hoisting the
+  // `expanded` state to context lets both components read/write a
+  // shared truth without prop-drilling through the layout shell.
+  // Default false — alerts arrive collapsed; the user opts in to
+  // reading the body. Same maintainer-stated rationale documented in
+  // `CLAUDE.md` under "Gov-alert detail section — reading-first UX".
+  const [govAlertExpanded, setGovAlertExpanded] = useState(false);
+  // Collapse the detail whenever the active alert changes (cycle bumps
+  // the index or a new payload lands). Avoids the case where the user
+  // expanded alert A's description, the list reshuffles, and they're
+  // suddenly reading alert B's body without realising it.
+  useEffect(() => {
+    setGovAlertExpanded(false);
+  }, [govAlertIdx]);
   const [animateWeatherMap, setAnimateWeatherMap] = useState(false);
   // Radar animation playback speed multiplier — 1× / 2× / 4× cycling.
   // Drives the per-frame interval in WeatherMap (MAP_CYCLE_RATE / radarSpeed).
@@ -1702,6 +1717,8 @@ export function AppContextProvider({ children }) {
     govAlerts,
     govAlertIdx,
     cycleGovAlert,
+    govAlertExpanded,
+    setGovAlertExpanded,
     animateWeatherMap,
     toggleAnimateWeatherMap,
     radarSpeed,

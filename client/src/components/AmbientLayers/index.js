@@ -159,6 +159,20 @@ const AmbientLayers = () => {
     "--c-danger": palette.danger,
     "--c-cool": palette.cool,
     "--c-strip-color": stripColor,
+    // v3.1 Phase 4 — severity-chip palette tokens. Three tiers
+    // (advisory / watch / warning) each with bg/border/ink triplets
+    // so the chip surface, outline, and label colour all rotate
+    // through the palette in lockstep. Components read these via
+    // `var(--sev-{adv|watch|warn}-{bg|border|ink})`.
+    "--sev-adv-bg": palette.sevAdvBg,
+    "--sev-adv-border": palette.sevAdvBorder,
+    "--sev-adv-ink": palette.sevAdvInk,
+    "--sev-watch-bg": palette.sevWatchBg,
+    "--sev-watch-border": palette.sevWatchBorder,
+    "--sev-watch-ink": palette.sevWatchInk,
+    "--sev-warn-bg": palette.sevWarnBg,
+    "--sev-warn-border": palette.sevWarnBorder,
+    "--sev-warn-ink": palette.sevWarnInk,
     // Font-size scaling is exposed as `--c-font-scale` and consumed by
     // the scrollable subtrees (rail in both layouts, heroSlot in
     // LayoutDesktop). Applying `zoom` here on the root broke

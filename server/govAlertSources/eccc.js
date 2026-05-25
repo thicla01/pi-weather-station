@@ -69,6 +69,13 @@ function normalize(feature) {
     title_fr: capitalizeFirst(p.alert_name_fr || p.alert_short_name_fr || p.alert_code),
     description_en: p.alert_text_en || "",
     description_fr: p.alert_text_fr || "",
+    // sentAt + senderName mirror the NWS payload so the client's
+    // meta-chips row works for both sources without branching. ECCC
+    // doesn't expose an issuing-office name field — fall back to
+    // a province-qualified "ECCC ON" / "ECCC QC" string when the
+    // province code is present, plain "ECCC" otherwise.
+    sentAt: p.sent || p.effective_datetime || null,
+    senderName: p.province ? `ECCC ${p.province}` : "ECCC",
     expiresAt: p.expiration_datetime || p.event_end_datetime || null,
     areaDesc: p.feature_name_en || p.feature_name_fr || p.province || null,
   };

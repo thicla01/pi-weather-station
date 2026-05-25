@@ -61,6 +61,15 @@ function normalize(feature) {
     title_fr: p.event,
     description_en: [p.headline, p.description].filter(Boolean).join("\n\n"),
     description_fr: [p.headline, p.description].filter(Boolean).join("\n\n"),
+    // sentAt + senderName feed the v3.1 Phase 4 "meta chips" row
+    // (Émis il y a Nh / NWS Gray ME / Expire <when>). NWS exposes
+    // `sent` (UTC ISO timestamp of issue) and `senderName` (the
+    // issuing office string, e.g. "NWS Gray ME" — useful context
+    // for the user wondering "from whom?"). Both are nullable so
+    // the client can hide chips for fields the source didn't
+    // provide rather than rendering empty placeholders.
+    sentAt: p.sent || p.effective || null,
+    senderName: p.senderName || null,
     expiresAt: p.expires || p.ends || null,
     areaDesc: p.areaDesc || null,
   };

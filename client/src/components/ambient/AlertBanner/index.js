@@ -2,9 +2,12 @@ import React, { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
 import closeIcon from "@iconify/icons-carbon/close";
+import chevronDown from "@iconify/icons-carbon/chevron-down";
 import { AppContext } from "~/AppContext";
 import SourceBadge from "~/components/ambient/SourceBadge";
 import ConfidencePill from "~/components/ambient/ConfidencePill";
+import SeverityChip from "~/components/ambient/SeverityChip";
+import AlertMetaChips from "~/components/ambient/AlertMetaChips";
 import useDismissedAlerts from "~/hooks/useDismissedAlerts";
 import {
   isCurrentlyPrecipitating,
@@ -13,28 +16,28 @@ import {
 import styles from "./styles.css";
 
 /**
- * Direction C variant of the persistent text alert banner.
+ * Direction C variant of the persistent text alert banner —
+ * v3.1 Phase 4 head row.
  *
- * Same data flow and state machine as the v2 banner (`AlertBanner` —
- * pure logic is shared via `ui/alertLogic.js`), but the visual
- * treatment is different:
+ * Two distinct render branches:
  *
- *   - Slab-style surface (warm-grey palette) instead of a flat
- *     coloured banner. The tier is communicated via a left-edge
- *     **severity strip** in `warn` (orange tier) or `danger` (red
- *     tier) — not a full-banner colour wash. This keeps the chrome
- *     calm even when something serious is active; the strip is the
- *     loud part.
- *   - `SourceBadge` and `ConfidencePill` come from `ambient/*`
- *     atomic components instead of inline spans. They render against
- *     the slab surface and pick up the active palette automatically.
- *   - Cycling (`+N`) for multi-alert situations is preserved.
+ *   1. **Government alert** (NWS / ECCC) — full Phase 4 head:
+ *      severity chip + title + chevron + meta chips row. The
+ *      whole head is clickable: tap toggles `govAlertExpanded`
+ *      in AppContext, which `AlertDetailInline` reads to show/
+ *      hide the body. Replaces the pre-4 layout of "chips row
+ *      with SourceBadge + cycle badge above title".
  *
- * Returns `null` when there is no eligible alert — same SHOW gate as
- * v2: government alerts surface at orange/red severity, radar-derived
- * alerts surface when the worst ring is at orange/red.
+ *   2. **Radar-derived alert** — keeps the v3.0 slab visual
+ *      (chips + title, no expansion). Radar alerts don't have
+ *      structured detail to expand into, so the head IS the whole
+ *      surface and there's no chevron.
  *
- * @returns {JSX.Element|null} the banner, or null when no alert is active
+ * Returns `null` when there is no eligible alert — same SHOW gate
+ * as v3.0.
+ *
+ * @returns {JSX.Element|null} the banner, or null when no alert
+ *   is active
  */
 const AlertBanner = () => {
   const {
@@ -45,17 +48,17 @@ const AlertBanner = () => {
     govAlerts,
     govAlertIdx,
     cycleGovAlert,
+    govAlertExpanded,
+    setGovAlertExpanded,
     currentWeatherData,
   } = useContext(AppContext);
   const { t, i18n } = useTranslation();
   const { isDismissed, dismiss } = useDismissedAlerts();
 
-  // Filter out user-dismissed alerts before the eligibility / cycling
-  // logic kicks in. Severity escalations (moderate → severe / extreme)
-  // are re-surfaced by useDismissedAlerts itself; the 4 h auto-resurface
-  // floor also runs there. This lets the banner stay silent while a
-  // government alert is "merely orange" but pop back up immediately if
-  // the same alert escalates.
+  // Filter user-dismissed alerts before the eligibility / cycling
+  // logic. Severity escalations re-surface via useDismissedAlerts
+  // (the 4 h auto-resurface floor lives there too) so silencing
+  // never goes "stuck closed" on an escalating event.
   const visibleGovAlerts = useMemo(
     () => (Array.isArray(govAlerts) ? govAlerts.filter((a) => !isDismissed(a)) : []),
     [govAlerts, isDismissed],
@@ -74,49 +77,80 @@ const AlertBanner = () => {
     const title = lang === "fr" ? currentAlert.title_fr : currentAlert.title_en;
     const extras = allGovAlerts.length - 1;
     const cyclable = extras > 0;
-    const handleClick = cyclable ? cycleGovAlert : undefined;
-    const handleKey = cyclable
-      ? (e) => {
-        if (e.key === "Enter" || e.key === " ") {
-          e.preventDefault();
-          cycleGovAlert();
-        }
+
+    // The head row is the toggle for `AlertDetailInline` — tap
+    // anywhere in the head expands/collapses the body. Cycling
+    // (when multiple alerts exist) lives on a separate inline
+    // button to avoid conflating "tap to expand" with "tap to
+    // cycle". Dismiss button stays where it was.
+    const toggleExpanded = () => setGovAlertExpanded(!govAlertExpanded);
+    const onKeyDown = (e) => {
+      if (e.key === "Enter" || e.key === " ") {
+        e.preventDefault();
+        toggleExpanded();
       }
-      : undefined;
+    };
+
     return (
       <div
-        className={`${styles.banner} ${styles[`tier-${currentAlert.tier}`]} ${cyclable ? styles.cyclable : ""}`}
-        onClick={handleClick}
-        onKeyDown={handleKey}
-        role={cyclable ? "button" : undefined}
-        tabIndex={cyclable ? 0 : undefined}
-        aria-label={cyclable ? t("alert.cycleAria", { count: allGovAlerts.length }) : undefined}
+        className={`${styles.banner} ${styles[`tier-${currentAlert.tier}`]} ${styles.govAlert}`}
+        data-state={govAlertExpanded ? "expanded" : "collapsed"}
       >
-        <div className={styles.chips}>
-          <SourceBadge source={currentAlert.source} />
-          {cyclable && <span className={styles.cycleBadge}>+{extras}</span>}
+        {/* Clickable head — severity chip + title + chevron, then
+         * meta-chips row under. The whole head is the toggle so the
+         * user doesn't have to aim at the small chevron (design's
+         * F15 fix). */}
+        <div
+          className={styles.head}
+          role="button"
+          tabIndex={0}
+          onClick={toggleExpanded}
+          onKeyDown={onKeyDown}
+          aria-expanded={govAlertExpanded}
+          aria-label={t(govAlertExpanded ? "alert.collapseRow" : "alert.expandRow")}
+        >
+          <div className={styles.topRow}>
+            <SeverityChip severity={currentAlert.severity} />
+            <div className={styles.title}>{title}</div>
+            <InlineIcon icon={chevronDown} className={styles.chevron} />
+          </div>
+          {/* Meta-chips row + (when multiple alerts) the cycle pill
+           * pushed to the right edge. Putting the cycle pill here —
+           * not on the title row — lets the title use its full width
+           * without competing for space with the counter. The cycle
+           * pill is a transitional affordance until Phase 4c lands
+           * the mini-cards list of other active alerts; at that point
+           * cycling moves to "tap a mini card" and this pill can go
+           * away in favour of the design's pure informational counter
+           * in the footer. */}
+          <div className={styles.metaRow}>
+            <AlertMetaChips
+              source={currentAlert.source}
+              senderName={currentAlert.senderName}
+              sentAt={currentAlert.sentAt}
+              expiresAt={currentAlert.expiresAt}
+            />
+            {cyclable && (
+              <button
+                type="button"
+                className={styles.cycleBtn}
+                onClick={(e) => { e.stopPropagation(); cycleGovAlert(); }}
+                aria-label={t("alert.cycleAria", { count: allGovAlerts.length })}
+              >
+                {safeIdx + 1} / {allGovAlerts.length}
+              </button>
+            )}
+          </div>
         </div>
-        <div className={styles.title}>{title}</div>
-        {/* Dismiss button — hides the alert via localStorage for the
-         * next 4 h, OR until upstream severity escalates above the
-         * dismissed value. Tornado/tsunami "extreme" alerts are NOT
-         * unsilenceable per se (the user can still tap dismiss on an
-         * extreme), so we don't gate by severity here — but the
-         * auto-resurface ceiling + escalation re-show keep the user
-         * from going totally dark on a real event. */}
+
+        {/* Dismiss (✕) — top-right, same behaviour as before.
+         * stopPropagation so a tap doesn't also toggle the head. */}
         <button
           type="button"
           className={styles.dismissBtn}
-          onClick={(e) => {
-            e.stopPropagation();
-            dismiss(currentAlert);
-          }}
+          onClick={(e) => { e.stopPropagation(); dismiss(currentAlert); }}
           onKeyDown={(e) => {
-            // Don't let Enter/Space on the dismiss button bubble up
-            // and trigger the banner's own cycle handler.
-            if (e.key === "Enter" || e.key === " ") {
-              e.stopPropagation();
-            }
+            if (e.key === "Enter" || e.key === " ") e.stopPropagation();
           }}
           aria-label={t("alert.dismiss", { defaultValue: "Dismiss" })}
           title={t("alert.dismissTooltip", { defaultValue: "Hide for 4 h (re-surfaces if it escalates)" })}
@@ -127,6 +161,9 @@ const AlertBanner = () => {
     );
   }
 
+  // Radar-derived alert — keeps the pre-4 chips-row + title
+  // visual (no severity chip, no expansion). RADAR is a derived
+  // source with no upstream "structured body" to expand into.
   const weatherCode = currentWeatherData?.data?.timelines?.[0]?.intervals?.[0]?.values?.weatherCode;
   const radarState = getRadarAlertState(
     innerRisk, outerRisk,

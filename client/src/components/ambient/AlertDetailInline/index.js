@@ -1,9 +1,5 @@
-import React, { useContext, useState, useMemo } from "react";
-import PropTypes from "prop-types";
+import React, { useContext, useMemo } from "react";
 import { useTranslation } from "react-i18next";
-import { InlineIcon } from "@iconify/react";
-import chevronUp from "@iconify/icons-carbon/chevron-up";
-import chevronDown from "@iconify/icons-carbon/chevron-down";
 import { AppContext } from "~/AppContext";
 import QrCode from "~/components/ambient/QrCode";
 import useDismissedAlerts from "~/hooks/useDismissedAlerts";
@@ -28,28 +24,35 @@ const SOURCE_LINKS = {
 
 /**
  * Direction C variant of the collapsible government-alert detail
- * section. Mirrors `GovAlertDetail` behaviour 1:1 (cycle position from
- * AppContext, SHOW gate ≥ 1 orange/red alert, scroll-capped body,
- * QR-only footer) but renders against the slab surface and uses the
- * `QrCode` atomic component instead of an inline `QRCodeSVG`.
+ * section.
  *
- * Layout note (May 2026 — see PR #103 in v2 for the pre-history):
- * the container no longer carries a `max-height` cap. ECCC alerts
- * take precedence and the expanded body is allowed to grow to its
- * natural content height, pushing sibling rail slabs (MetricsGrid,
- * ChartTabs, AiSummaryInline) down inside the already-scrollable
- * rail. Collapsing the alert reverses the push immediately.
+ * **v3.1 Phase 4 changes:**
  *
- * @param {object} props
- * @param {boolean} [props.defaultExpanded] — start expanded? defaults
- *   to false (collapsed, matching v2)
- * @returns {JSX.Element|null} detail section, or null when no
- *   eligible gov alert is active
+ *   - Removed the in-component toggle button. `AlertBanner` is
+ *     now the user-facing toggle (its head row is clickable). This
+ *     component reads `govAlertExpanded` from `AppContext` and
+ *     renders nothing when collapsed, the body+QR when expanded.
+ *   - Title bar (with the chevron) lives in `AlertBanner`. The
+ *     `<button>` toggle that used to sit at the top of this slab
+ *     is gone — duplicating it under the banner would create the
+ *     "two chevrons doing the same thing" smell the design's F15
+ *     finding called out.
+ *   - The slab still carries the description body (paragraph
+ *     split on `\n\n`) and the QR code footer for opening the
+ *     upstream source on a phone.
+ *
+ * Behaviour preserved:
+ *   - Mirrors `AlertBanner`'s SHOW gate exactly (eligible gov
+ *     alert at orange/red tier, not dismissed).
+ *   - Picks the same active alert as the banner via
+ *     `govAlertIdx` from context.
+ *
+ * @returns {JSX.Element|null} detail section, or null when
+ *   collapsed / no eligible alert
  */
-const AlertDetailInline = ({ defaultExpanded }) => {
-  const { govAlerts, govAlertIdx } = useContext(AppContext);
+const AlertDetailInline = () => {
+  const { govAlerts, govAlertIdx, govAlertExpanded } = useContext(AppContext);
   const { i18n, t } = useTranslation();
-  const [expanded, setExpanded] = useState(defaultExpanded);
   const { isDismissed } = useDismissedAlerts();
 
   // Hide the detail section for alerts the user has dismissed via
@@ -66,6 +69,10 @@ const AlertDetailInline = ({ defaultExpanded }) => {
   );
 
   if (!hasEligible || allGovAlerts.length === 0) return null;
+  // Bail when the banner is collapsed — Phase 4 design renders the
+  // body inside the banner's expand region, so this slab is "the
+  // body" appearing under the head. No body, no slab.
+  if (!govAlertExpanded) return null;
 
   const lang = ["fr", "es"].find((l) => i18n.language.startsWith(l)) || "en";
   const safeIdx = govAlertIdx % allGovAlerts.length;
@@ -77,56 +84,33 @@ const AlertDetailInline = ({ defaultExpanded }) => {
     ? (currentAlert.description_fr || currentAlert.alert_text_fr || "").trim()
     : (currentAlert.description_en || currentAlert.alert_text_en || "").trim();
 
-  const title = t("govAlertDetail.title", { source });
   const linkHref = (SOURCE_LINKS[source] && SOURCE_LINKS[source][lang]) || SOURCE_LINKS.ECCC[lang];
 
   return (
     <div className={styles.container}>
-      <button
-        type="button"
-        className={styles.toggle}
-        onClick={() => setExpanded((p) => !p)}
-        aria-expanded={expanded}
-      >
-        <span className={styles.label}>{title}</span>
-        <InlineIcon
-          icon={expanded ? chevronDown : chevronUp}
-          className={styles.chevron}
-        />
-      </button>
-      {expanded ? (
-        <div className={styles.body}>
-          {description ? (
-            <>
-              <div className={styles.scrollArea}>
-                {description.split(/\n\n+/).map((paragraph, i) => (
-                  <p key={i} className={styles.text}>{paragraph}</p>
-                ))}
-              </div>
-              <div className={styles.footer}>
-                <QrCode value={linkHref} title={t("govAlertDetail.qrCaption")} />
-                <span className={styles.qrCaption}>
-                  {t("govAlertDetail.qrCaption")}
-                </span>
-              </div>
-            </>
-          ) : (
-            <p className={`${styles.text} ${styles.empty}`}>
-              {t("govAlertDetail.noDetail")}
-            </p>
-          )}
-        </div>
-      ) : null}
+      <div className={styles.body}>
+        {description ? (
+          <>
+            <div className={styles.scrollArea}>
+              {description.split(/\n\n+/).map((paragraph, i) => (
+                <p key={i} className={styles.text}>{paragraph}</p>
+              ))}
+            </div>
+            <div className={styles.footer}>
+              <QrCode value={linkHref} title={t("govAlertDetail.qrCaption")} />
+              <span className={styles.qrCaption}>
+                {t("govAlertDetail.qrCaption")}
+              </span>
+            </div>
+          </>
+        ) : (
+          <p className={`${styles.text} ${styles.empty}`}>
+            {t("govAlertDetail.noDetail")}
+          </p>
+        )}
+      </div>
     </div>
   );
-};
-
-AlertDetailInline.propTypes = {
-  defaultExpanded: PropTypes.bool,
-};
-
-AlertDetailInline.defaultProps = {
-  defaultExpanded: false,
 };
 
 export default AlertDetailInline;
