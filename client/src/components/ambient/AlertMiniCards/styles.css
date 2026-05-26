@@ -1,0 +1,150 @@
+/* AlertMiniCards — v3.1 Phase 4c.
+ *
+ * List of OTHER active gov alerts under the primary banner card,
+ * sorted by severity descending. Each card is a tappable row that
+ * makes its alert the primary on tap. A restore-dismissed pill at
+ * the bottom rescues alerts the user accidentally hid.
+ *
+ * Visual rhythm matches the primary AlertBanner: same surface
+ * tokens, same border colour, same severity-left-border treatment,
+ * just smaller (compact single-line) so the list reads as
+ * "secondary alerts" relative to the primary card above.
+ */
+
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Single mini-card row — severity chip + truncated title + chevron. */
+.card {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 14px;
+  background-color: var(--c-surface);
+  border: 1px solid var(--c-border);
+  /* 4 px left strip in the tier colour — mirrors AlertBanner's
+   * `::before` strip. Done as a direct border-left rather than
+   * an absolute pseudo because the card has no overflow concern
+   * (no body text below to clip) and the simpler markup is one
+   * fewer rule to maintain. */
+  border-left: 4px solid var(--sev-watch-border);
+  border-radius: 8px;
+  color: var(--c-text);
+  cursor: pointer;
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Tier-specific left border colour. The card itself inherits the
+ * palette surface; only the strip changes. */
+.tier-red    { border-left-color: var(--sev-warn-border); }
+.tier-orange { border-left-color: var(--sev-watch-border); }
+.tier-yellow { border-left-color: var(--sev-adv-border); }
+
+.card:hover,
+.card:focus-visible {
+  background-color: var(--c-surface-hybrid, var(--c-surface));
+  outline: none;
+}
+
+.card:focus-visible {
+  /* Two-step focus ring — outer dashed accent, inner space.
+   * Doesn't interfere with the left tier strip because the
+   * outline sits on the OUTSIDE of the border. */
+  outline: 2px dashed var(--c-text);
+  outline-offset: 2px;
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--c-text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  line-height: 1.3;
+}
+
+.chevron {
+  width: 14px;
+  height: 14px;
+  color: var(--c-text-dim);
+  flex-shrink: 0;
+}
+
+/* Restore-dismissed pill — sits at the bottom of the list when
+ * the user has hidden alerts via the ✕ button on the primary
+ * card. Calls restoreAll() on tap; the pill disappears the moment
+ * dismissedCount drops to 0.
+ *
+ * Visual treatment is intentionally calmer than the alert cards
+ * themselves — it's a maintenance affordance, not an alert. Uses
+ * `--c-text-dim` colour + `--c-surface-hybrid` background so it
+ * reads as part of the alert area but secondary to the cards.
+ */
+.restoreBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  align-self: flex-start;
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  color: var(--c-text-dim);
+  background-color: var(--c-surface-hybrid, var(--c-surface));
+  border: 1px solid var(--c-border);
+  border-radius: 999px;
+  padding: 5px 11px 5px 9px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: color 0.15s ease, background-color 0.15s ease, border-color 0.15s ease;
+}
+
+.restoreBtn:hover,
+.restoreBtn:focus-visible {
+  color: var(--c-text);
+  background-color: var(--c-accent-soft);
+  border-color: var(--c-accent);
+  outline: none;
+}
+
+[data-palette="nightRed"] .restoreBtn:hover,
+[data-palette="nightRed"] .restoreBtn:focus-visible {
+  color: var(--c-text);
+}
+
+.restoreIcon {
+  width: 12px;
+  height: 12px;
+  /* Inherits `currentColor` from the button — so the icon
+   * follows the same dim → bright transition on hover. */
+}
+
+/* Narrow viewports — tighten the cards so the rail's content fits
+ * on the 7" Pi and on phones. The chevron stays visible (it's the
+ * affordance cue) but the title gets slightly smaller and the
+ * padding shrinks. */
+@media (max-width: 980px) {
+  .card {
+    padding: 8px 11px;
+    gap: 8px;
+  }
+  .title {
+    font-size: 12px;
+  }
+}

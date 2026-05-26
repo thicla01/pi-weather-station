@@ -47,7 +47,6 @@ const AlertBanner = () => {
     innerTrendConfidence, outerTrendConfidence,
     govAlerts,
     govAlertIdx,
-    cycleGovAlert,
     govAlertExpanded,
     setGovAlertExpanded,
     currentWeatherData,
@@ -75,14 +74,16 @@ const AlertBanner = () => {
     const currentAlert = allGovAlerts[safeIdx];
     const lang = (i18n.language || "en").slice(0, 2);
     const title = lang === "fr" ? currentAlert.title_fr : currentAlert.title_en;
-    const extras = allGovAlerts.length - 1;
-    const cyclable = extras > 0;
+    const hasOthers = allGovAlerts.length > 1;
 
-    // The head row is the toggle for `AlertDetailInline` — tap
-    // anywhere in the head expands/collapses the body. Cycling
-    // (when multiple alerts exist) lives on a separate inline
-    // button to avoid conflating "tap to expand" with "tap to
-    // cycle". Dismiss button stays where it was.
+    // v3.1 Phase 4c: the head row is the toggle for
+    // `AlertDetailInline` — tap anywhere in the head expands /
+    // collapses the body. Multi-alert navigation has moved out
+    // of the head entirely (the cycle pill is gone) and into
+    // the `AlertMiniCards` list rendered as a sibling below.
+    // Here the counter on the meta-chips row stays as a passive
+    // text label so the user still sees "1 / 3 active alerts"
+    // without it looking like a button.
     const toggleExpanded = () => setGovAlertExpanded(!govAlertExpanded);
     const onKeyDown = (e) => {
       if (e.key === "Enter" || e.key === " ") {
@@ -114,15 +115,14 @@ const AlertBanner = () => {
             <div className={styles.title}>{title}</div>
             <InlineIcon icon={chevronDown} className={styles.chevron} />
           </div>
-          {/* Meta-chips row + (when multiple alerts) the cycle pill
-           * pushed to the right edge. Putting the cycle pill here —
-           * not on the title row — lets the title use its full width
-           * without competing for space with the counter. The cycle
-           * pill is a transitional affordance until Phase 4c lands
-           * the mini-cards list of other active alerts; at that point
-           * cycling moves to "tap a mini card" and this pill can go
-           * away in favour of the design's pure informational counter
-           * in the footer. */}
+          {/* Meta-chips row + (when multiple alerts) a passive
+           * informational counter on the right. The counter
+           * mirrors the design's footer counter — it tells the
+           * user how many active alerts exist without doubling
+           * as a control. Cycling/navigation between alerts lives
+           * in the sibling `AlertMiniCards` list below this
+           * banner; tapping a mini-card makes that alert the
+           * primary one. */}
           <div className={styles.metaRow}>
             <AlertMetaChips
               source={currentAlert.source}
@@ -130,15 +130,19 @@ const AlertBanner = () => {
               sentAt={currentAlert.sentAt}
               expiresAt={currentAlert.expiresAt}
             />
-            {cyclable && (
-              <button
-                type="button"
-                className={styles.cycleBtn}
-                onClick={(e) => { e.stopPropagation(); cycleGovAlert(); }}
-                aria-label={t("alert.cycleAria", { count: allGovAlerts.length })}
+            {hasOthers && (
+              <span
+                className={styles.counter}
+                aria-label={t("alert.activeAlertsCount", {
+                  current: safeIdx + 1,
+                  count: allGovAlerts.length,
+                })}
               >
-                {safeIdx + 1} / {allGovAlerts.length}
-              </button>
+                {t("alert.activeAlertsCount", {
+                  current: safeIdx + 1,
+                  count: allGovAlerts.length,
+                })}
+              </span>
             )}
           </div>
         </div>

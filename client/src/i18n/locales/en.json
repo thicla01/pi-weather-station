@@ -302,7 +302,13 @@
     "sectionSource": "Data source",
     "sectionWhere": "Affected areas",
     "sectionWhen": "When",
-    "sectionAction": "What to do"
+    "sectionAction": "What to do",
+    "activeAlertsCount_one": "{{current}} / {{count}} active alert",
+    "activeAlertsCount_other": "{{current}} / {{count}} active alerts",
+    "selectAlertAria": "Switch to this alert",
+    "restoreDismissed_one": "Restore {{count}} hidden alert",
+    "restoreDismissed_other": "Restore {{count}} hidden alerts",
+    "restoreDismissedAria": "Tap to show alerts you dismissed earlier"
   },
   "govAlertDetail": {
     "title": "{{source}} alert detail",

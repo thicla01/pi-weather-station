@@ -103,11 +103,11 @@
    * is driven by the meta-chips and cycle pill (~20 px tall). */
 }
 
-/* The cycle pill, when present, lives at the right end of `.metaRow`.
+/* The counter, when present, lives at the right end of `.metaRow`.
  * `margin-left: auto` pushes it past the meta chips so the row stays
  * balanced even when there are no chips at all (e.g. a source with
  * no sentAt / expiresAt). */
-.metaRow .cycleBtn {
+.metaRow .counter {
   margin-left: auto;
 }
 
@@ -138,23 +138,21 @@
   transform: rotate(180deg);
 }
 
-/* Cycle pill — sits inline between the title and the chevron in
- * the head's flex row. Small mono pill in the palette accent so
- * it reads as a secondary affordance, not a primary control. */
-.cycleBtn {
-  display: inline-flex;
-  align-items: center;
+/* v3.1 Phase 4c — passive counter that replaces the pre-4c cycle
+ * pill. Same position in the meta-chips row (right-aligned via
+ * margin-left:auto), but renders as plain text now: no border,
+ * no background fill, no cursor. The user sees "1 / 3 active
+ * alerts" as factual context — the actual navigation lives in
+ * the `AlertMiniCards` list rendered below the banner. */
+.counter {
   font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 9.5px;
-  letter-spacing: 0.08em;
-  color: var(--c-accent);
-  background: var(--c-accent-soft);
-  border: 1px solid transparent;
-  border-radius: 999px;
-  padding: 3px 8px;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
+  letter-spacing: 0.06em;
+  color: var(--c-text-dim);
   flex-shrink: 0;
+  /* No pointer-events / cursor — the counter is purely
+   * informational. Tapping it does nothing, which the lack of
+   * any button styling signals at a glance. */
 }
 
 [data-palette="nightRed"] .cycleBtn { color: var(--c-text); }
@@ -225,7 +223,7 @@
    * so the chevron clears the dismiss button on narrow rails too. */
   .govAlert .head { padding: 12px 44px 10px 16px; gap: 6px; }
   .govAlert .title { font-size: 13.5px; }
-  .cycleBtn { font-size: 9px; padding: 2px 7px; }
+  .counter { font-size: 9px; }
 }
 
 @media (max-width: 479px) {

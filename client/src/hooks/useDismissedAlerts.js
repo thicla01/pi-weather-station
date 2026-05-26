@@ -33,10 +33,26 @@ function readStore() {
   }
 }
 
+// Custom-event name used to sync the hook's React state across
+// every component that uses it in the same tab. localStorage's
+// own `storage` event only fires for OTHER tabs/windows, not for
+// the tab that did the write — so without our own event,
+// `AlertBanner` would only learn about a dismissal/restore done in
+// `AlertMiniCards` when its 60 s purge tick eventually re-read
+// localStorage. Field-tested 2026-05-25: dismissing both alerts
+// from the banner + clicking restore in the mini-cards saw a
+// noticeable 1-2 min lag before the banner stopped showing the
+// radar fallback. Custom event closes that gap.
+const STORAGE_EVENT = "pi-weather-dismissed-alerts-changed";
+
 function writeStore(store) {
   if (typeof window === "undefined") return;
   try {
     window.localStorage.setItem(STORAGE_KEY, JSON.stringify(store));
+    // Broadcast to all hook instances in this tab so they re-read
+    // localStorage immediately rather than waiting for their
+    // 60 s purge interval.
+    window.dispatchEvent(new CustomEvent(STORAGE_EVENT));
   } catch {
     /* localStorage full / private mode — silent fail, the user
      * just sees the alert un-dismiss after a reload */
@@ -111,6 +127,29 @@ export default function useDismissedAlerts() {
     return () => clearInterval(id);
   }, []);
 
+  // Cross-component sync — listen for the `STORAGE_EVENT` that
+  // any `writeStore` call dispatches. When AlertMiniCards calls
+  // restoreAll() (or AlertBanner calls dismiss()), every other
+  // instance of this hook in the tree re-reads localStorage and
+  // updates its React state, so the UI converges within one
+  // render frame instead of waiting for the 60 s purge tick.
+  // Also handles cross-tab updates via the native `storage` event
+  // (fires when ANOTHER tab in the same origin writes the key).
+  useEffect(() => {
+    if (typeof window === "undefined") return undefined;
+    const sync = () => setStore(purgeStale(readStore()));
+    const onStorage = (e) => {
+      // Cross-tab — `storage` event payload includes the key
+      if (!e || e.key === STORAGE_KEY || e.key === null) sync();
+    };
+    window.addEventListener(STORAGE_EVENT, sync);
+    window.addEventListener("storage", onStorage);
+    return () => {
+      window.removeEventListener(STORAGE_EVENT, sync);
+      window.removeEventListener("storage", onStorage);
+    };
+  }, []);
+
   const dismiss = useCallback((alert) => {
     if (!alert || !alert.id) return;
     setStore((prev) => {
@@ -145,5 +184,12 @@ export default function useDismissedAlerts() {
     writeStore({});
   }, []);
 
-  return { isDismissed, dismiss, restoreAll };
+  // Live count of non-stale dismissals — drives the v3.1 Phase 4c
+  // "Restore N hidden alerts" pill (only renders when ≥ 1). Read
+  // from the in-memory store rather than localStorage so it stays
+  // reactive across dismiss/restore calls without an extra
+  // useEffect to mirror state.
+  const dismissedCount = Object.keys(store).length;
+
+  return { isDismissed, dismiss, restoreAll, dismissedCount };
 }

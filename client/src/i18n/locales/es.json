@@ -302,7 +302,13 @@
     "sectionSource": "Fuente de datos",
     "sectionWhere": "Zonas afectadas",
     "sectionWhen": "Periodo",
-    "sectionAction": "Qué hacer"
+    "sectionAction": "Qué hacer",
+    "activeAlertsCount_one": "{{current}} / {{count}} alerta activa",
+    "activeAlertsCount_other": "{{current}} / {{count}} alertas activas",
+    "selectAlertAria": "Cambiar a esta alerta",
+    "restoreDismissed_one": "Restaurar {{count}} alerta oculta",
+    "restoreDismissed_other": "Restaurar {{count}} alertas ocultas",
+    "restoreDismissedAria": "Toque para volver a mostrar las alertas que ocultó"
   },
   "govAlertDetail": {
     "title": "Detalle alerta {{source}}",

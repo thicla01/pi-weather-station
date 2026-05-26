@@ -386,6 +386,20 @@ export function AppContextProvider({ children }) {
       return len > 0 ? (prev + 1) % len : 0;
     });
   }, [govAlerts]);
+  // v3.1 Phase 4c: explicit jump-to-alert by absolute index, used
+  // when the user taps a mini-card in the "other active alerts"
+  // list under the primary card. `cycleGovAlert` still exists for
+  // any caller that wants the forward-cycle semantics (none in v3
+  // post-4c, but kept for v2 InfoPanel compatibility). Bounds-
+  // checked: out-of-range arguments collapse to 0 so a stale
+  // mini-card click after the list shrinks can't put us into a
+  // bad index.
+  const selectGovAlert = useCallback((idx) => {
+    const len = Array.isArray(govAlerts) ? govAlerts.length : 0;
+    if (len === 0) { setGovAlertIdx(0); return; }
+    const safe = Number.isInteger(idx) && idx >= 0 && idx < len ? idx : 0;
+    setGovAlertIdx(safe);
+  }, [govAlerts]);
   // Reset cycle when the alert list shrinks (an alert expired, a new
   // payload landed with fewer entries). Otherwise the index could point
   // past the end and render the wrong description.
@@ -1717,6 +1731,7 @@ export function AppContextProvider({ children }) {
     govAlerts,
     govAlertIdx,
     cycleGovAlert,
+    selectGovAlert,
     govAlertExpanded,
     setGovAlertExpanded,
     animateWeatherMap,

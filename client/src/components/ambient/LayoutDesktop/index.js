@@ -9,6 +9,7 @@ import HeroBand from "~/components/ambient/HeroBand";
 import MetricsGrid from "~/components/ambient/MetricsGrid";
 import AlertBanner from "~/components/ambient/AlertBanner";
 import AlertDetailInline from "~/components/ambient/AlertDetailInline";
+import AlertMiniCards from "~/components/ambient/AlertMiniCards";
 import IndoorBlock from "~/components/ambient/IndoorBlock";
 import ChartTabs from "~/components/ambient/ChartTabs";
 import AiSummaryInline from "~/components/ambient/AiSummaryInline";
@@ -129,6 +130,7 @@ const LayoutDesktop = () => {
       <aside className={styles.rail} aria-hidden={collapsed}>
         <AlertBanner />
         <AlertDetailInline />
+        <AlertMiniCards />
         <MetricsGrid />
         <IndoorBlock />
         <ChartTabs />

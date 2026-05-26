@@ -10,6 +10,7 @@ import TimeBlock from "~/components/ambient/TimeBlock";
 import MetricsGrid from "~/components/ambient/MetricsGrid";
 import AlertBanner from "~/components/ambient/AlertBanner";
 import AlertDetailInline from "~/components/ambient/AlertDetailInline";
+import AlertMiniCards from "~/components/ambient/AlertMiniCards";
 import IndoorBlock from "~/components/ambient/IndoorBlock";
 import ChartTabs from "~/components/ambient/ChartTabs";
 import AiSummaryInline from "~/components/ambient/AiSummaryInline";
@@ -100,6 +101,7 @@ const LayoutPi = () => {
          * than sitting below the location + temperature card. */}
         <AlertBanner />
         <AlertDetailInline />
+        <AlertMiniCards />
         <HeroCompact />
         <MetricsGrid />
         <IndoorBlock />

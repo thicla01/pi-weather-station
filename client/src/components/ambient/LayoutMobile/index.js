@@ -10,6 +10,7 @@ import TimeBlock from "~/components/ambient/TimeBlock";
 import MetricsGrid from "~/components/ambient/MetricsGrid";
 import AlertBanner from "~/components/ambient/AlertBanner";
 import AlertDetailInline from "~/components/ambient/AlertDetailInline";
+import AlertMiniCards from "~/components/ambient/AlertMiniCards";
 import IndoorBlock from "~/components/ambient/IndoorBlock";
 import ChartTabs from "~/components/ambient/ChartTabs";
 import AiSummaryInline from "~/components/ambient/AiSummaryInline";
@@ -226,6 +227,7 @@ const LayoutMobile = () => {
          * so this slot is invisible on calm days. */}
         <AlertBanner />
         <AlertDetailInline />
+        <AlertMiniCards />
         <HeroCompact />
         <MetricsGrid />
         <IndoorBlock />
