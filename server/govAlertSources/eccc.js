@@ -70,11 +70,21 @@ function normalize(feature) {
     description_en: p.alert_text_en || "",
     description_fr: p.alert_text_fr || "",
     // sentAt + senderName mirror the NWS payload so the client's
-    // meta-chips row works for both sources without branching. ECCC
-    // doesn't expose an issuing-office name field — fall back to
+    // meta-chips row works for both sources without branching.
+    //
+    // ECCC's pygeoapi collection exposes the alert's issue
+    // timestamp as `publication_datetime` (NOT `sent` — that's the
+    // CAP-spec field name but the pygeoapi instance renames it).
+    // Verified against the raw `/items` response: every alert
+    // carries `publication_datetime` alongside `expiration_datetime`,
+    // `validity_datetime`, and `event_end_datetime`. Falling back
+    // through both shapes makes this resilient if the upstream
+    // ever renames the field again.
+    //
+    // No issuing-office name field exists on ECCC — fall back to
     // a province-qualified "ECCC ON" / "ECCC QC" string when the
     // province code is present, plain "ECCC" otherwise.
-    sentAt: p.sent || p.effective_datetime || null,
+    sentAt: p.publication_datetime || p.sent || p.effective_datetime || null,
     senderName: p.province ? `ECCC ${p.province}` : "ECCC",
     expiresAt: p.expiration_datetime || p.event_end_datetime || null,
     areaDesc: p.feature_name_en || p.feature_name_fr || p.province || null,

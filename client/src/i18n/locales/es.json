@@ -296,7 +296,13 @@
     "issuedJustNow": "Emitido ahora",
     "expiresAt": "Expira {{when}}",
     "expandRow": "Toque para leer el detalle",
-    "collapseRow": "Toque para replegar"
+    "collapseRow": "Toque para replegar",
+    "sectionHazard": "Lo que ocurre",
+    "sectionObservation": "Lo que se ha observado",
+    "sectionSource": "Fuente de datos",
+    "sectionWhere": "Zonas afectadas",
+    "sectionWhen": "Periodo",
+    "sectionAction": "Qué hacer"
   },
   "govAlertDetail": {
     "title": "Detalle alerta {{source}}",

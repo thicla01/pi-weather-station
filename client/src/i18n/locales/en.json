@@ -296,7 +296,13 @@
     "issuedJustNow": "Just issued",
     "expiresAt": "Expires {{when}}",
     "expandRow": "Tap to read detail",
-    "collapseRow": "Tap to collapse"
+    "collapseRow": "Tap to collapse",
+    "sectionHazard": "What's happening",
+    "sectionObservation": "What was observed",
+    "sectionSource": "Data source",
+    "sectionWhere": "Affected areas",
+    "sectionWhen": "When",
+    "sectionAction": "What to do"
   },
   "govAlertDetail": {
     "title": "{{source}} alert detail",

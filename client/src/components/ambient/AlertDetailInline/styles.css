@@ -3,6 +3,13 @@
  * is now the user-facing toggle); this component just renders the
  * description body + QR footer when the banner is expanded.
  *
+ * v3.1 Phase 4b: the body can render in two modes:
+ *   - **structured**: alertParser detected NWS asterisks or ECCC
+ *     headings → render each section as an icon + lead + detail
+ *     2-column block, with a divider between sections.
+ *   - **fallback**: parser returned only intro → split on `\n\n`
+ *     and render as plain paragraphs (the pre-4b behaviour).
+ *
  * Earlier (v2 / PR #103) the container carried a
  * `max-height: calc(100vh - 280px)` cap with an internal scroll
  * area so long alerts wouldn't push the QR off the bottom of the
@@ -32,11 +39,11 @@
   /* Natural-height area — the rail (LayoutPi / LayoutDesktop)
    * already provides outer scrolling, and on LayoutMobile the
    * scroll container handles it. Long alerts grow the slab; the
-   * user scrolls the rail to read the rest. Class name kept for
-   * minimal churn even though it no longer scrolls. */
+   * user scrolls the rail to read the rest. */
   padding: 12px 14px;
 }
 
+/* Fallback rendering — plain paragraphs */
 .text {
   font-size: 13px;
   line-height: 1.55;
@@ -51,6 +58,117 @@
   color: var(--c-text-dim);
   font-style: italic;
   padding: 12px 14px;
+}
+
+/* ============================================================
+ * STRUCTURED SECTIONS (v3.1 Phase 4b)
+ * ============================================================
+ *
+ * `.intro` block carries the leading prose before the first
+ * structured heading — no icon, no lead row, just paragraphs.
+ * Sits at the top of the scrollArea with a small bottom margin
+ * separating it from the icon-led sections below. */
+.intro {
+  margin-bottom: 16px;
+}
+
+.intro .text {
+  font-size: 13px;
+  line-height: 1.55;
+  color: var(--c-text);
+}
+
+/* `.section` — icon column + content column for each parsed
+ * heading. Mirrors the design's `.ap-section` 2-column grid
+ * layout: 16 px fixed icon column, content takes the rest. */
+.section {
+  display: grid;
+  grid-template-columns: 16px 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+/* Divider between adjacent sections — same warm border colour as
+ * the slab itself, on top. Mirrors the synthesis design's
+ * "horizontal rule between every section" treatment. */
+.section + .section {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--c-border);
+}
+
+.sectionIcon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 16px;
+  height: 16px;
+  /* Use `--c-accent` at full opacity — NOT `--c-accent-soft`, which
+   * is a 16-18 % alpha tint designed for filled chip backgrounds
+   * and reads as a barely-visible wash when applied to a foreground
+   * SVG. Day: warm orange-brown icon on cream slab. Night/Dusk:
+   * amber icon on dark slab. Both keep the icon as a clear visual
+   * anchor without competing visually with the lead text — the
+   * lead is `var(--c-text)` (full strength), the icon is `--c-accent`
+   * (palette accent), the detail is `var(--c-text-dim)` (dimmer),
+   * so the three roles get three distinct intensities in every
+   * palette. */
+  color: var(--c-accent);
+  margin-top: 2px;
+}
+.sectionIcon svg { width: 16px; height: 16px; }
+
+[data-palette="nightRed"] .sectionIcon {
+  /* In night-red mode `--c-accent` IS the palette red — same hue
+   * as `--c-text-dim` and visually muddied against the dark slab.
+   * Override to full `--c-text` (the bright red) so the icon
+   * stays crisp. Same per-mode override pattern HealthIndicator
+   * uses for the chip glyph. */
+  color: var(--c-text);
+}
+
+.sectionContent {
+  min-width: 0;
+  /* Allow inner paragraphs to wrap; the grid's `1fr` column does
+   * the heavy lifting but `min-width: 0` is required so flex/grid
+   * children with long words don't push the container wider than
+   * the rail. */
+}
+
+.sectionLead {
+  font-size: 13px;
+  color: var(--c-text);
+  font-weight: 500;
+  margin-bottom: 4px;
+  line-height: 1.4;
+  /* Localized via `alert.section{Type}` keys (e.g. "What's
+   * happening" / "Ce qui se passe"). Falls back to the upstream
+   * source heading text for unrecognised types. */
+}
+
+.sectionDetail {
+  font-size: 12.5px;
+  color: var(--c-text-dim);
+  line-height: 1.55;
+}
+
+.sectionPara {
+  margin: 0 0 6px;
+}
+
+.sectionPara:last-child {
+  margin-bottom: 0;
+}
+
+/* On phones, drop the icon column to save horizontal room — the
+ * section lead alone carries enough semantic weight without the
+ * 16 px + 12 px gap eating into the content width. */
+@media (max-width: 479px) {
+  .section {
+    grid-template-columns: 1fr;
+    gap: 4px;
+  }
+  .sectionIcon { display: none; }
 }
 
 .footer {
