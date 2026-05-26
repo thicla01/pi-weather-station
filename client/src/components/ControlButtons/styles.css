@@ -358,10 +358,20 @@
 /* Hover affordance — only on devices that actually have a hover
  * state (matches the same pattern HealthIndicator uses). Sticky
  * hover on touch devices reads as "this button is stuck in a
- * pressed state". */
+ * pressed state".
+ *
+ * Background tint MUST NOT match `--c-accent-soft`: that token is
+ * already used by `.button-down` to signal "this toggle is ON",
+ * and on desktop browsers the cursor parks on the just-clicked
+ * button so `:hover` persists until the user moves the mouse.
+ * If both `:hover` and `.button-down` paint the same fill, a
+ * non-toggle button (refresh, recenter, marker-toggle) looks
+ * indistinguishable from a stuck-on toggle until the cursor
+ * leaves. Use a neutral overlay tied to `--c-text` instead so
+ * hover and "active toggle" carry visibly different tints. */
 @media (hover: hover) {
   .container.grouped .group > div:hover {
-    background-color: var(--c-accent-soft, rgba(255, 255, 255, 0.06));
+    background-color: color-mix(in oklab, var(--c-text) 8%, transparent);
   }
 }
 

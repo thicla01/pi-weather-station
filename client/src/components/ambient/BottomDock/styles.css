@@ -60,7 +60,28 @@
    * v2 layouts that embed ControlButtons outside this dock are
    * unaffected. */
   --ctrl-btn-bg: transparent;
-  --ctrl-btn-active: var(--c-accent-soft);
+  /* `--ctrl-btn-active` (`:active` press flash) intentionally matches
+   * the dock background instead of `--c-accent-soft`. Two reasons:
+   *
+   * 1. On touchscreens, `:active` stays applied after the tap until
+   *    the next pointerdown elsewhere (Chromium / Firefox both — the
+   *    touch pointer has no natural "leave" event). With the previous
+   *    value `var(--c-accent-soft)` the just-tapped button kept an
+   *    accent-tinted background that looked identical to a real ON
+   *    toggle. Users read non-toggle buttons (refresh, recenter,
+   *    marker-toggle) as "stuck on" until they tapped somewhere else.
+   *
+   * 2. Same ambiguity the v2.14.74 comment below addresses for
+   *    `:hover` — when `.buttonDown` is the canonical accent signal
+   *    for "this toggle is ON", any other accent-tinted state in the
+   *    dock (hover, active) competes with it. Dropping the press
+   *    flash leaves `.buttonDown` as the sole accent signal.
+   *
+   * The toast that fires from `notify(...)` in every ControlButtons
+   * onClick handler already gives the user a "tap registered"
+   * confirmation, so removing the press flash doesn't leave them
+   * blind. */
+  --ctrl-btn-active: transparent;
   --ctrl-btn-down: var(--c-accent-soft);
   --ctrl-btn-border: var(--c-border-hybrid);
   --ctrl-btn-border-l: transparent;
