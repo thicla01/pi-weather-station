@@ -66,6 +66,22 @@ const day = {
   sevWarnBg: "rgba(220, 80, 80, 0.18)",
   sevWarnBorder: "rgba(220, 80, 80, 0.55)",
   sevWarnInk: "#b03030",
+  // Moon-phase glyph (used by `MoonGlyph` SVG component). Naming
+  // follows what each token PAINTS:
+  //   - moonLit  : colour of the LIT-side path (the phase outline)
+  //   - moonDark : colour of the dark/shadow disc behind it
+  // All four palettes use the same convention: a DARK disc with
+  // a BRIGHT lit shape on top. That matches the universal emoji
+  // convention (Apple Color Emoji draws moons this way) so a
+  // waxing crescent reads as "bright sliver on the right" in
+  // every mode. The synthesis design's clair mode originally
+  // inverted this (light disc + dark "lit" silhouette) but field-
+  // tested as confusing: users read the dark crescent as the
+  // SHADOW side and mistook a waxing crescent for waning
+  // gibbous. Aligning all palettes on dark-disc/bright-lit
+  // removes the cross-mode reading ambiguity.
+  moonLit: "#f4e4a8",
+  moonDark: "#7a6a48",
 };
 
 const dusk = {
@@ -90,6 +106,10 @@ const dusk = {
   sevWarnBg: "rgba(220, 80, 80, 0.16)",
   sevWarnBorder: "rgba(220, 80, 80, 0.48)",
   sevWarnInk: "#ee9090",
+  // Warm cream lit side on a dim brown dark side — both contrast
+  // with the dusk bg #1c1a17.
+  moonLit: "#f0ddb8",
+  moonDark: "#3a3528",
 };
 
 const night = {
@@ -114,6 +134,13 @@ const night = {
   sevWarnBg: "rgba(220, 80, 80, 0.14)",
   sevWarnBorder: "rgba(220, 80, 80, 0.45)",
   sevWarnInk: "#ee9090",
+  // Same warm-cream / dim-brown pair as dusk — both palettes share
+  // the "dark surface, warm lit side" treatment. Tested against the
+  // night bg #0e0c0a for the night-vision palette criterion: cream
+  // (#f0ddb8) on near-black gives ~10:1 contrast which is well
+  // above the AA threshold for non-text decoration.
+  moonLit: "#f0ddb8",
+  moonDark: "#3a3528",
 };
 
 const nightRed = {
@@ -148,6 +175,12 @@ const nightRed = {
   sevWarnBg: "rgba(232, 80, 80, 0.20)",
   sevWarnBorder: "rgba(232, 80, 80, 0.55)",
   sevWarnInk: "#f06060",
+  // Night-red mode: red lit side on a deeper red dark side. Both
+  // stay within the red-only constraint that the palette is
+  // designed for, so the moon glyph doesn't break the night-vision
+  // intent the way a warm-cream lit side would.
+  moonLit: "#d04848",
+  moonDark: "#2a0e0e",
 };
 
 export const tokens = { day, dusk, night, nightRed };

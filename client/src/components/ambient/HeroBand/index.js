@@ -7,6 +7,7 @@ import { AppContext } from "~/AppContext";
 import { convertTemp } from "~/services/conversions";
 import { parseWeatherCode, isDaylight } from "~/ui/weatherCodes";
 import { moonPhase, upcomingSolarEvent } from "~/ui/astronomy";
+import MoonGlyph from "~/components/ambient/MoonGlyph";
 import MoonDetailsPopover from "~/components/ambient/MoonDetailsPopover";
 import SunDetailsPopover from "~/components/ambient/SunDetailsPopover";
 import LocationDetailsPopover from "~/components/ambient/LocationDetailsPopover";
@@ -239,7 +240,15 @@ const HeroBand = () => {
               aria-expanded={moonOpen}
               onClick={toggleMoon}
             >
-              <span className={styles.moonGlyph}>{moon.glyph}</span>
+              <span className={styles.moonGlyph}>
+                {/* `size="1em"` so the SVG renders at 1× of the wrapper's
+                 * own `font-size: 1.2em` — matches the prior Unicode-emoji
+                 * pixel footprint (the emoji also rendered at 1× of its
+                 * own font-size). Passing the component's default 1.2em
+                 * here would compound the multipliers to 1.44em and the
+                 * glyph would be ~20 % larger than before. */}
+                <MoonGlyph fraction={moon.fraction} size="1em" />
+              </span>
               {Math.round(moon.illumination * 100)}%
               <MoonDetailsPopover
                 open={moonOpen}

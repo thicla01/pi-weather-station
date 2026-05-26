@@ -2,6 +2,7 @@ import React, { useContext } from "react";
 import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
 import DetailsPopover from "~/components/ambient/DetailsPopover";
+import MoonGlyph from "~/components/ambient/MoonGlyph";
 import { AppContext } from "~/AppContext";
 import { moonPhase, nextFullMoon, nextNewMoon } from "~/ui/astronomy";
 import styles from "./styles.css";
@@ -91,7 +92,10 @@ const MoonDetailsPopover = ({ open, onClose, now, triggerRef, anchor }) => {
       <div className={styles.detailRow}>
         <span className={styles.detailLabel}>{t("astronomy.phase")}</span>
         <span className={styles.detailValue}>
-          <span className={styles.glyph}>{moon.glyph}</span>
+          <span className={styles.glyph}>
+            {/* `size="1em"` — see HeroBand for the compound-em rationale. */}
+            <MoonGlyph fraction={moon.fraction} size="1em" />
+          </span>
           {t(`astronomy.moonPhase.${moon.i18nKey}`)} — {Math.round(moon.illumination * 100)}%
         </span>
       </div>

@@ -15,7 +15,7 @@
  *     orders of magnitude better than the day-resolution display
  *     needs.
  *
- * Hemisphere note: the moon glyphs are drawn for Northern-Hemisphere
+ * Hemisphere note: the moon glyph is drawn for Northern-Hemisphere
  * viewing (waxing on the right, waning on the left). In the Southern
  * Hemisphere the visual orientation flips. The kiosk's primary
  * audience is Quebec / North America, so we accept the NH convention.
@@ -26,11 +26,18 @@
 const NEW_MOON_REF_MS = Date.UTC(2000, 0, 6, 18, 14);
 const SYNODIC_MONTH_MS = 29.530589 * 86400000;
 
-// 8-phase glyphs (Unicode). Index 0 = new moon, 4 = full.
-const MOON_GLYPHS = ["🌑", "🌒", "🌓", "🌔", "🌕", "🌖", "🌗", "🌘"];
-
 // i18n key suffixes for the 8 phases — consumers translate via
-// `t("astronomy.moonPhase." + key)`.
+// `t("astronomy.moonPhase." + key)`. The visual rendering of the
+// phase moved off Unicode emoji (🌒🌔🌖 etc.) and onto a custom
+// SVG (`MoonGlyph` component, parameterised by `moonLitPath()`
+// below) in June 2026. The emoji approach drew the phases
+// differently between Apple Color Emoji (macOS, NH convention)
+// and Linux Noto Color Emoji (Pi kiosk) — the Pi rendering looked
+// "inverted" in night / nightRed modes where the high lit-vs-dark
+// contrast made the orientation difference obvious. The SVG locks
+// NH orientation in every browser + OS combo and follows the
+// palette tokens (--c-moon-lit / --c-moon-dark) so the same code
+// works in clair / dusk / nuit / nightRed.
 const MOON_PHASE_KEYS = [
   "newMoon", "waxingCrescent", "firstQuarter", "waxingGibbous",
   "fullMoon", "waningGibbous", "lastQuarter", "waningCrescent",
@@ -70,21 +77,90 @@ export function moonIllumination(date = new Date()) {
 }
 
 /**
- * Pick the closest of 8 phase glyphs for the current moment. Used
- * by TimeBlock to render the moon chip alongside sunrise/sunset.
+ * Resolve the current moon phase to (i18nKey, fraction, illumination).
+ * Used by TimeBlock / HeroBand / MoonDetailsPopover to label the
+ * phase + drive the `MoonGlyph` SVG renderer (which reads
+ * `fraction`).
+ *
+ * The 8-phase bucketing picks the closest of `MOON_PHASE_KEYS`
+ * (newMoon → waxingCrescent → firstQuarter → waxingGibbous →
+ * fullMoon → waningGibbous → lastQuarter → waningCrescent → ...).
  *
  * @param {Date} [date=new Date()]
- * @returns {{glyph: string, i18nKey: string, fraction: number, illumination: number}}
+ * @returns {{i18nKey: string, fraction: number, illumination: number}}
  */
 export function moonPhase(date = new Date()) {
   const fraction = moonPhaseFraction(date);
   const idx = Math.round(fraction * 8) % 8;
   return {
-    glyph: MOON_GLYPHS[idx],
     i18nKey: MOON_PHASE_KEYS[idx],
     fraction,
     illumination: moonIllumination(date),
   };
+}
+
+/**
+ * Build an SVG `d` attribute describing the LIT (illuminated) area
+ * of the moon's visible face at a given synodic phase.
+ *
+ * Geometry: the visible disc is a circle of radius `r` at
+ * `(cx, cy)`. The terminator — the boundary between lit and dark
+ * sides — projects onto the disc as half of an ellipse whose
+ * horizontal radius `tx = r × |cos(2π × fraction)|`. At the
+ * quarters the ellipse degenerates into a straight vertical line;
+ * at new and full it coincides with the disc edge.
+ *
+ * The returned path is closed (`Z`) and bounded by:
+ *   (a) half of the disc's outer circle (the lit-side semicircle)
+ *   (b) half of the terminator ellipse (the inner edge)
+ *
+ * Whether the ellipse arc bulges INTO the lit area (crescent —
+ * dark side bites into lit) or OUTWARD (gibbous — lit area
+ * bulges past the centre) is determined by `sweep-flag` choice
+ * based on the phase quadrant. Hemisphere convention is NH:
+ * waxing phases lit on the right, waning on the left.
+ *
+ * @param {number} fraction - synodic phase 0..1
+ * @param {number} cx - disc centre x in SVG coords
+ * @param {number} cy - disc centre y in SVG coords
+ * @param {number} r  - disc radius in SVG units
+ * @returns {string} SVG `d` value, or `""` at new moon
+ */
+export function moonLitPath(fraction, cx, cy, r) {
+  // Defensive: clamp the fraction in case a caller passes an
+  // out-of-range value (e.g. NaN from a parser).
+  let f = Number.isFinite(fraction) ? fraction : 0;
+  f = ((f % 1) + 1) % 1; // wrap to [0, 1)
+  const k = (1 - Math.cos(2 * Math.PI * f)) / 2;
+  // New moon — nothing to draw (the disc colour shows through).
+  if (k < 0.005) return "";
+  // Full moon — entire disc lit. Built from two semicircular arcs
+  // so the path is a single closed shape that React/SVG paints
+  // identically to the background `<circle>` underneath.
+  if (k > 0.995) {
+    return `M ${cx - r} ${cy} A ${r} ${r} 0 1 1 ${cx + r} ${cy} A ${r} ${r} 0 1 1 ${cx - r} ${cy} Z`;
+  }
+  const waxing = f < 0.5;
+  const gibbous = k > 0.5;
+  // Snap near-zero floating-point noise to exact zero. `cos(π/2)` is
+  // ~6.12e-17 in JS, not actually 0 — at first/last quarter the
+  // terminator should be a perfectly straight vertical line and we
+  // want the resulting SVG `A` command to read `A 0 9 ...` rather
+  // than `A 5.5e-16 9 ...` (ugly + occasionally caught by SVG
+  // renderers as a non-degenerate ellipse).
+  const txRaw = r * Math.abs(Math.cos(2 * Math.PI * f));
+  const tx = txRaw < 1e-6 ? 0 : txRaw;
+  // Outer arc: along the disc edge on the lit side. `sweep=1`
+  // takes the right semicircle (CW from top to bottom in SVG's
+  // Y-down coords), `sweep=0` takes the left.
+  const outerSweep = waxing ? 1 : 0;
+  // Inner arc: the terminator ellipse. For a crescent, the ellipse
+  // bulges TOWARD the lit side (dark bites into lit), so its sweep
+  // is OPPOSITE the outer. For a gibbous, the ellipse bulges AWAY
+  // from the lit side (lit bulges past centre), matching the
+  // outer sweep.
+  const innerSweep = gibbous ? outerSweep : 1 - outerSweep;
+  return `M ${cx} ${cy - r} A ${r} ${r} 0 0 ${outerSweep} ${cx} ${cy + r} A ${tx} ${r} 0 0 ${innerSweep} ${cx} ${cy - r} Z`;
 }
 
 /**

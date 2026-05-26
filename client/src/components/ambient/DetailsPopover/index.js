@@ -85,6 +85,15 @@ const DetailsPopover = ({ open, onClose, title, anchor, triggerRef, portal, chil
         "--c-bg", "--c-text", "--c-text-dim", "--c-accent",
         "--c-accent-soft", "--c-surface", "--c-border",
         "--c-warn", "--c-danger", "--c-cool", "--c-font-scale",
+        // Moon-glyph tokens — without these the `MoonGlyph` inside
+        // `MoonDetailsPopover` falls back to `var(...)`'s implicit
+        // default (transparent for fill, which then resolves to
+        // black on rendering) because portaled content sits outside
+        // the `.ambientRoot` element where `AmbientLayers` injects
+        // the palette. Symptom: completely-black moon disc in every
+        // palette inside the popover, even though HeroBand /
+        // TimeBlock render correctly.
+        "--c-moon-lit", "--c-moon-dark",
       ]) {
         const v = cs.getPropertyValue(name);
         if (v) vars[name] = v.trim();

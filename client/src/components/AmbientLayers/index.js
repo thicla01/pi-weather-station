@@ -173,6 +173,12 @@ const AmbientLayers = () => {
     "--sev-warn-bg": palette.sevWarnBg,
     "--sev-warn-border": palette.sevWarnBorder,
     "--sev-warn-ink": palette.sevWarnInk,
+    // Moon-glyph palette tokens (used by `MoonGlyph`). Names match
+    // what each token paints, not relative brightness — day palette
+    // has a DARK `moonLit` because the lit shape is rendered as a
+    // dark silhouette on a light page.
+    "--c-moon-lit": palette.moonLit,
+    "--c-moon-dark": palette.moonDark,
     // Font-size scaling is exposed as `--c-font-scale` and consumed by
     // the scrollable subtrees (rail in both layouts, heroSlot in
     // LayoutDesktop). Applying `zoom` here on the root broke

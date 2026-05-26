@@ -1,0 +1,35 @@
+/* MoonGlyph — inline SVG that replaces the Unicode-emoji moon-phase
+ * glyph. The `<circle>` and `<path>` inside follow the palette's
+ * `--c-moon-dark` / `--c-moon-lit` tokens so the same component
+ * works in clair, dusk, nuit, and nightRed without per-component
+ * palette branching. */
+
+.svg {
+  display: inline-block;
+  /* Baseline-align so the glyph sits on the same line as the
+   * surrounding text (illumination percentage, phase name) without
+   * a half-line wobble. Matches the prior emoji's natural baseline
+   * — which sat ~0.05 em above the cap line and was nudged via
+   * `position: relative; top: -0.05em` on the `.moonGlyph` wrappers.
+   * Keep the wrapper rule intact so existing layout doesn't shift,
+   * and let `vertical-align: middle` here handle the SVG-specific
+   * centring (SVG defaults to baseline which sits the disc too low). */
+  vertical-align: middle;
+  flex-shrink: 0;
+}
+
+.disc {
+  /* The dark / shadow side of the moon. On day palette this is a
+   * light tan that gives the dark half just enough presence to read
+   * as a circle. On night palettes this is a dim brown that nearly
+   * disappears into the dock surface — by design: the user's eye
+   * should land on the bright lit shape, not on the dark side. */
+  fill: var(--c-moon-dark);
+}
+
+.lit {
+  /* The illuminated side. Drawn on top of the disc, so its colour
+   * is what reads as "the moon" at a glance. Day palette: dark
+   * silhouette. Night palettes: bright cream / red. */
+  fill: var(--c-moon-lit);
+}

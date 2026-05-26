@@ -5,6 +5,7 @@ import bxsSun from "@iconify/icons-bx/bxs-sun";
 import bxsMoon from "@iconify/icons-bx/bxs-moon";
 import { AppContext } from "~/AppContext";
 import { moonPhase, upcomingSolarEvent } from "~/ui/astronomy";
+import MoonGlyph from "~/components/ambient/MoonGlyph";
 import MoonDetailsPopover from "~/components/ambient/MoonDetailsPopover";
 import SunDetailsPopover from "~/components/ambient/SunDetailsPopover";
 import styles from "./styles.css";
@@ -148,7 +149,10 @@ const TimeBlock = () => {
             aria-expanded={moonOpen}
             onClick={toggleMoon}
           >
-            <span className={styles.moonGlyph}>{moon.glyph}</span>
+            <span className={styles.moonGlyph}>
+              {/* `size="1em"` — see HeroBand for the compound-em rationale. */}
+              <MoonGlyph fraction={moon.fraction} size="1em" />
+            </span>
             {Math.round(moon.illumination * 100)}%
             <MoonDetailsPopover
               open={moonOpen}
