@@ -174,6 +174,12 @@ These rules apply to every change, regardless of size. They exist to keep the co
 - `ROADMAP.md` technical debt section must be updated when a debt item is resolved or a new one is identified
 - `docs/ui-layout_fr.md` and `docs/ui-layout_en.md` must be kept in sync when the screen layout changes
 
+### Incident reports for long-to-resolve bugs
+- **Write an incident report when a bug debugging session meets at least one of**: ≥ 45 min of back-and-forth, ≥ 3 wrong hypotheses before the fix, a cause that wasn't findable via direct code search (CSS spec war, platform-specific behaviour, layered caching, etc.), or a recurrence risk if someone makes the same class of change again.
+- File the report immediately after committing the fix — the chronological detail of "what we tried first and what we thought at each step" decays fast. Past 24 h, the most useful part of the report (the failed-hypotheses timeline) is gone.
+- Reports live as Markdown notes in the agent's memory store (`~/.claude/projects/<project>/memory/incident_<topic>.md`) and follow a fixed structure: TL;DR → Timeline table → Exact cause → Fix and rejected alternatives → Lessons learned → "For next time" actionable bullets. See [`incident_status_chip_specificity_war.md`](https://github.com/thicla01/pi-weather-station) and [`incident_moon_glyph_emoji_platform.md`](https://github.com/thicla01/pi-weather-station) for examples of the depth and tone expected.
+- The point of the report is *the recurring trap*, not the specific bug. If the lesson reads "we should have read X before writing Y" or "diagnostic Z would have saved an hour," that's the keeper. Skip reports for one-off typos / obvious-once-read bugs / design decisions resolved by a conversation.
+
 ## External Services
 
 | Service | Purpose | Environment |
