@@ -157,11 +157,12 @@ const ControlButtons = ({ grouped = false }) => {
   // `padding: 12px` on `.dock`.
   useLayoutEffect(() => {
     if (!toast.message || !toastRef.current || toast.x === null) return;
-    // Skip clamp in full-width mode — the toast already has both
-    // `left` and `right` set to viewport-edge margins, so there's
-    // nothing to shift and resetting `--toast-tx` here would undo
-    // the inline `0%` override.
-    if (toast.fullWidth) return;
+    // Runs in both modes — viewport-centred (`fullWidth`) and
+    // button-anchored. In viewport-centred mode the clamp is a
+    // safety net: `max-width: min(360px, calc(100vw - 24px))` keeps
+    // the box inside the viewport so `shift` resolves to 0, but
+    // leaving the check active defends against future content that
+    // overflows via padding / border math.
     const el = toastRef.current;
     el.style.setProperty("--toast-tx", "-50%");
     const rect = el.getBoundingClientRect();
@@ -205,19 +206,34 @@ const ControlButtons = ({ grouped = false }) => {
       x = buttonRect.left + buttonRect.width / 2;
       bottom = window.innerHeight - buttonRect.top + 8;
       // On narrow viewports (≤ 600 px) the per-button anchoring
-      // results in a toast width starved by the browser's shrink-
-      // to-fit calc — `width: auto` with only `left` set computes
-      // available width as `viewport - left`, which is small when
-      // the tapped button is near the right edge of the dock.
-      // `translateX(-50%)` shifts visually but the layout box
-      // stays narrow. User-visible symptom: 6+ line wraps on a
-      // 70-char French toast that should fit on 2 lines.
+      // is dropped in favour of viewport centring. Two reasons,
+      // resolved together by the same mode flip:
       //
-      // Fallback to viewport-edges positioning (left: 12, right: 12)
-      // so the toast has the full available width on phones. We
-      // lose the per-button visual anchor — accepted trade-off:
-      // on phones the dock is small, the user's finger is right
-      // there, and a readable toast wins over precise pointing.
+      // (1) Per-button `left + transform: translateX(-50%)` lets
+      //     the toast clip off-screen when the tapped button sits
+      //     near the dock's right edge — the clamp `useLayoutEffect`
+      //     shifts it back, but the rendered box is already
+      //     narrow because the browser's shrink-to-fit width =
+      //     `viewport - left` was tiny to start with. Symptom: a
+      //     70-char French toast wrapping to 6+ lines that should
+      //     fit on 2.
+      //
+      // (2) An earlier "fix" set both `left: 12px` and `right: 12px`
+      //     to force the box wide enough to fit long toasts. That
+      //     solved (1) but flipped to the opposite problem: short
+      //     toasts ("Marqueur affiché", "Mode jour activé") stretched
+      //     full-screen-width on phones with masses of empty
+      //     horizontal space — read as "this is a bigger banner
+      //     than it should be".
+      //
+      // Current mode: `left: 50%; --toast-tx: -50%` centres the
+      // toast on the VIEWPORT (not the button). Width is intrinsic,
+      // capped by the CSS `max-width: min(360px, calc(100vw - 24px))`
+      // so long toasts get 360 px (~ 2 lines on Geist 13) and short
+      // toasts stay as wide as their text. We lose the per-button
+      // visual anchor on phones — accepted trade-off: on phones the
+      // dock is small, the user's finger is right there, and
+      // honest sizing wins over precise pointing.
       fullWidth = window.innerWidth <= 600;
     }
     toastIdRef.current += 1;
@@ -545,30 +561,28 @@ const ControlButtons = ({ grouped = false }) => {
       /* Three positioning modes:
        *   1. Button-anchored (wide viewport with `toast.x` set):
        *      inline `left` + `bottom` place the toast at the
-       *      button's centre in viewport coords; CSS
-       *      `translateX(-50%)` then centres it visually.
-       *   2. Full-width (narrow viewport ≤ 600 px): both `left`
-       *      AND `right` are set to 12 px so the toast spans
-       *      the full viewport minus margins. The button-centre
-       *      visual anchor is lost but the toast finally has
-       *      room to read on 2-3 lines instead of being squeezed
-       *      into a 120 px column on phones.
+       *      tapped button's centre in viewport coords; CSS
+       *      `transform: translate(var(--toast-tx, -50%), …)`
+       *      then centres it visually. `useLayoutEffect` clamps
+       *      `--toast-tx` if the box overflows a viewport edge.
+       *   2. Viewport-centred (narrow viewport ≤ 600 px,
+       *      `toast.fullWidth` true): `left: 50%` + the same
+       *      `--toast-tx: -50%` translate centres on the
+       *      VIEWPORT — width is intrinsic to the content,
+       *      capped by the CSS `max-width`. Drops the per-button
+       *      anchor in exchange for honest sizing (short toasts
+       *      no longer span the full screen, long toasts get up
+       *      to 360 px instead of clipping at the dock edges).
        *   3. Default (no event provided): CSS handles it
        *      (left:50%, default bottom). */
       style={(() => {
         if (toast.x === null) return undefined;
         if (toast.fullWidth) {
-          // `--toast-tx: 0%` cancels the CSS default `-50%`
-          // translate (which we use to centre on the button
-          // anchor) — in full-width mode both `left` and
-          // `right` are set so the box is already correctly
-          // positioned and we don't want to shift it.
-          return {
-            left: "12px",
-            right: "12px",
-            bottom: `${toast.bottom}px`,
-            "--toast-tx": "0%",
-          };
+          // `left: 50%` + the CSS default `--toast-tx: -50%`
+          // centres on the viewport. Width is intrinsic to the
+          // text content, capped by the CSS `max-width` so the
+          // toast never overflows the screen edges.
+          return { left: "50%", bottom: `${toast.bottom}px` };
         }
         return { left: `${toast.x}px`, bottom: `${toast.bottom}px` };
       })()}
