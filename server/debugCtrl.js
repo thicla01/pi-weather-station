@@ -1,4 +1,5 @@
 const fs = require("fs");
+const net = require("net");
 const os = require("os");
 const path = require("path");
 const { execSync } = require("child_process");
@@ -96,28 +97,111 @@ const CONNECTIVITY_TTL = 60 * 1000;
 let _connectivityCache = null;
 let _connectivityFetchedAt = null;
 
+// Single shared probe target. Cloudflare 1.1.1.1 is a neutral
+// anycast endpoint (not a project upstream, so the indicator
+// answers "can the kiosk reach the public internet?" without
+// conflating with provider-specific availability — those have
+// their own dedicated signals via `providerStatus` and the
+// `serviceStatus` map). Exposed in the response payload so the
+// Debug panel can surface which host the latency numbers refer
+// to, after the May 2026 ambiguity report ("what does 431 ms
+// even measure?").
+const CONNECTIVITY_HOST = "1.1.1.1";
+const CONNECTIVITY_TCP_PORT = 443;
+
+/**
+ * Measure raw TCP handshake latency to (host, port). Opens a
+ * non-TLS socket, times to the `connect` event, then destroys.
+ * No data exchange — just the 3-way SYN/SYN-ACK/ACK round-trip,
+ * which is the closest we can get to a "raw ping" without
+ * shell-out to `/bin/ping` (which would need `setcap` for raw
+ * ICMP on Linux when Node runs as a non-root user).
+ *
+ * Returns the latency in ms, or `null` if the connection failed
+ * (timeout, refused, network error). 3 s timeout matches the
+ * fail-fast intent — a TCP handshake that hasn't completed in
+ * 3 s on a non-broken link essentially never will.
+ *
+ * @param {string} host
+ * @param {number} port
+ * @returns {Promise<number|null>}
+ */
+function measureTcpLatency(host, port) {
+  return new Promise((resolve) => {
+    const start = Date.now();
+    const socket = new net.Socket();
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      try { socket.destroy(); } catch { /* already destroyed */ }
+      resolve(value);
+    };
+    socket.setTimeout(3000);
+    socket.once("connect", () => finish(Date.now() - start));
+    socket.once("timeout", () => finish(null));
+    socket.once("error", () => finish(null));
+    try {
+      socket.connect(port, host);
+    } catch {
+      finish(null);
+    }
+  });
+}
+
 async function checkConnectivity() {
   const now = Date.now();
   if (_connectivityCache && _connectivityFetchedAt && (now - _connectivityFetchedAt) < CONNECTIVITY_TTL) {
     return _connectivityCache;
   }
 
-  // Timeout was 3 s historically — fine on a typical residential line
-  // but too tight on marginal links (observed May 5 2026 on a Pi behind
-  // an EAP-215 building-to-building wireless bridge: 130 ms RTT to
-  // 1.1.1.1 with mdev 36 ms means a typical HTTPS HEAD takes ~800 ms,
-  // but a brief congestion spike pushed the request past 3 s and
-  // flagged the kiosk as offline for the full 60 s cache TTL — even
-  // though the user was actively mid-screen-share through the same
-  // link). 8 s gives the same fail-fast intent against a real internet
-  // outage while tolerating a 5-10× latency spike.
-  const start = Date.now();
-  try {
-    await axios.head("https://1.1.1.1", { timeout: 8000 });
-    _connectivityCache = { online: true, latencyMs: Date.now() - start };
-  } catch {
-    _connectivityCache = { online: false, latencyMs: null };
-  }
+  // Two measurements in parallel:
+  //
+  //  - `latencyMs`    = full HTTPS HEAD round-trip (DNS + TCP +
+  //                     TLS handshake + HEAD response). This is
+  //                     the historical value the panel always
+  //                     reported, kept for back-compat and as a
+  //                     user-facing "what does an HTTPS call to a
+  //                     neutral host cost from this kiosk?".
+  //  - `tcpLatencyMs` = raw TCP handshake only (SYN/SYN-ACK/ACK),
+  //                     introduced 2026-05-27. This is what
+  //                     classic `ping` represents conceptually
+  //                     and is the value the panel's traffic-
+  //                     light colour-coding is applied to: ≤200
+  //                     green, 200-500 yellow, >500 red. The
+  //                     thresholds correspond to a "raw link
+  //                     latency" mental model, which is what
+  //                     Claude Design's spec intended; applying
+  //                     them to the HTTPS HEAD value would yield
+  //                     too many yellows because TLS handshake
+  //                     alone routinely adds 200-300 ms.
+  //
+  // HTTPS timeout was 3 s historically — fine on a typical
+  // residential line but too tight on marginal links (observed
+  // May 5 2026 on a Pi behind an EAP-215 building-to-building
+  // wireless bridge). 8 s gives the same fail-fast intent against
+  // a real internet outage while tolerating a 5-10× latency
+  // spike.
+  const httpsStart = Date.now();
+  const httpsPromise = axios
+    .head(`https://${CONNECTIVITY_HOST}`, { timeout: 8000 })
+    .then(() => Date.now() - httpsStart)
+    .catch(() => null);
+  const tcpPromise = measureTcpLatency(CONNECTIVITY_HOST, CONNECTIVITY_TCP_PORT);
+  const [latencyMs, tcpLatencyMs] = await Promise.all([httpsPromise, tcpPromise]);
+
+  // `online` is true if EITHER probe succeeded. Either signal is
+  // enough to demonstrate connectivity; a failure on only one
+  // typically indicates a transient flake or a middlebox that
+  // mangles one protocol but not the other (HTTPS through a
+  // captive portal, TCP blocked at the firewall, etc.).
+  const online = latencyMs != null || tcpLatencyMs != null;
+  _connectivityCache = {
+    online,
+    host: CONNECTIVITY_HOST,
+    latencyMs,
+    tcpLatencyMs,
+  };
   _connectivityFetchedAt = Date.now();
   return _connectivityCache;
 }

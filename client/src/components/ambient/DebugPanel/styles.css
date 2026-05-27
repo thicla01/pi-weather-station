@@ -898,9 +898,17 @@
 }
 
 .netConn {
+  display: block;
   margin-top: 4px;
   font-weight: 600;
   letter-spacing: 0.4px;
+  /* Allow wrap on narrow viewports — the enriched indicator
+   * (`Internet: ONLINE · 1.1.1.1 · TCP 14 ms · HTTPS 431 ms`) can
+   * easily exceed 50 chars and would overflow a 7" Pi cell
+   * without this. Same rationale as the `.kvValue` change from
+   * 2026-05-27 — wrap is preferable to clip / overflow on the
+   * Pi 7" / 800×480 viewports the field uses. */
+  overflow-wrap: anywhere;
 }
 
 .netConnOnline {
@@ -909,6 +917,72 @@
 
 .netConnOffline {
   color: var(--c-danger);
+}
+
+/* Inline colour-coded TCP latency tag, embedded in the .netConn
+ * line. Three tiers tied to a "raw link latency" mental model
+ * (see tcpLatencyTier helper in index.js). Bold to lift the tag
+ * out of the surrounding mono text. */
+.netLatencyGreen  { color: #5cb85c; font-weight: 700; }
+.netLatencyYellow { color: #f0c000; font-weight: 700; }
+.netLatencyRed    { color: #e60000; font-weight: 700; }
+.netLatencyUnknown { color: var(--c-text-dim); }
+
+/* Mini latency scale below the .netConn line — three coloured
+ * segments laid out as a 6 px horizontal bar with a vertical
+ * marker pointing at the current TCP latency. Helps the user
+ * internalise the threshold scale visually (the tag's "yellow"
+ * label says "this value is in the yellow tier" but not "and
+ * here's where yellow sits in the broader 0-1000 ms scale").
+ * Suppressed entirely by index.js when offline or when the TCP
+ * probe failed. */
+.latencyScale {
+  position: relative;
+  margin-top: 6px;
+  height: 10px;
+  /* `max-width` keeps the bar readable inside narrow Pi cells
+   * without forcing it to fill an entire wide-desktop column. */
+  max-width: 240px;
+}
+
+.latencyScaleTrack {
+  display: flex;
+  width: 100%;
+  height: 6px;
+  margin-top: 2px;
+  border-radius: 3px;
+  overflow: hidden;
+  /* Subtle outline so the segments read on both dark and cream
+   * palette backgrounds without crashing into the panel surface. */
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.18) inset;
+}
+
+/* Segment widths on a 0–1000 ms scale: 0-200 (20 %, green),
+ * 200-500 (30 %, yellow), 500-1000+ (50 %, red — the red segment
+ * absorbs any value above the displayed scale top). The colours
+ * match the .netLatency tag tiers so the marker on the bar
+ * agrees visually with the inline tag's colour. */
+.latencyScaleGreen  { flex: 0 0 20%; background-color: #5cb85c; }
+.latencyScaleYellow { flex: 0 0 30%; background-color: #f0c000; }
+.latencyScaleRed    { flex: 1 0 auto; background-color: #e60000; }
+
+/* Marker — a thin vertical strip with a tiny halo, centred at
+ * the position calculated inline (left: x %, transform:
+ * translateX(-50%)). Visible against all three segment colours
+ * thanks to the white-bordered black core. */
+.latencyScaleMarker {
+  position: absolute;
+  top: 0;
+  width: 2px;
+  height: 10px;
+  background-color: var(--c-text);
+  outline: 1px solid var(--c-bg);
+  border-radius: 1px;
+  transform: translateX(-50%);
+  /* Smooth slide when the latency value updates on a refresh —
+   * mirrors the gentle motion the rest of v3 uses for state
+   * changes. 250 ms ease is short enough to read as immediate. */
+  transition: left 250ms ease-out;
 }
 
 /* Radar-compression KPI row — flex layout so the stat string, the

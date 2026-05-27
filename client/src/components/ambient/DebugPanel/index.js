@@ -387,6 +387,32 @@ const indicatorLabel = (lang, raw) => {
  * Pre-2.14.20 the service-calls table compared `status === "ok"`,
  * but the server stores the numeric HTTP code — so every successful
  * 200 fell through to `err` and rendered red. */
+/**
+ * Bucket a TCP latency measurement into a three-tier severity tag
+ * for the colour-coded ping value next to the Internet indicator.
+ * Thresholds are tied to a "raw link latency" mental model — what
+ * classic `ping` represents — not to a TLS-inclusive HTTPS HEAD
+ * which routinely sits in the 200-400 ms range even on a healthy
+ * link. The HTTPS value is rendered next to TCP without colour
+ * coding for that reason.
+ *
+ *  - ≤ 200 ms  → green (LAN / fibre / healthy VPN)
+ *  - ≤ 500 ms  → yellow (marginal Wi-Fi, congested 4G, stressed VPN)
+ *  - >  500 ms → red (degraded link, the kind of latency that
+ *                     causes /api/update to time out)
+ *
+ * @param {?number} ms — TCP latency in milliseconds, or null when
+ *   the probe failed
+ * @returns {"green"|"yellow"|"red"|null} tier slug, or null when
+ *   no measurement is available
+ */
+const tcpLatencyTier = (ms) => {
+  if (ms == null || !Number.isFinite(ms)) return null;
+  if (ms <= 200) return "green";
+  if (ms <= 500) return "yellow";
+  return "red";
+};
+
 const httpStatusKind = (status) => {
   if (typeof status !== "number") return "neutral";
   if (status >= 500) return "err";
@@ -606,12 +632,61 @@ const BucketServer = ({ data, lang, gridTwoWide }) => {
           </span>
         )}
         {conn ? (
-          <span className={`${styles.netConn} ${conn.online ? styles.netConnOnline : styles.netConnOffline}`}>
-            {`Internet: ${conn.online
-              ? lbl(lang, "ONLINE", "EN LIGNE", "EN LÍNEA")
-              : lbl(lang, "OFFLINE", "HORS LIGNE", "DESCONECTADO")}`}
-            {conn.online && conn.latencyMs != null ? ` · ${conn.latencyMs} ms` : ""}
-          </span>
+          <>
+            {/* Internet indicator — enriched 2026-05-27 to surface
+              * the probe target (`conn.host`, typically 1.1.1.1)
+              * and to split the latency into two measurements:
+              * `tcpLatencyMs` (raw TCP handshake) is what carries
+              * the colour-coded "ping" status; `latencyMs` (full
+              * HTTPS HEAD with TLS handshake) is shown next to it
+              * as raw diagnostic info, no colour. The gap between
+              * the two reveals whether a slow indicator is link-
+              * bound (TCP high) or TLS-bound (TCP low, HTTPS high).
+              *
+              * Pre-2026-05-27 the field had only one untagged value
+              * ("Internet: ONLINE · 431 ms") whose meaning was
+              * ambiguous — the user reported they could not tell
+              * whether 431 ms meant "your link is slow" or "this
+              * is normal for HTTPS". */}
+            <span className={`${styles.netConn} ${conn.online ? styles.netConnOnline : styles.netConnOffline}`}>
+              {`Internet: ${conn.online
+                ? lbl(lang, "ONLINE", "EN LIGNE", "EN LÍNEA")
+                : lbl(lang, "OFFLINE", "HORS LIGNE", "DESCONECTADO")}`}
+              {conn.online && conn.host ? ` · ${conn.host}` : ""}
+              {conn.online && conn.tcpLatencyMs != null ? (
+                <>
+                  {" · TCP "}
+                  <span className={styles[`netLatency${tcpLatencyTier(conn.tcpLatencyMs) || "Unknown"}`]}>
+                    {`${conn.tcpLatencyMs} ms`}
+                  </span>
+                </>
+              ) : null}
+              {conn.online && conn.latencyMs != null ? ` · HTTPS ${conn.latencyMs} ms` : ""}
+            </span>
+            {/* Mini latency scale below the indicator. Three
+              * coloured segments span 0-200 (green, 20%), 200-500
+              * (yellow, 30%), 500-1000 ms (red, 50%); the marker
+              * is positioned at `(tcpLatencyMs / 1000) * 100 %`
+              * clamped to [0, 100]. Helps the user internalise
+              * the threshold scale visually — without it, the
+              * traffic-light colour on the value alone says "this
+              * value is yellow" but not "and here's where yellow
+              * sits in the broader scale". Suppressed entirely
+              * when offline or when the TCP probe failed. */}
+            {conn.online && conn.tcpLatencyMs != null ? (
+              <div className={styles.latencyScale} aria-hidden="true">
+                <div className={styles.latencyScaleTrack}>
+                  <span className={styles.latencyScaleGreen} />
+                  <span className={styles.latencyScaleYellow} />
+                  <span className={styles.latencyScaleRed} />
+                </div>
+                <div
+                  className={styles.latencyScaleMarker}
+                  style={{ left: `${Math.min(100, Math.max(0, (conn.tcpLatencyMs / 1000) * 100))}%` }}
+                />
+              </div>
+            ) : null}
+          </>
         ) : null}
       </div>
 
