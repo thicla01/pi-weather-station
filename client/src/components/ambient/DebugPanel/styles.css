@@ -229,14 +229,35 @@
   }
 }
 
-/* Focus — a dashed outline OUTSIDE the tab's box. The dash pattern +
- * positive offset makes it visually unambiguous as a keyboard-focus
- * indicator, not a pressed state (which uses an inset background +
- * left strip). User repro'd a case where pressing then unpressing a
- * tab via mouse left it looking pinned because the inset solid
- * outline read as an inset "card border" = pressed treatment.
- * Belt-and-braces with the onMouseDown blur in the React handler:
- * mouse clicks drop focus, keyboard nav keeps it. */
+/* Focus — handle the plain `:focus` case explicitly to neutralise
+ * Chromium's user-agent default, which can paint a faint
+ * background on a tapped <button> that lingers until focus moves
+ * elsewhere. On Pi tactile that "elsewhere" only happens at the
+ * next tap, so a previously-tapped (and now inactive) rail tab
+ * keeps a subtly lit fill — visible against the cream day
+ * palette as the bug the maintainer reported 2026-05-28 where
+ * an inactive SERVEUR tab still looked partially pressed even
+ * after switching to SERVICES + À PROPOS.
+ *
+ * The React handler also calls `e.currentTarget.blur()` on
+ * onClick, but the blur fires AFTER the focus is applied, and on
+ * some Chromium-on-Pi configurations a single re-render frame
+ * appears to be enough for the user to perceive the residual
+ * fill. Resetting both the background and the outline in CSS is
+ * belt-and-braces — `:focus-visible` then layers the dashed
+ * keyboard-focus outline back on top for keyboard nav. */
+.railButton:focus {
+  background-color: transparent;
+  outline: none;
+}
+
+/* Keyboard focus — a dashed outline OUTSIDE the tab's box. The
+ * dash pattern + positive offset makes it visually unambiguous as
+ * a keyboard-focus indicator, not a pressed state (which uses an
+ * inset background + left strip). User repro'd a case where
+ * pressing then unpressing a tab via mouse left it looking pinned
+ * because the inset solid outline read as an inset "card border"
+ * = pressed treatment. */
 .railButton:focus-visible {
   outline: 2px dashed var(--c-accent);
   outline-offset: 2px;
