@@ -132,11 +132,43 @@ function suppressedByGroupSibling(service, all) {
   return false;
 }
 
+/**
+ * True if `service` belongs to an alternative-chain group AND has
+ * never recorded a successful call (`lastSuccess` is null). This
+ * indicates a service that's either (a) never properly configured
+ * by the user (e.g. EPA AirNow without a valid API key), or
+ * (b) not relevant to the user's region (e.g. AirNow called for a
+ * Canadian kiosk because the US bounding box is intentionally
+ * permissive to cover Alaska / Hawaii / Puerto Rico, which makes it
+ * also catch Eastern Canada). Reporting such a service as
+ * "degraded" is misleading — it hasn't regressed, it's never been
+ * up. Once the user fixes the configuration and the service
+ * succeeds once, `lastSuccess` is populated and any subsequent
+ * failure will be reported normally.
+ *
+ * Critical services (Tomorrow.io, Mapbox, etc.) are not in any
+ * alternative group, so this suppression doesn't apply to them —
+ * a critical service that's never succeeded is a real config
+ * problem that the user needs to see.
+ *
+ * @param {string} service
+ * @param {{lastSuccess: ?string}} entry
+ * @returns {boolean}
+ */
+function isUnconfiguredAlternative(service, entry) {
+  if (entry.lastSuccess) return false;
+  for (const group of ALTERNATIVE_GROUPS) {
+    if (group.includes(service)) return true;
+  }
+  return false;
+}
+
 function getHealth(req, res) {
   const all = getServiceStatus();
   const issues = [];
   for (const [service, entry] of Object.entries(all)) {
     if (!isFailure(entry)) continue;
+    if (isUnconfiguredAlternative(service, entry)) continue;
     if (suppressedByGroupSibling(service, all)) continue;
     issues.push({
       service,
