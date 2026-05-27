@@ -203,10 +203,30 @@
 
 /* Hover — momentary, only present while pointer is over the tab.
  * No persistent background so it can't be confused with the pressed
- * state. */
-.railButton:hover {
-  color: var(--c-text);
-  background-color: color-mix(in srgb, var(--c-accent-soft) 60%, transparent);
+ * state.
+ *
+ * Gated behind `@media (hover: hover) and (pointer: fine)` —
+ * `(hover: hover)` alone falsely matches on some Pi kiosk Chromium
+ * configurations even on pure touch (observed live in the
+ * BottomDock investigation, commit faef3c3). The compound condition
+ * with `(pointer: fine)` requires the PRIMARY input to be precise
+ * (mouse / trackpad); a tactile Pi reports `pointer: coarse` as
+ * primary even if a USB mouse is plugged in (touch stays primary),
+ * so the rule matches only real desktop sessions.
+ *
+ * Without this gate, the hover fill (which is 60 % of
+ * `--c-accent-soft`, very close to `--c-accent-soft` plain used by
+ * `.railButtonActive`) sticks after a tap on the Pi 7" kiosk
+ * because touch has no natural pointer-leave event — the
+ * just-tapped tab reads as "stuck pressed". Maintainer reported
+ * this 2026-05-28: after navigating SERVEUR → SERVICES → SERVEUR,
+ * both SERVICES and À PROPOS continued to look pressed alongside
+ * the actually-active SERVEUR. */
+@media (hover: hover) and (pointer: fine) {
+  .railButton:hover {
+    color: var(--c-text);
+    background-color: color-mix(in srgb, var(--c-accent-soft) 60%, transparent);
+  }
 }
 
 /* Focus — a dashed outline OUTSIDE the tab's box. The dash pattern +
