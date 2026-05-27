@@ -369,32 +369,36 @@
   background: transparent;
 }
 
-/* Hover background on dock buttons is intentionally NOT painted —
- * even with `@media (hover: hover)` gating it. Field-tested on the
- * Pi 7" kiosk: Chromium evaluates `(hover: hover)` as true on some
- * configurations (Multitouch DSI mode off, mouse-emulation pointer
- * events, or a USB mouse plugged in), so the `@media` guard does
- * NOT reliably exclude touchscreen devices. When it falsely
- * matches on a tactile Pi, the `:hover` painted at tap-time stays
- * applied until the next pointerdown elsewhere (touch has no
- * natural "leave" event) — the just-tapped button reads as
- * "stuck in a hover state" with whatever tint the rule painted.
+/* Hover affordance — gated behind BOTH `(hover: hover)` AND
+ * `(pointer: fine)`. The double guard is load-bearing:
  *
- * Two preceding fixes had tried to thread this needle: an earlier
- * pass painted `--c-accent-soft` on hover (collided with the
- * `.button-down` toggle-ON fill — see commit 1c1ea02), then a
- * neutral 8% text overlay (cleaner colour-wise but the sticky
- * effect was still visible on the Pi). Settled on dropping the
- * hover affordance entirely:
+ * `(hover: hover)` alone falsely matches on some Pi kiosk Chromium
+ * configurations even on a pure touchscreen — observed on Pis with
+ * Multitouch DSI active AND no USB mouse plugged in, so the trigger
+ * isn't tied to peripheral state or platform settings the maintainer
+ * can adjust. (The earlier "sticky hover" symptom on the Pi was
+ * actually `-webkit-tap-highlight-color` painting Chromium's default
+ * grey overlay on tap — fixed in commit 8a229df by setting it to
+ * transparent. With that out of the way, this CSS-level :hover can
+ * be reintroduced, but a stricter gate keeps any residual misfire
+ * from re-painting an overlay that lingers on touch.)
  *
- * 1. Consistent with v2.14.74 which already removed the hover
- *    `color` change on the SVG icons for exactly the same touch-
- *    sticky reason (see BottomDock/styles.css comment).
- * 2. Consistent with HealthIndicator, which has no hover state on
- *    its chip — `[aria-expanded]` is the sole accent signal.
- * 3. Affordance loss is minor: dock buttons are identifiable by
- *    their grouped icon layout, and `.button-down !important`
- *    still paints accent-soft on real ON toggles. */
+ * Adding `(pointer: fine)` requires the PRIMARY input pointer to be
+ * precise (mouse / trackpad). A Pi tactile kiosk reports `pointer:
+ * coarse` even if a USB mouse is plugged in (touch stays primary),
+ * so this combination matches only real desktop sessions. macOS
+ * dev (Chrome, Firefox, Safari) is unaffected — the hover overlay
+ * paints on cursor-over, fades on cursor-leave like before.
+ *
+ * Background tint MUST NOT use `--c-accent-soft`: that token already
+ * signals `.button-down` (toggle-ON state). Neutral 8% text overlay
+ * keeps hover visibly distinct from a stuck toggle-ON appearance
+ * even if a hover event accidentally fires. */
+@media (hover: hover) and (pointer: fine) {
+  .container.grouped .group > div:hover {
+    background-color: color-mix(in oklab, var(--c-text) 8%, transparent);
+  }
+}
 
 /* `.buttonDown` active-toggle fill — same accent-soft surface as
  * the existing pattern but with grouped specificity so it wins
