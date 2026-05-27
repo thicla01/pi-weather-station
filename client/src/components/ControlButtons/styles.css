@@ -11,6 +11,20 @@
   height: 100%;
   justify-content: center;
   align-items: center;
+  /* Disable Chromium's default tap-highlight overlay
+   * (`rgba(0, 0, 0, 0.12)` by default). On tactile devices, tapping
+   * an interactive element paints that grey translucent rectangle
+   * for a short moment — on the Pi kiosk Chromium that overlay can
+   * persist until the next pointerdown elsewhere (no natural
+   * pointer-leave on touch), so the just-tapped button reads as
+   * "stuck in a hover state" even when no actual `:hover` /
+   * `:active` rule is firing. Reproducible on Pis regardless of
+   * Multitouch DSI mode or USB-mouse presence — the highlight is
+   * browser-level, not CSS-level. Desktop browsers (macOS Chrome /
+   * Firefox) don't paint it because mouse events don't trigger the
+   * touch-highlight code path. Same pattern HealthIndicator already
+   * uses on `.dotButton` and `.chipButton`. */
+  -webkit-tap-highlight-color: transparent;
 }
 
 .show-mouse.container > div{
