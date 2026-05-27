@@ -408,9 +408,15 @@ const indicatorLabel = (lang, raw) => {
  */
 const tcpLatencyTier = (ms) => {
   if (ms == null || !Number.isFinite(ms)) return null;
-  if (ms <= 200) return "green";
-  if (ms <= 500) return "yellow";
-  return "red";
+  // PascalCase return values match the CSS-module class suffixes
+  // (`netLatencyGreen` / `netLatencyYellow` / `netLatencyRed`) so the
+  // computed `styles[\`netLatency${tier}\`]` lookup hits a defined
+  // class. The initial lowercase version generated `netLatencygreen`
+  // which silently produced no styling — observed live on macOS dev
+  // 2026-05-27 where the "69 ms" tag rendered uncoloured.
+  if (ms <= 200) return "Green";
+  if (ms <= 500) return "Yellow";
+  return "Red";
 };
 
 const httpStatusKind = (status) => {
@@ -656,7 +662,7 @@ const BucketServer = ({ data, lang, gridTwoWide }) => {
               {conn.online && conn.tcpLatencyMs != null ? (
                 <>
                   {" · TCP "}
-                  <span className={styles[`netLatency${tcpLatencyTier(conn.tcpLatencyMs) || "Unknown"}`]}>
+                  <span className={styles[`netLatency${tcpLatencyTier(conn.tcpLatencyMs) || "Unknown"}`] || ""}>
                     {`${conn.tcpLatencyMs} ms`}
                   </span>
                 </>

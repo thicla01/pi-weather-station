@@ -939,7 +939,10 @@
 .latencyScale {
   position: relative;
   margin-top: 6px;
-  height: 10px;
+  /* Bumped from 10 → 14 px so the marker overhang above + below
+   * the track has room to read on a cream / dark background. The
+   * track itself stays at 6 px. */
+  height: 14px;
   /* `max-width` keeps the bar readable inside narrow Pi cells
    * without forcing it to fill an entire wide-desktop column. */
   max-width: 240px;
@@ -949,7 +952,9 @@
   display: flex;
   width: 100%;
   height: 6px;
-  margin-top: 2px;
+  /* Centred vertically inside the 14 px container so the marker
+   * symmetrically overhangs top + bottom. */
+  margin-top: 4px;
   border-radius: 3px;
   overflow: hidden;
   /* Subtle outline so the segments read on both dark and cream
@@ -966,18 +971,25 @@
 .latencyScaleYellow { flex: 0 0 30%; background-color: #f0c000; }
 .latencyScaleRed    { flex: 1 0 auto; background-color: #e60000; }
 
-/* Marker — a thin vertical strip with a tiny halo, centred at
- * the position calculated inline (left: x %, transform:
- * translateX(-50%)). Visible against all three segment colours
- * thanks to the white-bordered black core. */
+/* Marker — a chunky vertical strip with a contrasting halo,
+ * centred at the position calculated inline (left: x %, transform:
+ * translateX(-50%)). Sized to overhang the 6 px track top + bottom
+ * by 4 px on each side so it reads against all three segment
+ * colours regardless of palette. Original 2 px width was too
+ * subtle on a cream background — observed live on macOS dev
+ * 2026-05-27 where the marker effectively disappeared into the
+ * left edge of the green segment. */
 .latencyScaleMarker {
   position: absolute;
   top: 0;
-  width: 2px;
-  height: 10px;
-  background-color: var(--c-text);
-  outline: 1px solid var(--c-bg);
-  border-radius: 1px;
+  width: 3px;
+  height: 14px;
+  /* Solid black core for maximum contrast against any palette
+   * background; the outline gives it a pale edge that lifts it
+   * off both the cream-day surface and the dark-night track. */
+  background-color: #111;
+  outline: 1.5px solid rgba(255, 255, 255, 0.85);
+  border-radius: 2px;
   transform: translateX(-50%);
   /* Smooth slide when the latency value updates on a refresh —
    * mirrors the gentle motion the rest of v3 uses for state
