@@ -171,10 +171,30 @@
   outline: none;
 }
 
-/* BottomDock cell spans both columns. */
+/* BottomDock cell spans both columns.
+ *
+ * `position: relative` + `z-index: 1100` is load-bearing for the
+ * dock's toast layer (`ControlButtons/styles.css .toast`, z-index
+ * 1500 inline). Phase 1 v3.1 introduced `backdrop-filter: blur(8px)`
+ * on `.dock`, which per the CSS Filter Effects spec creates BOTH a
+ * containing block AND a stacking context. That confines the toast's
+ * z-index: 1500 to the dock's internal stacking context — the toast
+ * can no longer compete with Leaflet's panes (z-index up to 1000) or
+ * the radar scrubber (z-index 500) that sit in the root stacking
+ * context. So the dock itself has to climb above them in the root
+ * context for the confined toast to remain visible.
+ *
+ * 1100 wins against everything inside the map cell (Leaflet 1000,
+ * scrubber 500) while staying below SettingsPanel / DebugPanel
+ * (5000) so opening one of those overlays still covers the dock.
+ * Pre-Phase-1 the dock was statically positioned and the toast's
+ * 1500 won directly in the root stacking context — that path no
+ * longer applies. */
 .layout > :last-child {
   grid-column: 1 / -1;
   grid-row: 2;
+  position: relative;
+  z-index: 1100;
 }
 
 /* v2.15.9-12 experimented with a merged hero row (TimeBlock +

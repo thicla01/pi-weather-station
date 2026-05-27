@@ -320,3 +320,15 @@
     height: 160px;
   }
 }
+
+/* BottomDock cell — last child of the flex column. Lifted into the
+ * root stacking context above Leaflet's panes / radar scrubber so
+ * the dock's toast layer (z-index 1500 in its own internal stacking
+ * context, confined there by the dock's `backdrop-filter: blur`)
+ * remains visible above the map. Same fix as LayoutPi — see the
+ * comment on `.layout > :last-child` in LayoutPi/styles.css for
+ * the full stacking-context reasoning. */
+.layout > :last-child {
+  position: relative;
+  z-index: 1100;
+}
