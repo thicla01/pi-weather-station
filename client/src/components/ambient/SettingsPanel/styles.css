@@ -339,9 +339,19 @@
   -webkit-tap-highlight-color: transparent;
 }
 
-.remoteNoticeCopyBtn:hover {
-  background-color: var(--c-accent-soft);
-  color: var(--c-text);
+/* Hover gated behind `(hover: hover) and (pointer: fine)` for the
+ * same reason as the BottomDock dock buttons + DebugPanel rail
+ * tabs: on Pi Chromium kiosques `(hover: hover)` alone can
+ * evaluate truthy on pure touch, and the painted `--c-accent-soft`
+ * fill would stick after a tap (no natural pointer-leave on
+ * touch). The compound gate excludes tactile devices via the
+ * primary-pointer requirement. See commit faef3c3 (dock) and
+ * cecb320 (debug rail) for the same pattern. */
+@media (hover: hover) and (pointer: fine) {
+  .remoteNoticeCopyBtn:hover {
+    background-color: var(--c-accent-soft);
+    color: var(--c-text);
+  }
 }
 
 .remoteNoticeCopyBtn:focus-visible {
@@ -995,8 +1005,17 @@
   font-variant-numeric: tabular-nums;
 }
 
-.dropdownOption:hover {
-  background-color: var(--c-accent-soft);
+/* Same gate rationale as `.remoteNoticeCopyBtn:hover` above —
+ * particularly impactful here because `.dropdownOptionSelected`
+ * (below) paints the exact same `--c-accent-soft` background.
+ * Without the gate, a tap that hovers an option momentarily on
+ * Pi tactile leaves that option looking "selected" until the
+ * user taps elsewhere, which is misleading: the user might
+ * think they did pick the value when they didn't. */
+@media (hover: hover) and (pointer: fine) {
+  .dropdownOption:hover {
+    background-color: var(--c-accent-soft);
+  }
 }
 
 .dropdownOptionSelected {
