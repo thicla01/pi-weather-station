@@ -750,10 +750,41 @@ app.post("/api/update", localhostOnly, (req, res) => {
       }
 
       // ── All pre-flight checks passed — proceed with the actual update ──
+      // Timeout bumped from 30s to 90s after a 2026-05-27 incident on a Pi
+      // reached via VPN + RPi Connect: github.com over the VPN tunnel
+      // routinely takes 40-60 s to complete handshake + fetch, so 30 s
+      // killed the pull mid-flight. The on-disk pull usually completed in
+      // the background (next `git status` showed the branch clean and
+      // ahead of where it was), but the API call returned a cryptic
+      // "Command failed: git pull --ff-only" because Node's exec
+      // propagates only the killed-process error, not git's own output
+      // (which never had time to write). 90 s covers comfortable margin
+      // for VPN'd / mobile / congested-Wi-Fi pulls without making a
+      // genuinely-stuck pull hang the modal too long. Local pulls stay
+      // sub-second so the bump is invisible there.
       console.log("[update] Starting git pull…");
-      exec("git pull --ff-only", { cwd: projectRoot, timeout: 30_000 }, (pullErr, pullStdout, pullStderr) => {
+      exec("git pull --ff-only", { cwd: projectRoot, timeout: 90_000 }, (pullErr, pullStdout, pullStderr) => {
         if (pullErr) {
-          console.error("[update] git pull failed:", pullStderr);
+          console.error("[update] git pull failed:", pullStderr || pullErr.message);
+          // Timeout detection — `exec` kills the child with SIGTERM once
+          // the timeout elapses. Both `pullErr.killed` and `pullErr.signal`
+          // are set in that case; `pullStderr` is typically empty because
+          // git was interrupted before writing any output. Distinguish
+          // this from a real git failure so the user gets actionable
+          // feedback ("the link is slow, the pull may have completed in
+          // the background") instead of the bare "Command failed" string.
+          if (pullErr.killed || pullErr.signal === "SIGTERM") {
+            return res.status(504).json({
+              error: true,
+              reason: "pull-timeout",
+              message:
+                "git pull took longer than 90 seconds and was aborted. " +
+                "This usually means the device's connection to GitHub is " +
+                "slow (VPN tunnel, mobile network, congested Wi-Fi). The " +
+                "pull may have completed in the background — wait a moment, " +
+                "then retry the update.",
+            });
+          }
           // File-ownership problem: some tracked files are owned by root
           // (caused by a previous `sudo git pull` or `sudo bash deploy/install.sh`).
           // git can't overwrite root-owned files when running as the normal user.
