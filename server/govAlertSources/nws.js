@@ -13,7 +13,7 @@
 const axios = require("axios").default;
 const { recordServiceCall } = require("../serviceStatus");
 const { increment } = require("../requestCounter");
-const { TIMEOUT_MS, pointInUSBox, normalizeSeverity, severityToTier } = require("./_shared");
+const { TIMEOUT_MS, pointInUSBox, normalizeSeverity, severityToTier, dedupeConsecutiveParagraphs } = require("./_shared");
 
 const SERVICE_NAME = "NWS (severe weather alerts)";
 const USER_AGENT = "pi-weather-station (github.com/thicla01/pi-weather-station)";
@@ -59,8 +59,12 @@ function normalize(feature) {
     // it in description alongside the actual narrative.
     title_en: p.event,
     title_fr: p.event,
-    description_en: [p.headline, p.description].filter(Boolean).join("\n\n"),
-    description_fr: [p.headline, p.description].filter(Boolean).join("\n\n"),
+    // Dedupe consecutive identical paragraphs — defensive, applied
+    // here even though NWS payloads haven't shown the ECCC repetition
+    // pattern, because the cost is negligible and the function is a
+    // no-op on healthy text. See _shared.js for the rationale.
+    description_en: dedupeConsecutiveParagraphs([p.headline, p.description].filter(Boolean).join("\n\n")),
+    description_fr: dedupeConsecutiveParagraphs([p.headline, p.description].filter(Boolean).join("\n\n")),
     // sentAt + senderName feed the v3.1 Phase 4 "meta chips" row
     // (Émis il y a Nh / NWS Gray ME / Expire <when>). NWS exposes
     // `sent` (UTC ISO timestamp of issue) and `senderName` (the

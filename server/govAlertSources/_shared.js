@@ -140,6 +140,48 @@ function capitalizeFirst(s) {
   return s.charAt(0).toUpperCase() + s.slice(1);
 }
 
+/**
+ * Collapse consecutive identical paragraphs in an alert description.
+ *
+ * Defends against upstream payloads that repeat a line dozens or
+ * hundreds of times — observed live on a 2026-05-28 ECCC Saskatoon
+ * heat warning where "Émis par Environnement Canada et le
+ * gouvernement de la Saskatchewan" appeared 127 times in a row
+ * (the real alert content ran 3 KB, the footer repeats pushed the
+ * whole payload to 12 KB). The pattern likely comes from ECCC's
+ * multi-region alert fusion where the issuing-authority footer is
+ * appended per merged region without dedup.
+ *
+ * Strategy: split on blank-line boundaries (`\n{2,}`) so we operate
+ * at the paragraph level (not at the line level, which would over-
+ * collapse poetry-style ECCC bullets where adjacent lines are short
+ * and similar). Trim each paragraph for comparison so trailing
+ * whitespace differences don't defeat the dedup. Preserve the FIRST
+ * occurrence of each repeated paragraph — useful info like the
+ * issuing-authority footer is kept once.
+ *
+ * Defensive: returns input unchanged for null / empty / whitespace
+ * inputs so callers don't have to guard. Cheap enough to run on
+ * every normalised alert (the typical case has 0 consecutive
+ * duplicates and the function returns the input via the fast path).
+ *
+ * @param {?string} text
+ * @returns {?string}
+ */
+function dedupeConsecutiveParagraphs(text) {
+  if (!text || typeof text !== "string" || !text.trim()) return text;
+  const paragraphs = text.split(/\n{2,}/);
+  const deduped = [];
+  let prevKey = null;
+  for (const p of paragraphs) {
+    const key = p.trim();
+    if (key && key === prevKey) continue;
+    deduped.push(p);
+    prevKey = key;
+  }
+  return deduped.join("\n\n");
+}
+
 module.exports = {
   TIMEOUT_MS,
   pointInUSBox,
@@ -148,4 +190,5 @@ module.exports = {
   normalizeSeverity,
   severityToTier,
   capitalizeFirst,
+  dedupeConsecutiveParagraphs,
 };

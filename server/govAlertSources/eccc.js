@@ -23,6 +23,7 @@ const {
   normalizeSeverity,
   severityToTier,
   capitalizeFirst,
+  dedupeConsecutiveParagraphs,
 } = require("./_shared");
 
 const SERVICE_NAME = "Environment Canada (severe weather alerts)";
@@ -67,8 +68,16 @@ function normalize(feature) {
     eventType: p.alert_code,
     title_en: capitalizeFirst(p.alert_name_en || p.alert_short_name_en || p.alert_code),
     title_fr: capitalizeFirst(p.alert_name_fr || p.alert_short_name_fr || p.alert_code),
-    description_en: p.alert_text_en || "",
-    description_fr: p.alert_text_fr || "",
+    // Dedupe consecutive identical paragraphs — defends against the
+    // ECCC payload bug observed live 2026-05-28 on a Saskatoon heat
+    // warning where "Émis par Environnement Canada et le
+    // gouvernement de la Saskatchewan" repeated 127 times in a row
+    // (bloating a 3 KB alert to 12 KB of noise). Likely caused
+    // upstream by ECCC's multi-region alert fusion appending the
+    // issuing-authority footer per merged region without dedup.
+    // No-op on healthy payloads.
+    description_en: dedupeConsecutiveParagraphs(p.alert_text_en || ""),
+    description_fr: dedupeConsecutiveParagraphs(p.alert_text_fr || ""),
     // sentAt + senderName mirror the NWS payload so the client's
     // meta-chips row works for both sources without branching.
     //
