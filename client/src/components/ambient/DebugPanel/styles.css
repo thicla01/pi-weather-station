@@ -928,24 +928,59 @@
 .netLatencyRed    { color: #e60000; font-weight: 700; }
 .netLatencyUnknown { color: var(--c-text-dim); }
 
-/* Mini latency scale below the .netConn line — three coloured
- * segments laid out as a 6 px horizontal bar with a vertical
- * marker pointing at the current TCP latency. Helps the user
- * internalise the threshold scale visually (the tag's "yellow"
- * label says "this value is in the yellow tier" but not "and
- * here's where yellow sits in the broader 0-1000 ms scale").
- * Suppressed entirely by index.js when offline or when the TCP
- * probe failed. */
+/* Container for the stacked TCP + HTTPS scales. Each row is a
+ * label + a `.latencyScale` so the user can tell which marker
+ * belongs to which metric. The two scales use the same .latencyScale
+ * geometry but different segment percentages — TCP on a 0-1000 ms
+ * domain, HTTPS on a 0-2000 ms domain (HTTPS thresholds 400/800,
+ * with extra red headroom up to 2 s where /api/update starts
+ * approaching its 90 s timeout's lower edge). */
+.latencyScales {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 6px;
+}
+
+.latencyScaleRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.latencyScaleLabel {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 9px;
+  letter-spacing: 0.6px;
+  color: var(--c-text-dim);
+  text-transform: uppercase;
+  /* Fixed width so both labels (`TCP`, `HTTPS`) align their bars
+   * to the same column — without this the TCP scale starts at
+   * x ≈ 28 px and HTTPS at x ≈ 40 px, breaking the marker-
+   * positioning analogy between rows. */
+  width: 36px;
+  flex-shrink: 0;
+  text-align: right;
+}
+
+/* Mini latency scale — three coloured segments laid out as a 6 px
+ * horizontal bar with a vertical marker pointing at the current
+ * latency value. Helps the user internalise the threshold scale
+ * visually (the tag's "yellow" label says "this value is in the
+ * yellow tier" but not "and here's where yellow sits in the
+ * broader scale"). The two TCP / HTTPS rows share this geometry. */
 .latencyScale {
   position: relative;
-  margin-top: 6px;
-  /* Bumped from 10 → 14 px so the marker overhang above + below
-   * the track has room to read on a cream / dark background. The
-   * track itself stays at 6 px. */
+  /* 14 px so the marker overhang above + below the track has room
+   * to read on a cream / dark background. The track itself stays
+   * at 6 px. */
   height: 14px;
   /* `max-width` keeps the bar readable inside narrow Pi cells
-   * without forcing it to fill an entire wide-desktop column. */
+   * without forcing it to fill an entire wide-desktop column.
+   * `flex: 1` lets the bar shrink with the row on narrow viewports. */
+  flex: 1 1 auto;
   max-width: 240px;
+  min-width: 0;
 }
 
 .latencyScaleTrack {
@@ -962,14 +997,26 @@
   box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.18) inset;
 }
 
-/* Segment widths on a 0–1000 ms scale: 0-200 (20 %, green),
- * 200-500 (30 %, yellow), 500-1000+ (50 %, red — the red segment
- * absorbs any value above the displayed scale top). The colours
- * match the .netLatency tag tiers so the marker on the bar
- * agrees visually with the inline tag's colour. */
+/* TCP scale segment widths on a 0–1000 ms domain: 0-200 (20 %,
+ * green), 200-500 (30 %, yellow), 500-1000+ (50 %, red — the red
+ * segment absorbs any value above the displayed scale top). The
+ * colours match the .netLatency tag tiers so the marker on the
+ * bar agrees visually with the inline tag's colour. */
 .latencyScaleGreen  { flex: 0 0 20%; background-color: #5cb85c; }
 .latencyScaleYellow { flex: 0 0 30%; background-color: #f0c000; }
 .latencyScaleRed    { flex: 1 0 auto; background-color: #e60000; }
+
+/* HTTPS scale segment widths on a 0-2000 ms domain. Thresholds
+ * are 400 / 800 ms (vs. TCP's 200 / 500) because HTTPS includes
+ * the TLS handshake which routinely adds 200-300 ms on a healthy
+ * link. Segments: 0-400 (20 %, green), 400-800 (20 %, yellow),
+ * 800-2000+ (60 %, red — same "absorbs everything beyond" semantics
+ * as the TCP scale's red segment). The 2 s domain top is chosen
+ * because /api/update's 90 s exec timeout starts feeling tight
+ * once individual HTTPS probes routinely exceed 2 s. */
+.latencyScaleHttpsGreen  { flex: 0 0 20%; background-color: #5cb85c; }
+.latencyScaleHttpsYellow { flex: 0 0 20%; background-color: #f0c000; }
+.latencyScaleHttpsRed    { flex: 1 0 auto; background-color: #e60000; }
 
 /* Marker — a chunky vertical strip with a contrasting halo,
  * centred at the position calculated inline (left: x %, transform:

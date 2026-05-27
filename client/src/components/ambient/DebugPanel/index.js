@@ -419,6 +419,29 @@ const tcpLatencyTier = (ms) => {
   return "Red";
 };
 
+/**
+ * HTTPS-flavoured sibling of `tcpLatencyTier`. Thresholds are
+ * intentionally wider because HTTPS HEAD includes the TLS
+ * handshake, which routinely costs 200-300 ms on a healthy link
+ * even before the application payload is requested. Applying the
+ * TCP-tier 200/500 ms thresholds to HTTPS would yield false
+ * yellows on any cold connection.
+ *
+ *  - ≤ 400 ms  → green (cold HTTPS to a fast CDN is in this range)
+ *  - ≤ 800 ms  → yellow (link adding ~half a second on top of TLS)
+ *  - >  800 ms → red (HTTPS calls feel sluggish, /api/update at
+ *                     risk of timing out under load)
+ *
+ * @param {?number} ms
+ * @returns {"Green"|"Yellow"|"Red"|null}
+ */
+const httpsLatencyTier = (ms) => {
+  if (ms == null || !Number.isFinite(ms)) return null;
+  if (ms <= 400) return "Green";
+  if (ms <= 800) return "Yellow";
+  return "Red";
+};
+
 const httpStatusKind = (status) => {
   if (typeof status !== "number") return "neutral";
   if (status >= 500) return "err";
@@ -667,29 +690,68 @@ const BucketServer = ({ data, lang, gridTwoWide }) => {
                   </span>
                 </>
               ) : null}
-              {conn.online && conn.latencyMs != null ? ` · HTTPS ${conn.latencyMs} ms` : ""}
+              {conn.online && conn.latencyMs != null ? (
+                <>
+                  {" · HTTPS "}
+                  <span className={styles[`netLatency${httpsLatencyTier(conn.latencyMs) || "Unknown"}`] || ""}>
+                    {`${conn.latencyMs} ms`}
+                  </span>
+                </>
+              ) : null}
             </span>
-            {/* Mini latency scale below the indicator. Three
-              * coloured segments span 0-200 (green, 20%), 200-500
-              * (yellow, 30%), 500-1000 ms (red, 50%); the marker
-              * is positioned at `(tcpLatencyMs / 1000) * 100 %`
-              * clamped to [0, 100]. Helps the user internalise
-              * the threshold scale visually — without it, the
-              * traffic-light colour on the value alone says "this
-              * value is yellow" but not "and here's where yellow
-              * sits in the broader scale". Suppressed entirely
-              * when offline or when the TCP probe failed. */}
-            {conn.online && conn.tcpLatencyMs != null ? (
-              <div className={styles.latencyScale} aria-hidden="true">
-                <div className={styles.latencyScaleTrack}>
-                  <span className={styles.latencyScaleGreen} />
-                  <span className={styles.latencyScaleYellow} />
-                  <span className={styles.latencyScaleRed} />
-                </div>
-                <div
-                  className={styles.latencyScaleMarker}
-                  style={{ left: `${Math.min(100, Math.max(0, (conn.tcpLatencyMs / 1000) * 100))}%` }}
-                />
+            {/* Two mini latency scales below the indicator — TCP on
+              * top, HTTPS below. Each scale has its own colour
+              * thresholds and SI domain so the marker positions
+              * are meaningful per metric:
+              *
+              *  - TCP scale: 0-1000 ms, segments 20 % green
+              *    (0-200), 30 % yellow (200-500), 50 % red
+              *    (500-1000+). Matches `tcpLatencyTier`.
+              *  - HTTPS scale: 0-2000 ms, segments 20 % green
+              *    (0-400), 20 % yellow (400-800), 60 % red
+              *    (800-2000+). Matches `httpsLatencyTier`. The
+              *    2 s domain reflects that HTTPS calls realistically
+              *    range further than raw TCP — 2 s is the point
+              *    where /api/update starts hitting the new 90 s
+              *    timeout's lower edge.
+              *
+              * Labels on the left distinguish the two bars so the
+              * user knows which marker reads which value. Each row
+              * suppresses independently when its probe failed. */}
+            {conn.online && (conn.tcpLatencyMs != null || conn.latencyMs != null) ? (
+              <div className={styles.latencyScales} aria-hidden="true">
+                {conn.tcpLatencyMs != null ? (
+                  <div className={styles.latencyScaleRow}>
+                    <span className={styles.latencyScaleLabel}>TCP</span>
+                    <div className={styles.latencyScale}>
+                      <div className={styles.latencyScaleTrack}>
+                        <span className={styles.latencyScaleGreen} />
+                        <span className={styles.latencyScaleYellow} />
+                        <span className={styles.latencyScaleRed} />
+                      </div>
+                      <div
+                        className={styles.latencyScaleMarker}
+                        style={{ left: `${Math.min(100, Math.max(0, (conn.tcpLatencyMs / 1000) * 100))}%` }}
+                      />
+                    </div>
+                  </div>
+                ) : null}
+                {conn.latencyMs != null ? (
+                  <div className={styles.latencyScaleRow}>
+                    <span className={styles.latencyScaleLabel}>HTTPS</span>
+                    <div className={styles.latencyScale}>
+                      <div className={styles.latencyScaleTrack}>
+                        <span className={styles.latencyScaleHttpsGreen} />
+                        <span className={styles.latencyScaleHttpsYellow} />
+                        <span className={styles.latencyScaleHttpsRed} />
+                      </div>
+                      <div
+                        className={styles.latencyScaleMarker}
+                        style={{ left: `${Math.min(100, Math.max(0, (conn.latencyMs / 2000) * 100))}%` }}
+                      />
+                    </div>
+                  </div>
+                ) : null}
               </div>
             ) : null}
           </>
