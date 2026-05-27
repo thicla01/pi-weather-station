@@ -308,7 +308,13 @@
     "selectAlertAria": "Cambiar a esta alerta",
     "restoreDismissed_one": "Restaurar {{count}} alerta oculta",
     "restoreDismissed_other": "Restaurar {{count}} alertas ocultas",
-    "restoreDismissedAria": "Toque para volver a mostrar las alertas que ocultó"
+    "restoreDismissedAria": "Toque para volver a mostrar las alertas que ocultó",
+    "collapse": "Contraer",
+    "collapseAria": "Contraer el detalle de la alerta para volver a ver el mapa",
+    "showOnMap": "Ver en el mapa",
+    "showOnMapAria": "Mostrar la zona de alerta en el mapa de radar",
+    "hideOnMap": "Ocultar del mapa",
+    "hideOnMapAria": "Ocultar la zona de alerta del mapa de radar"
   },
   "govAlertDetail": {
     "title": "Detalle alerta {{source}}",

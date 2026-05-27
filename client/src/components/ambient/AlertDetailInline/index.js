@@ -6,6 +6,8 @@ import warningAltIcon from "@iconify/icons-carbon/warning-alt";
 import locationIcon from "@iconify/icons-carbon/location";
 import timeIcon from "@iconify/icons-carbon/time";
 import flashIcon from "@iconify/icons-carbon/flash";
+import mapIcon from "@iconify/icons-carbon/map";
+import chevronUpIcon from "@iconify/icons-carbon/chevron-up";
 import documentIcon from "@iconify/icons-carbon/document";
 import radarWeatherIcon from "@iconify/icons-carbon/radar-weather";
 import binocularsIcon from "@iconify/icons-carbon/binoculars";
@@ -104,7 +106,14 @@ const SECTION_ICONS = {
  *   collapsed / no eligible alert
  */
 const AlertDetailInline = () => {
-  const { govAlerts, govAlertIdx, govAlertExpanded } = useContext(AppContext);
+  const {
+    govAlerts,
+    govAlertIdx,
+    govAlertExpanded,
+    setGovAlertExpanded,
+    highlightedAlertId,
+    setHighlightedAlertId,
+  } = useContext(AppContext);
   const { i18n, t } = useTranslation();
   const { isDismissed } = useDismissedAlerts();
 
@@ -158,6 +167,55 @@ const AlertDetailInline = () => {
                 : description.split(/\n\n+/).map((paragraph, i) => (
                   <p key={i} className={styles.text}>{paragraph}</p>
                 ))}
+            </div>
+            {/* Phase 4d (2026-05-28): action footer with two buttons
+              * sitting above the QR footer.
+              *
+              *   - "Réduire" — always present. Sets `govAlertExpanded`
+              *     to false so the detail slab collapses and the
+              *     radar map underneath reclaims the visual focus.
+              *     Universal affordance that always works regardless
+              *     of upstream payload shape.
+              *   - "Voir sur la carte" — conditional on
+              *     `currentAlert.geometry`. ECCC always carries
+              *     geometry (server-side pointInPolygon depends on
+              *     it), NWS carries it for geo-targeted alerts
+              *     (Tornado Warning, etc.) but not for broad
+              *     zone-based ones (Special Weather Statement). When
+              *     the geometry IS present, tapping toggles the
+              *     overlay: first tap sets `highlightedAlertId` →
+              *     WeatherMap renders a tier-coloured GeoJSON layer
+              *     and fitBounds-zooms to the polygon; second tap
+              *     clears it. Label flips to "Cacher de la carte"
+              *     while active. */}
+            <div className={styles.actionFooter}>
+              <button
+                type="button"
+                className={styles.actionButton}
+                onClick={() => setGovAlertExpanded(false)}
+                aria-label={t("alert.collapseAria")}
+                title={t("alert.collapse")}
+              >
+                <InlineIcon icon={chevronUpIcon} />
+                <span>{t("alert.collapse")}</span>
+              </button>
+              {currentAlert.geometry ? (
+                <button
+                  type="button"
+                  className={`${styles.actionButton} ${highlightedAlertId === currentAlert.id ? styles.actionButtonActive : ""}`}
+                  onClick={() => setHighlightedAlertId(
+                    highlightedAlertId === currentAlert.id ? null : currentAlert.id,
+                  )}
+                  aria-pressed={highlightedAlertId === currentAlert.id}
+                  aria-label={t(highlightedAlertId === currentAlert.id ? "alert.hideOnMapAria" : "alert.showOnMapAria")}
+                  title={t(highlightedAlertId === currentAlert.id ? "alert.hideOnMap" : "alert.showOnMap")}
+                >
+                  <InlineIcon icon={mapIcon} />
+                  <span>
+                    {t(highlightedAlertId === currentAlert.id ? "alert.hideOnMap" : "alert.showOnMap")}
+                  </span>
+                </button>
+              ) : null}
             </div>
             <div className={styles.footer}>
               <QrCode value={linkHref} title={t("govAlertDetail.qrCaption")} />

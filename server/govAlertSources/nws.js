@@ -72,6 +72,15 @@ function normalize(feature) {
     senderName: p.senderName || null,
     expiresAt: p.expires || p.ends || null,
     areaDesc: p.areaDesc || null,
+    // GeoJSON Polygon / MultiPolygon when the alert is geo-targeted
+    // (Tornado Warning, Severe Thunderstorm Warning with a specific
+    // storm cell, etc.). Null for broad zone-based alerts like
+    // Special Weather Statements that NWS publishes against the
+    // whole forecast zone without an explicit polygon. The client
+    // uses this to conditionally render the "Voir sur la carte"
+    // button (Phase 4d, 2026-05-28) — when null, only "Réduire"
+    // appears in the footer.
+    geometry: feature.geometry || null,
   };
 }
 

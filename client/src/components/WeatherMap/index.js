@@ -14,6 +14,7 @@ import {
   Marker,
   CircleMarker,
   Polyline,
+  GeoJSON,
   useMap,
   useMapEvents,
 } from "react-leaflet";
@@ -328,6 +329,101 @@ ZoomLevelHandler.propTypes = {
 };
 
 /**
+ * Phase 4d (2026-05-28): GeoJSON overlay for the alert zone the user
+ * picked via the AlertBanner's "Voir sur la carte" button. Renders a
+ * tier-coloured polygon (red / orange / yellow) and zoom-to-fits when
+ * `highlightedAlertId` changes. Clears entirely when the id is null
+ * or when no matching alert with geometry is found.
+ *
+ * The fitBounds runs INSIDE the `MapContainer` context — that's why
+ * this is a child component using `useMap` rather than a prop on
+ * the parent. The `key` on the `<GeoJSON>` element is the alert id so
+ * Leaflet re-creates the layer when the user switches between alerts
+ * (Leaflet's internal cache wouldn't re-render the path on a plain
+ * data prop change).
+ *
+ * @param {object} props
+ * @param {?string} props.highlightedAlertId — id of the alert whose
+ *   polygon is currently shown; null = no overlay
+ * @param {Array} props.govAlerts — list of active alerts
+ * @returns {JSX.Element|null}
+ */
+const AlertGeometryOverlay = ({ highlightedAlertId, govAlerts }) => {
+  const map = useMap();
+  // Find the matching alert. Memo because govAlerts changes on every
+  // poll cycle but we only care about the active highlight.
+  const alert = useMemo(() => {
+    if (!highlightedAlertId || !Array.isArray(govAlerts)) return null;
+    return govAlerts.find((a) => a && a.id === highlightedAlertId && a.geometry) || null;
+  }, [govAlerts, highlightedAlertId]);
+  // Tier → colour mapping. Aligned with the SeverityChip palette and
+  // the AlertBanner tier styling so the overlay visually agrees with
+  // the banner the user just tapped. `red` for warning-grade alerts
+  // (severe / extreme), `orange` for watch-grade (moderate),
+  // `yellow` for advisory (minor). Falls back to a neutral grey if
+  // the tier value is unexpected.
+  const colour = useMemo(() => {
+    if (!alert) return null;
+    if (alert.tier === "red") return "#e60000";
+    if (alert.tier === "orange") return "#ee7710";
+    if (alert.tier === "yellow") return "#f0c000";
+    return "#888";
+  }, [alert]);
+  // GeoJSON style — 2 px border + 15 % fill so the polygon reads
+  // clearly against the radar tiles without obscuring them.
+  const style = useMemo(() => (colour ? {
+    color: colour,
+    weight: 2,
+    fillColor: colour,
+    fillOpacity: 0.15,
+    // `dashArray: null` keeps the border solid — distinct from the
+    // dashed radar circles, which use 6/4 dash arrays. The user
+    // should be able to tell at a glance "this is a real alert
+    // boundary, not a derived radar ring".
+    dashArray: null,
+  } : null), [colour]);
+  // fitBounds when the alert (or its geometry) changes. Generous
+  // padding via `padding: [40, 40]` so the polygon doesn't sit
+  // edge-to-edge against the map viewport — gives the user context
+  // (surrounding towns, radar tiles outside the zone). `maxZoom: 11`
+  // prevents an over-zoom on tiny polygons (a single-county polygon
+  // would otherwise pin to z 13-14, losing the radar context).
+  useEffect(() => {
+    if (!alert || !alert.geometry || !map) return;
+    try {
+      const tmp = L.geoJSON(alert.geometry);
+      const bounds = tmp.getBounds();
+      if (bounds.isValid()) {
+        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 11 });
+      }
+    } catch {
+      // GeoJSON parsing failed — silently skip the fitBounds. The
+      // <GeoJSON> render below will also bail out gracefully if
+      // Leaflet can't parse the geometry.
+    }
+  }, [alert, map]);
+  if (!alert || !style) return null;
+  return (
+    <GeoJSON
+      key={alert.id}
+      data={alert.geometry}
+      style={() => style}
+    />
+  );
+};
+
+AlertGeometryOverlay.propTypes = {
+  highlightedAlertId: PropTypes.string,
+  // eslint-disable-next-line react/forbid-prop-types -- alert objects are payload-shaped, not statically typed
+  govAlerts: PropTypes.array,
+};
+
+AlertGeometryOverlay.defaultProps = {
+  highlightedAlertId: null,
+  govAlerts: [],
+};
+
+/**
  * Weather map
  *
  * @param {object} props
@@ -397,6 +493,12 @@ const WeatherMap = ({ zoom, dark }) => {
     outerDirectionVectors,
     desktopRadarMaximized,
     setDesktopRadarMaximized,
+    // Phase 4d (2026-05-28): id of the alert whose `geometry` is
+    // overlaid on the map + the full govAlerts list for the lookup.
+    // Consumed by the `<AlertGeometryOverlay>` child inside the
+    // MapContainer below.
+    highlightedAlertId,
+    govAlerts,
   } = useContext(AppContext);
 
   // Largest sample in each ring drives the circle radius. Multiplied by
@@ -928,6 +1030,16 @@ const WeatherMap = ({ zoom, dark }) => {
               );
             })
           : null}
+        {/* Phase 4d (2026-05-28): polygon overlay of the alert zone
+          * the user picked via the AlertBanner "Voir sur la carte"
+          * button. Renders nothing when highlightedAlertId is null
+          * or the matching alert has no geometry. The component
+          * fitBounds-zooms on mount via useMap so the polygon is
+          * actually visible after the user taps. */}
+        <AlertGeometryOverlay
+          highlightedAlertId={highlightedAlertId}
+          govAlerts={govAlerts}
+        />
       </MapContainer>
       {/* Legend + timeline are RainViewer-specific (the legend's colour
           scale matches RainViewer's intensity-encoded palette, and the

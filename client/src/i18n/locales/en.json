@@ -308,7 +308,13 @@
     "selectAlertAria": "Switch to this alert",
     "restoreDismissed_one": "Restore {{count}} hidden alert",
     "restoreDismissed_other": "Restore {{count}} hidden alerts",
-    "restoreDismissedAria": "Tap to show alerts you dismissed earlier"
+    "restoreDismissedAria": "Tap to show alerts you dismissed earlier",
+    "collapse": "Collapse",
+    "collapseAria": "Collapse the alert detail to see the map again",
+    "showOnMap": "Show on map",
+    "showOnMapAria": "Show the alert zone on the radar map",
+    "hideOnMap": "Hide from map",
+    "hideOnMapAria": "Hide the alert zone from the radar map"
   },
   "govAlertDetail": {
     "title": "{{source}} alert detail",

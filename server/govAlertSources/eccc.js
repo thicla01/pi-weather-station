@@ -88,6 +88,14 @@ function normalize(feature) {
     senderName: p.province ? `ECCC ${p.province}` : "ECCC",
     expiresAt: p.expiration_datetime || p.event_end_datetime || null,
     areaDesc: p.feature_name_en || p.feature_name_fr || p.province || null,
+    // GeoJSON Polygon / MultiPolygon — always present for ECCC
+    // since we use `pointInPolygon(lat, lon, feature.geometry)`
+    // server-side to filter alerts, so every alert that reaches the
+    // client has gone through that check and therefore carries a
+    // valid geometry. Propagating it lets the client overlay the
+    // affected zone on the radar via Leaflet's GeoJSON layer
+    // (Phase 4d, 2026-05-28).
+    geometry: feature.geometry || null,
   };
 }
 

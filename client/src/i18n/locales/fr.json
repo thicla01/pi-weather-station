@@ -308,7 +308,13 @@
     "selectAlertAria": "Passer à cette alerte",
     "restoreDismissed_one": "Restaurer {{count}} alerte masquée",
     "restoreDismissed_other": "Restaurer {{count}} alertes masquées",
-    "restoreDismissedAria": "Toucher pour réafficher les alertes que vous avez masquées"
+    "restoreDismissedAria": "Toucher pour réafficher les alertes que vous avez masquées",
+    "collapse": "Réduire",
+    "collapseAria": "Réduire le détail de l'alerte pour revoir la carte",
+    "showOnMap": "Voir sur la carte",
+    "showOnMapAria": "Afficher la zone d'alerte sur la carte radar",
+    "hideOnMap": "Cacher de la carte",
+    "hideOnMapAria": "Cacher la zone d'alerte de la carte radar"
   },
   "govAlertDetail": {
     "title": "Détails alerte {{source}}",

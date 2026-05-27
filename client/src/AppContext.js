@@ -415,12 +415,30 @@ export function AppContextProvider({ children }) {
   // reading the body. Same maintainer-stated rationale documented in
   // `CLAUDE.md` under "Gov-alert detail section — reading-first UX".
   const [govAlertExpanded, setGovAlertExpanded] = useState(false);
+  // Phase 4d (2026-05-28): id of the alert whose `geometry` is
+  // currently overlaid on the radar via a Leaflet GeoJSON layer.
+  // Null = no overlay. Set by the AlertBanner's "Voir sur la carte"
+  // button (which also triggers a fitBounds on the WeatherMap so
+  // the user actually sees the zone). Persists until the user taps
+  // the button again to clear, or until a new alert replaces the
+  // active one (effect below). The button only renders when the
+  // current alert has a non-null geometry; ECCC always carries one
+  // (server-side pointInPolygon depends on it), NWS only carries
+  // one for geo-targeted alerts (Tornado Warning, etc.) and not for
+  // broad zone-based alerts (Special Weather Statement, advisory
+  // products) where the upstream omits the polygon.
+  const [highlightedAlertId, setHighlightedAlertId] = useState(null);
   // Collapse the detail whenever the active alert changes (cycle bumps
   // the index or a new payload lands). Avoids the case where the user
   // expanded alert A's description, the list reshuffles, and they're
   // suddenly reading alert B's body without realising it.
   useEffect(() => {
     setGovAlertExpanded(false);
+    // Same logic for the map overlay (Phase 4d): if the active alert
+    // changes (cycle / new payload), clear the geometry overlay so
+    // the new alert's "Voir sur la carte" is a fresh affordance
+    // rather than the previous alert's polygon ghost.
+    setHighlightedAlertId(null);
   }, [govAlertIdx]);
   const [animateWeatherMap, setAnimateWeatherMap] = useState(false);
   // Radar animation playback speed multiplier — 1× / 2× / 4× cycling.
@@ -1734,6 +1752,8 @@ export function AppContextProvider({ children }) {
     selectGovAlert,
     govAlertExpanded,
     setGovAlertExpanded,
+    highlightedAlertId,
+    setHighlightedAlertId,
     animateWeatherMap,
     toggleAnimateWeatherMap,
     radarSpeed,

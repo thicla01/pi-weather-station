@@ -186,6 +186,77 @@
   .sectionIcon { display: none; }
 }
 
+/* Action footer — sits above the QR footer when the user has the
+ * detail expanded. Phase 4d (2026-05-28). Two buttons:
+ *   - "Réduire" — always present, collapses the detail slab back
+ *     so the radar map underneath reclaims focus.
+ *   - "Voir sur la carte" — only renders when the current alert
+ *     carries `geometry`; toggles the GeoJSON overlay on the
+ *     WeatherMap.
+ * Flex with `gap: 8px`; on narrow viewports the buttons wrap to
+ * keep both readable. Border-top mirrors the QR footer's border
+ * pattern so the section rhythm reads consistently. */
+.actionFooter {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 14px;
+  border-top: 1px solid var(--c-border);
+}
+
+.actionButton {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 12px;
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--c-text);
+  background-color: transparent;
+  border: 1px solid var(--c-border-hybrid, var(--c-border));
+  border-radius: 4px;
+  cursor: pointer;
+  /* Same Chromium-tactile defence pattern documented in
+   * `incident_hover_gate_insufficient_chromium_touch.md` — neutralise
+   * every CSS state that could paint a fill. Active state is signalled
+   * by `.actionButtonActive` (className React-driven), not by
+   * pseudo-classes. */
+  -webkit-tap-highlight-color: transparent;
+  transition: color 120ms ease, border-color 120ms ease;
+}
+
+.actionButton:focus {
+  outline: none;
+  background-color: transparent;
+}
+
+.actionButton:focus-visible {
+  outline: 2px dashed var(--c-accent);
+  outline-offset: 2px;
+}
+
+.actionButton:active {
+  background-color: transparent;
+}
+
+/* React-driven active state (the "Voir sur la carte" button when
+ * the overlay is currently shown). Filled with accent-soft + accent
+ * border so the user sees "this is engaged"; label flips to
+ * "Cacher de la carte" via i18n in the JSX. */
+.actionButtonActive {
+  background-color: var(--c-accent-soft);
+  border-color: var(--c-accent);
+  color: var(--c-accent);
+}
+
+.actionButton svg {
+  width: 12px;
+  height: 12px;
+}
+
 .footer {
   display: flex;
   align-items: center;
