@@ -355,25 +355,32 @@
   background: transparent;
 }
 
-/* Hover affordance — only on devices that actually have a hover
- * state (matches the same pattern HealthIndicator uses). Sticky
- * hover on touch devices reads as "this button is stuck in a
- * pressed state".
+/* Hover background on dock buttons is intentionally NOT painted —
+ * even with `@media (hover: hover)` gating it. Field-tested on the
+ * Pi 7" kiosk: Chromium evaluates `(hover: hover)` as true on some
+ * configurations (Multitouch DSI mode off, mouse-emulation pointer
+ * events, or a USB mouse plugged in), so the `@media` guard does
+ * NOT reliably exclude touchscreen devices. When it falsely
+ * matches on a tactile Pi, the `:hover` painted at tap-time stays
+ * applied until the next pointerdown elsewhere (touch has no
+ * natural "leave" event) — the just-tapped button reads as
+ * "stuck in a hover state" with whatever tint the rule painted.
  *
- * Background tint MUST NOT match `--c-accent-soft`: that token is
- * already used by `.button-down` to signal "this toggle is ON",
- * and on desktop browsers the cursor parks on the just-clicked
- * button so `:hover` persists until the user moves the mouse.
- * If both `:hover` and `.button-down` paint the same fill, a
- * non-toggle button (refresh, recenter, marker-toggle) looks
- * indistinguishable from a stuck-on toggle until the cursor
- * leaves. Use a neutral overlay tied to `--c-text` instead so
- * hover and "active toggle" carry visibly different tints. */
-@media (hover: hover) {
-  .container.grouped .group > div:hover {
-    background-color: color-mix(in oklab, var(--c-text) 8%, transparent);
-  }
-}
+ * Two preceding fixes had tried to thread this needle: an earlier
+ * pass painted `--c-accent-soft` on hover (collided with the
+ * `.button-down` toggle-ON fill — see commit 1c1ea02), then a
+ * neutral 8% text overlay (cleaner colour-wise but the sticky
+ * effect was still visible on the Pi). Settled on dropping the
+ * hover affordance entirely:
+ *
+ * 1. Consistent with v2.14.74 which already removed the hover
+ *    `color` change on the SVG icons for exactly the same touch-
+ *    sticky reason (see BottomDock/styles.css comment).
+ * 2. Consistent with HealthIndicator, which has no hover state on
+ *    its chip — `[aria-expanded]` is the sole accent signal.
+ * 3. Affordance loss is minor: dock buttons are identifiable by
+ *    their grouped icon layout, and `.button-down !important`
+ *    still paints accent-soft on real ON toggles. */
 
 /* `.buttonDown` active-toggle fill — same accent-soft surface as
  * the existing pattern but with grouped specificity so it wins
