@@ -423,7 +423,50 @@ const sslOptions = (() => {
 // *****
 
 app.use(bodyParser.json());
-app.use(express.static(path.join(`${__dirname}/${DIST_DIR}`)));
+// Tiered Cache-Control on the static client bundle.
+//
+// Problem this solves: webpack outputs `bundle.min.js` (and the
+// split chunks `1.bundle.min.js`, `810.bundle.min.js`) with FIXED
+// filenames across builds. Without an explicit Cache-Control,
+// `express.static` sends only `Last-Modified`, and Chromium then
+// computes a heuristic max-age (~10 % of the file's age — for a
+// bundle that's been on disk a few hours, that's tens of minutes
+// of cache the browser will serve WITHOUT revalidating). So a
+// kiosk that completes an in-app update and reloads the page can
+// keep running the pre-update JS for a while — observed live on
+// 2026-05-27 on the SenseHat Pi, where `git pull` confirmed the
+// branch was already on the latest commit but the UI didn't show
+// the changes until a manual hard refresh.
+//
+//  Tiers:
+//   1. Filename-hashed assets (`[contenthash][ext]` — webpack's
+//      asset/resource output for woff2 / json / etc., names like
+//      `438417506dfef4949800.woff2`): the name itself changes
+//      when the content changes, so the cached copy can be
+//      treated as `immutable` and held for a year.
+//   2. Bundle / chunks / HTML / license txt (fixed names, content
+//      changes per build): `no-cache` forces the browser to send
+//      an `If-Modified-Since` on every request; the server replies
+//      with 304 Not Modified when the file is unchanged (cheap —
+//      ~150 bytes per response). Guarantees a post-update reload
+//      always picks up the fresh bundle.
+//   3. PWA icons / favicon (fixed names, content changes maybe
+//      once a quarter): 24 h cache keeps them out of the reload
+//      path without locking them in forever.
+app.use(express.static(path.join(`${__dirname}/${DIST_DIR}`), {
+  setHeaders: (res, filepath) => {
+    const name = path.basename(filepath);
+    if (/^[a-f0-9]{16,}\./.test(name)) {
+      res.setHeader("Cache-Control", "public, max-age=31536000, immutable");
+      return;
+    }
+    if (/\.(html|js|css|txt)$/.test(name)) {
+      res.setHeader("Cache-Control", "no-cache");
+      return;
+    }
+    res.setHeader("Cache-Control", "public, max-age=86400");
+  },
+}));
 app.use(responseTimerMiddleware);
 
 // Disable browser caching of every /api/* response. The kiosk
