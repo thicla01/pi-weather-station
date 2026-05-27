@@ -448,16 +448,28 @@
   color: var(--c-text);
   font-variant-numeric: tabular-nums;
   flex: 1;
-  /* `white-space: nowrap` stops the browser from breaking at hyphens
-   * (e.g. "pi-weather-station" → 3 lines) — hyphens are valid break
-   * opportunities by default. Combined with overflow+ellipsis, values
-   * that exceed the column width are clipped rather than wrapped. For
-   * a debug panel this is the right trade-off: single-line rows keep
-   * the table scannable; the full value is visible on hover/tooltip
-   * and in the CSV export. */
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
+  /* `min-width: 0` lets this flex child shrink below its intrinsic
+   * content width — without it, long values force the parent to
+   * grow and clip happens at the panel edge instead of wrapping. */
+  min-width: 0;
+  /* Allow wrapping so long debug values (full commit SHAs, GitHub
+   * repo URLs, multi-token versions like "pi-weather-station
+   * v2.18.1 · 260df42") spread across 2-3 lines on narrow viewports
+   * instead of being clipped with an ellipsis. Earlier this rule
+   * used `white-space: nowrap; overflow: hidden; text-overflow:
+   * ellipsis` to keep the table strictly scannable, but on the 7"
+   * Pi (where there's no mouse to hover for a tooltip and no CSV
+   * export at hand) the clipped values hid useful diagnostic data —
+   * the user reported the commit hash and repo URL being cut off in
+   * the field. `overflow-wrap: anywhere` defends against single
+   * unbreakable tokens (long URLs without spaces) by allowing a
+   * break at any character if no whitespace is available. Normal
+   * whitespace handling otherwise, so breakable strings (e.g.
+   * `v2.18.1 · 260df42`) split at the obvious whitespace first
+   * before any character-level break is considered. Row heights
+   * become slightly variable as a result; that's acceptable for a
+   * debug panel where completeness beats grid regularity. */
+  overflow-wrap: anywhere;
 }
 
 /* ── Tag ───────────────────────────────────────────────────────── */
