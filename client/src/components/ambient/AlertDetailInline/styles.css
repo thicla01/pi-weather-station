@@ -43,15 +43,30 @@
   padding: 12px 14px;
 }
 
-/* Fallback rendering — plain paragraphs */
+/* Fallback rendering — plain paragraphs (used when alertParser
+ * returned only an intro section, i.e. the upstream description
+ * had no parsable structure). Also used for the leading paragraphs
+ * inside `.intro` when the parser DID find structure but the alert
+ * had prose before the first heading.
+ *
+ * `.text + .text` mirrors the `.section + .section` divider rule
+ * lower in this file: between any two consecutive `<p>` paragraphs,
+ * add the same border-top + padding + margin that separates two
+ * structured sections. This way an unstructured alert (e.g. an
+ * ECCC English advisory with no `*WHAT...` keywords or French
+ * `Dangers :` headings) still reads as visually segmented rather
+ * than a wall of prose — matches the cohesion users expect from
+ * the structured rendering. The dividers carry no semantic load
+ * (no icon, no lead row) — they're purely a rhythm cue. */
 .text {
   font-size: 13px;
   line-height: 1.55;
-  margin-bottom: 10px;
 }
 
-.text:last-child {
-  margin-bottom: 0;
+.text + .text {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid var(--c-border);
 }
 
 .empty {
