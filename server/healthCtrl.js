@@ -26,11 +26,25 @@ const CRITICAL_SERVICES = new Set([
 ]);
 
 // A failure is only "live" if there has been no successful call in
-// this window. The main weather + geocode pollers run on intervals
-// well below this, so a single flaky response surrounded by
-// successes won't trip the health dot. Tuned at 10 min so a real
-// outage still surfaces within a couple of poll cycles.
-const RECENT_SUCCESS_WINDOW_MS = 10 * 60 * 1000;
+// this window. The window must be wider than the slowest poller's
+// cadence — otherwise a sibling that succeeded once falls out of
+// the window before the next poll cycle, and an alternative-chain
+// failure (e.g. EPA AirNow 401 for a Canadian kiosk) re-surfaces
+// every cycle even though the regional source (MELCC RSQA / ECCC
+// AQHI) is working fine.
+//
+// Slowest poller is the AQ refresh at 30 min (see AppContext.js
+// `AQI_REFRESH_MS`). 35 min gives a 5 min buffer for the next poll
+// to land while the previous success is still counted. Faster
+// pollers (weather 1-5 min, alerts 5 min, geocode 30 min on
+// location change) all sit comfortably below this window.
+//
+// Trade-off: a service that genuinely starts failing takes up to
+// ~35 min to surface on the chip. Acceptable because we can't
+// detect a regression faster than the poll itself — bumping the
+// window narrower than the poll cadence just creates false
+// positives without speeding up real-failure detection.
+const RECENT_SUCCESS_WINDOW_MS = 35 * 60 * 1000;
 
 // Services orchestrated as alternative chains — the first one that
 // returns usable data wins, and the others are expected to fail or
