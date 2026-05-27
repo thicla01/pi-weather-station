@@ -29,6 +29,19 @@ const PROVIDER_STATUS_APIS = [
   // but the result is what the kiosk owner cares about. The latency reading
   // also surfaces slow-but-up situations (>3 s response time → minor).
   { name: "RainViewer",      type: "api-ping",             url: "https://api.rainviewer.com/public/weather-maps.json" },
+  // GitHub is not an upstream we call directly from the runtime
+  // (no `recordServiceCall` ever fires for it), so the only health
+  // signal we have for it is the statuspage. We track "Git
+  // Operations" specifically because that's the component that
+  // affects the in-app updater (`POST /api/update` runs a real
+  // `git pull` to fetch new commits). A degradation here predicts
+  // slow or timing-out updates — surfacing it in the dock popover
+  // gives the kiosk owner an upstream-side explanation when the
+  // updater behaves oddly. Validated live on 2026-05-27 morning
+  // when this very component was in degraded state during update
+  // attempts (see commit cec11e9 — the 90 s timeout bump that
+  // shipped the same morning was motivated by the same incident).
+  { name: "GitHub",          type: "statuspage-component", url: "https://www.githubstatus.com/api/v2/components.json", componentName: "Git Operations" },
 ];
 
 const API_PING_SLOW_MS = 3000; // above this threshold the API is "responsive but slow"
@@ -556,4 +569,9 @@ function getFanSpeed(req, res) {
   return res.status(200).json({ available: true, rpm: getFanRpm() });
 }
 
-module.exports = { getDebugInfo, getCpuTemp, getFanSpeed, logSecurityEvent, initServerInfo };
+// `fetchProviderStatus` is also imported by `healthCtrl` so the dock
+// popover can surface GitHub's `Git Operations` indicator alongside
+// the local serviceStatus issues — the only upstream we don't have a
+// `recordServiceCall` for (we never hit GitHub from runtime — the
+// updater's `git pull` is a one-shot child process).
+module.exports = { getDebugInfo, getCpuTemp, getFanSpeed, logSecurityEvent, initServerInfo, fetchProviderStatus };

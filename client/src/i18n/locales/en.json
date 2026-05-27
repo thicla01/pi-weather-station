@@ -420,7 +420,19 @@
     "shortOk": "OK",
     "shortDegraded": "Degraded",
     "shortCritical": "Critical",
-    "shortOffline": "Offline"
+    "shortOffline": "Offline",
+    "providerStatusHeader": "Upstream services",
+    "provider": {
+      "github": "GitHub (updates)"
+    },
+    "providerIndicator": {
+      "none": "Operational",
+      "minor": "Degraded performance",
+      "major": "Partial outage",
+      "critical": "Major outage",
+      "maintenance": "Under maintenance",
+      "unknown": "Unknown"
+    }
   },
   "debug": {
     "title": "DEBUG",

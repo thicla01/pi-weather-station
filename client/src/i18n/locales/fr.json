@@ -420,7 +420,19 @@
     "shortOk": "OK",
     "shortDegraded": "Dégradé",
     "shortCritical": "Critique",
-    "shortOffline": "Hors ligne"
+    "shortOffline": "Hors ligne",
+    "providerStatusHeader": "Services en amont",
+    "provider": {
+      "github": "GitHub (mises à jour)"
+    },
+    "providerIndicator": {
+      "none": "Opérationnel",
+      "minor": "Performance dégradée",
+      "major": "Panne partielle",
+      "critical": "Panne majeure",
+      "maintenance": "En maintenance",
+      "unknown": "État inconnu"
+    }
   },
   "debug": {
     "title": "DÉBOGAGE",

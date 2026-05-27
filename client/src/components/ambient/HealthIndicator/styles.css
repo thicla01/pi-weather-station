@@ -161,6 +161,88 @@
 }
 
 /* ============================================================
+ * UPSTREAM PROVIDER STATUS SECTION
+ * ------------------------------------------------------------
+ * Optional section appended to the popover when /api/health
+ * includes a `providerStatus` object. Currently only GitHub
+ * (Git Operations) is surfaced — the rationale is in
+ * healthCtrl.js. Information-only: does not affect the chip
+ * color. Each row has a colour-coded dot keyed by the statuspage
+ * indicator + a name + a localised status string.
+ * ============================================================ */
+
+.providerSection {
+  margin-top: 10px;
+  padding-top: 8px;
+  border-top: 1px solid var(--c-border);
+}
+
+.providerHeader {
+  font-size: 10px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--c-text-dim);
+  margin-bottom: 6px;
+}
+
+.providerList {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.providerItem {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  background-color: var(--c-surface);
+  font-size: 12px;
+}
+
+.providerDot {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.18);
+}
+
+.providerName {
+  font-weight: 500;
+  /* Provider name takes whatever room is left after the dot and
+   * the right-aligned status string. */
+  flex: 1;
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.providerStatus {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10px;
+  color: var(--c-text-dim);
+  flex-shrink: 0;
+}
+
+/* Indicator-keyed dot colours. The same hex palette used by the
+ * chip's main DOT_COLORS, extended with two additional tiers for
+ * the statuspage taxonomy (`major` = orange, `maintenance` =
+ * blue). Kept inline rather than tying to palette tokens because
+ * these communicate a universal status semantic that shouldn't
+ * shift with the day/night/nightRed palette. */
+.providerIndicator-none .providerDot      { background-color: #5cb85c; }
+.providerIndicator-minor .providerDot     { background-color: #f0c000; }
+.providerIndicator-major .providerDot     { background-color: #ee7710; }
+.providerIndicator-critical .providerDot  { background-color: #e60000; }
+.providerIndicator-maintenance .providerDot { background-color: #6090c0; }
+.providerIndicator-unknown .providerDot   { background-color: #888; }
+
+/* ============================================================
  * CHIP MODE — pill button used by v3 BottomDock (Phase 1 of the
  * v3.1 synthesis design). Coloured icon disc + short status label.
  * The text CSS-hides on narrow docks so the coloured disc still

@@ -1,4 +1,5 @@
 const { getServiceStatus } = require("./serviceStatus");
+const { fetchProviderStatus } = require("./debugCtrl");
 
 /**
  * Service-name lists that drive the health classification.
@@ -177,7 +178,7 @@ function isUnconfiguredAlternative(service, entry) {
   return false;
 }
 
-function getHealth(req, res) {
+async function getHealth(req, res) {
   const all = getServiceStatus();
   const issues = [];
   for (const [service, entry] of Object.entries(all)) {
@@ -200,9 +201,53 @@ function getHealth(req, res) {
       ? "yellow"
       : "green";
 
+  // Surface upstream provider statuspages alongside the local
+  // serviceStatus issues — added 2026-05-27 after the morning's
+  // GitHub Git-Operations degradation made in-app updates slow /
+  // time out with no upstream-side hint visible to the kiosk
+  // owner. Currently scoped to GitHub: it's the only provider we
+  // don't already track via `recordServiceCall` (the in-app
+  // updater spawns `git pull` as a one-shot child process, so no
+  // call wrapper ever fires for it), so the statuspage is our
+  // only signal for it. Other providers (Tomorrow.io, Mapbox,
+  // etc.) keep their statuspages in the Debug panel only — their
+  // real-time health is already represented by `serviceStatus`
+  // entries from our actual call paths, and duplicating that into
+  // the dock popover would surface upstream-reported degradations
+  // that our specific calls aren't experiencing.
+  //
+  // IMPORTANT: `providerStatus` does NOT influence the chip's
+  // color classification above. It's purely informational —
+  // rendered as a section in the popover when the user taps the
+  // chip. The chip stays green if no local services are failing,
+  // even if GitHub is reporting a major outage. Rationale: the
+  // user's kiosk is fully functional without GitHub (only the
+  // update flow is affected), so painting the chip yellow / red
+  // for a GitHub-only issue would mis-represent the system state.
+  //
+  // fetchProviderStatus has its own 30-min cache, so the cost
+  // here is essentially free after the first call. The try/catch
+  // defends against a statuspage-API outage breaking /api/health
+  // entirely — a partial response with providerStatus=null is
+  // more useful than a 500.
+  let providerStatus = null;
+  try {
+    // `fetchProviderStatus` returns an envelope `{ fetchedAt,
+    // providers: [...] }` (the shape the debug panel renders); the
+    // actual list of `{ name, indicator, description }` entries is
+    // under `.providers`.
+    const all = await fetchProviderStatus();
+    const list = Array.isArray(all?.providers) ? all.providers : [];
+    const github = list.find((p) => p.name === "GitHub");
+    if (github) providerStatus = { github };
+  } catch (err) {
+    console.warn("[health] fetchProviderStatus failed:", err.message);
+  }
+
   res.json({
     status,
     issues,
+    providerStatus,
     lastChecked: new Date().toISOString(),
   });
 }

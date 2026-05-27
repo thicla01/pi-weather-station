@@ -58,6 +58,12 @@ const HealthIndicator = ({ chip = false }) => {
   const [health, setHealth] = useState({
     status: "green",
     issues: [],
+    // `providerStatus` is a map keyed by provider id (currently only
+    // `github`). Each entry is `{ name, indicator, description }` —
+    // the parsed statuspage component. Display-only — it does NOT
+    // influence the chip color classification (which stays driven
+    // by `status`). See healthCtrl.js for the rationale.
+    providerStatus: null,
     lastChecked: null,
     fetchError: false,
   });
@@ -76,6 +82,9 @@ const HealthIndicator = ({ chip = false }) => {
             setHealth({
               status: r.data.status,
               issues: Array.isArray(r.data.issues) ? r.data.issues : [],
+              providerStatus: (r.data.providerStatus && typeof r.data.providerStatus === "object")
+                ? r.data.providerStatus
+                : null,
               lastChecked: r.data.lastChecked || new Date().toISOString(),
               fetchError: false,
             });
@@ -86,6 +95,7 @@ const HealthIndicator = ({ chip = false }) => {
             setHealth({
               status: "yellow",
               issues: [{ service: "/api/health", status: r.status, comment: "unexpected payload", critical: false }],
+              providerStatus: null,
               lastChecked: new Date().toISOString(),
               fetchError: false,
             });
@@ -99,6 +109,7 @@ const HealthIndicator = ({ chip = false }) => {
           setHealth({
             status: "red",
             issues: [{ service: "Server", status: null, comment: t("health.serverUnreachable"), critical: true }],
+            providerStatus: null,
             lastChecked: new Date().toISOString(),
             fetchError: true,
           });
@@ -234,6 +245,38 @@ const HealthIndicator = ({ chip = false }) => {
               ))}
             </ul>
           )}
+          {/* Upstream provider statuspages section. Renders only when
+            * the server included `providerStatus` in /api/health (any
+            * key in the map). Information-only — does NOT change the
+            * chip color. Each row carries a coloured dot keyed by the
+            * statuspage indicator (none / minor / major / critical /
+            * maintenance / unknown), the provider's localised name,
+            * and the localised indicator label. Iterating over
+            * Object.entries lets the server extend the list of
+            * providers later without a client-side change. */}
+          {health.providerStatus && Object.keys(health.providerStatus).length > 0 ? (
+            <div className={styles.providerSection}>
+              <div className={styles.providerHeader}>{t("health.providerStatusHeader")}</div>
+              <ul className={styles.providerList}>
+                {Object.entries(health.providerStatus).map(([key, info]) => (
+                  <li
+                    key={key}
+                    className={`${styles.providerItem} ${styles[`providerIndicator-${info.indicator || "unknown"}`] || ""}`}
+                  >
+                    <span className={styles.providerDot} />
+                    <span className={styles.providerName}>
+                      {t(`health.provider.${key}`, { defaultValue: info.name || key })}
+                    </span>
+                    <span className={styles.providerStatus}>
+                      {t(`health.providerIndicator.${info.indicator || "unknown"}`, {
+                        defaultValue: info.description || "—",
+                      })}
+                    </span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          ) : null}
         </div>
       ) : null}
     </div>

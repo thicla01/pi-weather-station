@@ -420,7 +420,19 @@
     "shortOk": "OK",
     "shortDegraded": "Degradado",
     "shortCritical": "Crítico",
-    "shortOffline": "Sin conexión"
+    "shortOffline": "Sin conexión",
+    "providerStatusHeader": "Servicios externos",
+    "provider": {
+      "github": "GitHub (actualizaciones)"
+    },
+    "providerIndicator": {
+      "none": "Operacional",
+      "minor": "Rendimiento degradado",
+      "major": "Interrupción parcial",
+      "critical": "Interrupción mayor",
+      "maintenance": "En mantenimiento",
+      "unknown": "Desconocido"
+    }
   },
   "debug": {
     "title": "DEPURACIÓN",
