@@ -199,7 +199,7 @@
 .actionFooter {
   display: flex;
   flex-wrap: wrap;
-  align-items: center;
+  align-items: stretch;
   gap: 8px;
   padding: 10px 14px;
   border-top: 1px solid var(--c-border);
@@ -208,7 +208,18 @@
 .actionButton {
   display: inline-flex;
   align-items: center;
+  justify-content: flex-start;
   gap: 6px;
+  /* `flex: 1 1 auto` lets the pair sit side-by-side on a wide rail
+   * (each button claims half the available width), and wrap to a
+   * vertical stack on narrow viewports where the row can't fit them
+   * — in that case each wrapped button takes the full row width so
+   * its label never has to wrap internally. Replaces the prior
+   * inline-flex behaviour where buttons stayed at their natural
+   * content width and the longer label ("MASQUER DE LA CARTE") wrapped
+   * mid-text on the 7" Pi rail, leaving the second word visually
+   * detached from the icon. */
+  flex: 1 1 auto;
   padding: 6px 12px;
   font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 10px;
