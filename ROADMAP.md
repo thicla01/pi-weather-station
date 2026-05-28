@@ -137,6 +137,9 @@ Same source-module shape as NWS / ECCC, but the geographic-filter story is harde
 
 **Country-level-only fallback** (a "is *anything* active in Italy?" mode) is technically possible without polygons but produces unacceptable false-positive rates (a thunderstorm warning in Sicily alerting a kiosk in Milan) — explicitly rejected as a path.
 
+### 🗺️ Continental alert polygons overlay (AccuWeather « Avis des autorités publiques »)
+**Exploration only — not scheduled.** A toggle that overlays every active ECCC + NWS alert polygon on the map (tier-coloured), mutually exclusive with RainViewer (Mode A: radar / Mode B: polygons). Phase 4d already renders the polygon for the user's active alert; this is the much-larger ambition of showing the entire continent at once. Detailed implications, phasing, and open design questions captured in [`docs/alert-polygons-overlay-exploration.md`](docs/alert-polygons-overlay-exploration.md). ~8-10 h estimated effort if all phases pursued. Documented 2026-05-28 to preserve the design analysis for a future session.
+
 ### 🚨 Critical-tier severe-alert takeover overlay
 The shipped May 2026 banner integration is the light-touch path: a coloured strip with title + source badge, sharing space with the rest of the InfoPanel. For genuinely critical alerts (tornado warning, tsunami warning, evacuation order) the right UX is more than a strip — a full-screen takeover that someone walking by from the next room cannot miss. Hooks into the existing `govAlerts` payload (it already carries `severity: "extreme"` and the full `description_en/fr` body); only the rendering needs design + code.
 
