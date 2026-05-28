@@ -107,9 +107,26 @@ NIGHT_SKY   = (  0,   0,  25)
 STAR_WHITE  = (240, 240, 200)
 CLOUD_LIGHT = (160, 160, 165)
 CLOUD_DARK  = (100, 100, 108)
-GREY_LIGHT  = (140, 140, 145)
-GREY_MID    = (105, 105, 110)
-GREY_DARK   = ( 70,  70,  75)
+# GREY_* values are intentionally strict R = G = B to defeat a
+# Sense HAT calibration artifact observed live 2026-05-28 on a
+# Montreal kiosk: overcast night animation displayed alternating
+# blue / white / blue waves instead of dark / mid / light grey.
+# Root cause: the previous values had B = R + 5 (a subtle blue
+# tint that was imperceptible at full brightness). At night the
+# BRIGHTNESS_NIGHT multiplier (0.35) scales the dark grey to
+# (24, 24, 26), which lands in the LED's threshold zone — R and G
+# fall below the activation threshold but B (one unit higher)
+# crosses it, painting a pure-blue pixel. The Sense HAT's RGB565
+# quantisation (5-bit R, 6-bit G, 5-bit B) amplifies this near
+# the threshold. Equalising R, G, B per shade closes the gap so
+# all three channels light together or stay off together — the
+# resulting pixel reads as a true grey regardless of brightness
+# multiplier. Chose to keep the B (slightly higher) values as
+# the new canonical so the overall brightness of the animation
+# is preserved.
+GREY_LIGHT  = (145, 145, 145)
+GREY_MID    = (110, 110, 110)
+GREY_DARK   = ( 75,  75,  75)
 FOG_COLOR   = (190, 195, 205)
 RAIN_BG     = ( 25,  45,  70)
 RAIN_DROP   = ( 60, 140, 255)
