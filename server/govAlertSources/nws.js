@@ -14,6 +14,7 @@ const axios = require("axios").default;
 const { recordServiceCall } = require("../serviceStatus");
 const { increment } = require("../requestCounter");
 const { TIMEOUT_MS, pointInUSBox, normalizeSeverity, severityToTier, dedupeConsecutiveParagraphs } = require("./_shared");
+const { getZoneGeometry, mergeAsMultiPolygon } = require("./nwsZones");
 
 const SERVICE_NAME = "NWS (severe weather alerts)";
 const USER_AGENT = "pi-weather-station (github.com/thicla01/pi-weather-station)";
@@ -129,9 +130,61 @@ async function tryAlerts(lat, lon) {
   }
 
   const features = resp.data?.features || [];
-  const alerts = features.map(normalize).filter(Boolean);
+
+  // Normalise + pair each surviving alert with its original feature
+  // so the geometry-enrichment pass below can read
+  // `properties.affectedZones` for alerts without an inline polygon.
+  // Phase 4d follow-up (2026-05-28): most NWS alerts (Red Flag
+  // Warning, Heat Advisory, Wind Advisory, Special Weather
+  // Statement, etc.) publish against forecast / fire / county zone
+  // IDs rather than carrying `feature.geometry` directly. Without
+  // resolving those zones the "Voir sur la carte" button never
+  // appears for them.
+  const pairs = [];
+  for (const f of features) {
+    const n = normalize(f);
+    if (n) pairs.push({ alert: n, feature: f });
+  }
+
+  // Parallel zone resolution: for each alert with null geometry,
+  // fetch every URL in its `affectedZones`, merge the resulting
+  // polygons into a single MultiPolygon. nwsZones.getZoneGeometry
+  // is cached 24h so the second call from any alert sharing a zone
+  // (very common for Red Flag Warnings clustered in a state) is
+  // free.
+  //
+  // Errors are tolerated per-zone: a failed fetch yields `null`
+  // which mergeAsMultiPolygon silently drops. If ALL zones for an
+  // alert fail, the alert keeps `geometry: null` and the client
+  // simply doesn't render the "Voir sur la carte" button — same as
+  // before this enrichment, no regression.
+  //
+  // Top-level Promise.all is wrapped in try/catch so a transient
+  // upstream issue can't abort the whole alert payload — the user
+  // still gets the textual alert even if zones aren't resolvable.
+  try {
+    await Promise.all(pairs.map(async ({ alert, feature }) => {
+      if (alert.geometry) return;
+      const zoneUrls = feature?.properties?.affectedZones;
+      if (!Array.isArray(zoneUrls) || zoneUrls.length === 0) return;
+      const geometries = await Promise.all(
+        zoneUrls.map((url) => getZoneGeometry(url).catch(() => null)),
+      );
+      const merged = mergeAsMultiPolygon(geometries);
+      if (merged) alert.geometry = merged;
+    }));
+  } catch (err) {
+    // Defensive — Promise.all on the inner per-zone fetches already
+    // catches individually, so this outer catch only triggers on a
+    // truly unexpected runtime error. Log it but continue with
+    // whatever geometries we managed to resolve before the throw.
+    console.warn("[nws] zone-geometry enrichment failed:", err.message);
+  }
+
+  const alerts = pairs.map((p) => p.alert);
   cache.set(key, { alerts, expiresAt: Date.now() + CACHE_TTL_MS });
-  recordServiceCall(SERVICE_NAME, 200, `${alerts.length} alert(s) at ${key}`);
+  const withGeom = alerts.filter((a) => a.geometry).length;
+  recordServiceCall(SERVICE_NAME, 200, `${alerts.length} alert(s) at ${key} (${withGeom} with geometry)`);
   increment("nws", "alerts");
   return alerts;
 }
