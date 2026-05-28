@@ -130,10 +130,6 @@
    * sparser by user choice). */
 }
 
-.layout.collapsed .heroSlot {
-  right: var(--c-edge-gap);
-}
-
 /* Right rail — overlays the map on the right edge. Internally scrolls
  * if its slab stack grows past the available height. */
 .rail {
@@ -164,67 +160,6 @@
     visibility 0s linear 0s;
 }
 
-.layout.collapsed {
-  /* Rail is translated off-screen — for centring math that depends
-   * on the visible rail width (the scrubber), treat it as 0. */
-  --c-rail-visible-width: 0px;
-}
-
-.layout.collapsed .rail {
-  opacity: 0;
-  pointer-events: none;
-  visibility: hidden;
-  transform: translateX(calc(var(--c-rail-width) + var(--c-edge-gap)));
-  /* Hold visibility hidden until the 200 ms transform + 150 ms
-   * opacity fades complete. Defends against children that create
-   * their own stacking context (transform / filter / will-change)
-   * and would otherwise bypass the parent's `opacity: 0` and leak
-   * painted artefacts over the map. */
-  transition:
-    opacity 150ms ease-out,
-    transform 200ms ease-out,
-    width 200ms ease-out,
-    visibility 0s linear 200ms;
-}
-
-/* Chevron toggle — pinned to the map's right edge, vertically
- * centred. Same affordance as LayoutPi, just positioned differently
- * because the rail itself is absolutely placed. */
-.chevron {
-  position: absolute;
-  top: 50%;
-  /* Same font-scale compensation as heroSlot — keep the chevron
-   * pinned to the rail's visual left edge, not its declared one. */
-  right: calc(var(--c-rail-width) * var(--c-font-scale, 1) + var(--c-edge-gap) * 2);
-  transform: translateY(-50%);
-  z-index: 20;
-  width: 22px;
-  height: 56px;
-  background-color: var(--c-surface-hybrid);
-  border: 1px solid var(--c-border);
-  border-radius: 4px 0 0 4px;
-  color: var(--c-text-dim);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  padding: 0;
-  transition: right 200ms ease-out;
-}
-
-.layout.collapsed .chevron {
-  right: 0;
-}
-
-.chevron:hover,
-.chevron:focus-visible {
-  color: var(--c-text);
-  background-color: var(--c-surface-hybrid);
-  outline: none;
-}
-
 /* BottomDock spans the full viewport width at the bottom. */
 .layout > :last-child {
   position: absolute;
@@ -237,13 +172,12 @@
 
 /* Focus mode (toggled by the RadarFocusControl Leaflet button) —
  * hide everything that floats on top of the map so the radar fills
- * the entire viewport. Rail, HeroBand, and the rail-collapse chevron
- * all go; the Leaflet focus control itself stays visible (rendered
- * by Leaflet at the topleft, outside this CSS module's scope) so
- * the user can tap it again to restore the panels. The dock stays
- * visible too — those are kiosk navigation, not data overlays. */
+ * the entire viewport. Rail + HeroBand both go; the Leaflet focus
+ * control itself stays visible (rendered by Leaflet at the topleft,
+ * outside this CSS module's scope) so the user can tap it again to
+ * restore the panels. The dock stays visible too — those are kiosk
+ * navigation, not data overlays. */
 .layout.focused .heroSlot,
-.layout.focused .rail,
-.layout.focused .chevron {
+.layout.focused .rail {
   display: none;
 }

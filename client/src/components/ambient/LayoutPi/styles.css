@@ -5,9 +5,15 @@
  *   row 2 (auto):   dock spans both columns
  *
  * The rail width animates between 300/340px and 0 when the user taps
- * the chevron. Width transitions on the grid template column drive
- * the change; WeatherMap's MapResizer reacts to the shared
- * `infoPanelCollapsed` flag and re-fits the Leaflet canvas afterward. */
+ * the Leaflet RadarFocusControl (topleft, under the zoom +/-) and the
+ * layout enters focus mode (.layout.focused). Width transitions on
+ * the grid template column drive the change; WeatherMap's MapResizer
+ * reacts to the shared `piRadarMaximized` flag and re-fits the
+ * Leaflet canvas afterward.
+ *
+ * The legacy right-edge chevron that previously drove this collapse
+ * was removed in the 2026-05-28 v3.1 consolidation — see LayoutPi/
+ * index.js for the migration note. */
 
 .layout {
   display: grid;
@@ -28,7 +34,7 @@
   }
 }
 
-.layout.collapsed {
+.layout.focused {
   grid-template-columns: 1fr 0;
 }
 
@@ -47,10 +53,10 @@
  * `.layout` (set above for the collapse animation) is reused here, so
  * the rail slides open smoothly instead of snapping.
  *
- * If the user has already collapsed the rail via the chevron (.collapsed)
- * neither maximized state is reachable (both slabs live inside the
- * rail), so there's no conflict between the grid-template-columns
- * values — .collapsed always wins because of source order. */
+ * If the user has already entered focus mode via the RadarFocusControl
+ * (.focused), neither maximized state is reachable (both slabs live
+ * inside the rail), so there's no conflict between the grid-template-
+ * columns values — .focused always wins because of source order. */
 .layout:has([data-chart-maximized="true"]),
 .layout:has([data-ai-maximized="true"]) {
   grid-template-columns: 1fr min(60vw, 600px);
@@ -129,46 +135,13 @@
   zoom: var(--c-font-scale, 1);
 }
 
-.layout.collapsed .rail {
+.layout.focused .rail {
   opacity: 0;
   pointer-events: none;
   visibility: hidden;
   /* Hold visibility until after the opacity fade completes so the
    * collapse stays smooth. */
   transition: opacity 150ms ease-out, visibility 0s linear 150ms;
-}
-
-/* Chevron toggle — vertical bar pinned to the right edge of the map
- * area. When collapsed, the chevron sits flush against the screen
- * edge; when expanded, against the rail's left border. Either way
- * the user has a single visible affordance to switch states. */
-.chevron {
-  position: absolute;
-  top: 50%;
-  right: 0;
-  transform: translateY(-50%);
-  z-index: 400;
-  width: 22px;
-  height: 56px;
-  background-color: var(--c-surface-hybrid);
-  border: 1px solid var(--c-border);
-  border-right: 0;
-  border-radius: 4px 0 0 4px;
-  color: var(--c-text-dim);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-  padding: 0;
-}
-
-.chevron:hover,
-.chevron:focus-visible {
-  color: var(--c-text);
-  background-color: var(--c-surface-hybrid);
-  outline: none;
 }
 
 /* BottomDock cell spans both columns.

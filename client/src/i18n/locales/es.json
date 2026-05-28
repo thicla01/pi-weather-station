@@ -363,8 +363,6 @@
     "refreshApp": "Actualizar la aplicación",
     "openSettings": "Abrir los ajustes",
     "closeSettings": "Cerrar los ajustes",
-    "collapsePanel": "Ocultar el panel de información",
-    "expandPanel": "Mostrar el panel de información",
     "focusRadar": "Enfocar radar (ocultar paneles)",
     "restorePanels": "Restaurar paneles",
     "openDebug": "Abrir el panel de depuración",

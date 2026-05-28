@@ -15,13 +15,17 @@ const MOBILE_INVALIDATE_FINAL_MS = 350;
  *
  * Three layout shifts that need an invalidate:
  *
- * 1. LayoutPi rail collapse / expand — `infoPanelCollapsed` changes,
- *    grid-template-columns animates over 200 ms. Two `invalidateSize`
- *    calls bracket the transition (one at 50 ms for live feedback as
- *    the rail slides, one at 250 ms to latch the final size for pan
- *    math). Without the late call, Leaflet's internal `_size` cache
- *    keeps a mid-transition value and subsequent pans (e.g. the Reset
- *    Map button) land the marker off-centre.
+ * 1. LayoutPi radar focus toggle — `piRadarMaximized` flips on/off,
+ *    rail hides/shows via grid-template-columns animating over 200 ms.
+ *    Two `invalidateSize` calls bracket the transition (one at 50 ms
+ *    for live feedback as the rail slides, one at 250 ms to latch the
+ *    final size for pan math). Without the late call, Leaflet's
+ *    internal `_size` cache keeps a mid-transition value and
+ *    subsequent pans (e.g. the Reset Map button) land the marker
+ *    off-centre. `infoPanelCollapsed` is still passed in for v2
+ *    InfoPanel compatibility (legacy `experimentalUiC=false` path)
+ *    but the Pi rail collapse path on v3 is now driven by
+ *    `piRadarMaximized` instead.
  *
  * 2. LayoutDesktop radar focus toggle — `desktopRadarMaximized` flips
  *    on/off, HeroBand + rail hide/show. Reuses the same 50 + 250 ms
@@ -43,15 +47,16 @@ const MOBILE_INVALIDATE_FINAL_MS = 350;
  * ended up NE-offset on user-reported screens > 7".
  *
  * @param {object} props
- * @param {boolean} props.infoPanelCollapsed Pi rail collapse state
+ * @param {boolean} props.infoPanelCollapsed v2 InfoPanel collapse state (legacy)
  * @param {boolean} props.mobileRadarMaximized null on non-mobile layouts
  * @param {boolean} props.desktopRadarMaximized Desktop focus-mode state
+ * @param {boolean} props.piRadarMaximized LayoutPi focus-mode state
  * @param {number} props.latitude Current marker latitude
  * @param {number} props.longitude Current marker longitude
  * @param {number} props.zoom Current map zoom level
  * @returns {null} renders nothing
  */
-const MapResizer = ({ infoPanelCollapsed, mobileRadarMaximized, desktopRadarMaximized, latitude, longitude, zoom }) => {
+const MapResizer = ({ infoPanelCollapsed, mobileRadarMaximized, desktopRadarMaximized, piRadarMaximized, latitude, longitude, zoom }) => {
   const map = useMap();
   useEffect(() => {
     const live = setTimeout(() => map.invalidateSize(), COLLAPSE_INVALIDATE_LIVE_MS);
@@ -60,8 +65,8 @@ const MapResizer = ({ infoPanelCollapsed, mobileRadarMaximized, desktopRadarMaxi
       clearTimeout(live);
       clearTimeout(final);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- desktopRadarMaximized purposely re-triggers the same handler
-  }, [infoPanelCollapsed, desktopRadarMaximized, map]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- desktopRadarMaximized + piRadarMaximized purposely re-trigger the same handler
+  }, [infoPanelCollapsed, desktopRadarMaximized, piRadarMaximized, map]);
 
   useEffect(() => {
     if (mobileRadarMaximized == null) return undefined;
@@ -89,6 +94,7 @@ MapResizer.propTypes = {
   infoPanelCollapsed: PropTypes.bool,
   mobileRadarMaximized: PropTypes.bool,
   desktopRadarMaximized: PropTypes.bool,
+  piRadarMaximized: PropTypes.bool,
   latitude: PropTypes.number,
   longitude: PropTypes.number,
   zoom: PropTypes.number,

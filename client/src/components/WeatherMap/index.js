@@ -160,7 +160,7 @@ MapClickHandler.propTypes = {
  * @returns {Number} rail width in pixels (0 if no offset needed)
  */
 function useRailOffset() {
-  const { experimentalUiC, infoPanelCollapsed, desktopRadarMaximized } = useContext(AppContext);
+  const { experimentalUiC, infoPanelCollapsed, desktopRadarMaximized, piRadarMaximized } = useContext(AppContext);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   useEffect(() => {
     // Focus mode hides HeroBand + rail via display:none. Bail with
@@ -169,7 +169,7 @@ function useRailOffset() {
     // toggling focus re-runs this effect (without it the offset
     // stayed at the last-measured value and the marker stayed
     // shifted as if the rail were still visible).
-    if (!experimentalUiC || infoPanelCollapsed || desktopRadarMaximized) {
+    if (!experimentalUiC || infoPanelCollapsed || desktopRadarMaximized || piRadarMaximized) {
       setOffset({ x: 0, y: 0 });
       return undefined;
     }
@@ -203,7 +203,7 @@ function useRailOffset() {
       cancelAnimationFrame(handle);
       window.removeEventListener("resize", measure);
     };
-  }, [experimentalUiC, infoPanelCollapsed, desktopRadarMaximized]);
+  }, [experimentalUiC, infoPanelCollapsed, desktopRadarMaximized, piRadarMaximized]);
   return offset;
 }
 
@@ -493,6 +493,8 @@ const WeatherMap = ({ zoom, dark }) => {
     outerDirectionVectors,
     desktopRadarMaximized,
     setDesktopRadarMaximized,
+    piRadarMaximized,
+    setPiRadarMaximized,
     // Phase 4d (2026-05-28): id of the alert whose `geometry` is
     // overlaid on the map + the full govAlerts list for the lookup.
     // Consumed by the `<AlertGeometryOverlay>` child inside the
@@ -800,20 +802,35 @@ const WeatherMap = ({ zoom, dark }) => {
           infoPanelCollapsed={infoPanelCollapsed}
           mobileRadarMaximized={mobileRadarMaximized}
           desktopRadarMaximized={desktopRadarMaximized}
+          piRadarMaximized={piRadarMaximized}
           latitude={latitude}
           longitude={longitude}
           zoom={zoom}
         />
-        {/* Focus / unfocus the radar — Leaflet control rendered only
-         * when LayoutDesktop is active (sentinel !== null). Sits in
-         * the topleft Leaflet bar alongside zoom +/− and the
-         * direction-arrow toggle. Tapping it hides HeroBand + rail
-         * so the radar fills the entire viewport. The dock stays
-         * uncluttered. */}
-        {desktopRadarMaximized !== null && desktopRadarMaximized !== undefined && (
+        {/* Focus / unfocus the radar — Leaflet control rendered when
+         * LayoutDesktop OR LayoutPi is the active layout (one of the
+         * two sentinels is non-null). Sits in the topleft Leaflet bar
+         * alongside zoom +/− and the direction-arrow toggle. Tapping
+         * it hides HeroBand + rail so the radar fills the entire
+         * viewport. The dock stays uncluttered. The 2026-05-28 v3.1
+         * consolidation extended this control from Desktop-only to
+         * Desktop + Pi, replacing the legacy chevron rail-collapse
+         * toggle that used to live on the right edge of the map on
+         * both layouts. The same Leaflet control now serves both
+         * layouts; we route the toggle to whichever sentinel is
+         * active (mutually exclusive — only one layout is mounted
+         * at a time). */}
+        {((desktopRadarMaximized !== null && desktopRadarMaximized !== undefined)
+          || (piRadarMaximized !== null && piRadarMaximized !== undefined)) && (
           <RadarFocusControl
-            active={desktopRadarMaximized}
-            onToggle={() => setDesktopRadarMaximized(!desktopRadarMaximized)}
+            active={Boolean(piRadarMaximized != null ? piRadarMaximized : desktopRadarMaximized)}
+            onToggle={() => {
+              if (piRadarMaximized != null) {
+                setPiRadarMaximized(!piRadarMaximized);
+              } else {
+                setDesktopRadarMaximized(!desktopRadarMaximized);
+              }
+            }}
             titleOn={t("controls.restorePanels", { defaultValue: "Restore panels" })}
             titleOff={t("controls.focusRadar", { defaultValue: "Focus radar" })}
           />

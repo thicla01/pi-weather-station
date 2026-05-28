@@ -1,8 +1,4 @@
 import React, { useContext, useEffect } from "react";
-import { useTranslation } from "react-i18next";
-import { InlineIcon } from "@iconify/react";
-import chevronLeft from "@iconify/icons-carbon/chevron-left";
-import chevronRight from "@iconify/icons-carbon/chevron-right";
 import { AppContext } from "~/AppContext";
 import WeatherMap from "~/components/WeatherMap";
 import HeroBand from "~/components/ambient/HeroBand";
@@ -28,7 +24,7 @@ import styles from "./styles.css";
  *   │                                            │              │
  *   │  WeatherMap (full-bleed behind everything) │  (overlays)  │
  *   │                                            │              │
- *   │           [chevron]                        │              │
+ *   │  RadarFocusControl (Leaflet topleft)       │              │
  *   ├────────────────────────────────────────────┴──────────────┤
  *   │  BottomDock                                                │
  *   └────────────────────────────────────────────────────────────┘
@@ -40,32 +36,43 @@ import styles from "./styles.css";
  * grow the rail width and the hero font sizes so the layout reads
  * proportional on both HD monitors and larger displays.
  *
- * Collapse / mini-banner story mirrors LayoutPi exactly: chevron
- * pinned to the map's right edge toggles `infoPanelCollapsed`, which
- * also drives v2's MapResizer and so Leaflet re-fits the canvas for
- * free when the rail folds away.
+ * Focus mode (toggled by the Leaflet RadarFocusControl in WeatherMap's
+ * topleft control bar, sitting under the zoom +/- buttons) hides
+ * HeroBand + the right rail so the radar fills the entire viewport.
+ * `desktopRadarMaximized` carries the state — flipped to `false` on
+ * mount and back to `null` on unmount so the focus control disappears
+ * when the user switches to LayoutPi / LayoutMobile.
+ *
+ * Legacy note (2026-05-28 consolidation): the right-edge chevron that
+ * used to toggle `infoPanelCollapsed` was removed in favour of the
+ * shared RadarFocusControl. The chevron's tactile sticky-hover (audit
+ * finding B2) disappeared mechanically because the component no longer
+ * exists. `infoPanelCollapsed` still lives in AppContext for v2
+ * InfoPanel back-compat but no longer carries any v3 LayoutDesktop
+ * role.
+ *
+ * When focus mode is on AND there's an eligible government alert,
+ * `FloatingMiniBanner` overlays on the map's top-right so the kiosk
+ * doesn't silently hide a severe alert. Tapping the banner in focus
+ * mode exits focus AND re-opens the rail so the full alert detail is
+ * one tap away.
  *
  * @returns {JSX.Element} desktop layout
  */
 const LayoutDesktop = () => {
-  const { t } = useTranslation();
   const {
     darkMode,
     defaultMapZoom,
-    infoPanelCollapsed,
-    setInfoPanelCollapsed,
     mouseHide,
     desktopRadarMaximized,
     setDesktopRadarMaximized,
   } = useContext(AppContext);
 
-  const collapsed = Boolean(infoPanelCollapsed);
-  const toggleCollapse = () => setInfoPanelCollapsed(!collapsed);
-  // Same sentinel pattern as LayoutMobile uses for mobileRadarMaximized:
-  // flip to `false` on mount so the Leaflet focus control inside
-  // WeatherMap can render, and back to `null` on unmount so the
-  // control disappears when the user switches to LayoutPi or
-  // LayoutMobile (no orphaned button on those layouts).
+  // Sentinel pattern: flip to `false` on mount so the Leaflet focus
+  // control inside WeatherMap renders, and back to `null` on unmount
+  // so the control disappears when the user switches to LayoutPi /
+  // LayoutMobile (no orphaned button on those layouts). LayoutPi
+  // mirrors this for piRadarMaximized.
   useEffect(() => {
     setDesktopRadarMaximized(false);
     return () => setDesktopRadarMaximized(null);
@@ -74,7 +81,7 @@ const LayoutDesktop = () => {
   const focused = desktopRadarMaximized === true;
 
   return (
-    <div className={`${styles.layout} ${collapsed ? styles.collapsed : ""} ${focused ? styles.focused : ""}`}>
+    <div className={`${styles.layout} ${focused ? styles.focused : ""}`}>
       {/* Full-bleed map fills the entire main area as the background. */}
       <div className={`${styles.mapArea} map-container ${darkMode ? "map-dark-mode" : ""} ${mouseHide ? "map-mouse-hide" : ""}`}>
         <WeatherMap zoom={defaultMapZoom} dark={darkMode} />
@@ -91,43 +98,22 @@ const LayoutDesktop = () => {
       </div>
 
       {/* Floating mini-banner overlays the map area whenever the
-          rail isn't visible AND a red/orange gov alert is active.
-          Two trigger states:
-            - rail collapsed via chevron (`collapsed`)
-            - radar focus mode hides hero + rail + chevron (`focused`)
+          radar focus mode is on AND a red/orange gov alert is active.
           Severe-alert visibility is a kiosk-grade safety property —
           we should never make the user blind to an active Tornado
           Warning just because they're zoomed into the radar. Tapping
-          the banner in focus mode exits focus AND re-opens the rail
-          so the full alert detail is one tap away. */}
-      {(collapsed || focused) && (
+          the banner exits focus mode so the full alert detail is one
+          tap away. */}
+      {focused && (
         <FloatingMiniBanner
-          onExpand={() => {
-            if (focused) setDesktopRadarMaximized(false);
-            if (collapsed) setInfoPanelCollapsed(false);
-          }}
+          onExpand={() => setDesktopRadarMaximized(false)}
         />
       )}
-
-      {/* Chevron toggle on the map's right edge. */}
-      <button
-        type="button"
-        className={styles.chevron}
-        onClick={toggleCollapse}
-        aria-label={t(collapsed ? "controls.expandPanel" : "controls.collapsePanel", {
-          defaultValue: collapsed ? "Expand panel" : "Collapse panel",
-        })}
-        title={t(collapsed ? "controls.expandPanel" : "controls.collapsePanel", {
-          defaultValue: collapsed ? "Expand panel" : "Collapse panel",
-        })}
-      >
-        <InlineIcon icon={collapsed ? chevronLeft : chevronRight} />
-      </button>
 
       {/* Right rail — overlays the map on the right edge. Translucent
           surface inherits from the active palette so the radar shows
           through subtly. */}
-      <aside className={styles.rail} aria-hidden={collapsed}>
+      <aside className={styles.rail} aria-hidden={focused}>
         <AlertBanner />
         <AlertDetailInline />
         <AlertMiniCards />

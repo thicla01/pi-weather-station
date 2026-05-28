@@ -200,6 +200,16 @@ export function AppContextProvider({ children }) {
   // mount and back to null on unmount. The Leaflet focus control
   // in WeatherMap reads this to decide whether to render itself.
   const [desktopRadarMaximized, setDesktopRadarMaximized] = useState(null);
+  // Same sentinel pattern again, this time for LayoutPi. Added as
+  // part of the v3.1 chevron → RadarFocusControl consolidation
+  // (2026-05-28): the legacy chevron-driven `infoPanelCollapsed`
+  // mode on LayoutPi was replaced by the same focus-mode toggle
+  // LayoutDesktop already used, so the three layouts now share one
+  // mental model — "tap to focus the radar, tap again to restore."
+  // The WeatherMap RadarFocusControl renders whenever *either*
+  // `piRadarMaximized` or `desktopRadarMaximized` is non-null, and
+  // routes its toggle to whichever sentinel is active.
+  const [piRadarMaximized, setPiRadarMaximized] = useState(null);
   // Display sub-tree (advanced.display.* in settings.json).
   // lightModeStyle / darkModeStyle drive the Mapbox style for each theme.
   // For light mode, the panel background tint also follows via the
@@ -1699,6 +1709,8 @@ export function AppContextProvider({ children }) {
     setMobileRadarMaximized,
     desktopRadarMaximized,
     setDesktopRadarMaximized,
+    piRadarMaximized,
+    setPiRadarMaximized,
     setMapPosition,
     resetMapPosition,
     panToCoords,

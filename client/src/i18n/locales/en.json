@@ -363,8 +363,6 @@
     "refreshApp": "Refresh app",
     "openSettings": "Open settings",
     "closeSettings": "Close settings",
-    "collapsePanel": "Collapse info panel",
-    "expandPanel": "Expand info panel",
     "focusRadar": "Focus radar (hide panels)",
     "restorePanels": "Restore panels",
     "openDebug": "Open debug panel",

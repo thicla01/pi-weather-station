@@ -1,8 +1,4 @@
-import React, { useContext } from "react";
-import { useTranslation } from "react-i18next";
-import { InlineIcon } from "@iconify/react";
-import chevronLeft from "@iconify/icons-carbon/chevron-left";
-import chevronRight from "@iconify/icons-carbon/chevron-right";
+import React, { useContext, useEffect } from "react";
 import { AppContext } from "~/AppContext";
 import WeatherMap from "~/components/WeatherMap";
 import HeroCompact from "~/components/ambient/HeroCompact";
@@ -24,28 +20,37 @@ import styles from "./styles.css";
  * Structure (top to bottom × left to right):
  *   ┌──────────────────────────────┬────────────────────────┐
  *   │ FloatingMiniBanner (overlay) │  TimeBlock             │
- *   │                              │  HeroCompact           │
- *   │  WeatherMap (full-bleed)     │  AlertBanner           │
- *   │                              │  AlertDetailInline     │
+ *   │ RadarFocusControl (Leaflet,  │  HeroCompact           │
+ *   │  top-left under +/-)         │  AlertBanner           │
+ *   │  WeatherMap (full-bleed)     │  AlertDetailInline     │
  *   │                              │  MetricsGrid           │
- *   │           [chevron]          │  IndoorBlock           │
+ *   │                              │  IndoorBlock           │
  *   │                              │  ChartTabs             │
  *   │                              │  AiSummaryInline       │
  *   ├──────────────────────────────┴────────────────────────┤
  *   │  BottomDock                                            │
  *   └────────────────────────────────────────────────────────┘
  *
- * The rail is collapsible via a chevron pinned to the map's right
- * edge. Collapse state lives in `infoPanelCollapsed` on AppContext —
- * deliberately shared with the v2 InfoPanel toggle so WeatherMap's
- * existing `MapResizer` reacts to either entry point and re-fits the
- * Leaflet canvas after the column width changes.
+ * Focus mode (toggled by the Leaflet RadarFocusControl in WeatherMap's
+ * topleft control bar, sitting under the zoom +/- buttons) hides the
+ * entire rail so the radar fills the available column. `piRadarMaximized`
+ * carries the state — flipped to `false` on mount and back to `null` on
+ * unmount, mirroring the LayoutDesktop sentinel pattern. The
+ * RadarFocusControl renders only when one of `piRadarMaximized` or
+ * `desktopRadarMaximized` is non-null, and routes its toggle to whichever
+ * is active.
  *
- * When the rail is collapsed AND there's an eligible government
- * alert, `FloatingMiniBanner` overlays on the map's top-right so the
- * kiosk doesn't silently hide a severe alert. Tapping the mini-banner
- * re-opens the rail (full UI returns; cycle controls become reachable
- * again).
+ * Legacy note (2026-05-28 consolidation): the right-edge chevron that
+ * used to toggle `infoPanelCollapsed` was removed in favour of the
+ * shared RadarFocusControl. The chevron's tactile sticky-hover (audit
+ * finding B2) disappeared mechanically because the component no longer
+ * exists. `infoPanelCollapsed` still lives in AppContext for v2
+ * InfoPanel back-compat but no longer carries any v3 LayoutPi role.
+ *
+ * When focus mode is on AND there's an eligible government alert,
+ * `FloatingMiniBanner` overlays on the map's top-right so the kiosk
+ * doesn't silently hide a severe alert. Tapping the mini-banner exits
+ * focus mode (full UI returns; cycle controls become reachable again).
  *
  * RadarTimeline extraction is deferred — the scrubber currently
  * inlined inside `WeatherMap` already renders correctly inside the
@@ -55,40 +60,35 @@ import styles from "./styles.css";
  * @returns {JSX.Element} Pi layout
  */
 const LayoutPi = () => {
-  const { t } = useTranslation();
   const {
     darkMode,
     defaultMapZoom,
-    infoPanelCollapsed,
-    setInfoPanelCollapsed,
     mouseHide,
+    piRadarMaximized,
+    setPiRadarMaximized,
   } = useContext(AppContext);
 
-  const collapsed = Boolean(infoPanelCollapsed);
-  const toggleCollapse = () => setInfoPanelCollapsed(!collapsed);
+  // Sentinel pattern: flip to `false` on mount so WeatherMap renders
+  // the Leaflet focus control for this layout, and back to `null` on
+  // unmount so the control disappears when the user switches to
+  // LayoutDesktop / LayoutMobile (no orphan button on those layouts).
+  // Mirrors what LayoutDesktop already does for desktopRadarMaximized.
+  useEffect(() => {
+    setPiRadarMaximized(false);
+    return () => setPiRadarMaximized(null);
+  }, [setPiRadarMaximized]);
+
+  const focused = piRadarMaximized === true;
 
   return (
     <div
-      className={`${styles.layout} ${collapsed ? styles.collapsed : ""}`}
+      className={`${styles.layout} ${focused ? styles.focused : ""}`}
     >
       <div className={`${styles.mapArea} map-container ${darkMode ? "map-dark-mode" : ""} ${mouseHide ? "map-mouse-hide" : ""}`}>
         <WeatherMap zoom={defaultMapZoom} dark={darkMode} />
-        {collapsed && <FloatingMiniBanner onExpand={toggleCollapse} />}
-        <button
-          type="button"
-          className={styles.chevron}
-          onClick={toggleCollapse}
-          aria-label={t(collapsed ? "controls.expandPanel" : "controls.collapsePanel", {
-            defaultValue: collapsed ? "Expand panel" : "Collapse panel",
-          })}
-          title={t(collapsed ? "controls.expandPanel" : "controls.collapsePanel", {
-            defaultValue: collapsed ? "Expand panel" : "Collapse panel",
-          })}
-        >
-          <InlineIcon icon={collapsed ? chevronLeft : chevronRight} />
-        </button>
+        {focused && <FloatingMiniBanner onExpand={() => setPiRadarMaximized(false)} />}
       </div>
-      <aside className={styles.rail} aria-hidden={collapsed}>
+      <aside className={styles.rail} aria-hidden={focused}>
         <TimeBlock />
         {/* AlertBanner + AlertDetailInline kept together at the top
          * of the rail (just under TimeBlock, ABOVE HeroCompact).
