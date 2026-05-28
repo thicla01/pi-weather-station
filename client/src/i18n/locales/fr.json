@@ -311,7 +311,7 @@
     "restoreDismissedAria": "Toucher pour réafficher les alertes que vous avez masquées",
     "collapse": "Réduire",
     "collapseAria": "Réduire le détail de l'alerte pour revoir la carte",
-    "showOnMap": "Voir sur la carte",
+    "showOnMap": "Afficher sur la carte",
     "showOnMapAria": "Afficher la zone d'alerte sur la carte radar",
     "hideOnMap": "Masquer de la carte",
     "hideOnMapAria": "Masquer la zone d'alerte de la carte radar"
