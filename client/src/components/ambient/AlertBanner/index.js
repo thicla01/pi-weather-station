@@ -110,11 +110,23 @@ const AlertBanner = () => {
           aria-expanded={govAlertExpanded}
           aria-label={t(govAlertExpanded ? "alert.collapseRow" : "alert.expandRow")}
         >
+          {/* Three rows in the head:
+            *   1. topRow — severity chip on the left, chevron flush
+            *      right. The title used to live here too but on the
+            *      Pi 7" rail (~250 px wide) the chip + chevron +
+            *      dismiss button left ~100 px for the title, which
+            *      truncated multi-word labels like "Avertissement
+            *      de chaleur" to a single letter. Moving the title
+            *      to its own row matches the Phase 4a CHANGELOG
+            *      ("title now sits on its own line") and gives it
+            *      the full container width.
+            *   2. title — full-width, wraps freely on narrow rails.
+            *   3. metaRow — chips + counter as before. */}
           <div className={styles.topRow}>
             <SeverityChip severity={currentAlert.severity} />
-            <div className={styles.title}>{title}</div>
             <InlineIcon icon={chevronDown} className={styles.chevron} />
           </div>
+          <div className={styles.title}>{title}</div>
           {/* Meta-chips row + (when multiple alerts) a passive
            * informational counter on the right. The counter
            * mirrors the design's footer counter — it tells the

@@ -84,13 +84,13 @@
 
 .topRow {
   display: flex;
-  /* `flex-start` (not `center`) so the severity chip and chevron
-   * stay at the top of the row when the title wraps to two lines.
-   * With `center`, they'd float vertically as the row grows, which
-   * reads as "I'm not sure which line to anchor to". Top-anchored
-   * with the title growing downward matches the natural reading
-   * direction. */
-  align-items: flex-start;
+  align-items: center;
+  /* Chip on the left, chevron flush right. Title used to live
+   * here too but has been promoted to its own row below so it
+   * gets the full container width — see the JSDoc / comment in
+   * AlertBanner/index.js for the 2026-05-28 Saskatoon case that
+   * triggered the change. */
+  justify-content: space-between;
   gap: 10px;
 }
 
@@ -118,34 +118,29 @@
 }
 
 .govAlert .title {
-  flex: 1;
-  min-width: 0;
+  /* Title sits on its own row below `.topRow` (chip + chevron)
+   * since 2026-05-28, so it gets the full container width
+   * instead of competing with the chip / chevron / dismiss
+   * button on a narrow rail. `margin-top` gives it a visual
+   * gap from the chip row; with the new layout it doesn't need
+   * `flex: 1` or any width constraint. */
+  margin-top: 6px;
   font-size: 15px;
   font-weight: 500;
   color: var(--c-text);
   letter-spacing: -0.005em;
   line-height: 1.3;
-  /* Allow the title to wrap onto a second line when the row is
-   * cramped — the severity chip eats 80-120 px of horizontal
-   * space (long FR labels like "AVERTISSEMENT" are 12 chars
-   * uppercase), and on the 7" Pi the rail is ~250 px wide, which
-   * leaves only ~100 px for the title once the chevron + dismiss
-   * button take their share. With the previous `nowrap + ellipsis`
-   * combo, a French title like "Avertissement de chaleur" was
-   * truncated to just "A." with no recovery path — observed live
-   * on a Saskatoon heat warning 2026-05-28.
-   *
-   * `overflow-wrap: anywhere` lets a single long unbreakable token
-   * (rare in alert titles but possible for product codes) break at
-   * any character if needed. `-webkit-line-clamp: 2` caps the
-   * title at two lines so a pathologically long upstream title
-   * can't blow up the head's height — past line 2, ellipsis
-   * resumes. Two lines is enough for any reasonable title at our
-   * font size (~30-40 chars / line at 15 px), so the cap rarely
-   * fires in practice. */
+  /* Defensive: `overflow-wrap: anywhere` lets an upstream-supplied
+   * single unbreakable token (rare in alert titles but possible
+   * for product codes) break at any character if the title still
+   * exceeds the container. `-webkit-line-clamp: 3` caps at 3 lines
+   * — generous enough that any reasonable NWS / ECCC title fits in
+   * full (3 lines × ~30 chars at 15 px = ~90 chars), while still
+   * preventing a pathological 200-char upstream title from
+   * blowing up the head height. */
   overflow-wrap: anywhere;
   display: -webkit-box;
-  -webkit-line-clamp: 2;
+  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
   overflow: hidden;
 }
