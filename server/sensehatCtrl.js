@@ -143,6 +143,22 @@ async function getSenseHatData(req, res) {
   }
 
   // ── 2. Current weather (shared cache → local HTTPS fallback) ─────────────
+  // Best-effort, NEVER fail-fast. The alert override (step 5) is the most
+  // critical Sense HAT signal — a gov-alert tier-red pulse must reach the
+  // LED matrix even when Tomorrow.io is rate-limiting us. Previously this
+  // block returned `502 "Could not fetch current weather"` on any axios
+  // failure, which aborted the whole response — including the alert that
+  // would have been fetched two steps below. Observed live 2026-05-28 on
+  // the Saskatoon kiosk: Tomorrow.io 429 → no payload → Sense HAT stopped
+  // pulsing red despite the heat warning still being active.
+  //
+  // With this change, a weather fetch failure leaves `weatherData = null`,
+  // which propagates through the `values = weatherData?.…?.values ?? {}`
+  // unwrap at step 4 and produces null/zero defaults in the response. The
+  // Python script's `classify(weather_code, ...)` already treats
+  // `weather_code = null` as 1000 (Clear) via `wc = weather_code or 1000`,
+  // so the worst case on a Tomorrow.io outage is "wrong weather animation
+  // for a few minutes" — much better than "alert pulse silently drops".
   let weatherData = _weatherFromCache(lat, lon);
   if (!weatherData) {
     try {
@@ -151,8 +167,9 @@ async function getSenseHatData(req, res) {
         { timeout: API_TIMEOUT_MS, httpsAgent: _localAgent }
       );
       weatherData = r.data;
-    } catch {
-      return res.status(502).json({ error: "Could not fetch current weather" });
+    } catch (err) {
+      console.warn("[sensehat] weather fetch failed:", err.message);
+      weatherData = null;
     }
   }
 
