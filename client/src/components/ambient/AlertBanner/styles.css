@@ -84,7 +84,13 @@
 
 .topRow {
   display: flex;
-  align-items: center;
+  /* `flex-start` (not `center`) so the severity chip and chevron
+   * stay at the top of the row when the title wraps to two lines.
+   * With `center`, they'd float vertically as the row grows, which
+   * reads as "I'm not sure which line to anchor to". Top-anchored
+   * with the title growing downward matches the natural reading
+   * direction. */
+  align-items: flex-start;
   gap: 10px;
 }
 
@@ -119,11 +125,29 @@
   color: var(--c-text);
   letter-spacing: -0.005em;
   line-height: 1.3;
-  /* Truncate long titles to a single line — the structured body
-   * carries the detail when the user wants to read it. */
+  /* Allow the title to wrap onto a second line when the row is
+   * cramped — the severity chip eats 80-120 px of horizontal
+   * space (long FR labels like "AVERTISSEMENT" are 12 chars
+   * uppercase), and on the 7" Pi the rail is ~250 px wide, which
+   * leaves only ~100 px for the title once the chevron + dismiss
+   * button take their share. With the previous `nowrap + ellipsis`
+   * combo, a French title like "Avertissement de chaleur" was
+   * truncated to just "A." with no recovery path — observed live
+   * on a Saskatoon heat warning 2026-05-28.
+   *
+   * `overflow-wrap: anywhere` lets a single long unbreakable token
+   * (rare in alert titles but possible for product codes) break at
+   * any character if needed. `-webkit-line-clamp: 2` caps the
+   * title at two lines so a pathologically long upstream title
+   * can't blow up the head's height — past line 2, ellipsis
+   * resumes. Two lines is enough for any reasonable title at our
+   * font size (~30-40 chars / line at 15 px), so the cap rarely
+   * fires in practice. */
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
 }
 
 .chevron {
