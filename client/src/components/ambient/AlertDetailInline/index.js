@@ -1,4 +1,4 @@
-import React, { useContext, useMemo } from "react";
+import React, { useContext, useEffect, useMemo } from "react";
 import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
@@ -129,6 +129,28 @@ const AlertDetailInline = () => {
     () => allGovAlerts.some((a) => a?.tier === "red" || a?.tier === "orange"),
     [allGovAlerts],
   );
+
+  // Clean up the map overlay (`highlightedAlertId`) when the detail
+  // panel collapses or the component unmounts. Without this, the
+  // ID set via the "Voir sur la carte" button (line ~206) would
+  // persist past the collapse — painting an orphan GeoJSON polygon
+  // on the radar with no visible toggle to dismiss it until the
+  // user re-expanded the detail AND re-tapped the same button.
+  //
+  // The first effect covers the "user collapses the detail panel
+  // via AlertBanner or the Réduire button" case. The second covers
+  // the unmount cases: switching layouts (Pi → Mobile via resize),
+  // removing the last eligible alert, etc. AppContext already
+  // handles cycling-to-next-alert (`govAlertIdx` change), so we
+  // don't duplicate that path here. See the Phase 4d wire-up in
+  // commit 765da0b for the original "set" side of this state.
+  useEffect(() => {
+    if (!govAlertExpanded && highlightedAlertId) {
+      setHighlightedAlertId(null);
+    }
+  }, [govAlertExpanded, highlightedAlertId, setHighlightedAlertId]);
+
+  useEffect(() => () => setHighlightedAlertId(null), [setHighlightedAlertId]);
 
   if (!hasEligible || allGovAlerts.length === 0) return null;
   if (!govAlertExpanded) return null;

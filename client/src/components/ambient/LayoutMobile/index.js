@@ -100,12 +100,30 @@ const LayoutMobile = () => {
   const [pullArmed, setPullArmed] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
   const ptrStateRef = useRef({ startY: 0, active: false });
+  // Mirror refs for the state values read inside the touch
+  // handlers. Without these, the effect below would need
+  // `[pullArmed, pullDistance, refreshing]` in its deps to capture
+  // the latest values via closure — and `setPullDistance` fires on
+  // every `touchmove` (~60×/s during a pull). The four listeners
+  // would tear down + re-install at the same rate, ~240 add/remove
+  // ops per second. Cheap-ish but wasteful. By mirroring the state
+  // into refs and reading the refs inside the handlers, the effect
+  // can subscribe once on mount and the handlers always see the
+  // latest value without re-subscription. Cf. design audit B3
+  // (2026-05-28).
+  const pullArmedRef = useRef(false);
+  const pullDistanceRef = useRef(0);
+  const refreshingRef = useRef(false);
+
+  useEffect(() => { pullArmedRef.current = pullArmed; }, [pullArmed]);
+  useEffect(() => { pullDistanceRef.current = pullDistance; }, [pullDistance]);
+  useEffect(() => { refreshingRef.current = refreshing; }, [refreshing]);
 
   useEffect(() => {
     const el = scrollRef.current;
     if (!el) return undefined;
     const onStart = (e) => {
-      if (el.scrollTop > 0 || refreshing) return;
+      if (el.scrollTop > 0 || refreshingRef.current) return;
       ptrStateRef.current = { startY: e.touches[0].clientY, active: true };
     };
     const onMove = (e) => {
@@ -113,8 +131,8 @@ const LayoutMobile = () => {
       if (!st.active) return;
       const delta = e.touches[0].clientY - st.startY;
       if (delta <= 0) {
-        if (pullDistance !== 0) setPullDistance(0);
-        if (pullArmed) setPullArmed(false);
+        if (pullDistanceRef.current !== 0) setPullDistance(0);
+        if (pullArmedRef.current) setPullArmed(false);
         return;
       }
       // Damped travel — pulls past PTR_MAX get diminishing returns.
@@ -126,7 +144,7 @@ const LayoutMobile = () => {
       const st = ptrStateRef.current;
       if (!st.active) return;
       ptrStateRef.current = { startY: 0, active: false };
-      if (pullArmed && !refreshing) {
+      if (pullArmedRef.current && !refreshingRef.current) {
         setRefreshing(true);
         setPullDistance(PTR_THRESHOLD);
         setTimeout(() => window.location.reload(), 200);
@@ -145,7 +163,8 @@ const LayoutMobile = () => {
       el.removeEventListener("touchend", onEnd);
       el.removeEventListener("touchcancel", onEnd);
     };
-  }, [pullArmed, pullDistance, refreshing]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- state values are read via mirror refs (above) so the effect can subscribe once on mount, not 60×/s during a pull
+  }, []);
 
   // When entering maximize mode, scroll the scroll container to the
   // top so the absolutely-positioned card (pinned to the scroll's
