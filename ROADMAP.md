@@ -360,6 +360,13 @@ Net: these are **one bundled migration**, not two independent ones. Plan when it
 
 Until then, react-leaflet stays on 4.2.1 — fully maintained, no security issues, no functional gap for our use case.
 
+### ⏳ ESLint 9 → 10 (one upstream blocker left: `eslint-plugin-react`)
+First noted in the v2.16+ "Console hygiene + dependency baseline" line above; investigated 2026-05-28. ESLint 10 was held by **two** upstream peer caps, not one:
+- `@babel/eslint-parser` (capped at `eslint ^9`) — **removed 2026-05-28.** Migrated the lint parser to native `espree`: the codebase uses only standard syntax (`@babel/preset-env` + `@babel/preset-react`, JSX), so espree parses everything. Dropped `@babel/eslint-parser` + `@babel/eslint-plugin` (the two `@babel/*` rules `semi` / `no-unused-expressions` are identical to the core rules on our syntax), set `ecmaVersion: "latest"`, deleted the dead legacy `.eslintrc`. `npm run prod` passes with 0 errors and the `dist/` bundle is byte-identical (lint-only change, zero runtime impact). The webpack build still uses `@babel/core` + presets + `babel-loader` — only the ESLint-side Babel packages were removed.
+- **`eslint-plugin-react@7.37.5`** (latest) — still caps at `eslint ^9.7`, no published version (nor the stale `next` tag) supports `^10`. This is now the **sole** remaining blocker.
+
+So ESLint 10 still ERESOLVEs, but on one dependency instead of two. Pure upstream wait — replacing `eslint-plugin-react` (many active `react/*` rules) is a chantier not worth it while ESLint 9 is fine (no security issue, no functional gap). **Re-check heuristic:** `npm view eslint-plugin-react peerDependencies` — once `^10.0.0` appears, bump `eslint` + `@eslint/js` to 10 and CI validates it.
+
 ### ✅ ~~Service-file customizations should live in a systemd drop-in, not the main unit~~ — **resolved in v2.8.1**
 `install.sh` and `toggle-remote.sh` now write `ALLOW_REMOTE=true` into a drop-in (`pi-weather-server.service.d/local.conf`) instead of editing the main service file. The canonical `deploy/pi-weather-server.service` stays a clean upstream mirror, and the in-app updater's `serviceFileChanged` warning only fires on real upstream changes. `toggle-remote.sh` migrates legacy installs by re-commenting the leftover line on the next toggle.
 
@@ -380,6 +387,6 @@ The three items I would prioritize above all others if returning to this project
 
 ---
 
-*Last updated: 2026-05-23 (Phase 3 tech-debt remediation reflected in this file: AppContext split — three hooks extracted with two more deferred past the diminishing-returns line; WeatherMap split — 1981 → 967 lines across six new files plus geometry.js; client-side test gap explicitly called out; v2 removal still on a 4-week field-test timer post-v2.18.1)*
+*Last updated: 2026-05-28 (ESLint lint parser migrated from `@babel/eslint-parser` to native espree — dropped two `@babel/*` ESLint packages, one of the two ESLint-10 blockers cleared; `eslint-plugin-react` ≤9.7 is now the sole remaining blocker, re-check via `npm view eslint-plugin-react peerDependencies`). Prior: 2026-05-23 Phase 3 tech-debt remediation — AppContext split (three hooks extracted, two deferred past diminishing returns); WeatherMap split (1981 → 967 lines across six new files plus geometry.js); client-side test gap called out; v2 removal on a 4-week field-test timer post-v2.18.1)*
 
 
