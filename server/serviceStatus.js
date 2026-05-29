@@ -16,6 +16,7 @@ function registerService(service) {
       status: null,
       lastCall: null,
       lastSuccess: null,
+      consecutiveFailures: 0,
       comment: "Not yet called",
     };
   }
@@ -42,6 +43,12 @@ function recordServiceCall(service, status, comment) {
     // weather fetch from proxyCtrl just succeeded — without this
     // we'd flip to red on every AI summary failure).
     lastSuccess: isSuccess ? now : (prev && prev.lastSuccess) || null,
+    // Count of consecutive non-2xx/3xx calls, reset to 0 on any success.
+    // The health classifier requires this to reach a threshold before it
+    // flags a service, so a single transient upstream blip (Tomorrow.io
+    // 5xx that recovers in <21 s, a burst-induced 429) never paints the
+    // chip red on its own. See healthCtrl.js `isFailure`.
+    consecutiveFailures: isSuccess ? 0 : ((prev && prev.consecutiveFailures) || 0) + 1,
     comment: comment || "",
   };
   console.log(`[service] ${service} → ${status}${comment ? " — " + comment : ""}`);
