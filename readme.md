@@ -12,19 +12,19 @@ A full-stack weather display application originally designed for the Raspberry P
 
 The kiosk browser is chosen interactively by `install.sh` (Chromium, Chrome, Brave, Edge, or Firefox) and persisted in `~/.config/pi-weather-station/browser.conf`. Snap-confined Firefox is supported via a named profile (`-P pi-weather-station`).
 
-## Try the v3 "Ambient" interface preview
+## Interface
 
-Starting in v2.14, every installation can opt into the upcoming v3 interface — a full rebuild of the dashboard, settings, and debug panels with a refreshed visual language ("Ambient Layers") and phone-friendly layouts on the way. v2 remains the production default; v3 is opt-in while feedback ramps up.
+Since **v2.18**, the default interface is **v3 "Ambient Layers"** — a full rebuild of the dashboard, settings, and debug panels with a refreshed visual language and responsive layouts for the 7" Pi, desktop, and phone. The legacy v2 interface remains available as a temporary fallback while the v3 rollout settles; its code path will be removed in a future release.
 
-To try it on your own station:
+To switch interfaces on your own station:
 
-1. Open **Settings → Advanced → Preview**
-2. Flip **Ambient interface (v3 preview)** on
-3. The page reloads into the new UI
+1. Open **Settings → Advanced → Interface**
+2. Toggle **Ambient interface v3** off to fall back to the legacy v2 layout, or back on to return to v3 (the default)
+3. The page reloads into the selected UI
 
-Flip it back off any time to return to the classic v2 interface — the toggle is the only switch needed. Both interfaces share the same backend, the same settings.json, and the same data sources; you're switching the front-end only.
+Both interfaces share the same backend, the same settings.json, and the same data sources; you're switching the front-end only.
 
-Spot a bug, a regression, or an awkward layout? Please open an issue at <https://github.com/thicla01/pi-weather-station/issues> with the v3-ambient label (the Debug panel's "About" bucket includes the UI flavour as `ui: v3-ambient (preview)` for clarity). The v3.0.0 final release — where v3 becomes the default and the mobile layout lands — is planned after the feedback window closes.
+Hit a bug, a regression, or an awkward layout in v3? Disable the toggle to fall back to v2 and please open an issue at <https://github.com/thicla01/pi-weather-station/issues> so it can be fixed before the v2 code path is removed.
 
 ## Screenshots
 
@@ -32,7 +32,7 @@ The original Pi Weather Station (v1.x), as designed by [@elewin](https://github.
 
 ![Original layout, v1.x](https://user-images.githubusercontent.com/15202038/91359998-4625bb80-e7bb-11ea-937e-c87eede41f35.JPG)
 
-The current v2 layout includes:
+The station includes:
 
 - **Indoor sensors block** — temperature / humidity / air quality from Homebridge, displayed next to the clock.
 - **AI-generated weather summary** powered by Claude, with a radar-movement paragraph describing nearby precipitation.
@@ -99,7 +99,7 @@ for tagged releases.
 >   (development resumed in 2026 after a multi-year hiatus).
 > - **This fork**
 >   ([thicla01](https://github.com/thicla01/pi-weather-station))
->   — actively developed since 2026, currently at **v2.13.x**.
+>   — actively developed since 2026, currently at **v2.18.x**.
 >   All the v2 features described in the screenshots above
 >   (AI summary, severe-alert banners with cycling, direction-arrow
 >   overlay, RADAR confidence pill, gov-alert detail section with
