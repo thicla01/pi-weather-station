@@ -311,9 +311,9 @@
     "restoreDismissedAria": "Tap to show alerts you dismissed earlier",
     "collapse": "Collapse",
     "collapseAria": "Collapse the alert detail to see the map again",
-    "showOnMap": "Show on map",
+    "showOnMap": "Show zone",
     "showOnMapAria": "Show the alert zone on the radar map",
-    "hideOnMap": "Hide from map",
+    "hideOnMap": "Hide zone",
     "hideOnMapAria": "Hide the alert zone from the radar map"
   },
   "govAlertDetail": {

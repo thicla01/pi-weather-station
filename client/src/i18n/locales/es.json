@@ -311,9 +311,9 @@
     "restoreDismissedAria": "Toque para volver a mostrar las alertas que ocultó",
     "collapse": "Contraer",
     "collapseAria": "Contraer el detalle de la alerta para volver a ver el mapa",
-    "showOnMap": "Ver en el mapa",
+    "showOnMap": "Mostrar zona",
     "showOnMapAria": "Mostrar la zona de alerta en el mapa de radar",
-    "hideOnMap": "Ocultar del mapa",
+    "hideOnMap": "Ocultar zona",
     "hideOnMapAria": "Ocultar la zona de alerta del mapa de radar"
   },
   "govAlertDetail": {
