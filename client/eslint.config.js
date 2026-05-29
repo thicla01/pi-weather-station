@@ -2,10 +2,8 @@ const js = require("@eslint/js");
 const globals = require("globals");
 const react = require("eslint-plugin-react");
 const reactHooks = require("eslint-plugin-react-hooks");
-const babelPlugin = require("@babel/eslint-plugin");
 const jsdoc = require("eslint-plugin-jsdoc");
 const eslintComments = require("@eslint-community/eslint-plugin-eslint-comments");
-const babelParser = require("@babel/eslint-parser");
 
 module.exports = [
   js.configs.recommended,
@@ -28,9 +26,8 @@ module.exports = [
   {
     files: ["src/**/*.{js,jsx}"],
     languageOptions: {
-      parser: babelParser,
       parserOptions: {
-        ecmaVersion: 9,
+        ecmaVersion: "latest",
         sourceType: "module",
         ecmaFeatures: { jsx: true },
       },
@@ -46,7 +43,6 @@ module.exports = [
     plugins: {
       react,
       "react-hooks": reactHooks,
-      "@babel": babelPlugin,
       jsdoc,
     },
     settings: {
@@ -61,7 +57,7 @@ module.exports = [
     rules: {
       ...reactHooks.configs["recommended-latest"].rules,
       "react/jsx-uses-react": 1,
-      "@babel/semi": 1,
+      "semi": 1,
       "camelcase": 1,
       "no-useless-return": 2,
       "no-self-compare": 2,
@@ -71,7 +67,7 @@ module.exports = [
       "no-multiple-empty-lines": 1,
       "no-empty-function": 2,
       "guard-for-in": 2,
-      "@babel/no-unused-expressions": 2,
+      "no-unused-expressions": 2,
       "jsx-quotes": ["warn", "prefer-double"],
       "comma-spacing": 1,
       "arrow-spacing": 1,
