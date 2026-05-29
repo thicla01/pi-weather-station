@@ -1336,14 +1336,10 @@ const BucketAbout = ({ data, lang, gridTwoWide }) => {
          * coexistence window. By definition this bucket renders only
          * when the v3 panel is mounted, so "v3-ambient" is correct
          * here; the v2 Debug overlay exists but doesn't have an
-         * About section like this. The "(preview)" label is also
-         * localised since it's a user-facing word, not a technical
-         * marker. */}
-        <KV k="ui"      v={lbl(lang,
-          "v3-ambient (preview)",
-          "v3-ambient (aperçu)",
-          "v3-ambient (vista previa)"
-        )} />
+         * About section like this. v3 is the default interface since
+         * v2.18, so there is no "preview" qualifier (and the value is a
+         * fixed technical marker, not a localised word). */}
+        <KV k="ui"      v="v3-ambient" />
       </div>
 
       <SectionTitle title={lbl(lang, "Update check", "Vérification MAJ", "Comprobación actualización")} gap />
