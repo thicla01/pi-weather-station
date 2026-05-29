@@ -510,24 +510,56 @@ const tileLimiter = rateLimit({
 
 const isLocalhostIp = (ip) => ip === "127.0.0.1" || ip === "::1" || ip === "::ffff:127.0.0.1";
 
-// req.ip respects trust proxy: when ALLOW_REMOTE is true it reads
-// X-Forwarded-For (set by the proxy), otherwise it falls back to socket IP.
+// SECURITY GATE — derive "is this request local?" from the raw TCP
+// socket peer, NEVER from req.ip.
+//
+// req.ip honors `trust proxy` (set to 1 when ALLOW_REMOTE, line ~493)
+// and therefore the client-supplied `X-Forwarded-For` header. A direct
+// remote/LAN client can send `X-Forwarded-For: 127.0.0.1` and Express
+// resolves req.ip to 127.0.0.1 — impersonating localhost and bypassing
+// every localhostOnly gate (and unmasking GET /settings). Confirmed
+// with a faithful repro 2026-05-29: socket peer 192.168.x.x + that
+// header → req.ip 127.0.0.1 → full API keys + Homebridge creds returned.
+//
+// `req.socket.remoteAddress` is the kernel-level connection origin and
+// cannot be forged by an HTTP header. Both documented remote-access
+// paths terminate at loopback, so they stay "local" and keep working:
+//   - SSH tunnel (`ssh -L 8443:localhost:8443`) connects from 127.0.0.1
+//   - RPi Connect screen-share drives the on-device kiosk → localhost
+// A direct VPN/LAN client connects from its real IP and is correctly
+// treated as remote: read-masked /settings, write gates rejected —
+// matching the "use an SSH tunnel for remote settings" docs.
+//
+// CAVEAT — if a same-host reverse proxy (nginx/caddy) is ever placed in
+// front of this server, every request arrives with socket peer
+// 127.0.0.1 and this check treats ALL clients as local. No such
+// deployment exists in the fleet today; if one is added, the proxy
+// itself must enforce the localhost restriction (never forward the
+// write endpoints) and this gate must be revisited.
+const socketIsLocal = (req) => isLocalhostIp(req.socket?.remoteAddress);
+
+// req.ip (which respects trust proxy / X-Forwarded-For) is still used
+// for client tracking + rate-limit keying below, where surfacing the
+// real client IP behind a legitimate proxy is desirable and a spoofed
+// value is low-impact. It MUST NOT gate access — that's socketIsLocal's
+// job. The security log records the real socket peer, not req.ip, so a
+// spoofed XFF can't disguise the true origin of a blocked request.
 app.use((req, res, next) => {
-  req.isLocal = isLocalhostIp(req.ip);
+  req.isLocal = socketIsLocal(req);
   if (!req.isLocal) recordClient(req.ip);
   next();
 });
 
 const localhostOnly = (req, res, next) => {
-  if (!isLocalhostIp(req.ip)) {
-    logSecurityEvent(req.ip, req.method, req.originalUrl);
+  if (!socketIsLocal(req)) {
+    logSecurityEvent(req.socket?.remoteAddress || req.ip, req.method, req.originalUrl);
     return res.status(403).json("Settings can only be modified from the Pi itself.").end();
   }
   next();
 };
 
 const debugLocalhostOnly = (req, res, next) => {
-  if (!isLocalhostIp(req.ip)) {
+  if (!socketIsLocal(req)) {
     return res.status(403).json("Debug endpoint is only accessible from the Pi itself.").end();
   }
   next();

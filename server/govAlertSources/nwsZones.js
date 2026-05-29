@@ -37,17 +37,48 @@ const USER_AGENT = "pi-weather-station (https://github.com/thicla01/pi-weather-s
 const _zoneCache = new Map();
 
 /**
+ * Defense-in-depth SSRF guard. The zone URLs we fetch come from the NWS
+ * alerts response (`properties.affectedZones`) over TLS, so they're
+ * trusted in the normal path — but blindly fetching an upstream-supplied
+ * URL is a textbook SSRF foothold. If the response were ever poisoned,
+ * or a future code path fed user-influenced data into getZoneGeometry,
+ * an attacker-controlled URL could reach internal targets the kiosk can
+ * see (cloud metadata at 169.254.169.254, the server's own
+ * localhost:8443 control endpoints, other LAN hosts). Pinning the host
+ * to the canonical NWS API endpoint over HTTPS costs nothing and removes
+ * the foothold entirely.
+ *
+ * Exact-match on hostname (not endsWith) so a lookalike like
+ * `api.weather.gov.evil.com` is rejected.
+ *
+ * @param {string} url
+ * @returns {boolean} true only for https://api.weather.gov/... URLs
+ */
+function isAllowedZoneUrl(url) {
+  if (!url || typeof url !== "string") return false;
+  try {
+    const parsed = new URL(url);
+    return parsed.protocol === "https:" && parsed.hostname === "api.weather.gov";
+  } catch {
+    return false; // unparseable
+  }
+}
+
+/**
  * Fetch the geometry for a single NWS zone URL, with caching.
  * Returns the GeoJSON geometry (Polygon or MultiPolygon) on success,
- * or null on any failure (timeout, network error, malformed payload,
- * missing geometry field). Callers should treat null as "this zone
- * couldn't be resolved" and proceed without it — never throw.
+ * or null on any failure (disallowed host, timeout, network error,
+ * malformed payload, missing geometry field). Callers should treat
+ * null as "this zone couldn't be resolved" and proceed without it —
+ * never throw.
  *
  * @param {string} url Full HTTPS URL to a /zones/{kind}/{id} endpoint
  * @returns {Promise<?Object>} GeoJSON geometry, or null
  */
 async function getZoneGeometry(url) {
-  if (!url || typeof url !== "string") return null;
+  // SSRF guard — reject anything that isn't https://api.weather.gov/...
+  // BEFORE any network call. See isAllowedZoneUrl for the rationale.
+  if (!isAllowedZoneUrl(url)) return null;
 
   // Cache hit (fresh): return immediately. Cache hit (expired):
   // fall through to refetch — same semantics as a miss but we
@@ -132,4 +163,6 @@ module.exports = {
   clearZoneCache,
   // exported for diagnostics (Debug panel could surface "N zones cached")
   _zoneCache,
+  // Exported for regression testing of the SSRF host allowlist.
+  __test: { isAllowedZoneUrl },
 };
