@@ -40,6 +40,110 @@ const CUSTOM_STYLES = {
 
 const API_TIMEOUT_MS = 10 * 1000;
 
+// Single-retry policy for transient upstream weather errors. Tomorrow.io
+// intermittently returns HTTP 5xx ("Temporary issue due to an unknown
+// internal error" — recovers in <21 s) and 429 rate-limits (commonly from
+// the synchronized current+hourly+daily+AI-summary burst hitting the API in
+// the same second). One retry after a short backoff absorbs nearly all of
+// these before the caller — and the health chip — ever sees a failure.
+//
+// Only fast-returning, genuinely transient statuses are retried: 429 and
+// 5xx. Deterministic 4xx errors (invalid key, bad coordinates) are NOT
+// retried — a retry just wastes a quota call and delays the inevitable
+// error. Network errors / timeouts are also left un-retried: a timeout
+// retry would add another full API_TIMEOUT_MS before the stale-on-error
+// fallback kicks in, so we route those straight to the stale path instead.
+const RETRY_BACKOFF_MS = 1500;
+
+/**
+ * Whether an axios error is a transient upstream blip worth one retry.
+ * True only for HTTP 429 and 5xx (fast responses that typically clear on
+ * a second attempt). Network errors / timeouts and all other 4xx return
+ * false — see RETRY_BACKOFF_MS comment for the rationale.
+ *
+ * @param {*} err axios error
+ * @returns {boolean}
+ */
+function isTransientError(err) {
+  const status = err?.response?.status;
+  if (typeof status !== "number") return false;
+  return status === 429 || (status >= 500 && status <= 599);
+}
+
+/**
+ * Runs an async thunk, retrying it exactly once after `backoffMs` if it
+ * throws a transient error (see isTransientError). Non-transient errors
+ * propagate immediately.
+ *
+ * @param {() => Promise<*>} fn the call to make (and possibly retry)
+ * @param {number} [backoffMs] delay before the single retry
+ * @returns {Promise<*>} the resolved value of `fn`
+ */
+async function retryTransient(fn, backoffMs = RETRY_BACKOFF_MS) {
+  try {
+    return await fn();
+  } catch (err) {
+    if (!isTransientError(err)) throw err;
+    await new Promise((r) => setTimeout(r, backoffMs));
+    return fn();
+  }
+}
+
+// Minimum spacing between consecutive Tomorrow.io dispatches. The free
+// tier caps bursts at ~3 requests/second; the client fires current +
+// hourly + daily (and the AI-summary path re-fetches current), which used
+// to land in the same instant and trip a 429. We serialize *dispatch
+// times* — not completions — so calls still run concurrently on the wire,
+// just kicked off >= this far apart. 350 ms keeps us comfortably under the
+// per-second cap even if all four queue at once (~1.4 s to drain). This is
+// the hard guarantee at the API-key boundary; the client also staggers its
+// pollers (AppContext) as cheap defence-in-depth so they rarely queue here
+// in the first place.
+const TOMORROW_MIN_SPACING_MS = 350;
+
+/**
+ * Builds a dispatch spacer: returns an async function that resolves only
+ * once at least `minSpacingMs` have elapsed since the previous resolution.
+ * Calls chain, so N concurrent callers drain one per `minSpacingMs`. The
+ * internal chain only ever awaits a timer (never rejects), so a failing
+ * caller can't wedge the queue.
+ *
+ * @param {number} minSpacingMs minimum gap between successive dispatches
+ * @returns {() => Promise<number>} await before each rate-limited call;
+ *   resolves to the dispatch timestamp (ms)
+ */
+function createSpacer(minSpacingMs) {
+  let tail = Promise.resolve(0);
+  return function space() {
+    const turn = tail.then(async (prevAt) => {
+      const wait = Math.max(0, prevAt + minSpacingMs - Date.now());
+      if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+      return Date.now();
+    });
+    tail = turn;
+    return turn;
+  };
+}
+
+// Shared across every Tomorrow.io call site — the three proxy endpoints
+// below and the AI-summary re-fetch in aiSummaryCtrl — so spacing is
+// enforced at the key boundary regardless of how many clients drive the
+// server (kiosk + remote viewers all share one API key).
+const spaceTomorrowCall = createSpacer(TOMORROW_MIN_SPACING_MS);
+
+/**
+ * axios.get for the Tomorrow.io weather endpoints, wrapped with the
+ * dispatch spacer + the single-retry transient policy. Carries the
+ * standard API_TIMEOUT_MS so every outbound call still has a timeout.
+ *
+ * @param {string} url fully-formed request URL
+ * @returns {Promise<import("axios").AxiosResponse>}
+ */
+async function weatherGet(url) {
+  await spaceTomorrowCall();
+  return retryTransient(() => axios.get(url, { timeout: API_TIMEOUT_MS }));
+}
+
 const WEATHER_CACHE_TTL = {
   current: 15 * 60 * 1000,
   hourly:  30 * 60 * 1000,
@@ -416,9 +520,8 @@ async function weatherCurrent(req, res) {
   if (cached) return res.status(200).json(cached).end();
 
   try {
-    const result = await axios.get(
-      `https://api.tomorrow.io/v4/timelines?location=${lat}%2C${lon}&fields=${fields}&timesteps=current&apikey=${settings.weatherApiKey}`,
-      { timeout: API_TIMEOUT_MS }
+    const result = await weatherGet(
+      `https://api.tomorrow.io/v4/timelines?location=${lat}%2C${lon}&fields=${fields}&timesteps=current&apikey=${settings.weatherApiKey}`
     );
     setInCache(cacheKey, result.data, WEATHER_CACHE_TTL.current);
     increment("tomorrow.io", "current");
@@ -477,9 +580,8 @@ async function weatherHourly(req, res) {
   if (cached) return res.status(200).json(cached).end();
 
   try {
-    const result = await axios.get(
-      `https://api.tomorrow.io/v4/timelines?location=${lat}%2C${lon}&fields=${fields}&timesteps=1h&apikey=${settings.weatherApiKey}&endTime=${endTime}`,
-      { timeout: API_TIMEOUT_MS }
+    const result = await weatherGet(
+      `https://api.tomorrow.io/v4/timelines?location=${lat}%2C${lon}&fields=${fields}&timesteps=1h&apikey=${settings.weatherApiKey}&endTime=${endTime}`
     );
     setInCache(cacheKey, result.data, WEATHER_CACHE_TTL.hourly);
     increment("tomorrow.io", "hourly");
@@ -533,9 +635,8 @@ async function weatherDaily(req, res) {
   if (cached) return res.status(200).json(cached).end();
 
   try {
-    const result = await axios.get(
-      `https://api.tomorrow.io/v4/timelines?location=${lat}%2C${lon}&fields=${fields}&timesteps=1d&apikey=${settings.weatherApiKey}&endTime=${endTime}`,
-      { timeout: API_TIMEOUT_MS }
+    const result = await weatherGet(
+      `https://api.tomorrow.io/v4/timelines?location=${lat}%2C${lon}&fields=${fields}&timesteps=1d&apikey=${settings.weatherApiKey}&endTime=${endTime}`
     );
     setInCache(cacheKey, result.data, WEATHER_CACHE_TTL.daily);
     increment("tomorrow.io", "daily");
@@ -659,4 +760,11 @@ module.exports = {
   // section → no daily fallback either). Keep these in sync if the
   // proxyCtrl cache key shape ever changes again.
   getCacheKey, CURRENT_FIELDS_HASH, HOURLY_FIELDS_HASH, DAILY_FIELDS_HASH,
+  // Shared Tomorrow.io dispatch spacer — awaited by aiSummaryCtrl before
+  // its own re-fetch so spacing is enforced at the API-key boundary across
+  // every call site, not just the three proxy endpoints here.
+  spaceTomorrowCall,
+  // Pure helpers exposed for unit tests — keeps the public surface clean
+  // while letting test/proxyRetry.test.js exercise the retry + spacing.
+  __test: { isTransientError, retryTransient, createSpacer },
 };

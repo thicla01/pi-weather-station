@@ -26,26 +26,44 @@ const CRITICAL_SERVICES = new Set([
   "LocationIQ",
 ]);
 
-// A failure is only "live" if there has been no successful call in
-// this window. The window must be wider than the slowest poller's
-// cadence — otherwise a sibling that succeeded once falls out of
-// the window before the next poll cycle, and an alternative-chain
-// failure (e.g. EPA AirNow 401 for a Canadian kiosk) re-surfaces
-// every cycle even though the regional source (MELCC RSQA / ECCC
-// AQHI) is working fine.
+// A failure is suppressed (treated as "not live") if there has been a
+// successful call within this window. This protects against transient
+// flakes and duplicate call paths (e.g. the AI-summary path re-fetching
+// Tomorrow.io and failing while the main weather poll just succeeded), and
+// against alternative-chain siblings: an EPA AirNow 401 for a Canadian
+// kiosk shouldn't surface every cycle while the regional source (MELCC
+// RSQA / ECCC AQHI) is working fine, so the window must be wider than the
+// slowest *fast* poller's cadence.
 //
-// Slowest poller is the AQ refresh at 30 min (see AppContext.js
-// `AQI_REFRESH_MS`). 35 min gives a 5 min buffer for the next poll
-// to land while the previous success is still counted. Faster
-// pollers (weather 1-5 min, alerts 5 min, geocode 30 min on
-// location change) all sit comfortably below this window.
-//
-// Trade-off: a service that genuinely starts failing takes up to
-// ~35 min to surface on the chip. Acceptable because we can't
-// detect a regression faster than the poll itself — bumping the
-// window narrower than the poll cadence just creates false
-// positives without speeding up real-failure detection.
+// 35 min comfortably covers the AQ refresh (30 min, see AppContext.js
+// `AQI_REFRESH_MS`), the current-weather poll (10 min), alerts (10 min),
+// and geocode (on location change). It does NOT cover the hourly weather
+// poll (60 min) or daily (24 h) — and that's fine, because the window is
+// no longer the only line of defence (see MIN_CONSECUTIVE_FAILURES below).
 const RECENT_SUCCESS_WINDOW_MS = 35 * 60 * 1000;
+
+// How many consecutive failed calls a service must accumulate before the
+// classifier flags it. This is the fix for the hourly/daily blip problem:
+// those endpoints poll at 60 min / 24 h, so their last success is ALWAYS
+// older than RECENT_SUCCESS_WINDOW_MS — meaning a single transient
+// Tomorrow.io 5xx/429 used to paint the chip red and keep it red until the
+// next successful poll (up to 24 h away for daily). Requiring two
+// consecutive failures means one blip bumps the counter to 1 and stays
+// invisible; only a sustained failure across consecutive polls reaches the
+// threshold and surfaces. The `consecutiveFailures` counter is maintained
+// in serviceStatus.recordServiceCall and reset to 0 on any success.
+//
+// Combined with the server-side single-retry in proxyCtrl (which already
+// absorbs most transient blips before they're ever recorded as a failure),
+// this makes a red chip mean "Tomorrow.io is actually down", not "it
+// hiccuped once".
+//
+// Trade-off: a service that genuinely starts failing now needs two failed
+// polls to surface — at worst ~48 h for the daily endpoint. Acceptable:
+// the 10-min current poll still surfaces a real Tomorrow.io outage within
+// ~20 min, and the daily forecast going stale for a day is not a
+// "degraded display" the user needs a red dot to learn about.
+const MIN_CONSECUTIVE_FAILURES = 2;
 
 // Services orchestrated as alternative chains — the first one that
 // returns usable data wins, and the others are expected to fail or
@@ -79,18 +97,25 @@ const ALTERNATIVE_GROUPS = [
 
 /**
  * Decide whether a serviceStatus entry counts as a failure for
- * health reporting. HTTP 2xx and 3xx are fine; 4xx/5xx + null
- * server-side exceptions are failures. `null` status (never called)
- * is treated as "fine" — see comment above.
+ * health reporting. HTTP 2xx and 3xx are fine; 4xx/5xx + non-numeric
+ * status (server-side exceptions) are failure *candidates*. `null`
+ * status (never called) is treated as "fine" — see comment above.
  *
- * @param {{status: ?number}} entry
+ * A failure candidate is only reported if BOTH:
+ *   1. there has been no successful call within RECENT_SUCCESS_WINDOW_MS
+ *      (suppresses transient flakes / duplicate call paths), and
+ *   2. it has failed at least MIN_CONSECUTIVE_FAILURES times in a row
+ *      (suppresses a single blip on a slow poller — hourly/daily —
+ *      whose last success always predates the window).
+ *
+ * @param {{status: ?number, lastSuccess: ?string, consecutiveFailures: ?number}} entry
  * @returns {boolean}
  */
 function isFailure(entry) {
   if (!entry || entry.status == null) return false;
   const code = Number(entry.status);
-  if (!Number.isFinite(code)) return true;
-  if (code < 400) return false;
+  const isErrorCode = !Number.isFinite(code) || code >= 400;
+  if (!isErrorCode) return false;
   // Suppress the failure if there's been a successful call recently
   // — protects against transient flakes and duplicate call paths
   // (e.g. AI summary re-fetching Tomorrow.io and failing while the
@@ -100,6 +125,11 @@ function isFailure(entry) {
     if (Number.isFinite(successAge) && successAge < RECENT_SUCCESS_WINDOW_MS) {
       return false;
     }
+  }
+  // Require a sustained failure (not a one-off blip) before reporting.
+  // See MIN_CONSECUTIVE_FAILURES above.
+  if ((entry.consecutiveFailures || 0) < MIN_CONSECUTIVE_FAILURES) {
+    return false;
   }
   return true;
 }
@@ -252,4 +282,15 @@ async function getHealth(req, res) {
   });
 }
 
-module.exports = { getHealth };
+module.exports = {
+  getHealth,
+  // Pure classifier helpers exposed for unit tests (see
+  // test/healthClassifier.test.js) — keeps the public surface minimal.
+  __test: {
+    isFailure,
+    suppressedByGroupSibling,
+    isUnconfiguredAlternative,
+    MIN_CONSECUTIVE_FAILURES,
+    RECENT_SUCCESS_WINDOW_MS,
+  },
+};
