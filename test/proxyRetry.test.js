@@ -12,7 +12,7 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 
 const { __test } = require("../server/proxyCtrl");
-const { isTransientError, retryTransient } = __test;
+const { isTransientError, retryTransient, createSpacer } = __test;
 
 // Build an axios-shaped error carrying an HTTP status.
 function httpError(status) {
@@ -105,4 +105,39 @@ test("retryTransient: gives up after a single retry (two failures propagate)", a
     (err) => err.response.status === 500
   );
   assert.equal(calls, 2, "one original attempt + one retry, then give up");
+});
+
+// ───────────────────────────────────────────────────────────────────────
+// createSpacer — minimum inter-dispatch spacing (burst → 429 defence)
+// ───────────────────────────────────────────────────────────────────────
+
+test("createSpacer: first dispatch resolves immediately (no initial wait)", async () => {
+  const space = createSpacer(1000);
+  const start = Date.now();
+  await space();
+  assert.ok(Date.now() - start < 200, "the first call must not wait a full spacing");
+});
+
+test("createSpacer: concurrent dispatches drain at least minSpacingMs apart", async () => {
+  // Four callers queue at once (the current+hourly+daily+AI burst). They
+  // must come out spaced, not all at the same instant. Uses a small 40 ms
+  // spacing so the test stays fast; 35 ms tolerance absorbs timer jitter.
+  const space = createSpacer(40);
+  const stamps = await Promise.all([space(), space(), space(), space()]);
+  for (let i = 1; i < stamps.length; i++) {
+    const gap = stamps[i] - stamps[i - 1];
+    assert.ok(gap >= 35, `dispatch ${i} came ${gap}ms after the previous (expected >= ~40ms)`);
+  }
+});
+
+test("createSpacer: a slow caller does not wedge the queue", async () => {
+  // The chain only ever awaits its own timer, so even if a caller does
+  // heavy work after awaiting space(), the NEXT space() still advances.
+  const space = createSpacer(20);
+  await space();
+  // Simulate a caller stalling after acquiring its slot.
+  await new Promise((r) => setTimeout(r, 50));
+  const start = Date.now();
+  await space();
+  assert.ok(Date.now() - start < 30, "next dispatch should not be blocked by the prior caller's work");
 });

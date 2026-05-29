@@ -1558,16 +1558,31 @@ export function AppContextProvider({ children }) {
       updateHourlyWeatherData(mapGeo).catch(() => undefined);
     };
     const runDaily = () => updateDailyWeatherData(mapGeo).catch(() => undefined);
-    runCurrent();
-    runHourly();
-    runDaily();
-    const cur = setInterval(runCurrent, CURRENT_INTERVAL);
-    const hrl = setInterval(runHourly, HOURLY_INTERVAL);
-    const dly = setInterval(runDaily, DAILY_INTERVAL);
+    // Stagger the three pollers so current / hourly / daily never fire in
+    // the same instant. Two wins: (1) no synchronized burst onto
+    // Tomorrow.io that trips the per-second rate limit (429), and (2) the
+    // offsets permanently phase-shift the intervals — without them the
+    // hourly tick realigns with a current tick every 60 min and the daily
+    // tick every 24 h. The server-side dispatch spacer (proxyCtrl) is the
+    // hard guarantee; this is cheap client-side defence-in-depth.
+    const POLLER_STAGGER_MS = 2000;
+    const pollers = [
+      { run: runCurrent, interval: CURRENT_INTERVAL, offset: 0 },
+      { run: runHourly, interval: HOURLY_INTERVAL, offset: POLLER_STAGGER_MS },
+      { run: runDaily, interval: DAILY_INTERVAL, offset: 2 * POLLER_STAGGER_MS },
+    ];
+    const startTimers = [];
+    const intervalTimers = [];
+    for (const poller of pollers) {
+      const startId = setTimeout(() => {
+        poller.run();
+        intervalTimers.push(setInterval(poller.run, poller.interval));
+      }, poller.offset);
+      startTimers.push(startId);
+    }
     return () => {
-      clearInterval(cur);
-      clearInterval(hrl);
-      clearInterval(dly);
+      startTimers.forEach((id) => clearTimeout(id));
+      intervalTimers.forEach((id) => clearInterval(id));
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- the update* helpers are stable per provider mount but not memoized; keying on the inputs that should restart the polling cycle (API key + location) is the intent.
   }, [weatherApiKey, mapGeo]);

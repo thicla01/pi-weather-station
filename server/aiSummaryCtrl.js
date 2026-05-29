@@ -14,6 +14,7 @@ const {
   CURRENT_FIELDS_HASH,
   HOURLY_FIELDS_HASH,
   DAILY_FIELDS_HASH,
+  spaceTomorrowCall,
 } = require("./proxyCtrl");
 const { recordServiceCall, getServiceStatus } = require("./serviceStatus");
 const { increment } = require("./requestCounter");
@@ -478,6 +479,9 @@ async function getWeatherSummary(req, res) {
     try {
       const fields = ["temperature", "humidity", "windSpeed",
         "precipitationProbability", "weatherCode", "cloudCover"].join("%2c");
+      // Go through the shared dispatch spacer so this re-fetch can't burst
+      // alongside the proxy's current/hourly/daily calls and trip a 429.
+      await spaceTomorrowCall();
       const result = await axios.get(
         `https://api.tomorrow.io/v4/timelines?location=${lat}%2C${lon}&fields=${fields}&timesteps=current&apikey=${settings.weatherApiKey}`,
         { timeout: 10_000 }

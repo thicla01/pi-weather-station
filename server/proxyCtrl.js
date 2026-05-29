@@ -89,15 +89,58 @@ async function retryTransient(fn, backoffMs = RETRY_BACKOFF_MS) {
   }
 }
 
+// Minimum spacing between consecutive Tomorrow.io dispatches. The free
+// tier caps bursts at ~3 requests/second; the client fires current +
+// hourly + daily (and the AI-summary path re-fetches current), which used
+// to land in the same instant and trip a 429. We serialize *dispatch
+// times* — not completions — so calls still run concurrently on the wire,
+// just kicked off >= this far apart. 350 ms keeps us comfortably under the
+// per-second cap even if all four queue at once (~1.4 s to drain). This is
+// the hard guarantee at the API-key boundary; the client also staggers its
+// pollers (AppContext) as cheap defence-in-depth so they rarely queue here
+// in the first place.
+const TOMORROW_MIN_SPACING_MS = 350;
+
+/**
+ * Builds a dispatch spacer: returns an async function that resolves only
+ * once at least `minSpacingMs` have elapsed since the previous resolution.
+ * Calls chain, so N concurrent callers drain one per `minSpacingMs`. The
+ * internal chain only ever awaits a timer (never rejects), so a failing
+ * caller can't wedge the queue.
+ *
+ * @param {number} minSpacingMs minimum gap between successive dispatches
+ * @returns {() => Promise<number>} await before each rate-limited call;
+ *   resolves to the dispatch timestamp (ms)
+ */
+function createSpacer(minSpacingMs) {
+  let tail = Promise.resolve(0);
+  return function space() {
+    const turn = tail.then(async (prevAt) => {
+      const wait = Math.max(0, prevAt + minSpacingMs - Date.now());
+      if (wait > 0) await new Promise((r) => setTimeout(r, wait));
+      return Date.now();
+    });
+    tail = turn;
+    return turn;
+  };
+}
+
+// Shared across every Tomorrow.io call site — the three proxy endpoints
+// below and the AI-summary re-fetch in aiSummaryCtrl — so spacing is
+// enforced at the key boundary regardless of how many clients drive the
+// server (kiosk + remote viewers all share one API key).
+const spaceTomorrowCall = createSpacer(TOMORROW_MIN_SPACING_MS);
+
 /**
  * axios.get for the Tomorrow.io weather endpoints, wrapped with the
- * single-retry transient policy. Carries the standard API_TIMEOUT_MS so
- * every outbound call still has a timeout.
+ * dispatch spacer + the single-retry transient policy. Carries the
+ * standard API_TIMEOUT_MS so every outbound call still has a timeout.
  *
  * @param {string} url fully-formed request URL
  * @returns {Promise<import("axios").AxiosResponse>}
  */
-function weatherGet(url) {
+async function weatherGet(url) {
+  await spaceTomorrowCall();
   return retryTransient(() => axios.get(url, { timeout: API_TIMEOUT_MS }));
 }
 
@@ -717,7 +760,11 @@ module.exports = {
   // section → no daily fallback either). Keep these in sync if the
   // proxyCtrl cache key shape ever changes again.
   getCacheKey, CURRENT_FIELDS_HASH, HOURLY_FIELDS_HASH, DAILY_FIELDS_HASH,
+  // Shared Tomorrow.io dispatch spacer — awaited by aiSummaryCtrl before
+  // its own re-fetch so spacing is enforced at the API-key boundary across
+  // every call site, not just the three proxy endpoints here.
+  spaceTomorrowCall,
   // Pure helpers exposed for unit tests — keeps the public surface clean
-  // while letting test/proxyRetry.test.js exercise the retry policy.
-  __test: { isTransientError, retryTransient },
+  // while letting test/proxyRetry.test.js exercise the retry + spacing.
+  __test: { isTransientError, retryTransient, createSpacer },
 };
