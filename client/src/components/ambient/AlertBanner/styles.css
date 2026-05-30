@@ -160,9 +160,11 @@
 /* v3.1 Phase 4c — passive counter that replaces the pre-4c cycle
  * pill. Same position in the meta-chips row (right-aligned via
  * margin-left:auto), but renders as plain text now: no border,
- * no background fill, no cursor. The user sees "1 / 3 active
- * alerts" as factual context — the actual navigation lives in
- * the `AlertMiniCards` list rendered below the banner. */
+ * no background fill, no cursor. The user sees the compact "1 / 3"
+ * form as factual context (the verbose "1 / 3 active alerts" stays
+ * on the aria-label so it doesn't overflow the narrow Pi rail) —
+ * the actual navigation lives in the `AlertMiniCards` list rendered
+ * below the banner. */
 .counter {
   font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 9.5px;

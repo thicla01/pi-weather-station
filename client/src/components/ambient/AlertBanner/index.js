@@ -150,7 +150,7 @@ const AlertBanner = () => {
                   count: allGovAlerts.length,
                 })}
               >
-                {t("alert.activeAlertsCount", {
+                {t("alert.activeAlertsCountShort", {
                   current: safeIdx + 1,
                   count: allGovAlerts.length,
                 })}
