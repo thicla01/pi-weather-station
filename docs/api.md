@@ -630,7 +630,7 @@ Sets the screen brightness in percent (0–100). Floors at `minPercent` (10%) by
 ### `GET /api/health`
 Aggregates the in-memory `serviceStatus` map into a three-tier health verdict for the client-side `HealthIndicator` dot in the BottomDock. Drives the green / yellow / red signal users see at the bottom-right of every layout.
 
-- **Access:** 🌐 Public — rate limited (120 req/min)
+- **Access:** 🌐 Public — rate limited (120 req/min). Remote callers get an **address-redacted** payload: any internal host / IP:port embedded in an `issues[].comment` (e.g. a Homebridge connection error) is replaced with `[redacted]`. Local callers (kiosk, SSH tunnel, RPi Connect — all loopback) receive the full comment for diagnostics.
 - **Query params:** none
 - **Response:**
 

@@ -14,7 +14,7 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 
 const { __test } = require("../server/healthCtrl");
-const { isFailure, MIN_CONSECUTIVE_FAILURES, RECENT_SUCCESS_WINDOW_MS } = __test;
+const { isFailure, redactHostInfo, MIN_CONSECUTIVE_FAILURES, RECENT_SUCCESS_WINDOW_MS } = __test;
 
 const minutesAgo = (m) => new Date(Date.now() - m * 60 * 1000).toISOString();
 
@@ -110,4 +110,40 @@ test("a missing consecutiveFailures field is treated as 0 (suppressed)", () => {
   // Defensive: an entry recorded before this field existed shouldn't crash
   // or spuriously surface.
   assert.equal(isFailure({ status: 500, lastSuccess: null }), false);
+});
+
+// ───────────────────────────────────────────────────────────────────────
+// Host redaction — GET /api/health is not localhost-gated, so a service
+// comment sourced from a raw network-error message must not leak an
+// internal host:port to a remote caller. (See the Homebridge indoor-temp
+// path: a code-less axios error surfaces "connect ECONNREFUSED host:port".)
+// ───────────────────────────────────────────────────────────────────────
+
+test("redactHostInfo strips a bare IPv4 with port", () => {
+  assert.equal(
+    redactHostInfo("connect ECONNREFUSED 192.168.6.212:8581"),
+    "connect ECONNREFUSED [redacted]"
+  );
+});
+
+test("redactHostInfo strips a bare IPv4 without port", () => {
+  assert.equal(redactHostInfo("no route to 10.0.0.5"), "no route to [redacted]");
+});
+
+test("redactHostInfo strips a hostname:port pair", () => {
+  assert.equal(
+    redactHostInfo("getaddrinfo ENOTFOUND homebridge.local:8581"),
+    "getaddrinfo ENOTFOUND [redacted]"
+  );
+});
+
+test("redactHostInfo leaves a host-free comment untouched", () => {
+  // The common case after the indoorTempCtrl hardening: bare error code.
+  assert.equal(redactHostInfo("ECONNREFUSED"), "ECONNREFUSED");
+  assert.equal(redactHostInfo("Homebridge unreachable"), "Homebridge unreachable");
+});
+
+test("redactHostInfo handles empty / falsy input", () => {
+  assert.equal(redactHostInfo(""), "");
+  assert.equal(redactHostInfo(undefined), "");
 });

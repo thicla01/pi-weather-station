@@ -92,6 +92,12 @@ async function getZoneGeometry(url) {
     resp = await axios.get(url, {
       timeout: ZONE_FETCH_TIMEOUT_MS,
       headers: { "User-Agent": USER_AGENT, Accept: "application/geo+json" },
+      // Don't follow redirects: isAllowedZoneUrl validates the initial URL
+      // (https + api.weather.gov), but a 3xx Location is NOT re-checked by
+      // axios and could steer the fetch to an arbitrary host. A legitimate
+      // api.weather.gov zone endpoint answers 200 directly, so refusing
+      // redirects rejects nothing real while closing the SSRF redirect gap.
+      maxRedirects: 0,
     });
   } catch {
     // Network error, timeout, 4xx/5xx. Don't cache a failure — the
