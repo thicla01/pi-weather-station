@@ -305,6 +305,7 @@
     "sectionAction": "What to do",
     "activeAlertsCount_one": "{{current}} / {{count}} active alert",
     "activeAlertsCount_other": "{{current}} / {{count}} active alerts",
+    "activeAlertsCountShort": "{{current}} / {{count}}",
     "selectAlertAria": "Switch to this alert",
     "restoreDismissed_one": "Restore {{count}} hidden alert",
     "restoreDismissed_other": "Restore {{count}} hidden alerts",

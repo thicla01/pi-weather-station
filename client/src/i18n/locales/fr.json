@@ -305,6 +305,7 @@
     "sectionAction": "Mesures à prendre",
     "activeAlertsCount_one": "{{current}} / {{count}} alerte active",
     "activeAlertsCount_other": "{{current}} / {{count}} alertes actives",
+    "activeAlertsCountShort": "{{current}} / {{count}}",
     "selectAlertAria": "Passer à cette alerte",
     "restoreDismissed_one": "Restaurer {{count}} alerte masquée",
     "restoreDismissed_other": "Restaurer {{count}} alertes masquées",
