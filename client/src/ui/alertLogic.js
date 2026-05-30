@@ -22,6 +22,33 @@
 import { confidenceBucket } from "./hybrid";
 
 /**
+ * Government-alert tiers the v3 banner stack actually displays.
+ * `severityToTier` (server/govAlertSources/_shared.js) emits "red",
+ * "orange" or "yellow"; only red/orange clear the SHOW gate. Yellow-
+ * tier (minor/low severity) alerts are intentionally never surfaced.
+ */
+export const ELIGIBLE_GOV_TIERS = ["red", "orange"];
+
+/**
+ * Filter a list of government alerts down to the displayable tiers
+ * (red/orange). Single source of truth shared — via the
+ * `useEligibleGovAlerts` hook — by the AlertBanner counter + primary
+ * index, AlertDetailInline, FloatingMiniBanner and AlertMiniCards, so
+ * none of them disagree on what "N active alerts" means. Before this
+ * existed, the banner counter counted ALL tiers while the mini-cards
+ * list only showed red/orange, so a sub-threshold yellow ECCC alert
+ * inflated "1 / 2" without ever appearing as a card (the Nicolet
+ * report, 2026-05-29).
+ *
+ * @param {Array<{tier?: string}>} alerts
+ * @returns {Array} the subset whose tier is red or orange
+ */
+export function selectEligibleGovAlerts(alerts) {
+  if (!Array.isArray(alerts)) return [];
+  return alerts.filter((a) => ELIGIBLE_GOV_TIERS.includes(a?.tier));
+}
+
+/**
  * Numeric severity for risk-level comparison.
  *
  * @param {string|null} level — "calm" | "yellow" | "orange" | "red" | null

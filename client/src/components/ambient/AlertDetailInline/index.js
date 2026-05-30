@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo } from "react";
+import React, { useContext, useEffect } from "react";
 import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
@@ -13,7 +13,7 @@ import radarWeatherIcon from "@iconify/icons-carbon/radar-weather";
 import binocularsIcon from "@iconify/icons-carbon/binoculars";
 import { AppContext } from "~/AppContext";
 import QrCode from "~/components/ambient/QrCode";
-import useDismissedAlerts from "~/hooks/useDismissedAlerts";
+import useEligibleGovAlerts from "~/hooks/useEligibleGovAlerts";
 import { parseAlertText } from "~/ui/alertParser";
 import styles from "./styles.css";
 
@@ -107,28 +107,18 @@ const SECTION_ICONS = {
  */
 const AlertDetailInline = () => {
   const {
-    govAlerts,
-    govAlertIdx,
     govAlertExpanded,
     setGovAlertExpanded,
     highlightedAlertId,
     setHighlightedAlertId,
   } = useContext(AppContext);
   const { i18n, t } = useTranslation();
-  const { isDismissed } = useDismissedAlerts();
 
-  // Hide the detail section for alerts the user has dismissed via
-  // the AlertBanner ✕ button. Same filter the banner applies — the
-  // two components stay in sync via the shared useDismissedAlerts
-  // localStorage hook.
-  const allGovAlerts = useMemo(
-    () => (Array.isArray(govAlerts) ? govAlerts.filter((a) => !isDismissed(a)) : []),
-    [govAlerts, isDismissed],
-  );
-  const hasEligible = useMemo(
-    () => allGovAlerts.some((a) => a?.tier === "red" || a?.tier === "orange"),
-    [allGovAlerts],
-  );
+  // Current eligible (red/orange, non-dismissed) gov alert, derived
+  // by the same shared hook AlertBanner uses so the detail body and
+  // the banner head always show the same alert. The hook applies the
+  // dismissal filter + the red/orange tier gate in one place.
+  const { currentAlert } = useEligibleGovAlerts();
 
   // Clean up the map overlay (`highlightedAlertId`) when the detail
   // panel collapses or the component unmounts. Without this, the
@@ -152,13 +142,10 @@ const AlertDetailInline = () => {
 
   useEffect(() => () => setHighlightedAlertId(null), [setHighlightedAlertId]);
 
-  if (!hasEligible || allGovAlerts.length === 0) return null;
+  if (!currentAlert) return null;
   if (!govAlertExpanded) return null;
 
   const lang = ["fr", "es"].find((l) => i18n.language.startsWith(l)) || "en";
-  const safeIdx = govAlertIdx % allGovAlerts.length;
-  const currentAlert = allGovAlerts[safeIdx];
-  if (!currentAlert) return null;
 
   const source = currentAlert.source || "ECCC";
   const description = lang === "fr"
