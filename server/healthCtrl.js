@@ -208,6 +208,32 @@ function isUnconfiguredAlternative(service, entry) {
   return false;
 }
 
+// Patterns that can carry an internal network address inside a service
+// comment: bare IPv4 (with optional :port), and host:port pairs (e.g. a
+// reverse-DNS name or "homebridge.local:8581"). Service comments are
+// surfaced verbatim by GET /api/health, which is NOT localhost-gated, so a
+// comment sourced from a raw network-error message could disclose an
+// internal host to a remote client — the exact thing GET /settings strips
+// for the indoorTemperature block. Sources are also hardened at the point
+// of recording (see indoorTempCtrl), but this is defense in depth for any
+// current or future comment source that forgets.
+const IPV4_WITH_PORT = /\b\d{1,3}(?:\.\d{1,3}){3}(?::\d{1,5})?\b/g;
+const HOST_WITH_PORT = /\b[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+:\d{1,5}\b/gi;
+
+/**
+ * Redacts internal network addresses (IPv4 / host:port) from a service
+ * comment so it is safe to return to a remote (non-localhost) client.
+ *
+ * @param {string} comment - Raw service comment, possibly containing a host.
+ * @returns {string} The comment with any address replaced by "[redacted]".
+ */
+function redactHostInfo(comment) {
+  if (!comment) return "";
+  return comment
+    .replace(IPV4_WITH_PORT, "[redacted]")
+    .replace(HOST_WITH_PORT, "[redacted]");
+}
+
 async function getHealth(req, res) {
   const all = getServiceStatus();
   const issues = [];
@@ -215,10 +241,14 @@ async function getHealth(req, res) {
     if (!isFailure(entry)) continue;
     if (isUnconfiguredAlternative(service, entry)) continue;
     if (suppressedByGroupSibling(service, all)) continue;
+    const rawComment = entry.comment || "";
     issues.push({
       service,
       status: entry.status,
-      comment: entry.comment || "",
+      // Local callers (the kiosk itself, SSH tunnel, RPi Connect — all
+      // terminate at loopback) get the full comment for diagnostics;
+      // remote callers get an address-redacted version.
+      comment: req.isLocal ? rawComment : redactHostInfo(rawComment),
       critical: CRITICAL_SERVICES.has(service),
     });
   }
@@ -290,6 +320,7 @@ module.exports = {
     isFailure,
     suppressedByGroupSibling,
     isUnconfiguredAlternative,
+    redactHostInfo,
     MIN_CONSECUTIVE_FAILURES,
     RECENT_SUCCESS_WINDOW_MS,
   },

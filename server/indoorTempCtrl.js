@@ -127,7 +127,14 @@ async function pollOnce() {
     recordServiceCall("Homebridge", 200, "OK");
   } catch (err) {
     const status = err?.response?.status || 500;
-    const message = err?.code || err?.message || "Homebridge fetch failed";
+    // Record an error CODE only (e.g. "ECONNREFUSED"), never err.message:
+    // axios messages embed the target — "connect ECONNREFUSED 10.0.0.5:8581",
+    // "getaddrinfo ENOTFOUND homebridge.local" — and this comment is surfaced
+    // verbatim by GET /api/health, which is not localhost-gated. Leaking the
+    // internal Homebridge host:port would violate the same host-stripping
+    // invariant that GET /settings enforces (see REMOTE_HIDDEN_KEYS). The bare
+    // code carries all the diagnostic value the status code doesn't already.
+    const message = err?.code || "Homebridge unreachable";
     recordServiceCall("Homebridge", status, String(message).slice(0, 100));
   }
 }
