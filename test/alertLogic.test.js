@@ -178,3 +178,50 @@ test("getRadarAlertState: confidence is clamped 0-100", () => {
   const r2 = getRadarAlertState("red", "calm", "stable", "stable", false, false, -20, 0, false);
   assert.equal(r2.confidence, 0);
 });
+
+// ───────────────────────────────────────────────────────────────────────
+// selectEligibleGovAlerts — the displayable-tier filter shared by the
+// AlertBanner counter, primary index, AlertDetailInline,
+// FloatingMiniBanner and AlertMiniCards (via useEligibleGovAlerts).
+// Re-implemented here deps-free, same pattern as the helpers above.
+// ───────────────────────────────────────────────────────────────────────
+
+const ELIGIBLE_GOV_TIERS = ["red", "orange"];
+function selectEligibleGovAlerts(alerts) {
+  if (!Array.isArray(alerts)) return [];
+  return alerts.filter((a) => ELIGIBLE_GOV_TIERS.includes(a?.tier));
+}
+
+test("selectEligibleGovAlerts: keeps red and orange, drops yellow", () => {
+  const out = selectEligibleGovAlerts([
+    { id: "a", tier: "red" },
+    { id: "b", tier: "orange" },
+    { id: "c", tier: "yellow" },
+  ]);
+  assert.deepEqual(out.map((a) => a.id), ["a", "b"]);
+});
+
+test("selectEligibleGovAlerts: Nicolet regression — a yellow alert must not inflate the count", () => {
+  // The Nicolet report (2026-05-29): one red/orange ECCC alert plus one
+  // yellow-tier alert showed "1 / 2" in the banner but only one card.
+  // The eligible set the counter/cards run off must be length 1, so the
+  // counter reads "1 / 1" and there is no orphan second card.
+  const visible = [
+    { id: "orage", tier: "red" },
+    { id: "veille-jaune", tier: "yellow" },
+  ];
+  const eligible = selectEligibleGovAlerts(visible);
+  assert.equal(eligible.length, 1);
+  assert.equal(eligible[0].id, "orage");
+});
+
+test("selectEligibleGovAlerts: non-array / empty inputs return []", () => {
+  assert.deepEqual(selectEligibleGovAlerts(null), []);
+  assert.deepEqual(selectEligibleGovAlerts(undefined), []);
+  assert.deepEqual(selectEligibleGovAlerts([]), []);
+});
+
+test("selectEligibleGovAlerts: alerts with no tier are dropped", () => {
+  const out = selectEligibleGovAlerts([{ id: "a" }, { id: "b", tier: "red" }]);
+  assert.deepEqual(out.map((a) => a.id), ["b"]);
+});

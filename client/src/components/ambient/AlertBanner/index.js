@@ -1,4 +1,4 @@
-import React, { useContext, useMemo } from "react";
+import React, { useContext } from "react";
 import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
 import closeIcon from "@iconify/icons-carbon/close";
@@ -9,6 +9,7 @@ import ConfidencePill from "~/components/ambient/ConfidencePill";
 import SeverityChip from "~/components/ambient/SeverityChip";
 import AlertMetaChips from "~/components/ambient/AlertMetaChips";
 import useDismissedAlerts from "~/hooks/useDismissedAlerts";
+import useEligibleGovAlerts from "~/hooks/useEligibleGovAlerts";
 import {
   isCurrentlyPrecipitating,
   getRadarAlertState,
@@ -45,36 +46,24 @@ const AlertBanner = () => {
     innerTrend, outerTrend,
     innerBumped, outerBumped,
     innerTrendConfidence, outerTrendConfidence,
-    govAlerts,
-    govAlertIdx,
     govAlertExpanded,
     setGovAlertExpanded,
     currentWeatherData,
   } = useContext(AppContext);
   const { t, i18n } = useTranslation();
-  const { isDismissed, dismiss } = useDismissedAlerts();
+  const { dismiss } = useDismissedAlerts();
 
-  // Filter user-dismissed alerts before the eligibility / cycling
-  // logic. Severity escalations re-surface via useDismissedAlerts
-  // (the 4 h auto-resurface floor lives there too) so silencing
-  // never goes "stuck closed" on an escalating event.
-  const visibleGovAlerts = useMemo(
-    () => (Array.isArray(govAlerts) ? govAlerts.filter((a) => !isDismissed(a)) : []),
-    [govAlerts, isDismissed],
-  );
+  // Eligible (red/orange, non-dismissed) gov alerts and the current
+  // one, derived by the shared hook so the counter, the primary
+  // index, AlertDetailInline, FloatingMiniBanner and AlertMiniCards
+  // never disagree on the displayed set (yellow-tier alerts must not
+  // inflate the counter — see useEligibleGovAlerts).
+  const { eligibleGovAlerts, safeIdx, currentAlert } = useEligibleGovAlerts();
 
-  const allGovAlerts = visibleGovAlerts;
-  const hasEligibleGovAlert = useMemo(
-    () => allGovAlerts.some((a) => a?.tier === "red" || a?.tier === "orange"),
-    [allGovAlerts],
-  );
-
-  if (hasEligibleGovAlert && allGovAlerts.length > 0) {
-    const safeIdx = govAlertIdx % allGovAlerts.length;
-    const currentAlert = allGovAlerts[safeIdx];
+  if (currentAlert) {
     const lang = (i18n.language || "en").slice(0, 2);
     const title = lang === "fr" ? currentAlert.title_fr : currentAlert.title_en;
-    const hasOthers = allGovAlerts.length > 1;
+    const hasOthers = eligibleGovAlerts.length > 1;
 
     // v3.1 Phase 4c: the head row is the toggle for
     // `AlertDetailInline` — tap anywhere in the head expands /
@@ -147,12 +136,12 @@ const AlertBanner = () => {
                 className={styles.counter}
                 aria-label={t("alert.activeAlertsCount", {
                   current: safeIdx + 1,
-                  count: allGovAlerts.length,
+                  count: eligibleGovAlerts.length,
                 })}
               >
                 {t("alert.activeAlertsCountShort", {
                   current: safeIdx + 1,
-                  count: allGovAlerts.length,
+                  count: eligibleGovAlerts.length,
                 })}
               </span>
             )}

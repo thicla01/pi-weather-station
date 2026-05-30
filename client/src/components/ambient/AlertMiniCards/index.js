@@ -6,6 +6,7 @@ import undoIcon from "@iconify/icons-carbon/undo";
 import { AppContext } from "~/AppContext";
 import SeverityChip from "~/components/ambient/SeverityChip";
 import useDismissedAlerts from "~/hooks/useDismissedAlerts";
+import useEligibleGovAlerts from "~/hooks/useEligibleGovAlerts";
 import styles from "./styles.css";
 
 // Severity-to-rank table for the descending sort in the component
@@ -52,62 +53,41 @@ const SEVERITY_RANK = {
  *   pill, or null when there's nothing to render
  */
 const AlertMiniCards = () => {
-  const { govAlerts, govAlertIdx, selectGovAlert } = useContext(AppContext);
+  const { selectGovAlert } = useContext(AppContext);
   const { t, i18n } = useTranslation();
-  const { isDismissed, restoreAll, dismissedCount } = useDismissedAlerts();
+  const { restoreAll, dismissedCount } = useDismissedAlerts();
   const lang = (i18n.language || "en").slice(0, 2);
 
-  // Same filter chain AlertBanner runs — keep the two components
-  // synchronised so neither shows an alert the other has hidden.
-  const visibleGovAlerts = useMemo(
-    () => (Array.isArray(govAlerts) ? govAlerts.filter((a) => !isDismissed(a)) : []),
-    [govAlerts, isDismissed],
-  );
-  const hasEligible = useMemo(
-    () => visibleGovAlerts.some((a) => a?.tier === "red" || a?.tier === "orange"),
-    [visibleGovAlerts],
-  );
+  // Eligible (red/orange, non-dismissed) gov alerts and the current
+  // primary, from the shared hook — same derivation AlertBanner uses,
+  // so the primary never appears BOTH at the top AND as a mini-card
+  // (the duplicate bug field-tested 2026-05-25) and the denominators
+  // stay in lockstep.
+  const { eligibleGovAlerts, currentAlert: primaryAlert } = useEligibleGovAlerts();
 
-  // Compute the primary alert the SAME way AlertBanner does — by
-  // visibleGovAlerts index, NOT by govAlerts absolute index.
-  // AlertBanner: `safeIdx = govAlertIdx % visibleGovAlerts.length`
-  // → primary = `visibleGovAlerts[safeIdx]`. If we filter mini-cards
-  // by absolute govAlerts index instead, dismissals shift the visible
-  // position and the primary appears BOTH at the top AND as a
-  // mini-card (the duplicate bug field-tested 2026-05-25). Filter by
-  // object identity to stay in lockstep with the banner.
-  const primaryAlert = useMemo(() => {
-    if (!hasEligible || visibleGovAlerts.length === 0) return null;
-    const safeIdx = govAlertIdx % visibleGovAlerts.length;
-    return visibleGovAlerts[safeIdx];
-  }, [hasEligible, visibleGovAlerts, govAlertIdx]);
-
-  // Other eligible alerts (red/orange tier, not the primary). We
-  // record each alert's position in `visibleGovAlerts` because that's
-  // what `selectGovAlert` needs to set as `govAlertIdx` — AlertBanner
-  // re-mods by visibleGovAlerts.length, so any value in [0, len) maps
-  // directly to a unique alert in the visible list.
+  // Other eligible alerts (not the primary). We record each alert's
+  // index in `eligibleGovAlerts` because that's the value
+  // `selectGovAlert` must set as `govAlertIdx` — AlertBanner re-mods
+  // by `eligibleGovAlerts.length`, so any value in [0, len) maps
+  // directly to a unique alert in the eligible list.
   const ranked = useMemo(() => {
-    const others = visibleGovAlerts
-      .map((alert, visibleIdx) => ({ alert, visibleIdx }))
-      .filter(({ alert }) => (
-        (alert?.tier === "red" || alert?.tier === "orange")
-        && alert !== primaryAlert
-      ));
+    const others = eligibleGovAlerts
+      .map((alert, eligibleIdx) => ({ alert, eligibleIdx }))
+      .filter(({ alert }) => alert !== primaryAlert);
     // Sort the OTHERS by severity desc (warning > watch > advisory),
-    // keeping their visibleIdx unchanged so tap → selectGovAlert
+    // keeping their eligibleIdx unchanged so tap → selectGovAlert
     // still lands on the right alert.
     return others
       .map((entry) => ({
         alert: entry.alert,
-        visibleIdx: entry.visibleIdx,
+        eligibleIdx: entry.eligibleIdx,
         rank: SEVERITY_RANK[entry.alert.severity] || 0,
       }))
       .sort((a, b) => {
         if (a.rank !== b.rank) return b.rank - a.rank;
         return String(a.alert.expiresAt || "").localeCompare(String(b.alert.expiresAt || ""));
       });
-  }, [visibleGovAlerts, primaryAlert]);
+  }, [eligibleGovAlerts, primaryAlert]);
 
   const hasMiniCards = ranked.length > 0;
   const hasDismissals = dismissedCount > 0;
@@ -117,19 +97,19 @@ const AlertMiniCards = () => {
     <div className={styles.container}>
       {hasMiniCards && (
         <ul className={styles.list}>
-          {ranked.map(({ alert, visibleIdx }) => {
+          {ranked.map(({ alert, eligibleIdx }) => {
             const title = lang === "fr" ? alert.title_fr : alert.title_en;
             return (
               <li
-                key={alert.id || `${visibleIdx}-${alert.title_en}`}
+                key={alert.id || `${eligibleIdx}-${alert.title_en}`}
                 className={`${styles.card} ${styles[`tier-${alert.tier}`]}`}
                 role="button"
                 tabIndex={0}
-                onClick={() => selectGovAlert(visibleIdx)}
+                onClick={() => selectGovAlert(eligibleIdx)}
                 onKeyDown={(e) => {
                   if (e.key === "Enter" || e.key === " ") {
                     e.preventDefault();
-                    selectGovAlert(visibleIdx);
+                    selectGovAlert(eligibleIdx);
                   }
                 }}
                 aria-label={t("alert.selectAlertAria")}

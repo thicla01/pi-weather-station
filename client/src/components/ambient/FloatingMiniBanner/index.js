@@ -1,8 +1,8 @@
-import React, { useContext, useMemo } from "react";
+import React from "react";
 import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
-import { AppContext } from "~/AppContext";
 import SourceBadge from "~/components/ambient/SourceBadge";
+import useEligibleGovAlerts from "~/hooks/useEligibleGovAlerts";
 import styles from "./styles.css";
 
 /**
@@ -30,22 +30,12 @@ import styles from "./styles.css";
  * @returns {JSX.Element|null} mini-banner, or null when no alert is eligible
  */
 const FloatingMiniBanner = ({ onExpand }) => {
-  const { govAlerts, govAlertIdx } = useContext(AppContext);
   const { i18n } = useTranslation();
+  // Same eligible-alert derivation as AlertBanner — shared hook so the
+  // collapsed-rail overlay shows the exact alert the full banner would,
+  // dismissal filter included (this overlay previously skipped it).
+  const { currentAlert } = useEligibleGovAlerts();
 
-  const allGovAlerts = useMemo(
-    () => (Array.isArray(govAlerts) ? govAlerts : []),
-    [govAlerts],
-  );
-  const hasEligible = useMemo(
-    () => allGovAlerts.some((a) => a?.tier === "red" || a?.tier === "orange"),
-    [allGovAlerts],
-  );
-
-  if (!hasEligible || allGovAlerts.length === 0) return null;
-
-  const safeIdx = govAlertIdx % allGovAlerts.length;
-  const currentAlert = allGovAlerts[safeIdx];
   if (!currentAlert) return null;
 
   const lang = (i18n.language || "en").slice(0, 2);
