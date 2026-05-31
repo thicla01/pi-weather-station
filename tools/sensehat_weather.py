@@ -72,6 +72,21 @@ ROTATION = 180
 BRIGHTNESS_DAY   = 1.0   # LED brightness 0.0–1.0 (daytime)
 BRIGHTNESS_NIGHT = 0.35  # dimmer at night (avoids glare in the dark)
 
+# Per-state night brightness overrides. The default `BRIGHTNESS_NIGHT
+# = 0.35` is calibrated to be comfortable in a fully dark room — but
+# it puts the day-overcast trough (raw 75) at effective 26 / 255 (10 %),
+# which is below the matrix's visibility threshold of ~20 % effective,
+# so the dim phase of the wave reads as off. After seven iterations on
+# `feat/overcast-night-variant` confirmed that palette-side tweaks
+# can't resolve this without other artifacts, the cleanest fix is a
+# state-specific brightness lift. `BRIGHTNESS_NIGHT_OVERCAST = 0.7`
+# at the day palette lands the matrix at effective 53 → 102 — both
+# wave phases above visibility, contrast 1.92× (matches the day
+# variant), entire matrix lit, no warm tint or dither needed.
+# `_render` applies this override when state == "overcast" and
+# is_day is False; all other states keep `BRIGHTNESS_NIGHT`.
+BRIGHTNESS_NIGHT_OVERCAST = 0.7
+
 # Time window before sunset during which the sunset frame is shown (seconds).
 SUNSET_WINDOW_SEC = 30 * 60  # 30 minutes
 
@@ -674,6 +689,152 @@ def _ice_frame(tick):
 _OVERCAST_WAVE_PERIOD_TICKS = 100        # ~12 s for one full sine cycle
 _OVERCAST_WAVE_SPATIAL = math.pi / 8     # radians of phase per (row + col) step
 
+# Night variant — calibration history (all caught 2026-05-30 in live
+# field tests on the actual SenseHat unit; see also
+# `incident_sensehat_overcast_night_visibility_floor.md` in the agent
+# memory for the full narrative):
+#
+#   Iteration 1 (commit 5daf507): (70, 70, 70) → (105, 105, 105)
+#     Effective 24 → 37 = 9 % → 14 % brightness. Completely black.
+#
+#   Iteration 2 (commit 90d1b01): GREY_DARK (75) → GREY_MID (110)
+#     Effective 26 → 38 = 10 % → 15 %. Still completely black.
+#
+#   Iteration 3 (commit 2318313): GREY_MID (110) → GREY_LIGHT (145)
+#     Effective 38 → 51 = 15 % → 20 %. PARTIALLY visible — peak at 51
+#     was visible (bright band), but trough at 38 was still off. Read
+#     as "noir avec une bande lumineuse qui passe", not as a uniform
+#     cloudy sky. Field verdict 2026-05-30: not realistic.
+#
+#   Iteration 4 (this commit): warm-tinted, brighter base
+#     Empirically the visibility threshold lives between 38 and 51
+#     effective (iterations 2 and 3 bracketed it). Hitting "uniform
+#     cloudy sky" needs the TROUGH above that threshold — but with
+#     `BRIGHTNESS_NIGHT × 0.35`, raw 145 (GREY_LIGHT, the brightest
+#     value used by the day palette) only reaches effective 51. So
+#     "trough above visibility AND peak above trough AND palette ≤
+#     GREY_LIGHT" is geometrically impossible.
+#
+#     Resolution: raise the raw values past GREY_LIGHT for the night
+#     variant only. After × 0.35 the matrix lands in a visible 47-59
+#     effective range — comparable to (slightly brighter than) the
+#     existing night-overcast peak, but applied to ALL pixels rather
+#     than just the wave crest. Whole matrix stays lit, wave reads as
+#     subtle texture rather than a band on black.
+#
+#     The warm tint (R+15 over B at trough, R+20 at peak) signals
+#     "city light pollution reflecting off cloud cover". Stays in the
+#     R ≥ G ≥ B order (warm cast); B is held HIGHER than the day
+#     palette's GREY_DARK floor so the per-channel activation threshold
+#     (~25 raw effective, see GREY_* comment around line 110) is
+#     respected even at the dimmest pixel. Avoids the 2026-05-28
+#     blue-tint artifact by keeping B above its threshold rather than
+#     subtracting from B to tint warm.
+#
+#   Iteration 5 (this commit): warm-tint softened + per-pixel dither
+#     Iteration 4 field test surfaced two issues:
+#       (a) Yellow cast was "trop intense" — R+G offset of 15-20
+#           raw units over B (≈ 5 effective) read as garish sodium-
+#           yellow rather than subtle warm-grey.
+#       (b) Light stroboscopic flicker. Hypothesis: the 1.26× contrast
+#           is narrow enough that wave-induced shifts of ~1 RGB unit
+#           per tick can move many pixels across an RGB565 quantization
+#           boundary simultaneously (R/B quantize in 8-unit steps, G
+#           in 4-unit steps), reading as synchronous LED clicks rather
+#           than smooth drift. Iterations 1-3 didn't show this because
+#           pixels under the visibility floor never lit in the first
+#           place — strobe is invisible when LEDs are off.
+#
+#     Fix (a): R+G offset reduced from 15-20 → 8 raw (~3 effective)
+#     for both palette ends. Maintains a perceptible warm cast without
+#     leaning yellow.
+#     Fix (b): static per-pixel dither (same pattern as `_fog_frame`,
+#     ~line 794) applied to the night-only wave output. ±4 RGB units
+#     spans one 5-bit (R/B) quantization step, so at any moment some
+#     pixels sit just above their next quantization step and some just
+#     below — the matrix transitions smoothly through threshold instead
+#     of clicking over in lockstep. Seed 43 (vs. fog's 42) so the
+#     speckle pattern differs across states.
+#
+#   Iteration 6 (this commit): widen contrast to restore wave visibility
+#     Iteration 5 field test:
+#       ✅ background dimmer than day-overcast (correct)
+#       ✅ visibility threshold respected (matrix uniformly lit)
+#       ⚠ light residual scintillation (the dither speckle, acceptable)
+#       ❌ wave completely imperceptible — 1.10× contrast was below
+#          the perceptual contrast threshold even over 30 s observation
+#
+#     Fix: lift the peak (155, 150, 147) → (195, 190, 187) keeping
+#     trough unchanged. Raw delta 40 (vs iter 5's 15), effective delta
+#     ~14, contrast restored to ~1.26× — same as iteration 4 which had
+#     a visible wave. The reduced warm tint and added dither carry
+#     over from iter 5, so this is "iter 4 visibility with iter 5
+#     colour and stability".
+#
+#     The dither (±4 RGB units, ~½ of one R/B quantization step) is
+#     left at its iter 5 amplitude — empirically validated as enough
+#     to keep strobe from being prominent at iter 5's narrower
+#     contrast. At iter 6's wider contrast, per-tick wave deltas are
+#     proportionally larger, so the dither margin against strobe
+#     should be even more comfortable.
+#
+#   Iteration 7 (bca3b2e/1a0db97/7705787): all unsuccessful — the
+#     "wave + palette + dither" approach was fully explored and
+#     each combination produced a different artifact (sub-threshold
+#     trough, missing wave, pastel speckle). See the `incident_
+#     sensehat_overcast_night_visibility_floor.md` memo for the
+#     full exit summary of the palette-side work.
+#
+#   Iteration 8 (this commit): brightness override, not palette
+#     Maintainer's pivot 2026-05-31: keep the day palette unchanged
+#     (75 → 145) and lift the brightness multiplier from
+#     `BRIGHTNESS_NIGHT 0.35` to `BRIGHTNESS_NIGHT_OVERCAST 0.7`.
+#     The override is applied in `_render` based on `state == "overcast"
+#     and not is_day` — see the BRIGHTNESS_NIGHT_OVERCAST constant
+#     block near the top of the file for the rationale.
+#
+#     Effective values after × 0.7 (instead of × 0.35):
+#       trough 75 → effective 53 (vs. previous 26) — above visibility
+#       peak  145 → effective 102 (vs. previous 51) — clearly visible
+#     Contrast 1.92× (matches the day variant exactly because the
+#     palette is identical). Whole matrix lit, no warm tint, no
+#     dither — the wider contrast moves pixels rapidly through RGB565
+#     quantization steps, so the synchronous-clicks strobe artifact
+#     averages out in time rather than needing per-pixel spatial
+#     dither.
+#
+#     The night constants below now mirror the day palette + period
+#     — kept as separate names so future experiments can decouple
+#     night from day without re-introducing the branching in
+#     `_overcast_frame`.
+#
+# Effective brightness after `BRIGHTNESS_NIGHT_OVERCAST` (× 0.7):
+#   trough 75  → 53  — above visibility floor
+#   peak   145 → 102 — clearly visible
+# Peak/trough contrast 1.92×, same as the day variant.
+_OVERCAST_NIGHT_DARK         = GREY_DARK            # (75, 75, 75)   — same as day floor
+_OVERCAST_NIGHT_LIGHT        = GREY_LIGHT           # (145, 145, 145) — same as day peak
+_OVERCAST_NIGHT_PERIOD_TICKS = _OVERCAST_WAVE_PERIOD_TICKS  # 100 (~12 s) — same as day cadence
+
+# Per-pixel dither — kept as inert structure for future experiments.
+# Iterations 5-7 explored amplitudes ±4 → ±2 to mitigate RGB565
+# quantization strobe at narrow contrast, and each amplitude produced
+# its own artifact (strobe → pastel → residual scintillation). At
+# iter 8's contrast of 1.92× over the original 12 s period, the wave
+# moves rapidly through multiple quantization steps so synchronous-
+# clicks strobe averages out in time without needing spatial dither.
+# Setting amplitude to 0 disables the offset without removing the
+# arithmetic in `_overcast_frame` — if a future redesign needs to
+# re-enable dither (e.g. for a narrower-contrast variant), bump
+# amplitude to ±2-4 and the rest of the pipeline already supports it.
+_OVERCAST_NIGHT_DITHER_AMPLITUDE = 0.0  # disabled; non-zero re-enables per-pixel offset
+import random as _random
+_OVERCAST_NIGHT_PIXEL_DITHER = [
+    (_random.Random(43 + i).random() - 0.5) * _OVERCAST_NIGHT_DITHER_AMPLITUDE
+    for i in range(64)
+]
+del _random
+
 # Overcast sun glow: when the sun is up, a Gaussian-shaped warm
 # zone marks its position behind the clouds. Captures the familiar
 # effect where you can usually guess where the sun is on overcast
@@ -834,17 +995,33 @@ def _overcast_sun_glow(row, col, sun_row, sun_col):
 
 
 def _overcast_frame(sun_row, sun_col, tick, is_day):
-    """Rolling diagonal wave through GREY_DARK ↔ GREY_MID ↔ GREY_LIGHT,
-    plus a soft Gaussian sun-glow halo when `is_day` is True.
+    """Rolling diagonal wave through grey shades, plus a soft Gaussian
+    sun-glow halo when `is_day` is True.
+
+    Day palette: GREY_DARK ↔ GREY_MID ↔ GREY_LIGHT (75 → 110 → 145),
+    period ~12 s. The sine midpoint lands exactly on GREY_MID so the
+    wave reproduces the static checkerboard's three-tone palette in
+    smooth transition.
+
+    Night palette: same as day (GREY_DARK 75 → GREY_LIGHT 145),
+    period 12 s, dither disabled. The night-specific behaviour is
+    achieved at the brightness layer, not in the palette: `_render`
+    applies `BRIGHTNESS_NIGHT_OVERCAST 0.7` instead of the default
+    `BRIGHTNESS_NIGHT 0.35` when the state is "overcast" and
+    `is_day` is False. Effective brightness 53 → 102, contrast
+    1.92×, whole matrix lit. The dither structure remains in the
+    inner loop (multiplied by `_OVERCAST_NIGHT_DITHER_AMPLITUDE
+    = 0.0` so it has no effect) — it's left in place so a future
+    redesign can re-enable dither by changing one constant. See
+    the constants block above for the eight-iteration calibration
+    history and `incident_sensehat_overcast_night_visibility_
+    floor.md` for the full backstory of iterations 1-7.
 
     Wave: brightness at pixel (row, col) on tick `tick` follows
     `sin((row + col) × _OVERCAST_WAVE_SPATIAL − tick × 2π / period)`.
     The diagonal phase term `(row + col)` produces bands perpendicular
     to the anti-diagonal; the time term advances those bands across
-    the matrix tick by tick. The sine midpoint is reached at exactly
-    GREY_MID (interpolated halfway between GREY_DARK and GREY_LIGHT),
-    so the wave reproduces the static checkerboard's three-tone
-    palette in smooth transition.
+    the matrix tick by tick.
 
     Sun glow: when `is_day`, a Gaussian-shaped warm-white boost is
     blended toward the wave colour at the sun's current position
@@ -868,13 +1045,23 @@ def _overcast_frame(sun_row, sun_col, tick, is_day):
     @param is_day:  bool true between sunrise and sunset
     @returns: list  64-element flat list of RGB tuples
     """
-    # ── Glow dim factor (computed once per frame) ────────────────
+    # ── Palette + period select (day vs night variant) ───────────
+    if is_day:
+        grey_dark  = GREY_DARK
+        grey_light = GREY_LIGHT
+        period     = _OVERCAST_WAVE_PERIOD_TICKS
+    else:
+        grey_dark  = _OVERCAST_NIGHT_DARK
+        grey_light = _OVERCAST_NIGHT_LIGHT
+        period     = _OVERCAST_NIGHT_PERIOD_TICKS
+
+    # ── Glow dim factor (computed once per frame, day only) ──────
     # Evaluate the wave at the sun's centre to determine how much
     # cloud thickness is between observer and sun right now.
     if is_day:
         sun_centre_phase = math.sin(
             ((sun_row + 0.5) + (sun_col + 0.5)) * _OVERCAST_WAVE_SPATIAL
-            - (tick * 2 * math.pi / _OVERCAST_WAVE_PERIOD_TICKS)
+            - (tick * 2 * math.pi / period)
         )
         t_at_sun = (sun_centre_phase + 1.0) / 2.0
         glow_dim = _OVERCAST_SUN_GLOW_FLOOR + (1.0 - _OVERCAST_SUN_GLOW_FLOOR) * t_at_sun
@@ -886,12 +1073,16 @@ def _overcast_frame(sun_row, sun_col, tick, is_day):
         for col in range(8):
             wave = math.sin(
                 (row + col) * _OVERCAST_WAVE_SPATIAL
-                - (tick * 2 * math.pi / _OVERCAST_WAVE_PERIOD_TICKS)
+                - (tick * 2 * math.pi / period)
             )
             t = (wave + 1.0) / 2.0  # map sin range [-1, 1] to [0, 1]
-            r_chan = round(GREY_DARK[0] + t * (GREY_LIGHT[0] - GREY_DARK[0]))
-            g_chan = round(GREY_DARK[1] + t * (GREY_LIGHT[1] - GREY_DARK[1]))
-            b_chan = round(GREY_DARK[2] + t * (GREY_LIGHT[2] - GREY_DARK[2]))
+            # Per-pixel dither at night only — breaks RGB565 quantization
+            # strobe at narrow contrast. Identical pattern to fog's;
+            # static offset per pixel, no time component.
+            dither = _OVERCAST_NIGHT_PIXEL_DITHER[row * 8 + col] if not is_day else 0.0
+            r_chan = round(grey_dark[0] + t * (grey_light[0] - grey_dark[0]) + dither)
+            g_chan = round(grey_dark[1] + t * (grey_light[1] - grey_dark[1]) + dither)
+            b_chan = round(grey_dark[2] + t * (grey_light[2] - grey_dark[2]) + dither)
             if is_day:
                 # Blend the wave colour toward the sun-glow target.
                 # `blend` runs from 0 (no glow) at far edges to
@@ -1239,6 +1430,12 @@ def _render(sense, state, is_day, tick, sun_row=0, sun_col=3):
     @param sun_col: int  left col of the sun block (0=east … 6=west)
     """
     brightness = BRIGHTNESS_DAY if is_day else BRIGHTNESS_NIGHT
+    # Per-state night brightness override — see BRIGHTNESS_NIGHT_OVERCAST
+    # constant block for rationale. Currently only overcast at night
+    # needs the lift; if other states show the same "trough below
+    # visibility floor" symptom in field test, add their override here.
+    if not is_day and state == "overcast":
+        brightness = BRIGHTNESS_NIGHT_OVERCAST
     frame = get_frame(state, is_day, tick, sun_row, sun_col)
     frame = apply_brightness(frame, brightness)
     _push_frame(sense, frame)
@@ -1441,6 +1638,7 @@ _TEST_STATE_SLUGS = {
     "partly-cloudy-day":   ("partly_cloudy", True),
     "partly-cloudy-night": ("partly_cloudy", False),
     "overcast":            ("overcast",      True),
+    "overcast-night":      ("overcast",      False),
     "fog":                 ("fog",           True),
     "rain-light":          ("rain_light",    True),
     "rain":                ("rain",          True),
