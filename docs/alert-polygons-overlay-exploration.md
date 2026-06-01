@@ -55,6 +55,20 @@ The raw factor (200 KB vs 5-20 MB) is not "the US is 8× bigger than Canada" —
 
 Le résultat compose : (×10-40 alertes) × (×2-5 verbosity per feature) explique facilement le facteur 50-100×. **Conclusion clé** : on ne peut pas traiter NWS comme "ECCC en plus gros" — la structure même du payload appelle un traitement différencié.
 
+### 3.2.1 Sous-pattern ECCC : une CAP entry par région, pas par phénomène
+
+À noter pour le design de la vue continentale (et confirmé dans `server/govAlertSources/eccc.js`) : **l'unité d'émission ECCC est la Public Forecast Region, pas l'événement météorologique**. Un orage qui traverse la grande région de Montréal génère typiquement 5-10 CAP entries séparées — une pour Île-de-Montréal, une pour Laval, une pour Longueuil–Boucherville, une pour Vaudreuil-Soulanges, etc. — chacune avec :
+
+- son propre CAP `id`
+- son propre polygone (= frontière administrative de la région, déjà simplifiée et stable)
+- **`headline` et `description` identiques** à celles des régions voisines déclenchées par le même phénomène
+
+Phase 4d masque cette duplication parce que `findAlertsForPoint` filtre point-in-polygon avant émission — l'utilisateur ne voit que sa propre région. Mais une vue continentale exposerait la mosaïque : l'orage de Montréal apparaîtrait comme 5-10 polygones aux arêtes droites et coins anguleux (frontières administratives), pas comme un polygone fluide épousant la cellule orageuse comme le ferait NWS.
+
+NWS direct-polygon (Tornado Warning, Severe Thunderstorm Warning, Flash Flood Warning) suit le pattern inverse : **une cellule orageuse = une CAP entry = un polygone**, dessiné autour du phénomène, traversant les frontières de comté sans s'en soucier. NWS zone-based (Heat Adv, Red Flag, Coastal Flood) regroupe N zones dans un même `affectedZones[]` — donc une CAP entry → un polygone composite (MultiPolygon après résolution).
+
+Implication directe pour la vue continentale : on doit choisir si on veut **fusionner côté serveur les alertes ECCC adjacentes ayant même `event` + même `headline` + polygones limitrophes**, pour aligner le rendu ECCC sur le rendu "une zone colorée = un phénomène" qu'on obtient naturellement avec NWS. Voir §3.3 stratégie #6 et §7 question 3.
+
 ### 3.3 Reduction strategies for low-power deployment
 
 La cible matérielle (Pi 4, 1-4 GB RAM, GPU modeste) interdit le pattern "fetch tout, render tout". Les stratégies ci-dessous sont listées par ordre de gain et doivent être **empilées côté serveur**, en amont de tout cache RAM ou émission vers le client :
@@ -74,16 +88,21 @@ La cible matérielle (Pi 4, 1-4 GB RAM, GPU modeste) interdit le pattern "fetch 
 5. **Cache différentiel par CAP `id` — élimine le re-fetch complet récurrent**
    Polling toutes les 5 min : ne ré-émettre au client que les `id` nouveaux/modifiés (SSE ou simple diff sur l'`updated` timestamp). Pas un gain au premier fetch, mais transforme le coût récurrent en quasi-zéro.
 
+6. **Fusion des features ECCC adjacentes (région-dedup) — gain ~5-10× sur le count ECCC, et lisibilité++**
+   Voir §3.2.1 : ECCC émet une CAP entry par Public Forecast Region. Fusionner côté serveur les features qui partagent `event` + `headline_fr/en` + une frontière commune (`turf.union` sur polygones limitrophes) ramène l'orage de Montréal de ~6 features à 1 `MultiPolygon`. Conserver les `id` sources dans un champ `sourceIds[]` pour permettre au client de re-fetch le `description` original si plusieurs versions divergent. Coût : ~50 features × `turf.union` une fois par cycle de 5 min — négligeable.
+   - **Pré-requis :** logique de comparaison de headline robuste (ECCC peut moduler le texte entre régions adjacentes : "intensité variable", "y compris grêle") — comparer la classe d'événement, pas le texte littéral.
+   - **Gain visuel :** l'overlay continental devient "une zone colorée = un phénomène météo" comme NWS, plutôt qu'une carte électorale par juridiction.
+
 ### 3.4 Optimized projections
 
-Avec les stratégies 1+2+3+4 appliquées côté serveur (la 5 étant un additionnel récurrent) :
+Avec les stratégies 1+2+3+4 appliquées côté serveur (la 5 étant un additionnel récurrent, la 6 un additionnel ECCC) :
 
-| Métrique | Sans optims (doc original) | Avec optims §3.3 |
-|---|---|---|
-| Payload NWS premier fetch | 5-20 MB | **300-800 KB** |
-| RAM cache combiné (ECCC+NWS) | ~10-15 MB | **~1-2 MB** |
-| Polygones simultanés à peindre | 1000-2000 | **100-300** (orange/rouge filtré) |
-| Cold-start kiosk avant premier rendu | +1-3 s | **+0.3-0.8 s** |
+| Métrique | Sans optims (doc original) | Avec optims §3.3 (1-4) | + dedup ECCC §3.3 #6 |
+|---|---|---|---|
+| Payload NWS premier fetch | 5-20 MB | **300-800 KB** | identique (n'affecte que ECCC) |
+| RAM cache combiné (ECCC+NWS) | ~10-15 MB | **~1-2 MB** | **~0.8-1.5 MB** |
+| Polygones simultanés à peindre | 1000-2000 | **100-300** (orange/rouge filtré) | **80-250** (mais visuellement "1 phénomène = 1 zone") |
+| Cold-start kiosk avant premier rendu | +1-3 s | **+0.3-0.8 s** | identique |
 
 **Implication architecturale clé :** viewport clipping et `turf.simplify` côté client passent de **obligatoires-pour-que-le-truc-soit-viable** à **défensifs-souhaitables-mais-non-existentiels**. La nature même du projet change : on ne fait plus du desktop-rendering qu'on essaie d'adapter à un Pi — on conçoit directement pour le Pi.
 
@@ -149,11 +168,12 @@ Le phasing original (~8-10 h, "raw d'abord puis optimisations en V2") n'est plus
 
 1. **Toggle granularity** — single bouton "Mode B on/off", or three independent toggles (radar / polygons / arrows) with the constraint that polygons + radar can't both be on?
 2. **Mode A/B exclusivity revisitée (§2)** — La décision originale d'exclusivité a été prise sous l'hypothèse de 1000-2000 polygones. À 100-300 polygones après §3.3, est-ce qu'un overlay **non-exclusif** (outline-only, sans fill) par-dessus le radar reste lisible ? À prototyper avant de figer le toggle final. Si oui, le Mode A/B devient un simple toggle "polygones visibles oui/non" plutôt qu'un switch radar↔polygones.
-3. **Severity default** — red + orange shown by default, or also yellow? Field test on a "calm day" payload would tell.
-4. **Cold-start UX** — when the user first turns Mode B on and the zone cache is empty (V3 seulement), show a spinner? Or just paint progressively as polygons resolve? (Pour MVP/V2, le `+0.3-0.8 s` est sous le seuil perceptif — pas de question.)
-5. **Persistence** — does Mode B survive across kiosk reboots? Probably yes via localStorage, like the existing `radarTimelineVisible` etc.
-6. **Multi-tab kiosks** — if two browsers connect to the same Pi, do they share the toggle state? Currently each has its own.
-7. **MeteoAlarm (Europe)** — bundle in the same toggle or separate toggle? Bundle is simpler; separate is more honest about which areas are covered.
+3. **Fusion des features ECCC adjacentes (§3.3 #6)** — MVP avec dedup activé d'office, ou opt-in via settings ? Pré-condition à régler : la classe de comparaison (event code seul vs event + headline normalisée vs event + tier de sévérité). Si headline diverge entre régions adjacentes (modulation locale ECCC : "intensité variable", "y compris grêle"), faut-il fusionner quand même et concaténer les `description` originales dans le détail du tap ? À tester avec un payload réel d'orage estival multi-régions Québec / Ontario.
+4. **Severity default** — red + orange shown by default, or also yellow? Field test on a "calm day" payload would tell.
+5. **Cold-start UX** — when the user first turns Mode B on and the zone cache is empty (V3 seulement), show a spinner? Or just paint progressively as polygons resolve? (Pour MVP/V2, le `+0.3-0.8 s` est sous le seuil perceptif — pas de question.)
+6. **Persistence** — does Mode B survive across kiosk reboots? Probably yes via localStorage, like the existing `radarTimelineVisible` etc.
+7. **Multi-tab kiosks** — if two browsers connect to the same Pi, do they share the toggle state? Currently each has its own.
+8. **MeteoAlarm (Europe)** — bundle in the same toggle or separate toggle? Bundle is simpler; separate is more honest about which areas are covered.
 
 ## 8. Why this isn't built right now
 
