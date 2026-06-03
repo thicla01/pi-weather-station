@@ -4,6 +4,11 @@
  * palette-agnostic — only the layout, sizing, and structural rules
  * live here. */
 
+/* Phase 6: rail navigation. The overlay is a fixed flex column —
+ * header (fixed height) on top, then a flex body that splits into the
+ * vertical tab rail + the scrollable content pane. Only the pane
+ * scrolls now (not the whole overlay), mirroring the DebugPanel
+ * container so the two panels share one structural grammar. */
 .overlay {
   position: fixed;
   inset: 0;
@@ -11,95 +16,323 @@
   background-color: var(--c-bg);
   color: var(--c-text);
   font-family: "Geist", system-ui, -apple-system, sans-serif;
-  overflow-y: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-.header {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  /* v2.16.2: top padding extends through the iOS notch / Dynamic
-   * Island safe area (`env(safe-area-inset-top)`). Without this,
-   * the sticky header (and the close × button at its right edge)
-   * sits UNDER the island in portrait, making the × untappable —
-   * user-reported on PWA-installed iPhone. Landscape works because
-   * the island doesn't extend into landscape view in the same way.
-   * Sides also pick up safe-area for landscape notches. */
-  padding:
-    max(14px, env(safe-area-inset-top))
-    max(18px, env(safe-area-inset-right))
-    14px
-    max(18px, env(safe-area-inset-left));
-  border-bottom: 1px solid var(--c-border);
-  /* --c-surface is rgba(..., 0.85) — semi-transparent. When the
-   * overlay scrolls, content bleeds through the sticky header.
-   * Use --c-bg (always opaque) so the header fully covers
-   * scrolled content at all screen sizes. */
-  background-color: var(--c-bg);
-  position: sticky;
-  top: 0;
-  z-index: 1;
+  flex-direction: column;
 }
 
-/* Compact header on 7" kiosk (800×480) — saves ~12 px of
- * precious vertical space without losing legibility. The
- * safe-area insets stay as max() so a kiosk on a notched display
- * (rare but possible) still clears the chrome. */
-@media (max-height: 520px) {
-  .header {
-    padding:
-      max(8px, env(safe-area-inset-top))
-      max(18px, env(safe-area-inset-right))
-      8px
-      max(18px, env(safe-area-inset-left));
+/* Phase 6: the title header was removed (the exit moved onto the rail
+ * as a terminal "Fermer" action). The safe-area-inset the header used
+ * to absorb now lives on .body so the rail + content still clear the
+ * iOS notch / Dynamic Island on a PWA-installed iPhone in portrait —
+ * without it the horizontal mobile rail would sit under the island. */
+.body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  padding-top: env(safe-area-inset-top);
+}
+
+/* ── Vertical tab rail (single-selection) ───────────────────────────
+ * Reuses the DebugPanel rail grammar verbatim: 96 px (120 px on wide
+ * desktop) icon-above-short-label chips. The tactile-hardening rules
+ * (no hover/active/focus fill, dashed keyboard-focus, active left-bar)
+ * are copied from DebugPanel/styles.css — same Pi-Chromium kiosk
+ * lingering-fill bug applies to any tap target on the 7" panel. CSS
+ * Modules are file-scoped so the classes can't be shared across files;
+ * keep these two rails in sync if either changes. */
+.rail {
+  width: 96px;
+  flex-shrink: 0;
+  background-color: var(--c-surface);
+  border-right: 1px solid var(--c-border);
+  display: flex;
+  flex-direction: column;
+  padding: 8px 4px;
+  gap: 2px;
+  overflow-y: auto;
+}
+
+@media (min-width: 1280px) {
+  .rail {
+    width: 120px;
   }
 }
 
-.title {
-  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  font-size: 12px;
-  font-weight: 500;
-  letter-spacing: 1.6px;
-  text-transform: uppercase;
-  color: var(--c-accent);
-}
-
-/* v2.16.2: bumped the close button to a 44×44 px touch target
- * (Apple HIG minimum) with a visible border so it reads as a
- * tappable affordance to users who don't recognise the bare "×"
- * convention. Previous 20 px font + 4 px padding gave a ~28 px
- * target which was both undersized and visually subtle. */
-.closeButton {
-  background: transparent;
-  border: 1px solid var(--c-border);
-  border-radius: 6px;
-  width: 44px;
-  height: 44px;
-  display: inline-flex;
+.railButton {
+  display: flex;
+  flex-direction: column;
   align-items: center;
-  justify-content: center;
-  padding: 0;
-  font-size: 22px;
-  line-height: 1;
-  color: var(--c-text);
+  gap: 4px;
+  padding: 10px 4px;
+  background: transparent;
+  border: 0;
+  border-radius: 6px;
+  color: var(--c-text-dim);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  flex-shrink: 0;
+  font-family: inherit;
+  position: relative;
 }
 
-.closeButton:hover,
-.closeButton:focus-visible {
-  color: var(--c-accent);
-  background-color: var(--c-accent-soft);
-  border-color: var(--c-accent);
+/* Hover / active / plain-focus fills are intentionally NOT painted —
+ * see the long-form explanation in DebugPanel/styles.css. Pi Chromium
+ * kiosks can falsely match (pointer: fine) for a few frames after a
+ * mouse-emulation tap, painting a fill that never gets a pointer-leave
+ * to clear it; the residual then reads as "still pressed". The active
+ * left-bar is the canonical "this tab is selected" signal instead. */
+.railButton:active {
+  background-color: transparent;
+}
+
+.railButton:focus {
+  background-color: transparent;
   outline: none;
 }
 
-.body {
+.railButton:focus-visible {
+  outline: 2px dashed var(--c-accent);
+  outline-offset: 2px;
+  background-color: transparent;
+}
+
+.railButtonActive {
+  color: var(--c-text);
+  background-color: var(--c-accent-soft);
+}
+
+.railButtonActive:focus-visible {
+  background-color: var(--c-accent-soft);
+  outline: 2px dashed var(--c-accent);
+  outline-offset: 2px;
+}
+
+.railButtonActive::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 8px;
+  bottom: 8px;
+  width: 3px;
+  background-color: var(--c-accent);
+  border-radius: 0 2px 2px 0;
+}
+
+.railIcon {
+  font-size: 22px;
+  line-height: 1;
+  color: var(--c-accent);
+  display: inline-flex;
+}
+
+.railIcon svg {
+  width: 22px;
+  height: 22px;
+}
+
+.railLabel {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 9px;
+  letter-spacing: 1.1px;
+  text-transform: uppercase;
+  font-weight: 500;
+}
+
+/* Exit action — pinned to the far end of the rail (bottom of the
+ * vertical rail), separated from the section tabs by a divider and kept
+ * dim so it never competes with the active-tab accent or reads as a 5th
+ * section. The horizontal-rail variant (mobile) re-pins it to the right
+ * end with a left divider — see the max-width:600 block below. */
+.railClose {
+  margin-top: auto;
+  padding-top: 12px;
+  border-top: 1px solid var(--c-border);
+  color: var(--c-text-dim);
+}
+
+.railClose .railIcon {
+  color: var(--c-text-dim);
+}
+
+/* Hover/focus brighten the COLOR only (never a background fill) — the
+ * background-fill lingering bug the rail tabs avoid applies here too. */
+.railClose:hover,
+.railClose:focus-visible {
+  color: var(--c-text);
+}
+
+.railClose:hover .railIcon,
+.railClose:focus-visible .railIcon {
+  color: var(--c-text);
+}
+
+/* ── Content pane ───────────────────────────────────────────────────
+ * The pane is the only scroll container now. `.paneInner` keeps the
+ * old 880 px reading measure + centering the body used to own. */
+.pane {
+  flex: 1;
+  min-width: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+  display: flex;
+  flex-direction: column;
+}
+
+.paneInner {
+  flex: 1;
+  /* min-width: 0 is the load-bearing line here. paneInner is a flex
+   * item (child of the column-flex .pane); its default `min-width: auto`
+   * refuses to shrink below the content's min-content width, so the
+   * grids' intrinsic width pushed paneInner WIDER than the pane and the
+   * overflow clipped off the right edge at narrow widths (the rail
+   * makes the pane narrower, which exposed it). min-width: 0 lets
+   * paneInner shrink to the pane, and the grids (minmax(0,1fr) +
+   * min-width:0 cells) then reflow within it. */
+  min-width: 0;
+  width: 100%;
   max-width: 880px;
   margin: 0 auto;
   padding: 16px 18px 24px 18px;
+  /* border-box so the horizontal padding (36 px) is INCLUDED in the
+   * 100% width rather than added on top of it. This file has no global
+   * box-sizing reset (each control sets its own, e.g. .fieldBox), and
+   * the default content-box made paneInner's border-box width = pane +
+   * 36 px, overflowing the pane by exactly the padding at every width —
+   * the visible right-edge clip the rail exposed at narrow widths. */
+  box-sizing: border-box;
+}
+
+/* Per-section informational footer — sticks to the bottom of the pane.
+ * Pure text (no save button): the only batched Save lives in the API
+ * section's keys+coords block. */
+.paneFooter {
+  flex-shrink: 0;
+  box-sizing: border-box;
+  position: sticky;
+  bottom: 0;
+  padding: 10px 18px;
+  border-top: 1px solid var(--c-border);
+  background-color: var(--c-bg);
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 9.5px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: var(--c-text-dim);
+  text-align: center;
+}
+
+/* ── Compact rail ───────────────────────────────────────────────────
+ * Fires on EITHER the short 7" kiosk (≤520 px tall) OR a narrow viewport
+ * (≤600 px wide, e.g. an iPhone PWA in portrait). Mirrors DebugPanel's
+ * compact mode: narrower rail (76 px), tighter chips, smaller icon +
+ * label. Scoped to the SHORT-HEIGHT case (7" kiosk) only — narrow-WIDTH
+ * (phone portrait) instead flips the rail horizontal to the top, handled
+ * in the max-width block further down, because a 480 px-tall kiosk can't
+ * spare height for a top bar but a tall phone has width to spare. */
+@media (max-height: 520px) {
+  .rail {
+    width: 76px;
+    padding: 6px 2px;
+  }
+
+  .railButton {
+    padding: 7px 2px;
+    gap: 3px;
+  }
+
+  .railIcon {
+    font-size: 18px;
+  }
+
+  .railIcon svg {
+    width: 18px;
+    height: 18px;
+  }
+
+  .railLabel {
+    font-size: 8px;
+    letter-spacing: 0.8px;
+  }
+
+  .railClose {
+    padding-top: 8px;
+  }
+
+  .paneInner {
+    padding: 10px 14px 16px 14px;
+  }
+
+  .paneFooter {
+    padding: 7px 14px;
+    font-size: 8.5px;
+  }
+}
+
+/* ── Narrow-width (phone portrait): rail flips to a top bar ──────────
+ * On a narrow screen a vertical rail — even the 76 px compact one —
+ * eats ~20% of the width the settings controls badly need. So at
+ * ≤600 px wide the rail becomes a horizontal, scrollable tab bar at the
+ * TOP of the panel and the content takes the full width below it (this
+ * is the mobile layout from the approved Phase 6 design). The short-
+ * height 7" kiosk keeps the vertical rail instead — it's 800 px wide so
+ * it never hits this query, and it can't spare height for a top bar. */
+@media (max-width: 600px) {
+  .body {
+    flex-direction: column;
+  }
+
+  .rail {
+    width: auto;
+    flex-direction: row;
+    border-right: none;
+    border-bottom: 1px solid var(--c-border);
+    padding: 6px 8px;
+    gap: 4px;
+    overflow-x: auto;
+    overflow-y: hidden;
+  }
+
+  .railButton {
+    flex-shrink: 0;
+    padding: 6px 12px;
+    gap: 3px;
+  }
+
+  .railLabel {
+    font-size: 8.5px;
+    white-space: nowrap;
+  }
+
+  /* Active indicator moves from the left edge (vertical rail) to a
+   * bottom underline (horizontal bar), the standard tab-strip cue. */
+  .railButtonActive::before {
+    left: 8px;
+    right: 8px;
+    top: auto;
+    bottom: 0;
+    width: auto;
+    height: 3px;
+    border-radius: 2px 2px 0 0;
+  }
+
+  /* Exit re-pins to the RIGHT end of the horizontal bar with a left
+   * divider (vs. the bottom + top-divider it uses on the vertical rail). */
+  .railClose {
+    margin-top: 0;
+    margin-left: auto;
+    padding-top: 6px;
+    padding-left: 14px;
+    border-top: none;
+    border-left: 1px solid var(--c-border);
+  }
+
+  .paneInner {
+    padding: 12px 14px 16px 14px;
+  }
+
+  .paneFooter {
+    padding: 8px 14px;
+    font-size: 8.5px;
+  }
 }
 
 /* ── Section common ─────────────────────────────────────────────── */
@@ -511,6 +744,53 @@
   color: var(--c-text-dim);
 }
 
+/* "Override" badge next to the Latitude / Longitude labels — signals
+ * the field is a manual override of the auto-detected coordinate. */
+.overridePill {
+  margin-left: 6px;
+  padding: 1px 5px;
+  border-radius: 3px;
+  background-color: var(--c-surface);
+  border: 1px solid var(--c-border);
+  font-size: 7.5px;
+  letter-spacing: 0.6px;
+  color: var(--c-text-dim);
+  vertical-align: middle;
+}
+
+/* "Auto" suffix button inside the lat/lon field box — clears the
+ * field, which falls the app back to automatic geolocation. */
+.autoButton {
+  flex-shrink: 0;
+  padding: 3px 8px;
+  border: 1px solid var(--c-border);
+  border-radius: 3px;
+  background-color: var(--c-surface);
+  color: var(--c-text-dim);
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 8.5px;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.autoButton:hover,
+.autoButton:focus-visible {
+  color: var(--c-accent);
+  border-color: var(--c-accent);
+  outline: none;
+}
+
+/* Helper line below a field (e.g. "Empty = automatic geolocation"). */
+.fieldHelper {
+  margin-top: 5px;
+  font-size: 9px;
+  line-height: 1.4;
+  color: var(--c-text-dim);
+  text-wrap: pretty;
+}
+
 /* Value text is selectable only when explicitly opted in — keeps
  * accidental selection out of the way on touchscreens while still
  * letting users copy coordinates / IDs via Ctrl+C when they need it.
@@ -628,23 +908,31 @@
 
 /* ── Grids ──────────────────────────────────────────────────────── */
 
+/* Unit selectors. `auto-fit` reflows the column count from the grid's
+ * OWN width (not the viewport), so it drops to fewer columns / more rows
+ * the instant a cell would get too narrow for its widest content — which
+ * is exactly what we want and what viewport breakpoints couldn't do.
+ *
+ * Why viewport breakpoints failed here: paneInner is capped at
+ * max-width 880px, so the content never gets wider than 880px no matter
+ * how wide the screen. At 8 columns that's 880/8 = 110px per cell, but
+ * the "Métrique / Impérial" selector needs ~145px just for its text +
+ * padding — so 8 columns ALWAYS overflowed ("Impérial" spilled into the
+ * TEMP cell, "kph" clipped), regardless of viewport width.
+ *
+ * 200px floor = the empirically comfortable cell width (matches the
+ * known-good 2-col cell). `min(100%, 200px)` lets a column shrink below
+ * 200px only when the container itself is narrower, so it never
+ * overflows. Result: 4 cols at the 880px desktop cap, 3 on the 7", 2 on
+ * a phone, 1 when extremely narrow — every cell always wide enough for
+ * its buttons. NB: auto-fit is NOT a container query, so it sidesteps
+ * the Chrome inline-size-containment bug that rules out `container-type`
+ * project-wide. */
 .grid8 {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 200px), 1fr));
   gap: 10px;
   margin-bottom: 8px;
-}
-
-@media (min-width: 640px) {
-  .grid8 {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-}
-
-@media (min-width: 960px) {
-  .grid8 {
-    grid-template-columns: repeat(8, 1fr);
-  }
 }
 
 /* Two-column grid — used for content that never benefits from 4
@@ -663,7 +951,9 @@
   align-items: start;
 }
 
-@media (min-width: 720px) {
+/* Phase 6: 720 → 760 to keep the rail overhead out of the 2-col cells
+ * (the 7" kiosk at 800 px viewport still lands here → 2 columns). */
+@media (min-width: 760px) {
   .grid2 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
@@ -702,7 +992,10 @@
   align-items: start;
 }
 
-@media (min-width: 720px) {
+/* Phase 6: 720 → 840 for the rail overhead. The 7" kiosk (800 px) now
+ * stays at 2 columns here, which the max-height:520 rule below already
+ * forced anyway — sliders + sub-text toggles need ~360 px cells. */
+@media (min-width: 840px) {
   .grid4 {
     grid-template-columns: repeat(4, minmax(0, 1fr));
   }
@@ -733,7 +1026,10 @@
   grid-column: 1 / -1;
 }
 
-@media (min-width: 720px) {
+/* Phase 6: kept in lock-step with .grid4's bumped 840 breakpoint so
+ * Source radar + Brightness only rejoin the grid row once it's genuinely
+ * 4 columns wide. */
+@media (min-width: 840px) {
   .gridLocationHardware > :nth-child(3),
   .gridLocationHardware > :nth-child(4) {
     grid-column: auto;
@@ -843,29 +1139,27 @@
   gap: 4px;
 }
 
-.apiRow {
-  display: grid;
-  /* dot · name(fixed) · key-input(2 parts) · description(1 part)
-   * Using fr ratios on both data columns so every row in the list
-   * gets the SAME key-field width regardless of description length.
-   * (Each apiRow is an independent grid instance inside the flex
-   * column — without fixed ratios the `auto` description column
-   * would vary per row and pull the `1fr` key column with it.) */
-  grid-template-columns: auto 110px minmax(0, 2fr) minmax(0, 1fr);
-  gap: 8px;
-  align-items: center;
-  padding: 6px 8px;
+/* Stacked key block (Phase 6): name+tier row → purpose line → input.
+ * Replaced the 4-column grid whose trailing description column
+ * truncated as soon as the panel narrowed. Vertical stacking gives the
+ * purpose the full width on every screen and lets the input span the
+ * row so a real key is legible. */
+.apiKey {
+  display: flex;
+  flex-direction: column;
+  padding: 8px;
   border-bottom: 1px solid var(--c-border);
 }
 
-.apiNameBlock {
+.apiKeyHead {
   display: flex;
-  flex-direction: column;
-  min-width: 0;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 3px;
 }
 
 .apiName {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 500;
   color: var(--c-text);
   line-height: 1.1;
@@ -879,9 +1173,12 @@
   color: var(--c-text-dim);
 }
 
-.apiValueBlock {
-  min-width: 0;
-  overflow: hidden;
+.apiPurpose {
+  font-size: 11px;
+  color: var(--c-text-dim);
+  line-height: 1.4;
+  margin-bottom: 7px;
+  text-wrap: pretty;
 }
 
 .apiKeyMasked {
@@ -893,11 +1190,10 @@
 
 .apiKeyInput {
   width: 100%;
-  /* Belt-and-braces: parent `.apiValueBlock` already has min-width: 0,
-   * and the grid track is now minmax(0, 2fr). The input itself also
-   * gets min-width: 0 so its intrinsic ~20ch default never floors the
-   * cell width at narrow viewports. */
+  /* min-width: 0 so the input's intrinsic ~20ch default never floors
+   * the stacked block's width on a narrow phone. */
   min-width: 0;
+  box-sizing: border-box;
   /* Soft-accent fill matches the Lat/Lon `fieldBox` rows so the
    * affordance "this is an editable input" reads the same way across
    * the panel. Was `var(--c-bg)` previously, which sat too close to
@@ -1140,18 +1436,6 @@
   font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
 }
 
-.apiUnlocks {
-  font-size: 10px;
-  color: var(--c-text-dim);
-  text-align: left;
-  /* max-width removed — the column is now a 1fr fraction of the
-   * grid, so the container constrains width rather than a hard cap.
-   * Truncation is kept as a safety net for very small viewports. */
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
 /* ── Advanced + Experimental body ───────────────────────────────── */
 
 .advBody {
@@ -1178,4 +1462,90 @@
 
 .flagRow {
   padding: 8px 0;
+}
+
+/* ── Veille (sleep) timeline ─────────────────────────────────────────
+ * Schematic 3-segment sequence: On → Soft sleep → Deep sleep. Fixed
+ * proportions (not to scale — deep sleep is open-ended); the real
+ * thresholds are in the labels. Tokens are the panel's own palette so
+ * it tracks day/dusk/night/nightRed like everything else. */
+.veilleTimeline {
+  margin: 4px 0 14px 0;
+  padding: 12px 14px;
+  background-color: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+}
+
+.vtTrack {
+  display: flex;
+  height: 8px;
+  border-radius: 999px;
+  overflow: hidden;
+  background-color: var(--c-border);
+  margin-bottom: 10px;
+}
+
+.vtSeg {
+  height: 100%;
+}
+
+.vtSegActive {
+  flex: 0 0 25%;
+  background-color: var(--c-accent);
+}
+
+.vtSegSoft {
+  flex: 0 0 35%;
+  background-color: var(--c-accent-soft);
+}
+
+.vtSegDeep {
+  flex: 1;
+  background-color: var(--c-text-dim);
+  opacity: 0.55;
+}
+
+.vtLabels {
+  display: flex;
+  gap: 10px;
+}
+
+.vtLabel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.vtLabel strong {
+  font-weight: 500;
+  font-size: 11px;
+  color: var(--c-text);
+  letter-spacing: -0.005em;
+}
+
+.vtLabel span {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 9px;
+  line-height: 1.35;
+  letter-spacing: 0.3px;
+  color: var(--c-text-dim);
+  text-wrap: pretty;
+}
+
+@media (max-height: 520px) {
+  .veilleTimeline {
+    padding: 9px 11px;
+    margin-bottom: 10px;
+  }
+
+  .vtLabel strong {
+    font-size: 10px;
+  }
+
+  .vtLabel span {
+    font-size: 8px;
+  }
 }

@@ -7,6 +7,10 @@ import React, { useContext, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
 import closeSharp from "@iconify/icons-ion/close-sharp";
+import settingsAdjustIcon from "@iconify/icons-carbon/settings-adjust";
+import passwordIcon from "@iconify/icons-carbon/password";
+import constructIcon from "@iconify/icons-ion/construct-outline";
+import eyeIcon from "@iconify/icons-ion/eye-outline";
 import i18n from "~/i18n";
 import { AppContext } from "~/AppContext";
 import { getPalette } from "~/ui/tokens";
@@ -27,6 +31,19 @@ import styles from "./styles.css";
  * @returns {string}
  */
 const lbl = (lang, en, fr, es) => (lang === "fr" ? fr : lang === "es" ? es : en);
+
+// Rail sections — single-selection navigation, reusing the DebugPanel
+// rail grammar (icon-above-short-label chips, compact ≤520px). Order
+// is the local→server gradient: device-local prefs first, server
+// config next, advanced + preview last. The panel always opens on the
+// first entry (`local`) — a settings panel reads better when it's
+// predictable, so unlike DebugPanel we do NOT persist the last tab.
+const SECTIONS = [
+  { id: "local", icon: settingsAdjustIcon, label: (lang) => lbl(lang, "Local", "Préf.", "Local") },
+  { id: "api", icon: passwordIcon, label: () => "API" },
+  { id: "avance", icon: constructIcon, label: (lang) => lbl(lang, "Advanced", "Avancé", "Avanzado") },
+  { id: "apercu", icon: eyeIcon, label: (lang) => lbl(lang, "Preview", "Aperçu", "Vista") },
+];
 
 /**
  * Map the four individual unit selections back to a single
@@ -73,7 +90,7 @@ function unitSystemPreset(t, s, l, d) {
  * @returns {JSX.Element|null} settings overlay, or null when closed
  */
 const SettingsPanel = () => {
-  const { t, i18n } = useTranslation();
+  const { i18n } = useTranslation();
   const ctx = useContext(AppContext);
   const {
     settingsMenuOpen,
@@ -81,8 +98,11 @@ const SettingsPanel = () => {
     isLocal,
     fontSize,
   } = ctx;
-  const [advOpen, setAdvOpen] = useState(false);
-  const [expOpen, setExpOpen] = useState(false);
+  // Single-selection rail navigation. Always opens on the first
+  // section (`local`) — a settings panel reads better when predictable,
+  // so we deliberately do NOT persist the last tab the way DebugPanel
+  // does for its multi-select buckets.
+  const [activeSection, setActiveSection] = useState("local");
   // SettingsPanel renders as a sibling of AmbientLayers in the App
   // tree, so it can't inherit the `--c-*` palette tokens that
   // AmbientLayers sets on its own root. Compute the palette here
@@ -122,36 +142,68 @@ const SettingsPanel = () => {
 
   return (
     <div className={styles.overlay} role="dialog" aria-modal="true" style={cssVars}>
-      <div className={styles.header}>
-        <div className={styles.title}>{t("settings.title")}</div>
-        <button
-          type="button"
-          className={styles.closeButton}
-          onClick={() => setSettingsMenuOpen(false)}
-          aria-label={t("controls.closeSettings")}
-        >
-          <InlineIcon icon={closeSharp} />
-        </button>
-      </div>
-
+      {/* No title header (Phase 6): the per-section header below already
+        * names where you are ("1 · Préférences locales"), so a separate
+        * "Paramètres" bar was redundant and cost ~60px of height that the
+        * 7" kiosk and phones can't spare. The exit lives on the rail as a
+        * terminal "Fermer" action instead — a floating top-right × would
+        * collide with the section headers' right-aligned pills
+        * (MODIFIABLE / active-count). */}
       <div className={styles.body}>
-        <SectionLocalPrefs ctx={ctx} lang={lang} />
-        <SectionConfig ctx={ctx} lang={lang} remote={remote} />
-        <SectionAdvanced
-          ctx={ctx}
-          t={t}
-          lang={lang}
-          remote={remote}
-          open={advOpen}
-          onToggle={() => setAdvOpen((o) => !o)}
-        />
-        <SectionPreview
-          ctx={ctx}
-          lang={lang}
-          remote={remote}
-          open={expOpen}
-          onToggle={() => setExpOpen((o) => !o)}
-        />
+        <nav
+          className={styles.rail}
+          role="group"
+          aria-label={lbl(lang, "Settings sections", "Sections des paramètres", "Secciones de ajustes")}
+        >
+          {SECTIONS.map((s) => {
+            const isActive = activeSection === s.id;
+            return (
+              <button
+                key={s.id}
+                type="button"
+                aria-pressed={isActive}
+                className={`${styles.railButton} ${isActive ? styles.railButtonActive : ""}`}
+                onClick={(e) => {
+                  setActiveSection(s.id);
+                  // Drop focus after a mouse / touch activation so the
+                  // tab doesn't keep `:focus-visible` styling that could
+                  // be misread as "pressed" — same tactile fix as the
+                  // DebugPanel rail (Pi Chromium kiosk lingering fill).
+                  e.currentTarget.blur();
+                }}
+              >
+                <span className={styles.railIcon}><InlineIcon icon={s.icon} /></span>
+                <span className={styles.railLabel}>{s.label(lang)}</span>
+              </button>
+            );
+          })}
+          {/* Exit — pinned to the far end of the rail (bottom when
+            * vertical, right when horizontal), visually separated and
+            * never carrying the active accent so it doesn't read as a
+            * 5th section. */}
+          <button
+            type="button"
+            className={`${styles.railButton} ${styles.railClose}`}
+            onClick={() => setSettingsMenuOpen(false)}
+            aria-label={lbl(lang,
+              "Close settings and return to the map",
+              "Fermer les paramètres et revenir à la carte",
+              "Cerrar los ajustes y volver al mapa")}
+          >
+            <span className={styles.railIcon}><InlineIcon icon={closeSharp} /></span>
+            <span className={styles.railLabel}>{lbl(lang, "Close", "Fermer", "Cerrar")}</span>
+          </button>
+        </nav>
+
+        <main className={styles.pane}>
+          <div className={styles.paneInner}>
+            {activeSection === "local" && <SectionLocalPrefs ctx={ctx} lang={lang} />}
+            {activeSection === "api" && <SectionConfig ctx={ctx} lang={lang} remote={remote} />}
+            {activeSection === "avance" && <SectionAdvanced ctx={ctx} lang={lang} remote={remote} />}
+            {activeSection === "apercu" && <SectionPreview ctx={ctx} lang={lang} remote={remote} />}
+          </div>
+          <PaneFooter lang={lang} section={activeSection} />
+        </main>
       </div>
     </div>
   );
@@ -538,10 +590,18 @@ const SectionConfig = ({ ctx, lang, remote }) => {
         ) : (
           <EditableField
             label={lbl(lang, "Latitude", "Latitude", "Latitud")}
+            pill={lbl(lang, "Override", "Manuel", "Manual")}
             value={draft.customLat}
             unit="°"
             mono
+            placeholder="45.5017°"
             onChange={updateDraft("customLat")}
+            onClear={() => updateDraft("customLat")("")}
+            clearLabel={lbl(lang, "Auto", "Auto", "Auto")}
+            helper={lbl(lang,
+              "Empty = automatic geolocation. « Auto » clears the field to fall back to detection. Never sent to an external service.",
+              "Vide = géolocalisation automatique. « Auto » efface le champ pour revenir à la détection. Jamais transmis à un service externe.",
+              "Vacío = geolocalización automática. « Auto » borra el campo para volver a la detección. Nunca se envía a un servicio externo.")}
           />
         )}
         {remote ? (
@@ -555,10 +615,18 @@ const SectionConfig = ({ ctx, lang, remote }) => {
         ) : (
           <EditableField
             label="Longitude"
+            pill={lbl(lang, "Override", "Manuel", "Manual")}
             value={draft.customLon}
             unit="°"
             mono
+            placeholder="−73.5673°"
             onChange={updateDraft("customLon")}
+            onClear={() => updateDraft("customLon")("")}
+            clearLabel={lbl(lang, "Auto", "Auto", "Auto")}
+            helper={lbl(lang,
+              "Empty = automatic geolocation.",
+              "Vide = géolocalisation automatique.",
+              "Vacío = geolocalización automática.")}
           />
         )}
         <Seg
@@ -609,21 +677,18 @@ const SectionConfig = ({ ctx, lang, remote }) => {
 // ───────────────────────────────────────────────────────────────────
 
 /**
- * Advanced settings — collapsible. Display style / AI flags / sleep
- * mode. Fully detailed port is Phase 8b; for now this section
- * surfaces the same fields the v2 Settings overlay exposes, in a
- * Direction-C-styled disclosure.
+ * Advanced settings — Display style / AI flags / sleep mode. Rendered
+ * as one entry of the single-selection rail (Phase 6); the v2.14
+ * collapsible disclosure was dropped when the rail took over section
+ * navigation.
  *
  * @param {object} props
  * @param {object} props.ctx
- * @param {Function} props.t
  * @param {string} props.lang
  * @param {boolean} props.remote
- * @param {boolean} props.open
- * @param {Function} props.onToggle
  * @returns {JSX.Element}
  */
-const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
+const SectionAdvanced = ({ ctx, lang, remote }) => {
   const {
     sleepEnabled,
     sleepStage1Delay,
@@ -680,15 +745,12 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
 
   return (
     <div className={styles.section} style={{ opacity: remote ? 0.65 : 1 }}>
-      <DisclosureHeader
+      <SectionHeader
         index="3"
         title={lbl(lang, "Advanced", "Avancé", "Avanzado")}
         subtitle={lbl(lang, "Display · AI · sleep", "Affichage · IA · veille", "Pantalla · IA · suspensión")}
-        open={open}
-        onToggle={onToggle}
       />
-      {open && (
-        <div className={styles.advBody}>
+      <div className={styles.advBody}>
           {/* ── Display ───────────────────────────────────────────── */}
           <div className={styles.subhead}>
             {lbl(lang, "Display", "Affichage", "Pantalla")}
@@ -774,14 +836,21 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
                 "Muestra los puntos leídos por el muestreador")}
             />
             <Toggle
-              label={lbl(lang, "Calm-day fast path", "Chemin rapide jour calme", "Ruta rápida día calmo")}
+              /* Detechnified label (Phase 6): the vendor name "Claude"
+               * leaves the UI — the user only needs the BENEFIT (lower
+               * API cost), not which LLM runs behind it. The mechanism
+               * (still honestly "AI") stays in the sub-text. */
+              label={lbl(lang,
+                "AI call savings when skies are calm",
+                "Économie d'appels IA quand le ciel est calme",
+                "Ahorro de llamadas IA cuando el cielo está despejado")}
               value={Boolean(calmDayFastPath)}
               onChange={ai("calmDayFastPath")}
               disabled={remote}
               sub={lbl(lang,
-                "Skip Claude when weather is stable",
-                "Saute Claude quand le temps est stable",
-                "Omite Claude cuando el tiempo es estable")}
+                "Pauses the AI radar analysis when no precipitation is nearby.",
+                "Suspend l'analyse radar par IA en l'absence de précipitations.",
+                "Pausa el análisis de radar por IA cuando no hay precipitación cerca.")}
             />
             <Toggle
               label={lbl(lang, "Pollen badge", "Badge pollen", "Insignia de polen")}
@@ -803,6 +872,16 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
           <div className={`${styles.subhead} ${styles.subheadGap}`}>
             {lbl(lang, "Sleep", "Veille", "Suspensión")}
           </div>
+          {/* Sequence overview first, then the controls below — lets the
+            * user see what each delay/brightness actually drives before
+            * they tweak it. Bound to the live stage values. */}
+          <VeilleTimeline
+            stage1Delay={sleepStage1Delay}
+            stage2Delay={sleepStage2Delay}
+            stage2Enabled={sleepStage2Enabled}
+            stage1Brightness={sleepStage1Brightness}
+            lang={lang}
+          />
           {/* Stage 1 — toggles separated from fields so each control
            * type renders in a visually consistent row (Toggle = horizontal
            * track+label; Field = vertical label-above-box). Mixing them
@@ -823,7 +902,7 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
           </div>
           <div className={styles.grid4}>
             <DelaySelect
-              label={lbl(lang, "Stage 1 · delay", "Stage 1 · délai", "Etapa 1 · retraso")}
+              label={lbl(lang, "Soft sleep · delay", "Veille douce · délai", "Suspensión suave · retraso")}
               value={sleepStage1Delay}
               options={SLEEP_STAGE1_DELAY_OPTIONS}
               onChange={(v) => sleep("stage1Delay")(v)}
@@ -832,7 +911,7 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
             />
             {brightnessAvailable ? (
               <RangeSlider
-                label={lbl(lang, "Stage 1 · brightness", "Stage 1 · lum.", "Etapa 1 · brillo")}
+                label={lbl(lang, "Soft sleep · brightness", "Veille douce · lum.", "Suspensión suave · brillo")}
                 value={sleepStage1Brightness}
                 min={brightnessMinPercent ?? 10}
                 max={100}
@@ -842,7 +921,7 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
               />
             ) : (
               <Field
-                label={lbl(lang, "Stage 1 · brightness", "Stage 1 · lum.", "Etapa 1 · brillo")}
+                label={lbl(lang, "Soft sleep · brightness", "Veille douce · lum.", "Suspensión suave · brillo")}
                 value={sleepStage1Brightness ?? "—"}
                 unit="%"
                 mono
@@ -853,7 +932,7 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
           {/* Stage 2 — same pattern: toggle then fields */}
           <div className={styles.toggleRow} style={{ marginTop: 10 }}>
             <Toggle
-              label={lbl(lang, "Stage 2 · enabled", "Stage 2 · activé", "Etapa 2 · activada")}
+              label={lbl(lang, "Deep sleep · enabled", "Veille profonde · activée", "Suspensión profunda · activada")}
               value={Boolean(sleepStage2Enabled)}
               onChange={sleep("stage2Enabled")}
               disabled={remote}
@@ -862,7 +941,10 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
           {sleepStage2Enabled ? (
             <div className={styles.grid4}>
               <DelaySelect
-                label={lbl(lang, "Stage 2 · delay", "Stage 2 · délai", "Etapa 2 · retraso")}
+                /* stage2Delay is INCREMENTAL (minutes AFTER soft sleep),
+                 * hence the "+" — the absolute deep-sleep threshold is
+                 * soft + this value, as shown on the VeilleTimeline. */
+                label={lbl(lang, "Deep sleep · +delay", "Veille profonde · +délai", "Suspensión profunda · +retraso")}
                 value={sleepStage2Delay}
                 options={SLEEP_STAGE2_DELAY_OPTIONS}
                 onChange={(v) => sleep("stage2Delay")(v)}
@@ -932,8 +1014,7 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
            * for v3 (e.g. the calmDayFastPath toggle is now a checkbox
            * under "AI"; the v2-only "default zoom" field was a one-off
            * dev affordance that didn't survive Direction C). */}
-        </div>
-      )}
+      </div>
     </div>
   );
 };
@@ -952,17 +1033,15 @@ const SectionAdvanced = ({ ctx, lang, remote, open, onToggle }) => {
  * @param {object} props.ctx
  * @param {string} props.lang
  * @param {boolean} props.remote
- * @param {boolean} props.open
- * @param {Function} props.onToggle
  * @returns {JSX.Element}
  */
-const SectionPreview = ({ ctx, lang, remote, open, onToggle }) => {
+const SectionPreview = ({ ctx, lang, remote }) => {
   const { experimentalUiC, saveAdvancedExperimentalFlag } = ctx;
   const activeCount = experimentalUiC ? 1 : 0;
 
   return (
     <div className={styles.section} style={{ opacity: remote ? 0.65 : 1 }}>
-      <DisclosureHeader
+      <SectionHeader
         index="4"
         title={lbl(lang, "Preview", "Aperçu", "Vista previa")}
         subtitle={lbl(lang,
@@ -974,28 +1053,24 @@ const SectionPreview = ({ ctx, lang, remote, open, onToggle }) => {
             {activeCount} {lbl(lang, "active", "actif", "activa")}
           </Pill>
         )}
-        open={open}
-        onToggle={onToggle}
       />
-      {open && (
-        <div className={styles.advBody}>
-          <div className={styles.flagRow}>
-            <Toggle
-              label={lbl(lang,
-                "Ambient interface (v3 preview)",
-                "Interface ambient (aperçu v3)",
-                "Interfaz ambient (vista previa v3)")}
-              value={Boolean(experimentalUiC)}
-              onChange={(v) => saveAdvancedExperimentalFlag("uiC", v)}
-              disabled={remote}
-              sub={lbl(lang,
-                "Disable to switch back to the classic v2 interface. Report bugs at GitHub Issues.",
-                "Désactivez pour revenir à l'interface classique v2. Signalez les bugs sur GitHub Issues.",
-                "Desactiva para volver a la interfaz clásica v2. Informa errores en GitHub Issues.")}
-            />
-          </div>
+      <div className={styles.advBody}>
+        <div className={styles.flagRow}>
+          <Toggle
+            label={lbl(lang,
+              "Ambient interface (v3 preview)",
+              "Interface ambient (aperçu v3)",
+              "Interfaz ambient (vista previa v3)")}
+            value={Boolean(experimentalUiC)}
+            onChange={(v) => saveAdvancedExperimentalFlag("uiC", v)}
+            disabled={remote}
+            sub={lbl(lang,
+              "Disable to switch back to the classic v2 interface. Report bugs at GitHub Issues.",
+              "Désactivez pour revenir à l'interface classique v2. Signalez les bugs sur GitHub Issues.",
+              "Desactiva para volver a la interfaz clásica v2. Informa errores en GitHub Issues.")}
+          />
         </div>
-      )}
+      </div>
     </div>
   );
 };
@@ -1060,6 +1135,59 @@ const formatDelayLabel = (minutes, lang) => {
     `${minutes} min`,
     `${minutes} min`,
     `${minutes} min`,
+  );
+};
+
+// Schematic 3-segment sleep timeline. NOT drawn to scale (the deep
+// stage is open-ended, so true scaling is impossible) — the segments
+// are a fixed-proportion sequence diagram and the real thresholds live
+// in the labels. Semantics are taken verbatim from useIdleDetection:
+//   stage 1 = idle past `stage1Delay` MIN → screensaver, brightness
+//             dimmed to `stage1Brightness` (minimal clock)
+//   stage 2 = idle past `stage1Delay + stage2Delay` MIN → black screen
+//             + anti-burn-in dot at the brightness floor (panel stays
+//             ON — it never powers off). stage2Delay is INCREMENTAL
+//             (minutes AFTER stage 1), so the deep threshold is the sum.
+const VeilleTimeline = ({ stage1Delay, stage2Delay, stage2Enabled, stage1Brightness, lang }) => {
+  const s1 = Number(stage1Delay) || 0;
+  const deepThreshold = s1 + (Number(stage2Delay) || 0);
+  const dim = stage1Brightness != null ? `${stage1Brightness}%` : null;
+  const softSub = lbl(
+    lang,
+    `from ${formatDelayLabel(s1, lang)}${dim ? ` · ${dim}` : ""} + minimal clock`,
+    `dès ${formatDelayLabel(s1, lang)}${dim ? ` · ${dim}` : ""} + horloge minimale`,
+    `desde ${formatDelayLabel(s1, lang)}${dim ? ` · ${dim}` : ""} + reloj mínimo`,
+  );
+  const deepSub = stage2Enabled
+    ? lbl(
+      lang,
+      `from ${formatDelayLabel(deepThreshold, lang)} · black screen, anti-burn-in dot`,
+      `dès ${formatDelayLabel(deepThreshold, lang)} · écran noir, point anti-marquage`,
+      `desde ${formatDelayLabel(deepThreshold, lang)} · pantalla negra, punto anti-marca`,
+    )
+    : lbl(lang, "disabled", "désactivée", "desactivada");
+  return (
+    <div className={styles.veilleTimeline}>
+      <div className={styles.vtTrack} aria-hidden="true">
+        <span className={`${styles.vtSeg} ${styles.vtSegActive}`} />
+        <span className={`${styles.vtSeg} ${styles.vtSegSoft}`} />
+        {stage2Enabled ? <span className={`${styles.vtSeg} ${styles.vtSegDeep}`} /> : null}
+      </div>
+      <div className={styles.vtLabels}>
+        <div className={styles.vtLabel}>
+          <strong>{lbl(lang, "On", "Allumé", "Encendido")}</strong>
+          <span>0 → {formatDelayLabel(s1, lang)}</span>
+        </div>
+        <div className={styles.vtLabel}>
+          <strong>{lbl(lang, "Soft sleep", "Veille douce", "Suspensión suave")}</strong>
+          <span>{softSub}</span>
+        </div>
+        <div className={styles.vtLabel}>
+          <strong>{lbl(lang, "Deep sleep", "Veille profonde", "Suspensión profunda")}</strong>
+          <span>{deepSub}</span>
+        </div>
+      </div>
+    </div>
   );
 };
 
@@ -1214,33 +1342,39 @@ const SectionHeader = ({ index, title, subtitle, right }) => (
   </div>
 );
 
-const DisclosureHeader = ({ index, title, subtitle, right, open, onToggle }) => (
-  <button
-    type="button"
-    className={styles.disclosureHeader}
-    onClick={onToggle}
-    aria-expanded={open}
-  >
-    <span className={`${styles.disclosureChevron} ${open ? styles.disclosureChevronOpen : ""}`}>
-      ▸
-    </span>
-    <div className={styles.sectionHeaderLeft}>
-      <div className={styles.sectionHeaderTitle}>
-        {/* `lockIcon` used to render the U+269F glyph as a "Local only"
-         * cue here, but it falls back to a tofu rectangle in the
-         * Geist/Rubik stack — the kiosk font set doesn't carry that
-         * codepoint. The same information is now communicated by the
-         * green "MODIFIABLE" pill on section 2; sections 3/4 are
-         * implicitly local-only via the same write-path. The prop is
-         * still accepted (no consumer change needed) but renders
-         * nothing. */}
-        <span>{index} · {title}</span>
-      </div>
-      {subtitle ? <div className={styles.sectionHeaderSubtitle}>{subtitle}</div> : null}
-    </div>
-    {right ? <div className={styles.sectionHeaderRight}>{right}</div> : null}
-  </button>
-);
+// Per-section footer note. Honest about WHERE each section's changes
+// land and HOW they're committed — the save model differs by section:
+//   local  → localStorage, applied live, no save button anywhere
+//   api    → settings.json, BATCHED behind the Save button inside
+//            SectionConfig (keys + coords commit together)
+//   avance → settings.json, each flag POSTs immediately on change
+//   apercu → settings.json immediate, but only visible after reload
+// The note is informational only — it never carries a save button, so
+// it can't imply a commit model the section doesn't actually use
+// (correction #3 from the Phase 6 design review: the only batched
+// Save lives in the API section's keys+coords block).
+const PaneFooter = ({ lang, section }) => {
+  const note = {
+    local: lbl(lang,
+      "Applied live · stored on this device",
+      "Appliqué en direct · stocké sur cet appareil",
+      "Aplicado en vivo · guardado en este dispositivo"),
+    api: lbl(lang,
+      "Keys & coordinates saved together via Save",
+      "Clés et coordonnées enregistrées ensemble via Enregistrer",
+      "Claves y coordenadas guardadas juntas con Guardar"),
+    avance: lbl(lang,
+      "Each setting saved to settings.json on change",
+      "Chaque réglage enregistré dans settings.json au changement",
+      "Cada ajuste se guarda en settings.json al cambiar"),
+    apercu: lbl(lang,
+      "Switch takes effect on page reload",
+      "La bascule prend effet au rechargement",
+      "El cambio surte efecto al recargar"),
+  }[section];
+  if (!note) return null;
+  return <div className={styles.paneFooter}>{note}</div>;
+};
 
 // Generic SSH tunnel command. The hostname placeholder `<host>`
 // stays literal so the user replaces it with their Pi's IP /
@@ -1306,30 +1440,34 @@ const ApiKeysList = ({ providers, remote, draft, onChange, lang }) => (
           ? (lang === "fr" ? "OPTIONNEL" : lang === "es" ? "OPCIONAL" : "OPTIONAL")
           : p.tier;
       return (
-        <div key={p.id} className={styles.apiRow}>
-          <StatusDot status={status} />
-          <div className={styles.apiNameBlock}>
-            <div className={styles.apiName}>{p.name}</div>
-            <div className={styles.apiTier}>{tierLabel}</div>
+        /* Stacked layout (Phase 6): name+tier on top, the full purpose
+         * text on its own line, then the input/pill full-width below.
+         * Replaces the old single-row grid whose trailing "purpose"
+         * column truncated ("Tuiles de carte + …") the moment the panel
+         * narrowed — the purpose now always has the full width to read,
+         * and the input is wide enough to see a real key. */
+        <div key={p.id} className={styles.apiKey}>
+          <div className={styles.apiKeyHead}>
+            <StatusDot status={status} />
+            <span className={styles.apiName}>{p.name}</span>
+            <span className={styles.apiTier}>{tierLabel}</span>
           </div>
-          <div className={styles.apiValueBlock}>
-            {remote ? (
-              <Pill kind={status === "configured" ? "ok" : "neutral"}>
-                {status === "configured" ? "✓ Configured" : "○ Not configured"}
-              </Pill>
-            ) : (
-              <input
-                type="text"
-                className={styles.apiKeyInput}
-                value={value}
-                placeholder="—"
-                spellCheck={false}
-                autoComplete="off"
-                onChange={(e) => onChange && onChange(p.id)(e.target.value)}
-              />
-            )}
-          </div>
-          <span className={styles.apiUnlocks} title={p.unlocks}>{p.unlocks}</span>
+          <div className={styles.apiPurpose}>{p.unlocks}</div>
+          {remote ? (
+            <Pill kind={status === "configured" ? "ok" : "neutral"}>
+              {status === "configured" ? "✓ Configured" : "○ Not configured"}
+            </Pill>
+          ) : (
+            <input
+              type="text"
+              className={styles.apiKeyInput}
+              value={value}
+              placeholder="—"
+              spellCheck={false}
+              autoComplete="off"
+              onChange={(e) => onChange && onChange(p.id)(e.target.value)}
+            />
+          )}
         </div>
       );
     })}
@@ -1350,21 +1488,30 @@ const ApiKeysList = ({ providers, remote, draft, onChange, lang }) => (
  * @param {JSX.Element} [props.trailing]
  * @returns {JSX.Element}
  */
-const EditableField = ({ label, value, unit, mono, onChange, trailing }) => (
+const EditableField = ({ label, pill, value, unit, mono, placeholder, onChange, onClear, clearLabel, helper }) => (
   <div className={styles.field}>
-    <div className={styles.fieldLabel}>{label}</div>
+    <div className={styles.fieldLabel}>
+      {label}
+      {pill ? <span className={styles.overridePill}>{pill}</span> : null}
+    </div>
     <div className={styles.fieldBox}>
       <input
         type="text"
         className={`${styles.fieldInput} ${mono ? styles.fieldValueMono : ""}`}
         value={value}
+        placeholder={placeholder}
         spellCheck={false}
         autoComplete="off"
         onChange={(e) => onChange(e.target.value)}
       />
       {unit ? <span className={styles.fieldUnit}>{unit}</span> : null}
-      {trailing ? <span className={styles.fieldTrailing}>{trailing}</span> : null}
+      {onClear ? (
+        <button type="button" className={styles.autoButton} onClick={onClear}>
+          {clearLabel || "Auto"}
+        </button>
+      ) : null}
     </div>
+    {helper ? <div className={styles.fieldHelper}>{helper}</div> : null}
   </div>
 );
 

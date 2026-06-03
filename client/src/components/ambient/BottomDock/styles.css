@@ -98,17 +98,24 @@
   min-width: 0;
 }
 
-/* Narrow-portrait collapse — on iPhone-SE-class viewports the
- * dock can hold 13+ icons (ControlButtons row + refresh + update +
- * 3 debug + HealthIndicator) and the rightmost ones overlap or
- * push past the dock edge. Hide buttons flagged with
- * `data-dock-priority="secondary"` in this configuration; rotate
- * the device to landscape (or use a wider device) to bring them
- * back. Essentials kept visible in portrait: recenter, marker
- * toggle, contrast, refresh, settings, and the health-indicator
- * dot — plus any conditionally-shown buttons that don't carry the
- * secondary flag (debug trio when isLocal, update when available). */
-@media (max-width: 479px) and (orientation: portrait) {
+/* Narrow-portrait collapse — on a narrow viewport the dock can hold
+ * 13+ icons (ControlButtons row + refresh + update + 3 debug +
+ * HealthIndicator) and the rightmost ones (settings, health) overlap
+ * or push past the dock edge, making them un-tappable. Hide buttons
+ * flagged with `data-dock-priority="secondary"` in this configuration;
+ * widen the window (or rotate to landscape) to bring them back.
+ * Essentials kept visible in portrait: recenter, marker toggle,
+ * contrast, refresh, settings, and the health-indicator dot — plus any
+ * conditionally-shown buttons that don't carry the secondary flag
+ * (debug trio when isLocal, update when available).
+ *
+ * Threshold is 600 px (was 479): the full dock stops fitting well below
+ * ~650 px, and a desktop browser resized to its ~500 px minimum width
+ * lands in that overcrowded band but never hit the old 479 px gate — so
+ * the settings gear silently fell off the edge on a narrowed desktop
+ * window. 600 px covers both the desktop-minimum case and every phone
+ * in portrait; the 800 px-wide 7" kiosk (landscape) never matches. */
+@media (max-width: 600px) and (orientation: portrait) {
   .dock [data-dock-priority="secondary"] {
     display: none !important;
   }
