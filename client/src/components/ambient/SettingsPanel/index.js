@@ -724,6 +724,8 @@ const SectionAdvanced = ({ ctx, lang, remote }) => {
     saveSenseHatMode,
     senseHatClockBrightness,
     setSenseHatClockBrightnessLive,
+    senseHatRadarBrightness,
+    setSenseHatRadarBrightnessLive,
     // Display group (Phase 8b — ported in 2.14.22)
     lightModeStyle,
     darkModeStyle,
@@ -983,7 +985,7 @@ const SectionAdvanced = ({ ctx, lang, remote }) => {
               <div className={`${styles.subhead} ${styles.subheadGap}`}>
                 {lbl(lang, "Sense HAT", "Sense HAT", "Sense HAT")}
               </div>
-              <div className={styles.grid4}>
+              <div className={`${styles.grid4} ${styles.gridSenseHat}`}>
                 <Seg
                   label={lbl(lang, "Display", "Affichage", "Pantalla")}
                   options={[
@@ -1010,6 +1012,24 @@ const SectionAdvanced = ({ ctx, lang, remote }) => {
                     max={100}
                     step={5}
                     onChange={setSenseHatClockBrightnessLive}
+                    disabled={remote}
+                  />
+                ) : null}
+                {/* Radar night-brightness slider — shown in radar/auto
+                  * modes. Sets the night multiplier for the radar grid
+                  * (daytime stays at full brightness); restarts
+                  * pi-sensehat.service server-side so the change shows
+                  * immediately. The saturated tier colours read fine in
+                  * daylight, but at night a fully-bright matrix can be
+                  * too much in a bedroom — this is the knob for it. */}
+                {(senseHatMode === "radar" || senseHatMode === "auto") ? (
+                  <RangeSlider
+                    label={lbl(lang, "Radar brightness · night", "Luminosité radar · nuit", "Brillo radar · noche")}
+                    value={senseHatRadarBrightness}
+                    min={10}
+                    max={100}
+                    step={5}
+                    onChange={setSenseHatRadarBrightnessLive}
                     disabled={remote}
                   />
                 ) : null}

@@ -54,6 +54,8 @@ const {
   setSenseHatMode,
   getClockBrightness,
   setClockBrightness,
+  getRadarBrightness,
+  setRadarBrightness,
   applySenseHatModeOnBoot,
 } = require("./sensehatModeCtrl");
 const { initIndoorTemperature, getIndoorTemperature } = require("./indoorTempCtrl");
@@ -678,6 +680,8 @@ app.get("/api/sensehat-mode",       apiLimiter, getSenseHatMode);
 app.post("/api/sensehat-mode",      localhostOnly, setSenseHatMode);
 app.get("/api/sensehat-clock-brightness",  apiLimiter, getClockBrightness);
 app.post("/api/sensehat-clock-brightness", localhostOnly, setClockBrightness);
+app.get("/api/sensehat-radar-brightness",  apiLimiter, getRadarBrightness);
+app.post("/api/sensehat-radar-brightness", localhostOnly, setRadarBrightness);
 app.post("/api/kiosk-location",            localhostOnly, postKioskLocation);
 app.get("/api/indoor-temperature",  apiLimiter, getIndoorTemperature);
 
