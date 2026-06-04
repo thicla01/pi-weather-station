@@ -57,6 +57,13 @@ const day = {
   warn: "#c47a18",
   danger: "#b03028",
   cool: "#3a5a78",
+  // Advisory (yellow) tier accent — the solid alert-gold used for the
+  // AlertBanner / FloatingMiniBanner left severity strip. Matches the
+  // gold the WeatherMap alert-zone polygon paints (#f0c000) so the
+  // banner strip and the map zone agree. Distinct from `sevAdvInk`,
+  // which is a DARK text-ink colour (dark-on-light) — using it on the
+  // strip rendered as a muddy olive instead of yellow.
+  advisory: "#f0c000",
   sevAdvBg: "rgba(232, 200, 122, 0.18)",
   sevAdvBorder: "rgba(232, 200, 122, 0.5)",
   sevAdvInk: "#8a6a18",
@@ -97,6 +104,7 @@ const dusk = {
   warn: "#e8a050",
   danger: "#d8503c",
   cool: "#7a98b8",
+  advisory: "#f0c000",
   sevAdvBg: "rgba(232, 200, 122, 0.12)",
   sevAdvBorder: "rgba(232, 200, 122, 0.40)",
   sevAdvInk: "#e8c87a",
@@ -125,6 +133,7 @@ const night = {
   warn: "#c47030",
   danger: "#b04030",
   cool: "#5a7898",
+  advisory: "#f0c000",
   sevAdvBg: "rgba(232, 200, 122, 0.10)",
   sevAdvBorder: "rgba(232, 200, 122, 0.35)",
   sevAdvInk: "#e8c87a",
@@ -166,6 +175,9 @@ const nightRed = {
   // red — the design's deliberate constraint for night-vision
   // preservation. The icon + label inside the chip carry the tier
   // discrimination; the colour just signals "alert" generically.
+  // `advisory` therefore collapses to red here too (it would otherwise
+  // be the alert-gold #f0c000), so the banner strip stays night-safe.
+  advisory: "#c44040",
   sevAdvBg: "rgba(232, 80, 80, 0.10)",
   sevAdvBorder: "rgba(232, 80, 80, 0.30)",
   sevAdvInk: "#d04848",

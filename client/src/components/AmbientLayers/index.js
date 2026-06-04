@@ -157,6 +157,7 @@ const AmbientLayers = () => {
     "--c-border-hybrid": palette.borderHybrid,
     "--c-warn": palette.warn,
     "--c-danger": palette.danger,
+    "--c-advisory": palette.advisory,
     "--c-cool": palette.cool,
     "--c-strip-color": stripColor,
     // v3.1 Phase 4 — severity-chip palette tokens. Three tiers

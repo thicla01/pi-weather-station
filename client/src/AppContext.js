@@ -27,6 +27,7 @@ const DARK_MODE_AUTO_STORAGE_KEY = "darkModeAuto";
 const MARKER_VISIBLE_STORAGE_KEY = "markerIsVisible";
 const AI_USER_VISIBLE_STORAGE_KEY = "aiSummaryUserVisible";
 const MOUSE_HIDE_STORAGE_KEY = "mouseHide";
+const SHOW_ADVISORY_ALERTS_STORAGE_KEY = "showAdvisoryAlerts";
 const HIDE_RADAR_LEGEND_STORAGE_KEY = "hideRadarLegend";
 const RADAR_SOURCE_STORAGE_KEY = "radarSource";
 const RADAR_SOURCE_VALUES = ["rainviewer", "eccc"];
@@ -503,6 +504,10 @@ export function AppContextProvider({ children }) {
   const [customLat, setCustomLat] = useState(null);
   const [customLon, setCustomLon] = useState(null);
   const [mouseHide, setMouseHide] = useState(false);
+  // Per-device opt-in to surface yellow-tier (advisory) government
+  // alerts. Off by default; persisted to localStorage like mouseHide.
+  // Threaded into selectEligibleGovAlerts via useEligibleGovAlerts.
+  const [showAdvisoryAlerts, setShowAdvisoryAlerts] = useState(false);
   const [hideRadarLegend, setHideRadarLegend] = useState(false);
   // Visual radar source on the map. "rainviewer" (default) keeps the existing
   // CDN-cached PNG tiles + timeline scrubber; "eccc" swaps to Environment
@@ -567,6 +572,24 @@ export function AppContextProvider({ children }) {
     }
     setMouseHide(newState);
     window.localStorage.setItem(MOUSE_HIDE_STORAGE_KEY, newState);
+  }
+
+  /**
+   * Save the "show advisory alerts" opt-in (per-device).
+   *
+   * @param {Boolean} newVal — JSON-encoded boolean, passed by the
+   *   Settings toggle via saveBoolFlag
+   */
+  function saveShowAdvisoryAlerts(newVal) {
+    let newState;
+    try {
+      newState = JSON.parse(newVal);
+    } catch (e) {
+      console.log("saveShowAdvisoryAlerts", e);
+      return;
+    }
+    setShowAdvisoryAlerts(newState);
+    window.localStorage.setItem(SHOW_ADVISORY_ALERTS_STORAGE_KEY, newState);
   }
 
   /**
@@ -707,6 +730,16 @@ export function AppContextProvider({ children }) {
     }
 
     setMouseHide(!!mouseHide);
+
+    let showAdvisoryAlerts;
+    try {
+      showAdvisoryAlerts = JSON.parse(
+        window.localStorage.getItem(SHOW_ADVISORY_ALERTS_STORAGE_KEY)
+      );
+    } catch (e) {
+      console.log("showAdvisoryAlerts", e);
+    }
+    setShowAdvisoryAlerts(!!showAdvisoryAlerts);
 
     let hideRadarLegend;
     try {
@@ -1811,6 +1844,8 @@ export function AppContextProvider({ children }) {
     dailyWeatherDataErrMsg,
     mouseHide,
     saveMouseHide,
+    showAdvisoryAlerts,
+    saveShowAdvisoryAlerts,
     hideRadarLegend,
     saveHideRadarLegend,
     radarSource,

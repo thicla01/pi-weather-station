@@ -33,6 +33,14 @@
   background-color: var(--c-cool);
 }
 
+/* Yellow (advisory) strip — only ever rendered when the user opts into
+ * advisory alerts. Uses the alert-gold `--c-advisory` token (#f0c000,
+ * the same gold the WeatherMap alert-zone polygon paints, so the strip
+ * and the map zone agree), which collapses to red in night-red like the
+ * other severity strips. NOT `--sev-adv-ink`: that's the dark text-ink
+ * colour and rendered as a muddy olive here. Without any rule the strip
+ * fell back to the neutral `--c-cool` (blue). */
+.tier-yellow::before { background-color: var(--c-advisory); }
 .tier-orange::before { background-color: var(--c-warn); }
 .tier-red::before    { background-color: var(--c-danger); }
 

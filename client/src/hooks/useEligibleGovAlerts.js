@@ -26,8 +26,9 @@ import { selectEligibleGovAlerts } from "~/ui/alertLogic";
  *
  * The derivation, in order:
  *   1. Drop alerts the user dismissed (useDismissedAlerts).
- *   2. Keep only displayable tiers (red/orange) via
- *      selectEligibleGovAlerts — yellow-tier alerts are never shown.
+ *   2. Keep only displayable tiers via selectEligibleGovAlerts —
+ *      red/orange by default; the yellow (advisory) tier is included
+ *      only when the `showAdvisoryAlerts` per-device opt-in is on.
  *   3. Resolve the current alert by `govAlertIdx % length`, the same
  *      modulo every consumer used, so one govAlertIdx maps to one
  *      alert across all four surfaces. Mini-cards pass an index into
@@ -44,15 +45,18 @@ import { selectEligibleGovAlerts } from "~/ui/alertLogic";
  *   alert (null when none), and whether any eligible alert exists
  */
 export default function useEligibleGovAlerts() {
-  const { govAlerts, govAlertIdx } = useContext(AppContext);
+  const { govAlerts, govAlertIdx, showAdvisoryAlerts } = useContext(AppContext);
   const { isDismissed } = useDismissedAlerts();
 
   const eligibleGovAlerts = useMemo(() => {
     const visible = Array.isArray(govAlerts)
       ? govAlerts.filter((a) => !isDismissed(a))
       : [];
-    return selectEligibleGovAlerts(visible);
-  }, [govAlerts, isDismissed]);
+    // `showAdvisoryAlerts` is the per-device opt-in (off by default)
+    // that adds the yellow advisory tier on top of the red/orange
+    // default — see selectEligibleGovAlerts.
+    return selectEligibleGovAlerts(visible, showAdvisoryAlerts);
+  }, [govAlerts, isDismissed, showAdvisoryAlerts]);
 
   const hasEligible = eligibleGovAlerts.length > 0;
   const safeIdx = hasEligible ? govAlertIdx % eligibleGovAlerts.length : 0;

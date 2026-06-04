@@ -7,6 +7,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- **Optional advisory-level (yellow-tier) alerts.** A new per-device toggle in **Settings → Local preferences → "Show advisory alerts"** surfaces NWS/ECCC advisory alerts (Flood / Heat / Wind Advisory — CAP severity *minor/low*) that the banner stack hides by default. **Off by default**, persisted to `localStorage` like the other local prefs, so the quieter red/orange-only default is unchanged for everyone who doesn't opt in. Requested by a flood-prone user (k5map, TX) whose Flood Advisories frequently escalate to Warnings. The preference threads through the shared `selectEligibleGovAlerts` filter (via `useEligibleGovAlerts`), so all four banner surfaces agree; the yellow severity strip was added to `AlertBanner` + `FloatingMiniBanner` (the severity chip + mini-cards already styled it) via a new palette token `--c-advisory` — the alert-gold `#f0c000` the map's alert-zone polygon already paints, so the banner strip and the map zone match, collapsing to red in night-red like the other severity strips. Label deliberately says "advisory", never "yellow".
+
 ### Changed
 - **Debug panel (v3 ambient) — Phase 7 layout refresh.** The title header is gone and its actions are reorganised around the panel's task structure:
   - **Close moved to the bottom of the rail**, reusing the Settings-panel grammar: a dim, divider-separated exit that never carries the active-section accent, so it doesn't read as a sixth selectable section.
