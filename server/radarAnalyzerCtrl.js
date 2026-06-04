@@ -83,6 +83,14 @@ const OUTER_DIRECTIONS = Array.from({ length: 32 }, (_, i) => {
 // 33.75, NE, 56.25, ENE, …
 const DIRECTION_ORDER = ["C", ...OUTER_DIRECTIONS.map((d) => d.name)];
 
+// Reverse lookup name → bearing (degrees clockwise from north), used by
+// buildRadarGrid to reproject the polar samples back onto a Cartesian
+// grid. OUTER_DIRECTIONS' 32 entries cover every bearing that can appear
+// — the 16 inner cardinals share the same names/bearings, so this single
+// map resolves both rings. The centre sample (direction "C", distance 0)
+// has no bearing and is handled separately.
+const BEARING_BY_NAME = new Map(OUTER_DIRECTIONS.map((d) => [d.name, d.bearing]));
+
 // RainViewer color scheme 6 (NEXRAD Level III) — the same palette the client
 // already shows in the radar legend. Each entry is the canonical RGB for that
 // intensity level; pixels are matched against these by nearest-neighbour in
@@ -1213,8 +1221,99 @@ async function getRiskLevels(lat, lon, options = {}) {
   return result;
 }
 
+// ── Sense HAT radar grid ────────────────────────────────────────────────────
+// Reproject the polar "now"-frame samples ({direction, distance, intensity})
+// onto a square N×N grid so the Sense HAT LED matrix can show a coarse
+// top-down view of precipitation around the user. The analysis disk is
+// *inscribed* in the square: its radius (the farthest sampled distance)
+// maps to the half-width of the matrix, so the four corners fall outside
+// the disk and stay dark — the lit area reads as a circular blob. North is
+// up (row 0), east is right (col N-1); the Python renderer applies the
+// physical ROTATION on top of this logical north-up grid.
+const RADAR_GRID_SIZE = 8;
+
+/**
+ * Reproject polar radar samples onto a square intensity grid for the LED matrix.
+ *
+ * Each sample is binned into the pixel its (bearing, distance) lands in, and
+ * each pixel keeps the MAX intensity of the samples that fall in it — the same
+ * worst-case rule the dashed risk rings use, so a pixel never under-reports the
+ * heaviest echo passing through its ~radius/4-km cell. Cells with no sample (or
+ * only intensity-0 samples) stay 0, which the renderer paints as "off".
+ *
+ * @param {Array<{direction: String, distance: Number, intensity: Number}>} samples
+ *   The latest-frame samples from getRiskLevels (inner + outer concatenated).
+ *   `distance` is in display units; the centre sample has direction "C".
+ * @param {Object} [options]
+ * @param {String} [options.unit] "km" or "mi" — converts `distance` to km for
+ *   the radius normalisation (the grid is unit-agnostic once normalised).
+ * @param {Number} [options.size] Grid edge length in pixels (default 8).
+ * @returns {{grid: Number[], size: Number, radiusKm: Number, litCells: Number}}
+ *   `grid` is a row-major flat array of length size² holding intensities 0-6
+ *   (grid[row*size + col], row 0 = north, col 0 = west). `radiusKm` is the
+ *   disk radius the matrix represents (the farthest sampled distance).
+ *   `litCells` counts cells with intensity ≥ 1.
+ */
+function buildRadarGrid(samples, options = {}) {
+  const unit = options.distanceUnit === "mi" ? "mi" : "km";
+  const size = options.size || RADAR_GRID_SIZE;
+  const half = size / 2;
+  const kmPerUnit = KM_PER_UNIT[unit];
+  const grid = new Array(size * size).fill(0);
+
+  // The matrix radius is the farthest distance actually sampled — adapts to
+  // the geometry mode automatically: inner-only (extendedRadius off) fills
+  // the matrix with the 50 km / 30 mi disk at ~radius/4 km per pixel; with
+  // the outer ring it represents the full 100 km / 60 mi disk.
+  let radiusKm = 0;
+  for (const s of samples) {
+    const dKm = s.distance * kmPerUnit;
+    if (dKm > radiusKm) radiusKm = dKm;
+  }
+  if (radiusKm === 0) return { grid, size, radiusKm: 0, litCells: 0 };
+
+  for (const s of samples) {
+    if (!s || s.intensity <= 0) continue;
+    let east; let north; // normalised [-1, 1], +north = up, +east = right
+    if (s.direction === "C") {
+      east = 0; north = 0;
+    } else {
+      const bearing = BEARING_BY_NAME.get(s.direction);
+      if (bearing == null) continue;
+      const r = (s.distance * kmPerUnit) / radiusKm; // 0 (centre) … 1 (rim)
+      const rad = bearing * Math.PI / 180;
+      east = r * Math.sin(rad);
+      north = r * Math.cos(rad);
+    }
+    // Map [-1, 1] → [0, size); clamp the +1 rim so a due-E/S sample at the
+    // exact radius lands on the last pixel instead of falling off the grid.
+    const col = Math.min(size - 1, Math.floor((east + 1) * half));
+    const row = Math.min(size - 1, Math.floor((1 - north) * half));
+    const idx = row * size + col;
+    if (s.intensity > grid[idx]) grid[idx] = s.intensity;
+  }
+
+  const litCells = grid.reduce((n, v) => (v > 0 ? n + 1 : n), 0);
+  return { grid, size, radiusKm, litCells };
+}
+
+/**
+ * Map a radar intensity level (0-6) to its canonical RGB for the LED matrix.
+ * Level 0 ("clear") is off (black). Levels 1-6 reuse INTENSITY_PALETTE — the
+ * same NEXRAD-scheme-6 colours as the map tiles and per-sample dots, so the
+ * matrix speaks the same colour language as the on-screen radar.
+ *
+ * @param {Number} level Intensity 0-6.
+ * @returns {[Number, Number, Number]} RGB triple, [0,0,0] for level 0.
+ */
+function intensityToRgb(level) {
+  if (!level || level <= 0) return [0, 0, 0];
+  const entry = INTENSITY_PALETTE[Math.min(level, INTENSITY_PALETTE.length) - 1];
+  return [entry.r, entry.g, entry.b];
+}
+
 module.exports = {
-  analyzeRadar, getRiskLevels,
+  analyzeRadar, getRiskLevels, buildRadarGrid, intensityToRgb,
   // Exported for regression testing only — internal helpers, not part
   // of the public surface. See test/radarTrend.test.js.
   __test: {

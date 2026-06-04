@@ -17,6 +17,8 @@ const { getSettingsData }    = require("./settingsCtrl");
 const { weatherCache }       = require("./proxyCtrl");
 const { getActiveAlertsAt }  = require("./govAlertsCtrl");
 const { getKioskLocation }   = require("./kioskLocationCtrl");
+const { resolveMode, WEATHER_MODES } = require("./sensehatModeCtrl");
+const { getRiskLevels, buildRadarGrid } = require("./radarAnalyzerCtrl");
 
 // Severity tiers that warrant overriding the SenseHat display with an
 // alert pulse. "red" covers extreme + severe (tornado, hurricane,
@@ -25,6 +27,11 @@ const { getKioskLocation }   = require("./kioskLocationCtrl");
 // override threshold — alerts at that level are routine and would
 // just spam the LED matrix.
 const SENSEHAT_ALERT_TIERS = new Set(["red", "orange"]);
+
+// Modes whose renderer consumes the radar grid. Weather/clock modes never
+// light the radar, so we skip the (cached, but non-free) getRiskLevels call
+// for them and omit the `radar` field entirely.
+const RADAR_GRID_MODES = new Set(["radar", "auto"]);
 
 const API_TIMEOUT_MS   = 10_000;
 const SUN_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
@@ -226,6 +233,28 @@ async function getSenseHatData(req, res) {
     // Upstream errored — leave alertField undefined, no override.
   }
 
+  // ── 6. Radar grid (radar / auto modes only) ─────────────────────────────
+  // A coarse 8×8 top-down view of precipitation around the user. Computed
+  // only when the selected mode will actually render it. getRiskLevels is
+  // the same 5-min-cached pipeline the map's risk endpoint uses, so this
+  // rarely triggers a fresh tile fetch. Best-effort: on failure we omit the
+  // field and the script falls back (radar mode → centre dot, auto → glyph).
+  const mode = resolveMode(settings);
+  let radarField;
+  if (RADAR_GRID_MODES.has(mode)) {
+    try {
+      const extendedRadius = Boolean(settings?.advanced?.ai?.extendedRadius);
+      const risk = await getRiskLevels(lat, lon, { extendedRadius, distanceUnit: "km" });
+      if (risk) {
+        const samples = [...(risk.inner?.samples || []), ...(risk.outer?.samples || [])];
+        const { grid, litCells, radiusKm } = buildRadarGrid(samples, { distanceUnit: "km" });
+        radarField = { grid, litCells, radiusKm };
+      }
+    } catch (err) {
+      console.warn("[sensehat] radar grid failed:", err.message);
+    }
+  }
+
   return res.json({
     weatherCode:       values.weatherCode       ?? null,
     precipitationType: values.precipitationType ?? 0,
@@ -234,6 +263,8 @@ async function getSenseHatData(req, res) {
     isDay,
     sunriseTs,
     sunsetTs,
+    mode,
+    ...(radarField ? { radar: radarField } : {}),
     ...(alertField ? { alert: alertField } : {}),
   });
 }

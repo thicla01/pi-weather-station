@@ -989,6 +989,8 @@ const SectionAdvanced = ({ ctx, lang, remote }) => {
                   options={[
                     { v: "weather", l: lbl(lang, "Weather", "Météo", "Tiempo") },
                     { v: "clock",   l: lbl(lang, "Clock",   "Horloge", "Reloj") },
+                    { v: "radar",   l: lbl(lang, "Radar",   "Radar",   "Radar") },
+                    { v: "auto",    l: lbl(lang, "Auto",    "Auto",    "Auto") },
                   ]}
                   value={senseHatMode || "weather"}
                   onChange={saveSenseHatMode}
