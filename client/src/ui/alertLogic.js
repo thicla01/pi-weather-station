@@ -22,30 +22,43 @@
 import { confidenceBucket } from "./hybrid";
 
 /**
- * Government-alert tiers the v3 banner stack actually displays.
+ * Government-alert tiers the v3 banner stack displays by default.
  * `severityToTier` (server/govAlertSources/_shared.js) emits "red",
- * "orange" or "yellow"; only red/orange clear the SHOW gate. Yellow-
- * tier (minor/low severity) alerts are intentionally never surfaced.
+ * "orange" or "yellow"; only red/orange clear the default SHOW gate.
+ * Yellow-tier (minor/low severity) alerts are hidden unless the user
+ * opts into them — see `ELIGIBLE_GOV_TIERS_WITH_ADVISORY`.
  */
 export const ELIGIBLE_GOV_TIERS = ["red", "orange"];
 
 /**
- * Filter a list of government alerts down to the displayable tiers
- * (red/orange). Single source of truth shared — via the
- * `useEligibleGovAlerts` hook — by the AlertBanner counter + primary
- * index, AlertDetailInline, FloatingMiniBanner and AlertMiniCards, so
- * none of them disagree on what "N active alerts" means. Before this
- * existed, the banner counter counted ALL tiers while the mini-cards
- * list only showed red/orange, so a sub-threshold yellow ECCC alert
- * inflated "1 / 2" without ever appearing as a card (the Nicolet
- * report, 2026-05-29).
+ * Tiers shown when the user has enabled the "show advisory alerts"
+ * preference: red/orange plus the yellow tier (NWS/ECCC advisories —
+ * Flood / Heat / Wind Advisory, CAP severity minor/low). Opt-in and
+ * off by default. Requested by a flood-prone user (k5map, TX) whose
+ * Flood Advisories frequently escalate to Warnings; gating it behind a
+ * per-device toggle keeps the quieter default for everyone else.
+ */
+export const ELIGIBLE_GOV_TIERS_WITH_ADVISORY = ["red", "orange", "yellow"];
+
+/**
+ * Filter a list of government alerts down to the displayable tiers.
+ * Single source of truth shared — via the `useEligibleGovAlerts` hook
+ * — by the AlertBanner counter + primary index, AlertDetailInline,
+ * FloatingMiniBanner and AlertMiniCards, so none of them disagree on
+ * what "N active alerts" means. Before this existed, the banner counter
+ * counted ALL tiers while the mini-cards list only showed red/orange,
+ * so a sub-threshold yellow ECCC alert inflated "1 / 2" without ever
+ * appearing as a card (the Nicolet report, 2026-05-29).
  *
  * @param {Array<{tier?: string}>} alerts
- * @returns {Array} the subset whose tier is red or orange
+ * @param {boolean} [showAdvisory=false] — when true, also keep the
+ *   yellow (advisory) tier; otherwise red/orange only
+ * @returns {Array} the subset whose tier is in the active set
  */
-export function selectEligibleGovAlerts(alerts) {
+export function selectEligibleGovAlerts(alerts, showAdvisory = false) {
   if (!Array.isArray(alerts)) return [];
-  return alerts.filter((a) => ELIGIBLE_GOV_TIERS.includes(a?.tier));
+  const tiers = showAdvisory ? ELIGIBLE_GOV_TIERS_WITH_ADVISORY : ELIGIBLE_GOV_TIERS;
+  return alerts.filter((a) => tiers.includes(a?.tier));
 }
 
 /**

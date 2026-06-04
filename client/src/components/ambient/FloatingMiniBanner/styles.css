@@ -48,6 +48,14 @@
   background-color: var(--c-cool);
 }
 
+/* Yellow (advisory) strip — only rendered when advisory alerts are
+ * opted in. Alert-gold `--c-advisory` (#f0c000, matching the map zone;
+ * collapses to red in night-red) so it reads as yellow and stays as
+ * loud as the orange/red strips. Kept in sync with AlertBanner. */
+.tier-yellow::before {
+  background-color: var(--c-advisory);
+}
+
 .tier-orange::before {
   background-color: var(--c-warn);
 }

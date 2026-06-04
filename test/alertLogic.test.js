@@ -187,9 +187,11 @@ test("getRadarAlertState: confidence is clamped 0-100", () => {
 // ───────────────────────────────────────────────────────────────────────
 
 const ELIGIBLE_GOV_TIERS = ["red", "orange"];
-function selectEligibleGovAlerts(alerts) {
+const ELIGIBLE_GOV_TIERS_WITH_ADVISORY = ["red", "orange", "yellow"];
+function selectEligibleGovAlerts(alerts, showAdvisory = false) {
   if (!Array.isArray(alerts)) return [];
-  return alerts.filter((a) => ELIGIBLE_GOV_TIERS.includes(a?.tier));
+  const tiers = showAdvisory ? ELIGIBLE_GOV_TIERS_WITH_ADVISORY : ELIGIBLE_GOV_TIERS;
+  return alerts.filter((a) => tiers.includes(a?.tier));
 }
 
 test("selectEligibleGovAlerts: keeps red and orange, drops yellow", () => {
@@ -224,4 +226,22 @@ test("selectEligibleGovAlerts: non-array / empty inputs return []", () => {
 test("selectEligibleGovAlerts: alerts with no tier are dropped", () => {
   const out = selectEligibleGovAlerts([{ id: "a" }, { id: "b", tier: "red" }]);
   assert.deepEqual(out.map((a) => a.id), ["b"]);
+});
+
+test("selectEligibleGovAlerts: showAdvisory=true also keeps the yellow tier", () => {
+  // The k5map opt-in (flood-prone TX): with advisories enabled the
+  // yellow tier (Flood Advisory etc.) joins red/orange.
+  const out = selectEligibleGovAlerts([
+    { id: "a", tier: "red" },
+    { id: "b", tier: "orange" },
+    { id: "c", tier: "yellow" },
+  ], true);
+  assert.deepEqual(out.map((a) => a.id), ["a", "b", "c"]);
+});
+
+test("selectEligibleGovAlerts: defaults off — yellow dropped without the opt-in", () => {
+  // Default arg must preserve the historical red/orange-only behaviour
+  // so every existing caller is unchanged until it passes the flag.
+  assert.deepEqual(selectEligibleGovAlerts([{ id: "adv", tier: "yellow" }]), []);
+  assert.deepEqual(selectEligibleGovAlerts([{ id: "adv", tier: "yellow" }], false), []);
 });

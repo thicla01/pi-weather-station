@@ -239,6 +239,7 @@ const SectionLocalPrefs = ({ ctx, lang }) => {
     lengthUnit, saveLengthUnit,
     distanceUnit, saveDistanceUnit,
     mouseHide, saveMouseHide,
+    showAdvisoryAlerts, saveShowAdvisoryAlerts,
   } = ctx;
 
   // The MouseHide / HideRadarLegend save helpers take a JSON-encoded
@@ -353,6 +354,24 @@ const SectionLocalPrefs = ({ ctx, lang }) => {
          * radar legend has its own dedicated toggle in the dock now
          * (carbon:legend, gated on the active RainViewer source).
          * State + setter still in AppContext for the dock button. */}
+      </div>
+
+      {/* Advisory-alert opt-in (per-device, localStorage). Off by
+        * default so the quieter red/orange-only banner stack stays the
+        * norm; a flood-prone user (k5map) enables it to also see
+        * yellow-tier advisories that often escalate to warnings. The
+        * label deliberately says "advisory", never "yellow" — the
+        * requester noted the colour name means nothing to them. */}
+      <div className={styles.toggleRow}>
+        <Toggle
+          label={lbl(lang, "Show advisory alerts", "Afficher les avis", "Mostrar avisos")}
+          sub={lbl(lang,
+            "Also surface advisory-level alerts (Flood / Heat / Wind Advisory). Off by default.",
+            "Affiche aussi les alertes de niveau « avis » (avis de crue, de chaleur, de vent). Désactivé par défaut.",
+            "Muestra también las alertas de nivel « aviso » (aviso de inundación, calor, viento). Desactivado por defecto.")}
+          value={Boolean(showAdvisoryAlerts)}
+          onChange={saveBoolFlag(saveShowAdvisoryAlerts)}
+        />
       </div>
 
       {/* Trust-this-Pi helper. Downloads the self-signed CA cert
