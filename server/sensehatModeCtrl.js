@@ -59,6 +59,11 @@ const CLOCK_SERVICE = "pi-sensehat-clock.service";
 // the DEFAULT_BRIGHTNESS_PERCENT constant in tools/horloge.py — kept
 // in sync manually since the two run in different language runtimes.
 const DEFAULT_CLOCK_BRIGHTNESS = 50;
+// Default for `advanced.sensehat.radarBrightness` — the night-time
+// brightness multiplier (percent) for the radar grid. Mirrors
+// BRIGHTNESS_RADAR_NIGHT (0.6) in tools/sensehat_weather.py. Daytime
+// radar always renders at full brightness; this only dims the night.
+const DEFAULT_RADAR_BRIGHTNESS = 60;
 
 // Detection caching — `import sense_hat` is a non-trivial probe
 // (~150 ms on a Pi 4, longer on first import after boot due to
@@ -129,6 +134,34 @@ async function readPersistedBrightness() {
     /* fall through */
   }
   return DEFAULT_CLOCK_BRIGHTNESS;
+}
+
+/**
+ * Resolve the radar night-brightness percent from an already-loaded settings
+ * object (pure, no I/O) so sensehatCtrl can fold it into /api/sensehat without
+ * a second read. Falls back to DEFAULT_RADAR_BRIGHTNESS (60%).
+ *
+ * @param {object} settings parsed settings.json (or null/partial)
+ * @returns {number} integer 0-100
+ */
+function resolveRadarBrightness(settings) {
+  const v = settings && settings.advanced && settings.advanced.sensehat && settings.advanced.sensehat.radarBrightness;
+  if (typeof v === "number" && v >= 0 && v <= 100) return Math.round(v);
+  return DEFAULT_RADAR_BRIGHTNESS;
+}
+
+/**
+ * Read the persisted radar night-brightness from settings.json. Falls back to
+ * DEFAULT_RADAR_BRIGHTNESS (60%) on any missing / unparseable value.
+ *
+ * @returns {Promise<number>} integer 0-100
+ */
+async function readPersistedRadarBrightness() {
+  try {
+    return resolveRadarBrightness(await getSettingsData());
+  } catch {
+    return DEFAULT_RADAR_BRIGHTNESS;
+  }
 }
 
 /**
@@ -311,19 +344,82 @@ async function setClockBrightness(req, res) {
   }
 }
 
+/**
+ * Check whether pi-sensehat.service (the weather/radar/auto daemon) is
+ * currently active.
+ *
+ * @returns {Promise<boolean>}
+ */
+async function isWeatherServiceActive() {
+  try {
+    const { stdout } = await execFileAsync("systemctl", ["--user", "is-active", WEATHER_SERVICE], { timeout: 5_000 });
+    return stdout.trim() === "active";
+  } catch (err) {
+    if (err && err.stdout && err.stdout.trim() === "active") return true;
+    return false;
+  }
+}
+
+/**
+ * GET /api/sensehat-radar-brightness
+ */
+async function getRadarBrightness(req, res) {
+  const brightness = await readPersistedRadarBrightness();
+  return res.status(200).json({ brightness }).end();
+}
+
+/**
+ * POST /api/sensehat-radar-brightness  body: {brightness: 0-100}
+ *
+ * Persists the radar night-brightness. The weather daemon reads the value
+ * from /api/sensehat on its next poll, but we also restart
+ * pi-sensehat.service (when active) so the change is visible immediately
+ * rather than up to a poll interval later — same immediacy contract as the
+ * clock-brightness endpoint. Skipped when the weather daemon isn't running
+ * (clock mode); the value is picked up the next time it starts.
+ */
+async function setRadarBrightness(req, res) {
+  const { brightness } = req.body || {};
+  if (typeof brightness !== "number" || !Number.isFinite(brightness) || brightness < 0 || brightness > 100) {
+    return res.status(400).json({ error: "brightness must be a number 0-100" }).end();
+  }
+  if (!(await probeAvailable())) {
+    return res.status(503).json({ error: "Sense HAT not detected on this host" }).end();
+  }
+  const rounded = Math.round(brightness);
+  try {
+    await persistSensehat({ radarBrightness: rounded });
+    if (await isWeatherServiceActive()) {
+      try {
+        await execFileAsync("systemctl", ["--user", "restart", WEATHER_SERVICE], { timeout: 10_000 });
+      } catch (err) {
+        return res.status(200).json({ brightness: rounded, restarted: false, warning: err.message }).end();
+      }
+      return res.status(200).json({ brightness: rounded, restarted: true }).end();
+    }
+    return res.status(200).json({ brightness: rounded, restarted: false }).end();
+  } catch (err) {
+    return res.status(500).json({ error: err.message }).end();
+  }
+}
+
 module.exports = {
   getSenseHatAvailable,
   getSenseHatMode,
   setSenseHatMode,
   getClockBrightness,
   setClockBrightness,
+  getRadarBrightness,
+  setRadarBrightness,
   applySenseHatModeOnBoot,
   resolveMode,
+  resolveRadarBrightness,
   WEATHER_MODES,
   // Exported for regression testing only.
   __test: {
     VALID_MODES,
     DEFAULT_MODE,
     DEFAULT_CLOCK_BRIGHTNESS,
+    DEFAULT_RADAR_BRIGHTNESS,
   },
 };

@@ -425,6 +425,7 @@ When no location is configured in `settings.json` (`startingLat` / `startingLon`
   "sunriseTs":         1777110561000,
   "sunsetTs":          1777161287000,
   "mode":              "auto",
+  "radarBrightness":   60,
   "radar": {
     "grid":     [0, 0, 0, 2, 3, 0, 0, 0, "… 64 ints total"],
     "litCells": 7,
@@ -453,6 +454,7 @@ The `mode` field echoes the persisted Sense HAT display mode (`weather` / `clock
 | `sunriseTs` | integer \| null | Unix timestamp (ms) for today's sunrise — used by the Python script to position the sun on its arc |
 | `sunsetTs` | integer \| null | Unix timestamp (ms) for today's sunset |
 | `mode` | string | Persisted display mode: `weather` \| `clock` \| `radar` \| `auto` |
+| `radarBrightness` | integer | Night-time brightness percent (0–100) for the radar grid; daytime always renders full. Set via `POST /api/sensehat-radar-brightness`. |
 | `radar` | object \| absent | Present only in `radar`/`auto` mode: `{ grid: number[64] (0–6, row-major, N up), litCells: integer, radiusKm: number }` — coarse 8×8 precipitation reprojection |
 | `alert` | object \| absent | Optional: top active gov alert (tier ≥ orange). Object shape: `{ tier: "red"\|"orange", severity: "extreme"\|"severe"\|"moderate", source: "ECCC"\|"NWS", event: string }` |
 

@@ -45,6 +45,7 @@ export function useSenseHatMode() {
   const [available, setAvailable] = useState(false);
   const [mode, setMode] = useState("weather");
   const [clockBrightness, setClockBrightness] = useState(50);
+  const [radarBrightness, setRadarBrightness] = useState(60);
 
   useEffect(() => {
     let cancelled = false;
@@ -64,6 +65,14 @@ export function useSenseHatMode() {
         if (!cancelled) {
           const b = res?.data?.brightness;
           if (typeof b === "number" && b >= 0 && b <= 100) setClockBrightness(b);
+        }
+      })
+      .catch(() => undefined);
+    axios.get("/api/sensehat-radar-brightness")
+      .then((res) => {
+        if (!cancelled) {
+          const b = res?.data?.brightness;
+          if (typeof b === "number" && b >= 0 && b <= 100) setRadarBrightness(b);
         }
       })
       .catch(() => undefined);
@@ -102,11 +111,30 @@ export function useSenseHatMode() {
     }, BRIGHTNESS_SAVE_DEBOUNCE_MS);
   }, []);
 
+  // Same debounced-save pattern for the radar night-brightness slider.
+  // The weather daemon picks up the new value the next time it polls
+  // /api/sensehat, but the POST also restarts pi-sensehat.service so the
+  // change is visible immediately rather than up to a poll-interval later.
+  const radarBrightnessSaveTimerRef = useRef(null);
+  const setRadarBrightnessLive = useCallback((v) => {
+    setRadarBrightness(v);
+    if (radarBrightnessSaveTimerRef.current) clearTimeout(radarBrightnessSaveTimerRef.current);
+    radarBrightnessSaveTimerRef.current = setTimeout(() => {
+      axios.post("/api/sensehat-radar-brightness", { brightness: v })
+        .catch((err) => {
+          if (err && err.response && err.response.status === 403) return;
+          console.warn("[sensehat] radar brightness save failed:", err && err.message);
+        });
+    }, BRIGHTNESS_SAVE_DEBOUNCE_MS);
+  }, []);
+
   return {
     senseHatAvailable: available,
     senseHatMode: mode,
     saveSenseHatMode: saveMode,
     senseHatClockBrightness: clockBrightness,
     setSenseHatClockBrightnessLive: setClockBrightnessLive,
+    senseHatRadarBrightness: radarBrightness,
+    setSenseHatRadarBrightnessLive: setRadarBrightnessLive,
   };
 }

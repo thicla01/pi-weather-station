@@ -17,7 +17,7 @@ const { getSettingsData }    = require("./settingsCtrl");
 const { weatherCache }       = require("./proxyCtrl");
 const { getActiveAlertsAt }  = require("./govAlertsCtrl");
 const { getKioskLocation }   = require("./kioskLocationCtrl");
-const { resolveMode, WEATHER_MODES } = require("./sensehatModeCtrl");
+const { resolveMode, resolveRadarBrightness } = require("./sensehatModeCtrl");
 const { getRiskLevels, buildRadarGrid } = require("./radarAnalyzerCtrl");
 
 // Severity tiers that warrant overriding the SenseHat display with an
@@ -264,6 +264,7 @@ async function getSenseHatData(req, res) {
     sunriseTs,
     sunsetTs,
     mode,
+    radarBrightness: resolveRadarBrightness(settings),
     ...(radarField ? { radar: radarField } : {}),
     ...(alertField ? { alert: alertField } : {}),
   });

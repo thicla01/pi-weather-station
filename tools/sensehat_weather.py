@@ -1515,20 +1515,38 @@ def _radar_clear_frame():
     return frame
 
 
-def _render_radar(sense, grid, is_day):
+def _render_radar(sense, grid, is_day, night_brightness=BRIGHTNESS_RADAR_NIGHT):
     """Render the radar grid, or the clear centre dot when grid is None.
 
-    Uses the radar-specific night floor (BRIGHTNESS_RADAR_NIGHT) so lit tiers
-    stay legible after dark; daytime is full brightness like the weather path.
+    Daytime renders at full brightness; at night the matrix dims to
+    `night_brightness` (the user-set "Luminosité radar · nuit", served in the
+    /api/sensehat `radarBrightness` field, default BRIGHTNESS_RADAR_NIGHT) so a
+    fully-bright RGB matrix isn't overwhelming in a dark room while lit tiers
+    stay above the LED visibility floor.
 
-    @param sense:  SenseHat instance (fallback only)
-    @param grid:   list|None  64 intensities, or None for the no-echo dot
-    @param is_day: bool  true between sunrise and sunset
+    @param sense:            SenseHat instance (fallback only)
+    @param grid:             list|None  64 intensities, or None for the no-echo dot
+    @param is_day:           bool  true between sunrise and sunset
+    @param night_brightness: float 0.0-1.0 multiplier used after dark
     """
-    brightness = BRIGHTNESS_DAY if is_day else BRIGHTNESS_RADAR_NIGHT
+    brightness = BRIGHTNESS_DAY if is_day else night_brightness
     frame = _radar_frame(grid) if grid is not None else _radar_clear_frame()
     frame = apply_brightness(frame, brightness)
     _push_frame(sense, frame)
+
+
+def _radar_night_brightness_from(data):
+    """Extract the radar night-brightness multiplier from an /api/sensehat
+    payload: the `radarBrightness` percent (0-100) → a 0.0-1.0 factor. Falls
+    back to BRIGHTNESS_RADAR_NIGHT when absent or out of range.
+
+    @param data: dict  parsed /api/sensehat response
+    @returns: float  0.0-1.0 night-brightness multiplier
+    """
+    pct = data.get("radarBrightness")
+    if isinstance(pct, (int, float)) and 0 <= pct <= 100:
+        return pct / 100.0
+    return BRIGHTNESS_RADAR_NIGHT
 
 
 def _resolve_directive(mode, base_state, radar):
@@ -1579,6 +1597,7 @@ def run():
     active_alert  = None   # None or {"tier", "severity", "source", "event"} from /api/sensehat
     mode          = "weather"  # "weather" | "radar" | "auto" — from /api/sensehat
     radar_data    = None   # None or {"grid", "litCells", "radiusKm"} from /api/sensehat
+    radar_night   = BRIGHTNESS_RADAR_NIGHT  # night-brightness multiplier (user-set)
     tick          = 0
     last_render   = None   # (state, is_day, sun_row, sun_col) of the last rendered static frame
     last_log_key  = None   # cache key for the "Updated" log — gates noise at 60 s polling
@@ -1597,6 +1616,7 @@ def run():
         active_alert = initial.get("alert")
         mode         = initial.get("mode", "weather")
         radar_data   = initial.get("radar")
+        radar_night  = _radar_night_brightness_from(initial)
         log.info(
             "Initial state — code=%s state=%s isDay=%s temp=%s°C alert=%s",
             initial.get("weatherCode"), base_state, is_day,
@@ -1624,6 +1644,7 @@ def run():
                 active_alert = data.get("alert")  # dict or None
                 mode         = data.get("mode", "weather")
                 radar_data   = data.get("radar")  # dict or None
+                radar_night  = _radar_night_brightness_from(data)
                 # Gate the "Updated" log on actual state change. With
                 # POLL_INTERVAL=60 s we'd otherwise emit 60 lines/hour
                 # for what's typically static weather; this drops it to
@@ -1668,17 +1689,19 @@ def run():
         directive, payload = _resolve_directive(mode, base_state, radar_data)
 
         # ── Radar paths (static between polls — redraw only on change) ──────
+        # is_day is part of the key so the day→night brightness transition
+        # forces a redraw even when the grid itself hasn't changed.
         if directive == "radar":
-            render_key = ("radar", tuple(payload))
+            render_key = ("radar", is_day, tuple(payload))
             if render_key != last_render:
-                _render_radar(sense, payload, is_day)
+                _render_radar(sense, payload, is_day, radar_night)
                 last_render = render_key
             time.sleep(FRAME_DELAY)
             continue
         if directive == "radar_clear":
             render_key = ("radar_clear", is_day)
             if render_key != last_render:
-                _render_radar(sense, None, is_day)
+                _render_radar(sense, None, is_day, radar_night)
                 last_render = render_key
             time.sleep(FRAME_DELAY)
             continue

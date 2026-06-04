@@ -1052,6 +1052,16 @@
   }
 }
 
+/* Sense HAT block: the Affichage seg now carries four options
+ * (Météo / Horloge / Radar / Auto) which don't fit a single grid4
+ * cell at the 4-column width — the 4th button ("Auto") overflowed the
+ * seg's border. Force both children (the seg and the conditional
+ * brightness slider) to span the full row and stack, so the seg gets
+ * the whole pane width and its flex:1 buttons share it evenly. */
+.gridSenseHat > * {
+  grid-column: 1 / -1;
+}
+
 .toggleRow {
   display: flex;
   flex-wrap: wrap;
