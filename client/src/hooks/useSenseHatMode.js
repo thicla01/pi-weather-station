@@ -1,6 +1,11 @@
 import { useState, useEffect, useCallback, useRef } from "react";
 import axios from "axios";
 
+// The four Sense HAT display modes the server accepts (mirrors VALID_MODES in
+// server/sensehatModeCtrl.js). "clock" runs its own daemon; weather/radar/auto
+// share the weather daemon and differ only in the render personality.
+const VALID_MODES = ["weather", "clock", "radar", "auto"];
+
 /**
  * Self-contained state for the Sense HAT display-mode toggle.
  *
@@ -50,7 +55,7 @@ export function useSenseHatMode() {
       .then((res) => {
         if (!cancelled) {
           const m = res?.data?.mode;
-          if (m === "weather" || m === "clock") setMode(m);
+          if (VALID_MODES.includes(m)) setMode(m);
         }
       })
       .catch(() => undefined);
@@ -66,7 +71,7 @@ export function useSenseHatMode() {
   }, []);
 
   const saveMode = useCallback((newMode) => {
-    if (newMode !== "weather" && newMode !== "clock") return Promise.resolve();
+    if (!VALID_MODES.includes(newMode)) return Promise.resolve();
     const previous = mode;
     setMode(newMode);
     return axios.post("/api/sensehat-mode", { mode: newMode })

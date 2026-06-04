@@ -424,6 +424,12 @@ When no location is configured in `settings.json` (`startingLat` / `startingLon`
   "isDay":             true,
   "sunriseTs":         1777110561000,
   "sunsetTs":          1777161287000,
+  "mode":              "auto",
+  "radar": {
+    "grid":     [0, 0, 0, 2, 3, 0, 0, 0, "… 64 ints total"],
+    "litCells": 7,
+    "radiusKm": 100
+  },
   "alert": {
     "tier":     "red",
     "severity": "extreme",
@@ -435,6 +441,8 @@ When no location is configured in `settings.json` (`startingLat` / `startingLon`
 
 The optional `alert` field is included when an ECCC or NWS alert of tier `red` (extreme/severe) or `orange` (moderate) is active for the resolved coordinates. Yellow-tier minor advisories are filtered out — they're routine and would just spam the LED matrix. The Sense HAT script renders a tier-coloured breathing-pulse override over the full 8×8 matrix when this field is present; the absence of the field means "no override, show weather as normal".
 
+The `mode` field echoes the persisted Sense HAT display mode (`weather` / `clock` / `radar` / `auto`) so the script can pick its render personality from the same poll. The optional `radar` field is included **only when `mode` is `radar` or `auto`** (the other modes never light the radar, so the cost is skipped). It carries a coarse top-down reprojection of precipitation around the user, built by `buildRadarGrid()` in `radarAnalyzerCtrl.js` from the same cached risk-sample pipeline as `GET /api/radar-risk`. The `grid` is a row-major 8×8 array of intensities 0–6 (north up, east right), mapped to NEXRAD scheme-6 tier colours on the matrix; `litCells` ≥ 1 means echoes are present.
+
 | Field | Type | Description |
 |---|---|---|
 | `weatherCode` | integer \| null | Tomorrow.io weather code (1000 = clear, 4001 = rain, 5000 = snow, 8000 = storm, …) |
@@ -444,6 +452,8 @@ The optional `alert` field is included when an ECCC or NWS alert of tier `red` (
 | `isDay` | boolean | `true` between sunrise and sunset (hour-based fallback if sunrise-sunset.org unavailable) |
 | `sunriseTs` | integer \| null | Unix timestamp (ms) for today's sunrise — used by the Python script to position the sun on its arc |
 | `sunsetTs` | integer \| null | Unix timestamp (ms) for today's sunset |
+| `mode` | string | Persisted display mode: `weather` \| `clock` \| `radar` \| `auto` |
+| `radar` | object \| absent | Present only in `radar`/`auto` mode: `{ grid: number[64] (0–6, row-major, N up), litCells: integer, radiusKm: number }` — coarse 8×8 precipitation reprojection |
 | `alert` | object \| absent | Optional: top active gov alert (tier ≥ orange). Object shape: `{ tier: "red"\|"orange", severity: "extreme"\|"severe"\|"moderate", source: "ECCC"\|"NWS", event: string }` |
 
 **Location resolution order** (the coordinates fed into the weather + alert lookups):

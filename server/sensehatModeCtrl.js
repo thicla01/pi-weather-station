@@ -12,13 +12,16 @@
  *     the toggle on the 6 Pis in the fleet that don't have the HAT.
  *
  *   GET  /api/sensehat-mode
- *     Returns the current mode `{mode: "weather" | "clock"}`. Reads
- *     from `advanced.sensehat.mode` in settings.json with the
+ *     Returns the current mode `{mode: "weather"|"clock"|"radar"|"auto"}`.
+ *     Reads from `advanced.sensehat.mode` in settings.json with the
  *     "weather" default.
  *
- *   POST /api/sensehat-mode  body: {mode: "weather" | "clock"}
- *     Persists the new mode in settings.json AND switches the
- *     systemd user services: starts the new one, stops the other.
+ *   POST /api/sensehat-mode  body: {mode: "weather"|"clock"|"radar"|"auto"}
+ *     Persists the new mode in settings.json AND switches the systemd
+ *     user services: the clock daemon for "clock", the weather daemon
+ *     for "weather"/"radar"/"auto" (those three share one service and
+ *     only differ in the script's per-poll personality, so switching
+ *     among them is a settings write the script picks up within a poll).
  *     Idempotent — flipping to the already-active mode just refreshes
  *     the systemctl state. Locked behind `localhostOnly` because
  *     systemctl --user starts a process on the kiosk; we don't want
@@ -38,7 +41,17 @@ const { getSettingsData } = require("./settingsCtrl");
 
 const execFileAsync = promisify(execFile);
 
-const VALID_MODES = ["weather", "clock"];
+// Four display modes. "clock" is the only one backed by its own service
+// (pi-sensehat-clock.service / horloge.py); "weather", "radar" and "auto"
+// all run pi-sensehat.service / sensehat_weather.py and differ only in the
+// personality the script picks each poll from the `mode` field of
+// /api/sensehat — so flipping between those three needs no service restart.
+//   - weather : weather glyphs only, radar never lit
+//   - radar   : radar grid whenever echoes are present, centre dot when clear
+//   - auto    : alert > precip-on-me (glyph) > radar "incoming" > sky
+const VALID_MODES = ["weather", "clock", "radar", "auto"];
+// Modes served by the weather daemon (everything except the clock).
+const WEATHER_MODES = ["weather", "radar", "auto"];
 const DEFAULT_MODE = "weather";
 const WEATHER_SERVICE = "pi-sensehat.service";
 const CLOCK_SERVICE = "pi-sensehat-clock.service";
@@ -73,16 +86,28 @@ async function probeAvailable() {
 }
 
 /**
+ * Resolve the display mode from an already-loaded settings object, applying
+ * the VALID_MODES whitelist and DEFAULT_MODE fallback. Pure — no I/O — so
+ * other controllers that already hold `settings` (e.g. sensehatCtrl) can
+ * reuse the same validation without a second settings read.
+ *
+ * @param {object} settings parsed settings.json (or null/partial)
+ * @returns {"weather"|"clock"|"radar"|"auto"}
+ */
+function resolveMode(settings) {
+  const m = settings && settings.advanced && settings.advanced.sensehat && settings.advanced.sensehat.mode;
+  return VALID_MODES.includes(m) ? m : DEFAULT_MODE;
+}
+
+/**
  * Read the persisted mode from settings.json. Falls back to
  * DEFAULT_MODE when the setting is missing OR unparseable.
  *
- * @returns {Promise<"weather"|"clock">}
+ * @returns {Promise<"weather"|"clock"|"radar"|"auto">}
  */
 async function readPersistedMode() {
   try {
-    const settings = await getSettingsData();
-    const m = settings && settings.advanced && settings.advanced.sensehat && settings.advanced.sensehat.mode;
-    return VALID_MODES.includes(m) ? m : DEFAULT_MODE;
+    return resolveMode(await getSettingsData());
   } catch {
     return DEFAULT_MODE;
   }
@@ -145,11 +170,14 @@ async function persistSensehat(patch) {
  * no sudo needed. Errors are non-fatal — log + continue, so a stale
  * unit file doesn't break the API call.
  *
- * @param {"weather"|"clock"} mode
+ * @param {"weather"|"clock"|"radar"|"auto"} mode
  */
 async function applyMode(mode) {
-  const target = mode === "weather" ? WEATHER_SERVICE : CLOCK_SERVICE;
-  const other = mode === "weather" ? CLOCK_SERVICE : WEATHER_SERVICE;
+  // Only "clock" runs the clock daemon; weather/radar/auto all run the
+  // weather daemon and differ purely in the script's per-poll personality.
+  const wantsClock = mode === "clock";
+  const target = wantsClock ? CLOCK_SERVICE : WEATHER_SERVICE;
+  const other = wantsClock ? WEATHER_SERVICE : CLOCK_SERVICE;
   try {
     await execFileAsync("systemctl", ["--user", "stop", other], { timeout: 10_000 });
   } catch (err) {
@@ -290,6 +318,8 @@ module.exports = {
   getClockBrightness,
   setClockBrightness,
   applySenseHatModeOnBoot,
+  resolveMode,
+  WEATHER_MODES,
   // Exported for regression testing only.
   __test: {
     VALID_MODES,

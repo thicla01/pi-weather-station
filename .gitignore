@@ -15,6 +15,10 @@ ssh.key.pub
 # Radar prompt-compression reports (generated on-demand from Debug panel)
 report/
 
+# Python bytecode cache (e.g. from running tools/*.py)
+__pycache__/
+*.pyc
+
 # macOS Finder metadata — should never be tracked
 .DS_Store
 .claude/

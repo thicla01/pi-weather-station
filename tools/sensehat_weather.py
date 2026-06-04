@@ -168,6 +168,39 @@ L  = LIGHTNING
 X  = STORM_BG
 
 
+# ── RADAR GRID (radar / auto modes) ─────────────────────────────────────────────
+# The server (/api/sensehat → radar.grid) sends a row-major 8×8 array of radar
+# intensities 0-6, reprojected from the analysis disk (north up, east right) by
+# buildRadarGrid() in radarAnalyzerCtrl.js. These RGB values mirror that file's
+# INTENSITY_PALETTE (NEXRAD colour scheme 6) so the matrix speaks the same
+# colour language as the on-screen radar legend. Index = intensity level; 0 off.
+RADAR_TIER_RGB = [
+    (  0,   0,   0),  # 0 clear — off
+    (  0, 208, 208),  # 1 very light
+    (  0, 200,   0),  # 2 light
+    (240, 230,   0),  # 3 moderate
+    (240, 130,   0),  # 4 heavy
+    (230,   0,   0),  # 5 very heavy
+    (120,   0, 180),  # 6 extreme
+]
+# "You are here" marker shown in radar mode when nothing is in range: a
+# soft-white 2×2 block at the matrix centre, so the display reads "you,
+# nothing around" rather than a dark matrix that could look like a fault.
+RADAR_CENTER_COLOR = (200, 200, 200)
+# Minimum lit cells for the grid to count as "echoes present". 1 = any echo
+# shows the radar view; raise if single-pixel RainViewer noise distracts.
+RADAR_MIN_LIT_CELLS = 1
+# Night brightness floor for the radar grid. The saturated tier colours dim
+# better than the grey weather palette, but a lone tier-1 cyan pixel at
+# BRIGHTNESS_NIGHT (0.35) drops under the LED visibility floor (see the
+# overcast-night incident) — 0.6 keeps every lit tier legible after dark.
+BRIGHTNESS_RADAR_NIGHT = 0.6
+# classify() states that mean precipitation is falling ON the user. In auto
+# mode these keep the weather glyph: radar is reflectivity-only and can't tell
+# rain from snow, so the radar view is reserved for "incoming while dry".
+PRECIP_STATES = frozenset({"storm", "ice", "snow", "rain", "rain_light"})
+
+
 # ── STATIC FRAMES (64-element flat lists of RGB tuples) ───────────────────────
 
 # ☀️  Clear sky — day: blue sky with 2×2 yellow sun; position varies by time of day.
@@ -1461,6 +1494,73 @@ def _render_alert(sense, tier, tick, is_day):
     _push_frame(sense, frame)
 
 
+def _radar_frame(grid):
+    """Map a server radar grid (64 ints, 0-6) to a 64-element RGB frame.
+
+    @param grid: list  row-major 8×8 intensities (north up, east right)
+    @returns: list  64 RGB tuples; out-of-range levels render as OFF
+    """
+    return [RADAR_TIER_RGB[v] if 0 <= v < len(RADAR_TIER_RGB) else OFF for v in grid]
+
+
+def _radar_clear_frame():
+    """The 'you are here, nothing around' frame — soft-white 2×2 centre block.
+
+    @returns: list  64 RGB tuples, all OFF except the four centre pixels
+    """
+    frame = [OFF] * 64
+    for row in (3, 4):
+        for col in (3, 4):
+            frame[row * 8 + col] = RADAR_CENTER_COLOR
+    return frame
+
+
+def _render_radar(sense, grid, is_day):
+    """Render the radar grid, or the clear centre dot when grid is None.
+
+    Uses the radar-specific night floor (BRIGHTNESS_RADAR_NIGHT) so lit tiers
+    stay legible after dark; daytime is full brightness like the weather path.
+
+    @param sense:  SenseHat instance (fallback only)
+    @param grid:   list|None  64 intensities, or None for the no-echo dot
+    @param is_day: bool  true between sunrise and sunset
+    """
+    brightness = BRIGHTNESS_DAY if is_day else BRIGHTNESS_RADAR_NIGHT
+    frame = _radar_frame(grid) if grid is not None else _radar_clear_frame()
+    frame = apply_brightness(frame, brightness)
+    _push_frame(sense, frame)
+
+
+def _resolve_directive(mode, base_state, radar):
+    """Decide what to render given the mode and the latest /api/sensehat data.
+
+    The gov-alert override is handled by the caller — it precedes every mode.
+    Implements the frozen priority tree:
+      - weather : weather glyph only (radar never lit)
+      - radar   : radar grid when echoes are in range, else the centre dot
+      - auto    : precip-on-me (glyph) > radar "incoming" (dry but echoes) > sky
+
+    @param mode:       str   "weather" | "radar" | "auto" (clock runs elsewhere)
+    @param base_state: str   classify() result
+    @param radar:      dict|None  {"grid", "litCells", "radiusKm"} or None
+    @returns: tuple  ("weather", state) | ("radar", grid) | ("radar_clear", None)
+    """
+    has_echoes = bool(radar) and radar.get("litCells", 0) >= RADAR_MIN_LIT_CELLS
+    if mode == "radar":
+        return ("radar", radar["grid"]) if has_echoes else ("radar_clear", None)
+    if mode == "auto":
+        # Precip falling on me → keep the weather glyph (phase matters, and
+        # radar can't distinguish it). Otherwise show the radar when something
+        # is out there; failing that, the plain sky state.
+        if base_state in PRECIP_STATES:
+            return ("weather", base_state)
+        if has_echoes:
+            return ("radar", radar["grid"])
+        return ("weather", base_state)
+    # "weather" (and any unrecognised mode) → glyphs only.
+    return ("weather", base_state)
+
+
 # ── MAIN LOOP ─────────────────────────────────────────────────────────────────
 
 def run():
@@ -1477,6 +1577,8 @@ def run():
     sunrise_ts    = None
     sunset_ts     = None
     active_alert  = None   # None or {"tier", "severity", "source", "event"} from /api/sensehat
+    mode          = "weather"  # "weather" | "radar" | "auto" — from /api/sensehat
+    radar_data    = None   # None or {"grid", "litCells", "radiusKm"} from /api/sensehat
     tick          = 0
     last_render   = None   # (state, is_day, sun_row, sun_col) of the last rendered static frame
     last_log_key  = None   # cache key for the "Updated" log — gates noise at 60 s polling
@@ -1493,6 +1595,8 @@ def run():
         sunrise_ts   = initial.get("sunriseTs")
         sunset_ts    = initial.get("sunsetTs")
         active_alert = initial.get("alert")
+        mode         = initial.get("mode", "weather")
+        radar_data   = initial.get("radar")
         log.info(
             "Initial state — code=%s state=%s isDay=%s temp=%s°C alert=%s",
             initial.get("weatherCode"), base_state, is_day,
@@ -1518,6 +1622,8 @@ def run():
                 sunrise_ts   = data.get("sunriseTs")
                 sunset_ts    = data.get("sunsetTs")
                 active_alert = data.get("alert")  # dict or None
+                mode         = data.get("mode", "weather")
+                radar_data   = data.get("radar")  # dict or None
                 # Gate the "Updated" log on actual state change. With
                 # POLL_INTERVAL=60 s we'd otherwise emit 60 lines/hour
                 # for what's typically static weather; this drops it to
@@ -1557,7 +1663,27 @@ def run():
             tick += 1
             continue
 
-        # ── Resolve final display state (sunset override on clear days) ───────
+        # ── Mode arbitration (alert already handled above) ──────────────────
+        # weather → glyphs; radar → grid/centre-dot; auto → the priority tree.
+        directive, payload = _resolve_directive(mode, base_state, radar_data)
+
+        # ── Radar paths (static between polls — redraw only on change) ──────
+        if directive == "radar":
+            render_key = ("radar", tuple(payload))
+            if render_key != last_render:
+                _render_radar(sense, payload, is_day)
+                last_render = render_key
+            time.sleep(FRAME_DELAY)
+            continue
+        if directive == "radar_clear":
+            render_key = ("radar_clear", is_day)
+            if render_key != last_render:
+                _render_radar(sense, None, is_day)
+                last_render = render_key
+            time.sleep(FRAME_DELAY)
+            continue
+
+        # ── Weather glyph (sunset override on clear days) ───────────────────
         state = "sunset" if (base_state == "clear" and is_day and is_sunset_soon(sunset_ts)) \
                 else base_state
 
@@ -1653,6 +1779,24 @@ _TEST_STATE_SLUGS = {
 # read as cartoonish.
 _SUN_ARC_LOOP_SECONDS = 30
 
+# Radar test slugs (handled separately from _TEST_STATE_SLUGS — they render a
+# grid via _render_radar rather than a get_frame() state).
+_TEST_RADAR_SLUGS = ("radar", "radar-clear")
+
+# A recognisable demo grid for `--state radar`: a heavy cell to the SW and a
+# lighter band to the NE — lets the user eyeball tier colours, brightness and
+# rotation on real LEDs without a live radar feed. Row-major, north up.
+_DEMO_RADAR_GRID = [
+    0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 2, 3, 2,
+    0, 0, 0, 0, 0, 0, 2, 1,
+    0, 0, 0, 0, 0, 0, 0, 0,
+    0, 0, 0, 0, 0, 0, 0, 0,
+    0, 4, 5, 0, 0, 0, 0, 0,
+    0, 5, 4, 0, 0, 0, 0, 0,
+    0, 0, 2, 0, 0, 0, 0, 0,
+]
+
 
 def run_test_single(state, is_day):
     """Render ONE state continuously until Ctrl-C, for visual
@@ -1710,6 +1854,35 @@ def run_test_single(state, is_day):
     finally:
         sense.clear()
         log.info("Single-state test ended — display cleared")
+
+
+def run_test_radar(with_echoes):
+    """Render a demo radar grid (or the no-echo centre dot) until Ctrl-C, for
+    hardware validation of the radar-mode tier colours, brightness and
+    rotation without a live radar feed. Rendered at daytime brightness.
+
+    @param with_echoes: bool  True → demo grid, False → 'no echoes' centre dot
+    """
+    _abort_if_service_running()
+
+    sense = SenseHat()
+    sense.set_rotation(ROTATION)
+    sense.low_light = False
+    sense.clear()
+
+    log.info("Radar test: %s — Ctrl-C to exit",
+             "demo grid (heavy SW, light NE band)" if with_echoes else "clear (no echoes)")
+
+    grid = _DEMO_RADAR_GRID if with_echoes else None
+    try:
+        _render_radar(sense, grid, True)
+        while True:
+            time.sleep(FRAME_DELAY)
+    except KeyboardInterrupt:
+        pass
+    finally:
+        sense.clear()
+        log.info("Radar test ended — display cleared")
 
 
 def run_test():
@@ -1787,16 +1960,19 @@ if __name__ == "__main__":
         help="Cycle through all display states for testing"
     )
     parser.add_argument(
-        "--state", metavar="SLUG", choices=sorted(_TEST_STATE_SLUGS),
+        "--state", metavar="SLUG",
+        choices=sorted(_TEST_STATE_SLUGS) + list(_TEST_RADAR_SLUGS),
         help="Show only the named state continuously. Useful for visual "
              "validation of a specific animation without the strobe-like "
              "transitions of the full cycle. Implies test mode. "
-             "Available: " + ", ".join(sorted(_TEST_STATE_SLUGS))
+             "Available: " + ", ".join(sorted(_TEST_STATE_SLUGS) + list(_TEST_RADAR_SLUGS))
     )
     args = parser.parse_args()
 
     try:
-        if args.state:
+        if args.state in _TEST_RADAR_SLUGS:
+            run_test_radar(args.state == "radar")
+        elif args.state:
             state, is_day = _TEST_STATE_SLUGS[args.state]
             run_test_single(state, is_day)
         elif args.test:
