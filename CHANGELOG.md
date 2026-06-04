@@ -7,6 +7,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+- **Debug panel (v3 ambient) — Phase 7 layout refresh.** The title header is gone and its actions are reorganised around the panel's task structure:
+  - **Close moved to the bottom of the rail**, reusing the Settings-panel grammar: a dim, divider-separated exit that never carries the active-section accent, so it doesn't read as a sixth selectable section.
+  - **Persistent action toolbar** at the top of the content pane — a live-status dot + an "Updated HH:MM:SS" timestamp (stamped on every `/api/debug` fetch so the displayed diagnostics carry their freshness) plus the **Refresh** action, all of which stay visible while the content scrolls.
+  - **Export CSV and Check-for-updates moved into the About bucket** — the panel's housekeeping section — co-locating the update check with its result (local/latest SHA, version, Install). A **"MAJ" badge** now lights up on the About rail entry when an update is waiting, for discoverability.
+  - The existing install flow (`POST /api/update` via the Update modal, with its detached-HEAD / non-master / dirty-tree pre-flight gating and `localhostOnly` boundary) is unchanged — Phase 7 only restyles the surface that triggers it.
+  - **Rail icons are now inline SVGs** (Iconify) instead of raw Unicode glyphs. The glyphs (`⌬`/`◇` …) rendered at font-dependent sizes across platforms — fine on the Pi's Trixie font, but shrinking to a thin fallback on macOS — so Server/Services looked inconsistent. SVGs render identically everywhere (same lesson as the moon-glyph fix).
+- **Rail exit divider is now visible (Settings + Debug panels).** The thin separator line above the "Close" button used `--c-border` (~0.10 alpha), which fell below the visibility floor on the cream day surface, so the divider was effectively absent. Both panels' `.railClose` now use `--c-border-hybrid` (~2× the alpha) so the separator actually reads, in all four palettes.
+
 ## [2.19.0] - 2026-06-02
 
 ### Security

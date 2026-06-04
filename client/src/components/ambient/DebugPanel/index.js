@@ -7,6 +7,17 @@ import closeSharp from "@iconify/icons-ion/close-sharp";
 import refreshIcon from "@iconify/icons-carbon/restart";
 import upgradeIcon from "@iconify/icons-carbon/upgrade";
 import downloadIcon from "@iconify/icons-ion/download-outline";
+// Bucket rail icons — inline SVG (Iconify) rather than raw Unicode
+// glyphs. Unicode glyphs render at font-dependent sizes across
+// platforms (e.g. `⌬`/`◇` shrink to a thin fallback on macOS while the
+// Pi's Trixie font draws them full-size); SVGs are identical
+// everywhere. Same lesson as the moon-glyph incident, and matches the
+// SettingsPanel rail, which already uses InlineIcon.
+import serverIcon from "@iconify/icons-carbon/bare-metal-server";
+import clientIcon from "@iconify/icons-carbon/screen";
+import servicesIcon from "@iconify/icons-carbon/network-3";
+import storageIcon from "@iconify/icons-carbon/data-base";
+import aboutIcon from "@iconify/icons-carbon/information";
 import axios from "axios";
 import { AppContext } from "~/AppContext";
 import { getPalette } from "~/ui/tokens";
@@ -69,10 +80,12 @@ const DebugPanel = () => {
     setDebugMenuOpen,
     isLocal,
     debugEnabled,
-    refreshUpdateCheck,
+    // updateAvailable drives the "MAJ" discoverability badge on the
+    // About rail entry (Phase 7). The check + install actions
+    // themselves now live inside BucketAbout, not the toolbar.
+    updateAvailable,
     fontSize,
   } = useContext(AppContext);
-  const [checkingUpdate, setCheckingUpdate] = useState(false);
   // Multi-select buckets: each rail tab is a push-button. Press to
   // pin its section on screen; press again to unpin. Multiple
   // sections can stack vertically — handy for cross-bucket
@@ -115,6 +128,11 @@ const DebugPanel = () => {
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
+  // Timestamp of the last successful /api/debug fetch — surfaced in
+  // the persistent toolbar as "Updated HH:MM:SS" so the user knows how
+  // fresh the displayed diagnostics are (Phase 7). null until the
+  // first fetch resolves.
+  const [lastRefreshed, setLastRefreshed] = useState(null);
   // Column count for the masonry distributor — 1 on narrow viewports
   // (Pi 7"), 2 on desktop. Same 880 px breakpoint the .stack CSS
   // used before. Tracked via matchMedia so live resize works.
@@ -175,6 +193,7 @@ const DebugPanel = () => {
     axios.get("/api/debug")
       .then((res) => {
         setData(res.data);
+        setLastRefreshed(new Date());
       })
       .catch((err) => {
         setError(err?.response?.data?.error || err?.message || "Unknown error");
@@ -220,82 +239,22 @@ const DebugPanel = () => {
   };
 
   return (
-    <div className={styles.overlay} role="dialog" aria-modal="true" style={cssVars}>
-      <div className={styles.header}>
-        <div className={styles.title}>{t("debug.title", { defaultValue: "Debug" })}</div>
-        <div className={styles.headerActions}>
-          <button
-            type="button"
-            className={styles.actionButton}
-            onClick={fetchDebug}
-            disabled={loading}
-            title={loading
-              ? t("debug.loading", { defaultValue: "Loading…" })
-              : t("debug.refresh", { defaultValue: "Refresh" })}
-          >
-            <InlineIcon icon={refreshIcon} />
-            <span className={styles.actionLabel}>{loading
-              ? t("debug.loading", { defaultValue: "Loading…" })
-              : t("debug.refresh", { defaultValue: "Refresh" })}</span>
-          </button>
-          <button
-            type="button"
-            className={styles.actionButton}
-            disabled={!data}
-            title={t("debug.exportCsv", { defaultValue: "Export CSV" })}
-            onClick={() => {
-              if (!data) return;
-              // exportDebugCsv reads `clientMetrics` and `fps`; both are
-              // owned by the v2 ClientKpiSection (not yet ported to
-              // BucketClient in v3 — lot 2). Pass null so the CSV
-              // header writes "N/A" instead of crashing. The remaining
-              // server-side sections (kpis, quotas, services, etc.)
-              // export with the same shape as v2.
-              exportDebugCsv(data, null, null);
-            }}
-          >
-            <InlineIcon icon={downloadIcon} />
-            <span className={styles.actionLabel}>{t("debug.exportCsv", { defaultValue: "Export CSV" })}</span>
-          </button>
-          <button
-            type="button"
-            className={styles.actionButton}
-            disabled={checkingUpdate || typeof refreshUpdateCheck !== "function"}
-            title={checkingUpdate
-              ? t("debug.checking", { defaultValue: "Checking…" })
-              : t("debug.checkUpdate", { defaultValue: "Check update" })}
-            onClick={() => {
-              if (typeof refreshUpdateCheck !== "function") return;
-              setCheckingUpdate(true);
-              Promise.resolve(refreshUpdateCheck(true))
-                .catch((err) => console.warn("[DebugPanel] update check failed", err))
-                .finally(() => {
-                  setCheckingUpdate(false);
-                  // Re-fetch /api/debug so the new updateInfo lands in the About bucket.
-                  fetchDebug();
-                });
-            }}
-          >
-            <InlineIcon icon={upgradeIcon} />
-            <span className={styles.actionLabel}>{checkingUpdate
-              ? t("debug.checking", { defaultValue: "Checking…" })
-              : t("debug.checkUpdate", { defaultValue: "Check update" })}</span>
-          </button>
-          <button
-            type="button"
-            className={styles.closeButton}
-            onClick={() => setDebugMenuOpen(false)}
-            aria-label={t("controls.closeDebug")}
-          >
-            <InlineIcon icon={closeSharp} />
-          </button>
-        </div>
-      </div>
-
+    <div
+      className={styles.overlay}
+      role="dialog"
+      aria-modal="true"
+      aria-label={t("debug.title", { defaultValue: "Debug" })}
+      style={cssVars}
+    >
       <div className={styles.body}>
         <nav className={styles.rail} role="group" aria-label="Debug sections">
           {BUCKETS.map((b) => {
             const isActive = activeBuckets.has(b.id);
+            // Phase 7: surface a "MAJ" badge on the About entry when an
+            // update is waiting, so the user discovers the in-section
+            // install action without first pinning About. Mirrors the
+            // mockup's `.ap-nav-badge` on the rail.
+            const showBadge = b.id === "about" && updateAvailable;
             return (
               <button
                 key={b.id}
@@ -312,46 +271,101 @@ const DebugPanel = () => {
                   e.currentTarget.blur();
                 }}
               >
-                <span className={styles.railIcon}>{b.icon}</span>
+                {showBadge ? (
+                  <span
+                    className={styles.railBadge}
+                    aria-label={lbl(lang, "Update available", "Mise à jour disponible", "Actualización disponible")}
+                  >
+                    {lbl(lang, "UPD", "MAJ", "ACT")}
+                  </span>
+                ) : null}
+                <span className={styles.railIcon}><InlineIcon icon={b.icon} /></span>
                 <span className={styles.railLabel}>{bucketLabel(lang, b.id)}</span>
               </button>
             );
           })}
+
+          {/* Exit — pinned to the bottom of the rail, visually separated
+            * and kept dim so it never carries the active accent (Phase 6
+            * grammar, reused per the Phase 7 handoff). Same close handler
+            * as SettingsPanel's rail exit for cross-panel consistency. */}
+          <button
+            type="button"
+            className={`${styles.railButton} ${styles.railClose}`}
+            onClick={() => setDebugMenuOpen(false)}
+            aria-label={t("controls.closeDebug", { defaultValue: "Close debug" })}
+          >
+            <span className={styles.railIcon}><InlineIcon icon={closeSharp} /></span>
+            <span className={styles.railLabel}>{lbl(lang, "Close", "Fermer", "Cerrar")}</span>
+          </button>
         </nav>
 
-        <main className={styles.pane}>
-          {error ? (
-            <div className={styles.errorBox}>
-              {t("debug.fetchError", { defaultValue: "Could not load debug data" })}
-              <div className={styles.errorMessage}>{error}</div>
+        <div className={styles.main}>
+          {/* Persistent action toolbar — always visible, does not scroll
+            * with the content (Phase 7). Replaces the old title header.
+            * Carries the live-status + last-refresh timestamp and the
+            * one genuinely global action (Refresh); Export CSV and the
+            * update-check action moved into the About bucket. */}
+          <div className={styles.toolbar}>
+            <div className={styles.toolbarStatus}>
+              <span className={styles.toolbarDot} aria-hidden="true" />
+              <span className={styles.toolbarLive}>{lbl(lang, "Updated", "Actualisé", "Actualizado")}</span>
+              <span className={styles.toolbarTime}>
+                {lastRefreshed ? lastRefreshed.toTimeString().slice(0, 8) : "—"}
+              </span>
             </div>
-          ) : loading && !data ? (
-            <div className={styles.loadingBox}>
-              {t("debug.loading", { defaultValue: "Loading…" })}
-            </div>
-          ) : !data ? null : activeBuckets.size === 0 ? (
-            <div className={styles.placeholder}>
-              {t("debug.pickBucket", {
-                defaultValue: "Press a tab to view a section. Press again to hide it. Multiple sections can stack.",
-              })}
-            </div>
-          ) : (
-            // Masonry-style layout: distribute pinned buckets across
-            // explicit columns so the dominant bucket (Services) doesn't
-            // strand a half-empty column next to it. CSS multi-column
-            // can't do this because it fills in document order and
-            // can't move a tall item out of the way. Column count is
-            // viewport-driven via the CSS class names so the algorithm
-            // produces 1 column on Pi 7", 2 on standard desktop.
-            <MasonryStack
-              activeBuckets={activeBuckets}
-              data={data}
-              columnCount={columnCount}
-              gridTwoWide={gridTwoWide}
-              lang={lang}
-            />
-          )}
-        </main>
+            <div className={styles.toolbarSpacer} />
+            <button
+              type="button"
+              className={styles.toolButton}
+              onClick={fetchDebug}
+              disabled={loading}
+              title={loading
+                ? t("debug.loading", { defaultValue: "Loading…" })
+                : t("debug.refresh", { defaultValue: "Refresh" })}
+            >
+              <InlineIcon icon={refreshIcon} className={loading ? styles.spin : ""} />
+              <span className={styles.toolLabel}>{loading
+                ? t("debug.loading", { defaultValue: "Loading…" })
+                : t("debug.refresh", { defaultValue: "Refresh" })}</span>
+            </button>
+          </div>
+
+          <main className={styles.pane}>
+            {error ? (
+              <div className={styles.errorBox}>
+                {t("debug.fetchError", { defaultValue: "Could not load debug data" })}
+                <div className={styles.errorMessage}>{error}</div>
+              </div>
+            ) : loading && !data ? (
+              <div className={styles.loadingBox}>
+                {t("debug.loading", { defaultValue: "Loading…" })}
+              </div>
+            ) : !data ? null : activeBuckets.size === 0 ? (
+              <div className={styles.placeholder}>
+                {t("debug.pickBucket", {
+                  defaultValue: "Press a tab to view a section. Press again to hide it. Multiple sections can stack.",
+                })}
+              </div>
+            ) : (
+              // Masonry-style layout: distribute pinned buckets across
+              // explicit columns so the dominant bucket (Services) doesn't
+              // strand a half-empty column next to it. CSS multi-column
+              // can't do this because it fills in document order and
+              // can't move a tall item out of the way. Column count is
+              // viewport-driven via the CSS class names so the algorithm
+              // produces 1 column on Pi 7", 2 on standard desktop.
+              <MasonryStack
+                activeBuckets={activeBuckets}
+                data={data}
+                columnCount={columnCount}
+                gridTwoWide={gridTwoWide}
+                lang={lang}
+                fetchDebug={fetchDebug}
+              />
+            )}
+          </main>
+        </div>
       </div>
     </div>
   );
@@ -452,13 +466,14 @@ const httpStatusKind = (status) => {
 
 /* Static bucket spec — IDs are used for localStorage persistence
  * and don't need to be translated. The localised display label is
- * resolved at render time via `bucketLabel(lang, bucket.id)`. */
+ * resolved at render time via `bucketLabel(lang, bucket.id)`. The
+ * `icon` is an Iconify object rendered via <InlineIcon>. */
 const BUCKETS = [
-  { id: "server",   icon: "⌬" },
-  { id: "client",   icon: "◐" },
-  { id: "services", icon: "◇" },
-  { id: "storage",  icon: "▢" },
-  { id: "about",    icon: "ⓘ" },
+  { id: "server",   icon: serverIcon },
+  { id: "client",   icon: clientIcon },
+  { id: "services", icon: servicesIcon },
+  { id: "storage",  icon: storageIcon },
+  { id: "about",    icon: aboutIcon },
 ];
 
 const bucketLabel = (lang, id) => ({
@@ -534,7 +549,7 @@ function distributeBuckets(activeBuckets, columnCount) {
  * @param {number} props.columnCount — 1 on narrow, 2 on desktop
  * @returns {JSX.Element}
  */
-const MasonryStack = ({ activeBuckets, data, columnCount, gridTwoWide, lang }) => {
+const MasonryStack = ({ activeBuckets, data, columnCount, gridTwoWide, lang, fetchDebug }) => {
   const columns = distributeBuckets(activeBuckets, columnCount);
   return (
     <div
@@ -545,10 +560,10 @@ const MasonryStack = ({ activeBuckets, data, columnCount, gridTwoWide, lang }) =
           {col.map((b) => (
             <section key={b.id} className={styles.stackItem}>
               <div className={styles.stackHeader}>
-                <span className={styles.stackHeaderIcon}>{b.icon}</span>
+                <span className={styles.stackHeaderIcon}><InlineIcon icon={b.icon} /></span>
                 <span className={styles.stackHeaderLabel}>{bucketLabel(lang, b.id)}</span>
               </div>
-              <BucketContent bucket={b.id} data={data} lang={lang} gridTwoWide={gridTwoWide} />
+              <BucketContent bucket={b.id} data={data} lang={lang} gridTwoWide={gridTwoWide} fetchDebug={fetchDebug} />
             </section>
           ))}
         </div>
@@ -567,12 +582,12 @@ const MasonryStack = ({ activeBuckets, data, columnCount, gridTwoWide, lang }) =
  * @param {object} props.data — payload from /api/debug
  * @returns {JSX.Element}
  */
-const BucketContent = ({ bucket, data, lang, gridTwoWide }) => (
+const BucketContent = ({ bucket, data, lang, gridTwoWide, fetchDebug }) => (
   <BucketErrorBoundary bucket={bucket}>
     {bucket === "server"   ? <BucketServer data={data} lang={lang} gridTwoWide={gridTwoWide} /> :
      bucket === "client"   ? <BucketClient data={data} lang={lang} gridTwoWide={gridTwoWide} /> :
      bucket === "services" ? <BucketServices data={data} lang={lang} /> :
-     bucket === "about"    ? <BucketAbout data={data} lang={lang} gridTwoWide={gridTwoWide} /> :
+     bucket === "about"    ? <BucketAbout data={data} lang={lang} gridTwoWide={gridTwoWide} fetchDebug={fetchDebug} /> :
      bucket === "storage"  ? <BucketStorage data={data} lang={lang} gridTwoWide={gridTwoWide} /> :
                              null}
   </BucketErrorBoundary>
@@ -1301,7 +1316,7 @@ const RadarSnapshotsBlock = ({ snapshots, lang }) => {
   );
 };
 
-const BucketAbout = ({ data, lang, gridTwoWide }) => {
+const BucketAbout = ({ data, lang, gridTwoWide, fetchDebug }) => {
   const v = data.appVersion || {};
   // Prefer live AppContext state over the /api/debug snapshot for the
   // update-check section. /api/debug serialises whatever was cached at
@@ -1320,10 +1335,59 @@ const BucketAbout = ({ data, lang, gridTwoWide }) => {
     needsManualUpgrade,
     setUpdateModalOpen,
     setDebugMenuOpen,
+    refreshUpdateCheck,
   } = useContext(AppContext);
   const commitCount = Array.isArray(updateCommits) ? updateCommits.length : 0;
+  // Phase 7: the "Check for updates" and "Export CSV" actions moved out
+  // of the persistent toolbar into here — About is the panel's
+  // housekeeping section, so co-locating the update-check trigger with
+  // its result (SHA / version / install) closes the loop, and the
+  // diagnostics export is a section-level maintenance action.
+  const [checkingUpdate, setCheckingUpdate] = useState(false);
+  const onCheckUpdate = () => {
+    if (typeof refreshUpdateCheck !== "function" || checkingUpdate) return;
+    setCheckingUpdate(true);
+    Promise.resolve(refreshUpdateCheck(true))
+      .catch((err) => console.warn("[DebugPanel] update check failed", err))
+      .finally(() => {
+        setCheckingUpdate(false);
+        // Re-fetch /api/debug so the new updateInfo lands in the snapshot.
+        if (typeof fetchDebug === "function") fetchDebug();
+      });
+  };
   return (
     <div className={styles.bucket}>
+      {/* Maintenance actions — moved here from the old persistent header
+        * (Phase 7). exportDebugCsv reads `clientMetrics` and `fps` (v2
+        * ClientKpiSection-owned, not yet ported to BucketClient); pass
+        * null so the CSV header writes "N/A" rather than crashing. The
+        * server-side sections still export with the v2 shape. */}
+      <div className={styles.metaActions}>
+        <button
+          type="button"
+          className={styles.toolButton}
+          onClick={onCheckUpdate}
+          disabled={checkingUpdate || typeof refreshUpdateCheck !== "function"}
+          title={checkingUpdate
+            ? lbl(lang, "Checking…", "Vérification…", "Comprobando…")
+            : lbl(lang, "Check for updates", "Vérifier les mises à jour", "Buscar actualizaciones")}
+        >
+          <InlineIcon icon={upgradeIcon} className={checkingUpdate ? styles.spin : ""} />
+          <span className={styles.toolLabel}>{checkingUpdate
+            ? lbl(lang, "Checking…", "Vérification…", "Comprobando…")
+            : lbl(lang, "Check for updates", "Vérifier les mises à jour", "Buscar actualizaciones")}</span>
+        </button>
+        <button
+          type="button"
+          className={styles.toolButton}
+          onClick={() => exportDebugCsv(data, null, null)}
+          title={lbl(lang, "Export CSV", "Exporter CSV", "Exportar CSV")}
+        >
+          <InlineIcon icon={downloadIcon} />
+          <span className={styles.toolLabel}>{lbl(lang, "Export CSV", "Exporter CSV", "Exportar CSV")}</span>
+        </button>
+      </div>
+
       <SectionTitle title={lbl(lang, "About this build", "À propos de cette version", "Acerca de esta versión")} />
       <div className={`${styles.gridTwo} ${gridTwoWide ? styles.gridTwoWide : ""}`}>
         <KV k={lbl(lang, "name", "nom", "nombre")}       v={v.name || "?"} />
