@@ -145,7 +145,13 @@
 .railClose {
   margin-top: auto;
   padding-top: 12px;
-  border-top: 1px solid var(--c-border);
+  /* Use the *hybrid* border (≈2× the alpha of --c-border) for the exit
+   * divider specifically: --c-border sits at ~0.10 alpha, which on the
+   * cream day surface renders below the visibility floor — the divider
+   * was effectively invisible. The separator's whole job is to set the
+   * exit apart, so it needs to actually read. Kept in sync with the
+   * DebugPanel rail exit. */
+  border-top: 1px solid var(--c-border-hybrid);
   color: var(--c-text-dim);
 }
 
@@ -322,7 +328,7 @@
     padding-top: 6px;
     padding-left: 14px;
     border-top: none;
-    border-left: 1px solid var(--c-border);
+    border-left: 1px solid var(--c-border-hybrid);
   }
 
   .paneInner {

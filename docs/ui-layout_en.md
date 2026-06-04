@@ -60,7 +60,7 @@ Variant A "Compagnon nomade" from the design package. Single scrollable column t
 
 - **Off-page area** : `100dvh < physical height` in standalone on notched iPhone; `body` and `<html>` are painted with the palette colour via a `useEffect` in `AmbientLayers` so the iOS-reserved zone doesn't show a black bar under the dock.
 - **nightRed palette** : uses `#270c0c` (effective composite surface) instead of `palette.bg` (`#100404`) so the off-page area doesn't read as plain black against the brighter red dock.
-- **Safe-area headers** : SettingsPanel and DebugPanel add `padding-top: max(14px, env(safe-area-inset-top))` so the close button (×, 44×44) isn't under the Dynamic Island.
+- **Safe-area top** : SettingsPanel adds `padding-top: max(14px, env(safe-area-inset-top))` on its header so the close button (×, 44×44) isn't under the Dynamic Island. DebugPanel no longer has a header (Phase 7): the rail (left) and the persistent toolbar (right) each absorb their portion of the top safe-area.
 
 ---
 

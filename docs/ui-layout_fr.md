@@ -60,7 +60,7 @@ Variante A « Compagnon nomade » du dossier de design. Colonne unique défilant
 
 - **Fond hors-zone** : `100dvh < hauteur physique` en standalone sur iPhone notché ; le `body` et `<html>` sont peints à la couleur du palette via un `useEffect` dans `AmbientLayers` pour combler la zone réservée par iOS (sinon : barre noire visible sous le dock).
 - **Palette nightRed** : utilise `#270c0c` (surface effective composite) plutôt que `palette.bg` (`#100404`) pour éviter que la zone hors-page apparaisse noire face au dock rouge plus clair.
-- **Headers safe-area** : les SettingsPanel et DebugPanel ajoutent `padding-top: max(14px, env(safe-area-inset-top))` pour que le bouton de fermeture (×, 44×44) ne soit pas sous la Dynamic Island.
+- **Safe-area en haut** : le SettingsPanel ajoute `padding-top: max(14px, env(safe-area-inset-top))` sur son header pour que le bouton de fermeture (×, 44×44) ne soit pas sous la Dynamic Island. Le DebugPanel n'a plus de header (Phase 7) : le rail (gauche) et la toolbar persistante (droite) absorbent chacun leur portion du safe-area haut.
 
 ---
 
