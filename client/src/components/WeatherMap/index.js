@@ -45,6 +45,7 @@ L.Icon.Default.mergeOptions({
 });
 import PropTypes from "prop-types";
 import { AppContext } from "~/AppContext";
+import useEligibleGovAlerts from "~/hooks/useEligibleGovAlerts";
 import { useTimeOfDay } from "~/ui/hybrid";
 import { useTranslation } from "react-i18next";
 import debounce from "debounce";
@@ -500,8 +501,26 @@ const WeatherMap = ({ zoom, dark }) => {
     // Consumed by the `<AlertGeometryOverlay>` child inside the
     // MapContainer below.
     highlightedAlertId,
+    setHighlightedAlertId,
     govAlerts,
   } = useContext(AppContext);
+
+  // Clear the map-zone highlight when the alert it points at is no
+  // longer displayable — turned off via the "Show advisory alerts"
+  // opt-in, dismissed, or expired off the feed. Without this the
+  // polygon strands on the map with no way to remove it: the only
+  // "Hide zone" control lives in the alert detail, which is gone once
+  // the alert stops showing. AlertDetailInline's own clear-on-collapse/
+  // unmount cleanup (commit 8bf5cc6) misses this case because the
+  // detail renders null internally instead of unmounting. Matching the
+  // *eligible* set (not raw govAlerts) also covers dismissal + expiry
+  // in one place.
+  const { eligibleGovAlerts } = useEligibleGovAlerts();
+  useEffect(() => {
+    if (highlightedAlertId && !eligibleGovAlerts.some((a) => a.id === highlightedAlertId)) {
+      setHighlightedAlertId(null);
+    }
+  }, [highlightedAlertId, eligibleGovAlerts, setHighlightedAlertId]);
 
   // Largest sample in each ring drives the circle radius. Multiplied by
   // METERS_PER_UNIT because Leaflet's Circle takes meters.
