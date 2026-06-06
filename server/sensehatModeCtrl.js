@@ -61,13 +61,13 @@ const CLOCK_SERVICE = "pi-sensehat-clock.service";
 // the DEFAULT_BRIGHTNESS_PERCENT constant in tools/horloge.py — kept
 // in sync manually since the two run in different language runtimes.
 const DEFAULT_CLOCK_BRIGHTNESS = 50;
-// Default for `advanced.sensehat.radarBrightness` — the night-time
-// brightness multiplier (percent) for the radar grid. Mirrors
-// BRIGHTNESS_RADAR_NIGHT (0.6) in tools/sensehat_weather.py. Daytime
-// radar always renders at full brightness; this only dims the night.
-// The daemon re-reads this from settings.json live (no restart). The
-// client slider is pinned to a 20 % minimum (the heavier tiers stay
-// visible there; below ~15 % the matrix goes black on both v1 and v2).
+// Default for `advanced.sensehat.radarBrightness` — the brightness
+// multiplier (percent) for the radar grid, applied in BOTH day and night
+// (like the clock). Mirrors BRIGHTNESS_RADAR_DEFAULT (0.6) in
+// tools/sensehat_weather.py. The daemon re-reads this from settings.json
+// live (no restart). The client slider is pinned to a 20 % minimum (the
+// heavier tiers stay visible there; below ~15 % the matrix goes black on
+// both v1 and v2).
 const DEFAULT_RADAR_BRIGHTNESS = 60;
 
 // Detection caching — physical attachment of the HAT doesn't change at
@@ -207,7 +207,7 @@ async function readPersistedBrightness() {
 }
 
 /**
- * Resolve the radar night-brightness percent from an already-loaded settings
+ * Resolve the radar brightness percent from an already-loaded settings
  * object (pure, no I/O) so sensehatCtrl can fold it into /api/sensehat without
  * a second read. Falls back to DEFAULT_RADAR_BRIGHTNESS (60%).
  *
@@ -221,7 +221,7 @@ function resolveRadarBrightness(settings) {
 }
 
 /**
- * Read the persisted radar night-brightness from settings.json. Falls back to
+ * Read the persisted radar brightness from settings.json. Falls back to
  * DEFAULT_RADAR_BRIGHTNESS (60%) on any missing / unparseable value.
  *
  * @returns {Promise<number>} integer 0-100
@@ -425,7 +425,7 @@ async function getRadarBrightness(req, res) {
 /**
  * POST /api/sensehat-radar-brightness  body: {brightness: 0-100}
  *
- * Persists the radar night-brightness — and does NOT restart the service.
+ * Persists the radar brightness — and does NOT restart the service.
  * Unlike the clock, the weather/radar daemon re-reads radarBrightness from
  * settings.json live on a ~1 s cadence (read_radar_brightness in
  * sensehat_weather.py), so the slider takes effect without a restart. The

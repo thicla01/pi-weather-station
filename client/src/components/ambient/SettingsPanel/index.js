@@ -1014,16 +1014,17 @@ const SectionAdvanced = ({ ctx, lang, remote }) => {
                     disabled={remote}
                   />
                 ) : null}
-                {/* Radar night-brightness slider — shown in radar/auto modes.
-                  * Sets the night multiplier for the radar grid (daytime stays
-                  * full). Applied live server-side (no restart) so it's smooth
-                  * at any drag speed. Min pinned to 20 %: the heavier tiers
-                  * stay visible there, below ~15 % the matrix goes black on
-                  * both v1 and v2. Same min/scale as the clock slider so the
+                {/* Radar brightness slider — shown in radar/auto modes. Scales
+                  * the radar grid in BOTH day and night (like the clock slider;
+                  * it used to dim only at night, which made it look broken in
+                  * daytime). Applied live by the daemon (no restart) so it's
+                  * smooth at any drag speed. Min pinned to 20 %: the heavier
+                  * tiers stay visible there, below ~15 % the matrix goes black
+                  * on both v1 and v2. Same min/scale as the clock slider so the
                   * thumb sits at the same place for the same %. */}
                 {(senseHatMode === "radar" || senseHatMode === "auto") ? (
                   <RangeSlider
-                    label={lbl(lang, "Radar brightness · night", "Luminosité radar · nuit", "Brillo radar · noche")}
+                    label={lbl(lang, "Radar brightness", "Luminosité radar", "Brillo radar")}
                     value={senseHatRadarBrightness}
                     min={20}
                     max={100}

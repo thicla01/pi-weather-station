@@ -454,7 +454,7 @@ The `mode` field echoes the persisted Sense HAT display mode (`weather` / `clock
 | `sunriseTs` | integer \| null | Unix timestamp (ms) for today's sunrise — used by the Python script to position the sun on its arc |
 | `sunsetTs` | integer \| null | Unix timestamp (ms) for today's sunset |
 | `mode` | string | Persisted display mode: `weather` \| `clock` \| `radar` \| `auto` |
-| `radarBrightness` | integer | Night-time brightness percent (0–100) for the radar grid; daytime always renders full. Set via `POST /api/sensehat-radar-brightness` (persists only — the daemon re-reads it from settings.json live, no service restart). The client slider is pinned to a 20 % minimum (below ~15 % the matrix reads black on both v1 and v2). |
+| `radarBrightness` | integer | Brightness percent (0–100) for the radar grid, applied in both day and night (like the clock). Set via `POST /api/sensehat-radar-brightness` (persists only — the daemon re-reads it from settings.json live, no service restart). The client slider is pinned to a 20 % minimum (below ~15 % the matrix reads black on both v1 and v2). |
 | `radar` | object \| absent | Present only in `radar`/`auto` mode: `{ grid: number[64] (0–6, row-major, N up), litCells: integer, radiusKm: number }` — coarse 8×8 precipitation reprojection |
 | `alert` | object \| absent | Optional: top active gov alert (tier ≥ orange). Object shape: `{ tier: "red"\|"orange", severity: "extreme"\|"severe"\|"moderate", source: "ECCC"\|"NWS", event: string }` |
 
