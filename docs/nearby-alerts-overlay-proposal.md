@@ -45,6 +45,8 @@ What each tool does with that:
 
 Two neighbours barely 8 miles apart, in the same county, get **different** results from the station — because it matches the real alert polygon, not the county. SkywarnPlus treats them identically because a repeater covers the whole county. Neither is wrong; they answer different questions.
 
+There was also a **third** alert over the same area — a **Flood Watch** — with a revealing twist: it carries *no polygon at all*. NWS issues Watches for an entire county/zone, so it matches **every** point in the county, exactly the way SkywarnPlus's county model does. So this one spot shows NWS itself mixing both approaches — a broad zone-based alert (the Watch) alongside tight polygon-based ones (the Warning and the Advisory) — and the point-based station handles both correctly: county-wide where the alert is county-wide, pinpoint where the alert has a polygon.
+
 **Reproduce it on live data.** These specific alerts have long expired (NWS keeps roughly a week of history), but the method works on whatever is active whenever you read this:
 
 ```
@@ -58,9 +60,11 @@ Swap in your own coordinates. Whatever comes back is exactly the set the station
 
 An **optional map layer** you turn on when you want it. When ON, it paints every active NWS / Environment Canada alert polygon **in your region** (your state or province) on top of the map, colour-coded by severity:
 
-- 🔴 **Red** — Warnings (Tornado, Severe Thunderstorm, Flash Flood, etc.)
-- 🟠 **Orange** — Watches
-- 🟡 **Yellow** — Advisories
+- 🔴 **Red** — the most serious alerts: NWS severity *Severe* or *Extreme* (most Warnings — and, as it turns out, some Watches too)
+- 🟠 **Orange** — *Moderate* severity (many Watches)
+- 🟡 **Yellow** — Advisories, *Minor* severity (hidden by default)
+
+The colour follows the NWS **severity** field, *not* the literal word "Warning" / "Watch" / "Advisory". These usually line up, but not always — in the live example below, a Flood **Watch** came back flagged *Severe*, so it lands on red, not orange.
 
 Tap a polygon → a small popup tells you **what it is**: the alert type (e.g. "Flood Advisory"), its severity colour, and when it expires.
 
