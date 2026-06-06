@@ -66,7 +66,7 @@ pi-weather-station/
 
 ### Commits
 - Conventional commits: `feat:`, `fix:`, `chore:`, `docs:`
-- Always include `Co-Authored-By: Claude Sonnet 4.6 <noreply@anthropic.com>`
+- Always include a `Co-Authored-By` trailer naming the **actual model** that did the work (currently `Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>`) — update the model string as the working model changes; do not hardcode a stale version
 
 ### CSS
 - CSS Modules with kebab-case in `.css` files → camelCase in JSX
