@@ -65,6 +65,9 @@ const DEFAULT_CLOCK_BRIGHTNESS = 50;
 // brightness multiplier (percent) for the radar grid. Mirrors
 // BRIGHTNESS_RADAR_NIGHT (0.6) in tools/sensehat_weather.py. Daytime
 // radar always renders at full brightness; this only dims the night.
+// The daemon re-reads this from settings.json live (no restart). The
+// client slider is pinned to a 20 % minimum (the heavier tiers stay
+// visible there; below ~15 % the matrix goes black on both v1 and v2).
 const DEFAULT_RADAR_BRIGHTNESS = 60;
 
 // Detection caching — physical attachment of the HAT doesn't change at
@@ -412,22 +415,6 @@ async function setClockBrightness(req, res) {
 }
 
 /**
- * Check whether pi-sensehat.service (the weather/radar/auto daemon) is
- * currently active.
- *
- * @returns {Promise<boolean>}
- */
-async function isWeatherServiceActive() {
-  try {
-    const { stdout } = await execFileAsync("systemctl", ["--user", "is-active", WEATHER_SERVICE], { timeout: 5_000 });
-    return stdout.trim() === "active";
-  } catch (err) {
-    if (err && err.stdout && err.stdout.trim() === "active") return true;
-    return false;
-  }
-}
-
-/**
  * GET /api/sensehat-radar-brightness
  */
 async function getRadarBrightness(req, res) {
@@ -438,12 +425,12 @@ async function getRadarBrightness(req, res) {
 /**
  * POST /api/sensehat-radar-brightness  body: {brightness: 0-100}
  *
- * Persists the radar night-brightness. The weather daemon reads the value
- * from /api/sensehat on its next poll, but we also restart
- * pi-sensehat.service (when active) so the change is visible immediately
- * rather than up to a poll interval later — same immediacy contract as the
- * clock-brightness endpoint. Skipped when the weather daemon isn't running
- * (clock mode); the value is picked up the next time it starts.
+ * Persists the radar night-brightness — and does NOT restart the service.
+ * Unlike the clock, the weather/radar daemon re-reads radarBrightness from
+ * settings.json live on a ~1 s cadence (read_radar_brightness in
+ * sensehat_weather.py), so the slider takes effect without a restart. The
+ * previous restart-on-change left a stuck black frame when restarts
+ * overlapped on fast slider moves (most visible on the v1 HAT).
  */
 async function setRadarBrightness(req, res) {
   const { brightness } = req.body || {};
@@ -456,15 +443,7 @@ async function setRadarBrightness(req, res) {
   const rounded = Math.round(brightness);
   try {
     await persistSensehat({ radarBrightness: rounded });
-    if (await isWeatherServiceActive()) {
-      try {
-        await execFileAsync("systemctl", ["--user", "restart", WEATHER_SERVICE], { timeout: 10_000 });
-      } catch (err) {
-        return res.status(200).json({ brightness: rounded, restarted: false, warning: err.message }).end();
-      }
-      return res.status(200).json({ brightness: rounded, restarted: true }).end();
-    }
-    return res.status(200).json({ brightness: rounded, restarted: false }).end();
+    return res.status(200).json({ brightness: rounded }).end();
   } catch (err) {
     return res.status(500).json({ error: err.message }).end();
   }

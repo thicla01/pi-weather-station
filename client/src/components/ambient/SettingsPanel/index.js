@@ -998,35 +998,34 @@ const SectionAdvanced = ({ ctx, lang, remote }) => {
                   onChange={saveSenseHatMode}
                   disabled={remote}
                 />
-                {/* Clock brightness slider — only shown when clock mode
-                  * is active (the weather animations have their own
-                  * intensity curve and didn't need adjustment per
-                  * field feedback). Restarts pi-sensehat-clock.service
-                  * server-side when the value lands, picking up the
-                  * new brightness on the next minute boundary. */}
+                {/* Clock brightness slider — only shown when clock mode is
+                  * active. Restarts pi-sensehat-clock.service server-side when
+                  * the value lands. Min pinned to 20 % to match the radar
+                  * slider (same scale → thumb aligns) and stay above the LED
+                  * visibility floor — below ~15 % the matrix reads black. */}
                 {senseHatMode === "clock" ? (
                   <RangeSlider
                     label={lbl(lang, "Clock brightness", "Luminosité horloge", "Brillo del reloj")}
                     value={senseHatClockBrightness}
-                    min={0}
+                    min={20}
                     max={100}
                     step={5}
                     onChange={setSenseHatClockBrightnessLive}
                     disabled={remote}
                   />
                 ) : null}
-                {/* Radar night-brightness slider — shown in radar/auto
-                  * modes. Sets the night multiplier for the radar grid
-                  * (daytime stays at full brightness); restarts
-                  * pi-sensehat.service server-side so the change shows
-                  * immediately. The saturated tier colours read fine in
-                  * daylight, but at night a fully-bright matrix can be
-                  * too much in a bedroom — this is the knob for it. */}
+                {/* Radar night-brightness slider — shown in radar/auto modes.
+                  * Sets the night multiplier for the radar grid (daytime stays
+                  * full). Applied live server-side (no restart) so it's smooth
+                  * at any drag speed. Min pinned to 20 %: the heavier tiers
+                  * stay visible there, below ~15 % the matrix goes black on
+                  * both v1 and v2. Same min/scale as the clock slider so the
+                  * thumb sits at the same place for the same %. */}
                 {(senseHatMode === "radar" || senseHatMode === "auto") ? (
                   <RangeSlider
                     label={lbl(lang, "Radar brightness · night", "Luminosité radar · nuit", "Brillo radar · noche")}
                     value={senseHatRadarBrightness}
-                    min={10}
+                    min={20}
                     max={100}
                     step={5}
                     onChange={setSenseHatRadarBrightnessLive}
