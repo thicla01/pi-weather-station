@@ -22,13 +22,49 @@ Neither approach is "more correct." A repeater serves a whole region, so **count
 
 But it raised a fair question: **what if you're curious about what's active *around* you, not just *at* you?** That's what this proposal is about.
 
+## A worked example (real NWS alerts)
+
+Here's the difference made concrete, using alerts that were active over **Lavaca County, Texas** on the evening of 2026-06-05. Two NWS flood products overlapped there:
+
+- 🔴 **Flash Flood Warning** — VTEC `FF.W`, severity *Severe* — a tight storm-based polygon
+- 🟡 **Flood Advisory** — VTEC `FA.Y`, severity *Minor* — a broader polygon spanning DeWitt + Lavaca counties
+
+Now take two points just **13.5 km (8.5 mi) apart, both inside Lavaca County**, and test each against the actual alert polygons:
+
+| Point | Inside the 🔴 Flash Flood Warning? | Inside the 🟡 Flood Advisory? |
+|---|---|---|
+| **A** — `29.45, -96.85` | ✅ yes | ✅ yes |
+| **B** — `29.52, -96.74` | ❌ no | ✅ yes |
+
+What each tool does with that:
+
+| | At point A | At point B |
+|---|---|---|
+| **SkywarnPlus** (county `TXC285` = Lavaca) | announces **both** | announces **both** — same county |
+| **Pi Weather Station** (point-based) | 🔴 Warning + 🟡 Advisory | 🟡 Advisory **only** — the Warning polygon doesn't reach B |
+
+Two neighbours barely 8 miles apart, in the same county, get **different** results from the station — because it matches the real alert polygon, not the county. SkywarnPlus treats them identically because a repeater covers the whole county. Neither is wrong; they answer different questions.
+
+There was also a **third** alert over the same area — a **Flood Watch** — with a revealing twist: it carries *no polygon at all*. NWS issues Watches for an entire county/zone, so it matches **every** point in the county, exactly the way SkywarnPlus's county model does. So this one spot shows NWS itself mixing both approaches — a broad zone-based alert (the Watch) alongside tight polygon-based ones (the Warning and the Advisory) — and the point-based station handles both correctly: county-wide where the alert is county-wide, pinpoint where the alert has a polygon.
+
+**Reproduce it on live data.** These specific alerts have long expired (NWS keeps roughly a week of history), but the method works on whatever is active whenever you read this:
+
+```
+curl -H "User-Agent: your-callsign" \
+  "https://api.weather.gov/alerts/active?point=29.45,-96.85"
+```
+
+Swap in your own coordinates. Whatever comes back is exactly the set the station would surface at that spot (yellow/advisory tier subject to the opt-in toggle). Nudge the point a few miles and watch the list change — that's the county-vs-polygon effect in a single command.
+
 ## The idea
 
 An **optional map layer** you turn on when you want it. When ON, it paints every active NWS / Environment Canada alert polygon **in your region** (your state or province) on top of the map, colour-coded by severity:
 
-- 🔴 **Red** — Warnings (Tornado, Severe Thunderstorm, Flash Flood, etc.)
-- 🟠 **Orange** — Watches
-- 🟡 **Yellow** — Advisories
+- 🔴 **Red** — the most serious alerts: NWS severity *Severe* or *Extreme* (most Warnings — and, as it turns out, some Watches too)
+- 🟠 **Orange** — *Moderate* severity (many Watches)
+- 🟡 **Yellow** — Advisories, *Minor* severity (hidden by default)
+
+The colour follows the NWS **severity** field, *not* the literal word "Warning" / "Watch" / "Advisory". These usually line up, but not always — in the live example below, a Flood **Watch** came back flagged *Severe*, so it lands on red, not orange.
 
 Tap a polygon → a small popup tells you **what it is**: the alert type (e.g. "Flood Advisory"), its severity colour, and when it expires.
 
