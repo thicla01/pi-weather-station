@@ -653,6 +653,7 @@ const BucketServer = ({ data, lang, gridTwoWide }) => {
         <KV k="hostname" v={sys.hostname || "?"} />
         <KV k="hardware" v={sys.hardware || "?"} />
         <KV k="os"       v={sys.os || "?"} />
+        <KV k="Sense HAT" v={sys.senseHat || lbl(lang, "none", "aucun", "ninguno")} />
         <KV k={lbl(lang, "branch", "branche", "rama")}   v={v.branch || "?"} />
         <KV k="init"     v={(cfg.initManager || "—").toUpperCase()} />
         {/* Boolean labels localised: VRAI/FAUX in FR, VERDADERO/FALSO in ES.

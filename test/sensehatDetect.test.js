@@ -15,7 +15,7 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 
-const { detectSenseHatHardware } = require("../server/sensehatModeCtrl").__test;
+const { detectSenseHatHardware, detectSenseHatVersion } = require("../server/sensehatModeCtrl").__test;
 
 // Build a fake /sys/class/graphics tree under a temp dir.
 // spec: { fbName: { name?: string, driver?: string } }
@@ -73,4 +73,31 @@ test("ignores entries whose name doesn't start with 'fb'", () => {
   fs.mkdirSync(path.join(root, "console"), { recursive: true });
   fs.writeFileSync(path.join(root, "console", "name"), "RPi-Sense FB\n");
   assert.equal(detectSenseHatHardware(root), false);
+});
+
+// === detectSenseHatVersion: HAT board revision from the ID-EEPROM ===
+// Confirmed empirically across the fleet: v1 product_ver=0x0001, v2=0x0002.
+// The device-tree node stores the value as a NUL-terminated ASCII hex string.
+
+function writeProductVer(content) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "sensehat-hat-"));
+  const p = path.join(dir, "product_ver");
+  fs.writeFileSync(p, content);
+  return p;
+}
+
+test("detectSenseHatVersion: 0x0001 → v1", () => {
+  assert.equal(detectSenseHatVersion(writeProductVer("0x0001\0")), "v1");
+});
+
+test("detectSenseHatVersion: 0x0002 → v2", () => {
+  assert.equal(detectSenseHatVersion(writeProductVer("0x0002\0")), "v2");
+});
+
+test("detectSenseHatVersion: unrecognised revision surfaces the raw value", () => {
+  assert.equal(detectSenseHatVersion(writeProductVer("0x0003\0")), "0x0003");
+});
+
+test("detectSenseHatVersion: no HAT EEPROM (missing file) → null", () => {
+  assert.equal(detectSenseHatVersion(path.join(os.tmpdir(), "no-such-product_ver")), null);
 });
