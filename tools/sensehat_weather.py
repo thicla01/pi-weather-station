@@ -23,6 +23,7 @@ Systemd service (managed by install.sh, or manually):
 """
 
 import glob
+import json
 import logging
 import math
 import os
@@ -190,11 +191,29 @@ RADAR_CENTER_COLOR = (200, 200, 200)
 # Minimum lit cells for the grid to count as "echoes present". 1 = any echo
 # shows the radar view; raise if single-pixel RainViewer noise distracts.
 RADAR_MIN_LIT_CELLS = 1
-# Night brightness floor for the radar grid. The saturated tier colours dim
-# better than the grey weather palette, but a lone tier-1 cyan pixel at
-# BRIGHTNESS_NIGHT (0.35) drops under the LED visibility floor (see the
-# overcast-night incident) — 0.6 keeps every lit tier legible after dark.
+# Default night-brightness multiplier for the radar grid, used until the user's
+# saved value is read. The actual value comes from advanced.sensehat.radarBrightness
+# (the "Luminosité radar · nuit" slider) and is re-read live from settings.json on
+# a ~1 s cadence by read_radar_brightness() — NO service restart, so the slider is
+# smooth at any drag speed (an earlier restart-on-change caused overlapping restarts
+# that left a stuck black frame on fast moves, most visible on the v1).
+#
+# MEASURED per-channel visibility (confirmed on both v1 and v2, tested slowly so the
+# old restart artefact didn't skew it): the LED activation threshold is ~50 effective.
+# So at 0.20 (20 %): red 230→46 still lit, cyan 0,208,208→0,42,42 just goes dark; at
+# 0.25 every tier incl. cyan is lit; below ~0.15 nothing. The client slider's minimum
+# is pinned to 20 % (the maintainer's choice — the heavier tiers stay visible there
+# and the default is 0.6, so the very bottom is rarely used).
 BRIGHTNESS_RADAR_NIGHT = 0.6
+
+# settings.json lives at the repo root; the daemon reads radarBrightness from it
+# live (same file horloge.py reads clockBrightness from).
+SETTINGS_PATH = os.path.join(
+    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+    "settings.json",
+)
+# How often (seconds) the run loop re-reads the radar brightness from settings.
+BRIGHTNESS_READ_INTERVAL = 1.0
 # classify() states that mean precipitation is falling ON the user. In auto
 # mode these keep the weather glyph: radar is reflectivity-only and can't tell
 # rain from snow, so the radar view is reserved for "incoming while dry".
@@ -1535,17 +1554,25 @@ def _render_radar(sense, grid, is_day, night_brightness=BRIGHTNESS_RADAR_NIGHT):
     _push_frame(sense, frame)
 
 
-def _radar_night_brightness_from(data):
-    """Extract the radar night-brightness multiplier from an /api/sensehat
-    payload: the `radarBrightness` percent (0-100) → a 0.0-1.0 factor. Falls
-    back to BRIGHTNESS_RADAR_NIGHT when absent or out of range.
+def read_radar_brightness():
+    """Read advanced.sensehat.radarBrightness from settings.json and return it
+    as a 0.0-1.0 night-brightness multiplier. Falls back to BRIGHTNESS_RADAR_NIGHT
+    on any missing / unparseable value.
 
-    @param data: dict  parsed /api/sensehat response
+    Read live (on a BRIGHTNESS_READ_INTERVAL cadence by run()) so a slider change
+    takes effect without restarting the service — mirrors horloge.py's
+    read_clock_brightness. Cheap: a ~1 KB JSON file, page-cached.
+
     @returns: float  0.0-1.0 night-brightness multiplier
     """
-    pct = data.get("radarBrightness")
-    if isinstance(pct, (int, float)) and 0 <= pct <= 100:
-        return pct / 100.0
+    try:
+        with open(SETTINGS_PATH, "r", encoding="utf-8") as fh:
+            data = json.load(fh)
+        pct = data.get("advanced", {}).get("sensehat", {}).get("radarBrightness")
+        if isinstance(pct, (int, float)) and 0 <= pct <= 100:
+            return pct / 100.0
+    except Exception:
+        pass
     return BRIGHTNESS_RADAR_NIGHT
 
 
@@ -1597,7 +1624,8 @@ def run():
     active_alert  = None   # None or {"tier", "severity", "source", "event"} from /api/sensehat
     mode          = "weather"  # "weather" | "radar" | "auto" — from /api/sensehat
     radar_data    = None   # None or {"grid", "litCells", "radiusKm"} from /api/sensehat
-    radar_night   = BRIGHTNESS_RADAR_NIGHT  # night-brightness multiplier (user-set)
+    radar_night   = read_radar_brightness()  # night-brightness multiplier, re-read live
+    next_bright   = 0      # next time.time() at which to re-read radar brightness
     tick          = 0
     last_render   = None   # (state, is_day, sun_row, sun_col) of the last rendered static frame
     last_log_key  = None   # cache key for the "Updated" log — gates noise at 60 s polling
@@ -1616,7 +1644,6 @@ def run():
         active_alert = initial.get("alert")
         mode         = initial.get("mode", "weather")
         radar_data   = initial.get("radar")
-        radar_night  = _radar_night_brightness_from(initial)
         log.info(
             "Initial state — code=%s state=%s isDay=%s temp=%s°C alert=%s",
             initial.get("weatherCode"), base_state, is_day,
@@ -1632,6 +1659,15 @@ def run():
     while True:
         now = time.time()
 
+        # ── Live radar brightness (no service restart) ──────────────────────
+        # Re-read the slider value from settings.json on a ~1 s cadence so a
+        # change takes effect smoothly at any drag speed. The old design
+        # restarted the service on each change, which left a stuck black frame
+        # when restarts overlapped on fast moves (most visible on the v1 HAT).
+        if now >= next_bright:
+            radar_night = read_radar_brightness()
+            next_bright = now + BRIGHTNESS_READ_INTERVAL
+
         # ── Re-fetch weather + alert every POLL_INTERVAL seconds ─────────────
         if now >= next_poll:
             data = fetch_weather()
@@ -1644,7 +1680,6 @@ def run():
                 active_alert = data.get("alert")  # dict or None
                 mode         = data.get("mode", "weather")
                 radar_data   = data.get("radar")  # dict or None
-                radar_night  = _radar_night_brightness_from(data)
                 # Gate the "Updated" log on actual state change. With
                 # POLL_INTERVAL=60 s we'd otherwise emit 60 lines/hour
                 # for what's typically static weather; this drops it to
@@ -1689,17 +1724,18 @@ def run():
         directive, payload = _resolve_directive(mode, base_state, radar_data)
 
         # ── Radar paths (static between polls — redraw only on change) ──────
-        # is_day is part of the key so the day→night brightness transition
-        # forces a redraw even when the grid itself hasn't changed.
+        # is_day AND radar_night are part of the key so the day→night
+        # transition and a live brightness-slider change both force a redraw
+        # even when the grid itself hasn't changed.
         if directive == "radar":
-            render_key = ("radar", is_day, tuple(payload))
+            render_key = ("radar", is_day, radar_night, tuple(payload))
             if render_key != last_render:
                 _render_radar(sense, payload, is_day, radar_night)
                 last_render = render_key
             time.sleep(FRAME_DELAY)
             continue
         if directive == "radar_clear":
-            render_key = ("radar_clear", is_day)
+            render_key = ("radar_clear", is_day, radar_night)
             if render_key != last_render:
                 _render_radar(sense, None, is_day, radar_night)
                 last_render = render_key

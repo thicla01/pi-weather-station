@@ -32,7 +32,11 @@ const VALID_MODES = ["weather", "clock", "radar", "auto"];
 // the user drags so the UI is responsive, but the POST to the server
 // (which restarts the systemd service) is coalesced into one call
 // when the drag settles.
-const BRIGHTNESS_SAVE_DEBOUNCE_MS = 500;
+// Bumped 500 → 1500 ms: the clock-brightness POST still restarts its systemd
+// unit, so coalescing fast slider moves into one settle avoids a restart storm
+// (overlapping restarts left a stuck black frame, most visible on the v1 HAT).
+// The radar slider applies live with no restart, but shares this debounce.
+const BRIGHTNESS_SAVE_DEBOUNCE_MS = 1500;
 
 /**
  * Hook owning the Sense HAT toggle + clock brightness state. Returns
