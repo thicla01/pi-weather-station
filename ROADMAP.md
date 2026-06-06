@@ -127,6 +127,16 @@ Building on v2, divide each ring into angular sectors (most likely 8 or 16, matc
 ### ✅ ~~Severe weather alerts (NWS + ECCC)~~ — **shipped May 2026**
 NWS and ECCC sources are live: `GET /api/weather-alerts` runs both in parallel (skipped per-source by national bbox), normalises CAP severity to the existing yellow/orange/red tier vocabulary, and sorts by severity. The client `<AlertBanner>` now lets an orange/red government alert outrank the radar-derived tier with its localised event title plus a `[NWS]` / `[ECCC]` badge. ECCC's bbox filter on the GeoMet pygeoapi instance is non-functional — strategy is fetch-all-Canadian-alerts (≤50 features) + local point-in-polygon, cached 5 min server-side. MeteoAlarm and the takeover overlay design remain open below.
 
+### 🎚️ Alert tier maps on CAP `severity` alone — Watches can read as loud as Warnings
+Surfaced 2026-06-05 from a live 3-alert stack over Lavaca County, TX: a **Flood Watch** (`FA.A`) came back tagged CAP `severity: Severe`, which `severityToTier()` maps straight to **red** — visually identical to the co-active **Flash Flood Warning** (`FF.W`, also `Severe`). But a Watch means "conditions are favourable" (typically `urgency: Future`, `certainty: Possible`) while a Warning means "happening now / imminent" (`urgency: Immediate`, `certainty: Observed/Likely`). Mapping on `severity` alone discards that distinction, so a Watch can shout as loudly as a Warning on the banner **and** the SenseHat pulse.
+
+**Options to weigh (decision before code):**
+- **Cap Watches one tier below their severity** — a `Severe` Watch → orange, never red. Simple, predictable, honest about the watch/warning gap. Cheapest path: key off the VTEC significance letter (`.A` = watch) or the event name suffix.
+- **Factor in `urgency` / `certainty`** — demote any alert whose `urgency` is `Future` or `certainty` is `Possible`. More principled and covers non-flood events too, at the cost of a bit more logic in `normalize` / `severityToTier` (`server/govAlertSources/_shared.js`).
+- **Leave it** — the kiosk's posture is safety-first, and "a serious Watch looks serious" may be the desired behaviour. Counter-argument: red is the colour the user has learned means *act now*; crying red on a Watch erodes that signal over time.
+
+Low complexity (a few lines in `_shared.js` plus the severity→tier regression test in `test/`). The weight is the **product decision**, not the implementation. Whatever is chosen propagates uniformly — the banner, `GovAlertDetail`, the map overlay, and the SenseHat pulse all read the same `tier`.
+
 ### ⚠️ MeteoAlarm (Europe) as the third government alerts source
 Same source-module shape as NWS / ECCC, but the geographic-filter story is harder than the original roadmap entry implied. Dug into it on 2026-05-04 and surfaced two real obstacles before any code:
 
@@ -405,6 +415,6 @@ The three items I would prioritize above all others if returning to this project
 
 ---
 
-*Last updated: 2026-06-05 (added « Nearby alert polygons » — area-scoped, display-only sibling of the continental overlay, proposal pending k5map feedback; see `docs/nearby-alerts-overlay-proposal.md`). Prior: 2026-05-28 (ESLint lint parser migrated from `@babel/eslint-parser` to native espree — dropped two `@babel/*` ESLint packages, one of the two ESLint-10 blockers cleared; `eslint-plugin-react` ≤9.7 is now the sole remaining blocker, re-check via `npm view eslint-plugin-react peerDependencies`). Prior: 2026-05-23 Phase 3 tech-debt remediation — AppContext split (three hooks extracted, two deferred past diminishing returns); WeatherMap split (1981 → 967 lines across six new files plus geometry.js); client-side test gap called out; v2 removal on a 4-week field-test timer post-v2.18.1)*
+*Last updated: 2026-06-05 (added alert-tier item — Watches mapped on CAP `severity` alone can read as loud as Warnings; product decision parked. Earlier same day: « Nearby alert polygons » — area-scoped, display-only sibling of the continental overlay, proposal pending k5map feedback; see `docs/nearby-alerts-overlay-proposal.md`). Prior: 2026-05-28 (ESLint lint parser migrated from `@babel/eslint-parser` to native espree — dropped two `@babel/*` ESLint packages, one of the two ESLint-10 blockers cleared; `eslint-plugin-react` ≤9.7 is now the sole remaining blocker, re-check via `npm view eslint-plugin-react peerDependencies`). Prior: 2026-05-23 Phase 3 tech-debt remediation — AppContext split (three hooks extracted, two deferred past diminishing returns); WeatherMap split (1981 → 967 lines across six new files plus geometry.js); client-side test gap called out; v2 removal on a 4-week field-test timer post-v2.18.1)*
 
 
