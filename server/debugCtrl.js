@@ -12,6 +12,7 @@ const { getServiceStatus } = require("./serviceStatus");
 const { getCounters } = require("./requestCounter");
 const { getResponseTimeStats } = require("./responseTimer");
 const { getRemoteClients } = require("./clientTracker");
+const { detectSenseHatVersion } = require("./sensehatModeCtrl");
 
 const PROVIDER_STATUS_TTL = 30 * 60 * 1000;
 
@@ -367,7 +368,11 @@ function getSystemInfo() {
     } catch { /* highly unusual platform — leave as Unknown */ }
   }
 
-  return { hardware, os: osName, hostname: os.hostname() };
+  // Sense HAT board revision (v1 / v2) from the HAT ID-EEPROM, or null when
+  // no HAT is attached. Purely informational — handy for fleet inventory.
+  const senseHat = detectSenseHatVersion();
+
+  return { hardware, os: osName, hostname: os.hostname(), senseHat };
 }
 
 // Hostname reverse-DNS cache (5 min TTL)

@@ -118,6 +118,34 @@ function detectSenseHatHardware(graphicsDir = "/sys/class/graphics") {
 }
 
 /**
+ * Detect the Sense HAT board revision from its ID-EEPROM `product_ver`,
+ * exposed by the device-tree at `/proc/device-tree/hat/product_ver`. Confirmed
+ * empirically across both fleet boards: v1 reports `0x0001`, v2 `0x0002` (both
+ * share `product_id 0x0001`). The official v2's hardware delta is an added
+ * colour sensor at I2C 0x39 + this version bump — the LED matrix and IMU are
+ * unchanged, so this is purely informational (surfaced in the Debug panel).
+ *
+ * The device-tree node stores the value as the ASCII string "0x0001"/"0x0002"
+ * (NUL-terminated), so we read it as text and parse the hex.
+ *
+ * @param {string} [productVerPath] path to the product_ver node (overridable for tests)
+ * @returns {("v1"|"v2"|string|null)} "v1"/"v2" for known revisions, the raw hex
+ *   for an unrecognised one, or null when there's no HAT EEPROM (non-Pi / no HAT)
+ */
+function detectSenseHatVersion(productVerPath = "/proc/device-tree/hat/product_ver") {
+  let raw;
+  try {
+    raw = fs.readFileSync(productVerPath, "utf8").replace(/\0/g, "").trim();
+  } catch {
+    return null; // no HAT EEPROM (non-Pi, or no HAT attached)
+  }
+  const n = parseInt(raw, 16);
+  if (n === 1) return "v1";
+  if (n === 2) return "v2";
+  return raw || null; // unrecognised revision — surface the raw value
+}
+
+/**
  * Resolve (and cache) whether the Sense HAT hardware is present.
  *
  * @returns {Promise<boolean>}
@@ -453,6 +481,7 @@ module.exports = {
   applySenseHatModeOnBoot,
   resolveMode,
   resolveRadarBrightness,
+  detectSenseHatVersion,
   WEATHER_MODES,
   // Exported for regression testing only.
   __test: {
@@ -461,5 +490,6 @@ module.exports = {
     DEFAULT_CLOCK_BRIGHTNESS,
     DEFAULT_RADAR_BRIGHTNESS,
     detectSenseHatHardware,
+    detectSenseHatVersion,
   },
 };
