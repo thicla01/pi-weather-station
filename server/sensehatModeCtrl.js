@@ -35,6 +35,8 @@
  *     enables it) regardless of what the user last selected.
  */
 
+const fs = require("fs");
+const path = require("path");
 const { execFile } = require("child_process");
 const { promisify } = require("util");
 const { getSettingsData } = require("./settingsCtrl");
@@ -65,28 +67,65 @@ const DEFAULT_CLOCK_BRIGHTNESS = 50;
 // radar always renders at full brightness; this only dims the night.
 const DEFAULT_RADAR_BRIGHTNESS = 60;
 
-// Detection caching — `import sense_hat` is a non-trivial probe
-// (~150 ms on a Pi 4, longer on first import after boot due to
-// kernel module load). Cache forever; physical attachment of the
-// HAT doesn't change at runtime.
+// Detection caching — physical attachment of the HAT doesn't change at
+// runtime, so the sysfs scan runs once and is cached forever.
 let _availableCached = null;
 let _availableResolved = false;
 
 /**
- * Probe the Sense HAT availability by attempting to import its
- * Python module. Caches the result.
+ * Detect whether a Sense HAT is *physically present* by scanning sysfs for
+ * its LED-matrix framebuffer — a framebuffer whose `name` or backing driver
+ * mentions "sense" (e.g. "RPi-Sense FB" / "rpisense-fb").
+ *
+ * This checks the HARDWARE, not the `sense_hat` Python module. The previous
+ * probe ran `python3 -c "import sense_hat"`, which succeeds on any host where
+ * the `sense-hat` apt package is installed — including Pis with NO HAT
+ * attached (the module imports fine; only `SenseHat()` touches the device,
+ * and `deploy/install.sh` apt-installs the package during setup). That made
+ * the Settings panel render the Sense HAT block on the HAT-less Pis in the
+ * fleet. We mirror the daemon's `_find_sensehat_fb` sysfs check but
+ * deliberately DROP its `/dev/fb0` fallback: fb0 is the HDMI/DSI framebuffer
+ * present on every Pi, so the fallback would report "present" everywhere.
+ *
+ * Side-effect-free (no subprocess, no device open → can't contend with the
+ * running daemon). On a host with no sysfs (e.g. the macOS dev box) the
+ * readdir throws and we return false, which is correct — no HAT there.
+ *
+ * @param {string} [graphicsDir] sysfs graphics dir (overridable for tests)
+ * @returns {boolean}
+ */
+function detectSenseHatHardware(graphicsDir = "/sys/class/graphics") {
+  let entries;
+  try {
+    entries = fs.readdirSync(graphicsDir);
+  } catch {
+    return false; // no sysfs (non-Linux dev host) → no HAT
+  }
+  for (const fb of entries) {
+    if (!fb.startsWith("fb")) continue;
+    const base = `${graphicsDir}/${fb}`;
+    try {
+      if (fs.readFileSync(`${base}/name`, "utf8").toLowerCase().includes("sense")) return true;
+    } catch { /* fb has no readable name file */ }
+    try {
+      // Match on the driver's basename only (e.g. "rpisense-fb"), like the
+      // daemon's os.path.basename(os.readlink(...)) — NOT the full symlink
+      // target path, whose parent dirs could coincidentally contain "sense".
+      if (path.basename(fs.readlinkSync(`${base}/device/driver`)).toLowerCase().includes("sense")) return true;
+    } catch { /* fb has no driver symlink */ }
+  }
+  return false;
+}
+
+/**
+ * Resolve (and cache) whether the Sense HAT hardware is present.
  *
  * @returns {Promise<boolean>}
  */
 async function probeAvailable() {
   if (_availableResolved) return _availableCached;
   _availableResolved = true;
-  try {
-    await execFileAsync("python3", ["-c", "import sense_hat"], { timeout: 5_000 });
-    _availableCached = true;
-  } catch {
-    _availableCached = false;
-  }
+  _availableCached = detectSenseHatHardware();
   return _availableCached;
 }
 
@@ -421,5 +460,6 @@ module.exports = {
     DEFAULT_MODE,
     DEFAULT_CLOCK_BRIGHTNESS,
     DEFAULT_RADAR_BRIGHTNESS,
+    detectSenseHatHardware,
   },
 };
