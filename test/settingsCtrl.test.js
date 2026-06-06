@@ -21,7 +21,7 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 
 const { __test } = require("../server/settingsCtrl");
-const { sanitizeSettings, maskForRemote, ALLOWED_KEYS, API_KEY_FIELDS, REMOTE_HIDDEN_KEYS } = __test;
+const { sanitizeSettings, maskForRemote, preserveServerOwnedAdvanced, ALLOWED_KEYS, API_KEY_FIELDS, REMOTE_HIDDEN_KEYS } = __test;
 
 // === sanitizeSettings: the input whitelist ===
 
@@ -222,4 +222,39 @@ test("API_KEY_FIELDS is a subset of ALLOWED_KEYS", () => {
 
 test("REMOTE_HIDDEN_KEYS includes indoorTemperature (Homebridge credentials)", () => {
   assert.ok(REMOTE_HIDDEN_KEYS.has("indoorTemperature"));
+});
+
+// === preserveServerOwnedAdvanced: don't let a client advanced-PATCH wipe ===
+// === the Sense HAT mode/brightness the sensehat endpoints own.            ===
+//
+// Regression for the live bug: in Radar mode, toggling "sampling points"
+// (advanced.ai.showSamplingPoints) PATCHed the whole `advanced` blob rebuilt
+// from React state, which has no `sensehat` section — wiping advanced.sensehat
+// so resolveMode fell back to "weather" and the Sense HAT switched display.
+
+test("preserveServerOwnedAdvanced: splices existing sensehat into a client advanced PATCH", () => {
+  const current = { advanced: { sensehat: { mode: "radar", radarBrightness: 40 }, ai: { extendedRadius: false } } };
+  const incoming = { ai: { showSamplingPoints: true }, display: {} }; // client blob — no sensehat
+  const out = preserveServerOwnedAdvanced(current, "advanced", incoming);
+  assert.deepEqual(out.sensehat, { mode: "radar", radarBrightness: 40 });
+  assert.equal(out.ai.showSamplingPoints, true); // client section still applied
+});
+
+test("preserveServerOwnedAdvanced: keeps an explicit sensehat in the payload (no override)", () => {
+  const current = { advanced: { sensehat: { mode: "radar" } } };
+  const incoming = { sensehat: { mode: "clock" }, ai: {} };
+  const out = preserveServerOwnedAdvanced(current, "advanced", incoming);
+  assert.equal(out.sensehat.mode, "clock"); // caller-supplied sensehat wins
+});
+
+test("preserveServerOwnedAdvanced: no-op when there's no existing sensehat", () => {
+  const current = { advanced: { ai: {} } };
+  const incoming = { ai: { showSamplingPoints: true } };
+  const out = preserveServerOwnedAdvanced(current, "advanced", incoming);
+  assert.ok(!("sensehat" in out));
+});
+
+test("preserveServerOwnedAdvanced: ignores keys other than 'advanced'", () => {
+  const current = { advanced: { sensehat: { mode: "radar" } } };
+  assert.equal(preserveServerOwnedAdvanced(current, "weatherApiKey", "abc"), "abc");
 });

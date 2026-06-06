@@ -139,6 +139,37 @@ function getSettings(req, res) {
  * @param {Object} req
  * @param {Object} res
  */
+/**
+ * When PATCHing the whole `advanced` blob, splice the server-owned
+ * `advanced.sensehat` sub-block back in if the incoming payload omits it.
+ *
+ * `advanced.sensehat` (display mode + clock/radar brightness) is owned
+ * exclusively by the Sense HAT endpoints (sensehatModeCtrl.persistSensehat),
+ * not the client's advanced-settings form. The client rebuilds the whole
+ * `advanced` blob from React state via buildAdvancedSubtree(), which has no
+ * `sensehat` section — so a naive `{...current, advanced: val}` replace wipes
+ * it. Observed live: toggling "sampling points" while in Radar mode reset the
+ * Sense HAT to Weather (resolveMode fell back to its default) and cleared the
+ * saved brightness values. Pure so it can be unit-tested.
+ *
+ * @param {object} currentSettings existing settings.json contents
+ * @param {string} key the PATCHed top-level key
+ * @param {*} val the incoming value for `key`
+ * @returns {*} the value to write — sensehat spliced back in when applicable
+ */
+function preserveServerOwnedAdvanced(currentSettings, key, val) {
+  if (key !== "advanced" || !val || typeof val !== "object" || val.sensehat) {
+    return val;
+  }
+  const existingSensehat = currentSettings
+    && currentSettings.advanced
+    && currentSettings.advanced.sensehat;
+  if (existingSensehat && typeof existingSensehat === "object") {
+    return { ...val, sensehat: existingSensehat };
+  }
+  return val;
+}
+
 function setSetting(req, res) {
   const { key, val } = req.body;
   if (!key || !val) {
@@ -175,7 +206,7 @@ function setSetting(req, res) {
   const readSuccess = (currentSettings) => {
     const newSettings = {
       ...currentSettings,
-      [key]: val,
+      [key]: preserveServerOwnedAdvanced(currentSettings, key, val),
     };
     writeContents(newSettings);
   };
@@ -331,6 +362,7 @@ module.exports = {
   __test: {
     sanitizeSettings,
     maskForRemote,
+    preserveServerOwnedAdvanced,
     ALLOWED_KEYS,
     API_KEY_FIELDS,
     REMOTE_HIDDEN_KEYS,
