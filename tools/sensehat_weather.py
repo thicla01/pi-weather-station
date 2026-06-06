@@ -172,12 +172,18 @@ X  = STORM_BG
 # ── RADAR GRID (radar / auto modes) ─────────────────────────────────────────────
 # The server (/api/sensehat → radar.grid) sends a row-major 8×8 array of radar
 # intensities 0-6, reprojected from the analysis disk (north up, east right) by
-# buildRadarGrid() in radarAnalyzerCtrl.js. These RGB values mirror that file's
-# INTENSITY_PALETTE (NEXRAD colour scheme 6) so the matrix speaks the same
-# colour language as the on-screen radar legend. Index = intensity level; 0 off.
+# buildRadarGrid() in radarAnalyzerCtrl.js. Index = intensity level; 0 off.
+#
+# These follow the on-screen NEXRAD-scheme-6 legend EXCEPT tier-1, which is a
+# true blue (0,110,255) instead of the legend's cyan (0,208,208). On the 8×8
+# LEDs cyan and the tier-2 green differ only in the blue channel and read as
+# the same blue-green — field-confirmed unreadable on both Sense HAT v1 and v2.
+# A true blue (less green) separates tier-1 from tier-2 at a glance. This is a
+# deliberate per-device divergence from the screen legend for LED legibility;
+# the warm tiers (3-6) are well separated already and match the legend.
 RADAR_TIER_RGB = [
     (  0,   0,   0),  # 0 clear — off
-    (  0, 208, 208),  # 1 very light
+    (  0, 110, 255),  # 1 very light  (blue — see note above; legend uses cyan)
     (  0, 200,   0),  # 2 light
     (240, 230,   0),  # 3 moderate
     (240, 130,   0),  # 4 heavy
