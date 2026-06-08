@@ -1,0 +1,1174 @@
+<!DOCTYPE html>
+<html lang="en" data-mode="clair" data-size="desktop" data-tags="off">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nearby alerts — radius overlay · design reference</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@300;400;500;600;700&family=Geist+Mono:wght@400;500&family=Fraunces:opsz,wght@9..144,500;9..144,600&display=swap" rel="stylesheet">
+<style>
+/* ============================================================
+   DOC CHROME (matches the project's phase-reference shell)
+   ============================================================ */
+:root {
+  --chrome-bg: #0c0e13; --chrome-surface: #14171f; --chrome-surface-2: #1d2230;
+  --chrome-border: #242a37; --chrome-border-2: #323a4b;
+  --chrome-ink: #e6eaf2; --chrome-ink-2: #98a1b1; --chrome-ink-3: #5a6271; --chrome-ink-4: #3a4150;
+  --chrome-teal: #6db5b8; --chrome-teal-2: #88c7c9; --chrome-amber: #e89657;
+}
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  background: var(--chrome-bg); color: var(--chrome-ink);
+  font-family: 'Geist', -apple-system, sans-serif;
+  line-height: 1.55; -webkit-font-smoothing: antialiased;
+  font-feature-settings: "ss01", "cv11";
+}
+.mono { font-family: 'Geist Mono', monospace; font-feature-settings: normal; }
+
+.chrome-header {
+  padding: 52px 40px 40px;
+  border-bottom: 1px solid var(--chrome-border);
+  display: flex; align-items: flex-end; justify-content: space-between; gap: 32px;
+  background: radial-gradient(ellipse 700px 300px at 88% 0%, rgba(109,181,184,0.07), transparent 70%),
+              radial-gradient(ellipse 520px 240px at 6% 100%, rgba(232,150,87,0.04), transparent 60%);
+}
+.chrome-header .eyebrow {
+  font-family: 'Geist Mono', monospace; font-size: 11px;
+  letter-spacing: 0.18em; text-transform: uppercase; color: var(--chrome-teal);
+  display: flex; align-items: center; gap: 13px; margin-bottom: 16px;
+}
+.chrome-header .eyebrow::before { content: ""; width: 26px; height: 1px; background: var(--chrome-teal); }
+.chrome-header h1 { font-size: 46px; font-weight: 500; letter-spacing: -0.03em; line-height: 1.02; max-width: 720px; }
+.chrome-header h1 .acc { font-family: 'Fraunces', serif; font-style: italic; font-weight: 500; color: var(--chrome-teal-2); }
+.chrome-header .lede { font-size: 16px; color: var(--chrome-ink-2); max-width: 560px; margin-top: 18px; text-wrap: pretty; }
+.chrome-header .meta {
+  font-family: 'Geist Mono', monospace; font-size: 11px;
+  color: var(--chrome-ink-3); letter-spacing: 0.05em; text-align: right; line-height: 1.9; flex-shrink: 0;
+}
+.chrome-header .meta b { color: var(--chrome-ink-2); }
+
+/* CONTROL BAR */
+.chrome-controls {
+  padding: 20px 40px;
+  display: flex; gap: 30px; flex-wrap: wrap; align-items: flex-end;
+  border-bottom: 1px solid var(--chrome-border);
+  position: sticky; top: 0; z-index: 40;
+  backdrop-filter: blur(10px); background: rgba(12,14,19,0.93);
+}
+.seg-group { display: flex; flex-direction: column; gap: 8px; }
+.seg-group > label {
+  font-family: 'Geist Mono', monospace; font-size: 9.5px;
+  letter-spacing: 0.16em; text-transform: uppercase; color: var(--chrome-ink-3);
+}
+.seg {
+  display: inline-flex; background: var(--chrome-surface);
+  border: 1px solid var(--chrome-border);
+  border-radius: 8px; padding: 3px; gap: 2px;
+}
+.seg button {
+  background: transparent; border: none; color: var(--chrome-ink-2);
+  font-family: 'Geist', sans-serif; font-size: 12.5px;
+  padding: 7px 13px; border-radius: 6px; cursor: pointer;
+  transition: background 0.16s, color 0.16s; white-space: nowrap;
+}
+.seg button:hover { color: var(--chrome-ink); }
+.seg button.is-active { background: var(--chrome-surface-2); color: var(--chrome-ink); }
+.seg.seg-mode button[data-mode="rouge"].is-active { background: rgba(180,60,60,0.20); color: #e88080; }
+.seg.seg-mode button[data-mode="clair"].is-active { background: rgba(232,150,87,0.14); color: var(--chrome-amber); }
+.seg.seg-mode button[data-mode="crepuscule"].is-active { background: rgba(232,160,80,0.16); color: #f0b878; }
+.seg.seg-mode button[data-mode="nuit"].is-active { background: rgba(109,181,184,0.14); color: var(--chrome-teal-2); }
+
+/* STAGE */
+.stage {
+  padding: 56px 24px 30px;
+  display: flex; flex-direction: column; align-items: center; gap: 14px;
+  background: radial-gradient(ellipse 1100px 620px at 50% 30%, rgba(109,181,184,0.025), transparent 70%);
+}
+.stage-cap {
+  font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--chrome-ink-3); display: flex; gap: 10px; align-items: center;
+}
+.stage-cap b { color: var(--chrome-teal); font-weight: 600; }
+.stage-cap .dim { color: var(--chrome-ink-4); }
+
+/* DEVICE FRAME */
+.device {
+  background: #07080b;
+  padding: 10px;
+  border-radius: 18px;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.04) inset, 0 0 0 1px var(--chrome-border-2), 0 36px 90px -24px rgba(0,0,0,0.7);
+  transform-origin: top center;
+  flex-shrink: 0;
+}
+[data-size="desktop"] .device { width: 1280px; }
+[data-size="desktop"] .device .screen { height: 800px; }
+[data-size="ten"]     .device { width: 1024px; }
+[data-size="ten"]     .device .screen { height: 600px; }
+[data-size="seven"]   .device { width: 800px; border-radius: 16px; }
+[data-size="seven"]   .device .screen { height: 480px; }
+[data-size="mobile"]  .device { width: 390px; border-radius: 44px; padding: 9px; }
+[data-size="mobile"]  .device .screen { height: 844px; }
+
+/* responsive down-scaling so frames always fit */
+@media (max-width: 1380px) { [data-size="desktop"] .device { transform: scale(0.86); margin-bottom: -112px; } }
+@media (max-width: 1120px) {
+  [data-size="desktop"] .device { transform: scale(0.66); margin-bottom: -272px; }
+  [data-size="ten"]     .device { transform: scale(0.92); margin-bottom: -48px; }
+}
+@media (max-width: 900px) {
+  [data-size="desktop"] .device { transform: scale(0.5); transform-origin: top left; margin-bottom: -400px; }
+  [data-size="ten"]     .device { transform: scale(0.74); transform-origin: top left; margin-bottom: -156px; }
+  [data-size="seven"]   .device { transform: scale(0.94); transform-origin: top left; }
+}
+
+/* ============================================================
+   RUNTIME PALETTES  (day · dusk · night · nightRed)
+   token system carried over from the app, extended with
+   tier + cool + radius-ring tokens for this feature
+   ============================================================ */
+.screen {
+  width: 100%; border-radius: 10px; overflow: hidden; position: relative;
+  font-family: 'Geist', sans-serif; background: var(--bg); color: var(--ink);
+}
+[data-size="mobile"] .screen { border-radius: 36px; }
+
+/* ---- DAY ---- */
+.screen {
+  --bg: #f4f0e8;
+  --map-bg: linear-gradient(140deg, #d6e0cd 0%, #c7d2bb 42%, #bacabb 72%, #b1c4c7 100%);
+  --map-road: #d68a4a;
+  --map-ink-soft: #6d655a;
+  --surface: rgba(255,250,240,0.85);
+  --surface-strong: #fbf7ee;
+  --surface-2: #efe7d6;
+  --border: rgba(216,207,184,0.7);
+  --border-2: #c5b993;
+  --ink: #2a2620;
+  --ink-2: #6d655a;
+  --ink-3: #9a917f;
+  --ink-4: #b8af96;
+  --accent: #b85a18;
+  --accent-soft: #d98a3c;
+  --accent-bg: rgba(184,90,24,0.13);
+  --radar-low: rgba(120,180,140,0.55);
+  --radar-med: rgba(80,140,200,0.62);
+  --radar-high: rgba(220,160,80,0.62);
+  --radar-extreme: rgba(200,80,80,0.6);
+  --radar-blend: multiply;
+  /* radar distance rings (calm/neutral) */
+  --ring-radar: rgba(58,57,56,0.5);
+  /* NEW alert-radius ring — cool blue, distinct */
+  --cool: #3a5a78;
+  --ring-radius: #3a5a78;
+  --ring-radius-dash: 2 7;       /* dotted — distinct from radar's even dash */
+  --radius-halo: rgba(58,90,120,0.08);
+  /* alert tiers (universal weather codes) */
+  --tier-warn: #e60000;   --tier-warn-fill: rgba(230,0,0,0.15);
+  --tier-watch: #f08200;  --tier-watch-fill: rgba(238,119,16,0.16);
+  --tier-adv: #f0c000;    --tier-adv-fill: rgba(240,192,0,0.16);
+  /* severity chips */
+  --sev-warn-bg: rgba(220,80,80,0.18);  --sev-warn-ink: #b03030;  --sev-warn-border: rgba(220,80,80,0.5);
+  --sev-watch-bg: rgba(232,150,87,0.20); --sev-watch-ink: #b85a2d; --sev-watch-border: rgba(232,150,87,0.55);
+  --sev-adv-bg: rgba(232,200,122,0.20);  --sev-adv-ink: #8a6a18;   --sev-adv-border: rgba(232,200,122,0.55);
+  --shadow: 0 1px 2px rgba(40,30,15,0.05), 0 10px 28px rgba(40,30,15,0.12);
+}
+/* ---- DUSK ---- */
+[data-mode="crepuscule"] .screen {
+  --bg: #1c1a17;
+  --map-bg: linear-gradient(140deg, #2a2620 0%, #262420 42%, #20211f 72%, #1a1d1e 100%);
+  --map-road: #6a4a2a;
+  --map-ink-soft: #9a8f7c;
+  --surface: rgba(36,32,28,0.86);
+  --surface-strong: #262320;
+  --surface-2: #322d26;
+  --border: rgba(74,68,56,0.7);
+  --border-2: #5a5240;
+  --ink: #d8d4cc;
+  --ink-2: #9a8f7c;
+  --ink-3: #6a6052;
+  --ink-4: #463f33;
+  --accent: #e8a050;
+  --accent-soft: #f0b878;
+  --accent-bg: rgba(232,160,80,0.18);
+  --radar-low: rgba(120,180,140,0.42);
+  --radar-med: rgba(80,140,200,0.5);
+  --radar-high: rgba(220,160,80,0.52);
+  --radar-extreme: rgba(220,80,80,0.55);
+  --radar-blend: screen;
+  --ring-radar: rgba(180,172,156,0.42);
+  --cool: #6a8ca8;
+  --ring-radius: #6a8ca8;
+  --ring-radius-dash: 2 7;
+  --radius-halo: rgba(106,140,168,0.10);
+  --tier-warn: #ff3b3b;   --tier-warn-fill: rgba(255,59,59,0.15);
+  --tier-watch: #f89a3c;  --tier-watch-fill: rgba(248,154,60,0.16);
+  --tier-adv: #f0d04a;    --tier-adv-fill: rgba(240,208,74,0.15);
+  --sev-warn-bg: rgba(220,80,80,0.16);  --sev-warn-ink: #ee9090;  --sev-warn-border: rgba(220,80,80,0.45);
+  --sev-watch-bg: rgba(232,160,80,0.16); --sev-watch-ink: #f0b878; --sev-watch-border: rgba(232,160,80,0.45);
+  --sev-adv-bg: rgba(232,200,122,0.12);  --sev-adv-ink: #e8c87a;   --sev-adv-border: rgba(232,200,122,0.38);
+  --shadow: 0 1px 2px rgba(0,0,0,0.4), 0 10px 28px rgba(0,0,0,0.5);
+}
+/* ---- NIGHT ---- */
+[data-mode="nuit"] .screen {
+  --bg: #0e0c0a;
+  --map-bg: linear-gradient(140deg, #1a1b18 0%, #1c1d1a 42%, #161a1c 72%, #121618 100%);
+  --map-road: #2c2722;
+  --map-ink-soft: #8a8270;
+  --surface: rgba(24,22,18,0.86);
+  --surface-strong: #1a1814;
+  --surface-2: #242019;
+  --border: rgba(58,54,44,0.72);
+  --border-2: #443f30;
+  --ink: #ece4d2;
+  --ink-2: #9d937c;
+  --ink-3: #5e564a;
+  --ink-4: #3e362c;
+  --accent: #c47030;
+  --accent-soft: #e89657;
+  --accent-bg: rgba(196,112,48,0.20);
+  --radar-low: rgba(120,180,140,0.4);
+  --radar-med: rgba(80,140,200,0.5);
+  --radar-high: rgba(220,160,80,0.5);
+  --radar-extreme: rgba(220,80,80,0.55);
+  --radar-blend: screen;
+  --ring-radar: rgba(168,160,151,0.4);
+  --cool: #5a82a8;
+  --ring-radius: #5a82a8;
+  --ring-radius-dash: 2 7;
+  --radius-halo: rgba(90,130,168,0.10);
+  --tier-warn: #ff2e2e;   --tier-warn-fill: rgba(255,46,46,0.16);
+  --tier-watch: #f89030;  --tier-watch-fill: rgba(248,144,48,0.16);
+  --tier-adv: #f0cc3c;    --tier-adv-fill: rgba(240,204,60,0.15);
+  --sev-warn-bg: rgba(220,80,80,0.16);  --sev-warn-ink: #ee9090;  --sev-warn-border: rgba(220,80,80,0.45);
+  --sev-watch-bg: rgba(232,150,87,0.14); --sev-watch-ink: #f0b27a; --sev-watch-border: rgba(232,150,87,0.45);
+  --sev-adv-bg: rgba(232,200,122,0.12);  --sev-adv-ink: #e8c87a;   --sev-adv-border: rgba(232,200,122,0.38);
+  --shadow: 0 1px 2px rgba(0,0,0,0.5), 0 10px 28px rgba(0,0,0,0.55);
+}
+/* ---- NIGHT RED (night-vision · red family ONLY) ---- */
+[data-mode="rouge"] .screen {
+  --bg: #100404;
+  --map-bg: linear-gradient(140deg, #1c0808 0%, #180606 42%, #120404 72%, #0a0202 100%);
+  --map-road: rgba(150,50,50,0.32);
+  --map-ink-soft: rgba(190,70,70,0.5);
+  --surface: rgba(40,12,12,0.85);
+  --surface-strong: #1c0808;
+  --surface-2: #260c0c;
+  --border: rgba(90,30,30,0.66);
+  --border-2: #5a1e1e;
+  --ink: #d05050;
+  --ink-2: #9a3a3a;
+  --ink-3: #6a2424;
+  --ink-4: #441616;
+  --accent: #c44040;
+  --accent-soft: #e06060;
+  --accent-bg: rgba(196,64,64,0.20);
+  --radar-low: rgba(208,72,72,0.22);
+  --radar-med: rgba(216,76,76,0.38);
+  --radar-high: rgba(224,84,84,0.55);
+  --radar-extreme: rgba(240,96,96,0.78);
+  --radar-blend: screen;
+  --ring-radar: rgba(192,72,72,0.5);
+  /* radius ring stays RED — differentiated by a distinct DASH-DOT pattern, not hue */
+  --cool: #783838;
+  --ring-radius: #e07070;
+  --ring-radius-dash: 11 5 2 5;  /* long-dot — visually unlike the radar rings' even dash */
+  --radius-halo: rgba(224,112,112,0.06);
+  /* tiers collapse to red family, separated by LIGHTNESS (+ the WORD on the chip) */
+  --tier-warn: #f05858;   --tier-warn-fill: rgba(240,88,88,0.18);
+  --tier-watch: #c44040;  --tier-watch-fill: rgba(196,64,64,0.16);
+  --tier-adv: #8e3030;    --tier-adv-fill: rgba(142,48,48,0.16);
+  --sev-warn-bg: rgba(240,88,88,0.18);  --sev-warn-ink: #f06868;  --sev-warn-border: rgba(240,88,88,0.5);
+  --sev-watch-bg: rgba(196,64,64,0.18); --sev-watch-ink: #d05858; --sev-watch-border: rgba(196,64,64,0.5);
+  --sev-adv-bg: rgba(142,48,48,0.22);   --sev-adv-ink: #c05050;   --sev-adv-border: rgba(142,48,48,0.6);
+  --shadow: 0 1px 2px rgba(0,0,0,0.55), 0 10px 28px rgba(0,0,0,0.6);
+}
+
+/* ============================================================
+   MAP CANVAS (shared)
+   ============================================================ */
+.map { position: absolute; inset: 0; background: var(--map-bg); overflow: hidden; }
+.map::before {
+  content: ""; position: absolute; inset: 0;
+  background-image:
+    linear-gradient(rgba(120,110,90,0.5) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(120,110,90,0.5) 1px, transparent 1px);
+  background-size: 78px 78px; opacity: 0.06;
+}
+.map svg.roads { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0.5; }
+.map .city {
+  position: absolute; font-size: 11px; color: var(--map-ink-soft); font-weight: 500;
+  text-shadow: 0 0 7px var(--surface-strong); pointer-events: none; letter-spacing: 0.01em;
+}
+[data-size="seven"] .map .city, [data-size="ten"] .map .city { font-size: 9.5px; }
+
+.radar-overlay { position: absolute; inset: 0; pointer-events: none; mix-blend-mode: var(--radar-blend); opacity: 0.9; }
+.radar-overlay svg { width: 100%; height: 100%; }
+
+/* alert polygons */
+.poly-overlay { position: absolute; inset: 0; pointer-events: none; }
+.poly-overlay svg { width: 100%; height: 100%; overflow: visible; }
+.poly-warn  { fill: var(--tier-warn-fill);  stroke: var(--tier-warn);  stroke-width: 2; }
+.poly-watch { fill: var(--tier-watch-fill); stroke: var(--tier-watch); stroke-width: 2; }
+.poly-adv   { fill: var(--tier-adv-fill);   stroke: var(--tier-adv);   stroke-width: 2; }
+
+/* ring stack — fixed 420 coordinate box centred on the pin, scaled per device */
+.rings {
+  position: absolute; top: 50%; left: 50%;
+  width: 420px; height: 420px; margin: -210px 0 0 -210px;
+  pointer-events: none;
+  transform: scale(var(--ring-scale, 1));
+  transform-origin: center;
+}
+[data-size="desktop"] .rings { --ring-scale: 1.18; }
+[data-size="ten"]     .rings { --ring-scale: 0.96; }
+[data-size="seven"]   .rings { --ring-scale: 0.84; }
+[data-size="mobile"]  .rings { --ring-scale: 0.7; }
+.rings svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.ring-radar  { fill: none; stroke: var(--ring-radar); stroke-width: 2; stroke-dasharray: 6 7; }
+.ring-radius {
+  fill: var(--radius-halo); stroke: var(--ring-radius); stroke-width: 2.5;
+  stroke-dasharray: var(--ring-radius-dash); stroke-linecap: round;
+  transition: r 0.18s ease;
+}
+.ring-label {
+  font-family: 'Geist Mono', monospace; font-size: 9px; letter-spacing: 0.08em;
+}
+.ring-label-radar { fill: var(--ring-radar); }
+.ring-label-radius {
+  fill: var(--ring-radius); font-weight: 600;
+  paint-order: stroke; stroke: var(--surface-strong); stroke-width: 3px; stroke-linejoin: round;
+}
+
+.pin { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -100%); width: 26px; height: 34px; z-index: 4; }
+[data-size="seven"] .pin, [data-size="mobile"] .pin { width: 22px; height: 28px; }
+.pin svg { width: 100%; height: 100%; filter: drop-shadow(0 3px 5px rgba(0,0,0,0.4)); }
+
+/* ============================================================
+   BOTTOM DOCK
+   ============================================================ */
+.dock {
+  position: absolute; left: 50%; transform: translateX(-50%);
+  bottom: 14px; z-index: 10;
+  display: flex; align-items: center; gap: 2px;
+  background: var(--surface); border: 1px solid var(--border);
+  border-radius: 13px; padding: 6px; box-shadow: var(--shadow); backdrop-filter: blur(10px);
+}
+[data-size="mobile"] .dock { border-radius: 16px; bottom: 18px; }
+.dock-btn {
+  position: relative; width: 46px; height: 46px;
+  display: grid; place-items: center; border-radius: 9px;
+  background: transparent; border: none; color: var(--ink-2); cursor: pointer;
+}
+[data-size="seven"] .dock-btn { width: 44px; height: 44px; }
+.dock-btn svg { width: 21px; height: 21px; stroke-width: 1.8; }
+.dock-btn:active { background: var(--surface-2); }
+.dock-btn.is-active { background: var(--accent-bg); color: var(--accent); }
+[data-mode="rouge"] .dock-btn.is-active { color: var(--ink); }
+.dock-sep { width: 1px; align-self: stretch; margin: 8px 4px; background: var(--border-2); opacity: 0.7; }
+.dock-badge {
+  position: absolute; top: 3px; right: 3px; min-width: 18px; height: 18px; padding: 0 4px;
+  border-radius: 999px; display: grid; place-items: center;
+  font-family: 'Geist Mono', monospace; font-size: 10px; font-weight: 600; line-height: 1;
+  color: #fff; border: 2px solid var(--surface-strong);
+}
+[data-mode="rouge"] .dock-badge { color: #1c0808; }
+.dock-badge.tier-warn  { background: var(--tier-warn); }
+.dock-badge.tier-watch { background: var(--tier-watch); }
+.dock-badge.tier-adv   { background: var(--tier-adv); color: #2a2008; }
+
+/* ============================================================
+   LEGEND (corner overlay, layer ON)
+   ============================================================ */
+.legend {
+  position: absolute; top: 14px; left: 14px; z-index: 8;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 11px;
+  padding: 11px 13px; box-shadow: var(--shadow); backdrop-filter: blur(10px);
+  display: flex; flex-direction: column; gap: 8px; min-width: 168px;
+}
+[data-size="seven"] .legend, [data-size="mobile"] .legend { padding: 9px 11px; min-width: 150px; }
+.legend .lg-title {
+  font-family: 'Geist Mono', monospace; font-size: 8.5px; letter-spacing: 0.14em;
+  text-transform: uppercase; color: var(--ink-3); font-weight: 600;
+}
+.legend .lg-tiers { display: flex; flex-direction: column; gap: 5px; }
+.legend .lg-row { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--ink); }
+.legend .lg-sw { width: 16px; height: 12px; border-radius: 3px; flex-shrink: 0; border: 1.5px solid; }
+.legend .lg-sw.warn  { background: var(--tier-warn-fill);  border-color: var(--tier-warn); }
+.legend .lg-sw.watch { background: var(--tier-watch-fill); border-color: var(--tier-watch); }
+.legend .lg-sw.adv   { background: var(--tier-adv-fill);   border-color: var(--tier-adv); }
+.legend .lg-count {
+  padding-top: 7px; border-top: 1px solid var(--border);
+  font-size: 11px; color: var(--ink); line-height: 1.35;
+}
+.legend .lg-count b { font-weight: 600; }
+.legend .lg-count .km { font-family: 'Geist Mono', monospace; }
+.legend .lg-more { display: block; margin-top: 3px; font-size: 10px; color: var(--ink-3); }
+[data-size="seven"] .legend .lg-row, [data-size="seven"] .legend .lg-count { font-size: 10px; }
+
+/* radius chip inside legend — ties the blue/red ring to its meaning */
+.legend .lg-radius { display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--ink-2); }
+.legend .lg-radius .rr { width: 16px; height: 0; border-top: 2.5px dashed var(--ring-radius); flex-shrink: 0; }
+[data-mode="rouge"] .legend .lg-radius .rr { border-top-style: dotted; }
+
+/* ============================================================
+   MOBILE COLUMN LAYOUT
+   ============================================================ */
+.col { position: absolute; inset: 0; overflow-y: auto; padding: 0; display: none; flex-direction: column; }
+[data-size="mobile"] .col { display: flex; }
+[data-size="mobile"] .map-fullbleed { display: none; }
+.col-statusbar {
+  height: 44px; flex-shrink: 0; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 22px; font-size: 13px; font-weight: 600; color: var(--ink);
+}
+.col-statusbar .sb-r { display: flex; gap: 6px; align-items: center; font-family: 'Geist Mono', monospace; font-size: 11px; }
+.col-body { flex: 1; display: flex; flex-direction: column; gap: 12px; padding: 4px 14px 20px; }
+.col-h {
+  font-family: 'Geist Mono', monospace; font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-3); padding: 6px 2px 0;
+}
+.mapcard {
+  position: relative; height: 300px; border-radius: 16px; overflow: hidden;
+  border: 1px solid var(--border); box-shadow: var(--shadow);
+}
+.mapcard .map { border-radius: 16px; }
+.mapcard .maximize {
+  position: absolute; top: 10px; right: 10px; z-index: 12; width: 34px; height: 34px;
+  display: grid; place-items: center; border-radius: 8px; color: var(--ink);
+  background: var(--surface); border: 1px solid var(--border); box-shadow: var(--shadow);
+}
+.mapcard .maximize svg { width: 15px; height: 15px; }
+
+/* ============================================================
+   POPUP (map-anchored)
+   ============================================================ */
+.popup {
+  position: relative; width: 308px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px;
+  box-shadow: var(--shadow); backdrop-filter: blur(10px); overflow: hidden;
+}
+.popup::after {
+  content: ""; position: absolute; bottom: -8px; left: 50%; transform: translateX(-50%) rotate(45deg);
+  width: 15px; height: 15px; background: var(--surface); border-right: 1px solid var(--border); border-bottom: 1px solid var(--border);
+}
+.pu-row { display: flex; align-items: center; gap: 9px; padding: 13px 14px; }
+.pu-source {
+  font-family: 'Geist Mono', monospace; font-size: 9.5px; font-weight: 600; letter-spacing: 0.1em;
+  color: var(--ink-2); background: var(--surface-2); border: 1px solid var(--border);
+  padding: 3px 7px; border-radius: 5px; flex-shrink: 0;
+}
+.sev-chip {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-family: 'Geist Mono', monospace; font-size: 9px; font-weight: 600; letter-spacing: 0.1em;
+  text-transform: uppercase; padding: 3px 8px 3px 6px; border-radius: 999px; border: 1px solid; flex-shrink: 0;
+}
+.sev-chip svg { width: 10px; height: 10px; flex-shrink: 0; }
+.sev-chip.warning  { background: var(--sev-warn-bg);  color: var(--sev-warn-ink);  border-color: var(--sev-warn-border); }
+.sev-chip.watch    { background: var(--sev-watch-bg); color: var(--sev-watch-ink); border-color: var(--sev-watch-border); }
+.sev-chip.advisory { background: var(--sev-adv-bg);   color: var(--sev-adv-ink);   border-color: var(--sev-adv-border); }
+.pu-title { font-size: 13px; font-weight: 500; color: var(--ink); flex: 1; min-width: 0; line-height: 1.3; }
+.pu-foot { display: flex; border-top: 1px solid var(--border); }
+.pu-btn {
+  flex: 1; padding: 11px; background: transparent; border: none; cursor: pointer;
+  display: flex; align-items: center; justify-content: center; gap: 7px;
+  font-family: 'Geist', sans-serif; font-size: 12.5px; font-weight: 500; color: var(--accent);
+}
+[data-mode="rouge"] .pu-btn { color: var(--ink); }
+.pu-btn svg { width: 14px; height: 14px; }
+.pu-btn:active { background: var(--accent-bg); }
+
+/* multi popup */
+.pu-head {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 11px 14px 9px; border-bottom: 1px solid var(--border);
+}
+.pu-head .h-title { font-size: 12.5px; font-weight: 600; color: var(--ink); }
+.pu-head .h-count {
+  font-family: 'Geist Mono', monospace; font-size: 9px; letter-spacing: 0.08em; color: var(--ink-3); white-space: nowrap;
+  background: var(--surface-2); border: 1px solid var(--border); padding: 2px 7px; border-radius: 999px;
+}
+.pu-list { max-height: 190px; overflow-y: auto; }
+.pu-item {
+  display: flex; align-items: center; gap: 8px; padding: 10px 14px;
+  border-left: 3px solid; border-bottom: 1px solid var(--border); cursor: pointer;
+}
+.pu-item:last-child { border-bottom: none; }
+.pu-item.warning  { border-left-color: var(--tier-warn); }
+.pu-item.watch    { border-left-color: var(--tier-watch); }
+.pu-item.advisory { border-left-color: var(--tier-adv); }
+.pu-item:active { background: var(--surface-2); }
+.pu-item .it-title { font-size: 12px; font-weight: 500; color: var(--ink); flex: 1; min-width: 0; line-height: 1.3; }
+.pu-item .it-recenter { width: 26px; height: 26px; display: grid; place-items: center; border-radius: 7px; background: var(--surface-2); border: 1px solid var(--border); color: var(--ink-2); flex-shrink: 0; }
+.pu-item .it-recenter svg { width: 13px; height: 13px; }
+.pu-list::-webkit-scrollbar { width: 6px; }
+.pu-list::-webkit-scrollbar-thumb { background: var(--border-2); border-radius: 99px; }
+
+/* ============================================================
+   PLATES (component callouts on chrome bg)
+   ============================================================ */
+.plates { max-width: 1180px; margin: 0 auto; padding: 16px 40px 40px; }
+.plate-section-head { display: flex; align-items: baseline; gap: 18px; margin: 48px 0 26px; }
+.plate-section-head .num { font-family: 'Geist Mono', monospace; font-size: 12px; letter-spacing: 0.12em; color: var(--chrome-ink-3); }
+.plate-section-head h2 { font-size: 27px; font-weight: 500; letter-spacing: -0.02em; }
+.plate-section-head h2 .acc { font-family: 'Fraunces', serif; font-style: italic; color: var(--chrome-teal-2); }
+.plate-section-head .rule { flex: 1; height: 1px; background: var(--chrome-border); }
+
+.plate-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 18px; }
+.plate {
+  background: var(--chrome-surface); border: 1px solid var(--chrome-border);
+  border-radius: 14px; overflow: hidden; display: flex; flex-direction: column;
+}
+.plate.wide { grid-column: 1 / -1; }
+.plate .pl-head { padding: 18px 20px 0; }
+.plate .pl-kicker {
+  font-family: 'Geist Mono', monospace; font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--chrome-teal); margin-bottom: 8px; display: flex; align-items: center; gap: 8px;
+}
+.plate .pl-kicker::before { content: ""; width: 5px; height: 5px; border-radius: 50%; background: var(--chrome-teal); }
+.plate h3 { font-size: 18px; font-weight: 500; letter-spacing: -0.015em; margin-bottom: 6px; }
+.plate .pl-desc { font-size: 13px; color: var(--chrome-ink-2); line-height: 1.5; text-wrap: pretty; }
+/* stage area inside a plate uses the live palette of the doc */
+.pl-stage {
+  margin: 18px 20px 20px; border-radius: 12px; padding: 26px 20px;
+  background: var(--bg-stage, #f4f0e8); border: 1px solid rgba(0,0,0,0.04);
+  display: flex; align-items: center; justify-content: center; gap: 22px; flex-wrap: wrap;
+  position: relative; min-height: 120px;
+}
+/* the plate stages inherit the live palette via .screen-vars */
+.screen-vars { /* set in JS sync */ }
+
+.dock-mini {
+  display: inline-flex; align-items: center; gap: 4px; padding: 6px;
+  background: var(--surface); border: 1px solid var(--border); border-radius: 12px; box-shadow: var(--shadow);
+}
+.state-label {
+  position: absolute; bottom: 8px; font-family: 'Geist Mono', monospace; font-size: 9px;
+  letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3);
+}
+.tri-3 { display: flex; gap: 40px; align-items: flex-end; }
+.tri-cell { display: flex; flex-direction: column; align-items: center; gap: 12px; }
+.tri-cell .tc-lab { font-family: 'Geist Mono', monospace; font-size: 9px; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-3); }
+
+/* settings slider plate */
+.set-panel {
+  width: 100%; max-width: 460px; background: var(--surface-strong);
+  border: 1px solid var(--border); border-radius: 12px; padding: 18px 18px 20px; box-shadow: var(--shadow);
+}
+.set-sub {
+  font-family: 'Geist Mono', monospace; font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--ink-3); margin-bottom: 4px;
+}
+.set-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-bottom: 14px; }
+.set-row .sr-label { font-size: 13.5px; color: var(--ink); font-weight: 500; }
+.set-row .sr-toggle { width: 42px; height: 24px; border-radius: 999px; background: var(--accent); position: relative; flex-shrink: 0; }
+.set-row .sr-toggle::after { content: ""; position: absolute; top: 2px; right: 2px; width: 20px; height: 20px; border-radius: 50%; background: #fff; }
+[data-mode="rouge"] .set-row .sr-toggle::after { background: #1c0808; }
+.slider-block { padding-top: 4px; }
+.slider-top { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 12px; }
+.slider-top .st-label { font-size: 13px; color: var(--ink); }
+.slider-top .st-val { font-family: 'Geist Mono', monospace; font-size: 14px; font-weight: 500; color: var(--accent); white-space: nowrap; }
+[data-mode="rouge"] .slider-top .st-val { color: var(--ink); }
+.slider-track-wrap { position: relative; padding: 6px 0 0; cursor: pointer; user-select: none; }
+.slider-track { height: 6px; border-radius: 999px; background: var(--surface-2); position: relative; }
+.slider-fill { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); border-radius: 999px; }
+.slider-ticks { position: absolute; inset: 0; }
+.slider-tick { position: absolute; top: 50%; width: 2px; height: 2px; border-radius: 50%; background: var(--ink-4); transform: translate(-50%, -50%); }
+.slider-thumb {
+  position: absolute; top: 3px; width: 18px; height: 18px; border-radius: 50%;
+  background: var(--accent); border: 3px solid var(--surface-strong); transform: translate(-50%, -50%);
+  box-shadow: 0 2px 5px rgba(0,0,0,0.25); top: 50%;
+}
+.slider-labels { display: flex; justify-content: space-between; margin-top: 12px; }
+.slider-labels span {
+  font-family: 'Geist Mono', monospace; font-size: 10px; color: var(--ink-3); flex: 1; text-align: center;
+}
+.slider-labels span:first-child { text-align: left; }
+.slider-labels span:last-child { text-align: right; }
+.slider-labels span.is-cur { color: var(--accent); font-weight: 600; }
+[data-mode="rouge"] .slider-labels span.is-cur { color: var(--ink); }
+.set-hint {
+  margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border);
+  font-size: 11.5px; color: var(--ink-3); line-height: 1.5; display: flex; gap: 8px;
+}
+.set-hint svg { width: 14px; height: 14px; flex-shrink: 0; margin-top: 2px; color: var(--ring-radius); }
+
+/* live preview mini-map for desktop nicety */
+.preview-map {
+  width: 230px; height: 150px; border-radius: 12px; overflow: hidden; position: relative;
+  border: 1px solid var(--border); box-shadow: var(--shadow); flex-shrink: 0;
+}
+.preview-map .map { border-radius: 12px; }
+.preview-map .rings { --ring-scale: 0.46; }
+.pv-note {
+  position: absolute; bottom: 7px; left: 8px; right: 8px;
+  font-family: 'Geist Mono', monospace; font-size: 8px; letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-2); background: var(--surface); border: 1px solid var(--border); border-radius: 6px;
+  padding: 3px 6px; text-align: center; backdrop-filter: blur(6px);
+}
+
+/* notes */
+.notes { max-width: 1180px; margin: 0 auto; padding: 30px 40px 90px; }
+.notes-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+.note {
+  background: var(--chrome-surface); border: 1px solid var(--chrome-border); border-radius: 12px; padding: 22px 22px 24px;
+}
+.note .n-num { font-family: 'Fraunces', serif; font-style: italic; font-size: 24px; color: var(--chrome-teal-2); margin-bottom: 12px; }
+.note h4 { font-size: 15px; font-weight: 500; margin-bottom: 9px; text-wrap: pretty; }
+.note p { font-size: 13px; color: var(--chrome-ink-2); line-height: 1.55; text-wrap: pretty; }
+.note p .mono { color: var(--chrome-ink); }
+
+footer { padding: 30px 40px; text-align: center; font-family: 'Geist Mono', monospace; font-size: 10.5px; color: var(--chrome-ink-4); letter-spacing: 0.12em; }
+
+/* overlay OFF — quiet by default: only radar + radar rings + pin remain */
+.screen[data-overlay="off"] .poly-overlay,
+.screen[data-overlay="off"] .ring-radius,
+.screen[data-overlay="off"] .ring-label-radius,
+.screen[data-overlay="off"] .legend,
+.screen[data-overlay="off"] .dock-badge { display: none; }
+
+/* palette parity strip */
+.parity-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 14px; }
+.parity-cell { display: flex; flex-direction: column; gap: 9px; }
+.parity-map {
+  position: relative; height: 158px; border-radius: 12px; overflow: hidden;
+  border: 1px solid var(--chrome-border-2); box-shadow: 0 12px 30px -8px rgba(0,0,0,0.5);
+}
+.parity-map .map { border-radius: 12px; }
+.parity-map .rings { --ring-scale: 0.5; }
+.parity-map .pin { width: 18px; height: 23px; }
+.parity-name {
+  font-family: 'Geist Mono', monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--chrome-ink-2); display: flex; align-items: center; gap: 8px;
+}
+.parity-name .swx { width: 16px; height: 0; border-top-width: 2.5px; border-top-style: dotted; flex-shrink: 0; }
+.parity-name .swx.dashdot { border-top-style: dashed; }
+.parity-name b { color: var(--chrome-ink); font-weight: 500; }
+
+@media (max-width: 920px) {
+  .parity-grid { grid-template-columns: repeat(2, 1fr); }
+  .chrome-header { flex-direction: column; align-items: flex-start; gap: 18px; padding: 36px 22px; }
+  .chrome-header h1 { font-size: 32px; }
+  .chrome-header .meta { text-align: left; }
+  .chrome-controls { padding: 16px 22px; gap: 18px; }
+  .plates, .notes { padding-left: 22px; padding-right: 22px; }
+  .plate-grid { grid-template-columns: 1fr; }
+  .notes-grid { grid-template-columns: 1fr; }
+}
+</style>
+</head>
+<body>
+
+<header class="chrome-header">
+  <div>
+    <div class="eyebrow">Design reference · Nearby alerts · display-only overlay</div>
+    <h1>A quiet <span class="acc">look-around-me</span> layer over the radar.</h1>
+    <p class="lede">A new optional map layer that paints active government weather-alert polygons within a user-set radius. It never notifies — it surveys. Mocked across the four screen classes and the runtime palettes, with the alert-radius ring kept distinct from the radar rings in every mode.</p>
+  </div>
+  <div class="meta">
+    <b>States</b> hero · dock · popups · settings · legend<br>
+    <b>Palettes</b> day · dusk · night · nightRed<br>
+    <b>Screens</b> 390 · 800×480 · 1024×600 · 1280×800<br>
+    ROADMAP → Nearby alerts
+  </div>
+</header>
+
+<section class="chrome-controls">
+  <div class="seg-group">
+    <label>Palette</label>
+    <div class="seg seg-mode" data-target="mode">
+      <button data-mode="clair" class="is-active">Day</button>
+      <button data-mode="crepuscule">Dusk</button>
+      <button data-mode="nuit">Night</button>
+      <button data-mode="rouge">Night red</button>
+    </div>
+  </div>
+  <div class="seg-group">
+    <label>Screen class</label>
+    <div class="seg seg-size" data-target="size">
+      <button data-size="mobile">Mobile · 390</button>
+      <button data-size="seven">7″ · 800×480</button>
+      <button data-size="ten">10″ · 1024×600</button>
+      <button data-size="desktop" class="is-active">Desktop · 1280×800</button>
+    </div>
+  </div>
+  <div class="seg-group">
+    <label>Annotations</label>
+    <div class="seg seg-tags" data-target="tags">
+      <button data-tags="off" class="is-active">Off</button>
+      <button data-tags="on">On</button>
+    </div>
+  </div>
+</section>
+
+<main class="stage">
+  <div class="stage-cap">
+    <span>State 1 — Overlay <b>ON</b> · the hero shot</span>
+    <span class="dim">·</span>
+    <span id="capSize">Desktop 1280×800</span>
+    <span class="dim">·</span>
+    <span>tap the ▲ in the dock to toggle the layer</span>
+  </div>
+
+  <div class="device">
+    <div class="screen" data-overlay="on">
+
+      <!-- ============ FULL-BLEED MAP (7" / 10" / desktop) ============ -->
+      <div class="map-fullbleed" style="position:absolute; inset:0;">
+        <div class="map" id="heroMap"></div>
+
+        <!-- legend -->
+        <div class="legend">
+          <div class="lg-title">Alerts within radius</div>
+          <div class="lg-tiers">
+            <div class="lg-row"><span class="lg-sw warn"></span>Warning</div>
+            <div class="lg-row"><span class="lg-sw watch"></span>Watch</div>
+            <div class="lg-row"><span class="lg-sw adv"></span>Advisory</div>
+          </div>
+          <div class="lg-radius"><span class="rr"></span><span>Alert radius <span class="mono" id="lgKm">70</span> km</span></div>
+          <div class="lg-count"><b>3</b> alerts within <span class="km" id="lgKm2">70</span> km<span class="lg-more">+1 not mapped (outside radius)</span></div>
+        </div>
+
+        <!-- dock -->
+        <div class="dock">
+          <button class="dock-btn" aria-label="Layers"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3 L21 8 L12 13 L3 8 Z"/><path d="M3 13 L12 18 L21 13" opacity="0.55"/></svg></button>
+          <button class="dock-btn" aria-label="Radar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5" opacity="0.6"/><circle cx="12" cy="12" r="1" fill="currentColor"/></svg></button>
+          <button class="dock-btn" aria-label="Locate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3.2"/><path d="M12 2 V5 M12 19 V22 M2 12 H5 M19 12 H22"/></svg></button>
+          <div class="dock-sep"></div>
+          <!-- the NEW nearby-alerts toggle, active, with worst-tier badge -->
+          <button class="dock-btn is-active" data-role="alerts-toggle" aria-label="Nearby alerts">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3 L22 20 L2 20 Z" stroke-linejoin="round"/><line x1="12" y1="9.5" x2="12" y2="14" stroke-linecap="round"/><circle cx="12" cy="17" r="0.6" fill="currentColor"/></svg>
+            <span class="dock-badge tier-warn">3</span>
+          </button>
+          <button class="dock-btn" aria-label="Settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M19 5l-2 2M7 17l-2 2"/></svg></button>
+        </div>
+      </div>
+
+      <!-- ============ MOBILE COLUMN ============ -->
+      <div class="col">
+        <div class="col-statusbar"><span>9:41</span><span class="sb-r">Montréal ▾</span></div>
+        <div class="col-body">
+          <div class="col-h">Radar</div>
+          <div class="mapcard">
+            <div class="map" id="heroMapMobile"></div>
+            <button class="maximize"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M4 9 V4 H9 M15 4 H20 V9 M20 15 V20 H15 M9 20 H4 V15"/></svg></button>
+            <div class="legend" style="top:10px; bottom:auto; left:10px; min-width:0; padding:8px 10px;">
+              <div class="lg-radius"><span class="rr"></span><span><b style="color:var(--ink)">3</b> within <span class="mono" id="lgKmM">70</span> km</span></div>
+            </div>
+            <div class="dock" style="bottom:10px;">
+              <button class="dock-btn" style="width:38px;height:38px;" aria-label="Radar"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="4.5" opacity="0.6"/></svg></button>
+              <button class="dock-btn is-active" data-role="alerts-toggle" style="width:38px;height:38px;" aria-label="Nearby alerts">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3 L22 20 L2 20 Z" stroke-linejoin="round"/><line x1="12" y1="9.5" x2="12" y2="14" stroke-linecap="round"/><circle cx="12" cy="17" r="0.6" fill="currentColor"/></svg>
+                <span class="dock-badge tier-warn">3</span>
+              </button>
+              <button class="dock-btn" style="width:38px;height:38px;" aria-label="Locate"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><circle cx="12" cy="12" r="3.2"/><path d="M12 2 V5 M12 19 V22 M2 12 H5 M19 12 H22"/></svg></button>
+            </div>
+          </div>
+
+          <div class="col-h">Tap an alert</div>
+          <div style="display:flex; justify-content:center;"><div class="popup" id="mobilePopup" style="width:100%;"></div></div>
+
+          <div class="col-h">Settings · Nearby alerts</div>
+          <div class="set-panel" id="mobileSet" style="max-width:none;"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<!-- ============================================================ PLATES ============================================================ -->
+<div class="plates">
+
+  <div class="plate-section-head">
+    <span class="num">02</span><h2>Dock toggle · <span class="acc">three</span> states</h2><span class="rule"></span>
+  </div>
+  <div class="plate-grid">
+    <div class="plate wide">
+      <div class="pl-head">
+        <div class="pl-kicker">BottomDock button</div>
+        <h3>Off → on → on with worst-tier count badge</h3>
+        <p class="pl-desc">A warning-triangle glyph. Idle uses the quiet dock ink; pressed takes the active accent wash; the badge bubble is coloured to the worst tier present (red &gt; orange &gt; yellow) and disappears at zero. Finger target stays ≥ 44 px throughout.</p>
+      </div>
+      <div class="pl-stage" id="dockStates">
+        <div class="tri-3">
+          <div class="tri-cell">
+            <div class="dock-mini"><button class="dock-btn" aria-label="off"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3 L22 20 L2 20 Z" stroke-linejoin="round"/><line x1="12" y1="9.5" x2="12" y2="14" stroke-linecap="round"/><circle cx="12" cy="17" r="0.6" fill="currentColor"/></svg></button></div>
+            <span class="tc-lab">Off · idle</span>
+          </div>
+          <div class="tri-cell">
+            <div class="dock-mini"><button class="dock-btn is-active" aria-label="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3 L22 20 L2 20 Z" stroke-linejoin="round"/><line x1="12" y1="9.5" x2="12" y2="14" stroke-linecap="round"/><circle cx="12" cy="17" r="0.6" fill="currentColor"/></svg></button></div>
+            <span class="tc-lab">On · pressed</span>
+          </div>
+          <div class="tri-cell">
+            <div class="dock-mini"><button class="dock-btn is-active" aria-label="on+badge"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor"><path d="M12 3 L22 20 L2 20 Z" stroke-linejoin="round"/><line x1="12" y1="9.5" x2="12" y2="14" stroke-linecap="round"/><circle cx="12" cy="17" r="0.6" fill="currentColor"/></svg><span class="dock-badge tier-warn">3</span></button></div>
+            <span class="tc-lab">On · count badge</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="plate-section-head">
+    <span class="num">03</span><h2>Tap <span class="acc">popups</span></h2><span class="rule"></span>
+  </div>
+  <div class="plate-grid">
+    <div class="plate">
+      <div class="pl-head">
+        <div class="pl-kicker">Single alert</div>
+        <h3>One compact line, one action</h3>
+        <p class="pl-desc">Source badge + tier-coloured severity word + title. No description body. A single “Re-center here” button anchors the popup to the tapped polygon.</p>
+      </div>
+      <div class="pl-stage" id="singlePopup"></div>
+    </div>
+    <div class="plate">
+      <div class="pl-head">
+        <div class="pl-kicker">Multiple alerts here</div>
+        <h3>Compact scroll list, capped at ~40 vh</h3>
+        <p class="pl-desc">Overlapping alerts at the tapped spot. One row each — tier left-border, source badge, severity chip, title — sorted worst-first, with a per-row re-center affordance and internal scroll.</p>
+      </div>
+      <div class="pl-stage" id="multiPopup"></div>
+    </div>
+  </div>
+
+  <div class="plate-section-head">
+    <span class="num">04</span><h2>Settings · <span class="acc">radius</span> slider</h2><span class="rule"></span>
+  </div>
+  <div class="plate-grid">
+    <div class="plate wide">
+      <div class="pl-head">
+        <div class="pl-kicker">Settings → Advanced → Nearby alerts</div>
+        <h3>Six-stop range slider — drag it to move the hero ring live</h3>
+        <p class="pl-desc">Matches the existing Advanced sliders (opacity / brightness). On desktop the Settings panel doesn’t cover the map, so dragging previews the alert-radius ring in real time — shown here driving both the mini-map and the hero shot above.</p>
+      </div>
+      <div class="pl-stage" id="settingsPlate">
+        <div class="set-panel" id="settingsPanel"></div>
+        <div class="preview-map">
+          <div class="map" id="previewMap"></div>
+          <div class="pv-note">Live preview while dragging</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="plate-section-head">
+    <span class="num">05</span><h2>Legend <span class="acc">additions</span></h2><span class="rule"></span>
+  </div>
+  <div class="plate-grid">
+    <div class="plate wide">
+      <div class="pl-head">
+        <div class="pl-kicker">Corner overlay · layer ON</div>
+        <h3>Tier key · count within radius · honest “not mapped” note</h3>
+        <p class="pl-desc">Three tier swatches, the radius ring key, a live “N alerts within R km” count, and a quiet “+1 not mapped” line when an active alert falls outside the radius or has no polygon.</p>
+      </div>
+      <div class="pl-stage" id="legendPlate"></div>
+    </div>
+  </div>
+
+</div>
+
+<!-- ============================================================ PALETTE PARITY ============================================================ -->
+<div class="plates">
+  <div class="plate-section-head">
+    <span class="num">06</span><h2>Palette <span class="acc">parity</span></h2><span class="rule"></span>
+  </div>
+  <div class="plate wide">
+    <div class="pl-head">
+      <div class="pl-kicker">The same hero · four runtime palettes</div>
+      <h3>The radius ring stays distinct in every mode</h3>
+      <p class="pl-desc">Day, dusk and night separate the alert-radius ring from the radar rings by hue — the <span class="mono">cool</span> blue, dotted. Night-red can’t use hue, so it keeps the ring red and separates it by a long dash-dot pattern instead. Tiers stay readable against each background throughout.</p>
+    </div>
+    <div class="pl-stage" style="display:block; padding:24px;">
+      <div class="parity-grid">
+        <div class="parity-cell"><div class="parity-map" data-pmode="clair"><div class="map"></div></div><div class="parity-name"><span class="swx"></span><b>Day</b></div></div>
+        <div class="parity-cell"><div class="parity-map" data-pmode="crepuscule"><div class="map"></div></div><div class="parity-name"><span class="swx"></span><b>Dusk</b></div></div>
+        <div class="parity-cell"><div class="parity-map" data-pmode="nuit"><div class="map"></div></div><div class="parity-name"><span class="swx"></span><b>Night</b></div></div>
+        <div class="parity-cell"><div class="parity-map" data-pmode="rouge"><div class="map"></div></div><div class="parity-name"><span class="swx dashdot"></span><b>Night red</b> · dash-dot</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ============================================================ NOTES ============================================================ -->
+<div class="notes">
+  <div class="plate-section-head">
+    <span class="num">07</span><h2>Constraints <span class="acc">honoured</span></h2><span class="rule"></span>
+  </div>
+  <div class="notes-grid">
+    <div class="note">
+      <div class="n-num">i.</div>
+      <h4>The radius ring never reads as a radar ring</h4>
+      <p>In day / dusk / night it’s the <span class="mono">cool</span> blue, dotted — clearly not the calm grey radar rings. In <span class="mono">nightRed</span> hue can’t differ, so it switches to a long-dot dash-dot pattern instead. Same meaning, no cool hues.</p>
+    </div>
+    <div class="note">
+      <div class="n-num">ii.</div>
+      <h4>Co-display stays legible</h4>
+      <p>Polygons sit at ~15 % tier fill so the radar reads straight through; rings are 2 px dashed; precip keeps its blend mode. The 7″ 800×480 case is the binding one — kept clean there first.</p>
+    </div>
+    <div class="note">
+      <div class="n-num">iii.</div>
+      <h4>Quiet, touch-first, opt-in</h4>
+      <p>Nothing screams until you turn it on. No <span class="mono">:hover</span> backgrounds that stick on touch — pressed / <span class="mono">:active</span> states only. Targets ≥ 44 px. Display-only: it surveys, it never notifies.</p>
+    </div>
+  </div>
+</div>
+
+<footer>pi-weather-station v3.1 · design reference · nearby-alerts overlay</footer>
+
+<script>
+/* ============================================================
+   Map content builder — roads, cities, precip, polygons, rings
+   ============================================================ */
+function buildMap(el, opts) {
+  opts = opts || {};
+  var showLabels = opts.labels !== false;
+  el.innerHTML =
+    '<svg class="roads" viewBox="0 0 1000 600" preserveAspectRatio="none">' +
+      '<path d="M 40 330 Q 220 290 400 318 T 720 300 T 990 280" stroke="var(--map-road)" stroke-width="2" fill="none"/>' +
+      '<path d="M 90 90 Q 280 200 430 290 T 660 390 T 920 500" stroke="var(--map-road)" stroke-width="1.5" fill="none"/>' +
+      '<path d="M 500 40 L 488 580" stroke="var(--map-road)" stroke-width="1.5" fill="none" opacity="0.7"/>' +
+      '<path d="M 180 510 Q 400 470 620 480 T 970 460" stroke="var(--map-road)" stroke-width="1" fill="none" opacity="0.6"/>' +
+      '<path d="M 0 210 L 1000 232" stroke="var(--map-road)" stroke-width="1" fill="none" opacity="0.5"/>' +
+    '</svg>' +
+    (showLabels ?
+      '<span class="city" style="top:20%;left:16%;">Ottawa</span>' +
+      '<span class="city" style="top:30%;left:66%;">Trois-Rivières</span>' +
+      '<span class="city" style="top:72%;left:24%;">Cornwall</span>' +
+      '<span class="city" style="top:62%;left:58%;">St-Hyacinthe</span>' +
+      '<span class="city" style="top:16%;left:78%;">Sherbrooke</span>' : '') +
+    /* radar precip */
+    '<div class="radar-overlay"><svg viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice">' +
+      '<defs><filter id="blr" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="20"/></filter></defs>' +
+      '<g filter="url(#blr)">' +
+        '<ellipse cx="300" cy="225" rx="105" ry="68" fill="var(--radar-low)"/>' +
+        '<ellipse cx="360" cy="258" rx="66" ry="48" fill="var(--radar-med)"/>' +
+        '<ellipse cx="398" cy="288" rx="38" ry="30" fill="var(--radar-high)"/>' +
+        '<ellipse cx="650" cy="372" rx="122" ry="78" fill="var(--radar-low)"/>' +
+        '<ellipse cx="708" cy="396" rx="70" ry="44" fill="var(--radar-med)"/>' +
+        '<ellipse cx="744" cy="416" rx="32" ry="22" fill="var(--radar-high)"/>' +
+        '<ellipse cx="752" cy="420" rx="13" ry="9" fill="var(--radar-extreme)"/>' +
+        '<ellipse cx="190" cy="480" rx="62" ry="42" fill="var(--radar-low)"/>' +
+      '</g></svg></div>' +
+    /* alert polygons (irregular) */
+    '<div class="poly-overlay"><svg viewBox="0 0 1000 600" preserveAspectRatio="xMidYMid slice">' +
+      '<path class="poly-warn"  d="M 560 300 L 660 280 L 720 330 L 700 410 L 610 430 L 545 380 Z"/>' +
+      '<path class="poly-watch" d="M 250 200 L 360 180 L 410 250 L 360 320 L 270 310 L 220 250 Z"/>' +
+      '<path class="poly-adv"   d="M 150 430 L 260 410 L 300 470 L 250 540 L 160 525 L 130 475 Z"/>' +
+    '</svg></div>' +
+    /* rings — centred on pin */
+    '<div class="rings"><svg viewBox="0 0 420 420" preserveAspectRatio="xMidYMid meet">' +
+      '<circle class="ring-radar"  cx="210" cy="210" r="95"/>' +
+      '<circle class="ring-radar"  cx="210" cy="210" r="190"/>' +
+      '<circle class="ring-radius" cx="210" cy="210" r="133"/>' +
+      '<text class="ring-label ring-label-radar"  x="210" y="112" text-anchor="middle">50 km</text>' +
+      '<text class="ring-label ring-label-radar"  x="210" y="17" text-anchor="middle">100 km</text>' +
+      '<text class="ring-label ring-label-radius" x="210" y="360" text-anchor="middle">70 km</text>' +
+    '</svg></div>' +
+    /* pin */
+    '<div class="pin"><svg viewBox="0 0 22 30"><path d="M11 0 C 17 0, 22 5, 22 11 C 22 20, 11 30, 11 30 C 11 30, 0 20, 0 11 C 0 5, 5 0, 11 0 Z" fill="var(--accent)"/><circle cx="11" cy="11" r="3.6" fill="var(--surface-strong)"/></svg></div>';
+}
+
+/* ============================================================
+   Popups
+   ============================================================ */
+var triSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 2 L22 20 L2 20 Z" stroke-linejoin="round"/><line x1="12" y1="9" x2="12" y2="14" stroke-linecap="round"/><circle cx="12" cy="17.5" r="0.5" fill="currentColor"/></svg>';
+var recenterSvg = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9"><circle cx="12" cy="12" r="3.2"/><path d="M12 2 V5 M12 19 V22 M2 12 H5 M19 12 H22"/></svg>';
+
+function singlePopupHTML() {
+  return '<div class="popup">' +
+    '<div class="pu-row">' +
+      '<span class="pu-source">NWS</span>' +
+      '<span class="sev-chip warning">' + triSvg + 'Warning</span>' +
+      '<span class="pu-title">Severe Thunderstorm Warning</span>' +
+    '</div>' +
+    '<div class="pu-foot"><button class="pu-btn">' + recenterSvg + 'Re-center here</button></div>' +
+  '</div>';
+}
+function multiPopupHTML() {
+  function item(tier, sev, src, title) {
+    return '<div class="pu-item ' + tier + '">' +
+      '<span class="pu-source">' + src + '</span>' +
+      '<span class="sev-chip ' + tier + '">' + triSvg + sev + '</span>' +
+      '<span class="it-title">' + title + '</span>' +
+      '<button class="it-recenter">' + recenterSvg + '</button>' +
+    '</div>';
+  }
+  return '<div class="popup">' +
+    '<div class="pu-head"><span class="h-title">Alerts here</span><span class="h-count">3 alerts</span></div>' +
+    '<div class="pu-list">' +
+      item('warning', 'Warning', 'NWS', 'Severe Thunderstorm Warning') +
+      item('watch', 'Watch', 'NWS', 'Tornado Watch · until 9 PM') +
+      item('advisory', 'Advisory', 'ECCC', 'Wind Advisory · Champlain Valley') +
+    '</div>' +
+  '</div>';
+}
+
+/* ============================================================
+   Settings panel + slider (drives the rings live)
+   ============================================================ */
+var STOPS = [50, 60, 70, 80, 90, 100];
+var radiusKm = 70;
+
+function settingsPanelHTML() {
+  var ticks = '', labels = '';
+  STOPS.forEach(function(km, i){
+    var pct = (i / (STOPS.length - 1)) * 100;
+    ticks += '<span class="slider-tick" style="left:' + pct + '%"></span>';
+    labels += '<span data-km="' + km + '">' + km + '</span>';
+  });
+  return '<div class="set-sub">Advanced</div>' +
+    '<div class="set-row"><span class="sr-label">Nearby alerts overlay</span><span class="sr-toggle"></span></div>' +
+    '<div class="slider-block">' +
+      '<div class="slider-top"><span class="st-label">Alert radius</span><span class="st-val">70 km</span></div>' +
+      '<div class="slider-track-wrap">' +
+        '<div class="slider-track"><div class="slider-fill"></div><div class="slider-ticks">' + ticks + '</div></div>' +
+        '<div class="slider-thumb"></div>' +
+      '</div>' +
+      '<div class="slider-labels">' + labels + '</div>' +
+    '</div>' +
+    '<div class="set-hint"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="9"/><path d="M12 8 v5" stroke-linecap="round"/><circle cx="12" cy="16" r="0.5" fill="currentColor"/></svg>Display-only — this layer surveys active alerts. It never sends a notification.</div>';
+}
+
+function legendHTML(km) {
+  return '<div class="legend" style="position:relative; top:auto; left:auto;">' +
+    '<div class="lg-title">Alerts within radius</div>' +
+    '<div class="lg-tiers">' +
+      '<div class="lg-row"><span class="lg-sw warn"></span>Warning</div>' +
+      '<div class="lg-row"><span class="lg-sw watch"></span>Watch</div>' +
+      '<div class="lg-row"><span class="lg-sw adv"></span>Advisory</div>' +
+    '</div>' +
+    '<div class="lg-radius"><span class="rr"></span><span>Alert radius <span class="mono">' + km + '</span> km</span></div>' +
+    '<div class="lg-count"><b>3</b> alerts within <span class="km">' + km + '</span> km<span class="lg-more">+1 not mapped (outside radius)</span></div>' +
+  '</div>';
+}
+
+/* update everything that reflects the radius (class-based — many instances) */
+function setRadius(km) {
+  radiusKm = km;
+  // ring radius: 50km -> r 95 (radar inner), 100km -> r 190 (radar outer). linear.
+  var r = 95 + (km - 50) / 50 * 95;
+  document.querySelectorAll('.ring-radius').forEach(function(c){ c.setAttribute('r', r.toFixed(1)); });
+  document.querySelectorAll('.ring-label-radius').forEach(function(t){ t.textContent = km + ' km'; t.setAttribute('y', (210 + r + 16).toFixed(1)); });
+  ['lgKm','lgKm2','lgKmM'].forEach(function(id){ var e = document.getElementById(id); if (e) e.textContent = km; });
+  document.querySelectorAll('.st-val').forEach(function(sv){ sv.textContent = km + ' km'; });
+  var idx = STOPS.indexOf(km); if (idx < 0) idx = 0;
+  var pct = (idx / (STOPS.length - 1)) * 100;
+  document.querySelectorAll('.slider-fill').forEach(function(f){ f.style.width = pct + '%'; });
+  document.querySelectorAll('.slider-thumb').forEach(function(t){ t.style.left = pct + '%'; });
+  document.querySelectorAll('.slider-labels span').forEach(function(s){ s.classList.toggle('is-cur', +s.dataset.km === km); });
+  var lp = document.getElementById('legendPlate'); if (lp) lp.innerHTML = legendHTML(km);
+}
+
+function wireSlider() {
+  document.querySelectorAll('.slider-track-wrap').forEach(function(wrap){
+    function pick(clientX) {
+      var rect = wrap.getBoundingClientRect();
+      var t = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+      setRadius(STOPS[Math.round(t * (STOPS.length - 1))]);
+    }
+    var dragging = false;
+    wrap.addEventListener('pointerdown', function(e){ dragging = true; wrap.setPointerCapture(e.pointerId); pick(e.clientX); });
+    wrap.addEventListener('pointermove', function(e){ if (dragging) pick(e.clientX); });
+    wrap.addEventListener('pointerup', function(){ dragging = false; });
+  });
+  document.querySelectorAll('.slider-labels span').forEach(function(s){
+    s.style.cursor = 'pointer';
+    s.addEventListener('click', function(){ setRadius(+s.dataset.km); });
+  });
+}
+
+/* ============================================================
+   Palette sync into plate stages (which live on chrome bg)
+   ============================================================ */
+var PALETTE_PROPS = ['--bg','--map-bg','--map-road','--map-ink-soft','--surface','--surface-strong','--surface-2',
+  '--border','--border-2','--ink','--ink-2','--ink-3','--ink-4','--accent','--accent-soft','--accent-bg',
+  '--radar-low','--radar-med','--radar-high','--radar-extreme','--radar-blend','--ring-radar','--cool',
+  '--ring-radius','--ring-radius-dash','--radius-halo','--tier-warn','--tier-warn-fill','--tier-watch',
+  '--tier-watch-fill','--tier-adv','--tier-adv-fill','--sev-warn-bg','--sev-warn-ink','--sev-warn-border',
+  '--sev-watch-bg','--sev-watch-ink','--sev-watch-border','--sev-adv-bg','--sev-adv-ink','--sev-adv-border','--shadow'];
+
+function syncPlatePalettes() {
+  // each .pl-stage should adopt the live --bg etc. We copy the computed
+  // custom props from the live .screen onto the plate stages.
+  var screen = document.querySelector('.screen');
+  if (!screen) return;
+  var cs = getComputedStyle(screen);
+  document.querySelectorAll('.pl-stage').forEach(function(stage){
+    PALETTE_PROPS.forEach(function(p){ stage.style.setProperty(p, cs.getPropertyValue(p)); });
+    stage.style.setProperty('--bg-stage', cs.getPropertyValue('--bg'));
+    stage.style.background = cs.getPropertyValue('--bg');
+  });
+}
+
+/* Freeze each parity mini to its OWN palette, independent of the global switcher */
+function freezeParity() {
+  var ref = document.querySelector('main .screen');
+  if (!ref) return;
+  var html = document.documentElement;
+  var saved = html.getAttribute('data-mode');
+  document.querySelectorAll('.parity-map').forEach(function(pm){
+    html.setAttribute('data-mode', pm.dataset.pmode);
+    var cs = getComputedStyle(ref);
+    PALETTE_PROPS.forEach(function(p){ pm.style.setProperty(p, cs.getPropertyValue(p)); });
+    var sw = pm.parentElement.querySelector('.swx');
+    if (sw) sw.style.borderTopColor = cs.getPropertyValue('--ring-radius');
+  });
+  html.setAttribute('data-mode', saved);
+}
+
+/* Dock toggle — flips the overlay on/off within its own screen */
+function wireOverlayToggle() {
+  document.querySelectorAll('[data-role="alerts-toggle"]').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      var screen = btn.closest('.screen');
+      var turningOn = screen.getAttribute('data-overlay') === 'off';
+      screen.setAttribute('data-overlay', turningOn ? 'on' : 'off');
+      screen.querySelectorAll('[data-role="alerts-toggle"]').forEach(function(b){ b.classList.toggle('is-active', turningOn); });
+    });
+  });
+}
+
+/* ============================================================
+   Switchers
+   ============================================================ */
+var sizeCaps = { mobile: 'Mobile 390×844', seven: '7″ kiosk 800×480', ten: '10″ panel 1024×600', desktop: 'Desktop 1280×800' };
+function wireSeg(sel, attr, after) {
+  document.querySelectorAll(sel + ' button').forEach(function(btn){
+    btn.addEventListener('click', function(){
+      document.querySelectorAll(sel + ' button').forEach(function(b){ b.classList.remove('is-active'); });
+      btn.classList.add('is-active');
+      document.documentElement.setAttribute(attr, btn.dataset[attr.replace('data-','')]);
+      if (after) after(btn);
+    });
+  });
+}
+
+function rebuildAll() {
+  buildMap(document.getElementById('heroMap'));
+  buildMap(document.getElementById('heroMapMobile'));
+  buildMap(document.getElementById('previewMap'), { labels: false });
+  document.querySelectorAll('.parity-map .map').forEach(function(m){ buildMap(m, { labels: false }); });
+  document.getElementById('singlePopup').innerHTML = singlePopupHTML();
+  document.getElementById('multiPopup').innerHTML = multiPopupHTML();
+  document.getElementById('settingsPanel').innerHTML = settingsPanelHTML();
+  document.getElementById('mobilePopup').innerHTML = singlePopupHTML();
+  document.getElementById('mobileSet').innerHTML = settingsPanelHTML();
+  document.getElementById('legendPlate').innerHTML = legendHTML(radiusKm);
+  wireSlider();
+  setRadius(radiusKm);
+  syncPlatePalettes();
+  freezeParity();
+}
+
+document.addEventListener('DOMContentLoaded', function(){
+  wireSeg('.seg-mode', 'data-mode', function(){ syncPlatePalettes(); });
+  wireSeg('.seg-size', 'data-size', function(btn){
+    document.getElementById('capSize').textContent = sizeCaps[btn.dataset.size];
+  });
+  wireSeg('.seg-tags', 'data-tags');
+  rebuildAll();
+  wireOverlayToggle();
+});
+</script>
+
+</body>
+</html>
