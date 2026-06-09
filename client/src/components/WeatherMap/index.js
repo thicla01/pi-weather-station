@@ -16,6 +16,7 @@ import {
   CircleMarker,
   Polyline,
   GeoJSON,
+  Popup,
   useMap,
   useMapEvents,
 } from "react-leaflet";
@@ -47,6 +48,8 @@ L.Icon.Default.mergeOptions({
 import PropTypes from "prop-types";
 import { AppContext } from "~/AppContext";
 import useEligibleGovAlerts from "~/hooks/useEligibleGovAlerts";
+import SourceBadge from "~/components/ambient/SourceBadge";
+import SeverityChip from "~/components/ambient/SeverityChip";
 import { useTimeOfDay } from "~/ui/hybrid";
 import { useTranslation } from "react-i18next";
 import debounce from "debounce";
@@ -72,6 +75,7 @@ import {
   DOT_COLOR_BY_TIER,
   tierColour,
   buildRadiusRingOptions,
+  pointInGeometry,
 } from "./geometry";
 
 
@@ -467,6 +471,53 @@ NearbyAlertsOverlay.defaultProps = {
 };
 
 /**
+ * Content of the nearby-alerts tap popup (Phase 3b). Shows the subject of
+ * each alert the tap landed in — source badge + severity chip + title —
+ * and a single "Re-center here" action. Overlapping alerts are listed
+ * worst-first (already server-sorted) under a count header. Deliberately
+ * lightweight: the full description comes from re-centring, which moves
+ * the location to the tapped point and re-activates the point-based
+ * banner + GovAlertDetail.
+ *
+ * @param {object} props
+ * @param {Array<object>} props.alerts the alerts under the tapped point
+ * @param {() => void} props.onRecenter called when "Re-center here" is tapped
+ * @returns {JSX.Element} popup content
+ */
+const SurveyAlertContent = ({ alerts, onRecenter }) => {
+  const { t, i18n } = useTranslation();
+  const lang = (i18n.language || "en").slice(0, 2);
+  return (
+    <div className={styles.surveyPopup}>
+      {alerts.length > 1 ? (
+        <div className={styles.surveyHead}>{t("radar.nearbyHere", { count: alerts.length })}</div>
+      ) : null}
+      <div className={styles.surveyList}>
+        {alerts.map((a) => (
+          <div key={a.id} className={styles.surveyRow}>
+            <SourceBadge source={a.source} />
+            <SeverityChip severity={a.severity} />
+            <span className={styles.surveyTitle}>{(lang === "fr" ? a.title_fr : a.title_en) || a.eventType}</span>
+          </div>
+        ))}
+      </div>
+      <button type="button" className={styles.surveyRecenter} onClick={onRecenter}>
+        {t("controls.recenterHere")}
+      </button>
+    </div>
+  );
+};
+
+SurveyAlertContent.propTypes = {
+  alerts: PropTypes.array,
+  onRecenter: PropTypes.func.isRequired,
+};
+
+SurveyAlertContent.defaultProps = {
+  alerts: [],
+};
+
+/**
  * Weather map
  *
  * @param {object} props
@@ -579,11 +630,37 @@ const WeatherMap = ({ zoom, dark }) => {
     RADAR_GEOMETRY[distanceUnit].outer[RADAR_GEOMETRY[distanceUnit].outer.length - 1] *
     METERS_PER_UNIT[distanceUnit];
 
+  // Nearby-alerts tap popup (Phase 3b): { latlng: [lat, lon], alerts: [...] }
+  // when the user tapped inside one or more survey polygons; null otherwise.
+  const [surveyPopup, setSurveyPopup] = useState(null);
+
   const handleMapClick = useCallback((e) => {
     const { lat: latitude, lng: longitude } = e.latlng;
-    const newCoords = { latitude, longitude };
-    setMapPosition(newCoords);
-  }, [setMapPosition]);
+    // Nearby-alerts survey: if the layer is on and the tap landed inside
+    // one or more alert polygons, open the survey popup there instead of
+    // moving the location marker. nearbyAlerts is server-sorted worst-first.
+    if (showWeatherAlerts && Array.isArray(nearbyAlerts) && nearbyAlerts.length) {
+      const hit = nearbyAlerts.filter(
+        (a) => a && a.geometry && pointInGeometry(latitude, longitude, a.geometry),
+      );
+      if (hit.length) {
+        setSurveyPopup({ latlng: [latitude, longitude], alerts: hit });
+        return;
+      }
+    }
+    setSurveyPopup(null);
+    setMapPosition({ latitude, longitude });
+  }, [showWeatherAlerts, nearbyAlerts, setMapPosition]);
+
+  // "Re-center here" — move the location to the tapped point (guaranteed
+  // inside the tapped polygon(s)) so the existing point-based banner +
+  // GovAlertDetail surface the full alert(s); then close the popup.
+  const handleSurveyRecenter = useCallback(() => {
+    if (surveyPopup) {
+      setMapPosition({ latitude: surveyPopup.latlng[0], longitude: surveyPopup.latlng[1] });
+      setSurveyPopup(null);
+    }
+  }, [surveyPopup, setMapPosition]);
 
   const mapClickHandler = useMemo(
     () => debounce(handleMapClick, MAP_CLICK_DEBOUNCE_TIME),
@@ -1141,6 +1218,18 @@ const WeatherMap = ({ zoom, dark }) => {
             on the layer toggle (OFF by default until the Phase 3 dock
             button). Never moves the map. */}
         {showWeatherAlerts ? <NearbyAlertsOverlay alerts={nearbyAlerts} /> : null}
+        {/* Survey tap popup (Phase 3b): opens at the tapped point when it
+            landed inside one or more alert polygons. Lightweight subject +
+            a single "Re-center here" that re-activates the point-based path. */}
+        {showWeatherAlerts && surveyPopup ? (
+          <Popup
+            position={surveyPopup.latlng}
+            className={styles.surveyPopupWrapper}
+            eventHandlers={{ remove: () => setSurveyPopup(null) }}
+          >
+            <SurveyAlertContent alerts={surveyPopup.alerts} onRecenter={handleSurveyRecenter} />
+          </Popup>
+        ) : null}
       </MapContainer>
       {/* Legend + timeline are RainViewer-specific (the legend's colour
           scale matches RainViewer's intensity-encoded palette, and the

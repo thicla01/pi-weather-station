@@ -493,3 +493,53 @@ export function buildRadiusRingOptions(dark, nightRed = false) {
     fill: false,
   };
 }
+
+/**
+ * Ray-casting point-in-polygon for a single GeoJSON ring ([lon, lat]
+ * pairs, GeoJSON order). Boundary cases aren't special-cased — a
+ * one-pixel miss at the edge is irrelevant for tap detection.
+ *
+ * @param {Number} lat
+ * @param {Number} lon
+ * @param {Array<Array<Number>>} ring
+ * @returns {Boolean} true when the point is inside the ring
+ */
+function pointInRing(lat, lon, ring) {
+  let inside = false;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    const [xi, yi] = ring[i];
+    const [xj, yj] = ring[j];
+    const intersect = ((yi > lat) !== (yj > lat))
+      && (lon < ((xj - xi) * (lat - yi)) / ((yj - yi) || 1e-12) + xi);
+    if (intersect) inside = !inside;
+  }
+  return inside;
+}
+
+/**
+ * Is (lat, lon) inside a GeoJSON Polygon / MultiPolygon? Holes are
+ * honoured (XOR across each polygon's rings). The client mirror of the
+ * server's `_shared.pointInPolygon`, used to detect which nearby-alert
+ * polygons a map tap landed in (Phase 3b survey popup).
+ *
+ * @param {Number} lat
+ * @param {Number} lon
+ * @param {object} geometry GeoJSON Polygon | MultiPolygon
+ * @returns {Boolean} true when the point falls inside the polygon
+ */
+export function pointInGeometry(lat, lon, geometry) {
+  if (!geometry) return false;
+  const polys = geometry.type === "MultiPolygon"
+    ? geometry.coordinates
+    : geometry.type === "Polygon"
+      ? [geometry.coordinates]
+      : [];
+  for (const poly of polys) {
+    let inside = false;
+    for (const ring of poly) {
+      if (pointInRing(lat, lon, ring)) inside = !inside;
+    }
+    if (inside) return true;
+  }
+  return false;
+}
