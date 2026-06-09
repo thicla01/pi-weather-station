@@ -13,7 +13,7 @@
 const axios = require("axios").default;
 const { recordServiceCall } = require("../serviceStatus");
 const { increment } = require("../requestCounter");
-const { TIMEOUT_MS, pointInUSBox, normalizeSeverity, severityToTier, dedupeConsecutiveParagraphs } = require("./_shared");
+const { TIMEOUT_MS, pointInUSBox, normalizeSeverity, severityToTier, dedupeConsecutiveParagraphs, KM_PER_DEG_LAT, kmPerDegLon } = require("./_shared");
 const { getZoneGeometry, mergeAsMultiPolygon } = require("./nwsZones");
 
 const SERVICE_NAME = "NWS (severe weather alerts)";
@@ -146,22 +146,36 @@ async function tryAlerts(lat, lon) {
     if (n) pairs.push({ alert: n, feature: f });
   }
 
-  // Parallel zone resolution: for each alert with null geometry,
-  // fetch every URL in its `affectedZones`, merge the resulting
-  // polygons into a single MultiPolygon. nwsZones.getZoneGeometry
-  // is cached 24h so the second call from any alert sharing a zone
-  // (very common for Red Flag Warnings clustered in a state) is
-  // free.
-  //
-  // Errors are tolerated per-zone: a failed fetch yields `null`
-  // which mergeAsMultiPolygon silently drops. If ALL zones for an
-  // alert fail, the alert keeps `geometry: null` and the client
-  // simply doesn't render the "Voir sur la carte" button — same as
-  // before this enrichment, no regression.
-  //
-  // Top-level Promise.all is wrapped in try/catch so a transient
-  // upstream issue can't abort the whole alert payload — the user
-  // still gets the textual alert even if zones aren't resolvable.
+  // Resolve zone-only alerts (no inline polygon) to polygons via their
+  // affectedZones so the "Voir sur la carte" button works for them too.
+  // See enrichGeometries for the full rationale + failure handling.
+  await enrichGeometries(pairs);
+
+  const alerts = pairs.map((p) => p.alert);
+  cache.set(key, { alerts, expiresAt: Date.now() + CACHE_TTL_MS });
+  const withGeom = alerts.filter((a) => a.geometry).length;
+  recordServiceCall(SERVICE_NAME, 200, `${alerts.length} alert(s) at ${key} (${withGeom} with geometry)`);
+  increment("nws", "alerts");
+  return alerts;
+}
+
+/**
+ * Resolve any null-geometry alerts in `pairs` to polygons by fetching
+ * their `properties.affectedZones` and merging the results into a single
+ * MultiPolygon. Most NWS alerts (Red Flag Warning, Heat Advisory, Special
+ * Weather Statement, etc.) publish against forecast / fire / county zone
+ * IDs rather than carrying an inline `feature.geometry`; without this they
+ * can't be drawn on the map (or circle-tested for the nearby overlay).
+ *
+ * getZoneGeometry is cached 24 h, so a zone shared by many clustered
+ * alerts is fetched once. Per-zone failures are tolerated (dropped by
+ * mergeAsMultiPolygon); an alert whose every zone fails keeps
+ * geometry:null — no regression, it simply isn't mapped.
+ *
+ * @param {Array<{alert: Object, feature: Object}>} pairs
+ * @returns {Promise<void>} mutates each pair's `alert.geometry` in place
+ */
+async function enrichGeometries(pairs) {
   try {
     await Promise.all(pairs.map(async ({ alert, feature }) => {
       if (alert.geometry) return;
@@ -174,19 +188,143 @@ async function tryAlerts(lat, lon) {
       if (merged) alert.geometry = merged;
     }));
   } catch (err) {
-    // Defensive — Promise.all on the inner per-zone fetches already
-    // catches individually, so this outer catch only triggers on a
-    // truly unexpected runtime error. Log it but continue with
-    // whatever geometries we managed to resolve before the throw.
+    // Defensive — the inner per-zone fetches already catch individually,
+    // so this only trips on a truly unexpected runtime error. Continue
+    // with whatever geometries resolved before the throw.
     console.warn("[nws] zone-geometry enrichment failed:", err.message);
   }
+}
 
+// ---------------------------------------------------------------------------
+// Nearby-alerts support (GET /api/nearby-alerts). tryAlerts above answers
+// "what's at this exact spot?"; the radius overlay needs "what's active
+// across the area around this spot?". The NWS alerts API has no radius
+// parameter, so we fetch by US state (?area=XX) and let the controller cull
+// to the circle with circleIntersectsPolygon. The state(s) a radius circle
+// touches are resolved from its bounding-box corners via NWS /points (1
+// state typically, 2 at a border corner).
+// ---------------------------------------------------------------------------
+
+const STATE_TTL_MS = 24 * 60 * 60 * 1000; // a point→state mapping is static; cache 24 h
+const stateCache = new Map(); // "lat,lon" (2-dp) → { state, expiresAt }
+const areaCache = new Map();  // "XX" → { alerts, expiresAt }
+
+/**
+ * Resolve the 2-letter US state for a point via NWS /points. Cached 24 h.
+ * Returns null for points outside US land coverage (404) or on transient
+ * failure (not cached, so a later call can retry). Errs toward the nearest
+ * place's state near a border, which is harmless — over-including a
+ * neighbour state just means the circle filter culls a few extra alerts.
+ *
+ * @param {Number} lat
+ * @param {Number} lon
+ * @returns {Promise<String|null>}
+ */
+async function resolveState(lat, lon) {
+  const key = `${lat.toFixed(2)},${lon.toFixed(2)}`;
+  const cached = stateCache.get(key);
+  if (cached && Date.now() < cached.expiresAt) return cached.state;
+  try {
+    const resp = await axios.get(
+      `https://api.weather.gov/points/${lat.toFixed(4)},${lon.toFixed(4)}`,
+      { timeout: TIMEOUT_MS, headers: { "User-Agent": USER_AGENT, "Accept": "application/geo+json" } },
+    );
+    const state = resp.data?.properties?.relativeLocation?.properties?.state || null;
+    stateCache.set(key, { state, expiresAt: Date.now() + STATE_TTL_MS });
+    return state;
+  } catch (err) {
+    if (err?.response?.status === 404) {
+      // Genuine "no US land here" — cache the negative so we don't re-ask.
+      stateCache.set(key, { state: null, expiresAt: Date.now() + STATE_TTL_MS });
+      return null;
+    }
+    return null; // transient — don't cache, allow a later retry
+  }
+}
+
+/**
+ * The five sample points (centre + four bounding-box corners) of a radius
+ * circle, used to discover which state(s) the circle spans. Pure — exported
+ * for unit tests.
+ *
+ * @param {Number} lat
+ * @param {Number} lon
+ * @param {Number} radiusKm
+ * @returns {Array<Array<Number>>} [[lat, lon], ...]
+ */
+function circleBboxCorners(lat, lon, radiusKm) {
+  const dLat = radiusKm / KM_PER_DEG_LAT;
+  const dLon = radiusKm / (Math.abs(kmPerDegLon(lat)) || 1e-9);
+  return [
+    [lat, lon],
+    [lat + dLat, lon - dLon],
+    [lat + dLat, lon + dLon],
+    [lat - dLat, lon - dLon],
+    [lat - dLat, lon + dLon],
+  ];
+}
+
+/**
+ * Distinct US state codes a radius circle touches, resolved from its
+ * bounding-box corners. Empty array if none resolve (e.g. fully in Canada).
+ *
+ * @param {Number} lat
+ * @param {Number} lon
+ * @param {Number} radiusKm
+ * @returns {Promise<Array<String>>}
+ */
+async function resolveStatesForCircle(lat, lon, radiusKm) {
+  const corners = circleBboxCorners(lat, lon, radiusKm);
+  const states = await Promise.all(
+    corners.map(([la, lo]) => resolveState(la, lo).catch(() => null)),
+  );
+  return [...new Set(states.filter(Boolean))];
+}
+
+/**
+ * Fetch + normalise + geometry-enrich every active NWS alert for a US
+ * state (?area=XX), cached 5 min like the point feed. Best-effort: returns
+ * an empty array on failure so the nearby orchestrator can still merge the
+ * other states + ECCC rather than blanking everything.
+ *
+ * @param {String} area 2-letter state / marine code
+ * @returns {Promise<Array<Object>>}
+ */
+async function fetchAlertsForArea(area) {
+  const cached = areaCache.get(area);
+  if (cached && Date.now() < cached.expiresAt) return cached.alerts;
+
+  let resp;
+  try {
+    resp = await axios.get(
+      `https://api.weather.gov/alerts/active?area=${encodeURIComponent(area)}`,
+      { timeout: TIMEOUT_MS, headers: { "User-Agent": USER_AGENT, "Accept": "application/geo+json" } },
+    );
+  } catch (err) {
+    recordServiceCall(SERVICE_NAME, err?.response?.status || 500, `area ${area} fetch failed`);
+    return [];
+  }
+
+  const features = resp.data?.features || [];
+  const pairs = [];
+  for (const f of features) {
+    const n = normalize(f);
+    if (n) pairs.push({ alert: n, feature: f });
+  }
+  await enrichGeometries(pairs);
   const alerts = pairs.map((p) => p.alert);
-  cache.set(key, { alerts, expiresAt: Date.now() + CACHE_TTL_MS });
+  areaCache.set(area, { alerts, expiresAt: Date.now() + CACHE_TTL_MS });
   const withGeom = alerts.filter((a) => a.geometry).length;
-  recordServiceCall(SERVICE_NAME, 200, `${alerts.length} alert(s) at ${key} (${withGeom} with geometry)`);
+  recordServiceCall(SERVICE_NAME, 200, `${alerts.length} alert(s) in ${area} (${withGeom} with geometry)`);
   increment("nws", "alerts");
   return alerts;
 }
 
-module.exports = { tryAlerts, SERVICE_NAME };
+module.exports = {
+  tryAlerts,
+  SERVICE_NAME,
+  resolveStatesForCircle,
+  fetchAlertsForArea,
+  // Internal helpers exposed for unit tests (see test/nearbyAlerts.test.js).
+  __test: { circleBboxCorners },
+};
