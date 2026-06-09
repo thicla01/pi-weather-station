@@ -336,6 +336,7 @@
     "nearbyTitle": "Nearby alerts",
     "nearbyWithin": "{{count}} within {{radius}} {{unit}}",
     "nearbyNotMapped": "+{{count}} not mapped",
+    "nearbyHere": "{{count}} alerts here",
     "timeline": {
       "now": "now",
       "plusMin": "+{{min}} min",
@@ -378,6 +379,7 @@
     "radarOverlaysNeedMaximize": "Expand the radar first to use this control",
     "showNearbyAlerts": "Show nearby alerts",
     "hideNearbyAlerts": "Hide nearby alerts",
+    "recenterHere": "Re-center here",
     "showAiSummary": "Show AI summary section",
     "hideAiSummary": "Hide AI summary section",
     "openUpdate": "Show update modal",

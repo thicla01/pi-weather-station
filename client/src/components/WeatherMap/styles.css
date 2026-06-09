@@ -85,6 +85,61 @@
   opacity: 0.7;
 }
 
+/* Nearby-alerts tap popup (Phase 3b). The wrapper class is applied to the
+   Leaflet popup root so its chrome (the white box + tip) adopts the active
+   palette — important for night-red, where a default white popup would
+   wreck night vision. The inner content classes carry the layout. */
+.survey-popup-wrapper :global(.leaflet-popup-content-wrapper),
+.survey-popup-wrapper :global(.leaflet-popup-tip) {
+  background: var(--c-surface, #fbf7ee);
+  color: var(--c-text, #2a2620);
+  border: 1px solid var(--c-border, rgba(0, 0, 0, 0.12));
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.25);
+}
+.survey-popup-wrapper :global(.leaflet-popup-content) {
+  margin: 0;
+  width: auto !important;
+}
+.survey-popup { min-width: 200px; max-width: 280px; }
+.survey-head {
+  font-family: "Geist Mono", monospace;
+  font-size: 11px;
+  font-weight: 600;
+  padding: 9px 12px 6px;
+  color: var(--c-text-dim, #6d655a);
+}
+.survey-list { max-height: 40vh; overflow-y: auto; }
+.survey-row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--c-border, rgba(0, 0, 0, 0.08));
+}
+.survey-row:last-child { border-bottom: none; }
+.survey-title {
+  flex: 1;
+  min-width: 0;
+  font-size: 12.5px;
+  line-height: 1.3;
+  color: var(--c-text, #2a2620);
+}
+.survey-recenter {
+  display: block;
+  width: 100%;
+  padding: 9px 12px;
+  border: none;
+  border-top: 1px solid var(--c-border, rgba(0, 0, 0, 0.12));
+  background: transparent;
+  color: var(--c-accent, #b85a18);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  text-align: center;
+  cursor: pointer;
+}
+.survey-recenter:active { background: var(--c-accent-soft, rgba(184, 90, 24, 0.18)); }
+
 /* In v3 ambient layouts the right rail covers the bottom-right
  * corner of the map (where the legend lives by default), so the
  * legend sits behind the AI Summary slab and is invisible. Move it

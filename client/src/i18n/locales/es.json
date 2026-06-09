@@ -336,6 +336,7 @@
     "nearbyTitle": "Alertas cercanas",
     "nearbyWithin": "{{count}} en {{radius}} {{unit}}",
     "nearbyNotMapped": "+{{count}} no mapeada(s)",
+    "nearbyHere": "{{count}} alertas aquí",
     "timeline": {
       "now": "ahora",
       "plusMin": "+{{min}} min",
@@ -378,6 +379,7 @@
     "radarOverlaysNeedMaximize": "Amplíe primero el radar para usar este control",
     "showNearbyAlerts": "Mostrar alertas cercanas",
     "hideNearbyAlerts": "Ocultar alertas cercanas",
+    "recenterHere": "Recentrar aquí",
     "showAiSummary": "Mostrar la sección de IA",
     "hideAiSummary": "Ocultar la sección de IA",
     "openUpdate": "Mostrar la ventana de actualización",
