@@ -143,4 +143,29 @@ async function tryAlerts(lat, lon) {
   return matching;
 }
 
-module.exports = { tryAlerts, SERVICE_NAME };
+/**
+ * Return EVERY active Canadian alert, normalised, with no point filter —
+ * the broad set the nearby-alerts overlay culls to a radius itself. The
+ * underlying feed is the same cached one `tryAlerts` uses (a few dozen
+ * features), so this is cheap. Best-effort: returns an empty array on
+ * upstream failure so the nearby orchestrator can still merge the US side.
+ *
+ * @returns {Promise<Array<Object>>}
+ */
+async function fetchAllNormalized() {
+  let features;
+  try {
+    features = await getFeed();
+  } catch (err) {
+    recordServiceCall(SERVICE_NAME, err?.response?.status || 500, "feed fetch failed");
+    return [];
+  }
+  const out = [];
+  for (const feature of features) {
+    const n = normalize(feature);
+    if (n) out.push(n);
+  }
+  return out;
+}
+
+module.exports = { tryAlerts, SERVICE_NAME, fetchAllNormalized };

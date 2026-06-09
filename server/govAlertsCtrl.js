@@ -17,7 +17,15 @@ const sources = {
   eccc: require("./govAlertSources/eccc"),
 };
 
+const { circleIntersectsPolygon } = require("./govAlertSources/_shared");
+
 const SEVERITY_RANK = { extreme: 4, severe: 3, moderate: 2, minor: 1 };
+
+// Nearby-alerts radius bounds — the slider's 50–100 km range, with a
+// defensive 10 km floor in case a client passes something smaller.
+const NEARBY_MIN_RADIUS_KM = 10;
+const NEARBY_MAX_RADIUS_KM = 100;
+const NEARBY_DEFAULT_RADIUS_KM = 50;
 
 /**
  * Sort merged alerts by descending severity, ties broken by
@@ -87,4 +95,94 @@ async function getWeatherAlerts(req, res) {
   return res.status(200).json({ alerts: sorted }).end();
 }
 
-module.exports = { getWeatherAlerts, getActiveAlertsAt };
+/**
+ * Collect active government alerts whose polygon comes within `radiusKm`
+ * of (lat, lon), for the "nearby alerts" display-only overlay. Unlike
+ * getActiveAlertsAt (point-in-polygon at the exact spot), this fetches
+ * broadly — NWS by the state(s) the circle spans, ECCC's whole national
+ * feed — then culls to the circle with circleIntersectsPolygon.
+ *
+ * Alerts with no polygon (a handful of zone-only NWS alerts whose zone
+ * geometry couldn't be resolved) can't be circle-tested or drawn, so they
+ * are omitted from `alerts` and only reported in `residualCount` (the
+ * client's "+N not mapped" note). Nothing here feeds the banner / SenseHat
+ * / eligibility — this whole path is display-only.
+ *
+ * @param {Number} lat
+ * @param {Number} lon
+ * @param {Number} radiusKm
+ * @returns {Promise<{alerts: Array<Object>, residualCount: Number}>}
+ */
+async function getNearbyAlertsAt(lat, lon, radiusKm) {
+  const collected = [];
+
+  // US — fetch by the state(s) the circle's bbox corners land in.
+  let states = [];
+  try {
+    states = await sources.nws.resolveStatesForCircle(lat, lon, radiusKm);
+  } catch {
+    states = [];
+  }
+  if (states.length) {
+    const perState = await Promise.all(
+      states.map((s) => sources.nws.fetchAlertsForArea(s).catch(() => [])),
+    );
+    for (const arr of perState) if (Array.isArray(arr)) collected.push(...arr);
+  }
+
+  // Canada — the whole (cached) national feed; the circle filter below
+  // culls anything actually too far, so this naturally covers a US point
+  // near the border without any extra coverage logic.
+  try {
+    const ca = await sources.eccc.fetchAllNormalized();
+    if (Array.isArray(ca)) collected.push(...ca);
+  } catch {
+    /* best-effort — one source failing must not blank the other */
+  }
+
+  // De-dupe: a state-line alert can surface once per queried state.
+  const byId = new Map();
+  for (const a of collected) {
+    const k = a.id || `${a.source}|${a.eventType}|${a.areaDesc}|${a.expiresAt}`;
+    if (!byId.has(k)) byId.set(k, a);
+  }
+  const unique = [...byId.values()];
+
+  const mappable = unique.filter((a) => a.geometry);
+  const residualCount = unique.length - mappable.length;
+  const inRadius = mappable.filter((a) => circleIntersectsPolygon(lat, lon, radiusKm, a.geometry));
+
+  return { alerts: sortBySeverity(inRadius), residualCount };
+}
+
+/**
+ * GET /api/nearby-alerts?lat&lon&radiusKm
+ * Display-only radius survey of active government alerts around a point.
+ * Always 200; an empty list is valid. `radiusKm` is clamped to the
+ * supported 10–100 km range and echoed back so the client can confirm
+ * what was applied.
+ *
+ * @param {Object} req
+ * @param {Object} req.query
+ * @param {String} req.query.lat
+ * @param {String} req.query.lon
+ * @param {String} req.query.radiusKm
+ * @param {Object} res
+ */
+async function getNearbyAlerts(req, res) {
+  const lat = parseFloat(req.query.lat);
+  const lon = parseFloat(req.query.lon);
+  let radiusKm = parseFloat(req.query.radiusKm);
+  if (isNaN(lat) || isNaN(lon) || lat < -90 || lat > 90 || lon < -180 || lon > 180) {
+    return res.status(400).json("Invalid coordinates").end();
+  }
+  if (isNaN(radiusKm)) radiusKm = NEARBY_DEFAULT_RADIUS_KM;
+  radiusKm = Math.max(NEARBY_MIN_RADIUS_KM, Math.min(NEARBY_MAX_RADIUS_KM, radiusKm));
+
+  const result = await getNearbyAlertsAt(lat, lon, radiusKm);
+
+  res.set("Cache-Control", "public, max-age=300");
+  return res.status(200).json({ ...result, radiusKm }).end();
+}
+
+module.exports = { getWeatherAlerts, getActiveAlertsAt, getNearbyAlerts, getNearbyAlertsAt };

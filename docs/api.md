@@ -402,6 +402,55 @@ Coverage gaps:
 
 - **Outside US and Canada** — both sources skip the call (their bbox check fails) and the orchestrator returns `{ "alerts": [] }`. Europe (MeteoAlarm) and other regions are roadmap items, not yet implemented.
 
+### `GET /api/nearby-alerts`
+**Display-only** radius survey: the active government alert polygons whose area comes within `radiusKm` of the point. Where `/api/weather-alerts` answers "what is active *at* this exact spot?" (point-in-polygon), this answers "what is active *around* me?" so the client can paint every nearby alert on the map. It feeds the "Nearby alerts" map overlay only — never the banner, the SenseHat pulse, or alert eligibility.
+
+How it differs from `/api/weather-alerts`:
+
+- **US** — the NWS alerts API has no radius parameter, so the endpoint fetches by the **state(s) the radius circle spans** (`api.weather.gov/alerts/active?area=XX`), resolved from the circle's bounding-box corners via `api.weather.gov/points/{lat,lon}` (1 state typically, 2 at a border corner; the point→state lookup is cached 24 h). Each state's alerts are normalised + geometry-enriched (zone-only alerts resolved through `affectedZones`, same as the point feed), then culled to the circle.
+- **Canada** — reuses the existing all-Canada ECCC feed (cached) and culls it to the circle, so a US point near the border naturally picks up Canadian alerts without extra coverage logic.
+- **Circle test** — `_shared.circleIntersectsPolygon` (hand-rolled, **no turf.js dependency**): true when the centre is inside the polygon, the polygon is inside the circle, or any polygon edge passes within `radiusKm`. The edge test is what catches a large multi-county alert whose near edge clips the circle even though its centroid sits far outside.
+- **Unmappable alerts** — a rare alert with no resolvable polygon can't be circle-tested or drawn, so it is omitted from `alerts` and only counted in `residualCount` (the client's "+N not mapped" note).
+
+- **Access:** 🌐 Public — rate limited (120 req/min)
+- **Caching:** Per-state NWS cache 5 min, ECCC feed cache 5 min, point→state cache 24 h. Response sets `Cache-Control: public, max-age=300`.
+- **Query params:**
+
+| Parameter | Type | Required | Description |
+|---|---|:---:|---|
+| `lat` | float | ✅ | Latitude |
+| `lon` | float | ✅ | Longitude |
+| `radiusKm` | float | — | Survey radius. Defaults to 50; clamped to the supported 10–100 km range. |
+
+- **Response:**
+
+```json
+{
+  "alerts": [
+    {
+      "source": "NWS",
+      "id": "urn:oid:2.49.0.1.840.0.…",
+      "severity": "moderate",
+      "tier": "orange",
+      "eventType": "Heat Advisory",
+      "title_en": "Heat Advisory",
+      "title_fr": "Heat Advisory",
+      "description_en": "…",
+      "description_fr": "…",
+      "sentAt": "2026-06-08T13:00:00Z",
+      "senderName": "NWS Tulsa OK",
+      "expiresAt": "2026-06-08T24:00:00Z",
+      "areaDesc": "Eastern Oklahoma; …",
+      "geometry": { "type": "Polygon", "coordinates": [[[ -97.06, 35.4 ], "…" ]] }
+    }
+  ],
+  "residualCount": 0,
+  "radiusKm": 100
+}
+```
+
+Every entry carries the same fields as `/api/weather-alerts` (see the table above) and is guaranteed to have a non-null `geometry` (it was selected *by* that geometry). The array is sorted by descending severity, ties broken by descending expiry. `residualCount` is the number of active alerts in the queried area(s) that had no polygon and so could not be placed on the map. `radiusKm` echoes the clamped radius actually applied.
+
 ---
 
 ## Sense HAT Display

@@ -697,8 +697,9 @@ app.get("/api/weather/openmeteo",   apiLimiter, getOpenMeteoWeather);
 const { getPollen } = require("./pollenCtrl");
 app.get("/api/pollen",              apiLimiter, getPollen);
 
-const { getWeatherAlerts } = require("./govAlertsCtrl");
+const { getWeatherAlerts, getNearbyAlerts } = require("./govAlertsCtrl");
 app.get("/api/weather-alerts",      apiLimiter, getWeatherAlerts);
+app.get("/api/nearby-alerts",       apiLimiter, getNearbyAlerts);
 
 // Radar risk-level overlay for the dashed circles in WeatherMap. Reads the
 // "right now" intensity sampled on each ring and maps to a colour tier
