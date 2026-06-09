@@ -453,3 +453,43 @@ export function panWithRailOffset(map, latLng, offset, opts = {}) {
   if (animate) map.panTo(newCenter);
   else map.setView(newCenter, zoom, { animate: false });
 }
+
+/**
+ * Tier → display colour for an alert polygon / chip. Matches the
+ * SeverityChip + AlertBanner palette so the map overlay and the banner
+ * agree. Falls back to a neutral grey for an unexpected tier value.
+ *
+ * @param {?String} tier "red" | "orange" | "yellow"
+ * @returns {String} hex colour
+ */
+export function tierColour(tier) {
+  if (tier === "red") return "#e60000";
+  if (tier === "orange") return "#ee7710";
+  if (tier === "yellow") return "#f0c000";
+  return "#888888";
+}
+
+/**
+ * Leaflet pathOptions for the "nearby alerts" radius ring — the user's
+ * chosen survey extent, drawn as a persistent circle kept visually
+ * distinct from the radar risk rings. Day / dusk / night use the cool
+ * blue, dotted; nightRed keeps the red family (night-vision) and
+ * separates itself by a long dash-dot pattern instead of hue. Stroke
+ * only, matching the radar rings' stroke-only language.
+ *
+ * @param {Boolean} dark dark-mode flag
+ * @param {Boolean} [nightRed] sleep-stage night-red palette override
+ * @returns {object} Leaflet path options for the radius ring circle
+ */
+export function buildRadiusRingOptions(dark, nightRed = false) {
+  if (nightRed) {
+    return { color: "#e07070", weight: 2.5, dashArray: "11 5 2 5", lineCap: "round", fill: false };
+  }
+  return {
+    color: dark ? "#6a8ca8" : "#3a5a78",
+    weight: 2.5,
+    dashArray: "2 7",
+    lineCap: "round",
+    fill: false,
+  };
+}

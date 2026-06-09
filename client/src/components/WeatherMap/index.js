@@ -12,6 +12,7 @@ import {
   WMSTileLayer,
   AttributionControl,
   Marker,
+  Circle,
   CircleMarker,
   Polyline,
   GeoJSON,
@@ -69,6 +70,8 @@ import {
   DIR_OUTER_TO_BEARING,
   ARROW_COLOR,
   DOT_COLOR_BY_TIER,
+  tierColour,
+  buildRadiusRingOptions,
 } from "./geometry";
 
 
@@ -425,6 +428,45 @@ AlertGeometryOverlay.defaultProps = {
 };
 
 /**
+ * Display-only overlay painting every active alert within the user's
+ * radius (the "Nearby alerts" survey) as a tier-coloured GeoJSON
+ * polygon. Unlike `AlertGeometryOverlay` — which renders the single
+ * alert the user picked and auto-fitBounds-zooms to it — this renders N
+ * polygons and never moves the map: it surveys what is already around
+ * the user. Phase 2 of the nearby-alerts feature; the tap popup + count
+ * badge land in Phase 3. Renders nothing when the list is empty (e.g.
+ * the layer toggle is off or no alert falls in the radius).
+ *
+ * @param {object} props
+ * @param {Array<object>} props.alerts nearby alerts (each carries `geometry`)
+ * @returns {JSX.Element|null} the polygon layers, or null when the list is empty
+ */
+const NearbyAlertsOverlay = ({ alerts }) => {
+  if (!Array.isArray(alerts) || alerts.length === 0) return null;
+  return (
+    <>
+      {alerts.map((a) => {
+        if (!a || !a.geometry || !a.id) return null;
+        const colour = tierColour(a.tier);
+        // Same 2 px solid border + 15 % fill as the single-alert overlay
+        // so radar reads through and the solid border stays distinct from
+        // the dashed radar/risk circles.
+        const style = { color: colour, weight: 2, fillColor: colour, fillOpacity: 0.15, dashArray: null };
+        return <GeoJSON key={a.id} data={a.geometry} style={() => style} />;
+      })}
+    </>
+  );
+};
+
+NearbyAlertsOverlay.propTypes = {
+  alerts: PropTypes.array,
+};
+
+NearbyAlertsOverlay.defaultProps = {
+  alerts: [],
+};
+
+/**
  * Weather map
  *
  * @param {object} props
@@ -503,6 +545,12 @@ const WeatherMap = ({ zoom, dark }) => {
     highlightedAlertId,
     setHighlightedAlertId,
     govAlerts,
+    // Nearby-alerts overlay (Phase 2): the radius survey layer + its
+    // user-set radius. Display-only — gated on showWeatherAlerts, OFF by
+    // default until the Phase 3 dock toggle wires it up.
+    showWeatherAlerts,
+    nearbyAlerts,
+    alertRadiusKm,
   } = useContext(AppContext);
 
   // Clear the map-zone highlight when the alert it points at is no
@@ -990,6 +1038,18 @@ const WeatherMap = ({ zoom, dark }) => {
         {radarAnalysisEnabled && markerPosition && extendedRadarRadius && currentMapZoom < RING_HIDE_ZOOM ? (
           <RiskRing center={markerPosition} radius={outerRadiusMeters} risk={outerRisk} dark={dark} aiOff={!aiSummaryAvailable} nightRed={nightRed} />
         ) : null}
+        {/* Nearby-alerts radius ring (Phase 2) — the user's survey extent,
+            persistent while the layer is on. A cool-blue dotted circle
+            (red dash-dot in nightRed) kept distinct from the radar risk
+            rings. Hidden when zoomed in past the radar rings' threshold,
+            same as them, since a 50-100 km circle is off-screen there. */}
+        {showWeatherAlerts && markerPosition && currentMapZoom < RING_HIDE_ZOOM ? (
+          <Circle
+            center={markerPosition}
+            radius={alertRadiusKm * 1000}
+            pathOptions={buildRadiusRingOptions(dark, nightRed)}
+          />
+        ) : null}
         {radarAnalysisEnabled && markerPosition && showSamplingPoints && currentMapZoom < RING_HIDE_ZOOM
           ? buildSamplingPoints(markerPosition, extendedRadarRadius, distanceUnit).map(
               ({ position, key }, idx) => {
@@ -1076,6 +1136,11 @@ const WeatherMap = ({ zoom, dark }) => {
           highlightedAlertId={highlightedAlertId}
           govAlerts={govAlerts}
         />
+        {/* Nearby-alerts survey polygons (Phase 2) — every active alert
+            within the radius, painted tier-coloured. Display-only; gated
+            on the layer toggle (OFF by default until the Phase 3 dock
+            button). Never moves the map. */}
+        {showWeatherAlerts ? <NearbyAlertsOverlay alerts={nearbyAlerts} /> : null}
       </MapContainer>
       {/* Legend + timeline are RainViewer-specific (the legend's colour
           scale matches RainViewer's intensity-encoded palette, and the
