@@ -16,6 +16,7 @@ import locationOutlineIcon from "@iconify/icons-carbon/location";
 import timePlotIcon from "@iconify/icons-carbon/time-plot";
 import windGustsIcon from "@iconify/icons-carbon/wind-gusts";
 import legendIcon from "@iconify/icons-carbon/legend";
+import warningAltIcon from "@iconify/icons-carbon/warning-alt";
 import contrastIcon from "@iconify/icons-carbon/contrast";
 import automaticIcon from "@iconify/icons-carbon/automatic";
 import moonIcon from "@iconify/icons-carbon/moon";
@@ -41,6 +42,14 @@ import renewIcon from "@iconify/icons-carbon/renew";
 // the icon reads as a constant "this button is about the red palette"
 // signal. See ControlButtons styles + state-rendering notes below.
 const MOON_COLOR = "#c44040";
+
+// Worst-tier colour for the nearby-alerts count badge. Dark ink on the
+// yellow tier (the gold is too light for white text); white otherwise.
+const NEARBY_TIER_BADGE = {
+  red: { bg: "#e60000", fg: "#fff" },
+  orange: { bg: "#ee7710", fg: "#fff" },
+  yellow: { bg: "#f0c000", fg: "#2a2008" },
+};
 
 // Toast auto-dismiss window. 2500 ms is long enough to read a short
 // localized phrase ("Mode auto activé") on a 7" kiosk without dragging
@@ -95,6 +104,9 @@ const ControlButtons = ({ grouped = false }) => {
     radarSource,
     showDirectionArrows,
     toggleDirectionArrows,
+    showWeatherAlerts,
+    toggleWeatherAlerts,
+    nearbyAlerts,
     hideRadarLegend,
     saveHideRadarLegend,
     toggleSettingsMenuOpen,
@@ -124,6 +136,12 @@ const ControlButtons = ({ grouped = false }) => {
   // always visible over the full-bleed map) — we only want to disable
   // when actively on mobile mini.
   const radarOverlaysDisabled = mobileRadarMaximized === false;
+
+  // Nearby-alerts count badge — number in the radius, coloured to the
+  // worst tier present. nearbyAlerts is server-sorted severity-desc, so
+  // entry 0 is the worst. Feeds the badge only; never the trigger path.
+  const nearbyAlertCount = Array.isArray(nearbyAlerts) ? nearbyAlerts.length : 0;
+  const nearbyWorst = NEARBY_TIER_BADGE[nearbyAlerts && nearbyAlerts[0] && nearbyAlerts[0].tier] || { bg: "#888888", fg: "#fff" };
 
   // Toast state — short transient label shown just above the dock to
   // confirm "what just happened" when the user taps a toggle. Each
@@ -395,6 +413,43 @@ const ControlButtons = ({ grouped = false }) => {
       <InlineIcon icon={legendIcon} />
     </div>
   ) : null;
+  // Nearby-alerts overlay toggle (Phase 3). Warning-triangle glyph; same
+  // localStorage-instant idiom + radarOverlaysDisabled gate as the legend
+  // button. When ON and alerts are in range, a count badge coloured to
+  // the worst tier present sits on the corner. Display-only — toggling
+  // never touches the banner / SenseHat / eligibility path.
+  const btnWeatherAlerts = (
+    <div
+      key="weatherAlerts"
+      data-dock-priority="secondary"
+      onClick={(e) => {
+        if (radarOverlaysDisabled) {
+          notify("toasts.radarOverlaysNeedMaximize", e);
+          return;
+        }
+        toggleWeatherAlerts();
+        notify(showWeatherAlerts ? "toasts.nearbyAlertsOff" : "toasts.nearbyAlertsOn", e);
+      }}
+      className={`${styles.alertToggle} ${radarOverlaysDisabled ? styles.buttonDisabled : ""} ${showWeatherAlerts && !radarOverlaysDisabled ? styles.buttonDown : ""}`}
+      title={radarOverlaysDisabled
+        ? t("controls.radarOverlaysNeedMaximize")
+        : t(showWeatherAlerts ? "controls.hideNearbyAlerts" : "controls.showNearbyAlerts")}
+      aria-label={radarOverlaysDisabled
+        ? t("controls.radarOverlaysNeedMaximize")
+        : t(showWeatherAlerts ? "controls.hideNearbyAlerts" : "controls.showNearbyAlerts")}
+      aria-disabled={radarOverlaysDisabled || undefined}
+    >
+      <InlineIcon icon={warningAltIcon} />
+      {showWeatherAlerts && nearbyAlertCount > 0 ? (
+        <span
+          className={styles.alertCountBadge}
+          style={{ backgroundColor: nearbyWorst.bg, color: nearbyWorst.fg }}
+        >
+          {nearbyAlertCount}
+        </span>
+      ) : null}
+    </div>
+  );
   const btnContrast = (
     <div
       key="contrast"
@@ -609,6 +664,7 @@ const ControlButtons = ({ grouped = false }) => {
           {btnTimeline}
           {btnArrows}
           {btnLegend}
+          {btnWeatherAlerts}
           {btnRings}
           {btnBot}
         </div>
@@ -640,6 +696,7 @@ const ControlButtons = ({ grouped = false }) => {
       {btnTimeline}
       {btnArrows}
       {btnLegend}
+      {btnWeatherAlerts}
       {btnContrast}
       {btnAuto}
       {btnNightRed}

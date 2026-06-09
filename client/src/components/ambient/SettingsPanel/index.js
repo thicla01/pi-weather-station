@@ -734,6 +734,10 @@ const SectionAdvanced = ({ ctx, lang, remote }) => {
     saveAdvancedDisplayFlag,
     setRadarOpacityLightLive,
     setRadarOpacityDarkLive,
+    // Nearby-alerts radius (Phase 3)
+    alertRadiusKm,
+    setAlertRadiusKmLive,
+    distanceUnit,
     // AI group
     radarAnalysisEnabled,
     extendedRadarRadius,
@@ -819,6 +823,24 @@ const SectionAdvanced = ({ ctx, lang, remote }) => {
               disabled={remote}
             />
           </div>
+
+          {/* ── Nearby alerts ──────────────────────────────────────── */}
+          <div className={`${styles.subhead} ${styles.subheadGap}`}>
+            {lbl(lang, "Nearby alerts", "Alertes à proximité", "Alertas cercanas")}
+          </div>
+          {/* Survey radius for the display-only nearby-alerts overlay.
+              Stored canonically in km; the readout derives mi when the
+              distance unit is imperial (50/60/…/100 km ≈ 31/37/…/62 mi). */}
+          <RangeSlider
+            label={lbl(lang, "Alert radius", "Rayon d'alerte", "Radio de alerta")}
+            value={alertRadiusKm}
+            min={50}
+            max={100}
+            step={10}
+            format={(v) => (distanceUnit === "mi" ? `${Math.round(v / 1.609344)} mi` : `${v} km`)}
+            onChange={setAlertRadiusKmLive}
+            disabled={remote}
+          />
 
           {/* ── AI / radar analysis ────────────────────────────────── */}
           <div className={`${styles.subhead} ${styles.subheadGap}`}>

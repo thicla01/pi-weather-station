@@ -1578,6 +1578,22 @@ export function AppContextProvider({ children }) {
     }, 500);
   };
 
+  // Debounced setter for the nearby-alerts radius slider. State updates
+  // immediately (the survey ring redraws live and the next fetch keys on
+  // the new value); the PATCH is delayed 500 ms so dragging doesn't spam
+  // the server. Persisted under advanced.alerts.radius via
+  // buildAdvancedSubtree — same pattern as the radar-opacity sliders.
+  const alertRadiusSaveTimerRef = useRef(null);
+  const setAlertRadiusKmLive = (v) => {
+    setAlertRadiusKm(v);
+    clearTimeout(alertRadiusSaveTimerRef.current);
+    alertRadiusSaveTimerRef.current = setTimeout(() => {
+      axios
+        .patch("/setting", { key: "advanced", val: buildAdvancedSubtree({ alerts: { radius: v } }) })
+        .catch(() => undefined);
+    }, 500);
+  };
+
   // Reflect lightModeStyle into a CSS custom property so the panel,
   // panel-toggle and radar legend backgrounds tint to match the Mapbox
   // style. The native Mapbox styles (light-v10 / light-v11) are very pale,
@@ -1873,6 +1889,7 @@ export function AppContextProvider({ children }) {
     showWeatherAlerts,
     toggleWeatherAlerts,
     alertRadiusKm,
+    setAlertRadiusKmLive,
     nearbyAlerts,
     nearbyResidualCount,
     aqhiInfo,
