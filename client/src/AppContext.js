@@ -366,6 +366,33 @@ export function AppContextProvider({ children }) {
       return next;
     });
   }, []);
+  // Nearby-alerts overlay — a display-only radius survey of active
+  // government alerts (the map layer added in Phase 2). On/off is a
+  // per-device view preference like showDirectionArrows (localStorage,
+  // default OFF so the kiosk stays quiet until opted in); the radius
+  // magnitude is a configured value persisted server-side in
+  // advanced.alerts.radius. The dock toggle, tap popup and radius slider
+  // arrive in Phase 3 — Phase 2 wires the data + map layer only.
+  const [showWeatherAlerts, setShowWeatherAlerts] = useState(() => {
+    if (typeof window === "undefined") return false;
+    return window.localStorage.getItem("showWeatherAlerts") === "true";
+  });
+  const toggleWeatherAlerts = useCallback(() => {
+    setShowWeatherAlerts((prev) => {
+      const next = !prev;
+      try { window.localStorage.setItem("showWeatherAlerts", String(next)); } catch { /* localStorage may be unavailable */ }
+      return next;
+    });
+  }, []);
+  // Canonical alert-survey radius in KILOMETRES (the Phase 3 slider derives
+  // its mi labels from this). Default 50 km — the quietest stop; overwritten
+  // from advanced.alerts.radius on settings load.
+  const [alertRadiusKm, setAlertRadiusKm] = useState(50);
+  // In-radius alerts (each with geometry) from /api/nearby-alerts, plus the
+  // count of active alerts in the queried area that have no mappable polygon
+  // (the "+N not mapped" legend note, surfaced in Phase 3).
+  const [nearbyAlerts, setNearbyAlerts] = useState([]);
+  const [nearbyResidualCount, setNearbyResidualCount] = useState(0);
   // Last AQHI payload returned by /api/air-quality (lifted from
   // <UvAqiBadges> so the Debug panel can display the chosen station's
   // name, distance, observation/forecast kind without refetching).
@@ -867,6 +894,11 @@ export function AppContextProvider({ children }) {
               if (typeof advancedDisplay.radarOpacityDark === "number") {
                 setRadarOpacityDark(advancedDisplay.radarOpacityDark);
               }
+            }
+            // Nearby-alerts radius (advanced.alerts.radius), canonical km.
+            const advancedAlerts = res.advanced && res.advanced.alerts;
+            if (advancedAlerts && typeof advancedAlerts.radius === "number") {
+              setAlertRadiusKm(advancedAlerts.radius);
             }
             // Sleep mode (advanced.sleep.*). All optional — fall back to
             // defaults already declared in useState if absent or malformed.
@@ -1380,6 +1412,13 @@ export function AppContextProvider({ children }) {
         enabled: pollenEnabled,
         ...(overrides.pollen || {}),
       },
+      // Nearby-alerts radius. MUST stay in the builder: this function
+      // replaces the whole advanced blob on every PATCH, so any sub-tree
+      // omitted here is wiped (the documented 2026-05-23 clobber class).
+      alerts: {
+        radius: alertRadiusKm,
+        ...(overrides.alerts || {}),
+      },
     };
   }
 
@@ -1570,6 +1609,32 @@ export function AppContextProvider({ children }) {
     const interval = setInterval(fetchAlerts, GOV_ALERTS_INTERVAL);
     return () => clearInterval(interval);
   }, [mapGeo]);
+
+  // Nearby-alerts radius survey (display-only overlay). Only polls while
+  // the layer is toggled ON; clears immediately when it's off so the map
+  // doesn't keep stale polygons. Re-fetches when the radius changes. 5 min
+  // cadence — the server caches the upstream feeds and the survey isn't
+  // time-critical. Failures silently keep the previous list.
+  useEffect(() => {
+    if (!showWeatherAlerts || !mapGeo) {
+      setNearbyAlerts([]);
+      setNearbyResidualCount(0);
+      return undefined;
+    }
+    const NEARBY_ALERTS_INTERVAL = 5 * 60 * 1000;
+    const fetchNearby = () => {
+      axios
+        .get(`/api/nearby-alerts?lat=${mapGeo.latitude}&lon=${mapGeo.longitude}&radiusKm=${alertRadiusKm}`)
+        .then((res) => {
+          setNearbyAlerts(Array.isArray(res.data?.alerts) ? res.data.alerts : []);
+          setNearbyResidualCount(Number(res.data?.residualCount) || 0);
+        })
+        .catch(() => undefined);
+    };
+    fetchNearby();
+    const interval = setInterval(fetchNearby, NEARBY_ALERTS_INTERVAL);
+    return () => clearInterval(interval);
+  }, [showWeatherAlerts, mapGeo, alertRadiusKm]);
 
   // Periodic weather data refresh. Previously this lived in the v2
   // WeatherInfo component, but v3 layouts (LayoutLarge / LayoutMedium)
@@ -1805,6 +1870,11 @@ export function AppContextProvider({ children }) {
     setOuterDirectionVectors,
     showDirectionArrows,
     toggleDirectionArrows,
+    showWeatherAlerts,
+    toggleWeatherAlerts,
+    alertRadiusKm,
+    nearbyAlerts,
+    nearbyResidualCount,
     aqhiInfo,
     setAqhiInfo,
     pollenInfo,
