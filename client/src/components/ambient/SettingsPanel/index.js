@@ -862,7 +862,13 @@ const SectionAdvanced = ({ ctx, lang, remote }) => {
                 "Anillos de análisis + resumen IA radar")}
             />
             <Toggle
-              label={lbl(lang, "Extended radius (100 km)", "Rayon étendu (100 km)", "Radio extendido (100 km)")}
+              /* The outer radar ring distance follows the unit (mirrors
+                 RADAR_GEOMETRY's outer max: 100 km / 60 mi) — was hardcoded
+                 "100 km", which read wrong in imperial. */
+              label={(() => {
+                const d = distanceUnit === "mi" ? "60 mi" : "100 km";
+                return lbl(lang, `Extended radius (${d})`, `Rayon étendu (${d})`, `Radio extendido (${d})`);
+              })()}
               value={Boolean(extendedRadarRadius)}
               onChange={ai("extendedRadius")}
               disabled={remote}
