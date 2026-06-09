@@ -386,7 +386,7 @@ The two sources run in parallel — each is cached, so the cost is negligible ev
 |---|---|---|
 | `source` | string | `NWS` \| `ECCC` — drives the badge label on the banner |
 | `id` | string\|null | Upstream alert identifier; useful for de-duplication if more sources are added later |
-| `severity` | string | `minor` \| `moderate` \| `severe` \| `extreme` — normalised from the source's CAP severity (or ECCC's `impact_*` field) |
+| `severity` | string | `minor` \| `moderate` \| `severe` \| `extreme` — normalised from the source's CAP severity (or ECCC's `impact_*` field). **Watches are capped at `moderate`** (a CAP-`Severe` Flood/Tornado Watch is downgraded) so a watch never paints red like a warning; non-watch alerts pass through unchanged. |
 | `tier` | string | `yellow` \| `orange` \| `red` — pre-mapped colour tier matching the radar-derived banner so the client doesn't need to know severity vocabulary |
 | `eventType` | string | Raw upstream event code (`RFW`, `Tornado Warning`, etc.) |
 | `title_en` | string | Short, banner-sized event title in English (capitalised; `event` for NWS, `alert_name_en` for ECCC) |

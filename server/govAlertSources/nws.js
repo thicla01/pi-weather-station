@@ -13,7 +13,7 @@
 const axios = require("axios").default;
 const { recordServiceCall } = require("../serviceStatus");
 const { increment } = require("../requestCounter");
-const { TIMEOUT_MS, pointInUSBox, normalizeSeverity, severityToTier, dedupeConsecutiveParagraphs, KM_PER_DEG_LAT, kmPerDegLon } = require("./_shared");
+const { TIMEOUT_MS, pointInUSBox, normalizeSeverity, severityToTier, isWatchEvent, capWatchSeverity, dedupeConsecutiveParagraphs, KM_PER_DEG_LAT, kmPerDegLon } = require("./_shared");
 const { getZoneGeometry, mergeAsMultiPolygon } = require("./nwsZones");
 
 const SERVICE_NAME = "NWS (severe weather alerts)";
@@ -46,7 +46,9 @@ function cacheKey(lat, lon) {
 function normalize(feature) {
   const p = feature?.properties;
   if (!p || !p.event) return null;
-  const severity = normalizeSeverity(p.severity);
+  // Cap watches at moderate so a CAP-Severe Flood/Tornado Watch doesn't
+  // render red like a Warning (see capWatchSeverity / ROADMAP item #184).
+  const severity = capWatchSeverity(normalizeSeverity(p.severity), isWatchEvent(p.event));
   return {
     source: "NWS",
     id: feature.id || p.id || null,
