@@ -65,6 +65,26 @@
   white-space: nowrap;
 }
 
+/* Nearby-alerts block appended to the legend when the survey overlay
+   is on (Phase 3): a separator, the alert-tier key, then the in-radius
+   count + an honest "+N not mapped" note. */
+.nearby-block {
+  margin-top: 7px;
+  padding-top: 7px;
+  border-top: 1px solid var(--c-border-hybrid, rgba(120, 120, 120, 0.35));
+}
+.nearby-count {
+  margin-top: 5px;
+  font-size: 10px;
+  line-height: 1.35;
+}
+.nearby-more {
+  display: block;
+  margin-top: 2px;
+  font-size: 9px;
+  opacity: 0.7;
+}
+
 /* In v3 ambient layouts the right rail covers the bottom-right
  * corner of the map (where the legend lives by default), so the
  * legend sits behind the AI Summary slab and is invisible. Move it
