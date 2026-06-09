@@ -22,6 +22,8 @@ const {
   pointInPolygon,
   normalizeSeverity,
   severityToTier,
+  isWatchEvent,
+  capWatchSeverity,
   capitalizeFirst,
   dedupeConsecutiveParagraphs,
 } = require("./_shared");
@@ -59,7 +61,12 @@ async function getFeed() {
 function normalize(feature) {
   const p = feature?.properties;
   if (!p || !p.alert_code) return null;
-  const severity = normalizeSeverity(p.impact_en);
+  // Cap watches at moderate (see capWatchSeverity / ROADMAP #184) — keyed
+  // off the English alert name ("...watch"), with "veille" as a fallback.
+  const severity = capWatchSeverity(
+    normalizeSeverity(p.impact_en),
+    isWatchEvent(p.alert_name_en || p.alert_name_fr),
+  );
   return {
     source: "ECCC",
     id: p.id || feature.id || null,

@@ -126,6 +126,41 @@ function severityToTier(severity) {
 }
 
 /**
+ * Heuristic: does this alert's event name denote a *Watch* (vs a Warning,
+ * Advisory or Statement)? Cross-source — matches the English word "watch"
+ * (NWS "Flood Watch", "Tornado Watch", …) and the French "veille" (ECCC)
+ * as a defensive fallback.
+ *
+ * @param {?String} name event name / title (NWS `event`, ECCC `alert_name_en`)
+ * @returns {Boolean} true when the name reads as a watch
+ */
+function isWatchEvent(name) {
+  const s = String(name || "").toLowerCase();
+  return /\bwatch\b/.test(s) || /\bveille\b/.test(s);
+}
+
+/**
+ * Cap a watch's normalized severity at `moderate`. A Watch announces that
+ * conditions are *favourable* (CAP urgency Future / certainty Possible),
+ * not that severe weather is *happening* — yet NWS routinely tags Flood /
+ * Flash Flood / Tornado Watches CAP `Severe`, which would otherwise paint
+ * them red and make them shout exactly as loud as a Warning on the banner,
+ * the map overlay and the SenseHat pulse. Capping the *severity* (not just
+ * the tier) keeps every downstream consumer consistent: the tier drops to
+ * orange, the SeverityChip word becomes "Watch/Veille" (it re-derives from
+ * severity), and severity-sorting ranks the watch below real warnings.
+ * Non-watch alerts and already-sub-severe watches pass through untouched.
+ *
+ * @param {String} severity normalized severity
+ * @param {Boolean} isWatch whether the alert is a watch
+ * @returns {String} the (possibly lowered) severity
+ */
+function capWatchSeverity(severity, isWatch) {
+  if (isWatch && (severity === "severe" || severity === "extreme")) return "moderate";
+  return severity;
+}
+
+/**
  * Capitalize the first letter of a string. Some upstreams (notably
  * ECCC's `alert_name_en` / `alert_name_fr`) emit titles in all
  * lowercase ("rainfall warning"), which reads as broken next to
@@ -306,6 +341,8 @@ module.exports = {
   pointInPolygon,
   normalizeSeverity,
   severityToTier,
+  isWatchEvent,
+  capWatchSeverity,
   capitalizeFirst,
   dedupeConsecutiveParagraphs,
   circleIntersectsPolygon,
