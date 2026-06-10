@@ -24,7 +24,7 @@ const os = require("node:os");
 const path = require("node:path");
 
 const { __test } = require("../server/settingsCtrl");
-const { sanitizeSettings, maskForRemote, preserveServerOwnedAdvanced, ensureSecurePermissions, FILE_MODE, ALLOWED_KEYS, API_KEY_FIELDS, REMOTE_HIDDEN_KEYS } = __test;
+const { sanitizeSettings, maskForRemote, preserveServerOwnedAdvanced, ensureSecurePermissions, mergeAdvancedSubKey, serializeWrite, FILE_MODE, ALLOWED_KEYS, API_KEY_FIELDS, REMOTE_HIDDEN_KEYS } = __test;
 
 // === sanitizeSettings: the input whitelist ===
 
@@ -288,6 +288,61 @@ test("preserveServerOwnedAdvanced: no-op when there's no existing sensehat", () 
 test("preserveServerOwnedAdvanced: ignores keys other than 'advanced'", () => {
   const current = { advanced: { sensehat: { mode: "radar" } } };
   assert.equal(preserveServerOwnedAdvanced(current, "weatherApiKey", "abc"), "abc");
+});
+
+// === mergeAdvancedSubKey: the pure merge behind patchAdvancedSubKey (the
+// single owning-module path that replaced sensehatModeCtrl's raw-fs writer) ===
+
+test("mergeAdvancedSubKey: only patched keys change; other sensehat keys persist", () => {
+  const current = { advanced: { sensehat: { mode: "radar", clockBrightness: 20, radarBrightness: 80 } } };
+  const out = mergeAdvancedSubKey(current, "sensehat", { mode: "clock" });
+  assert.deepEqual(out.advanced.sensehat, { mode: "clock", clockBrightness: 20, radarBrightness: 80 });
+});
+
+test("mergeAdvancedSubKey: sibling advanced subtrees are preserved", () => {
+  const current = { advanced: { ai: { extendedRadius: true }, sensehat: { mode: "weather" } } };
+  const out = mergeAdvancedSubKey(current, "sensehat", { mode: "radar" });
+  assert.deepEqual(out.advanced.ai, { extendedRadius: true });
+  assert.equal(out.advanced.sensehat.mode, "radar");
+});
+
+test("mergeAdvancedSubKey: creates advanced / sub-object when absent", () => {
+  assert.deepEqual(mergeAdvancedSubKey({}, "sensehat", { mode: "clock" }), { advanced: { sensehat: { mode: "clock" } } });
+  assert.deepEqual(mergeAdvancedSubKey({ advanced: {} }, "sensehat", { clockBrightness: 50 }), { advanced: { sensehat: { clockBrightness: 50 } } });
+});
+
+test("mergeAdvancedSubKey: unknown top-level keys are dropped (sanitized on the way out)", () => {
+  const current = { advanced: { sensehat: {} }, rogueKey: "leak", weatherApiKey: "k" };
+  const out = mergeAdvancedSubKey(current, "sensehat", { mode: "auto" });
+  assert.ok(!("rogueKey" in out));
+  assert.equal(out.weatherApiKey, "k"); // whitelisted key kept
+  assert.equal(out.advanced.sensehat.mode, "auto");
+});
+
+test("mergeAdvancedSubKey: does not mutate the input object", () => {
+  const current = { advanced: { sensehat: { mode: "radar" } } };
+  const snapshot = JSON.parse(JSON.stringify(current));
+  mergeAdvancedSubKey(current, "sensehat", { mode: "clock" });
+  assert.deepEqual(current, snapshot);
+});
+
+// === serializeWrite: internal writes run one-at-a-time (no interleaved
+// read-modify-write race between concurrent sensehat patches) ===
+
+test("serializeWrite: queued tasks run sequentially in submission order", async () => {
+  const order = [];
+  const delay = (ms) => new Promise((r) => setTimeout(r, ms));
+  const t1 = serializeWrite(async () => { order.push("1-start"); await delay(15); order.push("1-end"); });
+  const t2 = serializeWrite(async () => { order.push("2-start"); await delay(1); order.push("2-end"); });
+  await Promise.all([t1, t2]);
+  // t2 must not start until t1 has fully finished.
+  assert.deepEqual(order, ["1-start", "1-end", "2-start", "2-end"]);
+});
+
+test("serializeWrite: a rejecting task doesn't poison the chain for the next", async () => {
+  await assert.rejects(serializeWrite(async () => { throw new Error("boom"); }));
+  const out = await serializeWrite(async () => "ok");
+  assert.equal(out, "ok");
 });
 
 // === ensureSecurePermissions: settings.json must be owner-only (0600) ===

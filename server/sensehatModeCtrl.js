@@ -39,7 +39,7 @@ const fs = require("fs");
 const path = require("path");
 const { execFile } = require("child_process");
 const { promisify } = require("util");
-const { getSettingsData } = require("./settingsCtrl");
+const { getSettingsData, patchAdvancedSubKey } = require("./settingsCtrl");
 
 const execFileAsync = promisify(execFile);
 
@@ -235,32 +235,21 @@ async function readPersistedRadarBrightness() {
 }
 
 /**
- * Merge a partial sensehat config into settings.json. The body is
- * spread into `advanced.sensehat` — only keys present in `patch` get
- * written, so calling with `{mode: "clock"}` doesn't reset the
- * clockBrightness already saved.
+ * Merge a partial sensehat config into `advanced.sensehat` of settings.json.
+ * Only keys present in `patch` get written, so calling with `{mode: "clock"}`
+ * doesn't reset the clockBrightness already saved.
  *
- * Bypasses the HTTP /api/settings round-trip to keep the toggle's
- * latency low (one file write instead of three HTTP calls).
+ * Routed through settingsCtrl.patchAdvancedSubKey so settings.json has a
+ * single owning module: the write respects the key whitelist + the 0600 file
+ * mode and is serialised against other internal writes. Previously this wrote
+ * the file directly with raw `fs`, a second unsynchronised writer that
+ * bypassed all of that.
  *
  * @param {object} patch e.g. {mode: "clock"} or {clockBrightness: 70}
+ * @returns {Promise<void>}
  */
 async function persistSensehat(patch) {
-  const fs = require("fs");
-  const path = require("path");
-  const FILE = path.join(__dirname, "..", "settings.json");
-  let existing = {};
-  try {
-    existing = JSON.parse(fs.readFileSync(FILE, "utf8"));
-  } catch {
-    /* fresh install / unreadable — start from {} */
-  }
-  if (!existing.advanced || typeof existing.advanced !== "object") existing.advanced = {};
-  if (!existing.advanced.sensehat || typeof existing.advanced.sensehat !== "object") {
-    existing.advanced.sensehat = {};
-  }
-  Object.assign(existing.advanced.sensehat, patch);
-  fs.writeFileSync(FILE, JSON.stringify(existing), "utf8");
+  await patchAdvancedSubKey("sensehat", patch);
 }
 
 /**
