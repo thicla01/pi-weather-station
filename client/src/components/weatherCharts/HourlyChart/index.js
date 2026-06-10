@@ -57,14 +57,14 @@ const buildChartOptions = ({
         display: true,
         text: title,
         color: fontColor(darkMode, nightRed),
-        font: { family: "Rubik, sans-serif" },
+        font: { family: "Geist, system-ui, -apple-system, sans-serif" },
       },
     },
     scales: {
       x: {
         ticks: {
           color: fontColor(darkMode, nightRed),
-          font: { family: "Rubik, sans-serif" },
+          font: { family: "Geist, system-ui, -apple-system, sans-serif" },
         },
         // Explicit grid colour — Chart.js's default `rgba(0,0,0,0.1)`
         // disappears against dark / nightRed surfaces. See gridColor()
@@ -79,7 +79,7 @@ const buildChartOptions = ({
         position: "left",
         ticks: {
           color: fontColor(darkMode, nightRed),
-          font: { family: "Rubik, sans-serif" },
+          font: { family: "Geist, system-ui, -apple-system, sans-serif" },
           maxTicksLimit: 5,
           callback: (val) => {
             return altMode
@@ -97,7 +97,7 @@ const buildChartOptions = ({
         position: "right",
         ticks: {
           color: fontColor(darkMode, nightRed),
-          font: { family: "Rubik, sans-serif" },
+          font: { family: "Geist, system-ui, -apple-system, sans-serif" },
           maxTicksLimit: 5,
           suggestedMin: 0,
           callback: (val) => {

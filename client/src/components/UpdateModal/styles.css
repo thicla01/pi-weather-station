@@ -8,7 +8,7 @@
   z-index: 4999;
   display: flex;
   flex-direction: column;
-  font-family: "Rubik", sans-serif;
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
   overflow: hidden;
 }
 
@@ -269,7 +269,7 @@
 }
 
 .copy-button {
-  font-family: "Rubik", sans-serif;
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
   font-size: 10px;
   font-weight: 500;
   letter-spacing: 0.05em;
@@ -369,7 +369,7 @@
 
 .skip-button,
 .update-button {
-  font-family: "Rubik", sans-serif;
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.05em;

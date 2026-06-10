@@ -1397,7 +1397,7 @@ const SectionHeader = ({ index, title, subtitle, right }) => (
       <div className={styles.sectionHeaderTitle}>
         {/* `lockIcon` used to render the U+269F glyph as a "Local only"
          * cue here, but it falls back to a tofu rectangle in the
-         * Geist/Rubik stack — the kiosk font set doesn't carry that
+         * Geist font stack — the kiosk font set doesn't carry that
          * codepoint. The same information is now communicated by the
          * green "MODIFIABLE" pill on section 2; sections 3/4 are
          * implicitly local-only via the same write-path. The prop is

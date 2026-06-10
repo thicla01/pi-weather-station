@@ -7,7 +7,7 @@ html, body {
 }
 
 body {
-  font-family: Rubik;
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
 }
 
 /* Respect the OS-level "Reduce Motion" preference (macOS / iOS
