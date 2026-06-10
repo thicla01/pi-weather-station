@@ -347,6 +347,15 @@ else
     fi
 fi
 
+# settings.json holds the API keys (and later the Homebridge credentials).
+# The default umask leaves it 0644 (world-readable); restrict to owner-only
+# so no other local account can read the secrets. The server re-applies this
+# on every start (settingsCtrl.ensureSecurePermissions), but tighten here too
+# so the file is never world-readable even before the service first runs.
+if [ -f "$REPO_DIR/settings.json" ]; then
+    chmod 600 "$REPO_DIR/settings.json"
+fi
+
 # --- Remote network access + SSL cert ---
 echo ""
 echo ">> Remote network access..."
@@ -914,6 +923,10 @@ data["indoorTemperature"] = {
 with open(path, "w") as f:
     json.dump(data, f, indent=2)
 PYEOF
+            # Re-assert 0600: this write embeds the Homebridge password, and
+            # Python's open(path, "w") preserves the existing mode but the
+            # file may have been created 0644 earlier in a custom flow.
+            chmod 600 "$REPO_DIR/settings.json"
             echo ">> indoorTemperature block written to settings.json."
             echo "   To find the exact sensor name, see docs/indoor-temperature.md"
         fi

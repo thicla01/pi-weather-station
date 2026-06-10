@@ -5,6 +5,35 @@ const SETTINGS_FILE = "../settings.json";
 const FILE_PATH = path.join(`${__dirname}/${SETTINGS_FILE}`);
 const ENCODING = "utf8";
 
+// settings.json holds the six API keys plus the indoorTemperature block
+// (Homebridge host + credentials), so it must never be world-readable.
+// Every write below passes this mode so a freshly CREATED file is 0600 from
+// the start; ensureSecurePermissions() re-tightens a file that already
+// exists with looser bits (a fleet install created 0644 before this guard).
+// Mirrors the index.js chmod of the TLS key files.
+const FILE_MODE = 0o600;
+
+/**
+ * Tighten settings.json to owner-only (0600). New files are created 0600 by
+ * the `mode` option on each write; this additionally fixes a pre-existing
+ * file with looser permissions (e.g. an install created 0644 before this
+ * guard shipped — it gets tightened on the next service restart). No-op when
+ * the file is absent (a fresh install creates it 0600). Best-effort: a chmod
+ * failure is logged, not fatal. The `filePath` parameter exists for tests;
+ * production callers pass nothing and tighten the real settings file.
+ *
+ * @param {String} [filePath] path to tighten (defaults to the settings file)
+ */
+function ensureSecurePermissions(filePath = FILE_PATH) {
+  try {
+    if (fs.existsSync(filePath)) {
+      fs.chmodSync(filePath, FILE_MODE);
+    }
+  } catch (err) {
+    console.error(`[settings] could not chmod ${filePath} to 0600: ${err.message}`);
+  }
+}
+
 const ALLOWED_KEYS = new Set([
   "weatherApiKey", "mapApiKey", "reverseGeoApiKey", "anthropicApiKey", "airNowApiKey", "openAqApiKey",
   "startingLat", "startingLon",
@@ -98,7 +127,7 @@ function createSettingsFile(req, res) {
   if (fs.existsSync(FILE_PATH)) {
     return res.status(409).json("settings file already exists").end();
   } else {
-    fs.writeFile(FILE_PATH, JSON.stringify(contents), ENCODING, (err) => {
+    fs.writeFile(FILE_PATH, JSON.stringify(contents), { encoding: ENCODING, mode: FILE_MODE }, (err) => {
       if (err) {
         return res.status(500).json(err).end();
       } else {
@@ -186,7 +215,7 @@ function setSetting(req, res) {
    * @param {Boolean} [newFile] If file is new
    */
   const writeContents = (newSettings, newFile) => {
-    fs.writeFile(FILE_PATH, JSON.stringify(newSettings), ENCODING, (err) => {
+    fs.writeFile(FILE_PATH, JSON.stringify(newSettings), { encoding: ENCODING, mode: FILE_MODE }, (err) => {
       if (err) {
         return res.status(500).json(err).end();
       } else {
@@ -254,7 +283,7 @@ function replaceSettings(req, res) {
       }
     }
     const merged = { ...preserved, ...sanitized };
-    fs.writeFile(FILE_PATH, JSON.stringify(merged), ENCODING, (err) => {
+    fs.writeFile(FILE_PATH, JSON.stringify(merged), { encoding: ENCODING, mode: FILE_MODE }, (err) => {
       if (err) {
         return res.status(500).json(err).end();
       }
@@ -310,7 +339,7 @@ function deleteSetting(req, res) {
     fs.writeFile(
       FILE_PATH,
       JSON.stringify(currentSettings),
-      ENCODING,
+      { encoding: ENCODING, mode: FILE_MODE },
       (err) => {
         if (err) {
           return res.status(500).json(err).end();
@@ -357,12 +386,15 @@ module.exports = {
   createSettingsFile,
   replaceSettings,
   getSettingsData,
+  ensureSecurePermissions,
   // Exported for regression testing only — internal helpers, not part of
   // the public surface. See test/settingsCtrl.test.js.
   __test: {
     sanitizeSettings,
     maskForRemote,
     preserveServerOwnedAdvanced,
+    ensureSecurePermissions,
+    FILE_MODE,
     ALLOWED_KEYS,
     API_KEY_FIELDS,
     REMOTE_HIDDEN_KEYS,

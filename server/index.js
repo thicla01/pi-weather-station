@@ -101,7 +101,15 @@ const {
   deleteSetting,
   createSettingsFile,
   replaceSettings,
+  ensureSecurePermissions,
 } = settingsCtrl;
+
+// Tighten settings.json to 0600 at startup — the file holds the API keys +
+// Homebridge credentials and must not be world-readable. Runs once on every
+// service start, so an existing fleet install created 0644 (before this
+// guard) self-tightens on the next restart. No-op if the file doesn't exist
+// yet (createSettingsFile writes it 0600). Mirrors the TLS-key chmod below.
+ensureSecurePermissions();
 const { getCoords } = geolocationCtrl;
 const { reverseGeocode: proxyReverseGeocode, mapTile, weatherCurrent, weatherHourly, weatherDaily, sunriseSunset, saveCacheToDisk } = proxyCtrl;
 const { responseTimerMiddleware } = require("./responseTimer");
