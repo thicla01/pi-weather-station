@@ -45,7 +45,7 @@
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/claude/pi-weather-station</string>
+    <string>__INSTALL_DIR__</string>
 
     <key>EnvironmentVariables</key>
     <dict>
@@ -65,8 +65,8 @@
 
     <!-- Log output — same file used by the server -->
     <key>StandardOutPath</key>
-    <string>/Users/claude/pi-weather-station/server.log</string>
+    <string>__INSTALL_DIR__/server.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/claude/pi-weather-station/server.log</string>
+    <string>__INSTALL_DIR__/server.log</string>
 </dict>
 </plist>
