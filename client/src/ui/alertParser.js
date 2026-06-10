@@ -7,7 +7,8 @@
  * Returns a list of `{ type, lead, detail }` objects:
  *
  *   - `type`  — canonical section slug, one of:
- *               "intro" | "hazard" | "where" | "when" | "action"
+ *               "intro" | "hazard" | "impact" | "where" | "when" |
+ *               "action" | "observation" | "source" | "section"
  *               (drives the icon + i18n label in the UI)
  *   - `lead`  — short headline-y string (the section's label as
  *               it appeared in the source, e.g. "Hazards" /
@@ -378,12 +379,18 @@ function classifyHeading(heading, lang) {
   // `^until` matches NWS "Until <time>" end-of-validity leads;
   // `^jusqu'` is the French equivalent ("Jusqu'à 22 h").
   if (/^(when|timing|period|période|periodo|until|jusqu')/i.test(h)) return "when";
-  // Hazards / impacts — the danger the alert warns about. Now
-  // distinct from `source` (which used to fold here). HAZARD,
-  // IMPACTS, Dangers, Risques, Aléas, Peligros all collapse into
-  // this single hazard bucket; they're all answering "what's the
-  // danger?".
-  if (/^(what|hazards?|impacts?|dangers?|risques?|aléas?|peligros?)/i.test(h)) return "hazard";
+  // Impacts / consequences — what the hazard DOES (to people,
+  // vegetation, travel), as opposed to what the hazard IS. Split out
+  // of the hazard bucket (2026-06, bug C4): NWS advisories carry both
+  // `* WHAT...` and `* IMPACTS...` blocks, and folding them together
+  // rendered "What's happening" twice in the detail view (observed on
+  // the Klamath Falls Frost Advisory — the impacts block "Frost could
+  // harm sensitive outdoor vegetation" wore the wrong heading).
+  if (/^(impacts?|conséquences?|impactos?)/i.test(h)) return "impact";
+  // Hazards — the danger the alert warns about. Now distinct from
+  // `source` and `impact` (which used to fold here). WHAT, HAZARD,
+  // Dangers, Risques, Aléas, Peligros all answer "what's the danger?".
+  if (/^(what|hazards?|dangers?|risques?|aléas?|peligros?)/i.test(h)) return "hazard";
   // Unknown heading — keep as a generic "section" so the UI can
   // still render it with the upstream wording but a neutral icon.
   return "section";

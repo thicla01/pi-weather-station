@@ -28,7 +28,8 @@ function classifyHeading(heading) {
   if (/^at \d/i.test(h)) return "observation";
   if (/^source/i.test(h)) return "source";
   if (/^(when|timing|period|période|periodo|until|jusqu')/i.test(h)) return "when";
-  if (/^(what|hazards?|impacts?|dangers?|risques?|aléas?|peligros?)/i.test(h)) return "hazard";
+  if (/^(impacts?|conséquences?|impactos?)/i.test(h)) return "impact";
+  if (/^(what|hazards?|dangers?|risques?|aléas?|peligros?)/i.test(h)) return "hazard";
   return "section";
 }
 
@@ -167,9 +168,35 @@ test("classifyHeading: NWS asterisked keywords", () => {
   assert.equal(classifyHeading("WHAT"), "hazard");
   assert.equal(classifyHeading("WHERE"), "where");
   assert.equal(classifyHeading("WHEN"), "when");
-  assert.equal(classifyHeading("IMPACTS"), "hazard");
-  assert.equal(classifyHeading("IMPACT"), "hazard");
+  // IMPACTS split out of the hazard bucket (2026-06, bug C4): WHAT +
+  // IMPACTS both mapping to hazard rendered "What's happening" twice
+  // in the detail view (Klamath Falls Frost Advisory).
+  assert.equal(classifyHeading("IMPACTS"), "impact");
+  assert.equal(classifyHeading("IMPACT"), "impact");
   assert.equal(classifyHeading("PRECAUTIONARY/PREPAREDNESS ACTIONS"), "action");
+});
+
+test("classifyHeading: impact keywords across the three locales", () => {
+  assert.equal(classifyHeading("Impacts"), "impact");
+  assert.equal(classifyHeading("Conséquences"), "impact");
+  assert.equal(classifyHeading("Impactos"), "impact");
+});
+
+// Regression for bug C4 (the Klamath Falls Frost Advisory shape): a
+// WHAT + IMPACTS advisory must produce two DIFFERENTLY-typed sections,
+// never two "hazard" blocks wearing the same heading.
+test("frost-advisory shape: WHAT and IMPACTS get distinct section types", () => {
+  const text = [
+    "* WHAT...Sub-freezing temperatures as low as 30 expected.",
+    "* WHERE...Klamath Basin.",
+    "* WHEN...From 2 AM to 9 AM PDT Saturday.",
+    "* IMPACTS...Frost could harm sensitive outdoor vegetation.",
+  ].join("\n");
+  const sections = parseAlertText(text, "en");
+  const types = sections.map((s) => s.type);
+  assert.deepEqual(types, ["hazard", "where", "when", "impact"]);
+  const impact = sections.find((s) => s.type === "impact");
+  assert.match(impact.detail, /sensitive outdoor vegetation/);
 });
 
 test("classifyHeading: ECCC English headings", () => {
@@ -234,7 +261,7 @@ test("parseAlertText: NWS-style asterisked sections (verified against /alerts/ac
   assert.equal(sections[1].detail, "Damaging winds detected");
   assert.equal(sections[2].type, "where");
   assert.equal(sections[3].type, "when");
-  assert.equal(sections[4].type, "hazard");      // IMPACTS folds into hazard
+  assert.equal(sections[4].type, "impact");      // IMPACTS has its own type since bug C4
   assert.equal(sections[5].type, "action");
 });
 
@@ -420,7 +447,7 @@ test("parseAlertText: NWS Special Marine Warning (mixed-case leads + embedded HA
   assert.equal(source.type, "source", "SOURCE has its own canonical type (separate from hazard)");
   const impact = sections.find((s) => s.lead === "IMPACT");
   assert.ok(impact, "embedded IMPACT... line must split into its own section");
-  assert.equal(impact.type, "hazard");
+  assert.equal(impact.type, "impact", "IMPACT has its own canonical type since bug C4");
   const locations = sections.find((s) => s.lead && s.lead.startsWith("Locations impacted include"));
   assert.ok(locations, "asterisked `Locations impacted include...` lead must be extracted");
   assert.equal(locations.type, "where", "Locations is a WHERE section");
@@ -440,7 +467,7 @@ test("classifyHeading: NWS Special Marine Warning leads", () => {
   assert.equal(classifyHeading("Locations impacted include"), "where");
   assert.equal(classifyHeading("HAZARD"), "hazard");
   assert.equal(classifyHeading("SOURCE"), "source");
-  assert.equal(classifyHeading("IMPACT"), "hazard");
+  assert.equal(classifyHeading("IMPACT"), "impact");
 });
 
 test("parseAlertText: heading split — unknown heading keeps source wording", () => {

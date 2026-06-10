@@ -298,6 +298,7 @@
     "expandRow": "Toucher pour lire le détail",
     "collapseRow": "Toucher pour replier",
     "sectionHazard": "Ce qui se passe",
+    "sectionImpact": "Impacts possibles",
     "sectionObservation": "Ce qui a été observé",
     "sectionSource": "Source des données",
     "sectionWhere": "Zones affectées",

@@ -3,6 +3,7 @@ import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
 import warningAltIcon from "@iconify/icons-carbon/warning-alt";
+import errorOutlineIcon from "@iconify/icons-carbon/error-outline";
 import locationIcon from "@iconify/icons-carbon/location";
 import timeIcon from "@iconify/icons-carbon/time";
 import flashIcon from "@iconify/icons-carbon/flash";
@@ -43,8 +44,12 @@ const SOURCE_LINKS = {
 // answer different reader questions even though both refer to
 // "how the alert came to be":
 //
-//   - hazard      = warning triangle (the danger itself: HAZARD,
-//                   IMPACTS, Dangers, Risques…)
+//   - hazard      = warning triangle (the danger itself: WHAT,
+//                   HAZARD, Dangers, Risques…)
+//   - impact      = circled ! (what the hazard DOES — the NWS
+//                   `IMPACTS...` block. Split out of hazard
+//                   (bug C4): WHAT + IMPACTS both wearing the
+//                   "What's happening" heading read as a duplicate)
 //   - observation = binoculars (timestamped sighting — the NWS
 //                   `At <time>, severe thunderstorms were located
 //                   along a line…` lead. The user reads: "what
@@ -63,6 +68,7 @@ const SOURCE_LINKS = {
 //   - intro       = no icon; rendered as a leading paragraph block
 const SECTION_ICONS = {
   hazard: warningAltIcon,
+  impact: errorOutlineIcon,
   observation: binocularsIcon,
   source: radarWeatherIcon,
   where: locationIcon,

@@ -135,7 +135,7 @@ function createSettingsFile(req, res) {
   if (fs.existsSync(FILE_PATH)) {
     return res.status(409).json("settings file already exists").end();
   } else {
-    fs.writeFile(FILE_PATH, JSON.stringify(contents), { encoding: ENCODING, mode: FILE_MODE }, (err) => {
+    writeSettingsFileCb(contents, (err) => {
       if (err) {
         return res.status(500).json(err).end();
       } else {
@@ -229,7 +229,7 @@ function setSetting(req, res) {
    * @param {Boolean} [newFile] If file is new
    */
   const writeContents = (newSettings, newFile) => {
-    fs.writeFile(FILE_PATH, JSON.stringify(newSettings), { encoding: ENCODING, mode: FILE_MODE }, (err) => {
+    writeSettingsFileCb(newSettings, (err) => {
       if (err) {
         return res.status(500).json(err).end();
       } else {
@@ -297,7 +297,7 @@ function replaceSettings(req, res) {
       }
     }
     const merged = { ...preserved, ...sanitized };
-    fs.writeFile(FILE_PATH, JSON.stringify(merged), { encoding: ENCODING, mode: FILE_MODE }, (err) => {
+    writeSettingsFileCb(merged, (err) => {
       if (err) {
         return res.status(500).json(err).end();
       }
@@ -350,10 +350,8 @@ function deleteSetting(req, res) {
 
     delete currentSettings[key];
 
-    fs.writeFile(
-      FILE_PATH,
-      JSON.stringify(currentSettings),
-      { encoding: ENCODING, mode: FILE_MODE },
+    writeSettingsFileCb(
+      currentSettings,
       (err) => {
         if (err) {
           return res.status(500).json(err).end();
@@ -418,18 +416,48 @@ function serializeWrite(task) {
 }
 
 /**
- * Promise-based write of the full settings object, with the secure file mode.
+ * Atomic write of the full settings object, with the secure file mode.
+ *
+ * Serialises into a sibling `.tmp` file (created 0600 from birth),
+ * fsyncs so the bytes are physically on the SD card, then rename()s
+ * over the target — an atomic operation on the same filesystem.
+ * Readers (including the Python Sense HAT daemons, which re-read
+ * settings.json on a ~1 s cadence for the live brightness sliders) and
+ * a mid-write power cut therefore see either the old complete file or
+ * the new complete file, never a truncated half-write. This matters:
+ * settings.json holds every API key plus the Homebridge credentials,
+ * and a torn write on a power-loss-prone Pi meant a deconfigured
+ * kiosk. (2026-06 quality audit + the ROADMAP tech-debt item from
+ * #212 — one fix closes both findings.)
+ *
+ * A leftover `.tmp` from a failed attempt is harmless: gitignored,
+ * overwritten by the next write, never read by anything.
  *
  * @param {Object} obj settings to persist
+ * @param {String} [filePath] target path (injectable for unit tests)
  * @returns {Promise<void>}
  */
-function writeSettingsFile(obj) {
-  return new Promise((resolve, reject) => {
-    fs.writeFile(FILE_PATH, JSON.stringify(obj), { encoding: ENCODING, mode: FILE_MODE }, (err) => {
-      if (err) reject(err);
-      else resolve();
-    });
-  });
+async function writeSettingsFile(obj, filePath = FILE_PATH) {
+  const tmpPath = `${filePath}.tmp`;
+  const handle = await fs.promises.open(tmpPath, "w", FILE_MODE);
+  try {
+    await handle.writeFile(JSON.stringify(obj), { encoding: ENCODING });
+    await handle.sync();
+  } finally {
+    await handle.close();
+  }
+  await fs.promises.rename(tmpPath, filePath);
+}
+
+/**
+ * Node-style callback shim over writeSettingsFile for the HTTP
+ * handlers, which are written in callback style.
+ *
+ * @param {Object} obj settings to persist
+ * @param {Function} cb callback(err)
+ */
+function writeSettingsFileCb(obj, cb) {
+  writeSettingsFile(obj).then(() => cb(null), cb);
 }
 
 /**
@@ -501,6 +529,7 @@ module.exports = {
     patchAdvancedSubKey,
     mergeAdvancedSubKey,
     serializeWrite,
+    writeSettingsFile,
     FILE_MODE,
     ALLOWED_KEYS,
     API_KEY_FIELDS,
