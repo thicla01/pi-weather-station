@@ -126,9 +126,14 @@ const LayoutMobile = () => {
     const el = scrollRef.current;
     if (!el) return undefined;
     // Write the pull offset straight to the DOM — two style writes per
-    // touchmove instead of a React render of the whole layout. React
-    // never sets `transform` on these elements outside the indicator's
-    // mount render, so the imperative writes survive unrelated renders.
+    // touchmove instead of a React render of the whole layout. Safe
+    // against re-renders mid-gesture (the armed flip, a context poll)
+    // because the indicator's JSX style prop reads pullDistanceRef at
+    // render time: when React re-applies the prop it writes the value
+    // applyPull just wrote, never a stale one. (The scroll container has
+    // no style prop at all, so React leaves its transform alone.) Don't
+    // refactor the prop to a frozen variable or back to state — that
+    // would reintroduce a stale transform clobbering the gesture.
     const applyPull = (px) => {
       pullDistanceRef.current = px;
       if (ptrIndicatorRef.current) {
@@ -136,6 +141,12 @@ const LayoutMobile = () => {
       }
       el.style.transform = px > 0 ? `translateY(${px}px)` : "";
     };
+    // The mirror refs are ALSO written synchronously here (the mirror
+    // effects only run after the next render): onEnd can fire in the
+    // same frame as the touchmove that crossed the arm threshold, and
+    // reading a not-yet-mirrored value would drop the refresh.
+    const setPullingSync = (v) => { pullingRef.current = v; setPulling(v); };
+    const setPullArmedSync = (v) => { pullArmedRef.current = v; setPullArmed(v); };
     const onStart = (e) => {
       if (el.scrollTop > 0 || refreshingRef.current) return;
       ptrStateRef.current = { startY: e.touches[0].clientY, active: true };
@@ -146,16 +157,16 @@ const LayoutMobile = () => {
       const delta = e.touches[0].clientY - st.startY;
       if (delta <= 0) {
         if (pullDistanceRef.current !== 0) applyPull(0);
-        if (pullingRef.current) setPulling(false);
-        if (pullArmedRef.current) setPullArmed(false);
+        if (pullingRef.current) setPullingSync(false);
+        if (pullArmedRef.current) setPullArmedSync(false);
         return;
       }
       // Damped travel — pulls past PTR_MAX get diminishing returns.
       const damped = Math.min(PTR_MAX, delta * 0.5);
       applyPull(damped);
-      if (!pullingRef.current) setPulling(true);
+      if (!pullingRef.current) setPullingSync(true);
       const armed = damped >= PTR_THRESHOLD;
-      if (armed !== pullArmedRef.current) setPullArmed(armed);
+      if (armed !== pullArmedRef.current) setPullArmedSync(armed);
     };
     const onEnd = () => {
       const st = ptrStateRef.current;
@@ -167,8 +178,8 @@ const LayoutMobile = () => {
         setTimeout(() => window.location.reload(), 200);
       } else {
         applyPull(0);
-        setPulling(false);
-        setPullArmed(false);
+        setPullingSync(false);
+        setPullArmedSync(false);
       }
     };
     el.addEventListener("touchstart", onStart, { passive: true });
@@ -249,8 +260,11 @@ const LayoutMobile = () => {
         <div
           ref={ptrIndicatorRef}
           className={styles.ptrIndicator}
-          /* Initial position on mount; mid-gesture updates are applied
-           * imperatively via applyPull (ref), not through React state. */
+          /* Reads the LIVE ref at render time — deliberate: React
+           * re-applies this prop on every re-render while mounted
+           * (armed flips, context polls), and reading the ref means it
+           * always re-writes the value applyPull just set, never a
+           * stale one. See the applyPull comment in the touch effect. */
           style={{ transform: `translateY(${pullDistanceRef.current}px)` }}
           role="status"
           aria-live="polite"

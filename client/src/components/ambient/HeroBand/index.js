@@ -60,17 +60,38 @@ const HeroBand = () => {
   // the display has no seconds, so the previous 1 Hz tick re-rendered
   // the whole hero band (and re-ran the astronomy + formatting work
   // below) 60× more often than anything on screen could change.
+  //
+  // Chained setTimeout, NOT setInterval: each tick re-computes the next
+  // minute boundary, so the phase self-heals after background-tab timer
+  // throttling (Chromium coalesces hidden-tab timers onto its own ~1/min
+  // wake grid), a laptop sleep/wake, or an NTP clock step — a fixed-phase
+  // interval would roll the displayed minute late, permanently, after any
+  // of those. The visibilitychange resync covers the return-to-foreground
+  // moment itself, when the pending (throttled) timeout may still be far
+  // past its boundary. HeroBand is the desktop layout — exactly the
+  // background-tab/laptop case; the kiosk is always visible.
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
     const MINUTE_MS = 60 * 1000;
-    let intervalId = null;
-    const alignId = setTimeout(() => {
-      setNow(new Date());
-      intervalId = setInterval(() => setNow(new Date()), MINUTE_MS);
-    }, MINUTE_MS - (Date.now() % MINUTE_MS));
+    let timerId = null;
+    const scheduleNext = () => {
+      timerId = setTimeout(() => {
+        setNow(new Date());
+        scheduleNext();
+      }, MINUTE_MS - (Date.now() % MINUTE_MS));
+    };
+    scheduleNext();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        setNow(new Date());
+        clearTimeout(timerId);
+        scheduleNext();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
     return () => {
-      clearTimeout(alignId);
-      if (intervalId) clearInterval(intervalId);
+      clearTimeout(timerId);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
     };
   }, []);
 

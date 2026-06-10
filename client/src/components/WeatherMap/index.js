@@ -928,9 +928,14 @@ const WeatherMap = ({ zoom, dark }) => {
   // The sampling grid is pure geodesic math over (centre, radius, unit) —
   // 161 points (481 extended) of offsetLatLon per call. Rebuilding it in
   // the render body recomputed the whole grid on every WeatherMap render.
+  // Gated on the layer's visibility toggles too, so the grid isn't even
+  // computed while the dots layer is hidden (the zoom gate stays in the
+  // JSX — zoom changes often and the markers behind it are memoized).
   const samplingPoints = useMemo(
-    () => (markerPosition ? buildSamplingPoints(markerPosition, extendedRadarRadius, distanceUnit) : []),
-    [markerPosition, extendedRadarRadius, distanceUnit]
+    () => (markerPosition && radarAnalysisEnabled && showSamplingPoints
+      ? buildSamplingPoints(markerPosition, extendedRadarRadius, distanceUnit)
+      : []),
+    [markerPosition, radarAnalysisEnabled, showSamplingPoints, extendedRadarRadius, distanceUnit]
   );
   // Rendered markers memoized as a block: the per-dot pathOptions
   // literals get stable identities tied to the inputs that actually
