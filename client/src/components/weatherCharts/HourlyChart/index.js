@@ -1,4 +1,4 @@
-import React, { useContext, useState, useEffect } from "react";
+import React, { useContext, useState, useEffect, useMemo } from "react";
 import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
 import { AppContext } from "~/AppContext";
@@ -247,6 +247,24 @@ const HourlyChart = ({ altMode: altModeProp, onAltToggle }) => {
     ? t("charts.24hourWind", { unit: lengthUnit })
     : t("charts.24hourTemp");
 
+  // Memoized: react-chartjs-2 compares `options` by reference, so a
+  // fresh object every render forced chart.update() (full canvas
+  // re-layout + redraw) on every app-wide re-render — each context
+  // poll, dock toggle or zoomend repainted an identical chart. Same
+  // intent as DailyChart's state-held options, expressed as a memo.
+  const chartOptions = useMemo(
+    () => buildChartOptions({
+      tempUnit,
+      darkMode,
+      nightRed,
+      lengthUnit,
+      speedUnit,
+      altMode,
+      title,
+    }),
+    [tempUnit, darkMode, nightRed, lengthUnit, speedUnit, altMode, title]
+  );
+
   if (chartData) {
     return (
       <div
@@ -255,15 +273,7 @@ const HourlyChart = ({ altMode: altModeProp, onAltToggle }) => {
       >
         <Line
           data={chartData}
-          options={buildChartOptions({
-            tempUnit,
-            darkMode,
-            nightRed,
-            lengthUnit,
-            speedUnit,
-            altMode,
-            title,
-          })}
+          options={chartOptions}
         />
       </div>
     );

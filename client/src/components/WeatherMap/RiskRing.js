@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo } from "react";
 import PropTypes from "prop-types";
 import { Circle } from "react-leaflet";
 
@@ -7,6 +7,13 @@ import { buildRingLayers } from "./geometry";
 /**
  * Wrapper that renders one or two stacked dashed circles based on the
  * risk tier — see buildRingLayers for the layering logic.
+ *
+ * Memoized twice over: `buildRingLayers` returns fresh pathOptions
+ * objects, and react-leaflet compares them by reference — without the
+ * memo every parent render triggered a no-op setStyle on each ring
+ * (1-4 Hz during radar animation). React.memo on the export skips the
+ * render entirely while the props are unchanged (the parent memoizes
+ * `center`, so its identity is stable between real moves).
  *
  * @param {object} props
  * @param {Array<Number>} props.center [lat, lng] pair for the circle centre
@@ -18,7 +25,10 @@ import { buildRingLayers } from "./geometry";
  * @returns {JSX.Element} One or two stacked Circles
  */
 const RiskRing = ({ center, radius, risk, dark, aiOff, nightRed }) => {
-  const layers = buildRingLayers(risk, dark, aiOff, nightRed);
+  const layers = useMemo(
+    () => buildRingLayers(risk, dark, aiOff, nightRed),
+    [risk, dark, aiOff, nightRed]
+  );
   return (
     <>
       {layers.map((opts, i) => (
@@ -37,4 +47,4 @@ RiskRing.propTypes = {
   nightRed: PropTypes.bool,
 };
 
-export default RiskRing;
+export default React.memo(RiskRing);
