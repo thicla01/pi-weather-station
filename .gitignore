@@ -22,6 +22,9 @@ __pycache__/
 # macOS Finder metadata — should never be tracked
 .DS_Store
 .claude/
+
+# Security remediation work-orders (list unfixed vulns — never publish to the public repo)
+security-remediation-*.md
 server/ca-key.pem
 server/ca-cert.pem
 server/ca-cert.srl

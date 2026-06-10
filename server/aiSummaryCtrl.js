@@ -19,17 +19,108 @@ const {
 const { recordServiceCall, getServiceStatus } = require("./serviceStatus");
 const { increment } = require("./requestCounter");
 const { analyzeRadar } = require("./radarAnalyzerCtrl");
+const { pruneObjectCache } = require("./boundedCache");
 
 const SUMMARY_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 const summaryCache = {};
 
+// Hard cap on cached summaries. The legitimate working set is tiny (a Pi
+// caches one entry per location × language × period × unit-set, refreshed
+// every TTL window), so this is purely a runaway guard: a remote client on
+// an ALLOW_REMOTE Pi can't grow the cache without bound by jittering the
+// request. Enforced on every insert via setSummaryCache + swept on an
+// interval so expired-but-under-cap entries don't linger.
+const SUMMARY_CACHE_MAX = 200;
+
+// Valid unit / language values. Anything else is snapped to a default
+// BEFORE the value reaches the cache key, so junk query params can't
+// expand the cache's key cardinality (a denial-of-wallet lever on the paid
+// Anthropic path) and can't reach the prompt builders, which silently fall
+// back per-unit anyway.
+const VALID_LANGS = new Set(["en", "fr", "es"]);
+const VALID_TEMP_UNITS = new Set(["f", "c", "k"]);
+const VALID_SPEED_UNITS = new Set(["mph", "ms", "kmh"]);
+
+/**
+ * Snap user-supplied language / unit params to a known-good value. Invalid
+ * or missing inputs collapse to the metric/English defaults rather than
+ * flowing through verbatim.
+ *
+ * @param {Object} q
+ * @param {String} [q.lang]
+ * @param {String} [q.tempUnit]
+ * @param {String} [q.speedUnit]
+ * @returns {{lang: string, tempUnit: string, speedUnit: string}}
+ */
+function normalizeUnitParams({ lang, tempUnit, speedUnit } = {}) {
+  return {
+    lang: VALID_LANGS.has(lang) ? lang : "en",
+    tempUnit: VALID_TEMP_UNITS.has(tempUnit) ? tempUnit : "c",
+    speedUnit: VALID_SPEED_UNITS.has(speedUnit) ? speedUnit : "kmh",
+  };
+}
+
+/**
+ * Store a summary, enforcing SUMMARY_CACHE_MAX. pruneObjectCache also drops
+ * any already-expired entries on the way, so the cache stays bounded
+ * without a separate hot-path sweep.
+ *
+ * @param {String} key cache key
+ * @param {Object} value { summary, expiresAt }
+ */
+function setSummaryCache(key, value) {
+  summaryCache[key] = value;
+  pruneObjectCache(summaryCache, { maxEntries: SUMMARY_CACHE_MAX });
+}
+
+// Belt-and-suspenders periodic sweep so expired entries are reclaimed even
+// when no new inserts arrive to trigger setSummaryCache's prune. .unref()
+// so this never holds the process (or a test runner) open.
+setInterval(() => pruneObjectCache(summaryCache, { maxEntries: SUMMARY_CACHE_MAX }), SUMMARY_CACHE_TTL).unref();
+
+// Global throttle on ACTUAL billed Anthropic calls — the hard ceiling on
+// denial-of-wallet that the cache (bypassable by jittering the key) can't
+// provide. Applied to REMOTE requests only (the local kiosk is exempt at
+// the call site, see getWeatherSummary), so a remote flood can't starve the
+// on-device refresh. A single Pi makes ~one summary call per TTL window per
+// location, so this bound is far above legitimate traffic and only bites a
+// flood. Sliding 60 s window of call timestamps. (A per-peer sub-ceiling
+// layered under this global one is a possible future refinement if one
+// remote peer monopolising the global budget ever becomes a concern; the
+// per-peer 120/min apiLimiter already caps each peer's overall request rate.)
+const MAX_CLAUDE_CALLS_PER_MIN = 10;
+const claudeCallTimestamps = [];
+
+/**
+ * Returns true if another billed Anthropic call is allowed right now,
+ * recording the call's timestamp when it is. Side-effecting by design so
+ * the check and the reservation are atomic within the single-threaded
+ * event loop.
+ *
+ * @param {Number} [now] epoch ms (default Date.now())
+ * @returns {Boolean}
+ */
+function reserveClaudeCall(now = Date.now()) {
+  const cutoff = now - 60 * 1000;
+  while (claudeCallTimestamps.length && claudeCallTimestamps[0] <= cutoff) {
+    claudeCallTimestamps.shift();
+  }
+  if (claudeCallTimestamps.length >= MAX_CLAUDE_CALLS_PER_MIN) return false;
+  claudeCallTimestamps.push(now);
+  return true;
+}
+
 /**
  * Build the cache key for a weather summary request. Lat/lon are quantised
- * to 4 decimal places (~11 m precision) so two phones a few metres apart
- * share the same cache bucket. Unit preferences are included verbatim so
- * toggling Settings (°C → °F, etc.) invalidates the cached entry — a
- * stale summary built with the previous unit set would render with the
- * wrong numbers.
+ * to 2 decimal places (~1.1 km grid) so two clients in the same town share
+ * one bucket — coarse enough that sub-kilometre jitter can't be used to
+ * bust the cache on the paid Anthropic path, and harmless for a narrative
+ * regional summary (the radar paragraph already surveys a 50–100 km disk).
+ * Unit preferences are included verbatim so toggling Settings (°C → °F,
+ * etc.) invalidates the cached entry — a stale summary built with the
+ * previous unit set would render with the wrong numbers. Callers pass
+ * already-validated units (see normalizeUnitParams) so junk values can't
+ * inflate the key space.
  *
  * @param {Number} lat latitude in degrees
  * @param {Number} lon longitude in degrees
@@ -41,7 +132,7 @@ const summaryCache = {};
  * @returns {String} stable cache key
  */
 const buildSummaryCacheKey = (lat, lon, lang, period, tempUnit, speedUnit, distanceUnit) =>
-  `${lat.toFixed(4)}:${lon.toFixed(4)}:${lang}:${period}:${tempUnit}:${speedUnit}:${distanceUnit}`;
+  `${lat.toFixed(2)}:${lon.toFixed(2)}:${lang}:${period}:${tempUnit}:${speedUnit}:${distanceUnit}`;
 
 // Ring buffer of the most recent radar snapshots that fed an AI summary,
 // surfaced through the debug panel so a maintainer can compare what the
@@ -429,16 +520,16 @@ function getPeriod(localHour) {
 async function getWeatherSummary(req, res) {
   const lat = parseFloat(req.query.lat);
   const lon = parseFloat(req.query.lon);
-  const lang       = req.query.lang || "en";
   const localHour  = parseInt(req.query.localHour, 10) || 0;
   const ts18       = parseInt(req.query.ts18, 10) || null;
   const ts21       = parseInt(req.query.ts21, 10) || null;
   const ts05tomorrow = parseInt(req.query.ts05tomorrow, 10) || null;
   const period     = getPeriod(localHour);
-  // User unit preferences. Default to metric so older clients that don't
-  // pass these params still get sensible output.
-  const tempUnit  = req.query.tempUnit  || "c";
-  const speedUnit = req.query.speedUnit || "kmh";
+  // User language + unit preferences, snapped to known-good values. Invalid
+  // or missing inputs default to metric/English — both so older clients
+  // that don't pass these still get sensible output, and so junk values
+  // can't expand the cache-key space on the paid Anthropic path.
+  const { lang, tempUnit, speedUnit } = normalizeUnitParams(req.query);
   // Distance unit is explicit since v2.7. Older clients that don't pass it
   // fall back to inferring from the speed unit (mph → mi, otherwise km) so
   // they keep producing sensible prompts until they upgrade.
@@ -642,7 +733,7 @@ async function getWeatherSummary(req, res) {
       periodKind, periodSummary,
       radarAvailable: radarEnabled,
     });
-    summaryCache[cacheKey] = { summary, expiresAt: Date.now() + SUMMARY_CACHE_TTL };
+    setSummaryCache(cacheKey, { summary, expiresAt: Date.now() + SUMMARY_CACHE_TTL });
     pushRadarSnapshot({
       lat, lon, lang, source: "fast-path",
       radarText: radarText || `(radar unavailable: ${radarUnavailableReason || "unknown"})`,
@@ -722,8 +813,24 @@ async function getWeatherSummary(req, res) {
     `Be concise and conversational. Reply with plain text only — no title, no markdown, no labels before each paragraph (except the radar label described above).\n\n` +
     `${dataPayload}`;
 
+  // Global denial-of-wallet ceiling: reject before spending if the process
+  // has already made MAX_CLAUDE_CALLS_PER_MIN billed calls in the last
+  // minute. The cache can't guarantee this (its key is jitterable); this
+  // can. The local kiosk is exempt — it is trusted, makes ~one call per TTL
+  // window, and must never have its own refresh starved by a remote client
+  // saturating the budget (req.isLocal is set from the socket peer by the
+  // app-level middleware in index.js). So the ceiling bounds REMOTE-induced
+  // spend, which is the actual denial-of-wallet threat. Legitimate remote
+  // traffic never approaches the bound.
+  if (!req.isLocal && !reserveClaudeCall()) {
+    recordServiceCall("Claude (AI summary)", 429, "throttled (per-process call ceiling)");
+    return res.status(429).json("AI summary temporarily rate-limited").end();
+  }
+
   try {
-    const client = new Anthropic({ apiKey: settings.anthropicApiKey });
+    // maxRetries capped at 1 (SDK default is 2) so a transient Anthropic
+    // overload can't fan one request into three; timeout bounds a hung call.
+    const client = new Anthropic({ apiKey: settings.anthropicApiKey, maxRetries: 1, timeout: 30_000 });
     const message = await client.messages.create({
       model: "claude-haiku-4-5-20251001",
       // Token budget: 150 for the no-radar 2-paragraph response,
@@ -748,7 +855,7 @@ async function getWeatherSummary(req, res) {
     if (message.stop_reason && message.stop_reason !== "end_turn") {
       console.warn(`[ai-summary] Claude stopped early: stop_reason=${message.stop_reason}, lang=${lang}, summary tail="${summary.slice(-80)}"`);
     }
-    summaryCache[cacheKey] = { summary, expiresAt: Date.now() + SUMMARY_CACHE_TTL };
+    setSummaryCache(cacheKey, { summary, expiresAt: Date.now() + SUMMARY_CACHE_TTL });
     pushRadarSnapshot({
       lat, lon, lang, source: "claude",
       radarText: hasRadar
@@ -775,5 +882,10 @@ module.exports = {
   __test: {
     buildSummaryCacheKey,
     SUMMARY_CACHE_TTL,
+    SUMMARY_CACHE_MAX,
+    normalizeUnitParams,
+    setSummaryCache,
+    reserveClaudeCall,
+    MAX_CLAUDE_CALLS_PER_MIN,
   },
 };

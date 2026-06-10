@@ -14,6 +14,7 @@ const { PNG } = require("pngjs");
 const { recordServiceCall } = require("./serviceStatus");
 const { increment } = require("./requestCounter");
 const compressionStats = require("./compressionStats");
+const { BoundedMap, sweepExpired } = require("./boundedCache");
 
 const ANALYSIS_CACHE_TTL = 5 * 60 * 1000;   // analysis text cached 5 min per location
 const TILE_CACHE_TTL = 12 * 60 * 1000;      // tile PNGs cached 12 min (RainViewer refreshes every 10 min)
@@ -108,10 +109,31 @@ const ALPHA_THRESHOLD = 32;       // pixels with alpha < this are considered tra
 const MAX_COLOR_DIST_SQ = 14000;  // squared RGB distance above which we still report "clear"
                                   // (avoids pulling random anti-aliasing pixels into level 1)
 
-// In-memory caches — a Map keyed by deterministic strings.
-const tileCache = new Map();      // key "framePath:tileX:tileY" → { png, expiresAt }
-const analysisCache = new Map();  // key "lat3:lon3"            → { text, expiresAt }
-const riskCache = new Map();      // key "lat3:lon3:ext"         → { result, expiresAt }
+// In-memory caches — bounded Maps keyed by deterministic strings. The caps
+// guard against unbounded growth from coordinate-keyed entries (a remote
+// client on an ALLOW_REMOTE Pi could otherwise walk lat/lon to insert
+// without limit); a periodic sweep (below) reclaims expired-but-under-cap
+// entries. tileCache holds DECODED PNG buffers (~1 MB each at 512×512
+// RGBA), so its cap is the tightest and set in memory terms: a single Pi's
+// working set is ~12 tiles (one location × 3 time offsets × a few tiles),
+// so 48 gives ~4× headroom while bounding the adversarial ceiling to ~48 MB
+// instead of the >100 MB a looser cap would allow. analysis/risk values are
+// small text/objects, so their cap is generous.
+const TILE_CACHE_MAX = 48;
+const ANALYSIS_CACHE_MAX = 256;
+const tileCache = new BoundedMap(TILE_CACHE_MAX);     // key "framePath:tileX:tileY" → { png, expiresAt }
+const analysisCache = new BoundedMap(ANALYSIS_CACHE_MAX); // key "lat3:lon3"        → { text, expiresAt }
+const riskCache = new BoundedMap(ANALYSIS_CACHE_MAX);    // key "lat3:lon3:ext"      → { result, expiresAt }
+
+// Reclaim expired entries every analysis-TTL window so they don't sit
+// pinned until the cap pushes them out. .unref() so it never holds the
+// process (or a test runner) open.
+setInterval(() => {
+  const now = Date.now();
+  sweepExpired(tileCache, now);
+  sweepExpired(analysisCache, now);
+  sweepExpired(riskCache, now);
+}, ANALYSIS_CACHE_TTL).unref();
 
 // Risk-level mapping for the dashed circles around the user. Worst-case
 // approach (max intensity sampled in the ring), aligned with WMO /
