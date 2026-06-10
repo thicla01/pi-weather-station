@@ -1,5 +1,15 @@
-/tmp/weather-server.log {
-    su pi pi
+# Template — installed by deploy/install.sh, which substitutes the three
+# __PLACEHOLDERS__ (log path, owning user, owning group) before copying to
+# /etc/logrotate.d/weather-server. Do NOT copy this file verbatim: logrotate
+# rejects unexpanded placeholders. The `su` directive is required because
+# the log lives under the user's home (XDG state dir) — without it,
+# logrotate refuses to rotate inside a non-root-owned directory.
+#
+# `maxsize` (not `size`): rotate daily, AND earlier if the file passes
+# 10 MB. Plain `size` would *replace* the daily schedule (rotation only on
+# threshold) — the old config silently disabled the documented daily cycle.
+__LOG_FILE__ {
+    su __USER__ __GROUP__
     daily
     rotate 7
     compress
@@ -7,5 +17,5 @@
     missingok
     notifempty
     copytruncate
-    size 10M
+    maxsize 10M
 }
