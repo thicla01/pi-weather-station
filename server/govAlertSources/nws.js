@@ -13,6 +13,7 @@
 const axios = require("axios").default;
 const { recordServiceCall } = require("../serviceStatus");
 const { increment } = require("../requestCounter");
+const { BoundedMap, sweepExpired } = require("../boundedCache");
 const { TIMEOUT_MS, pointInUSBox, normalizeSeverity, severityToTier, isWatchEvent, capWatchSeverity, dedupeConsecutiveParagraphs, KM_PER_DEG_LAT, kmPerDegLon } = require("./_shared");
 const { getZoneGeometry, mergeAsMultiPolygon } = require("./nwsZones");
 
@@ -20,7 +21,14 @@ const SERVICE_NAME = "NWS (severe weather alerts)";
 const USER_AGENT = "pi-weather-station (github.com/thicla01/pi-weather-station)";
 const CACHE_TTL_MS = 5 * 60 * 1000; // 5 min — alerts don't change minute-to-minute
 
-const cache = new Map(); // cacheKey → { alerts, expiresAt }
+// Bounded so a remote client can't grow it without limit by walking the
+// query point (point-alert cache is coordinate-keyed). Cap is far above the
+// handful of grid cells a real fleet polls; a sweep (below) reclaims
+// expired entries. NWS_POINT_CACHE_MAX also covers stateCache; areaCache is
+// naturally small (≤ ~60 US state/marine codes) but still capped + swept.
+const NWS_POINT_CACHE_MAX = 256;
+const NWS_AREA_CACHE_MAX = 64;
+const cache = new BoundedMap(NWS_POINT_CACHE_MAX); // cacheKey → { alerts, expiresAt }
 
 /**
  * Round (lat, lon) to a 0.1° grid (~11 km cells) so multiple polls
@@ -208,8 +216,18 @@ async function enrichGeometries(pairs) {
 // ---------------------------------------------------------------------------
 
 const STATE_TTL_MS = 24 * 60 * 60 * 1000; // a point→state mapping is static; cache 24 h
-const stateCache = new Map(); // "lat,lon" (2-dp) → { state, expiresAt }
-const areaCache = new Map();  // "XX" → { alerts, expiresAt }
+const stateCache = new BoundedMap(NWS_POINT_CACHE_MAX); // "lat,lon" (2-dp) → { state, expiresAt }
+const areaCache = new BoundedMap(NWS_AREA_CACHE_MAX);   // "XX" → { alerts, expiresAt }
+
+// Reclaim expired entries periodically (alerts + state mappings) so they
+// don't sit pinned until the cap evicts them. .unref() so it never holds
+// the process (or a test runner) open.
+setInterval(() => {
+  const now = Date.now();
+  sweepExpired(cache, now);
+  sweepExpired(stateCache, now);
+  sweepExpired(areaCache, now);
+}, CACHE_TTL_MS).unref();
 
 /**
  * Resolve the 2-letter US state for a point via NWS /points. Cached 24 h.

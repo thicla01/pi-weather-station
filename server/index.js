@@ -110,6 +110,7 @@ const { getDebugInfo, getCpuTemp, getFanSpeed, logSecurityEvent, initServerInfo 
 const { getWeatherSummary } = aiSummaryCtrl;
 const { checkForUpdate, clearCache: clearUpdateCache } = require("./updateChecker");
 const rateLimit = require("express-rate-limit");
+const { socketPeerKeyGenerator } = require("./rateLimitKey");
 
 const DIST_DIR = "/../client/dist";
 const PORT = 8080;
@@ -494,11 +495,15 @@ app.use("/api", (req, res, next) => {
 // header spoofing on direct connections.
 if (ALLOW_REMOTE) app.set("trust proxy", 1);
 
+// Both limiters key on the socket peer (see rateLimitKey.js), NOT req.ip —
+// under `trust proxy` req.ip is X-Forwarded-For-spoofable, which would let a
+// single remote client rotate the header to bypass the limit entirely.
 const apiLimiter = rateLimit({
   windowMs: 60 * 1000,
   max: 120,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: socketPeerKeyGenerator,
   message: "Too many requests",
 });
 
@@ -507,6 +512,7 @@ const tileLimiter = rateLimit({
   max: 600,
   standardHeaders: true,
   legacyHeaders: false,
+  keyGenerator: socketPeerKeyGenerator,
   message: "Too many requests",
 });
 
@@ -540,15 +546,18 @@ const isLocalhostIp = (ip) => ip === "127.0.0.1" || ip === "::1" || ip === "::ff
 // write endpoints) and this gate must be revisited.
 const socketIsLocal = (req) => isLocalhostIp(req.socket?.remoteAddress);
 
-// req.ip (which respects trust proxy / X-Forwarded-For) is still used
-// for client tracking + rate-limit keying below, where surfacing the
-// real client IP behind a legitimate proxy is desirable and a spoofed
-// value is low-impact. It MUST NOT gate access — that's socketIsLocal's
-// job. The security log records the real socket peer, not req.ip, so a
-// spoofed XFF can't disguise the true origin of a blocked request.
+// Client tracking + rate-limit keying both derive from the socket peer
+// (req.socket.remoteAddress), NOT req.ip. req.ip honours trust proxy /
+// X-Forwarded-For and is therefore spoofable: a remote client rotating
+// the header could bypass the rate limiter and mint unlimited
+// clientTracker entries. The socket peer is the kernel-level connection
+// origin and can't be forged by a header. (Behind a legitimate same-host
+// reverse proxy every peer would read 127.0.0.1 — see the socketIsLocal
+// caveat above; no such deployment exists in the fleet today.) Neither of
+// these gates access — that's socketIsLocal's job.
 app.use((req, res, next) => {
   req.isLocal = socketIsLocal(req);
-  if (!req.isLocal) recordClient(req.ip);
+  if (!req.isLocal) recordClient(req.socket?.remoteAddress);
   next();
 });
 

@@ -5,6 +5,7 @@ const axios = require("axios").default;
 const { getSettingsData } = require("./settingsCtrl");
 const { recordServiceCall } = require("./serviceStatus");
 const { increment } = require("./requestCounter");
+const { pruneObjectCache } = require("./boundedCache");
 
 /**
  * Field-set signature for a Tomorrow.io request. Used inside the cache
@@ -219,6 +220,13 @@ const CACHE_FILE = path.join(__dirname, "weather-cache.json");
 // the entry is treated as if it didn't exist at all.
 const MAX_STALE_MS = 24 * 60 * 60 * 1000;
 
+// Hard cap on in-memory weather entries. The legitimate working set is ~3
+// per location (current / hourly / daily), so this is a runaway guard: a
+// remote client on an ALLOW_REMOTE Pi could otherwise walk lat/lon to grow
+// the cache without bound. Enforced alongside the stale-window prune on the
+// existing 5-min interval (see pruneWeatherCache below).
+const WEATHER_CACHE_MAX = 512;
+
 const weatherCache = {};
 let cacheHits = 0;
 let cacheMisses = 0;
@@ -279,8 +287,20 @@ function saveCacheToDisk() {
   }
 }
 
+// Prune the in-memory weatherCache the same way saveCacheToDisk prunes the
+// on-disk snapshot: drop entries more than MAX_STALE_MS past expiry (the
+// stale-fallback window), then cap total entries. Without this the on-disk
+// file stayed bounded but the in-memory object grew without limit, since
+// getFromCache deliberately keeps expired entries for stale-on-error use.
+function pruneWeatherCache() {
+  pruneObjectCache(weatherCache, { maxEntries: WEATHER_CACHE_MAX, graceMs: MAX_STALE_MS });
+}
+
 loadCacheFromDisk();
-setInterval(saveCacheToDisk, 5 * 60 * 1000).unref();
+setInterval(() => {
+  saveCacheToDisk();
+  pruneWeatherCache();
+}, 5 * 60 * 1000).unref();
 
 /**
  * @param {string} type — `current` / `hourly` / `daily`

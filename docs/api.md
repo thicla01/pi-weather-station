@@ -4,7 +4,7 @@
 
 All endpoints are served by the Express server on port **8443 (HTTPS)** or **8080 (HTTP)** as a fallback. Endpoints prefixed with `/api/` are subject to rate limiting unless noted otherwise.
 
-**Rate limits (per client IP):**
+**Rate limits (per connection socket peer — `req.socket.remoteAddress`, not the X-Forwarded-For-spoofable `req.ip`):**
 - Weather, geocoding, summary, indoor-temperature, sensehat, update-check: **120 req / min**
 - Map tiles: **600 req / min**
 
@@ -203,9 +203,9 @@ The response can be 1, 2, or 3 paragraphs depending on what data is available:
    - **`extendedRadius: true`:** adds an outer ring of 32 directions (every 11.25°) × 10 distances every 5 km / 3 mi from 55–100 km / 33–60 mi → 481 points total. The map shows a second dashed circle (100 km or 60 mi) in addition to the inner one. Where outer bearings match the 16 inner cardinals, both ring's samples merge into one direction block in the prompt — denser radial profile per direction makes movement easier for Claude to reason about. The 16 in-between outer bearings are labelled by their value (e.g. `11.25`, `33.75`).
    Each point is read at 3 timestamps (now, -15 min, -45 min) on RainViewer raster tiles, decoded server-side via `pngjs` (3×3 max-pooled per probe to absorb anti-aliasing edges), and fed to Claude as a compact textual grid. Set `advanced.ai.radarAnalysisEnabled: false` to skip this paragraph entirely (and the matching circles on the map).
 
-Summaries are cached 15 minutes server-side, keyed by `lat:lon:lang:period:tempUnit:speedUnit:distanceUnit` so toggling user-facing units never returns a stale snapshot in the wrong unit system.
+Summaries are cached 15 minutes server-side, keyed by `lat:lon:lang:period:tempUnit:speedUnit:distanceUnit` (lat/lon quantised to ~1.1 km) so toggling user-facing units never returns a stale snapshot in the wrong unit system. `lang`, `tempUnit`, and `speedUnit` are validated against their enums and snapped to the metric/English defaults if invalid, so junk values can't expand the cache-key space. A per-process ceiling caps **remote**-induced **billed** Claude calls at 10/min regardless of distinct cache keys; once that ceiling is saturated, further **remote** cache-miss requests return HTTP 429 until the sliding window clears (the client keeps displaying its last cached summary on a 429 — unlike 503, which hides the feature). The **local kiosk is exempt** from this throttle, so a remote flood can't starve the on-device refresh. Both guards target the `ALLOW_REMOTE=true` denial-of-wallet case.
 
-- **Access:** 🌐 Public — rate limited (120 req/min)
+- **Access:** 🌐 Public — rate limited (120 req/min, keyed on the connection's socket peer)
 - **Query params:**
 
 | Parameter | Type | Required | Description |
@@ -222,7 +222,7 @@ Summaries are cached 15 minutes server-side, keyed by `lat:lon:lang:period:tempU
 | `distanceUnit` | string | | `km` (default) or `mi`. Drives the radar-analysis distance unit, the sampled distances, and the dashed circle radii on the map. Older clients that omit this param fall back to inferring from `speedUnit` (`mph` → mi, otherwise km). |
 
 - **Response:** `{ "summary": "..." }` — paragraphs separated by blank lines
-- **Errors:** HTTP 503 if Anthropic key not configured
+- **Errors:** HTTP 503 if Anthropic key not configured; HTTP 429 for remote callers when the per-process billed-call ceiling (10/min) is currently saturated (local kiosk exempt); HTTP 400 on out-of-range coordinates
 
 ### `GET /api/radar-risk`
 Returns the current "right now" radar-risk level for the inner and (optionally) outer dashed circles around the user. Drives the colour of those circles in the WeatherMap component, on top of the underlying RainViewer tile layer. Worst-case approach: each ring's level reflects the highest precipitation intensity sampled on that ring, mapped via the table below.

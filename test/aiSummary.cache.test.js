@@ -11,9 +11,11 @@
 // What we lock down here:
 //   1. The cache TTL constant — a stray re-edit changing 15 min to 1.5
 //      min would 10x the token bill silently.
-//   2. The cache-key format — quantised to 4 decimals of lat/lon (~11 m)
-//      and embeds every unit pref so a Settings toggle invalidates the
-//      cached summary that would otherwise render in the wrong units.
+//   2. The cache-key format — quantised to 2 decimals of lat/lon (~1.1 km
+//      grid, coarse enough that sub-km jitter can't bust the cache on the
+//      paid Anthropic path) and embeds every unit pref so a Settings toggle
+//      invalidates the cached summary that would otherwise render in the
+//      wrong units.
 //   3. The cache state mutation contract — read returns the stored
 //      entry; expired entries can be detected via Date.now() vs
 //      entry.expiresAt.
@@ -27,7 +29,15 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 
 const { __test: aiTest, summaryCache } = require("../server/aiSummaryCtrl");
-const { buildSummaryCacheKey, SUMMARY_CACHE_TTL } = aiTest;
+const {
+  buildSummaryCacheKey,
+  SUMMARY_CACHE_TTL,
+  SUMMARY_CACHE_MAX,
+  normalizeUnitParams,
+  setSummaryCache,
+  reserveClaudeCall,
+  MAX_CLAUDE_CALLS_PER_MIN,
+} = aiTest;
 
 // === TTL constant ===
 
@@ -40,20 +50,23 @@ test("SUMMARY_CACHE_TTL is exactly 15 minutes in milliseconds", () => {
 
 test("buildSummaryCacheKey: stable format for a Montréal kiosk in French", () => {
   const key = buildSummaryCacheKey(45.5017, -73.5673, "fr", "current", "c", "kmh", "km");
-  assert.equal(key, "45.5017:-73.5673:fr:current:c:kmh:km");
+  assert.equal(key, "45.50:-73.57:fr:current:c:kmh:km");
 });
 
-test("buildSummaryCacheKey: lat/lon quantised to 4 decimals (≈ 11 m precision)", () => {
-  // 45.50171 and 45.50172 are ~1 m apart — same bucket.
-  const a = buildSummaryCacheKey(45.50171, -73.5673, "fr", "current", "c", "kmh", "km");
-  const b = buildSummaryCacheKey(45.50172, -73.5673, "fr", "current", "c", "kmh", "km");
+test("buildSummaryCacheKey: sub-km jitter collapses into one bucket (denial-of-wallet defense)", () => {
+  // 45.501 and 45.504 are ~330 m apart — both round to 45.50, same bucket,
+  // so an attacker can't mint fresh cache keys (and fresh paid Anthropic
+  // calls) by walking lat/lon a few hundred metres at a time.
+  const a = buildSummaryCacheKey(45.501, -73.5673, "fr", "current", "c", "kmh", "km");
+  const b = buildSummaryCacheKey(45.504, -73.5673, "fr", "current", "c", "kmh", "km");
   assert.equal(a, b);
 });
 
-test("buildSummaryCacheKey: 5th decimal of lat is part of rounding (4-decimal split)", () => {
-  // 45.50174 → 45.5017, 45.50175 → 45.5018 (toFixed half-to-even-ish rounding)
-  const a = buildSummaryCacheKey(45.50174, 0, "fr", "current", "c", "kmh", "km");
-  const b = buildSummaryCacheKey(45.50175, 0, "fr", "current", "c", "kmh", "km");
+test("buildSummaryCacheKey: crossing a 0.01° cell boundary changes the key", () => {
+  // 45.501 → 45.50, 45.509 → 45.51 — genuinely different ~1 km cells get
+  // their own bucket, so legitimately distant clients aren't merged.
+  const a = buildSummaryCacheKey(45.501, 0, "fr", "current", "c", "kmh", "km");
+  const b = buildSummaryCacheKey(45.509, 0, "fr", "current", "c", "kmh", "km");
   assert.notEqual(a, b);
 });
 
@@ -79,13 +92,13 @@ test("buildSummaryCacheKey: period change invalidates cache", () => {
 
 test("buildSummaryCacheKey: southern hemisphere / negative latitudes serialise cleanly", () => {
   const key = buildSummaryCacheKey(-33.8688, 151.2093, "en", "current", "c", "kmh", "km");
-  assert.equal(key, "-33.8688:151.2093:en:current:c:kmh:km");
+  assert.equal(key, "-33.87:151.21:en:current:c:kmh:km");
 });
 
-test("buildSummaryCacheKey: lat/lon at 0 keeps the .0000 suffix (not dropped)", () => {
-  // Avoids subtle bugs where toString() would output "0" but toFixed(4) outputs "0.0000"
+test("buildSummaryCacheKey: lat/lon at 0 keeps the .00 suffix (not dropped)", () => {
+  // Avoids subtle bugs where toString() would output "0" but toFixed(2) outputs "0.00"
   const key = buildSummaryCacheKey(0, 0, "fr", "current", "c", "kmh", "km");
-  assert.equal(key, "0.0000:0.0000:fr:current:c:kmh:km");
+  assert.equal(key, "0.00:0.00:fr:current:c:kmh:km");
 });
 
 // === Cache state contract ===
@@ -123,4 +136,94 @@ test("summaryCache: fresh entry within the 15 min window is a cache hit", () => 
   assert.ok(Date.now() < entry.expiresAt);
 
   delete summaryCache[key];
+});
+
+// === Unit / language validation (denial-of-wallet: junk params can't
+// expand the cache-key space on the paid Anthropic path) ===
+
+test("normalizeUnitParams: valid values pass through unchanged", () => {
+  assert.deepEqual(
+    normalizeUnitParams({ lang: "fr", tempUnit: "f", speedUnit: "mph" }),
+    { lang: "fr", tempUnit: "f", speedUnit: "mph" },
+  );
+});
+
+test("normalizeUnitParams: invalid values snap to metric/English defaults", () => {
+  assert.deepEqual(
+    normalizeUnitParams({ lang: "zz", tempUnit: "rankine", speedUnit: "knots" }),
+    { lang: "en", tempUnit: "c", speedUnit: "kmh" },
+  );
+});
+
+test("normalizeUnitParams: missing values snap to defaults", () => {
+  assert.deepEqual(
+    normalizeUnitParams({}),
+    { lang: "en", tempUnit: "c", speedUnit: "kmh" },
+  );
+  assert.deepEqual(
+    normalizeUnitParams(),
+    { lang: "en", tempUnit: "c", speedUnit: "kmh" },
+  );
+});
+
+test("normalizeUnitParams: a junk lang can't reach the cache key", () => {
+  const { lang, tempUnit, speedUnit } = normalizeUnitParams({ lang: "../etc", tempUnit: "c", speedUnit: "kmh" });
+  const key = buildSummaryCacheKey(45.5, -73.5, lang, "current", tempUnit, speedUnit, "km");
+  assert.ok(key.includes(":en:"));
+  assert.ok(!key.includes("../etc"));
+});
+
+// === Summary cache hard cap ===
+
+test("setSummaryCache: never exceeds SUMMARY_CACHE_MAX entries", () => {
+  // Clear any residue from earlier tests.
+  for (const k of Object.keys(summaryCache)) delete summaryCache[k];
+
+  const future = Date.now() + SUMMARY_CACHE_TTL;
+  for (let i = 0; i < SUMMARY_CACHE_MAX + 50; i++) {
+    setSummaryCache(`cap-test:${i}`, { summary: `s${i}`, expiresAt: future });
+  }
+  assert.equal(Object.keys(summaryCache).length, SUMMARY_CACHE_MAX);
+  // Oldest-inserted keys were evicted FIFO; the most recent survive.
+  assert.ok(!(`cap-test:0` in summaryCache));
+  assert.ok(`cap-test:${SUMMARY_CACHE_MAX + 49}` in summaryCache);
+
+  for (const k of Object.keys(summaryCache)) delete summaryCache[k];
+});
+
+test("setSummaryCache: expired entries are dropped on insert", () => {
+  for (const k of Object.keys(summaryCache)) delete summaryCache[k];
+
+  summaryCache["stale-one"] = { summary: "old", expiresAt: Date.now() - 1 };
+  setSummaryCache("fresh-one", { summary: "new", expiresAt: Date.now() + SUMMARY_CACHE_TTL });
+  assert.ok(!("stale-one" in summaryCache));
+  assert.ok("fresh-one" in summaryCache);
+
+  for (const k of Object.keys(summaryCache)) delete summaryCache[k];
+});
+
+// === Per-process Anthropic throttle (the hard denial-of-wallet ceiling
+// the cache can't provide, since its key is jitterable) ===
+
+test("reserveClaudeCall: allows up to MAX_CLAUDE_CALLS_PER_MIN then blocks", () => {
+  // Use a fixed `now` so the sliding window is deterministic and isolated
+  // from any real calls made while the module was loaded.
+  const t0 = 1_000_000_000_000;
+  let allowed = 0;
+  for (let i = 0; i < MAX_CLAUDE_CALLS_PER_MIN + 5; i++) {
+    if (reserveClaudeCall(t0 + i)) allowed++;
+  }
+  assert.equal(allowed, MAX_CLAUDE_CALLS_PER_MIN);
+});
+
+test("reserveClaudeCall: window slides — calls older than 60 s free up budget", () => {
+  const t0 = 2_000_000_000_000;
+  // Saturate the window.
+  for (let i = 0; i < MAX_CLAUDE_CALLS_PER_MIN; i++) {
+    assert.ok(reserveClaudeCall(t0 + i));
+  }
+  // Immediately after, blocked.
+  assert.equal(reserveClaudeCall(t0 + MAX_CLAUDE_CALLS_PER_MIN), false);
+  // 61 s later the earliest timestamps have aged out → allowed again.
+  assert.ok(reserveClaudeCall(t0 + 61_000));
 });
