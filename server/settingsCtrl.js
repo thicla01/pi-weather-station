@@ -73,7 +73,15 @@ function sanitizeSettings(obj) {
 
 /**
  * Returns a copy of the parsed settings safe to send to a remote client.
- * Two layers of protection are applied:
+ * Three layers of protection are applied, in order:
+ *   0. Default-deny: the data is first projected through `sanitizeSettings`
+ *      (the ALLOWED_KEYS whitelist), so any UNRECOGNISED top-level key — one
+ *      hand-added to settings.json, or left over from an older build — can
+ *      never reach a remote client verbatim. The mask is allow-list driven,
+ *      not deny-list. (A key deliberately added to ALLOWED_KEYS is whitelisted
+ *      and so still passes; if it carries a secret it must ALSO be added to
+ *      API_KEY_FIELDS or REMOTE_HIDDEN_KEYS. Default-deny guards the unknown-
+ *      key case, not the new-whitelisted-secret case.)
  *   1. Top-level keys in REMOTE_HIDDEN_KEYS (e.g. `indoorTemperature`) are
  *      stripped entirely — host / credentials are not even masked, the
  *      subtree is simply absent from the response.
@@ -87,7 +95,7 @@ function sanitizeSettings(obj) {
 function maskForRemote(data) {
   if (!data || typeof data !== "object" || Array.isArray(data)) return {};
   return Object.fromEntries(
-    Object.entries(data)
+    Object.entries(sanitizeSettings(data))
       .filter(([k]) => !REMOTE_HIDDEN_KEYS.has(k))
       .map(([k, v]) => [k, API_KEY_FIELDS.has(k) ? Boolean(v) : v])
   );

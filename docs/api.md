@@ -12,6 +12,8 @@ All endpoints are served by the Express server on port **8443 (HTTPS)** or **808
 - 🌐 **Public** — accessible from any client (localhost and remote when `ALLOW_REMOTE=true`)
 - 🔒 **Localhost only** — always restricted to the Pi itself (`127.0.0.1` / `::1`), regardless of `ALLOW_REMOTE`
 
+**Security response headers:** every response carries `X-Content-Type-Options: nosniff`, `X-Frame-Options: DENY`, `Referrer-Policy: no-referrer`, and `Content-Security-Policy: frame-ancestors 'none'`; `X-Powered-By` is suppressed. No HSTS (self-signed cert + HTTP fallback) and no script/style CSP (the SPA uses runtime inline styles). See `server/securityHeaders.js`.
+
 ---
 
 ## Settings
@@ -21,7 +23,7 @@ Returns the current settings.
 
 - **Access:** 🌐 Public
 - **Response (localhost):** full settings object including API key values and the entire `indoorTemperature` block
-- **Response (remote):** API key fields replaced by booleans (`true` if configured, `false` otherwise); `indoorTemperature` block stripped entirely (it contains a Homebridge password)
+- **Response (remote):** projected through the settings whitelist first (**default-deny** — any key not on the allow-list is dropped, so an unknown/secret-bearing key can never leak verbatim), then API key fields are replaced by booleans (`true` if configured, `false` otherwise) and the `indoorTemperature` block is stripped entirely (it contains a Homebridge password)
 
 ```json
 // localhost
