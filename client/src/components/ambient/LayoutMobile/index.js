@@ -195,8 +195,19 @@ const LayoutMobile = () => {
   // the user's standpoint — they'd have to re-maximize just to flip
   // it off. Resetting on minimize keeps the dock button's visual
   // state aligned with the (invisible) scrubber state.
+  //
+  // Gated on the maximized→mini TRANSITION (prev ref), not the value:
+  // the lifecycle effect below sets `mobileRadarMaximized` to `false`
+  // on mount, and an un-gated `=== false` check fired on that mount
+  // pass too — toggleRadarTimelineVisible() persists to localStorage,
+  // so every LayoutMobile mount silently flipped the user's saved
+  // scrubber preference off (defeating the "default true so first-time
+  // users see the timeline" intent).
+  const prevRadarMaximizedRef = useRef(mobileRadarMaximized);
   useEffect(() => {
-    if (mobileRadarMaximized === false && radarTimelineVisible) {
+    const wasMaximized = prevRadarMaximizedRef.current === true;
+    prevRadarMaximizedRef.current = mobileRadarMaximized;
+    if (wasMaximized && mobileRadarMaximized === false && radarTimelineVisible) {
       toggleRadarTimelineVisible();
     }
   }, [mobileRadarMaximized, radarTimelineVisible, toggleRadarTimelineVisible]);

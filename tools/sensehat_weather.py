@@ -27,6 +27,7 @@ import json
 import logging
 import math
 import os
+import signal
 import struct
 import subprocess
 import sys
@@ -64,6 +65,14 @@ SERVER_URL    = "https://localhost:8443"  # pi-weather-station server (same Pi)
 # faster cadence doesn't add log noise.
 POLL_INTERVAL = 60                       # seconds between /api/sensehat calls
 FRAME_DELAY   = 0.12                     # seconds between animation frames
+
+# How long a previously-fetched alert state stays trusted when the server
+# is unreachable (in-app update restart, network blip). Within the window
+# an active red/orange pulse keeps animating on stale data — better than
+# dropping a tornado warning because one poll failed. Past the window the
+# alert is assumed expired and the display returns to weather rendering.
+# Mirrored in tools/horloge.py (STALE_ALERT_MAX_SEC) — keep in sync.
+STALE_ALERT_MAX_SEC = 15 * 60
 
 # Rotation of the LED matrix (degrees): 0 / 90 / 180 / 270.
 # Adjust so that the top of the display matches your physical mount.
@@ -1641,6 +1650,10 @@ def run():
 
     log.info("Sense HAT display started (rotation=%d°, poll every %ds)", ROTATION, POLL_INTERVAL)
 
+    # Timestamp of the last successful /api/sensehat fetch — drives the
+    # staleness cap on a kept alert state (see STALE_ALERT_MAX_SEC).
+    last_fetch_success = time.time()
+
     # Try harder at startup to land on real values before falling through to
     # the regular polling cadence. Display stays blank during the wait.
     sense.clear((0, 0, 0))
@@ -1681,6 +1694,7 @@ def run():
         if now >= next_poll:
             data = fetch_weather()
             if data:
+                last_fetch_success = now
                 was_blank    = base_state is None
                 base_state   = classify(data.get("weatherCode"), data.get("cloudCover", 0))
                 is_day       = data.get("isDay", True)
@@ -1708,6 +1722,17 @@ def run():
             elif base_state is None:
                 log.warning("Server still unreachable — display still blank")
             else:
+                # Keep the previous weather state indefinitely (it degrades
+                # gracefully), but cap how long a kept ALERT stays trusted:
+                # past STALE_ALERT_MAX_SEC without a successful fetch the
+                # alert is assumed expired and the pulse stops.
+                if active_alert and (now - last_fetch_success) > STALE_ALERT_MAX_SEC:
+                    log.warning(
+                        "Alert state stale (no successful fetch for %ds) — dropping alert override",
+                        int(now - last_fetch_success),
+                    )
+                    active_alert = None
+                    last_render = None  # force a weather redraw
                 log.warning("Fetch failed — keeping previous state: %s", base_state)
             next_poll = now + POLL_INTERVAL
 
@@ -2035,6 +2060,27 @@ if __name__ == "__main__":
              "Available: " + ", ".join(sorted(_TEST_STATE_SLUGS) + list(_TEST_RADAR_SLUGS))
     )
     args = parser.parse_args()
+
+    def _on_sigterm(*_):
+        """SIGTERM handler (systemctl --user stop pi-sensehat).
+
+        Without it the process dies mid-frame and the LED matrix stays
+        frozen on the last weather frame indefinitely — a kiosk showing
+        "rain" forever after the service stops. Mirrors horloge.py's
+        cleanup_and_exit. exit(0) reads as a voluntary stop to systemd's
+        Restart=on-failure, so no restart loop.
+        """
+        log.info("SIGTERM — clearing display")
+        try:
+            SenseHat().clear()
+        except Exception:
+            pass
+        sys.exit(0)
+
+    # Registered for the daemon AND the --test/--state modes: the test-mode
+    # guard tells users to `systemctl --user stop pi-sensehat` first, so a
+    # SIGTERM arriving in any mode must leave the matrix blank.
+    signal.signal(signal.SIGTERM, _on_sigterm)
 
     try:
         if args.state in _TEST_RADAR_SLUGS:

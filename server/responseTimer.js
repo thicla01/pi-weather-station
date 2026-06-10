@@ -24,6 +24,12 @@ function normalizePath(path) {
 function responseTimerMiddleware(req, res, next) {
   const start = Date.now();
   res.on("finish", () => {
+    // Skip unmatched paths: this middleware is mounted globally, so a
+    // remote client scanning unique URLs (`/scan-000001`, …) would mint
+    // one permanent stats entry per probe — an unbounded, remotely
+    // drivable keyspace on an ALLOW_REMOTE install. Real endpoints all
+    // answer non-404, and 404s carry no KPI value for the debug panel.
+    if (res.statusCode === 404) return;
     const ms = Date.now() - start;
     const key = normalizePath(req.path);
     if (!stats[key]) {

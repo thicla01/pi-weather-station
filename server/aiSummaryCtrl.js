@@ -24,6 +24,11 @@ const { pruneObjectCache } = require("./boundedCache");
 const SUMMARY_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 const summaryCache = {};
 
+// cacheKey → Promise<{status, body}> for summary builds currently in
+// flight. See the coalescing block in getWeatherSummary — entries live
+// only for the duration of one build, so the map stays tiny by design.
+const inflightSummaries = new Map();
+
 // Hard cap on cached summaries. The legitimate working set is tiny (a Pi
 // caches one entry per location × language × period × unit-set, refreshed
 // every TTL window), so this is purely a runaway guard: a remote client on
@@ -558,6 +563,45 @@ async function getWeatherSummary(req, res) {
     return res.status(200).json({ summary: cached.summary }).end();
   }
 
+  // ── In-flight coalescing on the billed path ───────────────────────────
+  // Concurrent requests that miss the summary cache for the same key share
+  // ONE build (one radar pipeline, one Claude call) instead of paying for
+  // each. Late arrivals await the first request's settlement promise and
+  // mirror its status/body. The map only ever holds keys actively being
+  // built — entries are removed the moment the owning request settles
+  // (every return path below goes through settleInflight, and a client
+  // disconnect is caught by the `close` listener), so it needs no cap.
+  const pending = inflightSummaries.get(cacheKey);
+  if (pending) {
+    const result = await pending;
+    return res.status(result.status).json(result.body).end();
+  }
+  let resolveInflight;
+  const inflightPromise = new Promise((resolve) => { resolveInflight = resolve; });
+  inflightSummaries.set(cacheKey, inflightPromise);
+  /**
+   * Settle this request AND every coalesced waiter with the same outcome.
+   *
+   * @param {Number} status HTTP status to send
+   * @param {*} body JSON body to send
+   * @returns {import("express").Response}
+   */
+  const settleInflight = (status, body) => {
+    inflightSummaries.delete(cacheKey);
+    resolveInflight({ status, body });
+    return res.status(status).json(body).end();
+  };
+  res.once("close", () => {
+    // Owner disconnected before settling (process didn't crash, the
+    // response just closed early) — release the waiters with a retryable
+    // failure instead of leaving them awaiting forever. The identity check
+    // keeps a late `close` from touching a successor entry.
+    if (inflightSummaries.get(cacheKey) === inflightPromise) {
+      inflightSummaries.delete(cacheKey);
+      resolveInflight({ status: 500, body: "AI summary failed" });
+    }
+  });
+
   // Use shared weather cache to avoid duplicate Tomorrow.io calls
   let weatherData = getWeatherFromSharedCache(lat, lon);
 
@@ -578,6 +622,12 @@ async function getWeatherSummary(req, res) {
         { timeout: 10_000 }
       );
       weatherData = result.data;
+      // Same observability as the proxy path: without these, backfill
+      // calls were invisible to the quota counter and service status
+      // (only failures were recorded), understating real Tomorrow.io
+      // usage on the debug panel.
+      increment("tomorrow.io", "current");
+      recordServiceCall("Tomorrow.io (current)", 200, "OK (AI summary backfill)");
     } catch (err) {
       recordServiceCall("Tomorrow.io (current)", err?.response?.status || 500, "fetch failed in AI summary path");
       // Leave weatherData null and continue — sections are independent.
@@ -741,7 +791,7 @@ async function getWeatherSummary(req, res) {
     });
     recordServiceCall("Claude (AI summary)", 200, "calm-day fast path (no LLM call)");
     // Deliberately NOT incrementing the Anthropic counter — no API call was made.
-    return res.status(200).json({ summary }).end();
+    return settleInflight(200, { summary });
   }
 
   // If none of the three sections has any content, there's nothing for
@@ -752,7 +802,7 @@ async function getWeatherSummary(req, res) {
   const hasPeriod = Boolean(secondPeriodLabel);
   const hasRadar = Boolean(radarText);
   if (!hasCurrent && !hasPeriod && !hasRadar) {
-    return res.status(503).json("No weather data available").end();
+    return settleInflight(503, "No weather data available");
   }
 
   // Build the per-paragraph instructions in the order they appear in the
@@ -824,7 +874,7 @@ async function getWeatherSummary(req, res) {
   // traffic never approaches the bound.
   if (!req.isLocal && !reserveClaudeCall()) {
     recordServiceCall("Claude (AI summary)", 429, "throttled (per-process call ceiling)");
-    return res.status(429).json("AI summary temporarily rate-limited").end();
+    return settleInflight(429, "AI summary temporarily rate-limited");
   }
 
   try {
@@ -865,11 +915,11 @@ async function getWeatherSummary(req, res) {
     });
     recordServiceCall("Claude (AI summary)", 200, "OK");
     increment("anthropic", "summary");
-    return res.status(200).json({ summary }).end();
+    return settleInflight(200, { summary });
   } catch (err) {
     const status = err?.status || 500;
     recordServiceCall("Claude (AI summary)", status, (err?.message || "AI summary failed").slice(0, 100));
-    return res.status(500).json("AI summary failed").end();
+    return settleInflight(500, "AI summary failed");
   }
 }
 

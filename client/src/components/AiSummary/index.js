@@ -52,6 +52,10 @@ const AiSummary = ({ expanded, onToggle, containerRef }) => {
 
     const { latitude, longitude } = mapGeo;
 
+    // Cancellation flag — mirrors AiSummaryInline: a slow response keyed
+    // to the previous position must not display the old location's
+    // narrative after a pan.
+    let cancelled = false;
     const fetchSummary = () => {
       const now = new Date();
       const localHour = now.getHours();
@@ -78,9 +82,10 @@ const AiSummary = ({ expanded, onToggle, containerRef }) => {
       axios
         .get(`/api/weather-summary?${params}`)
         .then((res) => {
-          setSummary(res.data.summary);
+          if (!cancelled) setSummary(res.data.summary);
         })
         .catch((err) => {
+          if (cancelled) return;
           if (err?.response?.status === 503) {
             // Anthropic key not configured — hide the feature silently
             setAvailable(false);
@@ -94,7 +99,10 @@ const AiSummary = ({ expanded, onToggle, containerRef }) => {
     if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = setInterval(fetchSummary, REFRESH_INTERVAL);
 
-    return () => clearInterval(intervalRef.current);
+    return () => {
+      cancelled = true;
+      clearInterval(intervalRef.current);
+    };
   }, [mapGeo, lang, available, setAvailable, tempUnit, speedUnit, distanceUnit, sleepStage]);
 
   if (!available || !summary) return null;

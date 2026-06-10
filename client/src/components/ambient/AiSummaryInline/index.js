@@ -94,6 +94,11 @@ const AiSummaryInline = () => {
     // fresh by the time the overlay finishes its 300 ms fade-out.
     if (!mapGeo || !available || sleepStage > 0) return undefined;
 
+    // Cancellation flag: the summary cache TTL is 15 min server-side, so
+    // a slow build keyed to the previous position can resolve well after
+    // a pan and display the OLD location's narrative as if it were
+    // current. Same pattern as AppContext's AQI / pollen effects.
+    let cancelled = false;
     const fetchSummary = () => {
       const now = new Date();
       const localHour = now.getHours();
@@ -118,8 +123,11 @@ const AiSummaryInline = () => {
 
       axios
         .get(`/api/weather-summary?${params}`)
-        .then((res) => setSummary(res.data.summary))
+        .then((res) => {
+          if (!cancelled) setSummary(res.data.summary);
+        })
         .catch((err) => {
+          if (cancelled) return;
           if (err?.response?.status === 503) {
             // Feature gated server-side (no Anthropic key) — hide.
             setAvailable(false);
@@ -131,7 +139,10 @@ const AiSummaryInline = () => {
     fetchSummary();
     if (intervalRef.current) clearInterval(intervalRef.current);
     intervalRef.current = setInterval(fetchSummary, REFRESH_INTERVAL);
-    return () => clearInterval(intervalRef.current);
+    return () => {
+      cancelled = true;
+      clearInterval(intervalRef.current);
+    };
   }, [mapGeo, lang, available, setAvailable, tempUnit, speedUnit, distanceUnit, sleepStage]);
 
   if (!available || !summary) return null;

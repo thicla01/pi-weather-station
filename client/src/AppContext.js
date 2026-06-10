@@ -1615,15 +1615,23 @@ export function AppContextProvider({ children }) {
   useEffect(() => {
     if (!mapGeo) return undefined;
     const GOV_ALERTS_INTERVAL = 10 * 60 * 1000;
+    // Cancellation flag (same pattern as the AQI / pollen effects below):
+    // without it, a slow response keyed to the PREVIOUS position can
+    // resolve after this effect re-ran for a new position and overwrite
+    // the fresh alerts with the old location's — visible for up to a
+    // full poll interval after a map pan.
+    let cancelled = false;
     const fetchAlerts = () => {
       axios
         .get(`/api/weather-alerts?lat=${mapGeo.latitude}&lon=${mapGeo.longitude}`)
-        .then((res) => setGovAlerts(Array.isArray(res.data?.alerts) ? res.data.alerts : []))
+        .then((res) => {
+          if (!cancelled) setGovAlerts(Array.isArray(res.data?.alerts) ? res.data.alerts : []);
+        })
         .catch(() => undefined);
     };
     fetchAlerts();
     const interval = setInterval(fetchAlerts, GOV_ALERTS_INTERVAL);
-    return () => clearInterval(interval);
+    return () => { cancelled = true; clearInterval(interval); };
   }, [mapGeo]);
 
   // Nearby-alerts radius survey (display-only overlay). Only polls while
@@ -1638,10 +1646,15 @@ export function AppContextProvider({ children }) {
       return undefined;
     }
     const NEARBY_ALERTS_INTERVAL = 5 * 60 * 1000;
+    // Cancellation flag: a late response for the previous position (or
+    // one that lands after the toggle just cleared the state above)
+    // must not repopulate the overlay with stale polygons.
+    let cancelled = false;
     const fetchNearby = () => {
       axios
         .get(`/api/nearby-alerts?lat=${mapGeo.latitude}&lon=${mapGeo.longitude}&radiusKm=${alertRadiusKm}`)
         .then((res) => {
+          if (cancelled) return;
           setNearbyAlerts(Array.isArray(res.data?.alerts) ? res.data.alerts : []);
           setNearbyResidualCount(Number(res.data?.residualCount) || 0);
         })
@@ -1649,7 +1662,7 @@ export function AppContextProvider({ children }) {
     };
     fetchNearby();
     const interval = setInterval(fetchNearby, NEARBY_ALERTS_INTERVAL);
-    return () => clearInterval(interval);
+    return () => { cancelled = true; clearInterval(interval); };
   }, [showWeatherAlerts, mapGeo, alertRadiusKm]);
 
   // Periodic weather data refresh. Previously this lived in the v2

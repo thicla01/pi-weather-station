@@ -32,6 +32,7 @@ const axios = require("axios").default;
 const { recordServiceCall } = require("../serviceStatus");
 const { increment } = require("../requestCounter");
 const { TIMEOUT_MS, haversineKm, categoryForEpaAqi } = require("./_shared");
+const { BoundedMap, sweepExpired } = require("../boundedCache");
 
 const SERVICE_NAME = "EPA AirNow";
 const ENDPOINT = "https://www.airnowapi.org/aq/data/";
@@ -41,7 +42,12 @@ const PARAMETERS = "OZONE,PM25,PM10";   // EPA-defined AQI pollutants we recogni
 const TTL_MS = 30 * 60 * 1000;          // 30 min — AirNow updates hourly; halving smooths repeats without staleness
 const US_BBOX = { latMin: 17, latMax: 72, lonMin: -180, lonMax: -65 }; // continental + AK + HI + PR/VI
 
-const cache = new Map();                // cacheKey → { payload, expiresAt }
+// Bounded + swept like govAlertSources/nws.js: the key derives from
+// client-supplied coordinates, so an unbounded Map is remotely growable
+// on an ALLOW_REMOTE install (~173k entries/day at the 120 req/min cap).
+const CACHE_MAX = 256;
+const cache = new BoundedMap(CACHE_MAX); // cacheKey → { payload, expiresAt }
+setInterval(() => sweepExpired(cache), TTL_MS).unref();
 
 /**
  * 0.1° rounded grid for cache keys (~11 km cells). AirNow's ~80 km
