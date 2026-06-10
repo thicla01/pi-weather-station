@@ -158,6 +158,26 @@ echo ""
 NODE_MIN=18
 NVM_INSTALL=false
 
+# Download-then-execute for the NodeSource setup script. The previous
+# `curl ... | sudo -E bash -` pipeline silently "succeeded" when curl
+# failed (`set -e` without pipefail only sees the LAST command's exit
+# code, and bash reading an empty stdin exits 0) — the following
+# `apt-get install nodejs` then pulled the distro's nodejs (v12 on
+# Bullseye, v18 on Bookworm) instead of v22, a silent version drift.
+install_node_via_nodesource() {
+    local tmp
+    tmp=$(mktemp)
+    if ! curl -fsSL https://deb.nodesource.com/setup_22.x -o "$tmp"; then
+        rm -f "$tmp"
+        echo ">> ERROR: could not download the NodeSource setup script."
+        echo "   Check network connectivity and re-run this script."
+        exit 1
+    fi
+    sudo -E bash "$tmp"
+    rm -f "$tmp"
+    sudo apt-get install -y nodejs
+}
+
 # Load nvm if already installed — check common install locations
 # (traditional ~/.nvm or XDG ~/.config/nvm depending on nvm version/env)
 _load_nvm() {
@@ -242,8 +262,7 @@ if ! command -v node &>/dev/null || [ "${NODE_VERSION:-0}" -lt "$NODE_MIN" ]; th
                     echo
                     if [[ -z "$REPLY" || $REPLY =~ ^[Yy]$ ]]; then
                         echo ">> Installing Node.js v22 LTS via NodeSource for $OS_CODENAME ($ARCH)..."
-                        curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
-                        sudo apt-get install -y nodejs
+                        install_node_via_nodesource
                     else
                         echo ">> Installation cancelled. Node.js v${NODE_MIN} or later is required."
                         exit 1
@@ -255,8 +274,7 @@ if ! command -v node &>/dev/null || [ "${NODE_VERSION:-0}" -lt "$NODE_MIN" ]; th
                 echo
                 if [[ -z "$REPLY" || $REPLY =~ ^[Yy]$ ]]; then
                     echo ">> Installing Node.js v22 LTS via NodeSource for $OS_CODENAME ($ARCH)..."
-                    curl -fsSL https://deb.nodesource.com/setup_22.x | sudo -E bash -
-                    sudo apt-get install -y nodejs
+                    install_node_via_nodesource
                 else
                     echo ">> Installation cancelled. Node.js v${NODE_MIN} or later is required."
                     exit 1
@@ -266,6 +284,18 @@ if ! command -v node &>/dev/null || [ "${NODE_VERSION:-0}" -lt "$NODE_MIN" ]; th
     fi
 else
     echo ">> Node.js detected: $(node --version)"
+fi
+
+# Re-verify the version after whichever install branch ran. Catches every
+# "the install path quietly produced the wrong Node" case (distro package
+# pulled instead of NodeSource, nvm alias not applied, ...) before npm ci
+# fails 300 lines later with a cryptic engines error.
+NODE_NOW="$(node --version 2>/dev/null | sed 's/^v//' | cut -d. -f1 || true)"
+if [ -z "$NODE_NOW" ] || [ "$NODE_NOW" -lt "$NODE_MIN" ]; then
+    echo ">> ERROR: Node.js v${NODE_MIN}+ is required but '$(node --version 2>/dev/null || echo "none")' is active."
+    echo "   The installation above did not produce the expected version — aborting"
+    echo "   before dependency installation. Re-run this script once fixed."
+    exit 1
 fi
 
 # Detect nvm usage (Linux only) regardless of whether node was just installed or already present
@@ -299,7 +329,11 @@ fi
 
 if [ "$CONFIGURE_SETTINGS" = "yes" ]; then
     echo ""
-    echo "   Press Enter to leave a field empty."
+    if [ -f "$REPO_DIR/settings.json" ]; then
+        echo "   Press Enter to KEEP a field's current value."
+    else
+        echo "   Press Enter to leave a field empty."
+    fi
     echo ""
 
     read -p "   Tomorrow.io API key (weatherApiKey)         : " WEATHER_KEY
@@ -318,26 +352,42 @@ if [ "$CONFIGURE_SETTINGS" = "yes" ]; then
     read -p "   Starting latitude                           : " LAT
     read -p "   Starting longitude                          : " LON
 
-    WEATHER_KEY=${WEATHER_KEY:-key}
-    MAP_KEY=${MAP_KEY:-key}
-    GEO_KEY=${GEO_KEY:-key}
-
-    python3 -c "
+    # Reconfiguration is a MERGE, not a rewrite. The previous version
+    # regenerated settings.json from the prompt answers alone: an empty
+    # answer reset weatherApiKey/mapApiKey to the "key" placeholder,
+    # dropped the optional keys and lat/lon, and erased every block the
+    # prompts don't cover (indoorTemperature credentials, the whole
+    # `advanced` tree incl. Sense HAT mode/brightness) — a destructive
+    # trap on a configured fleet Pi. Now: existing values survive unless
+    # the user typed a replacement, unknown blocks pass through verbatim,
+    # and the previous file is kept as settings.json.bak.
+    if [ -f "$REPO_DIR/settings.json" ]; then
+        cp "$REPO_DIR/settings.json" "$REPO_DIR/settings.json.bak"
+        chmod 600 "$REPO_DIR/settings.json.bak"
+        echo ">> Existing settings backed up to settings.json.bak."
+    fi
+    python3 - "$WEATHER_KEY" "$MAP_KEY" "$GEO_KEY" "$ANTHROPIC_KEY" "$AIRNOW_KEY" "$OPENAQ_KEY" "$LAT" "$LON" "$REPO_DIR/settings.json" <<'PYEOF' > "$REPO_DIR/settings.json.tmp"
 import json, sys
-data = {
-    'weatherApiKey': sys.argv[1],
-    'mapApiKey':     sys.argv[2],
-    'reverseGeoApiKey': sys.argv[3],
-    'anthropicApiKey': sys.argv[4] if sys.argv[4] else None,
-    'airNowApiKey':  sys.argv[5] if sys.argv[5] else None,
-    'openAqApiKey':  sys.argv[6] if sys.argv[6] else None,
-    'startingLat':   sys.argv[7] if sys.argv[7] else None,
-    'startingLon':   sys.argv[8] if sys.argv[8] else None,
-}
-data = {k: v for k, v in data.items() if v is not None}
-print(json.dumps(data, indent=2))
-" "$WEATHER_KEY" "$MAP_KEY" "$GEO_KEY" "$ANTHROPIC_KEY" "$AIRNOW_KEY" "$OPENAQ_KEY" "$LAT" "$LON" > "$REPO_DIR/settings.json"
-    echo ">> settings.json created."
+keys = ["weatherApiKey", "mapApiKey", "reverseGeoApiKey", "anthropicApiKey",
+        "airNowApiKey", "openAqApiKey", "startingLat", "startingLon"]
+answers = dict(zip(keys, sys.argv[1:9]))
+path = sys.argv[9]
+try:
+    with open(path, "r", encoding="utf-8") as fh:
+        merged = json.load(fh)
+except Exception:
+    merged = {}
+# Only fields the user actually typed overwrite the existing value.
+for k, v in answers.items():
+    if v:
+        merged[k] = v
+# Required keys default to the documented placeholder on a fresh file.
+for k in ("weatherApiKey", "mapApiKey", "reverseGeoApiKey"):
+    merged.setdefault(k, "key")
+print(json.dumps(merged, indent=2))
+PYEOF
+    mv "$REPO_DIR/settings.json.tmp" "$REPO_DIR/settings.json"
+    echo ">> settings.json written (existing values preserved unless replaced)."
 else
     if [ ! -f "$REPO_DIR/settings.json" ]; then
         cp "$REPO_DIR/settings.example.json" "$REPO_DIR/settings.json"
@@ -357,11 +407,38 @@ if [ -f "$REPO_DIR/settings.json" ]; then
 fi
 
 # --- Remote network access + SSL cert ---
+# Re-runs default to the CURRENT state instead of an unconditional "no":
+# install.sh is the documented way to add features later (Sense HAT,
+# brightness, ...), and the old fixed-default prompt silently disabled
+# remote access / debug on a configured Pi when the user pressed Enter
+# through this section. Same state-reading approach as toggle-remote.sh.
+CURRENT_REMOTE="no"
+if [[ "$PLATFORM" == "Darwin" ]]; then
+    EXISTING_PLIST="$HOME/Library/LaunchAgents/com.pi-weather-station.plist"
+    if [ -f "$EXISTING_PLIST" ] && plutil -extract EnvironmentVariables.ALLOW_REMOTE raw "$EXISTING_PLIST" 2>/dev/null | grep -q "true"; then
+        CURRENT_REMOTE="yes"
+    fi
+else
+    # Two locations, like toggle-remote.sh's read_current_state_linux:
+    # local.conf drop-in (v2.8.1+) OR the main service file (pre-v2.8.1
+    # installs set Environment=ALLOW_REMOTE=true there directly).
+    if grep -qs "ALLOW_REMOTE=true" ~/.config/systemd/user/pi-weather-server.service.d/local.conf \
+        || grep -qsE '^Environment=ALLOW_REMOTE=true' ~/.config/systemd/user/pi-weather-server.service; then
+        CURRENT_REMOTE="yes"
+    fi
+fi
 echo ""
 echo ">> Remote network access..."
-read -p "   Allow access from other machines on the network? (y/N) " -n 1 -r
-echo
-if [[ $REPLY =~ ^[Yy]$ ]]; then
+if [ "$CURRENT_REMOTE" = "yes" ]; then
+    read -p "   Allow access from other machines on the network? [currently: enabled] (Y/n) " -n 1 -r
+    echo
+    REMOTE_ANSWER=$([[ -z "$REPLY" || $REPLY =~ ^[Yy]$ ]] && echo "yes" || echo "no")
+else
+    read -p "   Allow access from other machines on the network? [currently: disabled] (y/N) " -n 1 -r
+    echo
+    REMOTE_ANSWER=$([[ $REPLY =~ ^[Yy]$ ]] && echo "yes" || echo "no")
+fi
+if [ "$REMOTE_ANSWER" = "yes" ]; then
     ALLOW_REMOTE="yes"
     if [[ "$PLATFORM" == "Darwin" ]]; then
         DETECTED_IP=$(ipconfig getifaddr en0 2>/dev/null || ipconfig getifaddr en1 2>/dev/null || echo "127.0.0.1")
@@ -383,11 +460,28 @@ else
 fi
 
 # --- Debug mode ---
+# Same current-state default as ALLOW_REMOTE above.
+CURRENT_DEBUG="no"
+if [[ "$PLATFORM" == "Darwin" ]]; then
+    if [ -f "${EXISTING_PLIST:-}" ] && plutil -extract EnvironmentVariables.DEBUG raw "$EXISTING_PLIST" 2>/dev/null | grep -q "true"; then
+        CURRENT_DEBUG="yes"
+    fi
+else
+    if grep -qs "^Environment=DEBUG=true" ~/.config/systemd/user/pi-weather-server.service.d/override.conf; then
+        CURRENT_DEBUG="yes"
+    fi
+fi
 echo ""
 echo ">> Debug mode..."
-read -p "   Enable debug panel? (localhost only, shows cache/quota/logs) (y/N) " -n 1 -r
-echo
-DEBUG_MODE=$([[ $REPLY =~ ^[Yy]$ ]] && echo "yes" || echo "no")
+if [ "$CURRENT_DEBUG" = "yes" ]; then
+    read -p "   Enable debug panel? (localhost only, shows cache/quota/logs) [currently: enabled] (Y/n) " -n 1 -r
+    echo
+    DEBUG_MODE=$([[ -z "$REPLY" || $REPLY =~ ^[Yy]$ ]] && echo "yes" || echo "no")
+else
+    read -p "   Enable debug panel? (localhost only, shows cache/quota/logs) [currently: disabled] (y/N) " -n 1 -r
+    echo
+    DEBUG_MODE=$([[ $REPLY =~ ^[Yy]$ ]] && echo "yes" || echo "no")
+fi
 
 # ============================================================================
 # Phase 3 — Kiosk mode + browser selection (Linux only)
@@ -520,7 +614,21 @@ fi
 echo ""
 echo ">> Installing server dependencies (npm ci)..."
 cd "$REPO_DIR"
-npm ci --no-audit --no-fund
+# `npm ci` deletes node_modules wholesale before reinstalling. A mid-flight
+# failure (network drop, npm registry outage) under `set -e` used to kill
+# the script with node_modules destroyed and no explanation — the running
+# server survives in memory, but the next restart/reboot crash-loops
+# (Restart=on-failure) into a black kiosk. Fail with a recovery message.
+if ! npm ci --no-audit --no-fund; then
+    echo ""
+    echo ">> ERROR: npm ci failed — node_modules is now INCOMPLETE."
+    echo "   The currently-running service (if any) keeps working from memory,"
+    echo "   but the next service restart or reboot would crash-loop."
+    echo "   Fix the cause (usually network/registry) and re-run either:"
+    echo "     npm ci          (just the dependencies)"
+    echo "     bash deploy/install.sh   (the full script)"
+    exit 1
+fi
 
 # The React bundle (client/dist/bundle.min.js) is committed to git, so the
 # Pi normally serves the canonical master build without rebuilding. We only
@@ -576,10 +684,19 @@ with open(plist_dest, "wb") as f:
     plistlib.dump(data, f, fmt=plistlib.FMT_XML)
 PYEOF
 
+    # No rotation mechanism exists for the launchd log (newsyslog's
+    # rename-based rotation doesn't play well with launchd's always-open
+    # fd) — guard against unbounded growth at each re-install instead.
+    if [ -f "$REPO_DIR/server.log" ] && [ "$(stat -f%z "$REPO_DIR/server.log" 2>/dev/null || echo 0)" -gt $((50 * 1024 * 1024)) ]; then
+        : > "$REPO_DIR/server.log"
+        echo ">> server.log was over 50 MB — truncated."
+    fi
+
     launchctl bootout "gui/$(id -u)" "$PLIST_DEST" 2>/dev/null || true
     launchctl bootstrap "gui/$(id -u)" "$PLIST_DEST"
     echo ">> launchd agent installed and started."
     echo ">> Server logs: tail -f $REPO_DIR/server.log"
+    echo "   (no automatic rotation on macOS — truncate manually with ': > server.log' if needed)"
 
 else
     # Linux/Pi — systemd user service
@@ -602,10 +719,19 @@ EOF
         rm -f ~/.config/systemd/user/pi-weather-server.service.d/local.conf
     fi
 
-    cat > ~/.config/systemd/user/pi-weather-server.service.d/override.conf << 'EOF'
+    # Log destination: a PERSISTENT per-user path (XDG state dir), not /tmp.
+    # /tmp is a tmpfs on RPi OS Trixie / Debian 13 — logs lived in RAM and
+    # vanished at reboot, which is exactly when they're needed (post-freeze
+    # forensics: kiosk freezes → user reboots → the evidence is gone).
+    # Installs older than this change keep writing to /tmp/weather-server.log
+    # until install.sh is re-run; the debug panel reads both paths.
+    LOG_DIR="$HOME/.local/state/pi-weather-station"
+    LOG_FILE="$LOG_DIR/server.log"
+    mkdir -p "$LOG_DIR"
+    cat > ~/.config/systemd/user/pi-weather-server.service.d/override.conf << EOF
 [Service]
-StandardOutput=append:/tmp/weather-server.log
-StandardError=append:/tmp/weather-server.log
+StandardOutput=append:$LOG_FILE
+StandardError=append:$LOG_FILE
 # Environment=DEBUG=true
 EOF
     if [ "$DEBUG_MODE" = "yes" ]; then
@@ -619,20 +745,53 @@ ExecStart=
 ExecStart=/bin/bash -c '. ${NVM_DIR}/nvm.sh && exec npm start'
 EOF
         echo ">> nvm sourcing configured for systemd service (${NVM_DIR})."
+    else
+        # Symmetric cleanup (same pattern as local.conf above): a stale
+        # nvm.conf from a previous nvm-based install would point ExecStart
+        # at a now-deleted nvm.sh and crash-loop the service on reboot.
+        rm -f ~/.config/systemd/user/pi-weather-server.service.d/nvm.conf
     fi
     systemctl --user daemon-reload
     systemctl --user enable pi-weather-server
-    systemctl --user start pi-weather-server
+    # restart (not start): on a re-install over a running service, `start`
+    # is a no-op and the freshly-pulled code doesn't run until the next
+    # reboot — silently leaving the old version live.
+    systemctl --user restart pi-weather-server
     loginctl enable-linger "$USER" 2>/dev/null || true
-    echo ">> Service pi-weather-server enabled and started."
-    echo ">> Server logs available at: tail -f /tmp/weather-server.log"
+    echo ">> Service pi-weather-server enabled and (re)started."
+    echo ">> Server logs available at: tail -f $LOG_FILE"
 
     # --- Log rotation ---
+    # The repo file is a template (__LOG_FILE__/__USER__/__GROUP__): the
+    # old static copy hardcoded `su pi pi`, and on any install where the
+    # user isn't `pi` (Bookworm/Trixie ask at imaging; Debian/Ubuntu/
+    # openSUSE desktops) logrotate rejected the directive and silently
+    # skipped the config forever — the log grew unbounded.
     if command -v logrotate >/dev/null 2>&1 && [ -d /etc/logrotate.d ]; then
         echo ""
         echo ">> Configuring log rotation..."
-        sudo cp "$REPO_DIR/deploy/logrotate-weather-server" /etc/logrotate.d/weather-server
-        echo ">> Log rotation configured (daily, 7 days, max 10M, compressed)."
+        # Generated next to the log (NOT mktemp): if sudo is refused the
+        # pending file must survive a reboot — /tmp wouldn't on Trixie.
+        LOGROTATE_PENDING="$LOG_DIR/logrotate-weather-server.pending"
+        sed -e "s|__LOG_FILE__|$LOG_FILE|g" \
+            -e "s|__USER__|$USER|g" \
+            -e "s|__GROUP__|$(id -gn)|g" \
+            "$REPO_DIR/deploy/logrotate-weather-server" > "$LOGROTATE_PENDING"
+        # Guarded: a declined sudo password under `set -e` used to abort the
+        # whole install here, leaving phases 6-8 (autostart, Sense HAT,
+        # summary) unexecuted with no explanation.
+        if sudo cp "$LOGROTATE_PENDING" /etc/logrotate.d/weather-server; then
+            echo ">> Log rotation configured (daily, 10M cap, 7 rotations, compressed)."
+            rm -f "$LOGROTATE_PENDING"
+        else
+            echo ">> WARNING: log rotation NOT configured (sudo refused)."
+            echo "   The generated config was left at $LOGROTATE_PENDING — install it later with:"
+            echo "     sudo cp $LOGROTATE_PENDING /etc/logrotate.d/weather-server"
+        fi
+    else
+        echo ""
+        echo ">> WARNING: logrotate not found — $LOG_FILE will grow unbounded."
+        echo "   Install logrotate (sudo apt-get install logrotate) and re-run this script."
     fi
 
     # --- start-server script ---
@@ -670,8 +829,19 @@ EOF
             labwc)
                 echo ">> Display server detected: labwc"
                 mkdir -p ~/.config/labwc
-                cp "$REPO_DIR/deploy/autostart" ~/.config/labwc/autostart
-                echo ">> ~/.config/labwc/autostart configured."
+                LABWC_AUTOSTART="$HOME/.config/labwc/autostart"
+                # Append, never clobber: this file is shared shell-style
+                # config — a user's own autostart entries (screen rotation,
+                # unclutter, ...) must survive a re-install.
+                if grep -qs "start-server" "$LABWC_AUTOSTART"; then
+                    echo ">> $LABWC_AUTOSTART already configured, no changes made."
+                elif [ -s "$LABWC_AUTOSTART" ]; then
+                    cat "$REPO_DIR/deploy/autostart" >> "$LABWC_AUTOSTART"
+                    echo ">> start-server appended to existing $LABWC_AUTOSTART."
+                else
+                    cp "$REPO_DIR/deploy/autostart" "$LABWC_AUTOSTART"
+                    echo ">> $LABWC_AUTOSTART configured."
+                fi
                 ;;
             wayfire)
                 echo ">> Display server detected: wayfire"

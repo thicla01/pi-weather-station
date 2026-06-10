@@ -13,7 +13,8 @@ managed:
 
 | Platform | Process manager | Log file | How to tail |
 |---|---|---|---|
-| Linux (Pi, Debian, openSUSE) | systemd user unit | `/tmp/weather-server.log` | `tail -f /tmp/weather-server.log` |
+| Linux (Pi, Debian, openSUSE) — installs from 2026-06 on | systemd user unit | `~/.local/state/pi-weather-station/server.log` | `tail -f ~/.local/state/pi-weather-station/server.log` |
+| Linux — older installs (until `install.sh` is re-run) | systemd user unit | `/tmp/weather-server.log` | `tail -f /tmp/weather-server.log` |
 | macOS | launchd user agent | `<repo>/server.log` (e.g. `~/pi-weather-station/server.log`) | `tail -f ~/pi-weather-station/server.log` |
 | Manual `npm start` (any) | foreground shell | terminal stdout | nothing extra needed |
 
@@ -28,8 +29,8 @@ that pins both streams to a file:
 
 ```ini
 [Service]
-StandardOutput=append:/tmp/weather-server.log
-StandardError=append:/tmp/weather-server.log
+StandardOutput=append:/home/<user>/.local/state/pi-weather-station/server.log
+StandardError=append:/home/<user>/.local/state/pi-weather-station/server.log
 ```
 
 This is a deliberate choice — a flat file is easier to `tail`, easier
@@ -40,6 +41,19 @@ volatile-only on space-constrained Pis). The trade-off is that
 **lifecycle** events (start, stop, exit code, ExecStartPre output)
 and **none** of the application's own logging. If you grep journalctl
 and find nothing useful, that is why — read the file instead.
+
+### Why the XDG state dir (and not `/tmp`)
+
+Installs before 2026-06 pinned the log to `/tmp/weather-server.log`.
+On RPi OS **Trixie** / Debian 13, `/tmp` is a **tmpfs**: the log (and
+its rotated copies) lived in RAM and vanished at every reboot — which
+is exactly when they're needed (the post-freeze diagnostic pattern is
+"kiosk froze → user reboots → read the log", and the reboot destroyed
+the evidence). `~/.local/state/pi-weather-station/` (XDG state dir)
+is on the SD card and survives reboots; the 10 MB rotation cap keeps
+the write footprint negligible. Existing installs migrate the next
+time `bash deploy/install.sh` runs; until then they keep logging to
+`/tmp` and the debug panel reads both locations.
 
 ### Why a different path on macOS
 
@@ -52,12 +66,25 @@ points both streams at `<repo>/server.log`, which is `.gitignore`d.
 
 ### Log rotation
 
-On Linux, `install.sh` also drops `/etc/logrotate.d/weather-server`
-that rotates `/tmp/weather-server.log` daily, keeps 7 days of history,
-caps each file at 10 MB, and gzips the rotated copies. No equivalent
-on macOS — the file just grows; truncate it manually with `: >
-~/pi-weather-station/server.log` if it gets large (rare in practice
-for a single-user kiosk).
+On Linux, `install.sh` generates `/etc/logrotate.d/weather-server`
+from the template at `deploy/logrotate-weather-server`, substituting
+the real log path and the install user/group (the old static copy
+hardcoded `su pi pi`, which made logrotate silently skip the config on
+any system without a `pi` user). The policy: rotate **daily**, with a 10 MB
+`maxsize` evaluated at each logrotate run (stock RPi OS runs logrotate
+once a day, so the cap effectively bounds one day's accumulation —
+it would trigger intra-day only if logrotate is scheduled more often),
+keep 7 rotations, gzip them. If `sudo` is declined during install, the
+generated config is left at
+`~/.local/state/pi-weather-station/logrotate-weather-server.pending`
+with instructions — rotation is then NOT active until it's copied into
+place.
+
+No rotation on macOS (newsyslog's rename-based rotation doesn't play
+well with launchd's always-open file descriptor) — `install.sh`
+truncates the file at re-install when it exceeds 50 MB; truncate it
+manually with `: > ~/pi-weather-station/server.log` if it gets large
+(rare in practice for a single-user dev box).
 
 ### Reading systemd lifecycle events (Linux)
 
@@ -102,12 +129,17 @@ When `DEBUG=true` is set in the systemd / launchd drop-in (toggle via
 surfaced through `/api/debug` for convenience when SSH is awkward.
 The endpoint is `localhostOnly`, so this preview is never exposed to
 remote clients; it tails the file the host is actually writing to
-(`/tmp/weather-server.log` on Linux, `<repo>/server.log` on macOS).
+(`~/.local/state/pi-weather-station/server.log` on Linux — falling
+back to the legacy `/tmp/weather-server.log` on not-yet-migrated
+installs — and `<repo>/server.log` on macOS).
 
 ## TL;DR for "I changed something on the server, where do I see it?"
 
 ```bash
-# Linux (Pi)
+# Linux (Pi) — installs from 2026-06 on
+tail -f ~/.local/state/pi-weather-station/server.log
+
+# Linux (Pi) — older installs (until install.sh is re-run)
 tail -f /tmp/weather-server.log
 
 # macOS (dev)

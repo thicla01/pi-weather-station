@@ -163,8 +163,8 @@ It will:
 - Optionally enable the debug panel (see [Debug panel](#debug-panel))
 - Install server dependencies (`npm ci`); the React bundle ships pre-built in `client/dist/`, so the client only rebuilds if `--rebuild-client` is passed or `bundle.min.js` is missing
 - Vulnerability scanning + automatic security PRs are handled by Dependabot on GitHub (see `.github/dependabot.yml`); merged PRs propagate to every Pi via the in-app updater's `npm ci`
-- Configure and start the systemd service with log redirection to `/tmp/weather-server.log`
-- Install log rotation (`/etc/logrotate.d/weather-server`) — daily rotation, 7 days history, max 10 MB, compressed
+- Configure and start the systemd service with log redirection to `~/.local/state/pi-weather-station/server.log` (a persistent path — `/tmp` is a tmpfs on Trixie; installs older than 2026-06 used `/tmp/weather-server.log` until `install.sh` is re-run)
+- Install log rotation (`/etc/logrotate.d/weather-server`, generated from the `deploy/logrotate-weather-server` template with your user and log path) — daily rotation, 7 days history, 10 MB cap, compressed
 - Optionally enable kiosk mode — deploy `~/.local/bin/start-server` and configure your display server's autostart to launch Chromium in fullscreen automatically (default: yes). When declined, the server still starts via systemd but no autostart is configured
 - Offer to reboot to launch the application automatically (default: yes)
 
@@ -181,12 +181,17 @@ cp deploy/pi-weather-server.service ~/.config/systemd/user/
 npm install
 cd client && npm install && npm run prod && cd ..
 mkdir -p ~/.config/systemd/user/pi-weather-server.service.d
-cat > ~/.config/systemd/user/pi-weather-server.service.d/override.conf << 'EOF'
+mkdir -p ~/.local/state/pi-weather-station
+cat > ~/.config/systemd/user/pi-weather-server.service.d/override.conf << EOF
 [Service]
-StandardOutput=append:/tmp/weather-server.log
-StandardError=append:/tmp/weather-server.log
+StandardOutput=append:$HOME/.local/state/pi-weather-station/server.log
+StandardError=append:$HOME/.local/state/pi-weather-station/server.log
 EOF
-sudo cp deploy/logrotate-weather-server /etc/logrotate.d/weather-server
+# deploy/logrotate-weather-server is a template — substitute the
+# placeholders (copying it verbatim makes logrotate reject the config):
+sed -e "s|__LOG_FILE__|$HOME/.local/state/pi-weather-station/server.log|" \
+    -e "s|__USER__|$USER|" -e "s|__GROUP__|$(id -gn)|" \
+    deploy/logrotate-weather-server | sudo tee /etc/logrotate.d/weather-server >/dev/null
 systemctl --user daemon-reload
 systemctl --user enable pi-weather-server
 systemctl --user start pi-weather-server
@@ -232,7 +237,7 @@ echo "@start-server" >> ~/.config/lxsession/LXDE-pi/autostart
 View logs with:
 
 ```bash
-tail -f /tmp/weather-server.log
+tail -f ~/.local/state/pi-weather-station/server.log
 ```
 
 Then reboot to launch the application automatically:
@@ -249,7 +254,10 @@ Copy the provided script to `~/.local/bin/` and call it from your compositor's a
 mkdir -p ~/.local/bin
 cp deploy/start-weather ~/.local/bin/start-weather
 chmod +x ~/.local/bin/start-weather
-sudo cp deploy/logrotate-weather-server /etc/logrotate.d/weather-server
+# Generate the logrotate config from the template (see Option 2 note):
+sed -e "s|__LOG_FILE__|$HOME/.local/state/pi-weather-station/server.log|" \
+    -e "s|__USER__|$USER|" -e "s|__GROUP__|$(id -gn)|" \
+    deploy/logrotate-weather-server | sudo tee /etc/logrotate.d/weather-server >/dev/null
 ```
 
 This script starts the Node.js server, waits for it to be ready, automatically detects whether it started on port 8443 (HTTPS) or 8080 (HTTP), and automatically detects the Chromium binary (`chromium` on Bookworm/Trixie, `chromium-browser` on Bullseye).
@@ -278,7 +286,7 @@ echo "@start-weather" >> ~/.config/lxsession/LXDE-pi/autostart
 View logs with:
 
 ```bash
-tail -f /tmp/weather-server.log
+tail -f ~/.local/state/pi-weather-station/server.log
 ```
 
 Then reboot to launch the application automatically:
@@ -417,7 +425,7 @@ A debug panel is available on the Pi when `DEBUG=true` is set server-side. It sh
 - **Quotas** — hourly, daily, and monthly request counters per service and endpoint, with colour-coded thresholds
 - **Cache** — current in-memory weather cache entries with remaining TTL
 - **Radar snapshots** — last 10 AI-summary radar payloads with the input/output pair (the compressed `radarText` block fed to Claude and the resulting summary), source (`fast-path` or `claude`), timestamp, lang, lat/lon. Each entry has a per-snapshot **Copy** button (plain-text dump to clipboard for sharing) and a section-level **Export JSON** button (full payload archive). When the radar block was missing from a Claude prompt (RainViewer 502, no frames, etc.), the snapshot records the actual reason inline so post-mortems are self-contained
-- **Logs** — last 100 lines of the server log (`/tmp/weather-server.log` on Linux, `<repo>/server.log` on macOS — see [`docs/logs.md`](docs/logs.md) for why `journalctl` is not the place to look)
+- **Logs** — last 100 lines of the server log (`~/.local/state/pi-weather-station/server.log` on Linux — legacy installs: `/tmp/weather-server.log` —, `<repo>/server.log` on macOS — see [`docs/logs.md`](docs/logs.md) for why `journalctl` is not the place to look)
 - **Security events** — blocked requests (write attempts from remote clients)
 - **Vulnerability scan** — links to the repo's public list of dependency-related PRs on GitHub (open + closed, both security and weekly version updates), the public-facing equivalent of Dependabot's alerts dashboard since `npm audit` was retired from `install.sh`. The URL is built per-fork so a downstream fork lands on its own PR list automatically
 
@@ -451,8 +459,8 @@ nano ~/.local/bin/start-weather
 Comment out the default `npm start` line and uncomment the `DEBUG=true` line:
 
 ```bash
-# npm start >> /tmp/weather-server.log 2>&1 &
-DEBUG=true npm start >> /tmp/weather-server.log 2>&1 &
+# npm start >> "$LOG_FILE" 2>&1 &
+DEBUG=true npm start >> "$LOG_FILE" 2>&1 &
 ```
 
 **Manually:**

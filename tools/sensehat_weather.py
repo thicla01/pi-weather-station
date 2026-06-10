@@ -1659,6 +1659,9 @@ def run():
     sense.clear((0, 0, 0))
     initial = fetch_weather_with_retry()
     if initial:
+        # The startup retry can take minutes — restamp so the alert
+        # staleness window counts from the actual success, not daemon boot.
+        last_fetch_success = time.time()
         base_state   = classify(initial.get("weatherCode"), initial.get("cloudCover", 0))
         is_day       = initial.get("isDay", True)
         sunrise_ts   = initial.get("sunriseTs")

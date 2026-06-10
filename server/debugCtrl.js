@@ -569,8 +569,11 @@ async function getDebugInfo(req, res) {
 
   let logs = [];
   const LOG_PATHS = [
-    "/tmp/weather-server.log",          // systemd via install.sh override.conf
-    path.join(__dirname, "../server.log"), // manual redirect (npm start > server.log)
+    // systemd via install.sh override.conf (2026-06+): persistent XDG
+    // state dir — /tmp is a tmpfs on Trixie and lost the logs at reboot.
+    path.join(os.homedir(), ".local/state/pi-weather-station/server.log"),
+    "/tmp/weather-server.log",          // pre-2026-06 installs (until install.sh is re-run)
+    path.join(__dirname, "../server.log"), // macOS launchd / manual redirect (npm start > server.log)
   ];
   let logFound = false;
   for (const logPath of LOG_PATHS) {

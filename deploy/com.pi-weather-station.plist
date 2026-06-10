@@ -7,8 +7,9 @@
   Equivalent of deploy/pi-weather-server.service (systemd) on Linux/Pi.
 
   Installation:
-    1. Replace INSTALL_DIR below with the absolute path to your install directory
-       (e.g. /Users/yourname/pi-weather-station) — ~ is not supported by launchd.
+    1. Replace __INSTALL_DIR__ below (all three occurrences) with the absolute
+       path to your install directory (e.g. /Users/yourname/pi-weather-station)
+       — ~ is not supported by launchd.
     2. Copy to your LaunchAgents folder:
          cp deploy/com.pi-weather-station.plist ~/Library/LaunchAgents/
     3. Load the agent (macOS 10.10+):
@@ -22,7 +23,7 @@
     Stop:    launchctl stop   com.pi-weather-station
     Restart: launchctl stop   com.pi-weather-station && launchctl start com.pi-weather-station
     Status:  launchctl list | grep pi-weather
-    Logs:    tail -f INSTALL_DIR/server.log
+    Logs:    tail -f your-install-dir/server.log
 
   Note: launchctl load/unload still work on most systems but are deprecated since macOS 10.10.
         Use bootstrap/bootout to avoid "Load failed: Input/output error".
@@ -45,7 +46,7 @@
     </array>
 
     <key>WorkingDirectory</key>
-    <string>/Users/claude/pi-weather-station</string>
+    <string>__INSTALL_DIR__</string>
 
     <key>EnvironmentVariables</key>
     <dict>
@@ -65,8 +66,8 @@
 
     <!-- Log output — same file used by the server -->
     <key>StandardOutPath</key>
-    <string>/Users/claude/pi-weather-station/server.log</string>
+    <string>__INSTALL_DIR__/server.log</string>
     <key>StandardErrorPath</key>
-    <string>/Users/claude/pi-weather-station/server.log</string>
+    <string>__INSTALL_DIR__/server.log</string>
 </dict>
 </plist>

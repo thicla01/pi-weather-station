@@ -46,7 +46,34 @@ else
         echo "   pi-sensehat.service removed."
     fi
 
+    # Sense HAT clock service — installed alongside pi-sensehat and possibly
+    # ACTIVE right now (the in-app mode toggle starts it). Skipping it left
+    # the LED matrix displaying the time after "Uninstall complete", with an
+    # orphaned unit pointing at a deleted horloge.py.
+    if systemctl --user list-unit-files pi-sensehat-clock.service &>/dev/null; then
+        systemctl --user stop pi-sensehat-clock 2>/dev/null && echo "   pi-sensehat-clock stopped." || echo "   pi-sensehat-clock was not running."
+        systemctl --user disable pi-sensehat-clock 2>/dev/null && echo "   pi-sensehat-clock disabled." || echo "   pi-sensehat-clock was not enabled."
+    fi
+    if [ -f "$HOME/.config/systemd/user/pi-sensehat-clock.service" ]; then
+        rm "$HOME/.config/systemd/user/pi-sensehat-clock.service"
+        echo "   pi-sensehat-clock.service removed."
+    fi
+
     systemctl --user daemon-reload
+
+    # Lingering was enabled by install.sh so the user services start at
+    # boot without a graphical login. It is account-wide and may serve
+    # OTHER user services — only offer, never force.
+    if loginctl show-user "$USER" 2>/dev/null | grep -q "^Linger=yes"; then
+        echo ""
+        read -p ">> Disable systemd lingering for $USER? (keep it if other user services must start at boot) (y/N) " -n 1 -r
+        echo
+        if [[ $REPLY =~ ^[Yy]$ ]]; then
+            loginctl disable-linger "$USER" 2>/dev/null && echo "   Lingering disabled." || echo "   Could not disable lingering."
+        else
+            echo "   Lingering kept."
+        fi
+    fi
 fi
 
 # --- 1b. Brightness control udev rule (Linux only) ---
@@ -61,6 +88,16 @@ if [[ "$PLATFORM" != "Darwin" ]]; then
         sudo rm "$UDEV_RULE"
         sudo udevadm control --reload-rules 2>/dev/null || true
         echo "   $UDEV_RULE removed."
+    fi
+
+    # logrotate config installed by install.sh — left behind, it makes
+    # logrotate complain daily about a missing log once the app is gone.
+    if [ -f /etc/logrotate.d/weather-server ]; then
+        echo ""
+        echo ">> Removing logrotate configuration..."
+        sudo rm -f /etc/logrotate.d/weather-server \
+            && echo "   /etc/logrotate.d/weather-server removed." \
+            || echo "   Could not remove /etc/logrotate.d/weather-server (sudo refused) — remove it manually."
     fi
 fi
 
@@ -85,9 +122,18 @@ if [[ "$PLATFORM" != "Darwin" ]]; then
     case "$DISPLAY_SERVER" in
         labwc)
             echo ">> Display server detected: labwc"
-            if [ -f "$HOME/.config/labwc/autostart" ]; then
-                rm "$HOME/.config/labwc/autostart"
-                echo "   ~/.config/labwc/autostart removed."
+            # Remove only our entry (install.sh appends to this shared
+            # shell-style file — the user's own autostart lines must
+            # survive); drop the file only if nothing meaningful remains.
+            LABWC_AUTOSTART="$HOME/.config/labwc/autostart"
+            if [ -f "$LABWC_AUTOSTART" ]; then
+                sed -i '/start-server/d' "$LABWC_AUTOSTART"
+                if ! grep -q '[^[:space:]]' "$LABWC_AUTOSTART"; then
+                    rm "$LABWC_AUTOSTART"
+                    echo "   ~/.config/labwc/autostart removed (contained only our entry)."
+                else
+                    echo "   start-server entry removed from ~/.config/labwc/autostart (user entries kept)."
+                fi
             fi
             ;;
         wayfire)
@@ -208,23 +254,35 @@ if [[ "$PLATFORM" != "Darwin" ]]; then
         read -p "   Remove nvm and clean shell profile files? (y/N) " -n 1 -r
         echo
         if [[ $REPLY =~ ^[Yy]$ ]]; then
+            # The profile scrub must stay INSIDE the confirmed branch:
+            # the previous &&/|| chaining ran it even when the user
+            # declined the second confirmation, leaving nvm on disk but
+            # unloadable in every new shell (node/npm vanished from the
+            # interactive PATH despite an explicit "no").
+            REMOVE_NVM="yes"
             if [ "$NVM_DIR_EXISTS" = "true" ]; then
                 read -p "   Are you sure? This cannot be undone. (y/N) " -n 1 -r
                 echo
-                [[ ! $REPLY =~ ^[Yy]$ ]] && { echo "   nvm kept."; } || {
+                if [[ $REPLY =~ ^[Yy]$ ]]; then
                     rm -rf "$FOUND_NVM_DIR"
                     echo "   $FOUND_NVM_DIR removed."
-                }
-            fi
-            for _PROFILE in "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile"; do
-                if [ -f "$_PROFILE" ]; then
-                    sed -i '/NVM_DIR/d' "$_PROFILE"
-                    sed -i '/nvm\.sh/d' "$_PROFILE"
-                    sed -i '/nvm_completion/d' "$_PROFILE"
-                    sed -i '/# nvm/Id' "$_PROFILE"
+                else
+                    REMOVE_NVM="no"
                 fi
-            done
-            echo "   Shell profile files cleaned."
+            fi
+            if [ "$REMOVE_NVM" = "yes" ]; then
+                for _PROFILE in "$HOME/.bashrc" "$HOME/.bash_profile" "$HOME/.profile"; do
+                    if [ -f "$_PROFILE" ]; then
+                        sed -i '/NVM_DIR/d' "$_PROFILE"
+                        sed -i '/nvm\.sh/d' "$_PROFILE"
+                        sed -i '/nvm_completion/d' "$_PROFILE"
+                        sed -i '/# nvm/Id' "$_PROFILE"
+                    fi
+                done
+                echo "   Shell profile files cleaned."
+            else
+                echo "   nvm kept (profile files untouched)."
+            fi
         else
             echo "   nvm kept."
         fi
@@ -244,6 +302,10 @@ RUNTIME_FILES=(
     "$REPO_DIR/server/geolocation-cache.json"
     "$REPO_DIR/server/request-counts.json"
 )
+# Server logs outside the repo: the XDG state dir (current installs) and
+# /tmp (pre-2026-06 installs), including rotated .1/.2.gz copies.
+rm -f "$HOME/.local/state/pi-weather-station/server.log"* /tmp/weather-server.log* 2>/dev/null || true
+rmdir "$HOME/.local/state/pi-weather-station" 2>/dev/null || true
 RUNTIME_REMOVED=0
 for FILE in "${RUNTIME_FILES[@]}"; do
     if [ -f "$FILE" ]; then

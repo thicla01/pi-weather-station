@@ -89,5 +89,5 @@ Please include:
 - Raspberry Pi OS version (`cat /etc/os-release`)
 - Node.js version (`node --version`)
 - Browser / Chromium version
-- Relevant lines from the server log (`tail -50 /tmp/weather-server.log`)
+- Relevant lines from the server log (`tail -50 ~/.local/state/pi-weather-station/server.log`; `/tmp/weather-server.log` on pre-2026-06 installs)
 - Steps to reproduce
