@@ -24,7 +24,7 @@
   display: flex;
   align-items: center;
   gap: 5px;
-  font-family: "Rubik", sans-serif;
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
   font-size: clamp(10px, 0.9vw, 13px);
   opacity: 0.6;
 }
@@ -55,7 +55,7 @@
 }
 
 .chart-tab {
-  font-family: "Rubik", sans-serif;
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
   font-size: clamp(9px, 0.8vw, 11px);
   letter-spacing: 0.05em;
   padding: 2px 8px;

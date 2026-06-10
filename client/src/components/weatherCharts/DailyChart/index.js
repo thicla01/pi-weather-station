@@ -58,14 +58,14 @@ const createChartOptions = ({
         display: true,
         text: title,
         color: fontColor(darkMode, nightRed),
-        font: { family: "Rubik, sans-serif" },
+        font: { family: "Geist, system-ui, -apple-system, sans-serif" },
       },
     },
     scales: {
       x: {
         ticks: {
           color: fontColor(darkMode, nightRed),
-          font: { family: "Rubik, sans-serif" },
+          font: { family: "Geist, system-ui, -apple-system, sans-serif" },
         },
         // Explicit grid colour — see HourlyChart for rationale.
         grid: {
@@ -78,7 +78,7 @@ const createChartOptions = ({
         position: "left",
         ticks: {
           color: fontColor(darkMode, nightRed),
-          font: { family: "Rubik, sans-serif" },
+          font: { family: "Geist, system-ui, -apple-system, sans-serif" },
           maxTicksLimit: 5,
           callback: (val) => {
             return altMode
@@ -96,7 +96,7 @@ const createChartOptions = ({
         position: "right",
         ticks: {
           color: fontColor(darkMode, nightRed),
-          font: { family: "Rubik, sans-serif" },
+          font: { family: "Geist, system-ui, -apple-system, sans-serif" },
           maxTicksLimit: 5,
           suggestedMin: 0,
           callback: (val) => {

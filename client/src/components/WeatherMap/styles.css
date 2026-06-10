@@ -12,7 +12,7 @@
   z-index: 1000;
   padding: 6px 9px;
   border-radius: 4px;
-  font-family: "Rubik", sans-serif;
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
   font-size: clamp(9px, 0.75vw, 11px);
   pointer-events: none;
   backdrop-filter: blur(6px);
@@ -171,7 +171,7 @@
   display: flex;
   justify-content: center;
   align-items: center;
-  font-family: Rubik;
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
   flex-direction: column;
   font-size: clamp(12px, 1.1vw, 16px);
 }

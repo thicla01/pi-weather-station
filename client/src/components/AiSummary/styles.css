@@ -43,7 +43,7 @@
 }
 
 .label {
-  font-family: "Rubik", sans-serif;
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
   font-size: clamp(11px, 1.0vw, 14px);
   font-weight: 500;
   letter-spacing: 0.08em;
@@ -56,7 +56,7 @@
 }
 
 .text {
-  font-family: "Rubik", sans-serif;
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
   font-size: clamp(14px, 1.3vw, 18px);
   line-height: 1.55;
   /* 16 px paragraph gap (was 6) so the three-paragraph Claude

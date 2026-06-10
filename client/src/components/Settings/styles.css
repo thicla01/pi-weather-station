@@ -10,7 +10,7 @@
   backdrop-filter: blur(3px);
   padding: 10px;
   color: #f6f6f4;
-  font-family: "Rubik", sans-serif;
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
   border-right: 1px solid rgba(0, 0, 0, 0.15);
   position: relative;
   display: flex;

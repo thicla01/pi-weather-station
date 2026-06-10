@@ -4,7 +4,7 @@
 .container {
   height: calc(100% - 20px);  /* subtract padding */
   padding: 10px;
-  font-family: "Rubik", sans-serif;
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
   display: grid;
   grid-template-columns: auto;
   /* Four rows: clock (clamped), alert (auto — collapses to 0 when the
