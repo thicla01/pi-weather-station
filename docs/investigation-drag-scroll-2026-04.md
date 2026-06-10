@@ -45,6 +45,8 @@ git restore client/src/components/Settings/styles.css
 ```
 
 > **Note** : En cas de mise à jour du Pi, vérifier que `~/.local/bin/start-server` est en sync avec `deploy/start-server`.
+>
+> **Mise à jour (durcissement sécurité 2026-06) :** `--remote-debugging-port=9222` est désormais **désactivé par défaut** (un port DevTools ouvert laisse tout process local piloter la session kiosk et atteindre les endpoints `localhostOnly`). Pour rouvrir le port le temps d'un diagnostic : `export KIOSK_REMOTE_DEBUG=true` (ou l'ajouter à `~/.config/pi-weather-station/browser.conf`), puis relancer `start-server`. **Un `:9222` absent est donc maintenant le comportement attendu, pas le signe d'un script périmé.**
 
 ---
 

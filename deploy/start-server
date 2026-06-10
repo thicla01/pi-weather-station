@@ -108,10 +108,20 @@ case "$BROWSER_FAMILY" in
         if [ -n "$WAYLAND_DISPLAY" ]; then
             FLAGS="--ozone-platform=wayland --enable-features=OverlayScrollbar --start-maximized"
         fi
+        # Chrome DevTools remote-debugging port (localhost:9222). OFF by
+        # default: while open, ANY local process can attach and drive the
+        # kiosk session — reaching the server's localhost-gated endpoints
+        # (settings writes, debug panel). Enable only for diagnostics by
+        # setting KIOSK_REMOTE_DEBUG=true (export it, or add it to
+        # browser.conf, which this script sources). See the drag-scroll /
+        # V3D-freeze incident notes for when it's useful.
+        if [ "${KIOSK_REMOTE_DEBUG:-}" = "true" ]; then
+            FLAGS="$FLAGS --remote-debugging-port=9222"
+        fi
         # shellcheck disable=SC2086
         "$BROWSER_CMD" --kiosk --noerrdialogs --disable-infobars --no-first-run \
             --ignore-certificate-errors --touch-events=enabled \
-            --remote-debugging-port=9222 $FLAGS "$URL"
+            $FLAGS "$URL"
         ;;
     firefox)
         # Firefox has no CLI flag to bypass SSL warnings — the user accepts

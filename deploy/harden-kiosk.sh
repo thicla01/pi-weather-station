@@ -121,7 +121,7 @@ echo "     - Deny all incoming by default"
 echo "     - Deny all outgoing by default"
 echo "     - Allow outgoing: DNS (53), HTTP (80), HTTPS (443), NTP (123)"
 echo "     - Allow incoming SSH (22) from the local subnet only"
-echo "     - Allow incoming on ports 8080 and 8443 (weather station UI)"
+echo "     - Allow incoming on port 8443 (weather station UI, HTTPS)"
 echo ""
 echo "   WARNING: if you're SSH'd in from outside the local subnet, you will"
 echo "   lose your connection. Make sure you're on the same LAN, or add your"
@@ -142,7 +142,9 @@ if confirm "   Apply firewall rules and enable ufw?"; then
         ufw allow out 443 >/dev/null      # HTTPS
         ufw allow out 123 >/dev/null      # NTP
         ufw allow from "$LAN_CIDR" to any port 22 proto tcp >/dev/null   # SSH from LAN
-        ufw allow from "$LAN_CIDR" to any port 8080 proto tcp >/dev/null # weather UI (HTTP)
+        # Only 8443 (HTTPS) is reachable remotely — the server binds the
+        # cleartext :8080 fallback to loopback only (it refuses to serve
+        # unencrypted over the LAN), so there's nothing to allow there.
         ufw allow from "$LAN_CIDR" to any port 8443 proto tcp >/dev/null # weather UI (HTTPS)
         ufw --force enable >/dev/null
         echo "   ufw enabled with restrictive policy."

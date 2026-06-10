@@ -128,7 +128,7 @@ Configures `ufw` with:
 - All incoming denied by default
 - All outgoing denied by default
 - Outgoing allowed: DNS (53), HTTP (80), HTTPS (443), NTP (123)
-- Incoming allowed from the local subnet only: SSH (22), HTTP (8080), HTTPS (8443)
+- Incoming allowed from the local subnet only: SSH (22), HTTPS (8443). The cleartext `:8080` fallback is **not** opened — the server binds it to loopback only (it refuses to serve unencrypted over the LAN), so there is nothing to allow there.
 
 Why: if something does run on the Pi despite the other layers, this caps what
 it can do — it can't reach an attacker-controlled server on an arbitrary

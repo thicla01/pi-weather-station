@@ -622,13 +622,26 @@ if (sslOptions) {
     console.log(`${appName} v${ver} has started on port ${HTTPS_PORT} (HTTPS, bound to ${HOST})`);
   });
 } else {
-  app.listen(PORT, HOST, async () => {
+  // Cleartext HTTP fallback (TLS cert unavailable — generation failed, or
+  // SKIP_CERT_AUTOGEN with no cert on disk). NEVER serve cleartext on all
+  // interfaces: force loopback-only even under ALLOW_REMOTE, so the masked
+  // settings + traffic can't be sniffed over the LAN unencrypted. The kiosk
+  // keeps working locally; remote access stays down until a cert exists.
+  const httpHost = "127.0.0.1";
+  if (ALLOW_REMOTE) {
+    console.error(
+      "[startup] TLS certificate unavailable — refusing to serve cleartext HTTP on all interfaces. " +
+      "Binding 127.0.0.1 only; REMOTE ACCESS IS DISABLED until a cert is generated " +
+      "(re-run `bash deploy/install.sh`, or check server/key.pem & server/cert.pem)."
+    );
+  }
+  app.listen(PORT, httpHost, async () => {
     initServerInfo(PORT, "http");
     initIndoorTemperature();
     registerKnownServices();
     applySenseHatModeOnBoot().catch(() => undefined);
     await openInBrowserIfDev(`http://localhost:${PORT}`);
-    console.log(`${appName} v${ver} has started on port ${PORT} (HTTP, bound to ${HOST})`);
+    console.log(`${appName} v${ver} has started on port ${PORT} (HTTP, bound to ${httpHost})`);
   });
 }
 
