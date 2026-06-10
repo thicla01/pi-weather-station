@@ -13,8 +13,9 @@
 //     }
 //   }
 //
-// Users who don't configure it see no change to the app — the polling loop
-// never starts, the endpoint returns 404, and the UI component renders nothing.
+// Users who don't configure it see no change to the app — each poll tick
+// no-ops while the feature is disabled, the endpoint reports
+// `{ enabled: false }`, and the UI component renders nothing.
 
 const axios = require("axios").default;
 const { getSettingsData } = require("./settingsCtrl");
@@ -95,6 +96,9 @@ async function pollOnce() {
   }
 
   if (!cfg?.enabled || !cfg.homebridgeUrl || !cfg.username || !cfg.password || !cfg.sensorName) {
+    // Drop any reading from a previous configuration so re-enabling with a
+    // different sensor never briefly serves the old sensor's values.
+    cache = null;
     return;
   }
 
@@ -140,7 +144,11 @@ async function pollOnce() {
 }
 
 /**
- * Starts the polling loop if the feature is enabled in settings.
+ * Starts the polling loop. The interval always runs; each tick re-reads
+ * settings and no-ops while the feature is disabled — so enabling
+ * indoorTemperature from the settings panel takes effect within one poll
+ * interval instead of requiring a server restart (the previous design only
+ * started the timer when the feature was already enabled at boot).
  * Safe to call multiple times — clears any existing timer first.
  *
  * @returns {Promise<void>}
@@ -151,21 +159,12 @@ async function initIndoorTemperature() {
     pollTimer = null;
   }
 
-  let settings;
-  try {
-    settings = await getSettingsData();
-  } catch {
-    return;
-  }
-
-  if (!settings?.indoorTemperature?.enabled) {
-    return;
-  }
-
-  // Initial fetch, then schedule
+  // Initial tick (no-op while disabled), then schedule. unref() so the
+  // idle timer never holds the process (or a test runner) open.
   pollOnce();
   pollTimer = setInterval(pollOnce, POLL_INTERVAL_MS);
-  console.log("[indoor-temp] polling started");
+  pollTimer.unref();
+  console.log("[indoor-temp] polling loop started (idle while disabled in settings)");
 }
 
 /**

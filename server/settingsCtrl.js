@@ -208,8 +208,14 @@ function preserveServerOwnedAdvanced(currentSettings, key, val) {
 }
 
 function setSetting(req, res) {
-  const { key, val } = req.body;
-  if (!key || !val) {
+  // `req.body` is undefined when the JSON body-parser didn't match (wrong
+  // content-type / empty body) — destructure defensively so a malformed
+  // request gets a clean 400 instead of a TypeError forwarded to the
+  // default HTML error handler. `val` is checked against null/undefined
+  // (not truthiness): false, 0 and "" are legitimate setting values —
+  // a `!val` guard silently rejected boolean-false toggles.
+  const { key, val } = req.body || {};
+  if (!key || val === undefined || val === null) {
     return res.status(400).json("You must supply a key and val").end();
   }
   if (!ALLOWED_KEYS.has(key)) {

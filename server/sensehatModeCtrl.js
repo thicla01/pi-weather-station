@@ -252,6 +252,31 @@ async function persistSensehat(patch) {
   await patchAdvancedSubKey("sensehat", patch);
 }
 
+// Serialises applyMode invocations. The stop-other-then-start-target
+// sequence is the only thing enforcing weather/clock mutual exclusion
+// (a deliberate server-level choice — see pi-sensehat-clock.service);
+// two overlapping sequences can interleave at the systemctl boundaries
+// and leave BOTH daemons driving the LED matrix (double-tap on the
+// SettingsPanel toggle, or a toggle racing the boot re-apply). Promise
+// chain = same pattern as the settings-write serialisation from #208.
+let _applyChain = Promise.resolve();
+
+/**
+ * Apply the mode at the systemd level, serialised against concurrent
+ * calls — each invocation waits for the previous one's stop/start
+ * sequence to settle before starting its own.
+ *
+ * @param {"weather"|"clock"|"radar"|"auto"} mode
+ * @returns {Promise<void>}
+ */
+function applyMode(mode) {
+  const run = _applyChain.then(() => _applyModeNow(mode));
+  // Keep the chain alive after a rejection: the caller gets the error
+  // (via `run`), the next invocation starts from a resolved link.
+  _applyChain = run.catch(() => undefined);
+  return run;
+}
+
 /**
  * Apply the mode at the systemd level. Stops the inactive service
  * first (so the LED matrix is released), then starts the active
@@ -264,7 +289,7 @@ async function persistSensehat(patch) {
  *
  * @param {"weather"|"clock"|"radar"|"auto"} mode
  */
-async function applyMode(mode) {
+async function _applyModeNow(mode) {
   // Only "clock" runs the clock daemon; weather/radar/auto all run the
   // weather daemon and differ purely in the script's per-poll personality.
   const wantsClock = mode === "clock";
