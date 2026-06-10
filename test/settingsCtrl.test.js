@@ -24,7 +24,7 @@ const os = require("node:os");
 const path = require("node:path");
 
 const { __test } = require("../server/settingsCtrl");
-const { sanitizeSettings, maskForRemote, preserveServerOwnedAdvanced, ensureSecurePermissions, mergeAdvancedSubKey, serializeWrite, FILE_MODE, ALLOWED_KEYS, API_KEY_FIELDS, REMOTE_HIDDEN_KEYS } = __test;
+const { sanitizeSettings, maskForRemote, preserveServerOwnedAdvanced, ensureSecurePermissions, mergeAdvancedSubKey, serializeWrite, writeSettingsFile, FILE_MODE, ALLOWED_KEYS, API_KEY_FIELDS, REMOTE_HIDDEN_KEYS } = __test;
 
 // === sanitizeSettings: the input whitelist ===
 
@@ -370,4 +370,38 @@ test("ensureSecurePermissions: a non-existent path is a silent no-op (no throw)"
   const missing = path.join(os.tmpdir(), `settings-absent-${process.pid}-${Date.now()}.json`);
   assert.doesNotThrow(() => ensureSecurePermissions(missing));
   assert.equal(fs.existsSync(missing), false);
+});
+
+// writeSettingsFile — the atomic tmp-write + fsync + rename pattern
+// (2026-06 audit + ROADMAP #212). What we lock down: the write is
+// atomic from a reader's point of view (no .tmp visible afterwards),
+// the secure 0600 mode applies to the file from birth (the tmp file
+// carries it, rename preserves it), and an overwrite replaces the
+// content wholesale.
+
+test("writeSettingsFile: atomic write — content, 0600 mode, no .tmp leftover", async () => {
+  const target = path.join(os.tmpdir(), `settings-atomic-${process.pid}-${Date.now()}.json`);
+  try {
+    await writeSettingsFile({ weatherApiKey: "abc", startingLat: "45.5" }, target);
+    const parsed = JSON.parse(fs.readFileSync(target, "utf8"));
+    assert.deepEqual(parsed, { weatherApiKey: "abc", startingLat: "45.5" });
+    assert.equal(fs.statSync(target).mode & 0o777, FILE_MODE);
+    assert.equal(fs.existsSync(`${target}.tmp`), false, "the tmp file must be renamed away");
+  } finally {
+    fs.rmSync(target, { force: true });
+    fs.rmSync(`${target}.tmp`, { force: true });
+  }
+});
+
+test("writeSettingsFile: overwrite replaces the previous content wholesale", async () => {
+  const target = path.join(os.tmpdir(), `settings-atomic-ow-${process.pid}-${Date.now()}.json`);
+  try {
+    await writeSettingsFile({ a: 1, b: 2 }, target);
+    await writeSettingsFile({ c: 3 }, target);
+    assert.deepEqual(JSON.parse(fs.readFileSync(target, "utf8")), { c: 3 });
+    assert.equal(fs.existsSync(`${target}.tmp`), false);
+  } finally {
+    fs.rmSync(target, { force: true });
+    fs.rmSync(`${target}.tmp`, { force: true });
+  }
 });
