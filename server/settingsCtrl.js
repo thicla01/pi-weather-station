@@ -430,8 +430,11 @@ function serializeWrite(task) {
  * kiosk. (2026-06 quality audit + the ROADMAP tech-debt item from
  * #212 — one fix closes both findings.)
  *
- * A leftover `.tmp` from a failed attempt is harmless: gitignored,
- * never read by anything.
+ * Failure hygiene: the tmp file holds a FULL settings copy (API keys +
+ * Homebridge credentials), so the error path removes it before
+ * rethrowing, and sweepOrphanSettingsTmp() purges at startup whatever a
+ * crash mid-write (SIGKILL, power cut) left behind. Both best-effort;
+ * the tmp is 0600 from birth and gitignored either way.
  *
  * The tmp name carries a per-process sequence number: the HTTP write
  * handlers do NOT go through serializeWrite (only internal writes do,
@@ -449,14 +452,54 @@ let tmpWriteSeq = 0;
 async function writeSettingsFile(obj, filePath = FILE_PATH) {
   tmpWriteSeq += 1;
   const tmpPath = `${filePath}.${process.pid}.${tmpWriteSeq}.tmp`;
-  const handle = await fs.promises.open(tmpPath, "w", FILE_MODE);
   try {
-    await handle.writeFile(JSON.stringify(obj), { encoding: ENCODING });
-    await handle.sync();
-  } finally {
-    await handle.close();
+    const handle = await fs.promises.open(tmpPath, "w", FILE_MODE);
+    try {
+      await handle.writeFile(JSON.stringify(obj), { encoding: ENCODING });
+      await handle.sync();
+    } finally {
+      await handle.close();
+    }
+    await fs.promises.rename(tmpPath, filePath);
+  } catch (err) {
+    // Don't strand a full secrets copy on a failed write/sync/rename —
+    // best-effort removal, the original error is the one to surface.
+    await fs.promises.rm(tmpPath, { force: true }).catch(() => {});
+    throw err;
   }
-  await fs.promises.rename(tmpPath, filePath);
+}
+
+/**
+ * Purge orphaned settings tmp files at startup — leftovers from a crash
+ * mid-write that writeSettingsFile's error path couldn't clean (SIGKILL,
+ * power cut), or from an aborted install.sh Phase 2
+ * (`settings.json.tmp`). Each one holds a full settings copy, so they
+ * shouldn't accumulate. Matches `<basename>.<anything>.tmp` and
+ * `<basename>.tmp`; never touches the settings file itself or
+ * `settings.json.bak`. Best-effort and synchronous — called once from
+ * index.js at startup, next to ensureSecurePermissions().
+ *
+ * @param {String} [filePath] settings path (injectable for unit tests)
+ */
+function sweepOrphanSettingsTmp(filePath = FILE_PATH) {
+  const dir = path.dirname(filePath);
+  const base = path.basename(filePath);
+  let entries;
+  try {
+    entries = fs.readdirSync(dir);
+  } catch {
+    return;
+  }
+  for (const name of entries) {
+    if (name.startsWith(`${base}.`) && name.endsWith(".tmp")) {
+      try {
+        fs.rmSync(path.join(dir, name), { force: true });
+        console.log(`[settings] removed orphaned tmp file: ${name}`);
+      } catch (err) {
+        console.error(`[settings] could not remove orphaned tmp ${name}: ${err.message}`);
+      }
+    }
+  }
 }
 
 /**
@@ -528,6 +571,7 @@ module.exports = {
   replaceSettings,
   getSettingsData,
   ensureSecurePermissions,
+  sweepOrphanSettingsTmp,
   patchAdvancedSubKey,
   // Exported for regression testing only — internal helpers, not part of
   // the public surface. See test/settingsCtrl.test.js.
@@ -540,6 +584,7 @@ module.exports = {
     mergeAdvancedSubKey,
     serializeWrite,
     writeSettingsFile,
+    sweepOrphanSettingsTmp,
     FILE_MODE,
     ALLOWED_KEYS,
     API_KEY_FIELDS,

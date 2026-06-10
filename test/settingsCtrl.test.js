@@ -24,7 +24,7 @@ const os = require("node:os");
 const path = require("node:path");
 
 const { __test } = require("../server/settingsCtrl");
-const { sanitizeSettings, maskForRemote, preserveServerOwnedAdvanced, ensureSecurePermissions, mergeAdvancedSubKey, serializeWrite, writeSettingsFile, FILE_MODE, ALLOWED_KEYS, API_KEY_FIELDS, REMOTE_HIDDEN_KEYS } = __test;
+const { sanitizeSettings, maskForRemote, preserveServerOwnedAdvanced, ensureSecurePermissions, mergeAdvancedSubKey, serializeWrite, writeSettingsFile, sweepOrphanSettingsTmp, FILE_MODE, ALLOWED_KEYS, API_KEY_FIELDS, REMOTE_HIDDEN_KEYS } = __test;
 
 // === sanitizeSettings: the input whitelist ===
 
@@ -405,5 +405,34 @@ test("writeSettingsFile: overwrite replaces the previous content wholesale", asy
     assert.deepEqual(leftovers, [], "no tmp leftovers after overwrite");
   } finally {
     fs.rmSync(target, { force: true });
+  }
+});
+
+test("writeSettingsFile: a failed rename removes its tmp file (no secrets stranded)", async () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "settings-atomic-fail-"));
+  const target = path.join(dir, "settings.json");
+  fs.mkdirSync(target); // rename(file -> existing directory) fails
+  try {
+    await assert.rejects(() => writeSettingsFile({ weatherApiKey: "secret" }, target));
+    const leftovers = fs.readdirSync(dir).filter((f) => f.endsWith(".tmp"));
+    assert.deepEqual(leftovers, [], "the error path must clean up its tmp file");
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test("sweepOrphanSettingsTmp: purges tmp siblings, keeps the settings file and .bak", () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "settings-sweep-"));
+  const target = path.join(dir, "settings.json");
+  try {
+    fs.writeFileSync(target, "{}");
+    fs.writeFileSync(`${target}.bak`, "{}");
+    fs.writeFileSync(`${target}.tmp`, "{}");            // aborted install.sh shape
+    fs.writeFileSync(`${target}.12345.7.tmp`, "{}");    // crashed atomic-writer shape
+    sweepOrphanSettingsTmp(target);
+    const remaining = fs.readdirSync(dir).sort();
+    assert.deepEqual(remaining, ["settings.json", "settings.json.bak"]);
+  } finally {
+    fs.rmSync(dir, { recursive: true, force: true });
   }
 });
