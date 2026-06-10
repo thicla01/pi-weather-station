@@ -623,6 +623,7 @@ Pulls the latest code, installs new dependencies, and restarts the service.
 | `wrong-branch` | Current branch isn't `master` (`currentBranch` field returned for context) |
 | `local-changes` | `git status --porcelain` reported uncommitted changes (`dirtyFiles` field returned for context) |
 | `git-status-failed` | git itself errored unexpectedly |
+| `update-in-progress` | another `/api/update` is already running — overlapping invocations are rejected so two `git pull` + `npm ci` runs can't corrupt the working tree. The lock releases when the in-flight update's response settles. |
 
 - **Successful flow** — when pre-flight passes, runs `git pull --ff-only`, then `npm install --omit=dev --no-audit --no-fund`, then schedules a service restart. Errors during the pull or install return HTTP 500 with `{ error, reason: "pull-failed" | "npm-install-failed", message: "..." }`.
 
@@ -668,7 +669,7 @@ Lightweight endpoint polled by the debug panel every 5 s while open, alongside `
 ### `GET /api/brightness`
 Reports the current screen-brightness state. The client uses this on mount to decide whether to render the brightness slider in Advanced settings (hidden when `available: false`) and to initialize the slider value.
 
-- **Access:** Open (read is harmless and the client needs it before rendering even on remote, where the slider stays hidden anyway)
+- **Access:** 🌐 Public — rate limited (120 req/min). Read is harmless and the client needs it before rendering even on remote (where the slider stays hidden anyway); the limiter is there because on the ed-ddc backend each read forks `ed-ddc-server` (~150 ms `execSync`), so an unrated GET could be spammed to block the event loop.
 - **Response when supported:** `{ "available": true, "percent": <0-100>, "raw": <int>, "max": <int>, "devicePath": "/sys/class/backlight/...", "minPercent": 10 }`
 - **Response when not supported** (no kernel backlight, e.g. HDMI monitor, missing dtoverlay, macOS): `{ "available": false }`
 
