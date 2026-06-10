@@ -5,6 +5,15 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
+    # Supply-chain cooldown (2026-06-10, prompted by the Miasma worm wave):
+    # wait 7 days after a release before proposing it as a version bump.
+    # Worm-published malicious versions are typically detected and yanked
+    # within days, so the cooldown keeps the weekly bumps behind that hot
+    # window. Dependabot SECURITY updates ignore cooldown entirely, so
+    # advisory fixes (and the auto-merge workflow that lands patch/minor
+    # ones) are unaffected.
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
@@ -29,6 +38,9 @@ updates:
     schedule:
       interval: "weekly"
       day: "monday"
+    # 7-day supply-chain cooldown — rationale on the server npm entry above.
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 5
     labels:
       - "dependencies"
@@ -52,6 +64,10 @@ updates:
     directory: "/"
     schedule:
       interval: "monthly"
+    # 7-day supply-chain cooldown — rationale on the server npm entry above.
+    # (github-actions only supports default-days, not the semver-* variants.)
+    cooldown:
+      default-days: 7
     open-pull-requests-limit: 3
     labels:
       - "dependencies"
