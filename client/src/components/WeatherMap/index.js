@@ -906,6 +906,78 @@ const WeatherMap = ({ zoom, dark }) => {
     }
   }, [radarTimelineVisible, mapTimestamps, lastPastIdx]);
 
+  // ── Referentially-stable props for the react-leaflet layers ─────────
+  // react-leaflet v4 compares props by reference: a fresh array/object
+  // every render triggers setLatLng/setStyle on the underlying Leaflet
+  // layers even when the values are identical — at 1-4 Hz during radar
+  // animation that's constant no-op SVG work on Pi hardware. These memos
+  // pin the identities to the actual inputs. (Declared before the
+  // early-return below — hooks must run unconditionally.)
+  // Keyed on the coordinates, not the mapGeo object identity — pollers
+  // may hand back fresh-but-equal objects.
+  const markerLat = mapGeo ? mapGeo.latitude : null;
+  const markerLon = mapGeo ? mapGeo.longitude : null;
+  const markerPosition = useMemo(
+    () => (markerLat != null && markerLon != null ? [markerLat, markerLon] : null),
+    [markerLat, markerLon]
+  );
+  const radiusRingOptions = useMemo(
+    () => buildRadiusRingOptions(dark, nightRed),
+    [dark, nightRed]
+  );
+  // The sampling grid is pure geodesic math over (centre, radius, unit) —
+  // 161 points (481 extended) of offsetLatLon per call. Rebuilding it in
+  // the render body recomputed the whole grid on every WeatherMap render.
+  // Gated on the layer's visibility toggles too, so the grid isn't even
+  // computed while the dots layer is hidden (the zoom gate stays in the
+  // JSX — zoom changes often and the markers behind it are memoized).
+  const samplingPoints = useMemo(
+    () => (markerPosition && radarAnalysisEnabled && showSamplingPoints
+      ? buildSamplingPoints(markerPosition, extendedRadarRadius, distanceUnit)
+      : []),
+    [markerPosition, radarAnalysisEnabled, showSamplingPoints, extendedRadarRadius, distanceUnit]
+  );
+  // Rendered markers memoized as a block: the per-dot pathOptions
+  // literals get stable identities tied to the inputs that actually
+  // change their colour (sample intensities, palette).
+  const samplingPointMarkers = useMemo(() => samplingPoints.map(
+    ({ position, key }, idx) => {
+      // Each dot picks its colour from the sample's own intensity.
+      // Clear (intensity 0 or unknown) keeps the neutral default
+      // — same colour the dots had before this change. Coloured
+      // tiers reuse RING_RISK_STYLE so the dots and the dashed
+      // circle they belong to speak the same visual language.
+      const intensity = riskSamples.get(key);
+      const tier = tierForIntensity(intensity);
+      const fillColor = tier
+        ? DOT_COLOR_BY_TIER[dark ? "dark" : "light"][tier]
+        : (dark ? "#f6f6f4" : "#3a3938");
+      // Light-mode dots get a slightly larger radius and a solid
+      // fill — the cream basemap eats thin strokes and low-opacity
+      // fills. For coloured tiers in light mode, also wrap a
+      // darker outline around the fill so an orange dot sitting on
+      // an orange radar tile (same hue!) still reads as a marker
+      // and not as part of the underlying band. Dark mode keeps
+      // the original subtler look — the dark basemap provides
+      // enough contrast that no separate outline is needed.
+      const outlineNeeded = !dark && tier;
+      return (
+        <CircleMarker
+          key={`sp-${idx}`}
+          center={position}
+          radius={dark ? 3 : 4}
+          pathOptions={{
+            color: outlineNeeded ? "#3a3938" : fillColor,
+            fillColor,
+            weight: outlineNeeded ? 1.5 : 1,
+            opacity: 0.85,
+            fillOpacity: dark ? 0.5 : 1,
+          }}
+        />
+      );
+    }
+  ), [samplingPoints, riskSamples, dark]);
+
   if (!hasVal(latitude) || !hasVal(longitude) || !zoom || !mapApiKey) {
     return (
       <div className={`${styles.noMap} ${dark ? styles.dark : styles.light}`}>
@@ -914,7 +986,6 @@ const WeatherMap = ({ zoom, dark }) => {
       </div>
     );
   }
-  const markerPosition = mapGeo ? [mapGeo.latitude, mapGeo.longitude] : null;
 
   return (
     <div className={styles.mapWrapper}>
@@ -1130,47 +1201,11 @@ const WeatherMap = ({ zoom, dark }) => {
           <Circle
             center={markerPosition}
             radius={alertRadiusKm * 1000}
-            pathOptions={buildRadiusRingOptions(dark, nightRed)}
+            pathOptions={radiusRingOptions}
           />
         ) : null}
         {radarAnalysisEnabled && markerPosition && showSamplingPoints && currentMapZoom < RING_HIDE_ZOOM
-          ? buildSamplingPoints(markerPosition, extendedRadarRadius, distanceUnit).map(
-              ({ position, key }, idx) => {
-                // Each dot picks its colour from the sample's own intensity.
-                // Clear (intensity 0 or unknown) keeps the neutral default
-                // — same colour the dots had before this change. Coloured
-                // tiers reuse RING_RISK_STYLE so the dots and the dashed
-                // circle they belong to speak the same visual language.
-                const intensity = riskSamples.get(key);
-                const tier = tierForIntensity(intensity);
-                const fillColor = tier
-                  ? DOT_COLOR_BY_TIER[dark ? "dark" : "light"][tier]
-                  : (dark ? "#f6f6f4" : "#3a3938");
-                // Light-mode dots get a slightly larger radius and a solid
-                // fill — the cream basemap eats thin strokes and low-opacity
-                // fills. For coloured tiers in light mode, also wrap a
-                // darker outline around the fill so an orange dot sitting on
-                // an orange radar tile (same hue!) still reads as a marker
-                // and not as part of the underlying band. Dark mode keeps
-                // the original subtler look — the dark basemap provides
-                // enough contrast that no separate outline is needed.
-                const outlineNeeded = !dark && tier;
-                return (
-                  <CircleMarker
-                    key={`sp-${idx}`}
-                    center={position}
-                    radius={dark ? 3 : 4}
-                    pathOptions={{
-                      color: outlineNeeded ? "#3a3938" : fillColor,
-                      fillColor,
-                      weight: outlineNeeded ? 1.5 : 1,
-                      opacity: 0.85,
-                      fillOpacity: dark ? 0.5 : 1,
-                    }}
-                  />
-                );
-              }
-            )
+          ? samplingPointMarkers
           : null}
         {radarAnalysisEnabled && markerPosition && showDirectionArrows
           ? [

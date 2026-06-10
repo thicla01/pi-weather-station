@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useRef, useState } from "react";
+import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
 import bxsSun from "@iconify/icons-bx/bxs-sun";
@@ -56,12 +56,43 @@ const HeroBand = () => {
       : "en";
   const locale = I18N_LOCALE[localeKey];
 
-  // Tick the clock every second so the time stays live without a
-  // separate Clock component instance.
+  // Tick the clock once per minute, aligned on the minute boundary —
+  // the display has no seconds, so the previous 1 Hz tick re-rendered
+  // the whole hero band (and re-ran the astronomy + formatting work
+  // below) 60× more often than anything on screen could change.
+  //
+  // Chained setTimeout, NOT setInterval: each tick re-computes the next
+  // minute boundary, so the phase self-heals after background-tab timer
+  // throttling (Chromium coalesces hidden-tab timers onto its own ~1/min
+  // wake grid), a laptop sleep/wake, or an NTP clock step — a fixed-phase
+  // interval would roll the displayed minute late, permanently, after any
+  // of those. The visibilitychange resync covers the return-to-foreground
+  // moment itself, when the pending (throttled) timeout may still be far
+  // past its boundary. HeroBand is the desktop layout — exactly the
+  // background-tab/laptop case; the kiosk is always visible.
   const [now, setNow] = useState(() => new Date());
   useEffect(() => {
-    const id = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(id);
+    const MINUTE_MS = 60 * 1000;
+    let timerId = null;
+    const scheduleNext = () => {
+      timerId = setTimeout(() => {
+        setNow(new Date());
+        scheduleNext();
+      }, MINUTE_MS - (Date.now() % MINUTE_MS));
+    };
+    scheduleNext();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        setNow(new Date());
+        clearTimeout(timerId);
+        scheduleNext();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      clearTimeout(timerId);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, []);
 
   const values = currentWeatherData?.data?.timelines?.[0]?.intervals?.[0]?.values;
@@ -84,18 +115,28 @@ const HeroBand = () => {
   const showFeelsLike = feelsConverted != null;
 
   const hour12 = clockTime === "12";
-  const dateStr = new Intl.DateTimeFormat(locale, {
-    weekday: "long",
-    month: "long",
-    day: "numeric",
-    timeZone: mapTimezone,
-  }).format(now).toUpperCase();
-  const timeFormatter = new Intl.DateTimeFormat(locale, {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12,
-    timeZone: mapTimezone,
-  });
+  // Intl.DateTimeFormat construction is the expensive half of date
+  // formatting (locale data lookup) — memoized so each render only pays
+  // for format(), not for rebuilding three formatters.
+  const dateFormatter = useMemo(
+    () => new Intl.DateTimeFormat(locale, {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+      timeZone: mapTimezone,
+    }),
+    [locale, mapTimezone]
+  );
+  const timeFormatter = useMemo(
+    () => new Intl.DateTimeFormat(locale, {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12,
+      timeZone: mapTimezone,
+    }),
+    [locale, hour12, mapTimezone]
+  );
+  const dateStr = dateFormatter.format(now).toUpperCase();
   const parts = timeFormatter.formatToParts(now);
   const hhmm = parts
     .filter((p) => ["hour", "minute", "literal"].includes(p.type))
@@ -104,12 +145,15 @@ const HeroBand = () => {
     .trim()
     .replace(/\s+h\s*$/i, "");
   const dayPeriod = parts.find((p) => p.type === "dayPeriod")?.value || "";
-  const sunFormatter = new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12,
-    timeZone: mapTimezone,
-  });
+  const sunFormatter = useMemo(
+    () => new Intl.DateTimeFormat("en-US", {
+      hour: "numeric",
+      minute: "2-digit",
+      hour12,
+      timeZone: mapTimezone,
+    }),
+    [hour12, mapTimezone]
+  );
 
   // Astronomy add-ons (v2.16.x) — mirror TimeBlock so the desktop
   // hero band carries the moon-phase chip and the optional
