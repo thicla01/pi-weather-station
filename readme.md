@@ -189,7 +189,8 @@ StandardError=append:$HOME/.local/state/pi-weather-station/server.log
 EOF
 # deploy/logrotate-weather-server is a template — substitute the
 # placeholders (copying it verbatim makes logrotate reject the config):
-sed -e "s|__LOG_FILE__|$HOME/.local/state/pi-weather-station/server.log|" \
+sed -e '/^[[:space:]]*#/d' -e '/^$/d' \
+    -e "s|__LOG_FILE__|$HOME/.local/state/pi-weather-station/server.log|" \
     -e "s|__USER__|$USER|" -e "s|__GROUP__|$(id -gn)|" \
     deploy/logrotate-weather-server | sudo tee /etc/logrotate.d/weather-server >/dev/null
 systemctl --user daemon-reload
@@ -255,7 +256,8 @@ mkdir -p ~/.local/bin
 cp deploy/start-weather ~/.local/bin/start-weather
 chmod +x ~/.local/bin/start-weather
 # Generate the logrotate config from the template (see Option 2 note):
-sed -e "s|__LOG_FILE__|$HOME/.local/state/pi-weather-station/server.log|" \
+sed -e '/^[[:space:]]*#/d' -e '/^$/d' \
+    -e "s|__LOG_FILE__|$HOME/.local/state/pi-weather-station/server.log|" \
     -e "s|__USER__|$USER|" -e "s|__GROUP__|$(id -gn)|" \
     deploy/logrotate-weather-server | sudo tee /etc/logrotate.d/weather-server >/dev/null
 ```

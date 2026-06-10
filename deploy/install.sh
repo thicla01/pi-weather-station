@@ -773,7 +773,11 @@ EOF
         # Generated next to the log (NOT mktemp): if sudo is refused the
         # pending file must survive a reboot — /tmp wouldn't on Trixie.
         LOGROTATE_PENDING="$LOG_DIR/logrotate-weather-server.pending"
-        sed -e "s|__LOG_FILE__|$LOG_FILE|g" \
+        # `/^[[:space:]]*#/d` drops the template's comment header: it talks
+        # about placeholders and "do not copy verbatim", which is confusing
+        # in the installed file (and trips naive __ greps on the result).
+        sed -e '/^[[:space:]]*#/d' -e '/^$/d' \
+            -e "s|__LOG_FILE__|$LOG_FILE|g" \
             -e "s|__USER__|$USER|g" \
             -e "s|__GROUP__|$(id -gn)|g" \
             "$REPO_DIR/deploy/logrotate-weather-server" > "$LOGROTATE_PENDING"
