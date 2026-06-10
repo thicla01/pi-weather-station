@@ -5,9 +5,12 @@
 # the log lives under the user's home (XDG state dir) — without it,
 # logrotate refuses to rotate inside a non-root-owned directory.
 #
-# `maxsize` (not `size`): rotate daily, AND earlier if the file passes
-# 10 MB. Plain `size` would *replace* the daily schedule (rotation only on
-# threshold) — the old config silently disabled the documented daily cycle.
+# `maxsize` (not `size`): guarantees the DAILY rotation, with 10 MB as an
+# additional trigger evaluated whenever logrotate runs (on stock RPi OS
+# logrotate.timer is daily, so in practice this caps each rotated file at
+# whatever accumulates in a day, 10 MB-checked once per run). Plain `size`
+# *replaces* the schedule entirely (rotation only ever on threshold) — the
+# old config silently disabled the documented daily cycle.
 __LOG_FILE__ {
     su __USER__ __GROUP__
     daily

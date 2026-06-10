@@ -16,10 +16,11 @@
 # Logs:
 #   See docs/logs.md for the full picture. install.sh writes a drop-in
 #   `override.conf` that pins StandardOutput + StandardError to
-#   /tmp/weather-server.log (a flat file is easier to tail / grep /
-#   logrotate than the systemd journal), so the server's own
+#   ~/.local/state/pi-weather-station/server.log (a flat file is easier
+#   to tail / grep / logrotate than the systemd journal; pre-2026-06
+#   installs used /tmp/weather-server.log), so the server's own
 #   console.log lines live there:
-#     tail -f /tmp/weather-server.log
+#     tail -f ~/.local/state/pi-weather-station/server.log
 #   `journalctl --user -u pi-weather-server` only shows systemd
 #   LIFECYCLE events (start/stop/exit, ExecStartPre output) — none
 #   of the application output. This catches everyone at least once;

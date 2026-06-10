@@ -17,11 +17,14 @@ for _NVM_DIR in "$HOME/.nvm" "${XDG_CONFIG_HOME:-$HOME/.config}/nvm" "$HOME/.con
     fi
 done
 
-# Start the Node.js server
-# ALLOW_REMOTE=true npm start >> /tmp/weather-server.log 2>&1 &
-# ALLOW_REMOTE=true REMOTE_SECURITY=true npm start >> /tmp/weather-server.log 2>&1 &
-# DEBUG=true npm start >> /tmp/weather-server.log 2>&1 &
-npm start >> /tmp/weather-server.log 2>&1 &
+# Start the Node.js server. Logs go to the same persistent XDG path the
+# systemd install uses (/tmp is a tmpfs on Trixie — logs there are lost
+# at reboot).
+LOG_FILE="$HOME/.local/state/pi-weather-station/server.log"
+mkdir -p "$(dirname "$LOG_FILE")"
+# ALLOW_REMOTE=true npm start >> "$LOG_FILE" 2>&1 &
+# DEBUG=true npm start >> "$LOG_FILE" 2>&1 &
+npm start >> "$LOG_FILE" 2>&1 &
 
 # Wait for server on 8443 (HTTPS) or 8080 (HTTP). Allow up to 5 min so
 # cold boots after a power outage (router/switch still booting, slow

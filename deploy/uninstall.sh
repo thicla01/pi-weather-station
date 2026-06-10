@@ -122,9 +122,18 @@ if [[ "$PLATFORM" != "Darwin" ]]; then
     case "$DISPLAY_SERVER" in
         labwc)
             echo ">> Display server detected: labwc"
-            if [ -f "$HOME/.config/labwc/autostart" ]; then
-                rm "$HOME/.config/labwc/autostart"
-                echo "   ~/.config/labwc/autostart removed."
+            # Remove only our entry (install.sh appends to this shared
+            # shell-style file — the user's own autostart lines must
+            # survive); drop the file only if nothing meaningful remains.
+            LABWC_AUTOSTART="$HOME/.config/labwc/autostart"
+            if [ -f "$LABWC_AUTOSTART" ]; then
+                sed -i '/start-server/d' "$LABWC_AUTOSTART"
+                if ! grep -q '[^[:space:]]' "$LABWC_AUTOSTART"; then
+                    rm "$LABWC_AUTOSTART"
+                    echo "   ~/.config/labwc/autostart removed (contained only our entry)."
+                else
+                    echo "   start-server entry removed from ~/.config/labwc/autostart (user entries kept)."
+                fi
             fi
             ;;
         wayfire)

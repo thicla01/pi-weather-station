@@ -574,7 +574,13 @@ async function getWeatherSummary(req, res) {
   const pending = inflightSummaries.get(cacheKey);
   if (pending) {
     const result = await pending;
-    return res.status(result.status).json(result.body).end();
+    // The local kiosk is exempt from the billed-call ceiling (see
+    // reserveClaudeCall below) — inheriting a remote owner's 429 through
+    // the shared build would break that guarantee. In that one case,
+    // fall through and run an own (exempt) build instead of mirroring.
+    if (!(result.status === 429 && req.isLocal)) {
+      return res.status(result.status).json(result.body).end();
+    }
   }
   let resolveInflight;
   const inflightPromise = new Promise((resolve) => { resolveInflight = resolve; });
@@ -587,7 +593,13 @@ async function getWeatherSummary(req, res) {
    * @returns {import("express").Response}
    */
   const settleInflight = (status, body) => {
-    inflightSummaries.delete(cacheKey);
+    // Identity-guarded like the close listener below: if THIS owner's
+    // entry was already replaced (close fired mid-build, a successor
+    // registered), deleting blindly would evict the successor's entry
+    // and force a third full build for the next arrival.
+    if (inflightSummaries.get(cacheKey) === inflightPromise) {
+      inflightSummaries.delete(cacheKey);
+    }
     resolveInflight({ status, body });
     return res.status(status).json(body).end();
   };

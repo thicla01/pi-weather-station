@@ -325,6 +325,13 @@ def main():
                     active_alert = None
                     last_alert_tier = None
                     last_rendered_minute = -1  # force a clock redraw
+                elif active_alert:
+                    # One line per failed poll (60 s cadence) so an outage
+                    # during an active alert leaves a diagnostic trace.
+                    logging.info(
+                        "Alert poll failed — keeping alert state (age %ds)",
+                        int(now - last_alert_success),
+                    )
             else:
                 last_alert_success = now
                 new_alert = result

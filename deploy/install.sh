@@ -419,7 +419,11 @@ if [[ "$PLATFORM" == "Darwin" ]]; then
         CURRENT_REMOTE="yes"
     fi
 else
-    if grep -qs "ALLOW_REMOTE=true" ~/.config/systemd/user/pi-weather-server.service.d/local.conf; then
+    # Two locations, like toggle-remote.sh's read_current_state_linux:
+    # local.conf drop-in (v2.8.1+) OR the main service file (pre-v2.8.1
+    # installs set Environment=ALLOW_REMOTE=true there directly).
+    if grep -qs "ALLOW_REMOTE=true" ~/.config/systemd/user/pi-weather-server.service.d/local.conf \
+        || grep -qsE '^Environment=ALLOW_REMOTE=true' ~/.config/systemd/user/pi-weather-server.service; then
         CURRENT_REMOTE="yes"
     fi
 fi
@@ -766,21 +770,23 @@ EOF
     if command -v logrotate >/dev/null 2>&1 && [ -d /etc/logrotate.d ]; then
         echo ""
         echo ">> Configuring log rotation..."
-        LOGROTATE_TMP=$(mktemp)
+        # Generated next to the log (NOT mktemp): if sudo is refused the
+        # pending file must survive a reboot — /tmp wouldn't on Trixie.
+        LOGROTATE_PENDING="$LOG_DIR/logrotate-weather-server.pending"
         sed -e "s|__LOG_FILE__|$LOG_FILE|g" \
             -e "s|__USER__|$USER|g" \
             -e "s|__GROUP__|$(id -gn)|g" \
-            "$REPO_DIR/deploy/logrotate-weather-server" > "$LOGROTATE_TMP"
+            "$REPO_DIR/deploy/logrotate-weather-server" > "$LOGROTATE_PENDING"
         # Guarded: a declined sudo password under `set -e` used to abort the
         # whole install here, leaving phases 6-8 (autostart, Sense HAT,
         # summary) unexecuted with no explanation.
-        if sudo cp "$LOGROTATE_TMP" /etc/logrotate.d/weather-server; then
-            echo ">> Log rotation configured (daily + 10M cap, 7 rotations, compressed)."
-            rm -f "$LOGROTATE_TMP"
+        if sudo cp "$LOGROTATE_PENDING" /etc/logrotate.d/weather-server; then
+            echo ">> Log rotation configured (daily, 10M cap, 7 rotations, compressed)."
+            rm -f "$LOGROTATE_PENDING"
         else
             echo ">> WARNING: log rotation NOT configured (sudo refused)."
-            echo "   The generated config was left at $LOGROTATE_TMP — install it later with:"
-            echo "     sudo cp $LOGROTATE_TMP /etc/logrotate.d/weather-server"
+            echo "   The generated config was left at $LOGROTATE_PENDING — install it later with:"
+            echo "     sudo cp $LOGROTATE_PENDING /etc/logrotate.d/weather-server"
         fi
     else
         echo ""

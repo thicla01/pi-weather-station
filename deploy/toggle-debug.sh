@@ -143,15 +143,15 @@ if [ "$TARGET" = "enabled" ]; then
     echo "    only — remote clients never see it)."
     echo "  - /api/debug and /api/debug/cpu-temp endpoints reachable"
     echo "    from localhost; debugLocalhostOnly middleware blocks remote."
-    echo "  - Server logs go to /tmp/weather-server.log on Linux."
+    echo "  - Server logs: ~/.local/state/pi-weather-station/server.log on Linux"
     echo "==============================================================="
 else
     echo "==============================================================="
     echo "  Debug mode DISABLED"
     echo "==============================================================="
     echo "  The bug icon disappears from ControlButtons. Server logs"
-    echo "  on Linux remain redirected to /tmp/weather-server.log via"
-    echo "  override.conf — that's a separate concern from DEBUG."
+    echo "  on Linux remain redirected to ~/.local/state/pi-weather-station/"
+    echo "  server.log via override.conf (legacy installs: /tmp/weather-server.log)"
     echo "==============================================================="
 fi
 echo ""

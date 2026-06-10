@@ -70,11 +70,15 @@ On Linux, `install.sh` generates `/etc/logrotate.d/weather-server`
 from the template at `deploy/logrotate-weather-server`, substituting
 the real log path and the install user/group (the old static copy
 hardcoded `su pi pi`, which made logrotate silently skip the config on
-any system without a `pi` user). The policy: rotate **daily and
-additionally whenever the file passes 10 MB** (`maxsize`), keep 7
-rotations, gzip them. If `sudo` is declined during install, the
-generated config is left in a temp file with instructions — rotation
-is then NOT active until it's copied into place.
+any system without a `pi` user). The policy: rotate **daily**, with a 10 MB
+`maxsize` evaluated at each logrotate run (stock RPi OS runs logrotate
+once a day, so the cap effectively bounds one day's accumulation —
+it would trigger intra-day only if logrotate is scheduled more often),
+keep 7 rotations, gzip them. If `sudo` is declined during install, the
+generated config is left at
+`~/.local/state/pi-weather-station/logrotate-weather-server.pending`
+with instructions — rotation is then NOT active until it's copied into
+place.
 
 No rotation on macOS (newsyslog's rename-based rotation doesn't play
 well with launchd's always-open file descriptor) — `install.sh`
