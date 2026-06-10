@@ -103,6 +103,7 @@ const {
   createSettingsFile,
   replaceSettings,
   ensureSecurePermissions,
+  sweepOrphanSettingsTmp,
 } = settingsCtrl;
 
 // Tighten settings.json to 0600 at startup — the file holds the API keys +
@@ -111,6 +112,9 @@ const {
 // guard) self-tightens on the next restart. No-op if the file doesn't exist
 // yet (createSettingsFile writes it 0600). Mirrors the TLS-key chmod below.
 ensureSecurePermissions();
+// Purge tmp leftovers from a crash mid-settings-write (each holds a
+// full settings copy incl. the API keys — see settingsCtrl).
+sweepOrphanSettingsTmp();
 const { getCoords } = geolocationCtrl;
 const { reverseGeocode: proxyReverseGeocode, mapTile, weatherCurrent, weatherHourly, weatherDaily, sunriseSunset, saveCacheToDisk } = proxyCtrl;
 const { responseTimerMiddleware } = require("./responseTimer");
