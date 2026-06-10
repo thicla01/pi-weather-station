@@ -387,6 +387,95 @@ function getSettingsData() {
   });
 }
 
+// Serialised internal write chain. Internal (non-HTTP) settings writes —
+// e.g. the Sense HAT mode/brightness patches that used to write settings.json
+// directly from sensehatModeCtrl with raw `fs` — go through this so they
+// can't interleave their read-modify-write with each other, and so
+// settings.json has exactly one owning module (this one), per the CLAUDE.md
+// rule. (The HTTP handlers above remain the API's own writers; the data-loss
+// case where an advanced-blob PATCH races a sensehat write is handled on the
+// read side by preserveServerOwnedAdvanced.)
+let writeChain = Promise.resolve();
+
+/**
+ * Run an async read-modify-write under the internal write lock so internal
+ * mutations serialise instead of racing. A failed task is isolated so it
+ * doesn't poison the chain for the next caller.
+ *
+ * @param {Function} task async function performing the mutation
+ * @returns {Promise}
+ */
+function serializeWrite(task) {
+  const run = writeChain.then(task, task);
+  writeChain = run.then(() => {}, () => {});
+  return run;
+}
+
+/**
+ * Promise-based write of the full settings object, with the secure file mode.
+ *
+ * @param {Object} obj settings to persist
+ * @returns {Promise<void>}
+ */
+function writeSettingsFile(obj) {
+  return new Promise((resolve, reject) => {
+    fs.writeFile(FILE_PATH, JSON.stringify(obj), { encoding: ENCODING, mode: FILE_MODE }, (err) => {
+      if (err) reject(err);
+      else resolve();
+    });
+  });
+}
+
+/**
+ * Pure merge: produce the next settings object with `patch` merged into
+ * `advanced.<subKey>`. The current object is run through `sanitizeSettings`
+ * (so only whitelisted top-level keys survive) and only keys present in
+ * `patch` are changed — sibling advanced subtrees and other sensehat keys are
+ * preserved. Exported for unit testing; the I/O lives in patchAdvancedSubKey.
+ *
+ * @param {Object} current current settings
+ * @param {String} subKey advanced sub-object name, e.g. "sensehat"
+ * @param {Object} patch partial values to merge
+ * @returns {Object} the next settings object
+ */
+function mergeAdvancedSubKey(current, subKey, patch) {
+  const sanitized = sanitizeSettings(current || {});
+  const advanced = (sanitized.advanced && typeof sanitized.advanced === "object")
+    ? { ...sanitized.advanced }
+    : {};
+  const sub = (advanced[subKey] && typeof advanced[subKey] === "object")
+    ? { ...advanced[subKey] }
+    : {};
+  Object.assign(sub, patch);
+  advanced[subKey] = sub;
+  return { ...sanitized, advanced };
+}
+
+/**
+ * Merge a partial patch into `advanced.<subKey>` of settings.json and persist
+ * it, serialised against other internal writes. This is the single owning-
+ * module entry point for the Sense HAT mode/brightness patches (previously a
+ * raw-`fs` writer in sensehatModeCtrl that bypassed the whitelist + file-mode
+ * discipline and was a second, unsynchronised writer).
+ *
+ * @param {String} subKey advanced sub-object name, e.g. "sensehat"
+ * @param {Object} patch partial values to merge, e.g. { mode: "clock" }
+ * @returns {Promise<Object>} the persisted settings object
+ */
+function patchAdvancedSubKey(subKey, patch) {
+  return serializeWrite(async () => {
+    let current = {};
+    try {
+      current = await getSettingsData();
+    } catch {
+      current = {};
+    }
+    const next = mergeAdvancedSubKey(current, subKey, patch);
+    await writeSettingsFile(next);
+    return next;
+  });
+}
+
 module.exports = {
   getSettings,
   setSetting,
@@ -395,6 +484,7 @@ module.exports = {
   replaceSettings,
   getSettingsData,
   ensureSecurePermissions,
+  patchAdvancedSubKey,
   // Exported for regression testing only — internal helpers, not part of
   // the public surface. See test/settingsCtrl.test.js.
   __test: {
@@ -402,6 +492,9 @@ module.exports = {
     maskForRemote,
     preserveServerOwnedAdvanced,
     ensureSecurePermissions,
+    patchAdvancedSubKey,
+    mergeAdvancedSubKey,
+    serializeWrite,
     FILE_MODE,
     ALLOWED_KEYS,
     API_KEY_FIELDS,

@@ -41,6 +41,7 @@ const ver = require("../package.json").version;
 const appName = require("../package.json").name;
 
 const settingsCtrl = require("./settingsCtrl");
+const { flush: flushRequestCounts } = require("./requestCounter");
 const geolocationCtrl = require("./geolocationCtrl");
 const proxyCtrl = require("./proxyCtrl");
 const debugCtrl = require("./debugCtrl");
@@ -994,6 +995,7 @@ app.post("/api/brightness", localhostOnly, setBrightness);
 
 function shutdown() {
   saveCacheToDisk();
+  flushRequestCounts();
   process.exit(0);
 }
 process.on("SIGTERM", shutdown);

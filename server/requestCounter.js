@@ -15,6 +15,17 @@ const QUOTAS = {
 // In-memory counters: { service: { endpoint: { hourKey, hour, dayKey, day, monthKey, month } } }
 let counters = {};
 
+// Persistence is debounced. increment() runs on every external API call;
+// writing the file there meant a synchronous fs.writeFileSync (an SD-card
+// write that blocks the event loop) per call, which also amplified any
+// request flood. Counters are a debug-panel quota metric, so a coalesced
+// write at most once a minute — plus a flush on graceful shutdown (wired
+// from index.js's shutdown handler) — is plenty. A SIGKILL / power loss can
+// drop up to one interval of counts, the same trade-off proxyCtrl's cache
+// already makes.
+const FLUSH_INTERVAL_MS = 60 * 1000;
+let dirty = false;
+
 /**
  * Returns the current period keys
  */
@@ -39,7 +50,7 @@ function load() {
 }
 
 /**
- * Persist counters to file
+ * Persist counters to file (unconditional write).
  */
 function save() {
   try {
@@ -47,6 +58,19 @@ function save() {
   } catch {
     // non-critical
   }
+}
+
+/**
+ * Persist counters to disk only if something changed since the last write.
+ * Called on the flush interval and on graceful shutdown (from index.js).
+ *
+ * @returns {Boolean} true if a write happened
+ */
+function flush() {
+  if (!dirty) return false;
+  save();
+  dirty = false;
+  return true;
 }
 
 /**
@@ -73,7 +97,8 @@ function increment(service, endpoint) {
   c.day++;
   c.month++;
 
-  save();
+  // Debounced: mark dirty and let the flush interval / shutdown persist.
+  dirty = true;
 }
 
 /**
@@ -104,4 +129,14 @@ function getCounters() {
 
 load();
 
-module.exports = { increment, getCounters };
+// Coalesced background flush. .unref() so it never holds the process (or a
+// test runner) open.
+setInterval(flush, FLUSH_INTERVAL_MS).unref();
+
+module.exports = {
+  increment,
+  getCounters,
+  flush,
+  // Exported for regression testing only. See test/requestCounter.test.js.
+  __test: { FLUSH_INTERVAL_MS, isDirty: () => dirty },
+};
