@@ -797,6 +797,10 @@ const WeatherMap = ({ zoom, dark }) => {
       setRiskSamples(new Map());
       return undefined;
     }
+    // Cancellation flag (same pattern as AppContext's AQI / pollen
+    // effects): a slow response keyed to the previous position must not
+    // land after a pan and paint the rings/samples of the wrong place.
+    let cancelled = false;
     const fetchRisk = () => {
       const params = new URLSearchParams({
         lat: mapGeo.latitude,
@@ -806,6 +810,7 @@ const WeatherMap = ({ zoom, dark }) => {
       axios
         .get(`/api/radar-risk?${params}`)
         .then((res) => {
+          if (cancelled) return;
           setInnerRisk(res.data?.inner?.level || "calm");
           setOuterRisk(res.data?.outer?.level || null);
           setInnerTrend(res.data?.inner?.trend || "stable");
@@ -837,6 +842,7 @@ const WeatherMap = ({ zoom, dark }) => {
     fetchRisk();
     riskIntervalRef.current = setInterval(fetchRisk, RISK_REFRESH_INTERVAL);
     return () => {
+      cancelled = true;
       clearInterval(riskIntervalRef.current);
       riskIntervalRef.current = null;
     };
