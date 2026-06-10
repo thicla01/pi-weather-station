@@ -14,7 +14,7 @@
 const axios = require("axios");
 const https = require("https");
 const { getSettingsData }    = require("./settingsCtrl");
-const { weatherCache }       = require("./proxyCtrl");
+const { weatherCache, getCacheKey, CURRENT_FIELDS_HASH } = require("./proxyCtrl");
 const { getActiveAlertsAt }  = require("./govAlertsCtrl");
 const { getKioskLocation }   = require("./kioskLocationCtrl");
 const { resolveMode, resolveRadarBrightness } = require("./sensehatModeCtrl");
@@ -53,12 +53,18 @@ let _geoExpiry  = 0;
 /**
  * Read current weather from the shared in-memory weatherCache.
  *
+ * The key MUST be built with proxyCtrl's getCacheKey — the schema gained a
+ * fieldsHash segment in 2026-05 and a hand-rolled legacy key silently
+ * misses the cache forever (each /api/sensehat poll then burns a
+ * Tomorrow.io call through the localhost fallback). Same bug class
+ * already hit aiSummaryCtrl; see test/sensehatWeatherKey.test.js.
+ *
  * @param {number} lat
  * @param {number} lon
  * @returns {object|null} Raw Tomorrow.io current payload, or null on miss.
  */
 function _weatherFromCache(lat, lon) {
-  const key   = `current:${lat.toFixed(4)}:${lon.toFixed(4)}`;
+  const key   = getCacheKey("current", CURRENT_FIELDS_HASH, lat, lon);
   const entry = weatherCache[key];
   return entry && Date.now() < entry.expiresAt ? entry.data : null;
 }
@@ -270,4 +276,9 @@ async function getSenseHatData(req, res) {
   });
 }
 
-module.exports = { getSenseHatData };
+module.exports = {
+  getSenseHatData,
+  // Exported for regression testing only — guards the shared-cache key
+  // contract with proxyCtrl (see test/sensehatWeatherKey.test.js).
+  __test: { _weatherFromCache },
+};
