@@ -44,9 +44,10 @@ function formatIssued(sentAt, t) {
  *
  * @param {string|null} expiresAt - ISO timestamp
  * @param {string} lang - 'en' | 'fr' | 'es'
+ * @param {Function} t - i18next translator (for the "tomorrow" word)
  * @returns {string|null} short localized "Expires" body, or null
  */
-function formatExpires(expiresAt, lang) {
+function formatExpires(expiresAt, lang, t) {
   if (!expiresAt) return null;
   const d = new Date(expiresAt);
   if (Number.isNaN(d.getTime())) return null;
@@ -59,11 +60,11 @@ function formatExpires(expiresAt, lang) {
   });
   if (sameDay) return hhmm;
   if (isTomorrow) {
-    // Locale-specific shorthand for "tomorrow"
-    const tom = lang === "fr" ? "demain"
-      : lang === "es" ? "mañana"
-        : "tomorrow";
-    return `${tom} ${hhmm}`;
+    // "tomorrow" comes from the locale files like every other
+    // user-facing string — this is an alert surface, so the
+    // lbl()-style inline-trilingual exception (CLAUDE.md, Settings/
+    // Debug panels only) does NOT apply here.
+    return `${t("alert.tomorrowShort")} ${hhmm}`;
   }
   // > 2 days out — show the weekday short form ("Wed 14:30")
   const weekday = d.toLocaleDateString(lang === "en" ? "en-US" : `${lang}-CA`, {
@@ -103,7 +104,7 @@ const AlertMetaChips = ({ source, senderName, sentAt, expiresAt }) => {
 
   const sourceLabel = senderName || source;
   const issuedLabel = formatIssued(sentAt, t);
-  const expiresLabel = formatExpires(expiresAt, lang);
+  const expiresLabel = formatExpires(expiresAt, lang, t);
 
   if (!sourceLabel && !issuedLabel && !expiresLabel) return null;
 
