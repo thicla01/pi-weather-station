@@ -18,6 +18,13 @@ module.exports = (env) => {
       path: path.resolve(__dirname, "dist"),
       filename: "bundle.min.js",
       publicPath: "/",
+      // Wipe dist/ before each build so renamed/removed chunks don't linger
+      // as committed orphans. (A stale `1.bundle.min.js` from an old chunk-id
+      // layout survived rebuilds until it was hand-deleted — see the Geist
+      // consolidation PR.) Every committed dist file is re-emitted by the
+      // build, so cleaning removes nothing that isn't immediately regenerated;
+      // the CI dist-drift check enforces that invariant.
+      clean: true,
     },
     module: {
       rules: [
