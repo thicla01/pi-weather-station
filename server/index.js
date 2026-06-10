@@ -121,6 +121,7 @@ const { checkForUpdate, clearCache: clearUpdateCache } = require("./updateChecke
 const rateLimit = require("express-rate-limit");
 const { socketPeerKeyGenerator } = require("./rateLimitKey");
 const { securityHeaders } = require("./securityHeaders");
+const { createSingleFlightGuard } = require("./singleFlight");
 
 const DIST_DIR = "/../client/dist";
 const PORT = 8080;
@@ -782,7 +783,17 @@ app.all("/api/update-check/force", localhostOnly, async (req, res) => {
   }
 });
 
-app.post("/api/update", localhostOnly, (req, res) => {
+// Concurrency guard: a second /api/update while one is still running would
+// fire a second `git pull` + `npm ci` against the same checkout and can
+// corrupt the working tree / node_modules. Reject overlapping invocations
+// with a 409; the lock auto-releases when the response settles (so a failed
+// update can be retried immediately).
+const updateGuard = createSingleFlightGuard({
+  reason: "update-in-progress",
+  message: "An update is already running on this device. Wait for it to finish, then retry.",
+});
+
+app.post("/api/update", localhostOnly, updateGuard, (req, res) => {
   const projectRoot = path.join(__dirname, "..");
 
   // ── Pre-flight checks ──
@@ -943,13 +954,13 @@ app.post("/api/update", localhostOnly, (req, res) => {
               if (process.env.INVOCATION_ID) {
                 exec("systemctl --user restart pi-weather-server", (restartErr) => {
                   if (restartErr) {
-                    console.error("[update] systemctl restart failed, falling back to process.exit:", restartErr.message);
-                    process.exit(0);
+                    console.error("[update] systemctl restart failed, falling back to graceful shutdown:", restartErr.message);
+                    shutdown();
                   }
                 });
               } else {
                 // No systemd (dev / macOS) — exit and let the developer restart manually.
-                process.exit(0);
+                shutdown();
               }
             }, 500);
           }
@@ -990,7 +1001,10 @@ app.post("/api/debug/radar-compression-report", debugLocalhostOnly, (req, res) =
 // to render the slider), write localhost-only (the brightness physically
 // affects the device's screen, makes no sense for a remote client to dim
 // what they aren't looking at).
-app.get("/api/brightness", getBrightness);
+// apiLimiter on the read: with the ed-ddc backend, getBrightness forks
+// `ed-ddc-server` (a ~150 ms execSync) per call, so an unrated GET could be
+// spammed to block the event loop. The write stays localhost-only.
+app.get("/api/brightness", apiLimiter, getBrightness);
 app.post("/api/brightness", localhostOnly, setBrightness);
 
 function shutdown() {
