@@ -31,4 +31,4 @@ server/ca-cert.srl
 server/leaf.csr
 server/leaf-ext.conf
 settings.json.bak
-settings.json.tmp
+settings.json.*.tmp

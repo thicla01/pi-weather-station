@@ -386,10 +386,11 @@ test("writeSettingsFile: atomic write — content, 0600 mode, no .tmp leftover",
     const parsed = JSON.parse(fs.readFileSync(target, "utf8"));
     assert.deepEqual(parsed, { weatherApiKey: "abc", startingLat: "45.5" });
     assert.equal(fs.statSync(target).mode & 0o777, FILE_MODE);
-    assert.equal(fs.existsSync(`${target}.tmp`), false, "the tmp file must be renamed away");
+    const dir = path.dirname(target);
+    const leftovers = fs.readdirSync(dir).filter((f) => f.startsWith(`${path.basename(target)}.`) && f.endsWith(".tmp"));
+    assert.deepEqual(leftovers, [], "the tmp file must be renamed away");
   } finally {
     fs.rmSync(target, { force: true });
-    fs.rmSync(`${target}.tmp`, { force: true });
   }
 });
 
@@ -399,9 +400,10 @@ test("writeSettingsFile: overwrite replaces the previous content wholesale", asy
     await writeSettingsFile({ a: 1, b: 2 }, target);
     await writeSettingsFile({ c: 3 }, target);
     assert.deepEqual(JSON.parse(fs.readFileSync(target, "utf8")), { c: 3 });
-    assert.equal(fs.existsSync(`${target}.tmp`), false);
+    const dir = path.dirname(target);
+    const leftovers = fs.readdirSync(dir).filter((f) => f.startsWith(`${path.basename(target)}.`) && f.endsWith(".tmp"));
+    assert.deepEqual(leftovers, [], "no tmp leftovers after overwrite");
   } finally {
     fs.rmSync(target, { force: true });
-    fs.rmSync(`${target}.tmp`, { force: true });
   }
 });

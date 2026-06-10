@@ -431,14 +431,24 @@ function serializeWrite(task) {
  * #212 — one fix closes both findings.)
  *
  * A leftover `.tmp` from a failed attempt is harmless: gitignored,
- * overwritten by the next write, never read by anything.
+ * never read by anything.
+ *
+ * The tmp name carries a per-process sequence number: the HTTP write
+ * handlers do NOT go through serializeWrite (only internal writes do,
+ * see #208 — and nesting serializeWrite here would deadlock the
+ * patchAdvancedSubKey path that already runs inside it), so two
+ * concurrent writes sharing one fixed tmp path could truncate each
+ * other mid-write and rename a torn file. Distinct tmp names make
+ * each write self-contained; last rename wins, both files complete.
  *
  * @param {Object} obj settings to persist
  * @param {String} [filePath] target path (injectable for unit tests)
  * @returns {Promise<void>}
  */
+let tmpWriteSeq = 0;
 async function writeSettingsFile(obj, filePath = FILE_PATH) {
-  const tmpPath = `${filePath}.tmp`;
+  tmpWriteSeq += 1;
+  const tmpPath = `${filePath}.${process.pid}.${tmpWriteSeq}.tmp`;
   const handle = await fs.promises.open(tmpPath, "w", FILE_MODE);
   try {
     await handle.writeFile(JSON.stringify(obj), { encoding: ENCODING });
