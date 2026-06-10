@@ -63,6 +63,19 @@ SERVER_URL              = "https://localhost:8443"
 ALERT_POLL_INTERVAL_SEC = 60      # how often to refetch /api/sensehat for alert state
 FRAME_DELAY_SEC         = 0.12    # animation cadence during an active alert
 
+# How long a previously-fetched alert state stays trusted when the server
+# is unreachable (in-app update restart, network blip). Within the window
+# an active pulse keeps animating on stale data — better than a tornado
+# warning's pulse dropping because one poll failed during a server
+# restart. Past the window the alert is assumed expired and the clock
+# returns. Mirrored in tools/sensehat_weather.py — keep in sync.
+STALE_ALERT_MAX_SEC     = 15 * 60
+
+# Sentinel distinguishing "fetch failed" from "no active alert" (both used
+# to map to None, which made the loop log "Alert cleared" — and kill the
+# pulse — on a single failed poll).
+FETCH_FAILED = object()
+
 _ALERT_COLORS = {
     "red":    [255,  30,  30],
     "orange": [255, 140,   0],
@@ -197,10 +210,12 @@ def fetch_active_alert():
 
     The endpoint may return 200 with no `alert` key (no active alert),
     200 with an `alert` object (active alert ≥ orange tier), or fail
-    entirely (server down / network blip). Failure returns None — the
-    daemon falls back to plain clock rendering rather than locking up.
+    entirely (server down / network blip). Failure returns the
+    FETCH_FAILED sentinel so the caller can keep the last known alert
+    state instead of treating an outage as "alert cleared".
 
-    @returns: dict|None  {"tier", "severity", "source", "event"} or None
+    @returns: dict|None|FETCH_FAILED  alert dict, None (no active
+        alert), or FETCH_FAILED (server unreachable)
     """
     try:
         r = requests.get(
@@ -211,7 +226,7 @@ def fetch_active_alert():
         r.raise_for_status()
         return r.json().get("alert")
     except Exception:
-        return None
+        return FETCH_FAILED
 
 
 def build_alert_frame(tier, tick, brightness_percent):
@@ -277,7 +292,9 @@ def main():
     #
     # Both modes carry a single `tick` counter so the pulse animation
     # advances smoothly across re-renders.
-    active_alert         = fetch_active_alert()  # initial fetch — may be None
+    initial_alert        = fetch_active_alert()  # may be FETCH_FAILED at boot
+    active_alert         = None if initial_alert is FETCH_FAILED else initial_alert
+    last_alert_success   = time.time()  # last successful alert poll — drives the staleness cap
     next_alert_poll      = time.time() + ALERT_POLL_INTERVAL_SEC
     tick                 = 0
     last_rendered_minute = -1
@@ -294,19 +311,35 @@ def main():
 
         # ── Refetch alert state at fixed cadence ───────────────────
         if now >= next_alert_poll:
-            new_alert = fetch_active_alert()
-            new_tier = new_alert and new_alert.get("tier")
-            if new_tier != last_alert_tier:
-                if new_alert:
+            result = fetch_active_alert()
+            if result is FETCH_FAILED:
+                # Server unreachable (in-app update restart, network blip):
+                # keep the last known alert state so an active pulse doesn't
+                # drop on a single failed poll — but only within the
+                # staleness window, past which the alert is assumed expired.
+                if active_alert and (now - last_alert_success) > STALE_ALERT_MAX_SEC:
                     logging.info(
-                        "Alert became active: tier=%s source=%s event=%s",
-                        new_alert.get("tier"), new_alert.get("source"), new_alert.get("event"),
+                        "Alert state stale (server unreachable for %ds) — returning to clock display",
+                        int(now - last_alert_success),
                     )
-                elif last_alert_tier:
-                    logging.info("Alert cleared — returning to clock display")
-                last_alert_tier = new_tier
-                last_rendered_minute = -1  # force a clock redraw on next idle frame
-            active_alert = new_alert
+                    active_alert = None
+                    last_alert_tier = None
+                    last_rendered_minute = -1  # force a clock redraw
+            else:
+                last_alert_success = now
+                new_alert = result
+                new_tier = new_alert and new_alert.get("tier")
+                if new_tier != last_alert_tier:
+                    if new_alert:
+                        logging.info(
+                            "Alert became active: tier=%s source=%s event=%s",
+                            new_alert.get("tier"), new_alert.get("source"), new_alert.get("event"),
+                        )
+                    elif last_alert_tier:
+                        logging.info("Alert cleared — returning to clock display")
+                    last_alert_tier = new_tier
+                    last_rendered_minute = -1  # force a clock redraw on next idle frame
+                active_alert = new_alert
             next_alert_poll = now + ALERT_POLL_INTERVAL_SEC
 
         try:
