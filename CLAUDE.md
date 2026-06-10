@@ -127,6 +127,7 @@ These rules apply to every change, regardless of size. They exist to keep the co
 - Run `cd client && npm run prod` — the build must pass with **zero errors** (warnings on bundle size are acceptable)
 - Every new or modified React component must have a complete **JSDoc block** (`@param`, `@returns`) and declared **PropTypes**
 - Every new UI string must have a translation key in all three locale files (`en.json`, `fr.json`, `es.json`)
+  - **Codified exception (maintainer decision, 2026-06):** the inline-trilingual helper `lbl(lang, en, fr, es)` is permitted **in `SettingsPanel` and `DebugPanel` only** — dense, maintainer-facing configuration surfaces where keeping the three strings next to their usage beats locale-file indirection (~188 call sites). The boundary is strict: `lbl()` must NOT spread to kiosk-visible surfaces (layouts, hero, metrics, charts) and NEVER to alert content (banners, chips, detail sections) — those always go through the locale files. If a fourth language is ever added, this exception is the first thing to revisit (the `lbl()` strings would all need a migration pass).
 - New or modified Express endpoints must be reflected in **`docs/api.md`**
 - Notable changes must be added to **`CHANGELOG.md`** under the appropriate version
 

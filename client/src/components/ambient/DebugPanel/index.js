@@ -375,7 +375,10 @@ const DebugPanel = () => {
  * (uptime, rss, heap used, etc.) stay English because they're
  * technical terms that translate awkwardly and the audience for
  * the Debug panel is comfortable with them. Same approach as
- * SettingsPanel: inline ternary instead of an i18n key explosion. */
+ * SettingsPanel: inline ternary instead of an i18n key explosion.
+ * Codified exception to the locale-files rule (CLAUDE.md → "Before
+ * committing", maintainer decision 2026-06): SettingsPanel and
+ * DebugPanel only — never kiosk surfaces, never alert content. */
 const lbl = (lang, en, fr, es) => (lang === "fr" ? fr : lang === "es" ? es : en);
 
 const boolLabel = (lang, value) => (value

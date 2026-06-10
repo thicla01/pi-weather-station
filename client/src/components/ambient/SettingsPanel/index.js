@@ -24,6 +24,11 @@ import styles from "./styles.css";
  * otherwise chain `lang === "fr" ? X : lang === "es" ? Y : Z` —
  * same convention DebugPanel uses (`lbl` there too).
  *
+ * CODIFIED EXCEPTION to the locale-files rule (CLAUDE.md → "Before
+ * committing", maintainer decision 2026-06): allowed in SettingsPanel
+ * and DebugPanel ONLY. Do not spread to kiosk-visible surfaces or to
+ * alert content — those go through the i18n locale files.
+ *
  * @param {string} lang — two-letter locale (`en` / `fr` / `es`)
  * @param {string} en  — English string (default fallback)
  * @param {string} fr  — French string
