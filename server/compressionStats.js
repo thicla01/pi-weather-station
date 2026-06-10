@@ -24,6 +24,11 @@ const HISTOGRAM_BUCKETS = [
 ];
 const RECENT_WORST_LIMIT = 5;
 const RECENT_WORST_WINDOW_MS = 60 * 60 * 1000; // last hour
+// Hard cap on the per-frame values kept for the median (~17 days at the
+// 5-min radar cadence). Oldest entries are dropped past the cap, so the
+// reported median is "median of the most recent N frames" — count/avg/
+// min/max are O(1) accumulators and keep covering the full uptime.
+const PCT_VALUES_MAX = 5000;
 
 const state = {
   startedAt: Date.now(),
@@ -31,10 +36,9 @@ const state = {
   sumPct: 0,
   minPct: Infinity,
   maxPct: -Infinity,
-  // pct values stored sorted-insertion for median; a flat array is fine
-  // up to a few thousand polls (~1-2 days of 5-min cadence) — we'll
-  // accept the linear-insert cost since polling rate is one per ~5 min
-  // and the sort gain on report generation is worth it.
+  // Per-frame pct values for the median, bounded at PCT_VALUES_MAX
+  // (FIFO — see record()). A flat array re-sorted at report time is
+  // fine at the one-per-~5-min polling rate.
   pctValues: [],
   histogram: HISTOGRAM_BUCKETS.map(() => 0),
   // Ring of recent worst cases (least-compressed within the last hour)
@@ -66,6 +70,9 @@ function record(legacyChars, compressedChars) {
   if (pct < state.minPct) state.minPct = pct;
   if (pct > state.maxPct) state.maxPct = pct;
   state.pctValues.push(pct);
+  if (state.pctValues.length > PCT_VALUES_MAX) {
+    state.pctValues.splice(0, state.pctValues.length - PCT_VALUES_MAX);
+  }
   state.histogram[bucketIndexFor(pct)]++;
 
   // Update recent-worst ring

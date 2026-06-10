@@ -30,13 +30,19 @@ const {
   categoryForEpaAqi,
   epaAqiFromConcentration,
 } = require("./_shared");
+const { BoundedMap, sweepExpired } = require("../boundedCache");
 
 const SERVICE_NAME = "OpenAQ";
 const BASE_URL = "https://api.openaq.org/v3";
 const SEARCH_RADIUS_M = 25_000;     // 25 km — comparable to the other sources' caps; OpenAQ v3's hard maximum
 const NEAREST_PROBE_LIMIT = 25;     // pull this many candidates and rank locally — see findNearestLocation
 const TTL_MS = 30 * 60 * 1000;       // 30 min — most stations publish hourly; cache aligns with other sources
-const cache = new Map();             // cacheKey → { payload, expiresAt }
+// Bounded + swept like govAlertSources/nws.js: the key derives from
+// client-supplied coordinates, so an unbounded Map is remotely growable
+// on an ALLOW_REMOTE install (~173k entries/day at the 120 req/min cap).
+const CACHE_MAX = 256;
+const cache = new BoundedMap(CACHE_MAX); // cacheKey → { payload, expiresAt }
+setInterval(() => sweepExpired(cache), TTL_MS).unref();
 
 // EPA-canonical units per pollutant. OpenAQ returns concentrations
 // in either canonical units or μg/m³ depending on the station; we
