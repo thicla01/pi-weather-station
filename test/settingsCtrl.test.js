@@ -19,9 +19,12 @@
 
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
+const os = require("node:os");
+const path = require("node:path");
 
 const { __test } = require("../server/settingsCtrl");
-const { sanitizeSettings, maskForRemote, preserveServerOwnedAdvanced, ALLOWED_KEYS, API_KEY_FIELDS, REMOTE_HIDDEN_KEYS } = __test;
+const { sanitizeSettings, maskForRemote, preserveServerOwnedAdvanced, ensureSecurePermissions, FILE_MODE, ALLOWED_KEYS, API_KEY_FIELDS, REMOTE_HIDDEN_KEYS } = __test;
 
 // === sanitizeSettings: the input whitelist ===
 
@@ -257,4 +260,31 @@ test("preserveServerOwnedAdvanced: no-op when there's no existing sensehat", () 
 test("preserveServerOwnedAdvanced: ignores keys other than 'advanced'", () => {
   const current = { advanced: { sensehat: { mode: "radar" } } };
   assert.equal(preserveServerOwnedAdvanced(current, "weatherApiKey", "abc"), "abc");
+});
+
+// === ensureSecurePermissions: settings.json must be owner-only (0600) ===
+// The file holds the six API keys + the Homebridge credentials, so any other
+// local account being able to read it is the vulnerability this closes.
+
+test("FILE_MODE is 0600 (owner read/write only)", () => {
+  assert.equal(FILE_MODE, 0o600);
+});
+
+test("ensureSecurePermissions: tightens a 0644 file to 0600", () => {
+  const tmp = path.join(os.tmpdir(), `settings-perm-${process.pid}-${Date.now()}.json`);
+  fs.writeFileSync(tmp, "{}");
+  fs.chmodSync(tmp, 0o644); // force world-readable regardless of the umask
+  assert.equal(fs.statSync(tmp).mode & 0o777, 0o644);
+  try {
+    ensureSecurePermissions(tmp);
+    assert.equal(fs.statSync(tmp).mode & 0o777, 0o600);
+  } finally {
+    fs.unlinkSync(tmp);
+  }
+});
+
+test("ensureSecurePermissions: a non-existent path is a silent no-op (no throw)", () => {
+  const missing = path.join(os.tmpdir(), `settings-absent-${process.pid}-${Date.now()}.json`);
+  assert.doesNotThrow(() => ensureSecurePermissions(missing));
+  assert.equal(fs.existsSync(missing), false);
 });
