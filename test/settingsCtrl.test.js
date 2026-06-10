@@ -151,6 +151,34 @@ test("maskForRemote: `advanced` subtree passes through unchanged (no secrets)", 
   });
 });
 
+test("maskForRemote: default-deny — an unknown top-level key never reaches a remote client", () => {
+  // The mask is allow-list driven (sanitizeSettings first), not deny-list:
+  // an UNRECOGNISED key (not on the whitelist) must be dropped, so a key
+  // hand-added to settings.json — or left over from an older build — can't
+  // leak verbatim. (A key deliberately added to ALLOWED_KEYS is whitelisted
+  // and still passes; that's the case API_KEY_FIELDS / REMOTE_HIDDEN_KEYS
+  // exist to handle.)
+  const out = maskForRemote({
+    weatherApiKey: "secret-value",
+    rogueSecret: "should-never-appear",
+    debugToken: "also-secret",
+    startingLat: 45.5,
+  });
+  assert.ok(!("rogueSecret" in out));
+  assert.ok(!("debugToken" in out));
+  // Known keys still behave: API key booleanised, lat passes through.
+  assert.equal(out.weatherApiKey, true);
+  assert.equal(out.startingLat, 45.5);
+});
+
+test("maskForRemote: an unknown key whose name ends in 'ApiKey' is still dropped, not booleanised", () => {
+  // The booleanisation is keyed on the explicit API_KEY_FIELDS set, not a
+  // name pattern — and the default-deny projection drops the key entirely
+  // before that anyway, so no value (or even its truthiness) escapes.
+  const out = maskForRemote({ futureSecretApiKey: "leak" });
+  assert.deepEqual(out, {});
+});
+
 test("maskForRemote: null / undefined / non-object input → {}", () => {
   assert.deepEqual(maskForRemote(null), {});
   assert.deepEqual(maskForRemote(undefined), {});

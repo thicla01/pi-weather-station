@@ -119,6 +119,7 @@ const { getWeatherSummary } = aiSummaryCtrl;
 const { checkForUpdate, clearCache: clearUpdateCache } = require("./updateChecker");
 const rateLimit = require("express-rate-limit");
 const { socketPeerKeyGenerator } = require("./rateLimitKey");
+const { securityHeaders } = require("./securityHeaders");
 
 const DIST_DIR = "/../client/dist";
 const PORT = 8080;
@@ -133,6 +134,12 @@ const DEBUG = process.env.DEBUG === "true";
 // self-signed chain. See docs/ssl-custom-cert_{en,fr}.md.
 const SKIP_CERT_AUTOGEN = process.env.SKIP_CERT_AUTOGEN === "true";
 const app = express();
+
+// Don't advertise the framework (X-Powered-By: Express), and stamp the
+// baseline security headers on every response. Mounted first so they cover
+// static files, the API, and error responses alike.
+app.disable("x-powered-by");
+app.use(securityHeaders);
 
 const sslOptions = (() => {
   const keyPath = path.join(__dirname, "key.pem");
