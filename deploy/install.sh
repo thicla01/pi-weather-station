@@ -366,12 +366,21 @@ if [ "$CONFIGURE_SETTINGS" = "yes" ]; then
         chmod 600 "$REPO_DIR/settings.json.bak"
         echo ">> Existing settings backed up to settings.json.bak."
     fi
-    python3 - "$WEATHER_KEY" "$MAP_KEY" "$GEO_KEY" "$ANTHROPIC_KEY" "$AIRNOW_KEY" "$OPENAQ_KEY" "$LAT" "$LON" "$REPO_DIR/settings.json" <<'PYEOF' > "$REPO_DIR/settings.json.tmp"
-import json, sys
+    # Pass the API keys + lat/lon via the ENVIRONMENT, not argv. A process's
+    # argv is world-readable (`ps aux`, /proc/PID/cmdline mode 0444), so secrets
+    # on the command line are visible to any local user for the lifetime of the
+    # process; /proc/PID/environ is owner-only (0600). Only the non-secret
+    # output path stays on argv.
+    WS_weatherApiKey="$WEATHER_KEY" WS_mapApiKey="$MAP_KEY" \
+    WS_reverseGeoApiKey="$GEO_KEY" WS_anthropicApiKey="$ANTHROPIC_KEY" \
+    WS_airNowApiKey="$AIRNOW_KEY" WS_openAqApiKey="$OPENAQ_KEY" \
+    WS_startingLat="$LAT" WS_startingLon="$LON" \
+    python3 - "$REPO_DIR/settings.json" <<'PYEOF' > "$REPO_DIR/settings.json.tmp"
+import json, os, sys
 keys = ["weatherApiKey", "mapApiKey", "reverseGeoApiKey", "anthropicApiKey",
         "airNowApiKey", "openAqApiKey", "startingLat", "startingLon"]
-answers = dict(zip(keys, sys.argv[1:9]))
-path = sys.argv[9]
+answers = {k: os.environ.get("WS_" + k, "") for k in keys}
+path = sys.argv[1]
 try:
     with open(path, "r", encoding="utf-8") as fh:
         merged = json.load(fh)
@@ -977,21 +986,44 @@ if [[ $REPLY =~ ^[Yy]$ ]]; then
             echo ""
             echo "   Querying Homebridge for available sensors..."
             SENSOR_LIST_FILE=$(mktemp)
-            python3 - "$HB_URL" "$HB_USER" "$HB_PASS" "$SENSOR_LIST_FILE" <<'PYEOF'
-import sys, json, urllib.request, urllib.error, ssl
-url, user, password, out_path = sys.argv[1:]
+            WS_HB_URL="$HB_URL" WS_HB_USER="$HB_USER" WS_HB_PASS="$HB_PASS" \
+            python3 - "$SENSOR_LIST_FILE" <<'PYEOF'
+import os, sys, json, urllib.request, urllib.error, ssl
+# Credentials via the environment (owner-only /proc/PID/environ) rather than
+# argv (world-readable via `ps`); only the non-secret output path is on argv.
+url = os.environ.get("WS_HB_URL", "")
+user = os.environ.get("WS_HB_USER", "")
+password = os.environ.get("WS_HB_PASS", "")
+out_path = sys.argv[1]
 sensors = []
 err_msg = ""
+
+def _open(req):
+    # Opportunistic TLS verification: try a verifying connection first; only if
+    # Homebridge presents an unverifiable certificate (commonly self-signed over
+    # HTTPS) fall back to an unverified connection with a warning. For http://
+    # URLs no TLS is involved. This narrows the install-time MITM window for
+    # valid-cert HTTPS setups without breaking the common http / self-signed
+    # cases (the previous code disabled verification unconditionally).
+    try:
+        return urllib.request.urlopen(req, timeout=10)
+    except urllib.error.URLError as e:
+        if isinstance(getattr(e, "reason", None), ssl.SSLCertVerificationError):
+            sys.stderr.write("   WARNING: Homebridge TLS certificate could not be verified — "
+                             "continuing without verification.\n")
+            unverified = ssl.create_default_context()
+            unverified.check_hostname = False
+            unverified.verify_mode = ssl.CERT_NONE
+            return urllib.request.urlopen(req, timeout=10, context=unverified)
+        raise
+
 try:
-    ctx = ssl.create_default_context()
-    ctx.check_hostname = False
-    ctx.verify_mode = ssl.CERT_NONE
     login = urllib.request.Request(
         url.rstrip("/") + "/api/auth/login",
         data=json.dumps({"username": user, "password": password}).encode(),
         headers={"Content-Type": "application/json"},
     )
-    with urllib.request.urlopen(login, timeout=10, context=ctx) as r:
+    with _open(login) as r:
         token = json.loads(r.read()).get("access_token")
     if not token:
         raise RuntimeError("login response had no access_token")
@@ -999,7 +1031,7 @@ try:
         url.rstrip("/") + "/api/accessories",
         headers={"Authorization": "Bearer " + token},
     )
-    with urllib.request.urlopen(accs_req, timeout=10, context=ctx) as r:
+    with _open(accs_req) as r:
         accs = json.loads(r.read())
     grouped = {}
     for a in accs or []:
@@ -1079,10 +1111,18 @@ for i, s in enumerate(data['sensors'], 1):
 
         if [ "$INDOOR_TEMP_MODE" = "yes" ]; then
             # Merge an indoorTemperature block into the existing settings.json
-            # without disturbing other top-level keys.
-            python3 - "$REPO_DIR/settings.json" "$HB_URL" "$HB_USER" "$HB_PASS" "$HB_SENSOR" <<'PYEOF'
-import json, sys
-path, url, user, password, sensor = sys.argv[1:]
+            # without disturbing other top-level keys. Credentials (incl. the
+            # Homebridge password) via the environment, not argv — argv is
+            # world-readable via `ps`; only the non-secret settings path is on
+            # argv. Mirrors the sensor-discovery probe above.
+            WS_HB_URL="$HB_URL" WS_HB_USER="$HB_USER" WS_HB_PASS="$HB_PASS" WS_HB_SENSOR="$HB_SENSOR" \
+            python3 - "$REPO_DIR/settings.json" <<'PYEOF'
+import json, os, sys
+path = sys.argv[1]
+url = os.environ.get("WS_HB_URL", "")
+user = os.environ.get("WS_HB_USER", "")
+password = os.environ.get("WS_HB_PASS", "")
+sensor = os.environ.get("WS_HB_SENSOR", "")
 try:
     with open(path) as f: data = json.load(f)
 except Exception:
