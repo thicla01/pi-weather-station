@@ -623,6 +623,53 @@
 }
 
 .tag-ok { background-color: #2e7d52; color: #fff; }
+
+/* ── Status pill (F26) ─────────────────────────────────────────────
+ * Dot + uppercase word for boolean-ish states. Tinted background +
+ * coloured border instead of Tag's solid block; the dot inherits
+ * currentColor so each variant only sets `color`. The green is the
+ * same #2e7d52 family the toolbar live-dot and tag-ok already use
+ * (hardcoded — the palette has no green token), lightened to #3e9d68
+ * so the word stays readable on the dark night surfaces too. */
+.statusPill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 8.5px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 2px 8px;
+  border-radius: 999px;
+  border: 1px solid;
+}
+
+.statusPillDot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background-color: currentColor;
+  flex-shrink: 0;
+}
+
+.statusPill-on {
+  color: #3e9d68;
+  background-color: color-mix(in srgb, #3e9d68 12%, transparent);
+  border-color: color-mix(in srgb, #3e9d68 32%, transparent);
+}
+
+.statusPill-off {
+  color: var(--c-text-dim);
+  background-color: transparent;
+  border-color: var(--c-border-hybrid);
+}
+
+.statusPill-warn {
+  color: var(--c-warn);
+  background-color: color-mix(in srgb, var(--c-warn) 12%, transparent);
+  border-color: color-mix(in srgb, var(--c-warn) 32%, transparent);
+}
 .tag-warn { background-color: var(--c-warn); color: #fff; }
 .tag-err { background-color: var(--c-danger); color: #fff; }
 .tag-info { background-color: var(--c-accent-soft); color: var(--c-accent); border: 1px solid var(--c-accent); }

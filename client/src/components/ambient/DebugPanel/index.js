@@ -381,9 +381,12 @@ const DebugPanel = () => {
  * DebugPanel only — never kiosk surfaces, never alert content. */
 const lbl = (lang, en, fr, es) => (lang === "fr" ? fr : lang === "es" ? es : en);
 
-const boolLabel = (lang, value) => (value
-  ? lbl(lang, "TRUE", "VRAI", "VERDADERO")
-  : lbl(lang, "FALSE", "FAUX", "FALSO"));
+/* On/off wording for the config-flag status pills (F26). The mockup's
+ * finding was that raw "TRUE/FALSE" reads as an exposed boolean — the
+ * pill carries a state word instead. */
+const onOffLabel = (lang, value) => (value
+  ? lbl(lang, "ON", "ACTIF", "ACTIVO")
+  : lbl(lang, "OFF", "INACTIF", "INACTIVO"));
 
 /* Atlassian Statuspage indicator → localised label. The platform uses
  * a fixed enum: none / minor / major / critical / maintenance. */
@@ -659,13 +662,15 @@ const BucketServer = ({ data, lang, gridTwoWide }) => {
         <KV k="Sense HAT" v={sys.senseHat || lbl(lang, "none", "aucun", "ninguno")} />
         <KV k={lbl(lang, "branch", "branche", "rama")}   v={v.branch || "?"} />
         <KV k="init"     v={(cfg.initManager || "—").toUpperCase()} />
-        {/* Boolean labels localised: VRAI/FAUX in FR, VERDADERO/FALSO in ES.
-         * ALLOW_REMOTE intentionally renders as `warn` (orange) when on
-         * — it's a security-relevant flag (opens network access). DEBUG
-         * renders as `ok` (green) when on because the panel exposing it
-         * is itself debug-only. */}
-        <KV k="DEBUG"    v={<Tag kind={cfg.debug ? "ok" : "neutral"}>{cfg.debug ? boolLabel(lang, true) : boolLabel(lang, false)}</Tag>} />
-        <KV k="ALLOW_REMOTE" v={<Tag kind={cfg.allowRemote ? "warn" : "neutral"}>{cfg.allowRemote ? boolLabel(lang, true) : boolLabel(lang, false)}</Tag>} />
+        {/* Config booleans render as dot+word status pills (F26) rather
+         * than TRUE/FALSE tags. ALLOW_REMOTE intentionally renders as
+         * `warn` (orange) when on — it's a security-relevant flag
+         * (opens network access). DEBUG renders as `on` (green) when on
+         * because the panel exposing it is itself debug-only. The word
+         * carries the meaning, so the pill survives night-red where the
+         * colours collapse. */}
+        <KV k="DEBUG"    v={<StatusPill kind={cfg.debug ? "on" : "off"}>{onOffLabel(lang, cfg.debug)}</StatusPill>} />
+        <KV k="ALLOW_REMOTE" v={<StatusPill kind={cfg.allowRemote ? "warn" : "off"}>{onOffLabel(lang, cfg.allowRemote)}</StatusPill>} />
       </div>
 
       <SectionTitle title={lbl(lang, "Network", "Réseau", "Red")} gap />
@@ -1504,6 +1509,16 @@ const KV = ({ k, v }) => (
 
 const Tag = ({ kind, children }) => (
   <span className={`${styles.tag} ${styles[`tag-${kind || "neutral"}`]}`}>{children}</span>
+);
+
+/* Dot + word status pill for boolean-ish states (F26). The dot carries
+ * the semantic colour, the word carries the meaning — unlike Tag,
+ * which paints a solid block. Kinds: on / off / warn. */
+const StatusPill = ({ kind, children }) => (
+  <span className={`${styles.statusPill} ${styles[`statusPill-${kind || "off"}`]}`}>
+    <span className={styles.statusPillDot} aria-hidden="true" />
+    {children}
+  </span>
 );
 
 const SectionTitle = ({ title, gap }) => (
