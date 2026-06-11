@@ -37,6 +37,7 @@ const {
   setSummaryCache,
   reserveClaudeCall,
   MAX_CLAUDE_CALLS_PER_MIN,
+  MAX_CLAUDE_CALLS_PER_MIN_PER_PEER,
 } = aiTest;
 
 // === TTL constant ===
@@ -205,13 +206,15 @@ test("setSummaryCache: expired entries are dropped on insert", () => {
 // === Per-process Anthropic throttle (the hard denial-of-wallet ceiling
 // the cache can't provide, since its key is jitterable) ===
 
-test("reserveClaudeCall: allows up to MAX_CLAUDE_CALLS_PER_MIN then blocks", () => {
+// `null` peerKey exercises the global window in isolation (no per-peer cap).
+
+test("reserveClaudeCall: allows up to MAX_CLAUDE_CALLS_PER_MIN then blocks (global)", () => {
   // Use a fixed `now` so the sliding window is deterministic and isolated
   // from any real calls made while the module was loaded.
   const t0 = 1_000_000_000_000;
   let allowed = 0;
   for (let i = 0; i < MAX_CLAUDE_CALLS_PER_MIN + 5; i++) {
-    if (reserveClaudeCall(t0 + i)) allowed++;
+    if (reserveClaudeCall(null, t0 + i)) allowed++;
   }
   assert.equal(allowed, MAX_CLAUDE_CALLS_PER_MIN);
 });
@@ -220,10 +223,43 @@ test("reserveClaudeCall: window slides — calls older than 60 s free up budget"
   const t0 = 2_000_000_000_000;
   // Saturate the window.
   for (let i = 0; i < MAX_CLAUDE_CALLS_PER_MIN; i++) {
-    assert.ok(reserveClaudeCall(t0 + i));
+    assert.ok(reserveClaudeCall(null, t0 + i));
   }
   // Immediately after, blocked.
-  assert.equal(reserveClaudeCall(t0 + MAX_CLAUDE_CALLS_PER_MIN), false);
+  assert.equal(reserveClaudeCall(null, t0 + MAX_CLAUDE_CALLS_PER_MIN), false);
   // 61 s later the earliest timestamps have aged out → allowed again.
-  assert.ok(reserveClaudeCall(t0 + 61_000));
+  assert.ok(reserveClaudeCall(null, t0 + 61_000));
+});
+
+// === Per-peer sub-ceiling layered under the global ceiling ===
+
+test("reserveClaudeCall: a single remote peer is capped at MAX_CLAUDE_CALLS_PER_MIN_PER_PEER while the global still has room", () => {
+  const t0 = 3_000_000_000_000;
+  let allowed = 0;
+  for (let i = 0; i < MAX_CLAUDE_CALLS_PER_MIN_PER_PEER + 3; i++) {
+    if (reserveClaudeCall("10.0.0.7", t0 + i)) allowed++;
+  }
+  // Capped at the per-peer sub-ceiling (4), well below the global 10.
+  assert.equal(allowed, MAX_CLAUDE_CALLS_PER_MIN_PER_PEER);
+  assert.ok(MAX_CLAUDE_CALLS_PER_MIN_PER_PEER < MAX_CLAUDE_CALLS_PER_MIN);
+});
+
+test("reserveClaudeCall: one peer hitting its sub-ceiling doesn't block a different peer", () => {
+  const t0 = 4_000_000_000_000;
+  for (let i = 0; i < MAX_CLAUDE_CALLS_PER_MIN_PER_PEER; i++) {
+    assert.ok(reserveClaudeCall("10.0.0.1", t0 + i));
+  }
+  assert.equal(reserveClaudeCall("10.0.0.1", t0 + 10), false, "peer A is capped");
+  assert.ok(reserveClaudeCall("10.0.0.2", t0 + 11), "peer B is unaffected");
+});
+
+test("reserveClaudeCall: the global ceiling still caps combined remote spend across many peers", () => {
+  const t0 = 5_000_000_000_000;
+  let allowed = 0;
+  // 20 distinct peers, each one call (well under its per-peer cap) — the
+  // global ceiling still bounds the total billed calls to 10.
+  for (let p = 0; p < 20; p++) {
+    if (reserveClaudeCall(`192.0.2.${p}`, t0 + p)) allowed++;
+  }
+  assert.equal(allowed, MAX_CLAUDE_CALLS_PER_MIN);
 });

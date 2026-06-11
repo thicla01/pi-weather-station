@@ -125,7 +125,7 @@ const { checkForUpdate, clearCache: clearUpdateCache } = require("./updateChecke
 const rateLimit = require("express-rate-limit");
 const { socketPeerKeyGenerator } = require("./rateLimitKey");
 const { securityHeaders } = require("./securityHeaders");
-const { createSingleFlightGuard } = require("./singleFlight");
+const { createSingleFlightGuard, createPerPeerConcurrencyGuard } = require("./singleFlight");
 
 const DIST_DIR = "/../client/dist";
 const PORT = 8080;
@@ -742,7 +742,18 @@ app.get("/api/pollen",              apiLimiter, getPollen);
 
 const { getWeatherAlerts, getNearbyAlerts } = require("./govAlertsCtrl");
 app.get("/api/weather-alerts",      apiLimiter, getWeatherAlerts);
-app.get("/api/nearby-alerts",       apiLimiter, getNearbyAlerts);
+// Per-peer concurrency cap on the nearby-alerts path: one request fans out up
+// to ~5 outbound NWS /points calls (+ /alerts/active + ECCC), so an
+// ALLOW_REMOTE peer opening many concurrent requests could amplify outbound
+// traffic (and risk getting the Pi's IP throttled by NWS). The apiLimiter
+// already caps the per-peer request *rate*; this caps the instantaneous
+// in-flight *count*. Local kiosk exempt.
+const nearbyAlertsConcurrencyGuard = createPerPeerConcurrencyGuard({
+  max: 3,
+  reason: "nearby-alerts-busy",
+  message: "Too many concurrent nearby-alerts requests from this client — retry shortly.",
+});
+app.get("/api/nearby-alerts",       apiLimiter, nearbyAlertsConcurrencyGuard, getNearbyAlerts);
 
 // Radar risk-level overlay for the dashed circles in WeatherMap. Reads the
 // "right now" intensity sampled on each ring and maps to a colour tier
