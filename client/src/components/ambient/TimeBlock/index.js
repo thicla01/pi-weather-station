@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
 import bxsSun from "@iconify/icons-bx/bxs-sun";
 import bxsMoon from "@iconify/icons-bx/bxs-moon";
-import { AppContext } from "~/AppContext";
+import { WeatherDataContext, UiPrefsContext, LocationContext } from "~/AppContext";
 import { moonPhase, upcomingSolarEvent } from "~/ui/astronomy";
 import MoonGlyph from "~/components/ambient/MoonGlyph";
 import MoonDetailsPopover from "~/components/ambient/MoonDetailsPopover";
@@ -28,7 +28,9 @@ const I18N_LOCALE = { en: "en-US", fr: "fr-FR", es: "es-ES" };
  * @returns {JSX.Element} time slab
  */
 const TimeBlock = () => {
-  const { clockTime, mapTimezone, sunriseTime, sunsetTime } = useContext(AppContext);
+  const { sunriseTime, sunsetTime } = useContext(WeatherDataContext);
+  const { clockTime } = useContext(UiPrefsContext);
+  const { mapTimezone } = useContext(LocationContext);
   const { i18n, t } = useTranslation();
   const localeKey = i18n.language.startsWith("fr")
     ? "fr"

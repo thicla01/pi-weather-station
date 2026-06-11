@@ -1,7 +1,12 @@
 import React, { useContext, useState, useRef, useEffect, useLayoutEffect } from "react";
 import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
-import { AppContext } from "~/AppContext";
+import {
+  AppActionsContext,
+  SystemContext,
+  UiPrefsContext,
+  AlertsContext,
+} from "~/AppContext";
 import styles from "./styles.css";
 import { InlineIcon } from "@iconify/react";
 
@@ -85,42 +90,48 @@ const TOAST_TIMEOUT = 2500;
 const ControlButtons = ({ grouped = false }) => {
   const { t } = useTranslation();
   const {
-    darkMode,
     setDarkMode,
-    darkModeAuto,
     saveDarkModeAuto,
-    sleepNightMode,
     saveAdvancedSleepFlag,
-    radarAnalysisEnabled,
     saveAdvancedAiFlag,
-    aiSummaryAvailable,
-    aiSummaryUserVisible,
     saveAiSummaryUserVisible,
     resetMapPosition,
-    markerIsVisible,
     toggleMarker,
-    radarTimelineVisible,
     toggleRadarTimelineVisible,
-    radarSource,
-    showDirectionArrows,
     toggleDirectionArrows,
-    showWeatherAlerts,
     toggleWeatherAlerts,
-    nearbyAlerts,
-    hideRadarLegend,
     saveHideRadarLegend,
     toggleSettingsMenuOpen,
-    settingsMenuOpen,
-    mouseHide,
+    toggleDebugMenuOpen,
+    setUpdateModalOpen,
+  } = useContext(AppActionsContext);
+  const {
+    sleepNightMode,
     isLocal,
     debugEnabled,
-    toggleDebugMenuOpen,
+    settingsMenuOpen,
     debugMenuOpen,
     updateAvailable,
     updateModalOpen,
-    setUpdateModalOpen,
     mobileRadarMaximized,
-  } = useContext(AppContext);
+  } = useContext(SystemContext);
+  const {
+    darkMode,
+    darkModeAuto,
+    radarAnalysisEnabled,
+    aiSummaryAvailable,
+    aiSummaryUserVisible,
+    markerIsVisible,
+    radarTimelineVisible,
+    radarSource,
+    showDirectionArrows,
+    hideRadarLegend,
+    mouseHide,
+  } = useContext(UiPrefsContext);
+  const {
+    showWeatherAlerts,
+    nearbyAlerts,
+  } = useContext(AlertsContext);
 
   // When LayoutMobile is active and the radar card is in mini mode,
   // the timeline scrubber and the precipitation legend are CSS-hidden

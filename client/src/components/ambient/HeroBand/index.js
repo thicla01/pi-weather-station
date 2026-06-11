@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
 import bxsSun from "@iconify/icons-bx/bxs-sun";
 import bxsMoon from "@iconify/icons-bx/bxs-moon";
-import { AppContext } from "~/AppContext";
+import { WeatherDataContext, UiPrefsContext, LocationContext } from "~/AppContext";
 import { convertTemp } from "~/services/conversions";
 import { parseWeatherCode, isDaylight } from "~/ui/weatherCodes";
 import { moonPhase, upcomingSolarEvent } from "~/ui/astronomy";
@@ -39,15 +39,9 @@ const I18N_LOCALE = { en: "en-US", fr: "fr-FR", es: "es-ES" };
  * @returns {JSX.Element} hero band slab
  */
 const HeroBand = () => {
-  const {
-    currentWeatherData,
-    tempUnit,
-    clockTime,
-    mapTimezone,
-    sunriseTime,
-    sunsetTime,
-    reverseGeoResult,
-  } = useContext(AppContext);
+  const { currentWeatherData, sunriseTime, sunsetTime } = useContext(WeatherDataContext);
+  const { tempUnit, clockTime } = useContext(UiPrefsContext);
+  const { mapTimezone, reverseGeoResult } = useContext(LocationContext);
   const { t, i18n } = useTranslation();
   const localeKey = i18n.language.startsWith("fr")
     ? "fr"

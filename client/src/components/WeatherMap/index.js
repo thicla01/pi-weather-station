@@ -46,7 +46,14 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadowUrl,
 });
 import PropTypes from "prop-types";
-import { AppContext } from "~/AppContext";
+import {
+  AppActionsContext,
+  SystemContext,
+  LocationContext,
+  UiPrefsContext,
+  AlertsContext,
+  RadarStateContext,
+} from "~/AppContext";
 import useEligibleGovAlerts from "~/hooks/useEligibleGovAlerts";
 import SourceBadge from "~/components/ambient/SourceBadge";
 import SeverityChip from "~/components/ambient/SeverityChip";
@@ -168,7 +175,7 @@ MapClickHandler.propTypes = {
  * @returns {Number} rail width in pixels (0 if no offset needed)
  */
 function useRailOffset() {
-  const { experimentalUiC, infoPanelCollapsed, desktopRadarMaximized, piRadarMaximized } = useContext(AppContext);
+  const { experimentalUiC, infoPanelCollapsed, desktopRadarMaximized, piRadarMaximized } = useContext(SystemContext);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   useEffect(() => {
     // Focus mode hides HeroBand + rail via display:none. Bail with
@@ -542,20 +549,43 @@ const WeatherMap = ({ zoom, dark }) => {
   const railOffset = useRailOffset();
   const {
     setMapPosition,
-    panToCoords,
     setPanToCoords,
+    getMapApiKey,
+    setCurrentMapZoom,
+    setZoomToLevel,
+    setInnerRisk,
+    setOuterRisk,
+    setInnerTrend,
+    setOuterTrend,
+    setInnerBumped,
+    setOuterBumped,
+    setInnerTrendConfidence,
+    setOuterTrendConfidence,
+    setInnerDirectionVectors,
+    setOuterDirectionVectors,
+    setDesktopRadarMaximized,
+    setPiRadarMaximized,
+    setHighlightedAlertId,
+  } = useContext(AppActionsContext);
+  const {
+    mapApiKey,
+    infoPanelCollapsed,
+    mobileRadarMaximized,
+    desktopRadarMaximized,
+    piRadarMaximized,
+  } = useContext(SystemContext);
+  const {
     browserGeo,
     mapGeo,
     mapTimezone,
-    mapApiKey,
-    getMapApiKey,
+    panToCoords,
+  } = useContext(LocationContext);
+  const {
     markerIsVisible,
     animateWeatherMap,
     radarSpeed,
     radarTimelineVisible,
     radarSource,
-    infoPanelCollapsed,
-    mobileRadarMaximized,
     hideRadarLegend,
     aiSummaryAvailable,
     radarAnalysisEnabled,
@@ -566,35 +596,14 @@ const WeatherMap = ({ zoom, dark }) => {
     radarOpacityLight,
     radarOpacityDark,
     distanceUnit,
-    currentMapZoom,
-    setCurrentMapZoom,
-    zoomToLevel,
-    setZoomToLevel,
-    innerRisk,
-    setInnerRisk,
-    outerRisk,
-    setOuterRisk,
-    setInnerTrend,
-    setOuterTrend,
-    setInnerBumped,
-    setOuterBumped,
-    setInnerTrendConfidence,
-    setOuterTrendConfidence,
-    setInnerDirectionVectors,
-    setOuterDirectionVectors,
     showDirectionArrows,
-    innerDirectionVectors,
-    outerDirectionVectors,
-    desktopRadarMaximized,
-    setDesktopRadarMaximized,
-    piRadarMaximized,
-    setPiRadarMaximized,
+  } = useContext(UiPrefsContext);
+  const {
     // Phase 4d (2026-05-28): id of the alert whose `geometry` is
     // overlaid on the map + the full govAlerts list for the lookup.
     // Consumed by the `<AlertGeometryOverlay>` child inside the
     // MapContainer below.
     highlightedAlertId,
-    setHighlightedAlertId,
     govAlerts,
     // Nearby-alerts overlay (Phase 2): the radius survey layer + its
     // user-set radius. Display-only — gated on showWeatherAlerts, OFF by
@@ -602,7 +611,15 @@ const WeatherMap = ({ zoom, dark }) => {
     showWeatherAlerts,
     nearbyAlerts,
     alertRadiusKm,
-  } = useContext(AppContext);
+  } = useContext(AlertsContext);
+  const {
+    currentMapZoom,
+    zoomToLevel,
+    innerRisk,
+    outerRisk,
+    innerDirectionVectors,
+    outerDirectionVectors,
+  } = useContext(RadarStateContext);
 
   // Clear the map-zone highlight when the alert it points at is no
   // longer displayable — turned off via the "Show advisory alerts"

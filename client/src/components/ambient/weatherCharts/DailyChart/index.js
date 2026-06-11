@@ -1,7 +1,7 @@
 import React, { useContext, useState, useEffect, useCallback } from "react";
 import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
-import { AppContext } from "~/AppContext";
+import { UiPrefsContext, WeatherDataContext } from "~/AppContext";
 import styles from "../styles.css";
 import {
   Chart as ChartJS,
@@ -190,11 +190,13 @@ const DailyChart = ({ altMode: altModeProp, onAltToggle }) => {
   const {
     dailyWeatherData,
     dailyWeatherDataErr,
+  } = useContext(WeatherDataContext);
+  const {
     tempUnit,
     darkMode,
     lengthUnit,
     speedUnit,
-  } = useContext(AppContext);
+  } = useContext(UiPrefsContext);
   const { t, i18n } = useTranslation();
   // Canvas-drawn chart text: pass the active palette into fontColor()
   // so axes / title pick up the nightRed tint when active.

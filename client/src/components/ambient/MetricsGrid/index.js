@@ -8,7 +8,7 @@ import sunIcon from "@iconify/icons-wi/day-sunny";
 import leafIcon from "@iconify/icons-carbon/tree";
 import sproutIcon from "@iconify/icons-carbon/sprout";
 import informationIcon from "@iconify/icons-carbon/information";
-import { AppContext } from "~/AppContext";
+import { WeatherDataContext, UiPrefsContext } from "~/AppContext";
 import { convertSpeed, speedUnitLabel } from "~/services/conversions";
 import { uvTier, uvTextColor, CATEGORY_TEXT_COLORS } from "~/ui/severity";
 import { formatAge } from "~/ui/formatAge";
@@ -50,12 +50,8 @@ const AQ_KIND_LABEL_KEY = {
  * @returns {JSX.Element} metrics grid slab
  */
 const MetricsGrid = () => {
-  const {
-    currentWeatherData,
-    speedUnit,
-    aqhiInfo,
-    pollenInfo,
-  } = useContext(AppContext);
+  const { currentWeatherData, aqhiInfo, pollenInfo } = useContext(WeatherDataContext);
+  const { speedUnit } = useContext(UiPrefsContext);
   const { t, i18n } = useTranslation();
   // Single source of truth for which cell's popover is open. Tapping
   // a cell flips this; tapping the same cell again, the close icon,

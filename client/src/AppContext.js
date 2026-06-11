@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useRef, useCallback } from "react";
+import React, { createContext, useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { getSettings } from "~/settings";
 import PropTypes from "prop-types";
 import { getCoordsFromApi } from "~/services/geolocation";
@@ -12,6 +12,91 @@ import axios from "axios";
 import tzlookup from "tz-lookup";
 
 export const AppContext = createContext();
+
+// ——— Context slices (step 2b of the AppContext split) ———
+// The seven contexts below partition the legacy AppContext value into
+// DISJOINT slices grouped by update cadence. The provider feeds all of
+// them; AppContext (above) keeps receiving the spread union of the
+// seven slices, so unmigrated consumers see the exact pre-split
+// surface. New and hot-path components should subscribe to the
+// narrowest slice they need instead of the union.
+
+/**
+ * Actions slice — field domain: every function exposed by the provider
+ * (the get* / save* / toggle* / cycle* / select* / update* / check* /
+ * load* / trigger* / refresh* helpers, the raw setState setters, the
+ * debounced set*Live setters, setMapPosition / resetMapPosition,
+ * saveSettingsToJson, and the setDarkMode alias of setDarkModeManual)
+ * plus the shared `infoPanelScrollRef`. Update cadence: effectively
+ * never — all members are identity-stable (step 2a), so the slice
+ * identity survives every data refresh. The only re-mints left are
+ * boot-time settles: `weatherApiKey` arriving re-mints the
+ * update*WeatherData → setMapPosition → resetMapPosition chain, and
+ * `browserGeo` arriving re-mints resetMapPosition. Subscribe here from
+ * dispatch-only components (buttons, toggles, sliders).
+ */
+export const AppActionsContext = createContext(null);
+
+/**
+ * System slice — field domain: server/platform facts (API key values,
+ * isLocal, remoteSecurityEnabled, debugEnabled, serverPlatform,
+ * isSystemd, experimentalUiC), brightness + sleep + Sense HAT hardware
+ * state, in-app updater state, and global panel/layout flags (settings
+ * + debug menus, infoPanelCollapsed, the radar-maximized sentinels).
+ * Update cadence: a burst at boot while settings, /api/is-local and
+ * /api/update-check resolve, then rare — user panel toggles, the
+ * periodic update check, brightness slider drags, sleep-stage flips.
+ */
+export const SystemContext = createContext(null);
+
+/**
+ * Location slice — field domain: the geographic position of record
+ * (mapGeo, browserGeo, customLat/customLon, panToCoords) and its
+ * derived lookups (mapTimezone, reverseGeoResult). Update cadence:
+ * once at boot, then only when the user pans the map or moves the
+ * marker.
+ */
+export const LocationContext = createContext(null);
+
+/**
+ * UI-preferences slice — field domain: per-device display preferences
+ * (dark mode, units, clock, fontSize, Mapbox styles, radar opacity /
+ * source / legend / timeline / speed, marker + overlay visibility,
+ * advanced AI flags, AI-summary visibility, pollenEnabled,
+ * defaultMapZoom, animation prefs, showAdvisoryAlerts). Update
+ * cadence: only on direct user interaction with a settings control,
+ * plus the sunrise/sunset auto dark-mode flip at most twice a day.
+ */
+export const UiPrefsContext = createContext(null);
+
+/**
+ * Weather-data slice — field domain: polled environmental payloads —
+ * current / hourly / daily weather and their error states, sunrise /
+ * sunset times and full payloads, air quality (aqhiInfo), pollen.
+ * Update cadence: periodic — 10 min current, 30 min air quality,
+ * hourly forecast + pollen, daily forecast — plus a refetch burst
+ * whenever the map position changes.
+ */
+export const WeatherDataContext = createContext(null);
+
+/**
+ * Alerts slice — field domain: government alerts at the marker
+ * (govAlerts list + the banner's cycle / expand / highlight UI state),
+ * the nearby-alerts radius survey (nearbyAlerts, nearbyResidualCount,
+ * showWeatherAlerts, alertRadiusKm). Update cadence: 10 min gov-alert
+ * poll, 5 min nearby-alerts poll (only while the overlay is on), and
+ * user taps on the banner.
+ */
+export const AlertsContext = createContext(null);
+
+/**
+ * Radar-state slice — field domain: the radar-risk ring levels, the
+ * per-ring trend / bumped / confidence / direction-vector data pushed
+ * up by WeatherMap's /api/radar-risk poll, and the live map zoom pair
+ * (currentMapZoom, zoomToLevel). Update cadence: the hottest slice —
+ * every radar-risk poll plus every Leaflet zoom change.
+ */
+export const RadarStateContext = createContext(null);
 
 const DEFAULT_MAP_ZOOM_STORAGE_KEY = "defaultMapZoom";
 const DEFAULT_MAP_ZOOM_FALLBACK = 7; // historical hard-coded value before the slider
@@ -33,7 +118,23 @@ const RADAR_SOURCE_STORAGE_KEY = "radarSource";
 const RADAR_SOURCE_VALUES = ["rainviewer", "eccc"];
 
 /**
- * App context provider
+ * App context provider.
+ *
+ * Architecture (step 2b of the AppContext split): one state tree feeds
+ * eight providers. The seven slice contexts (AppActions, System,
+ * Location, UiPrefs, WeatherData, Alerts, RadarState) partition the
+ * state into disjoint groups by update cadence — each slice value is
+ * its own useMemo over only its own fields, so subscribing to a slice
+ * re-renders a component only when that slice's data changes. The
+ * innermost AppContext.Provider receives the spread union of the seven
+ * slices (memoized over the slice identities), which keeps every
+ * unmigrated consumer working unchanged and makes union completeness
+ * true by construction.
+ *
+ * Migration policy: NEW components — and existing hot-path components
+ * being touched anyway — subscribe to the narrowest slice(s) they
+ * need; the AppContext union is legacy compatibility only and should
+ * not gain new consumers.
  *
  * @param {object} props
  * @param {Node} props.children
@@ -1938,46 +2039,211 @@ export function AppContextProvider({ children }) {
     return () => clearInterval(interval);
   }, [darkModeAuto, sunriseTime, sunsetTime]);
 
-  const defaultContext = {
-    weatherApiKey,
+  // ——— Context slices (step 2b) ———
+  // Seven DISJOINT slices, each memoized over only its own fields, so a
+  // slice's identity changes only when one of its fields does. The
+  // legacy `defaultContext` union further down spreads the seven
+  // slices, which makes union completeness true by construction (every
+  // slice key reaches the union). Membership must stay disjoint — a key
+  // present in two slices would silently shadow in the spread. When
+  // adding a field, put it in exactly ONE slice (functions and shared
+  // refs go in actionsSlice; data goes with its cadence group).
+
+  // Actions: identity-stable functions + the shared scroll ref. The
+  // deps list every member for exhaustive-deps correctness; in practice
+  // only the weatherApiKey/browserGeo-driven fetcher chain re-mints
+  // (once, at boot), so this slice's identity is permanent afterwards.
+  const actionsSlice = useMemo(() => ({
     getWeatherApiKey,
-    reverseGeoApiKey,
     getReverseGeoApiKey,
+    getMapApiKey,
+    getBrowserGeo,
+    getCustomLatLon,
+    setDarkMode: setDarkModeManual,
+    saveDarkModeAuto,
+    setMapGeo,
+    setAiSummaryAvailable,
+    saveAiSummaryUserVisible,
+    saveAdvancedAiFlag,
+    saveAdvancedDisplayFlag,
+    setRadarOpacityLightLive,
+    setRadarOpacityDarkLive,
+    setBrightnessLive,
+    saveAdvancedSleepFlag,
+    saveSenseHatMode,
+    setSenseHatClockBrightnessLive,
+    setSenseHatRadarBrightnessLive,
+    saveAdvancedExperimentalFlag,
+    setMobileRadarMaximized,
+    setDesktopRadarMaximized,
+    setPiRadarMaximized,
+    setMapPosition,
+    resetMapPosition,
+    setPanToCoords,
+    toggleMarker,
+    saveTempUnit,
+    saveSpeedUnit,
+    saveLengthUnit,
+    saveDistanceUnit,
+    saveDefaultMapZoom,
+    setCurrentMapZoom,
+    setZoomToLevel,
+    setInnerRisk,
+    setOuterRisk,
+    setInnerTrend,
+    setOuterTrend,
+    setInnerBumped,
+    setOuterBumped,
+    setInnerTrendConfidence,
+    setOuterTrendConfidence,
+    setInnerDirectionVectors,
+    setOuterDirectionVectors,
+    toggleDirectionArrows,
+    toggleWeatherAlerts,
+    setAlertRadiusKmLive,
+    setAqhiInfo,
+    savePollenEnabled,
+    cycleGovAlert,
+    selectGovAlert,
+    setGovAlertExpanded,
+    setHighlightedAlertId,
+    toggleAnimateWeatherMap,
+    cycleRadarSpeed,
+    toggleRadarTimelineVisible,
+    setSettingsMenuOpen,
+    toggleSettingsMenuOpen,
+    loadStoredData,
+    saveClockTime,
+    saveSettingsToJson,
+    updateCurrentWeatherData,
+    updateDailyWeatherData,
+    updateHourlyWeatherData,
+    saveMouseHide,
+    saveShowAdvisoryAlerts,
+    saveHideRadarLegend,
+    saveRadarSource,
+    setInfoPanelCollapsed,
+    saveFontSize,
+    updateSunriseSunset,
+    checkIsLocal,
+    setDebugMenuOpen,
+    toggleDebugMenuOpen,
+    setUpdateAvailable,
+    setLatestVersion,
+    setLatestSha,
+    setUpdateCommits,
+    refreshUpdateCheck,
+    saveSkippedSha,
+    setUpdateModalOpen,
+    setUpdateState,
+    triggerUpdate,
+    infoPanelScrollRef,
+  }), [
+    getWeatherApiKey,
+    getReverseGeoApiKey,
+    getMapApiKey,
+    getBrowserGeo,
+    getCustomLatLon,
+    setDarkModeManual,
+    saveDarkModeAuto,
+    setMapGeo,
+    setAiSummaryAvailable,
+    saveAiSummaryUserVisible,
+    saveAdvancedAiFlag,
+    saveAdvancedDisplayFlag,
+    setRadarOpacityLightLive,
+    setRadarOpacityDarkLive,
+    setBrightnessLive,
+    saveAdvancedSleepFlag,
+    saveSenseHatMode,
+    setSenseHatClockBrightnessLive,
+    setSenseHatRadarBrightnessLive,
+    saveAdvancedExperimentalFlag,
+    setMobileRadarMaximized,
+    setDesktopRadarMaximized,
+    setPiRadarMaximized,
+    setMapPosition,
+    resetMapPosition,
+    setPanToCoords,
+    toggleMarker,
+    saveTempUnit,
+    saveSpeedUnit,
+    saveLengthUnit,
+    saveDistanceUnit,
+    saveDefaultMapZoom,
+    setCurrentMapZoom,
+    setZoomToLevel,
+    setInnerRisk,
+    setOuterRisk,
+    setInnerTrend,
+    setOuterTrend,
+    setInnerBumped,
+    setOuterBumped,
+    setInnerTrendConfidence,
+    setOuterTrendConfidence,
+    setInnerDirectionVectors,
+    setOuterDirectionVectors,
+    toggleDirectionArrows,
+    toggleWeatherAlerts,
+    setAlertRadiusKmLive,
+    setAqhiInfo,
+    savePollenEnabled,
+    cycleGovAlert,
+    selectGovAlert,
+    setGovAlertExpanded,
+    setHighlightedAlertId,
+    toggleAnimateWeatherMap,
+    cycleRadarSpeed,
+    toggleRadarTimelineVisible,
+    setSettingsMenuOpen,
+    toggleSettingsMenuOpen,
+    loadStoredData,
+    saveClockTime,
+    saveSettingsToJson,
+    updateCurrentWeatherData,
+    updateDailyWeatherData,
+    updateHourlyWeatherData,
+    saveMouseHide,
+    saveShowAdvisoryAlerts,
+    saveHideRadarLegend,
+    saveRadarSource,
+    setInfoPanelCollapsed,
+    saveFontSize,
+    updateSunriseSunset,
+    checkIsLocal,
+    setDebugMenuOpen,
+    toggleDebugMenuOpen,
+    setUpdateAvailable,
+    setLatestVersion,
+    setLatestSha,
+    setUpdateCommits,
+    refreshUpdateCheck,
+    saveSkippedSha,
+    setUpdateModalOpen,
+    setUpdateState,
+    triggerUpdate,
+    infoPanelScrollRef,
+  ]);
+
+  // System: platform facts, hardware state, updater state, panel flags.
+  // `updateAvailable` keeps its derived form (raw flag gated by the
+  // user's skipped SHA) — consumers see the same boolean as before.
+  const systemSlice = useMemo(() => ({
+    weatherApiKey,
+    reverseGeoApiKey,
     anthropicApiKey,
     airNowApiKey,
     openAqApiKey,
     mapApiKey,
-    getMapApiKey,
-    browserGeo,
-    getBrowserGeo,
-    darkMode,
-    setDarkMode: setDarkModeManual,
-    darkModeAuto,
-    saveDarkModeAuto,
-    mapGeo,
-    setMapGeo,
-    mapTimezone,
-    reverseGeoResult,
-    aiSummaryAvailable,
-    setAiSummaryAvailable,
-    aiSummaryUserVisible,
-    saveAiSummaryUserVisible,
-    radarAnalysisEnabled,
-    extendedRadarRadius,
-    showSamplingPoints,
-    calmDayFastPath,
-    saveAdvancedAiFlag,
-    lightModeStyle,
-    darkModeStyle,
-    saveAdvancedDisplayFlag,
-    radarOpacityLight,
-    radarOpacityDark,
-    setRadarOpacityLightLive,
-    setRadarOpacityDarkLive,
+    isLocal,
+    remoteSecurityEnabled,
+    debugEnabled,
+    serverPlatform,
+    isSystemd,
+    experimentalUiC,
     brightnessAvailable,
     brightnessPercent,
     brightnessMinPercent,
-    setBrightnessLive,
     sleepEnabled,
     sleepStage1Delay,
     sleepStage1Brightness,
@@ -1985,102 +2251,155 @@ export function AppContextProvider({ children }) {
     sleepStage2Delay,
     sleepNightMode,
     sleepStage,
-    saveAdvancedSleepFlag,
     senseHatAvailable,
     senseHatMode,
-    saveSenseHatMode,
     senseHatClockBrightness,
-    setSenseHatClockBrightnessLive,
     senseHatRadarBrightness,
-    setSenseHatRadarBrightnessLive,
-    experimentalUiC,
-    saveAdvancedExperimentalFlag,
-    mobileRadarMaximized,
-    setMobileRadarMaximized,
-    desktopRadarMaximized,
-    setDesktopRadarMaximized,
-    piRadarMaximized,
-    setPiRadarMaximized,
-    setMapPosition,
-    resetMapPosition,
-    panToCoords,
-    setPanToCoords,
-    markerIsVisible,
-    toggleMarker,
-    tempUnit,
-    saveTempUnit,
-    speedUnit,
-    saveSpeedUnit,
-    lengthUnit,
-    saveLengthUnit,
-    distanceUnit,
-    saveDistanceUnit,
-    defaultMapZoom,
-    saveDefaultMapZoom,
-    currentMapZoom,
-    setCurrentMapZoom,
-    zoomToLevel,
-    setZoomToLevel,
-    innerRisk,
-    setInnerRisk,
-    outerRisk,
-    setOuterRisk,
-    innerTrend,
-    setInnerTrend,
-    outerTrend,
-    setOuterTrend,
-    innerBumped,
-    setInnerBumped,
-    outerBumped,
-    setOuterBumped,
-    innerTrendConfidence,
-    setInnerTrendConfidence,
-    outerTrendConfidence,
-    setOuterTrendConfidence,
-    innerDirectionVectors,
-    setInnerDirectionVectors,
-    outerDirectionVectors,
-    setOuterDirectionVectors,
-    showDirectionArrows,
-    toggleDirectionArrows,
-    showWeatherAlerts,
-    toggleWeatherAlerts,
-    alertRadiusKm,
-    setAlertRadiusKmLive,
-    nearbyAlerts,
-    nearbyResidualCount,
-    aqhiInfo,
-    setAqhiInfo,
-    pollenInfo,
-    pollenEnabled,
-    savePollenEnabled,
-    govAlerts,
-    govAlertIdx,
-    cycleGovAlert,
-    selectGovAlert,
-    govAlertExpanded,
-    setGovAlertExpanded,
-    highlightedAlertId,
-    setHighlightedAlertId,
-    animateWeatherMap,
-    toggleAnimateWeatherMap,
-    radarSpeed,
-    cycleRadarSpeed,
-    radarTimelineVisible,
-    toggleRadarTimelineVisible,
+    updateAvailable: updateAvailable && latestSha !== skippedSha,
+    latestVersion,
+    latestSha,
+    updateCommits,
+    changedDeployFiles,
+    needsManualUpgrade,
+    skippedSha,
+    updateModalOpen,
+    updateState,
+    updateErrorMessage,
     settingsMenuOpen,
-    setSettingsMenuOpen,
-    toggleSettingsMenuOpen,
-    getCustomLatLon,
+    debugMenuOpen,
+    infoPanelCollapsed,
+    mobileRadarMaximized,
+    desktopRadarMaximized,
+    piRadarMaximized,
+  }), [
+    weatherApiKey,
+    reverseGeoApiKey,
+    anthropicApiKey,
+    airNowApiKey,
+    openAqApiKey,
+    mapApiKey,
+    isLocal,
+    remoteSecurityEnabled,
+    debugEnabled,
+    serverPlatform,
+    isSystemd,
+    experimentalUiC,
+    brightnessAvailable,
+    brightnessPercent,
+    brightnessMinPercent,
+    sleepEnabled,
+    sleepStage1Delay,
+    sleepStage1Brightness,
+    sleepStage2Enabled,
+    sleepStage2Delay,
+    sleepNightMode,
+    sleepStage,
+    senseHatAvailable,
+    senseHatMode,
+    senseHatClockBrightness,
+    senseHatRadarBrightness,
+    updateAvailable,
+    latestVersion,
+    latestSha,
+    updateCommits,
+    changedDeployFiles,
+    needsManualUpgrade,
+    skippedSha,
+    updateModalOpen,
+    updateState,
+    updateErrorMessage,
+    settingsMenuOpen,
+    debugMenuOpen,
+    infoPanelCollapsed,
+    mobileRadarMaximized,
+    desktopRadarMaximized,
+    piRadarMaximized,
+  ]);
+
+  // Location: the position of record + its derived lookups.
+  const locationSlice = useMemo(() => ({
+    mapGeo,
+    browserGeo,
     customLat,
     customLon,
-    loadStoredData,
+    mapTimezone,
+    reverseGeoResult,
+    panToCoords,
+  }), [
+    mapGeo,
+    browserGeo,
+    customLat,
+    customLon,
+    mapTimezone,
+    reverseGeoResult,
+    panToCoords,
+  ]);
+
+  // UI preferences: per-device display choices, user-interaction driven.
+  const uiPrefsSlice = useMemo(() => ({
+    darkMode,
+    darkModeAuto,
+    tempUnit,
+    speedUnit,
+    lengthUnit,
+    distanceUnit,
     clockTime,
-    saveClockTime,
-    saveSettingsToJson,
-    updateCurrentWeatherData,
-    updateDailyWeatherData,
-    updateHourlyWeatherData,
+    fontSize,
+    lightModeStyle,
+    darkModeStyle,
+    radarOpacityLight,
+    radarOpacityDark,
+    mouseHide,
+    hideRadarLegend,
+    radarSource,
+    markerIsVisible,
+    showDirectionArrows,
+    showSamplingPoints,
+    radarAnalysisEnabled,
+    extendedRadarRadius,
+    calmDayFastPath,
+    aiSummaryAvailable,
+    aiSummaryUserVisible,
+    pollenEnabled,
+    defaultMapZoom,
+    animateWeatherMap,
+    radarSpeed,
+    radarTimelineVisible,
+    showAdvisoryAlerts,
+  }), [
+    darkMode,
+    darkModeAuto,
+    tempUnit,
+    speedUnit,
+    lengthUnit,
+    distanceUnit,
+    clockTime,
+    fontSize,
+    lightModeStyle,
+    darkModeStyle,
+    radarOpacityLight,
+    radarOpacityDark,
+    mouseHide,
+    hideRadarLegend,
+    radarSource,
+    markerIsVisible,
+    showDirectionArrows,
+    showSamplingPoints,
+    radarAnalysisEnabled,
+    extendedRadarRadius,
+    calmDayFastPath,
+    aiSummaryAvailable,
+    aiSummaryUserVisible,
+    pollenEnabled,
+    defaultMapZoom,
+    animateWeatherMap,
+    radarSpeed,
+    radarTimelineVisible,
+    showAdvisoryAlerts,
+  ]);
+
+  // Weather data: polled environmental payloads + their error states.
+  const weatherDataSlice = useMemo(() => ({
     currentWeatherData,
     currentWeatherDataErr,
     currentWeatherDataErrMsg,
@@ -2090,56 +2409,120 @@ export function AppContextProvider({ children }) {
     dailyWeatherData,
     dailyWeatherDataErr,
     dailyWeatherDataErrMsg,
-    mouseHide,
-    saveMouseHide,
-    showAdvisoryAlerts,
-    saveShowAdvisoryAlerts,
-    hideRadarLegend,
-    saveHideRadarLegend,
-    radarSource,
-    saveRadarSource,
-    infoPanelCollapsed,
-    setInfoPanelCollapsed,
-    fontSize,
-    saveFontSize,
-    updateSunriseSunset,
     sunriseTime,
     sunsetTime,
     sunriseSunsetToday,
     sunriseSunsetTomorrow,
-    isLocal,
-    remoteSecurityEnabled,
-    checkIsLocal,
-    debugEnabled,
-    debugMenuOpen,
-    setDebugMenuOpen,
-    toggleDebugMenuOpen,
-    updateAvailable: updateAvailable && latestSha !== skippedSha,
-    setUpdateAvailable,
-    latestVersion,
-    setLatestVersion,
-    latestSha,
-    setLatestSha,
-    updateCommits,
-    setUpdateCommits,
-    changedDeployFiles,
-    needsManualUpgrade,
-    refreshUpdateCheck,
-    skippedSha,
-    saveSkippedSha,
-    updateModalOpen,
-    setUpdateModalOpen,
-    updateState,
-    setUpdateState,
-    updateErrorMessage,
-    triggerUpdate,
-    serverPlatform,
-    isSystemd,
-    infoPanelScrollRef,
-  };
+    aqhiInfo,
+    pollenInfo,
+  }), [
+    currentWeatherData,
+    currentWeatherDataErr,
+    currentWeatherDataErrMsg,
+    hourlyWeatherData,
+    hourlyWeatherDataErr,
+    hourlyWeatherDataErrMsg,
+    dailyWeatherData,
+    dailyWeatherDataErr,
+    dailyWeatherDataErrMsg,
+    sunriseTime,
+    sunsetTime,
+    sunriseSunsetToday,
+    sunriseSunsetTomorrow,
+    aqhiInfo,
+    pollenInfo,
+  ]);
+
+  // Alerts: gov-alert list + banner UI state + nearby-alerts survey.
+  const alertsSlice = useMemo(() => ({
+    govAlerts,
+    govAlertIdx,
+    govAlertExpanded,
+    highlightedAlertId,
+    nearbyAlerts,
+    nearbyResidualCount,
+    showWeatherAlerts,
+    alertRadiusKm,
+  }), [
+    govAlerts,
+    govAlertIdx,
+    govAlertExpanded,
+    highlightedAlertId,
+    nearbyAlerts,
+    nearbyResidualCount,
+    showWeatherAlerts,
+    alertRadiusKm,
+  ]);
+
+  // Radar state: ring risk/trend data + live zoom — the hottest slice.
+  const radarStateSlice = useMemo(() => ({
+    innerRisk,
+    outerRisk,
+    innerTrend,
+    outerTrend,
+    innerBumped,
+    outerBumped,
+    innerTrendConfidence,
+    outerTrendConfidence,
+    innerDirectionVectors,
+    outerDirectionVectors,
+    currentMapZoom,
+    zoomToLevel,
+  }), [
+    innerRisk,
+    outerRisk,
+    innerTrend,
+    outerTrend,
+    innerBumped,
+    outerBumped,
+    innerTrendConfidence,
+    outerTrendConfidence,
+    innerDirectionVectors,
+    outerDirectionVectors,
+    currentMapZoom,
+    zoomToLevel,
+  ]);
+
+  // Legacy union — the exact pre-split AppContext surface, rebuilt by
+  // spreading the seven slices (disjoint keys, so no shadowing).
+  // Memoized over the slice identities: it re-mints only when a slice
+  // does, and unmigrated consumers keep working unchanged.
+  const defaultContext = useMemo(() => ({
+    ...actionsSlice,
+    ...systemSlice,
+    ...locationSlice,
+    ...uiPrefsSlice,
+    ...weatherDataSlice,
+    ...alertsSlice,
+    ...radarStateSlice,
+  }), [
+    actionsSlice,
+    systemSlice,
+    locationSlice,
+    uiPrefsSlice,
+    weatherDataSlice,
+    alertsSlice,
+    radarStateSlice,
+  ]);
 
   return (
-    <AppContext.Provider value={defaultContext}>{children}</AppContext.Provider>
+    <AppActionsContext.Provider value={actionsSlice}>
+      <SystemContext.Provider value={systemSlice}>
+        <LocationContext.Provider value={locationSlice}>
+          <UiPrefsContext.Provider value={uiPrefsSlice}>
+            <WeatherDataContext.Provider value={weatherDataSlice}>
+              <AlertsContext.Provider value={alertsSlice}>
+                <RadarStateContext.Provider value={radarStateSlice}>
+                  <AppContext.Provider value={defaultContext}>
+                    {children}
+                  </AppContext.Provider>
+                </RadarStateContext.Provider>
+              </AlertsContext.Provider>
+            </WeatherDataContext.Provider>
+          </UiPrefsContext.Provider>
+        </LocationContext.Provider>
+      </SystemContext.Provider>
+    </AppActionsContext.Provider>
   );
 }
 

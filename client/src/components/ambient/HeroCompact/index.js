@@ -1,7 +1,7 @@
 import React, { useContext, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
-import { AppContext } from "~/AppContext";
+import { WeatherDataContext, UiPrefsContext, LocationContext } from "~/AppContext";
 import { convertTemp } from "~/services/conversions";
 import { parseWeatherCode, isDaylight } from "~/ui/weatherCodes";
 import LocationName from "~/components/LocationName";
@@ -29,13 +29,9 @@ import styles from "./styles.css";
  * @returns {JSX.Element} hero slab
  */
 const HeroCompact = () => {
-  const {
-    currentWeatherData,
-    tempUnit,
-    sunriseTime,
-    sunsetTime,
-    reverseGeoResult,
-  } = useContext(AppContext);
+  const { currentWeatherData, sunriseTime, sunsetTime } = useContext(WeatherDataContext);
+  const { tempUnit } = useContext(UiPrefsContext);
+  const { reverseGeoResult } = useContext(LocationContext);
   const { t } = useTranslation();
 
   // Tap-for-details on the location row (same UX as HeroBand on desktop).
