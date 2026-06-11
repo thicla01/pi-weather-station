@@ -179,6 +179,10 @@ const HOURLY_FIELDS = [
   // cached hourly entry and forces a fresh fetch on next request — see
   // the cache-versioning rationale at the top of this file.
   "weatherCode",
+  // v3.1 Phase 5 — the Vent tab charts gusts (dashed series) and a
+  // wind-direction arrow row under the axis. Same hash-bump rationale
+  // as above; no extra request volume (fields travel in the same call).
+  "windGust", "windDirection",
 ];
 const DAILY_FIELDS = [
   "temperature", "temperatureMax", "temperatureMin",
@@ -194,6 +198,9 @@ const DAILY_FIELDS = [
   // pick up the new shape. No manual cache wipe needed.
   "weatherCodeDay", "weatherCodeNight",
   "rainAccumulation", "snowAccumulation",
+  // v3.1 Phase 5 — daily Vent tab (gust ceiling + dominant direction
+  // per day). Bumps DAILY_FIELDS_HASH like the entries above.
+  "windGustMax", "windDirection",
   // v2.16.x — moonriseTime / moonsetTime feed the moon-phase chip's
   // tap-for-details popover (alongside locally-computed next full /
   // new moon dates). Adding to the list bumps DAILY_FIELDS_HASH and

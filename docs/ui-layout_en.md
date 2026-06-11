@@ -99,7 +99,7 @@ The map occupies the left column; the rail (info panel) occupies the right colum
 
 ### Always-on adaptations (any height in `LayoutPi`)
 
-- **ChartTabs** — HourlyChart and DailyChart render as two tabs (`24 hours` / `5 days`) with a maximize ⛶ button. Replaces the v2-era stacked-charts layout regardless of viewport height. Tab state persists across the session.
+- **ChartTabs (v3.1 Phase 5)** — a "Forecast" panel: period pills (`24 h` / `5 days`) next to the title, and four labelled metric tabs (Temp · Wind · Precip · Hours/Days) replacing the old carousel dots (audit F9). Temp = accent line + area fill + key-point labels; Wind = speed + dashed gusts + direction-arrow row; Precip = accumulation bars + dashed probability line; the last tab is the hour/day icon grid. Numeric summary pills under each chart (max/min/peak…, audit F13 fixed the axes: `14°`, unit once on the top tick) plus an optional "Precip" overlay chip on Temp/Wind. The maximize button keeps its 44 px hit area and the bracket-icon pair shared with the radar controls; per-period metric choice persists in localStorage.
 - **Panel toggle** — A chevron (`›` / `‹`) is pinned to the map's right edge to collapse/expand the rail. When collapsed the map fills the full width; Leaflet calls `map.invalidateSize()` so the tiles re-fit.
 - **FloatingMiniBanner** — When the rail is collapsed and a government severe alert is active, a compact banner overlays the map's top-right so the alert is never silently hidden. Tapping it re-opens the rail.
 

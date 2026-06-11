@@ -117,12 +117,27 @@
     "precipitation": "Precipitaciones",
     "tab24h": "24 horas",
     "tab5d": "5 días",
-    "hourlyColumnsTitle": "Próximas 12 horas",
-    "cycleView": "Vista siguiente",
-    "viewTempPrecip": "Temperatura + precipitación",
-    "viewWindPrecip": "Viento + precipitación",
-    "viewHourlyColumns": "Columnas horarias",
-    "viewDailyColumns": "Columnas 5 días"
+    "title": "Pronóstico",
+    "tabTemp": "Temp",
+    "tabWind": "Viento",
+    "tabPrecip": "Precip",
+    "tabHours": "Horas",
+    "tabDays": "Días",
+    "maximize": "Ampliar",
+    "restore": "Restaurar",
+    "overlayPrecip": "Superponer la precipitación en este gráfico",
+    "pillMax": "máx",
+    "pillMin": "mín",
+    "pillPeak": "pico",
+    "pillTrough": "valle",
+    "pillAvg": "prom.",
+    "pillGusts": "rachas",
+    "pillDominant": "dominante",
+    "pillProb": "prob.",
+    "legendProb": "probabilidad",
+    "period24h": "24 h",
+    "period5d": "5 días",
+    "legendSpeed": "velocidad"
   },
   "update": {
     "available": "Actualización disponible: v{{version}}",
@@ -564,5 +579,15 @@
     "throttledStatus": "Limitado",
     "tempLimit": "Límite temp.",
     "sinceReboot": "desde reinicio"
+  },
+  "compass": {
+    "n": "N",
+    "ne": "NE",
+    "e": "E",
+    "se": "SE",
+    "s": "S",
+    "sw": "SO",
+    "w": "O",
+    "nw": "NO"
   }
 }

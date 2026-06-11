@@ -117,12 +117,27 @@
     "precipitation": "Précipitations",
     "tab24h": "24 heures",
     "tab5d": "5 jours",
-    "hourlyColumnsTitle": "Prochaines 12 heures",
-    "cycleView": "Vue suivante",
-    "viewTempPrecip": "Température + précipitations",
-    "viewWindPrecip": "Vent + précipitations",
-    "viewHourlyColumns": "Colonnes horaires",
-    "viewDailyColumns": "Colonnes 5 jours"
+    "title": "Prévisions",
+    "tabTemp": "Temp",
+    "tabWind": "Vent",
+    "tabPrecip": "Précip",
+    "tabHours": "Heures",
+    "tabDays": "Jours",
+    "maximize": "Agrandir",
+    "restore": "Restaurer",
+    "overlayPrecip": "Superposer les précipitations sur ce graphique",
+    "pillMax": "max",
+    "pillMin": "min",
+    "pillPeak": "pic",
+    "pillTrough": "creux",
+    "pillAvg": "moy.",
+    "pillGusts": "rafales",
+    "pillDominant": "dominant",
+    "pillProb": "prob.",
+    "legendProb": "probabilité",
+    "period24h": "24 h",
+    "period5d": "5 jours",
+    "legendSpeed": "vitesse"
   },
   "update": {
     "available": "Mise à jour disponible : v{{version}}",
@@ -564,5 +579,15 @@
     "throttledStatus": "Ralenti",
     "tempLimit": "Limite temp.",
     "sinceReboot": "depuis redémarrage"
+  },
+  "compass": {
+    "n": "N",
+    "ne": "NE",
+    "e": "E",
+    "se": "SE",
+    "s": "S",
+    "sw": "SO",
+    "w": "O",
+    "nw": "NO"
   }
 }

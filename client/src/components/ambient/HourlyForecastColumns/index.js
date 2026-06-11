@@ -3,7 +3,7 @@ import PropTypes from "prop-types";
 import { InlineIcon } from "@iconify/react";
 import { AppContext } from "~/AppContext";
 import { parseWeatherCode } from "~/ui/weatherCodes";
-import { convertTemp } from "~/services/conversions";
+import { convertTemp, convertLength } from "~/services/conversions";
 import styles from "./styles.css";
 
 // Two density modes — both cover the full 24-hour window. Compact mode
@@ -24,10 +24,11 @@ const EXPANDED_TOTAL_CELLS = 24;
 // the count out of JS avoids two sources of truth. CSS Grid auto-flow
 // lays the remaining cells onto subsequent rows automatically.
 
-// Threshold below which the precipitation percentage is hidden so
-// every column doesn't carry a noisy "0 %" / "5 %" label. Mirrors the
-// 30 % cut DailyForecastColumns uses.
-const PRECIP_THRESHOLD = 30;
+// Threshold (mm) below which the accumulation label collapses to a
+// neutral "·" — every column carrying "0 mm" would be noise. The cell
+// shows QUANTITY since v3.1 Phase 5 (design: "0.8 mm" per cell, dot
+// when dry); probability stays on the Précip chart tab.
+const PRECIP_MM_THRESHOLD = 0.1;
 
 /**
  * Hourly forecast as a horizontal strip of columns, covering the full
@@ -53,7 +54,7 @@ const PRECIP_THRESHOLD = 30;
  * @returns {JSX.Element|null} hourly strip, or null when no payload
  */
 const HourlyForecastColumns = ({ expanded = false }) => {
-  const { hourlyWeatherData, tempUnit, clockTime } = useContext(AppContext);
+  const { hourlyWeatherData, tempUnit, clockTime, lengthUnit } = useContext(AppContext);
 
   const intervals = hourlyWeatherData?.data?.timelines?.[0]?.intervals;
   if (!Array.isArray(intervals) || intervals.length === 0) {
@@ -99,7 +100,10 @@ const HourlyForecastColumns = ({ expanded = false }) => {
           : `${String(date.getHours()).padStart(2, "0")}h`;
         const temp = values?.temperature;
         const code = values?.weatherCode;
-        const precip = values?.precipitationProbability;
+        // mm/h over a 1-hour step ≈ mm for the hour; at the 3-hour
+        // compact step it reads as the rate at that hour, which is
+        // what the glanceable grid wants.
+        const precipMm = values?.precipitationIntensity;
         // Treat "is day" tolerantly — for an hourly forecast we use the
         // hour itself: 6h-19h = day icons, otherwise night. Avoids
         // pulling sunrise/sunset just to colour-match an icon variant
@@ -130,9 +134,11 @@ const HourlyForecastColumns = ({ expanded = false }) => {
                 : "—"}
             </div>
             <div className={styles.precip}>
-              {precip != null && precip >= PRECIP_THRESHOLD
-                ? `${Math.round(precip)}%`
-                : ""}
+              {/* Unit-aware decimals: 0.1-1.26 mm converts below the
+                * 1-decimal inch resolution and would read "0.0 in". */}
+              {precipMm != null && precipMm >= PRECIP_MM_THRESHOLD
+                ? `${convertLength(precipMm, lengthUnit).toFixed(lengthUnit === "in" ? 2 : 1)} ${lengthUnit}`
+                : "·"}
             </div>
           </div>
         );

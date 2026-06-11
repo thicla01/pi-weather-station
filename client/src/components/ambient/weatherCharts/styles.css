@@ -24,3 +24,34 @@
     margin-top: 10px;
     word-break: break-word;
   }
+/* Wind-direction arrow row (MetricChart, Vent tab — v3.1 Phase 5).
+ * Sampled arrows under the canvas, rotated per reading (direction
+ * + 180° so they point WHERE the wind goes). Inline SVG, no font
+ * glyphs — same cross-platform rationale as the Phase 3 icon set. */
+.canvas-box {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+}
+
+.wind-dir-row {
+  display: flex;
+  justify-content: space-between;
+  /* Left inset ≈ the y-axis gutter so the arrows align with the plot
+   * area rather than starting under the tick labels. */
+  padding: 2px 8px 0 30px;
+  flex: none;
+  color: var(--c-text-dim, #6d655a);
+}
+
+.wind-dir-cell {
+  width: 14px;
+  height: 14px;
+  display: inline-grid;
+  place-items: center;
+}
+
+.wind-dir-cell svg {
+  width: 12px;
+  height: 12px;
+}

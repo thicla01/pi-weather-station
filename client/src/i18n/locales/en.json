@@ -117,12 +117,27 @@
     "precipitation": "Precipitation",
     "tab24h": "24 hours",
     "tab5d": "5 days",
-    "hourlyColumnsTitle": "Next 12 hours",
-    "cycleView": "Cycle view",
-    "viewTempPrecip": "Temperature + precipitation",
-    "viewWindPrecip": "Wind + precipitation",
-    "viewHourlyColumns": "Hourly columns",
-    "viewDailyColumns": "5-day columns"
+    "title": "Forecast",
+    "tabTemp": "Temp",
+    "tabWind": "Wind",
+    "tabPrecip": "Precip",
+    "tabHours": "Hours",
+    "tabDays": "Days",
+    "maximize": "Maximize",
+    "restore": "Restore",
+    "overlayPrecip": "Overlay precipitation on this chart",
+    "pillMax": "max",
+    "pillMin": "min",
+    "pillPeak": "peak",
+    "pillTrough": "low",
+    "pillAvg": "avg",
+    "pillGusts": "gusts",
+    "pillDominant": "dominant",
+    "pillProb": "prob.",
+    "legendProb": "probability",
+    "period24h": "24 h",
+    "period5d": "5 days",
+    "legendSpeed": "speed"
   },
   "update": {
     "available": "Update available: v{{version}}",
@@ -564,5 +579,15 @@
     "throttledStatus": "Throttled",
     "tempLimit": "Temp. limit",
     "sinceReboot": "since reboot"
+  },
+  "compass": {
+    "n": "N",
+    "ne": "NE",
+    "e": "E",
+    "se": "SE",
+    "s": "S",
+    "sw": "SW",
+    "w": "W",
+    "nw": "NW"
   }
 }

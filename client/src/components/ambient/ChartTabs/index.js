@@ -1,23 +1,32 @@
 import React, { useEffect, useRef, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
-import { InlineIcon } from "@iconify/react";
-import maximize from "@iconify/icons-carbon/maximize";
-import minimize from "@iconify/icons-carbon/minimize";
-import HourlyChart from "~/components/ambient/weatherCharts/HourlyChart";
-import DailyChart from "~/components/ambient/weatherCharts/DailyChart";
+import MetricChart from "~/components/ambient/weatherCharts/MetricChart";
 import HourlyForecastColumns from "~/components/ambient/HourlyForecastColumns";
 import DailyForecastColumns from "~/components/ambient/DailyForecastColumns";
+import { ExpandIcon, RestoreIcon } from "~/components/WeatherMap/icons";
+import ForecastSummaryPills from "./ForecastSummaryPills";
 import styles from "./styles.css";
 
-// View identifiers per tab. Treated as a 0-indexed cycle: tap on the
-// chart area (or on a dot) advances to the next view; the last view
-// wraps back to the first. Stored in localStorage so the user's
-// preferred view per tab survives reloads.
-const HOURLY_VIEWS = ["temp", "wind", "columns"];
-const DAILY_VIEWS = ["temp", "wind", "columns"];
+// Metric tabs, in display order (v3.1 Phase 5). "grid" is the
+// hour-by-hour / day-by-day icon grid (the design's "Heures" tab —
+// labelled "Jours" when the 5-day period is active).
+const METRICS = ["temp", "wind", "precip", "grid"];
 
-const STORAGE_KEY_HOURLY = "ambient.chartTabs.hourlyView";
-const STORAGE_KEY_DAILY = "ambient.chartTabs.dailyView";
+// Phase 5 bumped the storage keys: the old hourlyView/dailyView indexes
+// pointed into a 3-view cycle whose meaning changed (2 used to be the
+// columns view, it now selects Précip) — fresh keys give everyone the
+// temp default instead of a silently-shifted preference.
+const STORAGE_KEY_HOURLY = "ambient.chartTabs.hourlyMetric";
+const STORAGE_KEY_DAILY = "ambient.chartTabs.dailyMetric";
+const STORAGE_KEY_OVERLAY = "ambient.chartTabs.precipOverlay";
+
+// Inline SVG tab glyphs, paths straight from the Phase 5 reference
+// (thermometer / wind / drop / clock).
+const METRIC_ICON_PATHS = {
+  temp: "M14 14 V 4 a 2 2 0 0 0 -4 0 V 14 a 4 4 0 1 0 4 0 Z",
+  wind: "M3 9 H 14 a 2 2 0 0 0 0 -4 a 2 2 0 0 0 -2 2 M 3 14 H 18 a 2 2 0 0 1 0 4 a 2 2 0 0 1 -2 -2",
+  precip: "M12 3 C 12 3 5 11 5 15 a 7 7 0 0 0 14 0 C 19 11 12 3 12 3 Z",
+};
 
 /**
  * Read a non-negative integer from localStorage, clamped to a maximum.
@@ -40,32 +49,38 @@ function readStoredView(key, max) {
 }
 
 /**
- * Direction C chart slab — tabbed switcher between the hourly (24 h)
- * and daily (5 day) forecasts, each cycling through three views:
+ * Direction C forecast slab — v3.1 Phase 5 ("Prévisions, nommées").
  *
- *   24h tab → temp+precip line / wind+precip line / hourly columns
- *   5d tab  → temp+precip line / wind+precip line / 5-day columns
+ * Header: the PRÉVISIONS title, the period toggle (24 h / 5 jours)
+ * as pills — period is orthogonal to metric, any combination is
+ * valid — and the expand button (bracket-icon pair, 44 px hit area).
+ * Below it, a labelled segmented control replaces the old cryptic
+ * carousel dots (audit F9): Temp · Vent · Précip · Heures (the last
+ * reads "Jours" on the 5-day period). Each metric renders a dedicated
+ * mono-metric chart (see MetricChart) plus a numeric summary-pill row;
+ * the grid metric reuses the hour/day column strips. Tapping the chart
+ * area still cycles metrics — the v2 muscle-memory gesture.
  *
- * The cycle is driven by either tapping the chart area itself (the v2
- * tap-to-toggle gesture, kept because users already know it) or
- * tapping one of the dots in the indicator row beneath the chart. Dots
- * make the affordance visible — without them users wouldn't know the
- * tap exists. The per-tab view index is persisted to localStorage so
- * the user's preference survives reloads.
+ * The optional "Précip" chip in the summary row (temp/wind tabs)
+ * superimposes the precipitation pair on the active chart — the
+ * maintainer-chosen replacement for the old always-paired charts.
  *
- * Maximize toggle (v2.14.39): the slab promotes to `position: absolute;
- * inset: 12px` over its rail and emits `data-chart-maximized="true"`.
- * LayoutDesktop's stylesheet uses `:has([data-chart-maximized="true"])`
- * to grow `--c-rail-width` from 320 / 360 px to `min(50vw, 720px)`,
- * giving the chart roughly half the screen.
+ * Maximize keeps the v2.14.39 mechanics: the slab promotes to
+ * `position: absolute; inset: 12px` over its rail and emits
+ * `data-chart-maximized="true"` (LayoutDesktop widens the rail via
+ * `:has()`); the grid metric densifies (8 → 24 cells) and the chart
+ * area grows.
  *
- * @returns {JSX.Element} chart slab with tab header, cycle dots, and chart body
+ * @returns {JSX.Element} forecast slab
  */
 const ChartTabs = () => {
-  const { t, i18n } = useTranslation();
-  const [tab, setTab] = useState("hourly");
-  const [hourlyView, setHourlyView] = useState(() => readStoredView(STORAGE_KEY_HOURLY, HOURLY_VIEWS.length));
-  const [dailyView, setDailyView] = useState(() => readStoredView(STORAGE_KEY_DAILY, DAILY_VIEWS.length));
+  const { t } = useTranslation();
+  const [period, setPeriod] = useState("hourly");
+  const [hourlyMetric, setHourlyMetric] = useState(() => readStoredView(STORAGE_KEY_HOURLY, METRICS.length));
+  const [dailyMetric, setDailyMetric] = useState(() => readStoredView(STORAGE_KEY_DAILY, METRICS.length));
+  const [precipOverlay, setPrecipOverlay] = useState(() => {
+    try { return window.localStorage.getItem(STORAGE_KEY_OVERLAY) === "1"; } catch { return false; }
+  });
   const [maximized, setMaximized] = useState(false);
   const slabRef = useRef(null);
 
@@ -73,11 +88,14 @@ const ChartTabs = () => {
   // throw in some private-browsing modes — failing silently is
   // preferable to a broken UI for what is purely a comfort feature.
   useEffect(() => {
-    try { window.localStorage.setItem(STORAGE_KEY_HOURLY, String(hourlyView)); } catch { /* ignore */ }
-  }, [hourlyView]);
+    try { window.localStorage.setItem(STORAGE_KEY_HOURLY, String(hourlyMetric)); } catch { /* ignore */ }
+  }, [hourlyMetric]);
   useEffect(() => {
-    try { window.localStorage.setItem(STORAGE_KEY_DAILY, String(dailyView)); } catch { /* ignore */ }
-  }, [dailyView]);
+    try { window.localStorage.setItem(STORAGE_KEY_DAILY, String(dailyMetric)); } catch { /* ignore */ }
+  }, [dailyMetric]);
+  useEffect(() => {
+    try { window.localStorage.setItem(STORAGE_KEY_OVERLAY, precipOverlay ? "1" : "0"); } catch { /* ignore */ }
+  }, [precipOverlay]);
 
   // Scroll the rail to the top when maximizing (same trick AiSummaryInline
   // uses) so the absolutely-positioned slab is in the visible viewport.
@@ -94,76 +112,53 @@ const ChartTabs = () => {
     }
   }, [maximized]);
 
-  const lang = ["fr", "es"].find((l) => i18n.language.startsWith(l)) || "en";
-  const maximizeLabel = maximized
-    ? { fr: "Restaurer", es: "Restaurar", en: "Restore" }[lang]
-    : { fr: "Agrandir", es: "Ampliar", en: "Maximize" }[lang];
+  const metricIndex = period === "hourly" ? hourlyMetric : dailyMetric;
+  const metric = METRICS[metricIndex];
+  const setMetricIndex = useCallback((index) => {
+    if (period === "hourly") setHourlyMetric(index);
+    else setDailyMetric(index);
+  }, [period]);
 
-  // Cycle handler: advance the active tab's view index by one, wrapping
-  // back to 0 after the last view. Wrapped in useCallback so the chart
-  // components don't re-render needlessly when the parent re-renders
-  // for unrelated reasons (palette change, etc.).
-  const cycleActiveView = useCallback(() => {
-    if (tab === "hourly") {
-      setHourlyView((v) => (v + 1) % HOURLY_VIEWS.length);
-    } else {
-      setDailyView((v) => (v + 1) % DAILY_VIEWS.length);
+  // Tap-on-chart cycles to the next metric (wraps) — kept from the
+  // dot-cycle era because users already know the gesture.
+  const cycleMetric = useCallback(() => {
+    setMetricIndex((metricIndex + 1) % METRICS.length);
+  }, [metricIndex, setMetricIndex]);
+
+  const metricLabel = (m) => {
+    if (m === "grid") {
+      return period === "hourly"
+        ? t("charts.tabHours", { defaultValue: "Hours" })
+        : t("charts.tabDays", { defaultValue: "Days" });
     }
-  }, [tab]);
+    return {
+      temp: t("charts.tabTemp", { defaultValue: "Temp" }),
+      wind: t("charts.tabWind", { defaultValue: "Wind" }),
+      precip: t("charts.tabPrecip", { defaultValue: "Precip" }),
+    }[m];
+  };
 
-  // Set the active tab's view explicitly (for dot taps).
-  const setActiveView = useCallback((index) => {
-    if (tab === "hourly") setHourlyView(index);
-    else setDailyView(index);
-  }, [tab]);
+  const expandLabel = maximized
+    ? t("charts.restore", { defaultValue: "Restore" })
+    : t("charts.maximize", { defaultValue: "Maximize" });
 
-  const activeViews = tab === "hourly" ? HOURLY_VIEWS : DAILY_VIEWS;
-  const activeIndex = tab === "hourly" ? hourlyView : dailyView;
-  const activeView = activeViews[activeIndex];
-  // altMode mapping: the two line-chart views ("temp" and "wind") map
-  // to the chart components' boolean altMode. The "columns" view
-  // renders the dedicated column-strip component instead and altMode
-  // is irrelevant.
-  const altMode = activeView === "wind";
-
-  // The chart components already render their click handler on the
-  // chart container — we forward the cycle action through their
-  // `onAltToggle` prop so the existing tap gesture keeps working. For
-  // the columns view there's no chart container, so we wrap that one
-  // in a clickable div directly.
   let chartBody;
-
-  // The line-chart views render a 2-series graph (grey for temp/wind,
-  // blue for precipitation) but the Chart.js native legend is disabled
-  // for vertical-space reasons. Surface a small custom legend above the
-  // canvas so users can map colours to meaning without guessing.
-  // Hidden for the columns view (its icons + temp/precip labels are
-  // self-descriptive). Mirrors the v2 InfoPanel pattern.
-  const showLegend = activeView !== "columns";
-  const mainSeriesLabel = activeView === "wind"
-    ? t("charts.windSpeed", { defaultValue: "Wind" })
-    : t("charts.temp", { defaultValue: "Temp" });
-
-  if (tab === "hourly") {
-    if (activeView === "columns") {
-      chartBody = (
-        <div className={styles.columnsClickable} onClick={cycleActiveView} role="button" tabIndex={0}>
-          <HourlyForecastColumns expanded={maximized} />
-        </div>
-      );
-    } else {
-      chartBody = <HourlyChart altMode={altMode} onAltToggle={cycleActiveView} />;
-    }
+  if (metric === "grid") {
+    const Columns = period === "hourly" ? HourlyForecastColumns : DailyForecastColumns;
+    chartBody = (
+      <div className={styles.columnsClickable} onClick={cycleMetric} role="button" tabIndex={0}>
+        <Columns expanded={maximized} />
+      </div>
+    );
   } else {
-    if (activeView === "columns") {
-      chartBody = (
-        <div className={styles.columnsClickable} onClick={cycleActiveView} role="button" tabIndex={0}>
-          <DailyForecastColumns expanded={maximized} />
-        </div>
-      );
-    } else {
-      chartBody = <DailyChart altMode={altMode} onAltToggle={cycleActiveView} />;
-    }
+    chartBody = (
+      <MetricChart
+        cadence={period}
+        metric={metric}
+        precipOverlay={precipOverlay && metric !== "precip"}
+        onCycle={cycleMetric}
+      />
+    );
   }
 
   return (
@@ -172,89 +167,83 @@ const ChartTabs = () => {
       className={`${styles.slab} ${maximized ? styles.slabMaximized : ""}`}
       data-chart-maximized={maximized ? "true" : undefined}
     >
-      <div className={styles.tabRow} role="tablist">
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "hourly"}
-          className={`${styles.tab} ${tab === "hourly" ? styles.active : ""}`}
-          onClick={() => setTab("hourly")}
-        >
-          {t("charts.tab24h", { defaultValue: "24 hours" })}
-        </button>
-        <button
-          type="button"
-          role="tab"
-          aria-selected={tab === "daily"}
-          className={`${styles.tab} ${tab === "daily" ? styles.active : ""}`}
-          onClick={() => setTab("daily")}
-        >
-          {t("charts.tab5d", { defaultValue: "5 days" })}
-        </button>
+      <div className={styles.headerRow}>
+        <span className={styles.headerTitle}>{t("charts.title", { defaultValue: "Forecast" })}</span>
+        <span className={styles.periodPills} role="tablist">
+          <button
+            type="button"
+            role="tab"
+            aria-selected={period === "hourly"}
+            className={`${styles.periodPill} ${period === "hourly" ? styles.periodPillActive : ""}`}
+            onClick={() => setPeriod("hourly")}
+          >
+            {t("charts.period24h", { defaultValue: "24 h" })}
+          </button>
+          <button
+            type="button"
+            role="tab"
+            aria-selected={period === "daily"}
+            className={`${styles.periodPill} ${period === "daily" ? styles.periodPillActive : ""}`}
+            onClick={() => setPeriod("daily")}
+          >
+            {t("charts.period5d", { defaultValue: "5 days" })}
+          </button>
+        </span>
         <button
           type="button"
           className={styles.actionButton}
           onClick={() => setMaximized((m) => !m)}
           aria-pressed={maximized}
-          aria-label={maximizeLabel}
-          title={maximizeLabel}
+          aria-label={expandLabel}
+          title={expandLabel}
         >
-          <InlineIcon icon={maximized ? minimize : maximize} className={styles.actionIcon} />
+          {maximized ? <RestoreIcon className={styles.actionIcon} /> : <ExpandIcon className={styles.actionIcon} />}
         </button>
       </div>
-      {/* Always render the legend row so it reserves vertical space —
-       * cycling through views keeps the slab the same height, which
-       * keeps the AI summary card below at a stable position. When
-       * the columns view is active there's no colour key to show
-       * (the icons + temperature labels speak for themselves), so the
-       * row renders empty but with the same min-height as when
-       * populated. See styles.css `.legendRow` for the reservation
-       * height. */}
-      <div className={styles.legendRow} aria-hidden="true">
-        {showLegend ? (
-          <>
-            <span className={styles.legendItem}>
-              <span className={`${styles.legendDot} ${styles.legendDotMain}`} />
-              {mainSeriesLabel}
-            </span>
-            <span className={styles.legendItem}>
-              <span className={`${styles.legendDot} ${styles.legendDotPrecip}`} />
-              {t("charts.precipitation", { defaultValue: "Precipitation" })}
-            </span>
-          </>
-        ) : null}
+      <div className={styles.metricTabs} role="tablist">
+        {METRICS.map((m, i) => (
+          <button
+            key={m}
+            type="button"
+            role="tab"
+            aria-selected={i === metricIndex}
+            className={`${styles.metricTab} ${i === metricIndex ? styles.metricTabActive : ""}`}
+            onClick={() => setMetricIndex(i)}
+          >
+            {m === "grid" ? (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                <circle cx="12" cy="12" r="9" />
+                <polyline points="12 7 12 12 15 14" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+                <path d={METRIC_ICON_PATHS[m]} />
+              </svg>
+            )}
+            {metricLabel(m)}
+          </button>
+        ))}
       </div>
       <div className={styles.chartArea}>{chartBody}</div>
-      <div
-        className={styles.cycleDots}
-        role="tablist"
-        aria-label={t("charts.cycleView", { defaultValue: "Cycle view" })}
-      >
-        {activeViews.map((view, i) => {
-          const labelKey = tab === "hourly"
-            ? { temp: "charts.viewTempPrecip", wind: "charts.viewWindPrecip", columns: "charts.viewHourlyColumns" }[view]
-            : { temp: "charts.viewTempPrecip", wind: "charts.viewWindPrecip", columns: "charts.viewDailyColumns" }[view];
-          const label = t(labelKey);
-          return (
+      {/* Always rendered (empty on the grid tab) so the slab keeps a
+        * constant height across the tap-cycle — the v2.14.54 rule that
+        * keeps the AI summary card below from jumping. */}
+      <div className={styles.summaryWrap}>
+        {metric !== "grid" ? (
+          <ForecastSummaryPills cadence={period} metric={metric} />
+        ) : null}
+        {metric === "temp" || metric === "wind" ? (
             <button
-              key={view}
               type="button"
-              role="tab"
-              aria-selected={i === activeIndex}
-              aria-label={label}
-              title={label}
-              className={`${styles.dot} ${i === activeIndex ? styles.dotActive : ""}`}
-              onClick={() => setActiveView(i)}
-            />
-          );
-        })}
-        {/* The view label ("température + précipitations" etc.) used
-         * to render to the right of the dots. v2.14.74 removed it —
-         * the dots themselves carry enough state (aria-label / title
-         * for accessibility, position + accent fill for sight). The
-         * .cycleDots flex container now centres the remaining dots
-         * horizontally since there's no trailing label to anchor
-         * them off-centre. */}
+              className={`${styles.overlayChip} ${precipOverlay ? styles.overlayChipActive : ""}`}
+              onClick={() => setPrecipOverlay((v) => !v)}
+              aria-pressed={precipOverlay}
+              title={t("charts.overlayPrecip", { defaultValue: "Overlay precipitation" })}
+            >
+              <span className={styles.overlayChipBox} aria-hidden="true">{precipOverlay ? "✓" : ""}</span>
+              {t("charts.tabPrecip", { defaultValue: "Precip" })}
+            </button>
+        ) : null}
       </div>
     </div>
   );
