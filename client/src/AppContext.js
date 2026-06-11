@@ -591,7 +591,7 @@ export function AppContextProvider({ children }) {
    *
    * @param {Boolean} newVal
    */
-  function saveMouseHide(newVal) {
+  const saveMouseHide = useCallback((newVal) => {
     let newState;
     try {
       newState = JSON.parse(newVal);
@@ -601,7 +601,7 @@ export function AppContextProvider({ children }) {
     }
     setMouseHide(newState);
     window.localStorage.setItem(MOUSE_HIDE_STORAGE_KEY, newState);
-  }
+  }, []);
 
   /**
    * Save the "show advisory alerts" opt-in (per-device).
@@ -609,7 +609,7 @@ export function AppContextProvider({ children }) {
    * @param {Boolean} newVal — JSON-encoded boolean, passed by the
    *   Settings toggle via saveBoolFlag
    */
-  function saveShowAdvisoryAlerts(newVal) {
+  const saveShowAdvisoryAlerts = useCallback((newVal) => {
     let newState;
     try {
       newState = JSON.parse(newVal);
@@ -619,14 +619,14 @@ export function AppContextProvider({ children }) {
     }
     setShowAdvisoryAlerts(newState);
     window.localStorage.setItem(SHOW_ADVISORY_ALERTS_STORAGE_KEY, newState);
-  }
+  }, []);
 
   /**
    * Save hide radar legend state
    *
    * @param {Boolean} newVal
    */
-  function saveHideRadarLegend(newVal) {
+  const saveHideRadarLegend = useCallback((newVal) => {
     let newState;
     try {
       newState = JSON.parse(newVal);
@@ -636,18 +636,18 @@ export function AppContextProvider({ children }) {
     }
     setHideRadarLegend(newState);
     window.localStorage.setItem(HIDE_RADAR_LEGEND_STORAGE_KEY, newState);
-  }
+  }, []);
 
   /**
    * Save radar source preference (rainviewer | eccc).
    *
    * @param {string} newVal
    */
-  function saveRadarSource(newVal) {
+  const saveRadarSource = useCallback((newVal) => {
     if (!RADAR_SOURCE_VALUES.includes(newVal)) return;
     setRadarSource(newVal);
     window.localStorage.setItem(RADAR_SOURCE_STORAGE_KEY, newVal);
-  }
+  }, []);
 
   // saveClockTime / saveTempUnit / saveSpeedUnit / saveLengthUnit /
   // saveDistanceUnit / saveFontSize all live in ~/hooks/useUiPreferences
@@ -660,11 +660,11 @@ export function AppContextProvider({ children }) {
    *
    * @param {Boolean} newVal
    */
-  function saveDarkModeAuto(newVal) {
+  const saveDarkModeAuto = useCallback((newVal) => {
     const next = Boolean(newVal);
     setDarkModeAuto(next);
     window.localStorage.setItem(DARK_MODE_AUTO_STORAGE_KEY, String(next));
-  }
+  }, []);
 
   /**
    * Set AI summary user-visible preference + persist to localStorage.
@@ -675,11 +675,11 @@ export function AppContextProvider({ children }) {
    *
    * @param {Boolean} newVal next visibility
    */
-  function saveAiSummaryUserVisible(newVal) {
+  const saveAiSummaryUserVisible = useCallback((newVal) => {
     const next = Boolean(newVal);
     setAiSummaryUserVisible(next);
     try { window.localStorage.setItem(AI_USER_VISIBLE_STORAGE_KEY, String(next)); } catch { /* localStorage may be unavailable */ }
-  }
+  }, []);
 
   /**
    * Manual dark/light toggle wrapper — same shape as setDarkMode for
@@ -695,7 +695,7 @@ export function AppContextProvider({ children }) {
    *
    * @param {Boolean} next
    */
-  function setDarkModeManual(next) {
+  const setDarkModeManual = useCallback((next) => {
     setDarkMode(next);
     // v2.14.74: persist the manual choice. If auto-mode is on, the
     // next interval check will potentially flip it back based on
@@ -703,7 +703,7 @@ export function AppContextProvider({ children }) {
     // value is the last manual flip, restored at boot via
     // loadStoredData().
     try { window.localStorage.setItem(DARK_MODE_STORAGE_KEY, String(Boolean(next))); } catch { /* localStorage may be unavailable */ }
-  }
+  }, []);
 
   /**
    * Save default map zoom (used on next page load) and trigger a live preview
@@ -713,15 +713,15 @@ export function AppContextProvider({ children }) {
    *
    * @param {Number} newVal Zoom level (4–12)
    */
-  function saveDefaultMapZoom(newVal) {
+  const saveDefaultMapZoom = useCallback((newVal) => {
     const n = Math.round(Number(newVal));
     if (!Number.isFinite(n)) return;
     setDefaultMapZoom(n);
     setZoomToLevel(n);
     window.localStorage.setItem(DEFAULT_MAP_ZOOM_STORAGE_KEY, String(n));
-  }
+  }, []);
 
-  function checkIsLocal() {
+  const checkIsLocal = useCallback(() => {
     axios.get("/api/is-local").then((res) => {
       setIsLocal(res.data.isLocal);
       setRemoteSecurityEnabled(res.data.securityEnabled ?? false);
@@ -729,17 +729,17 @@ export function AppContextProvider({ children }) {
     }).catch(() => {
       // non-critical — defaults stay (localhost assumed, security disabled)
     });
-  }
+  }, []);
 
   /**
    * Toggles debug menu open/closed — closes settings panel if open
    */
-  function toggleDebugMenuOpen() {
+  const toggleDebugMenuOpen = useCallback(() => {
     if (!debugMenuOpen) setSettingsMenuOpen(false);
     setDebugMenuOpen(!debugMenuOpen);
-  }
+  }, [debugMenuOpen]);
 
-  function loadStoredData() {
+  const loadStoredData = useCallback(() => {
     // Unit + clock + fontSize prefs (including first-launch system-prefs
     // seeding from the browser locale) are owned by useUiPreferences —
     // see `~/hooks/useUiPreferences`. That hook runs its own one-time
@@ -820,7 +820,7 @@ export function AppContextProvider({ children }) {
     if (storedNightMode === "true" || storedNightMode === "false") {
       setSleepNightMode(storedNightMode === "true");
     }
-  }
+  }, [setSleepNightMode]);
 
   /**
    * Set custom starting lat/lon
@@ -828,7 +828,7 @@ export function AppContextProvider({ children }) {
    * @returns {Promise} lat/lon
    * @private
    */
-  function getCustomLatLon() {
+  const getCustomLatLon = useCallback(() => {
     return new Promise((resolve, reject) => {
       getSettings()
         .then((res) => {
@@ -948,36 +948,26 @@ export function AppContextProvider({ children }) {
           reject(err);
         });
     });
-  }
+  }, [
+    setSleepEnabled,
+    setSleepStage1Delay,
+    setSleepStage1Brightness,
+    setSleepStage2Enabled,
+    setSleepStage2Delay,
+    setSleepNightMode,
+  ]);
 
-  /**
-   * Set the map to a given position
-   *
-   * @param {object} coords coordinates
-   * @param {String} coords.latitude
-   * @param {String} coords.longitude
-   */
-  function setMapPosition(coords) {
-    updateCurrentWeatherData(coords);
-    updateHourlyWeatherData(coords);
-    updateDailyWeatherData(coords);
-    setMapGeo(coords);
-    setPanToCoords(coords);
-  }
-
-  /**
-   * Return the map position to browser geolocation coordinates
-   */
-  function resetMapPosition() {
-    setMapPosition(browserGeo);
-  }
+  // NOTE: setMapPosition / resetMapPosition are declared further down,
+  // after the updateCurrent/Hourly/DailyWeatherData callbacks they call —
+  // `const` + useCallback declarations aren't hoisted like the old
+  // `function` forms were, so the callees must come first (TDZ).
 
   /**
    * Gets geolocation and sets it, unless custom starting coordinates are provided.
    *
    * @returns {object} coords
    */
-  function getBrowserGeo() {
+  const getBrowserGeo = useCallback(() => {
     return new Promise((resolve, reject) => {
       getCustomLatLon()
         .then((res) => {
@@ -1010,14 +1000,14 @@ export function AppContextProvider({ children }) {
           console.log("err!", err);
         });
     });
-  }
+  }, [getCustomLatLon]);
 
   /**
    * Retrieves weather API key and sets it
    *
    * @returns {Promise} Weather API Key
    */
-  function getWeatherApiKey() {
+  const getWeatherApiKey = useCallback(() => {
     return new Promise((resolve, reject) => {
       getSettings()
         .then((res) => {
@@ -1032,14 +1022,14 @@ export function AppContextProvider({ children }) {
           reject(err);
         });
     });
-  }
+  }, []);
 
   /**
    * Retrieves map API key and sets it
    *
    * @returns {Promise} Weather API Key
    */
-  function getMapApiKey() {
+  const getMapApiKey = useCallback(() => {
     return new Promise((resolve, reject) => {
       getSettings()
         .then((res) => {
@@ -1054,14 +1044,14 @@ export function AppContextProvider({ children }) {
           reject(err);
         });
     });
-  }
+  }, []);
 
   /**
    * Retrieves reverse geolocation API key and sets it
    *
    * @returns {Promise} Weather API Key
    */
-  function getReverseGeoApiKey() {
+  const getReverseGeoApiKey = useCallback(() => {
     return new Promise((resolve, reject) => {
       getSettings()
         .then((res) => {
@@ -1077,7 +1067,7 @@ export function AppContextProvider({ children }) {
           reject(err);
         });
     });
-  }
+  }, []);
 
   // Load the weather + reverse-geo API keys on AppContext mount.
   // Historically this was triggered by the v2 `WeatherInfo` component
@@ -1101,8 +1091,7 @@ export function AppContextProvider({ children }) {
         console.log("error getting reverse geo api key:", err);
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- the getter functions are stable per provider mount but not memoized; keying on the keys themselves so we no-op once they land.
-  }, [weatherApiKey, reverseGeoApiKey]);
+  }, [weatherApiKey, reverseGeoApiKey, getWeatherApiKey, getReverseGeoApiKey]);
 
   /**
    * Updates hourly weather data
@@ -1113,7 +1102,7 @@ export function AppContextProvider({ children }) {
    *
    * @returns {Promise} hourly weather data
    */
-  function updateHourlyWeatherData(coords) {
+  const updateHourlyWeatherData = useCallback((coords) => {
     setHourlyWeatherDataErr(null);
     setHourlyWeatherDataErrMsg(null);
     const { latitude, longitude } = coords;
@@ -1148,7 +1137,7 @@ export function AppContextProvider({ children }) {
           reject(err);
         });
     });
-  }
+  }, [weatherApiKey]);
 
   /**
    * Updates daily  weather data
@@ -1159,7 +1148,7 @@ export function AppContextProvider({ children }) {
    *
    * @returns {Promise} daily weather data
    */
-  function updateDailyWeatherData(coords) {
+  const updateDailyWeatherData = useCallback((coords) => {
     setDailyWeatherDataErr(null);
     setDailyWeatherDataErrMsg(null);
     const { latitude, longitude } = coords;
@@ -1192,9 +1181,9 @@ export function AppContextProvider({ children }) {
           reject(err);
         });
     });
-  }
+  }, [weatherApiKey]);
 
-  function updateSunriseSunset(coords) {
+  const updateSunriseSunset = useCallback((coords) => {
     return new Promise((resolve, reject) => {
       if (!coords) {
         setSunriseTime(null);
@@ -1238,7 +1227,7 @@ export function AppContextProvider({ children }) {
           reject(err);
         });
     });
-  }
+  }, []);
 
   /**
    * Updates current weather data
@@ -1249,7 +1238,7 @@ export function AppContextProvider({ children }) {
    *
    * @returns {Promise} current weather data
    */
-  function updateCurrentWeatherData(coords) {
+  const updateCurrentWeatherData = useCallback((coords) => {
     setCurrentWeatherDataErr(null);
     setCurrentWeatherDataErrMsg(null);
     const { latitude, longitude } = coords;
@@ -1283,33 +1272,55 @@ export function AppContextProvider({ children }) {
           reject(err);
         });
     });
-  }
+  }, [weatherApiKey]);
+
+  /**
+   * Set the map to a given position
+   *
+   * @param {object} coords coordinates
+   * @param {String} coords.latitude
+   * @param {String} coords.longitude
+   */
+  const setMapPosition = useCallback((coords) => {
+    updateCurrentWeatherData(coords);
+    updateHourlyWeatherData(coords);
+    updateDailyWeatherData(coords);
+    setMapGeo(coords);
+    setPanToCoords(coords);
+  }, [updateCurrentWeatherData, updateHourlyWeatherData, updateDailyWeatherData]);
+
+  /**
+   * Return the map position to browser geolocation coordinates
+   */
+  const resetMapPosition = useCallback(() => {
+    setMapPosition(browserGeo);
+  }, [setMapPosition, browserGeo]);
 
   /**
    * Toggles the marker on and off
    */
-  function toggleMarker() {
+  const toggleMarker = useCallback(() => {
     const next = !markerIsVisible;
     setMarkerIsVisible(next);
     // v2.14.74: persist the visibility choice. Default true on first
     // boot; restored from localStorage on subsequent boots.
     try { window.localStorage.setItem(MARKER_VISIBLE_STORAGE_KEY, String(next)); } catch { /* localStorage may be unavailable */ }
-  }
+  }, [markerIsVisible]);
 
   /**
    * Toggles weather map animation on/off
    */
-  function toggleAnimateWeatherMap() {
+  const toggleAnimateWeatherMap = useCallback(() => {
     setAnimateWeatherMap(!animateWeatherMap);
-  }
+  }, [animateWeatherMap]);
 
   /**
    * Toggles settings menu open/closed — closes debug panel if open
    */
-  function toggleSettingsMenuOpen() {
+  const toggleSettingsMenuOpen = useCallback(() => {
     if (!settingsMenuOpen) setDebugMenuOpen(false);
     setSettingsMenuOpen(!settingsMenuOpen);
-  }
+  }, [settingsMenuOpen]);
 
   /**
    * Saves settings to `settings.json`. Each key maps to a server-side
@@ -1328,7 +1339,7 @@ export function AppContextProvider({ children }) {
    * @param {String} [settings.lon] Custom starting longitude as a string (writes `startingLon`).
    * @returns {Promise} Resolves when complete
    */
-  function saveSettingsToJson({ mapsKey, weatherKey, geoKey, anthropicKey, airNowKey, openAqKey, lat, lon }) {
+  const saveSettingsToJson = useCallback(({ mapsKey, weatherKey, geoKey, anthropicKey, airNowKey, openAqKey, lat, lon }) => {
     return new Promise((resolve, reject) => {
       axios
         .put("/settings", {
@@ -1356,7 +1367,7 @@ export function AppContextProvider({ children }) {
           reject(err);
         });
     });
-  }
+  }, []);
 
   /**
    * Build the full `advanced.*` PATCH payload as a single object,
@@ -1379,7 +1390,7 @@ export function AppContextProvider({ children }) {
    *   the rest of the sleep branch.
    * @returns {object} the full `advanced.*` blob ready for PATCH
    */
-  function buildAdvancedSubtree(overrides = {}) {
+  const buildAdvancedSubtree = useCallback((overrides = {}) => {
     return {
       ai: {
         radarAnalysisEnabled,
@@ -1420,7 +1431,25 @@ export function AppContextProvider({ children }) {
         ...(overrides.alerts || {}),
       },
     };
-  }
+  }, [
+    radarAnalysisEnabled,
+    extendedRadarRadius,
+    showSamplingPoints,
+    calmDayFastPath,
+    lightModeStyle,
+    darkModeStyle,
+    radarOpacityLight,
+    radarOpacityDark,
+    sleepEnabled,
+    sleepStage1Delay,
+    sleepStage1Brightness,
+    sleepStage2Enabled,
+    sleepStage2Delay,
+    sleepNightMode,
+    experimentalUiC,
+    pollenEnabled,
+    alertRadiusKm,
+  ]);
 
   /**
    * Persist a single advanced.ai.* flag to settings.json.
@@ -1431,7 +1460,7 @@ export function AppContextProvider({ children }) {
    * @param {Boolean} value new value
    * @returns {Promise} Resolves when saved
    */
-  function saveAdvancedAiFlag(key, value) {
+  const saveAdvancedAiFlag = useCallback((key, value) => {
     // v2.15.2: optimistic local update — see saveAdvancedSleepFlag for
     // the rationale. Remote clients hit `localhostOnly` (HTTP 403);
     // flipping state before the PATCH lets the UI reflect the toggle
@@ -1449,7 +1478,7 @@ export function AppContextProvider({ children }) {
         if (err && err.response && err.response.status === 403) return;
         console.warn("saveAdvancedAiFlag PATCH failed:", err && err.message);
       });
-  }
+  }, [buildAdvancedSubtree]);
 
   /**
    * Persist advanced.pollen.enabled to settings.json. Same instant-save
@@ -1458,7 +1487,7 @@ export function AppContextProvider({ children }) {
    * @param {Boolean} value new value
    * @returns {Promise} Resolves when saved
    */
-  function savePollenEnabled(value) {
+  const savePollenEnabled = useCallback((value) => {
     setPollenEnabled(value);
     return axios
       .patch("/setting", { key: "advanced", val: buildAdvancedSubtree({ pollen: { enabled: value } }) })
@@ -1466,7 +1495,7 @@ export function AppContextProvider({ children }) {
         if (err && err.response && err.response.status === 403) return;
         console.warn("savePollenEnabled PATCH failed:", err && err.message);
       });
-  }
+  }, [buildAdvancedSubtree]);
 
   /**
    * Persist a single advanced.display.* flag. Same instant-save pattern as
@@ -1476,7 +1505,7 @@ export function AppContextProvider({ children }) {
    * @param {String} value new value
    * @returns {Promise} Resolves when saved
    */
-  function saveAdvancedDisplayFlag(key, value) {
+  const saveAdvancedDisplayFlag = useCallback((key, value) => {
     return axios
       .patch("/setting", { key: "advanced", val: buildAdvancedSubtree({ display: { [key]: value } }) })
       .then(() => {
@@ -1485,7 +1514,7 @@ export function AppContextProvider({ children }) {
         if (key === "radarOpacityLight") setRadarOpacityLight(value);
         if (key === "radarOpacityDark") setRadarOpacityDark(value);
       });
-  }
+  }, [buildAdvancedSubtree]);
 
   /**
    * Persist a single advanced.sleep.* flag. Same instant-save pattern as
@@ -1499,7 +1528,7 @@ export function AppContextProvider({ children }) {
    * @param {*} value new value (boolean for toggles, number for delays/brightness)
    * @returns {Promise} Resolves when saved
    */
-  function saveAdvancedSleepFlag(key, value) {
+  const saveAdvancedSleepFlag = useCallback((key, value) => {
     // v2.15.2: optimistic local update — flip React state BEFORE the
     // PATCH so remote clients get UI feedback even though the server
     // rejects their write. Pre-v2.15.2 the setter calls lived inside
@@ -1533,7 +1562,15 @@ export function AppContextProvider({ children }) {
         if (err && err.response && err.response.status === 403) return;
         console.warn("saveAdvancedSleepFlag PATCH failed:", err && err.message);
       });
-  }
+  }, [
+    buildAdvancedSubtree,
+    setSleepEnabled,
+    setSleepStage1Delay,
+    setSleepStage1Brightness,
+    setSleepStage2Enabled,
+    setSleepStage2Delay,
+    setSleepNightMode,
+  ]);
 
   /**
    * Persist a single advanced.experimental.* flag. Same instant-save
@@ -1549,13 +1586,13 @@ export function AppContextProvider({ children }) {
    * @param {Boolean} value new value
    * @returns {Promise} Resolves when saved
    */
-  function saveAdvancedExperimentalFlag(key, value) {
+  const saveAdvancedExperimentalFlag = useCallback((key, value) => {
     return axios
       .patch("/setting", { key: "advanced", val: buildAdvancedSubtree({ experimental: { [key]: value } }) })
       .then(() => {
         if (key === "uiC") setExperimentalUiC(value);
       });
-  }
+  }, [buildAdvancedSubtree]);
 
   // Debounced setters for the radar opacity sliders. State updates
   // immediately on each tick (live preview on the map); the network
@@ -1563,20 +1600,20 @@ export function AppContextProvider({ children }) {
   // 500 ms feels right — long enough to coalesce a drag, short enough
   // that releasing the slider feels responsive.
   const radarOpacitySaveTimerRef = useRef(null);
-  const setRadarOpacityLightLive = (v) => {
+  const setRadarOpacityLightLive = useCallback((v) => {
     setRadarOpacityLight(v);
     clearTimeout(radarOpacitySaveTimerRef.current);
     radarOpacitySaveTimerRef.current = setTimeout(() => {
       saveAdvancedDisplayFlag("radarOpacityLight", v).catch(() => undefined);
     }, 500);
-  };
-  const setRadarOpacityDarkLive = (v) => {
+  }, [saveAdvancedDisplayFlag]);
+  const setRadarOpacityDarkLive = useCallback((v) => {
     setRadarOpacityDark(v);
     clearTimeout(radarOpacitySaveTimerRef.current);
     radarOpacitySaveTimerRef.current = setTimeout(() => {
       saveAdvancedDisplayFlag("radarOpacityDark", v).catch(() => undefined);
     }, 500);
-  };
+  }, [saveAdvancedDisplayFlag]);
 
   // Debounced setter for the nearby-alerts radius slider. State updates
   // immediately (the survey ring redraws live and the next fetch keys on
@@ -1584,7 +1621,7 @@ export function AppContextProvider({ children }) {
   // the server. Persisted under advanced.alerts.radius via
   // buildAdvancedSubtree — same pattern as the radar-opacity sliders.
   const alertRadiusSaveTimerRef = useRef(null);
-  const setAlertRadiusKmLive = (v) => {
+  const setAlertRadiusKmLive = useCallback((v) => {
     setAlertRadiusKm(v);
     clearTimeout(alertRadiusSaveTimerRef.current);
     alertRadiusSaveTimerRef.current = setTimeout(() => {
@@ -1592,7 +1629,7 @@ export function AppContextProvider({ children }) {
         .patch("/setting", { key: "advanced", val: buildAdvancedSubtree({ alerts: { radius: v } }) })
         .catch(() => undefined);
     }, 500);
-  };
+  }, [buildAdvancedSubtree]);
 
   // Reflect lightModeStyle into a CSS custom property so the panel,
   // panel-toggle and radar legend backgrounds tint to match the Mapbox
@@ -1713,8 +1750,10 @@ export function AppContextProvider({ children }) {
       startTimers.forEach((id) => clearTimeout(id));
       intervalTimers.forEach((id) => clearInterval(id));
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- the update* helpers are stable per provider mount but not memoized; keying on the inputs that should restart the polling cycle (API key + location) is the intent.
-  }, [weatherApiKey, mapGeo]);
+    // The update* callbacks only change identity when weatherApiKey does
+    // (their sole useCallback dep), so listing them keeps the restart
+    // pattern identical to the old [weatherApiKey, mapGeo] keying.
+  }, [weatherApiKey, mapGeo, updateCurrentWeatherData, updateHourlyWeatherData, updateDailyWeatherData, updateSunriseSunset]);
 
   // Air-quality (AQHI / AQI / IQA) polling. Previously lived inside the
   // v2 UvAqiBadges component, but v3 layouts (MetricsGrid in LayoutPi /

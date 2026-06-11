@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 import { detectSystemDefaults } from "~/ui/systemPrefs";
 
@@ -99,30 +99,30 @@ export function useUiPreferences() {
     if (fs) setFontSize(fs);
   }, []);
 
-  const saveTempUnit = (val) => {
+  const saveTempUnit = useCallback((val) => {
     setTempUnit(val);
     window.localStorage.setItem(TEMP_UNIT_STORAGE_KEY, val);
-  };
-  const saveSpeedUnit = (val) => {
+  }, []);
+  const saveSpeedUnit = useCallback((val) => {
     setSpeedUnit(val);
     window.localStorage.setItem(SPEED_UNIT_STORAGE_KEY, val);
-  };
-  const saveLengthUnit = (val) => {
+  }, []);
+  const saveLengthUnit = useCallback((val) => {
     setLengthUnit(val);
     window.localStorage.setItem(LENGTH_UNIT_STORAGE_KEY, val);
-  };
-  const saveDistanceUnit = (val) => {
+  }, []);
+  const saveDistanceUnit = useCallback((val) => {
     setDistanceUnit(val);
     window.localStorage.setItem(DISTANCE_UNIT_STORAGE_KEY, val);
-  };
-  const saveClockTime = (val) => {
+  }, []);
+  const saveClockTime = useCallback((val) => {
     setClockTime(val);
     window.localStorage.setItem(CLOCK_UNIT_STORAGE_KEY, val);
-  };
-  const saveFontSize = (val) => {
+  }, []);
+  const saveFontSize = useCallback((val) => {
     setFontSize(val);
     window.localStorage.setItem(FONT_SIZE_STORAGE_KEY, val);
-  };
+  }, []);
 
   return {
     tempUnit, saveTempUnit,
