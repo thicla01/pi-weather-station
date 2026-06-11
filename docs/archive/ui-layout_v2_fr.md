@@ -136,11 +136,11 @@ Appuyer sur **RÉSUMÉ IA ↓** rétablit les graphiques et remonte automatiquem
 | Localisation                | `LocationName`           | `components/LocationName/index.js`          |
 | Météo actuelle              | `CurrentWeather`         | `components/CurrentWeather/index.js`        |
 | Légende des graphiques      | `ChartLegend`            | dans `WeatherInfo/index.js`                 |
-| Graphique 24 heures         | `HourlyChart`            | `components/weatherCharts/HourlyChart/`     |
-| Graphique 5 jours           | `DailyChart`             | `components/weatherCharts/DailyChart/`      |
+| Graphique 24 heures         | `HourlyChart`            | `components/ambient/weatherCharts/HourlyChart/`     |
+| Graphique 5 jours           | `DailyChart`             | `components/ambient/weatherCharts/DailyChart/`      |
 | Onglets graphiques          | `ChartTabs`              | dans `WeatherInfo/index.js` (petit écran)   |
 | Résumé IA                   | `AiSummary`              | `components/AiSummary/index.js`             |
-| Boutons de contrôle         | `ControlButtons`         | `components/ControlButtons/index.js`        |
+| Boutons de contrôle         | `ControlButtons`         | `components/ambient/ControlButtons/index.js`        |
 | Paramètres (overlay)        | `Settings`               | `components/Settings/index.js`              |
 | Débogage (overlay)          | `Debug`                  | `components/Debug/index.js`                 |
 | Modale de mise à jour       | `UpdateModal`            | `components/UpdateModal/index.js`           |

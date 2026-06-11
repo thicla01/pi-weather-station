@@ -338,7 +338,7 @@ A GitHub Actions workflow (`.github/workflows/ci.yml`) runs the suite + the clie
 **Still uncovered** — the entire client tree (React components, hooks, AppContext). The integration test path is "boot the app in Chrome, eyeball the layout" — the v2.18.0 / v2.18.1 missing-data regression that the Phase 3 session caught only surfaced because a Pi user reported it from the field. Client unit tests (with React Testing Library + jsdom, or Vitest) are the highest-value follow-up but require a build-tool decision because the client source is ESM and the current `node --test` runner is CommonJS. Estimate: ~half-day to wire up the harness, then incremental coverage per refactor.
 
 ### 🪦 `experimentalUiC` migration — v3 now default, v2 removal queued
-v2.18 flipped `experimentalUiC` from `false` to `true`. v3 ("Ambient Layers") is now the default interface on every install; the toggle in Settings → Advanced stays as a per-device escape hatch that falls back to the v2 tree when disabled. The full removal of the v2 code path (`components/Settings/`, `components/Debug/`, `components/InfoPanel/`, `components/CurrentWeather/`, `components/AiSummary/`, `components/WeatherInfo/`, `components/Clock/`, `components/SunRiseSet/`, `components/ControlButtons/`, `components/IndoorTemperature/`, `components/LocationName/`, `components/weatherCharts/`, plus the `<Settings>` / `<Debug>` branches in `App/index.js`) waits on a few weeks of field testing — once no user reports a v3-only regression, the v2 tree comes out in a single dedicated PR. **Trigger to schedule the removal**: 4 weeks after the v2.18 release with no v3-only issue filed at github.com/thicla01/pi-weather-station/issues, OR the moment we deliberately decide to drop the escape hatch. Removal also takes out `experimentalUiC` itself (no longer needed once v2 is gone) and the `previewGroup` row in AdvancedSettings.
+v2.18 flipped `experimentalUiC` from `false` to `true`. v3 ("Ambient Layers") is now the default interface on every install; the toggle in Settings → Advanced stays as a per-device escape hatch that falls back to the v2 tree when disabled. The full removal of the v2 code path (`components/Settings/`, `components/Debug/`, `components/InfoPanel/`, `components/CurrentWeather/`, `components/AiSummary/`, `components/WeatherInfo/`, `components/Clock/`, `components/SunRiseSet/`, `components/IndoorTemperature/`, `components/AlertBanner/`, `components/GovAlertDetail/`, `components/UvAqiBadges/`, `components/RangeSlider/`, `components/Spinner/`, plus the v2 imports and `experimentalUiC=false` branch in `App/index.js` — the canonical list lives in CLAUDE.md, audited 2026-06. NOT removable: `ControlButtons/` and `weatherCharts/` were relocated under `ambient/` (the v3 dock and chart tabs consume them) and `LocationName/` is shared by v2 AND v3) waits on a few weeks of field testing — once no user reports a v3-only regression, the v2 tree comes out in a single dedicated PR. **Trigger to schedule the removal**: 4 weeks after the v2.18 release with no v3-only issue filed at github.com/thicla01/pi-weather-station/issues, OR the moment we deliberately decide to drop the escape hatch. Removal also takes out `experimentalUiC` itself (no longer needed once v2 is gone) and the `previewGroup` row in AdvancedSettings.
 
 ### 🗂️ `AppContext.js` size and responsibility — diminishing returns
 `AppContext.js` held all global state in one 1877-line file. Phase 3 of the May 2026 tech-debt remediation extracted **three** coherent clusters into dedicated hooks:
@@ -358,7 +358,7 @@ The remaining clusters share state via React context anyway, so an extra hook is
 The largest single file in the codebase. Phase 3 cut it roughly in half across five extractions, all into sibling files under `client/src/components/WeatherMap/`:
 - `RadarTimeline.js` — the bottom-of-map scrubber + playhead + speed cycler (its own state, effect, pointer-event handlers)
 - `RadarLegend.js` — the precipitation-tier legend overlay (with its RADAR_LEGEND_ITEMS palette)
-- `WeatherLayer.js` — the inert OpenWeatherMap tile overlay (kept as dead-code-for-reference per its JSDoc)
+- `WeatherLayer.js` — the inert OpenWeatherMap tile overlay (deleted 2026-06 in the v3→v2 boundary cleanup — it was imported by nothing)
 - `RiskRing.js` — the dashed-circles wrapper, reading buildRingLayers from geometry.js
 - `MapResizer.js` — the hook-only invalidate-size + LayoutMobile-recenter bracket
 - `RadarFocusControl.js` — the ⛶ Leaflet control for LayoutDesktop focus mode
@@ -377,8 +377,8 @@ The `eslint-plugin-react-hooks@7.x` test in May 2026 surfaced **13 instances** o
 - `WeatherMap/index.js` (8 sites — radar frame index initialisation, scrubber state resets, sample-cache invalidation)
 - `App/index.js` (1 site)
 - `WeatherInfo/index.js` (1 site — chart auto-cycle)
-- `weatherCharts/HourlyChart/index.js` (1 site — chart data derivation from props)
-- `weatherCharts/DailyChart/index.js` (1 site — same pattern as HourlyChart)
+- `ambient/weatherCharts/HourlyChart/index.js` (1 site — chart data derivation from props)
+- `ambient/weatherCharts/DailyChart/index.js` (1 site — same pattern as HourlyChart)
 
 Most are the legitimate "compute derived state from props on change" pattern, which the React docs (and the new rule) recommend replacing with either:
 - direct computation during render (when the cost is low), or
