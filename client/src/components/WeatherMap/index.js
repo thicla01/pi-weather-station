@@ -1034,12 +1034,18 @@ const WeatherMap = ({ zoom, dark }) => {
 
   // `withTimeline` re-anchors the legend/chip and the attribution strip
   // above the full-width timeline bar; without the bar they drop back
-  // to the bottom edge (legend-without-timeline state).
+  // to the bottom edge (legend-without-timeline state). `withLegend`
+  // does the mirror job for the MOBILE timeline: the design pins it at
+  // 78px to clear the compact legend strip below, but with the legend
+  // toggled off the strip isn't rendered and the bar must drop to the
+  // bottom edge instead of floating over a hole (maintainer-reported;
+  // the mock always showed the strip, so this combo wasn't specced).
   const timelineShown = Boolean(mapTimestamps && mapTimestamps.length > 0)
     && radarSource === "rainviewer" && radarTimelineVisible;
+  const legendShown = Boolean(mapTimestamps) && radarSource === "rainviewer" && !hideRadarLegend;
 
   return (
-    <div className={`${styles.mapWrapper} ${timelineShown ? styles.withTimeline : ""}`}>
+    <div className={`${styles.mapWrapper} ${timelineShown ? styles.withTimeline : ""} ${legendShown ? styles.withLegend : ""}`}>
       <MapContainer
         center={[latitude, longitude]}
         zoom={zoom}

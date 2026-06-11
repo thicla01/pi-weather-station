@@ -393,11 +393,17 @@
   bottom: 0;
 }
 
-:global(.ambientRoot[data-layout="mobile"] [data-mobile-radar-maximized="true"]) .map-wrapper :global(.leaflet-bottom.leaflet-right) {
+/* Maximized-mobile attribution: one rule per present-surfaces combo,
+ * ordered ascending so the later (more specific stack) wins. */
+:global(.ambientRoot[data-layout="mobile"] [data-mobile-radar-maximized="true"]) .with-legend :global(.leaflet-bottom.leaflet-right) {
   bottom: 50px;
 }
 
 :global(.ambientRoot[data-layout="mobile"] [data-mobile-radar-maximized="true"]) .with-timeline :global(.leaflet-bottom.leaflet-right) {
+  bottom: 104px;
+}
+
+:global(.ambientRoot[data-layout="mobile"] [data-mobile-radar-maximized="true"]) .with-timeline.with-legend :global(.leaflet-bottom.leaflet-right) {
   bottom: 162px;
 }
 
@@ -1119,10 +1125,17 @@
 /* Mobile (ambient layout): tighter paddings, smaller transport
  * cluster, no source chip, icon-only return-to-now, no mid tick —
  * and the bar sits above the compact legend strip. */
+/* Mobile: the bar hugs the bottom edge by default and only reserves
+ * the 78px clearance when the compact legend strip is actually
+ * rendered below it (legend toggled on). */
 :global(.ambientRoot[data-layout="mobile"]) .radar-timeline {
-  bottom: 78px;
+  bottom: 16px;
   right: var(--c-edge-gap, 16px);
   padding: 8px 10px 10px;
+}
+
+:global(.ambientRoot[data-layout="mobile"]) .with-legend .radar-timeline {
+  bottom: 78px;
 }
 
 :global(.ambientRoot[data-layout="mobile"]) .rt-play {
