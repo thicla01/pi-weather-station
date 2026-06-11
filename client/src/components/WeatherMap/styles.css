@@ -373,38 +373,24 @@
   bottom: 122px;
 }
 
-/* Attribution strip (legal requirement — Mapbox + RainViewer). Leaflet
- * anchors it bottom-right inside the map pane; keep it clear of the
- * rail, the timeline bar, and the mobile legend strip. On mobile the
- * offsets only apply in the MAXIMIZED card state (LayoutMobile sets
- * `data-mobile-radar-maximized` on the card): in mini mode the
- * timeline/strip are hidden, so the strip's default bottom-edge
- * anchor is correct — an offset there would float the attribution
- * mid-card (review finding). */
+/* Attribution strip (legal requirement — Mapbox + RainViewer). Flush
+ * bottom-right, hugging the dock edge in every state (maintainer
+ * preference — replaces the mock's above-the-bar slot and the earlier
+ * per-combo offsets): the timeline bar and the legend strip both
+ * anchor at bottom: 16px, leaving a permanent 16 px corridor at the
+ * map's bottom edge that the slimmed attribution fits into. Right
+ * inset stays rail-aware on LayoutDesktop. */
 .map-wrapper :global(.leaflet-bottom.leaflet-right) {
   right: var(--c-rail-visible-width, 0px);
-}
-
-.with-timeline :global(.leaflet-bottom.leaflet-right) {
-  bottom: 110px;
-}
-
-:global(.ambientRoot[data-layout="mobile"]) .map-wrapper :global(.leaflet-bottom.leaflet-right) {
   bottom: 0;
 }
 
-/* Maximized-mobile attribution: one rule per present-surfaces combo,
- * ordered ascending so the later (more specific stack) wins. */
-:global(.ambientRoot[data-layout="mobile"] [data-mobile-radar-maximized="true"]) .with-legend :global(.leaflet-bottom.leaflet-right) {
-  bottom: 50px;
-}
-
-:global(.ambientRoot[data-layout="mobile"] [data-mobile-radar-maximized="true"]) .with-timeline :global(.leaflet-bottom.leaflet-right) {
-  bottom: 104px;
-}
-
-:global(.ambientRoot[data-layout="mobile"] [data-mobile-radar-maximized="true"]) .with-timeline.with-legend :global(.leaflet-bottom.leaflet-right) {
-  bottom: 162px;
+/* Slimmed so its ~14 px height clears the 16 px corridor under the
+ * bar/strip without grazing their shadows. */
+.map-wrapper :global(.leaflet-control-attribution) {
+  font-size: 10px;
+  line-height: 1.3;
+  padding: 1px 6px;
 }
 
 /* ============================================================
