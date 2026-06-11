@@ -21,15 +21,14 @@
 }
 
 /* Phase 6: the title header was removed (the exit moved onto the rail
- * as a terminal "Fermer" action). The safe-area-inset the header used
- * to absorb now lives on .body so the rail + content still clear the
- * iOS notch / Dynamic Island on a PWA-installed iPhone in portrait —
- * without it the horizontal mobile rail would sit under the island. */
+ * as a terminal "Fermer" action). Safe-area insets follow the Debug
+ * rail's Phase 7 split — the rail owns top + left, the content side
+ * (paneInner here, toolbar there) owns top + right — so the rail
+ * surface reaches the top edge identically on both panels. */
 .body {
   flex: 1;
   min-height: 0;
   display: flex;
-  padding-top: env(safe-area-inset-top);
 }
 
 /* ── Vertical tab rail (single-selection) ───────────────────────────
@@ -47,7 +46,14 @@
   border-right: 1px solid var(--c-border);
   display: flex;
   flex-direction: column;
-  padding: 8px 4px;
+  /* The rail reaches the top edge (no title header), so it owns the
+   * top + left safe-area insets on a notched PWA — same split as the
+   * Debug rail since Phase 7 (rail = top+left, content side = top+right). */
+  padding:
+    max(8px, env(safe-area-inset-top))
+    4px
+    8px
+    max(4px, env(safe-area-inset-left));
   gap: 2px;
   overflow-y: auto;
 }
@@ -197,7 +203,13 @@
   width: 100%;
   max-width: 880px;
   margin: 0 auto;
-  padding: 16px 18px 24px 18px;
+  /* Content side owns the top + right safe-area insets (the rail owns
+   * top + left) — mirrors the Debug panel's toolbar split. */
+  padding:
+    max(16px, env(safe-area-inset-top))
+    max(18px, env(safe-area-inset-right))
+    24px
+    18px;
   /* border-box so the horizontal padding (36 px) is INCLUDED in the
    * 100% width rather than added on top of it. This file has no global
    * box-sizing reset (each control sets its own, e.g. .fieldBox), and
@@ -237,7 +249,14 @@
 @media (max-height: 520px) {
   .rail {
     width: 76px;
-    padding: 6px 2px;
+    /* Keep the safe-area insets alive in compact mode — a landscape
+     * iPhone (height ≤ 430 px) lands here with a side notch; the 7"
+     * kiosk has zero insets so it still gets the plain 6px/2px. */
+    padding:
+      max(6px, env(safe-area-inset-top))
+      2px
+      6px
+      max(2px, env(safe-area-inset-left));
   }
 
   .railButton {
@@ -264,7 +283,7 @@
   }
 
   .paneInner {
-    padding: 10px 14px 16px 14px;
+    padding: 10px max(14px, env(safe-area-inset-right)) 16px 14px;
   }
 
   .paneFooter {
@@ -291,7 +310,14 @@
     flex-direction: row;
     border-right: none;
     border-bottom: 1px solid var(--c-border);
-    padding: 6px 8px;
+    /* The horizontal bar spans the full top edge, so it owns ALL three
+     * top-adjacent insets (top + left + right) — the pane below needs
+     * none of them. */
+    padding:
+      max(6px, env(safe-area-inset-top))
+      max(8px, env(safe-area-inset-right))
+      6px
+      max(8px, env(safe-area-inset-left));
     gap: 4px;
     overflow-x: auto;
     overflow-y: hidden;
