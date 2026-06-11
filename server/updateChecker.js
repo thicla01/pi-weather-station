@@ -170,6 +170,60 @@ async function checkDeployArtefactsChanged(repo) {
   return checked.filter((r) => r.changed).map((r) => r.name);
 }
 
+// User-visible commit types that warrant a "What's new" entry in the update
+// modal. Internal-only types (docs, test, refactor, plain chore, ci) are
+// excluded so documentation-only pushes don't ping users. This vocabulary is
+// load-bearing for the whole 8-Pi fleet: `updateAvailable = shasDiffer &&
+// commits.length > 0`, so a type missing from this regex makes the kiosk
+// report "up to date" even though the SHAs differ. Five silent failures
+// shaped the current list:
+//   - `perf:` was added after a token-compression commit on the radar prompt
+//     didn't trigger an update notification on remote Pis: cost reduction is
+//     exactly the kind of change the kiosk owner wants to know about.
+//   - `chore(deps):` was added after the 2026-05-07 Dependabot batch (express
+//     4 → 5, body-parser 1 → 2, plus minor groups) silently failed to surface
+//     an update on a fleet of 7 Pis: dependency upgrades carry security
+//     patches and warrant a notification of their own.
+//   - `release:` was added 2026-05-13 after the v2.14.0 promotion commit
+//     (the literal "release: v2.14.0 — promote v3 Ambient UI…") was invisible
+//     to the updater: it was the only newer commit on the Pi besides a plain
+//     `chore:` cleanup, both filtered out, so the kiosk reported "up to date"
+//     even though a tagged release was sitting on master. A release commit
+//     is by definition exactly what we want to notify users about.
+//   - `style:` was added 2026-05-17 after the v2.15.7 → v2.15.9 layout pass
+//     (right-align TimeBlock, left-pack tempRow, merged hero row on Pi) was
+//     entirely under the `style:` prefix — versions bumped, SHAs differed,
+//     but the kiosk reported "up to date". Style commits CAN be visible UI
+//     changes (CSS layout, alignment, typography) and warrant a notification
+//     when the maintainer cuts a release for them.
+//   - `polish` and `ux` were added in v2.16.x after a string of
+//     `polish(toast)` / `ux(debug)` commits landed and the in-app update
+//     check incorrectly reported UP-TO-DATE even though the SHAs differed —
+//     the regex filtered them out, commits.length stayed 0, and the update
+//     was silently swallowed.
+// The vocabulary is locked under test in test/updateChecker.test.js — when
+// adding a type, extend the regex AND the test together.
+const USER_FACING_COMMIT_RE =
+  /^(feat|fix|perf|style|polish|ux|release|chore\(deps\))(?:\(.+?\))?:\s*(.+)/;
+
+/**
+ * Classifies the first line of a commit message for the "What's new" list.
+ * Pure helper — extracted so the commit-type vocabulary can be locked under
+ * test (see USER_FACING_COMMIT_RE above for the history of silent failures).
+ *
+ * @param {string} firstLine first line of a commit message
+ * @returns {{type: string, message: string}|null} normalised type + message
+ *   for user-facing commits, or null for internal / non-conventional ones
+ */
+function parseCommitLine(firstLine) {
+  const match = firstLine.match(USER_FACING_COMMIT_RE);
+  if (!match) return null;
+  // Normalise the literal `chore(deps)` capture to a short `deps` token so
+  // the client-side badge keys stay simple.
+  const type = match[1] === "chore(deps)" ? "deps" : match[1];
+  return { type, message: match[2] };
+}
+
 /**
  * Checks GitHub for the latest commit on master.
  * Result is cached for 1 hour to stay within GitHub's unauthenticated rate limit (60 req/h).
@@ -199,30 +253,9 @@ async function checkForUpdate() {
     const latestVersion = pkgRes.data.version;
     const shasDiffer = Boolean(localSha && latestSha !== localSha);
 
-    // Fetch the commits between current and latest, then keep only those that
-    // are user-visible changes (conventional `feat:` / `fix:` / `perf:` /
-    // `style:` prefixes, plus `chore(deps):` for dependency upgrades).
-    // Other commit types — `docs:`, plain `chore:`, `refactor:`, etc. — are
-    // infrastructure and don't warrant a notification on their own.
-    // `perf:` was added after a token-compression commit on the radar prompt
-    // didn't trigger an update notification on remote Pis: cost reduction is
-    // exactly the kind of change the kiosk owner wants to know about.
-    // `chore(deps):` was added after the 2026-05-07 Dependabot batch (express
-    // 4 → 5, body-parser 1 → 2, plus minor groups) silently failed to surface
-    // an update on a fleet of 7 Pis: dependency upgrades carry security
-    // patches and warrant a notification of their own.
-    // `release:` was added 2026-05-13 after the v2.14.0 promotion commit
-    // (the literal "release: v2.14.0 — promote v3 Ambient UI…") was invisible
-    // to the updater: it was the only newer commit on the Pi besides a plain
-    // `chore:` cleanup, both filtered out, so the kiosk reported "up to date"
-    // even though a tagged release was sitting on master. A release commit
-    // is by definition exactly what we want to notify users about.
-    // `style:` was added 2026-05-17 after the v2.15.7 → v2.15.9 layout pass
-    // (right-align TimeBlock, left-pack tempRow, merged hero row on Pi) was
-    // entirely under the `style:` prefix — versions bumped, SHAs differed,
-    // but the kiosk reported "up to date". Style commits CAN be visible UI
-    // changes (CSS layout, alignment, typography) and warrant a notification
-    // when the maintainer cuts a release for them.
+    // Fetch the commits between current and latest, then keep only the
+    // user-visible ones — see parseCommitLine / USER_FACING_COMMIT_RE above
+    // for the accepted vocabulary and the fleet history behind each type.
     let commits = [];
     if (shasDiffer && localSha) {
       try {
@@ -231,25 +264,7 @@ async function checkForUpdate() {
           { timeout: 10_000, headers: { "User-Agent": "pi-weather-station" } }
         );
         commits = compareRes.data.commits
-          .map((c) => {
-            const firstLine = c.commit.message.split("\n")[0];
-            // User-visible commit types that warrant a "What's new"
-            // entry. `polish` and `ux` were added in v2.16.x after a
-            // string of `polish(toast)` / `ux(debug)` commits landed
-            // and the in-app update check incorrectly reported
-            // UP-TO-DATE even though the SHAs differed — the regex
-            // filtered them out, commits.length stayed 0, and
-            // `updateAvailable = shasDiffer && commits.length > 0`
-            // silently swallowed the update. Internal-only types
-            // (docs, test, refactor, chore) are still excluded so
-            // documentation-only pushes don't ping users.
-            const match = firstLine.match(/^(feat|fix|perf|style|polish|ux|release|chore\(deps\))(?:\(.+?\))?:\s*(.+)/);
-            if (!match) return null;
-            // Normalise the literal `chore(deps)` capture to a short `deps`
-            // token so the client-side badge keys stay simple.
-            const type = match[1] === "chore(deps)" ? "deps" : match[1];
-            return { type, message: match[2] };
-          })
+          .map((c) => parseCommitLine(c.commit.message.split("\n")[0]))
           .filter(Boolean)
           .reverse(); // most recent first
       } catch {
@@ -319,4 +334,9 @@ function clearCache() {
   _cacheTime = 0;
 }
 
-module.exports = { checkForUpdate, clearCache, getRepo };
+module.exports = {
+  checkForUpdate,
+  clearCache,
+  getRepo,
+  __test: { parseCommitLine },
+};
