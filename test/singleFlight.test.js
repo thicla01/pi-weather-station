@@ -8,7 +8,10 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const { EventEmitter } = require("node:events");
 
-const { createSingleFlightGuard } = require("../server/singleFlight");
+const { createSingleFlightGuard, createPerPeerConcurrencyGuard } = require("../server/singleFlight");
+
+// Minimal Express req stand-in for the per-peer guard (reads socket peer + isLocal).
+const fakeReq = ({ peer, isLocal = false } = {}) => ({ socket: { remoteAddress: peer }, isLocal });
 
 // Minimal Express res stand-in: an EventEmitter (so finish/close listeners
 // work) that records status + json, the way the guard's 409 path needs.
@@ -88,4 +91,59 @@ test("two guard instances are independent", () => {
   a({}, fakeRes(), () => {});
   assert.equal(a.isBusy(), true);
   assert.equal(b.isBusy(), false, "guard b must not be affected by guard a");
+});
+
+// === per-peer concurrency guard (bounds in-flight fan-out per remote peer) ===
+
+test("per-peer guard: caps concurrent in-flight requests from one peer at `max`", () => {
+  const guard = createPerPeerConcurrencyGuard({ max: 2, reason: "busy", message: "busy" });
+  const peer = "203.0.113.5";
+  // Two concurrent requests pass (held open — never settled).
+  let nexted = 0;
+  guard(fakeReq({ peer }), fakeRes(), () => { nexted++; });
+  guard(fakeReq({ peer }), fakeRes(), () => { nexted++; });
+  assert.equal(nexted, 2);
+  assert.equal(guard.inFlightFor(peer), 2);
+  // Third concurrent request from the same peer is rejected.
+  const res3 = fakeRes();
+  let nexted3 = false;
+  guard(fakeReq({ peer }), res3, () => { nexted3 = true; });
+  assert.equal(nexted3, false);
+  assert.equal(res3.statusCode, 429);
+  assert.deepEqual(res3.body, { error: true, reason: "busy", message: "busy" });
+});
+
+test("per-peer guard: a different peer has its own independent budget", () => {
+  const guard = createPerPeerConcurrencyGuard({ max: 1 });
+  guard(fakeReq({ peer: "10.0.0.1" }), fakeRes(), () => {});
+  assert.equal(guard.inFlightFor("10.0.0.1"), 1);
+  // Peer A is at its cap; peer B still passes.
+  let nextedB = false;
+  guard(fakeReq({ peer: "10.0.0.2" }), fakeRes(), () => { nextedB = true; });
+  assert.ok(nextedB);
+  assert.equal(guard.inFlightFor("10.0.0.2"), 1);
+});
+
+test("per-peer guard: the count releases (and the entry is deleted at zero) when a response settles", () => {
+  const guard = createPerPeerConcurrencyGuard({ max: 1 });
+  const peer = "198.51.100.9";
+  const res1 = fakeRes();
+  guard(fakeReq({ peer }), res1, () => {});
+  assert.equal(guard.inFlightFor(peer), 1);
+  res1.emit("finish");                 // response settles
+  assert.equal(guard.inFlightFor(peer), 0, "in-flight count returns to zero");
+  // A subsequent request from the same peer now passes again.
+  let nexted = false;
+  guard(fakeReq({ peer }), fakeRes(), () => { nexted = true; });
+  assert.ok(nexted);
+});
+
+test("per-peer guard: the local kiosk is exempt (never counted, never rejected)", () => {
+  const guard = createPerPeerConcurrencyGuard({ max: 1 });
+  let nexted = 0;
+  for (let i = 0; i < 5; i++) {
+    guard(fakeReq({ peer: "127.0.0.1", isLocal: true }), fakeRes(), () => { nexted++; });
+  }
+  assert.equal(nexted, 5, "local requests always pass through");
+  assert.equal(guard.inFlightFor("127.0.0.1"), 0, "local requests are not counted");
 });

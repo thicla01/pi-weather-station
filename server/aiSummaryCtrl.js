@@ -19,7 +19,7 @@ const {
 const { recordServiceCall, getServiceStatus } = require("./serviceStatus");
 const { increment } = require("./requestCounter");
 const { analyzeRadar } = require("./radarAnalyzerCtrl");
-const { pruneObjectCache } = require("./boundedCache");
+const { pruneObjectCache, BoundedMap } = require("./boundedCache");
 
 const SUMMARY_CACHE_TTL = 15 * 60 * 1000; // 15 minutes
 const summaryCache = {};
@@ -89,29 +89,53 @@ setInterval(() => pruneObjectCache(summaryCache, { maxEntries: SUMMARY_CACHE_MAX
 // the call site, see getWeatherSummary), so a remote flood can't starve the
 // on-device refresh. A single Pi makes ~one summary call per TTL window per
 // location, so this bound is far above legitimate traffic and only bites a
-// flood. Sliding 60 s window of call timestamps. (A per-peer sub-ceiling
-// layered under this global one is a possible future refinement if one
-// remote peer monopolising the global budget ever becomes a concern; the
-// per-peer 120/min apiLimiter already caps each peer's overall request rate.)
-const MAX_CLAUDE_CALLS_PER_MIN = 10;
-const claudeCallTimestamps = [];
+// flood. Sliding 60 s window of call timestamps. A per-peer sub-ceiling is
+// layered UNDER the global one so a single remote peer can't consume the
+// whole global budget (and starve other remote clients) — the per-peer
+// 120/min apiLimiter caps a peer's overall request rate, but only this
+// bounds its share of *billed* Claude calls specifically.
+const MAX_CLAUDE_CALLS_PER_MIN = 10;          // global ceiling, all remote peers combined
+const MAX_CLAUDE_CALLS_PER_MIN_PER_PEER = 4;  // sub-ceiling per remote peer
+const claudeCallTimestamps = [];              // global sliding window
+// peerKey → sliding window of that peer's billed-call timestamps. BoundedMap
+// caps the number of tracked peers (OOM guard, same posture as #204's caches);
+// 500 is far above any real fleet's distinct remote-client count.
+const claudePeerWindows = new BoundedMap(500);
 
 /**
  * Returns true if another billed Anthropic call is allowed right now,
- * recording the call's timestamp when it is. Side-effecting by design so
- * the check and the reservation are atomic within the single-threaded
- * event loop.
+ * recording the call's timestamp in both the global and the per-peer window
+ * when it is. Side-effecting by design so the check and the reservation are
+ * atomic within the single-threaded event loop. A request only passes when
+ * BOTH ceilings have room; nothing is recorded on rejection.
  *
+ * @param {String} [peerKey] remote socket peer; omit/null to skip the
+ *   per-peer ceiling (internal callers — the local kiosk is exempt upstream)
  * @param {Number} [now] epoch ms (default Date.now())
  * @returns {Boolean}
  */
-function reserveClaudeCall(now = Date.now()) {
+function reserveClaudeCall(peerKey, now = Date.now()) {
   const cutoff = now - 60 * 1000;
+  // Global window.
   while (claudeCallTimestamps.length && claudeCallTimestamps[0] <= cutoff) {
     claudeCallTimestamps.shift();
   }
   if (claudeCallTimestamps.length >= MAX_CLAUDE_CALLS_PER_MIN) return false;
+  // Per-peer window.
+  let peerWindow = null;
+  if (peerKey) {
+    peerWindow = (claudePeerWindows.get(peerKey) || []).filter((t) => t > cutoff);
+    if (peerWindow.length >= MAX_CLAUDE_CALLS_PER_MIN_PER_PEER) {
+      claudePeerWindows.set(peerKey, peerWindow); // persist the prune even on reject
+      return false;
+    }
+  }
+  // Both ceilings have room — commit to both windows.
   claudeCallTimestamps.push(now);
+  if (peerKey) {
+    peerWindow.push(now);
+    claudePeerWindows.set(peerKey, peerWindow);
+  }
   return true;
 }
 
@@ -884,7 +908,11 @@ async function getWeatherSummary(req, res) {
   // app-level middleware in index.js). So the ceiling bounds REMOTE-induced
   // spend, which is the actual denial-of-wallet threat. Legitimate remote
   // traffic never approaches the bound.
-  if (!req.isLocal && !reserveClaudeCall()) {
+  // Fall a missing socket peer into a shared "unknown-peer" bucket (matches
+  // createPerPeerConcurrencyGuard) so a remote request is still sub-ceiling'd
+  // rather than escaping the per-peer cap. The explicit null/omit skip stays
+  // available for internal/test callers (see reserveClaudeCall's JSDoc).
+  if (!req.isLocal && !reserveClaudeCall(req.socket?.remoteAddress || "unknown-peer")) {
     recordServiceCall("Claude (AI summary)", 429, "throttled (per-process call ceiling)");
     return settleInflight(429, "AI summary temporarily rate-limited");
   }
@@ -950,6 +978,7 @@ module.exports = {
     setSummaryCache,
     reserveClaudeCall,
     MAX_CLAUDE_CALLS_PER_MIN,
+    MAX_CLAUDE_CALLS_PER_MIN_PER_PEER,
     // Calm-day fast path (skips the billed Anthropic call)
     isRadarClear,
     isCalmStableState,
