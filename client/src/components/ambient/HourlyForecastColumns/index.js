@@ -75,10 +75,15 @@ const HourlyForecastColumns = ({ expanded = false }) => {
   // Pick N hours stepped by hourStep. Start at index 1 so the first
   // cell reflects the upcoming hour, not the current one — current
   // conditions are already in HeroBand / MetricsGrid, repeating them
-  // here would be wasteful.
+  // here would be wasteful. EXCEPT when the feed delivers exactly
+  // totalCells entries (Tomorrow.io often returns 24 hourly
+  // intervals): skipping the first would leave a hole at the end of
+  // the expanded 3×8 grid (23/24 cells, maintainer-reported) — in
+  // that case start at 0 and accept the current hour in cell one.
+  const startIdx = intervals.length > totalCells ? 1 : 0;
   const slots = [];
   for (let n = 0; n < totalCells; n++) {
-    const idx = 1 + n * hourStep;
+    const idx = startIdx + n * hourStep;
     if (idx >= intervals.length) break;
     slots.push(intervals[idx]);
   }
