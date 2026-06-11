@@ -23,7 +23,7 @@ import { AppContext } from "~/AppContext";
 import { getPalette } from "~/ui/tokens";
 import { useTimeOfDay } from "~/ui/hybrid";
 import { resolvePanelFontSizeZoom } from "~/ui/fontSize";
-import { exportDebugCsv } from "~/components/Debug";
+import { exportDebugCsv } from "~/ui/exportDebugCsv";
 import styles from "./styles.css";
 
 // Persists the user's pinned-bucket selection across close/reopen

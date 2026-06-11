@@ -6,8 +6,8 @@ import styles from "./styles.css";
 import LocationName from "~/components/LocationName";
 import CurrentWeather from "~/components/CurrentWeather";
 import UvAqiBadges from "~/components/UvAqiBadges";
-import DailyChart from "~/components/weatherCharts/DailyChart";
-import HourlyChart from "~/components/weatherCharts/HourlyChart";
+import DailyChart from "~/components/ambient/weatherCharts/DailyChart";
+import HourlyChart from "~/components/ambient/weatherCharts/HourlyChart";
 import AiSummary from "~/components/AiSummary";
 
 const CHART_CYCLE_DURATION = 150_000; // 2.5 minutes — auto-cycle on small screens

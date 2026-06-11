@@ -1,5 +1,5 @@
 import React from "react";
-import ControlButtons from "~/components/ControlButtons";
+import ControlButtons from "~/components/ambient/ControlButtons";
 import HealthIndicator from "~/components/ambient/HealthIndicator";
 import styles from "./styles.css";
 
