@@ -7,6 +7,7 @@ import closeSharp from "@iconify/icons-ion/close-sharp";
 import refreshIcon from "@iconify/icons-carbon/restart";
 import upgradeIcon from "@iconify/icons-carbon/upgrade";
 import downloadIcon from "@iconify/icons-ion/download-outline";
+import launchIcon from "@iconify/icons-carbon/launch";
 // Bucket rail icons — inline SVG (Iconify) rather than raw Unicode
 // glyphs. Unicode glyphs render at font-dependent sizes across
 // platforms (e.g. `⌬`/`◇` shrink to a thin fallback on macOS while the
@@ -1481,15 +1482,29 @@ const BucketAbout = ({ data, lang, gridTwoWide, fetchDebug }) => {
             "El análisis de vulnerabilidades y los PR de seguridad automáticos viven ahora en GitHub vía Dependabot — consulta el panel de alertas para la fuente en tiempo real."
           )}
         </p>
+        {/* CTA button instead of the raw URL (F28) — the label says
+          * what the user will find, the launch icon signals an external
+          * opening, and the meta line below shows the destination. A
+          * direct <a> is the codified exception to the QR-only rule
+          * (CLAUDE.md → Debug panel derogation): this panel is
+          * localhost-only, reached from a desktop browser / SSH tunnel,
+          * never from the chrome-less kiosk. */}
         {data.vulnerabilityScanUrl ? (
-          <a
-            href={data.vulnerabilityScanUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.vulnLink}
-          >
-            {data.vulnerabilityScanUrl}
-          </a>
+          <div className={styles.vulnCtaWrap}>
+            <a
+              href={data.vulnerabilityScanUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.vulnCta}
+            >
+              {lbl(lang,
+                "Check security alerts on GitHub",
+                "Vérifier les alertes de sécurité sur GitHub",
+                "Ver las alertas de seguridad en GitHub")}
+              <InlineIcon icon={launchIcon} />
+            </a>
+            <span className={styles.vulnCtaMeta}>github.com · Dependabot</span>
+          </div>
         ) : null}
       </div>
     </div>

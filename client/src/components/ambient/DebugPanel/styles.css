@@ -942,12 +942,47 @@
   color: var(--c-text-dim);
 }
 
-.vulnLink {
+/* Vulnerability CTA (F28) — button-styled link replacing the raw URL.
+ * Same visual recipe as .toolButton so the About bucket's actions read
+ * as one family. */
+.vulnCtaWrap {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 4px;
+  margin-top: 10px;
+}
+
+.vulnCta {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 7px 12px;
+  background-color: var(--c-accent-soft);
+  border: 1px solid var(--c-border);
+  border-radius: 4px;
+  color: var(--c-text);
   font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  font-size: 11px;
+  font-size: 10px;
+  font-weight: 500;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.vulnCta:hover,
+.vulnCta:focus-visible {
+  background-color: var(--c-surface-hybrid);
   color: var(--c-accent);
-  word-break: break-all;
-  text-decoration: underline;
+  outline: none;
+}
+
+.vulnCtaMeta {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 9px;
+  letter-spacing: 0.6px;
+  color: var(--c-text-dim);
 }
 
 /* Power status flags — row of tag chips for current issues, optional
