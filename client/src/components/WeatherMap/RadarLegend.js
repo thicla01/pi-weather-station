@@ -2,7 +2,7 @@ import React, { useContext } from "react";
 import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
 
-import { AppContext } from "~/AppContext";
+import { AlertsContext, UiPrefsContext } from "~/AppContext";
 import styles from "./styles.css";
 
 const RADAR_LEGEND_ITEMS = [
@@ -40,8 +40,8 @@ const RadarLegend = ({ dark }) => {
     nearbyAlerts,
     nearbyResidualCount,
     alertRadiusKm,
-    distanceUnit,
-  } = useContext(AppContext);
+  } = useContext(AlertsContext);
+  const { distanceUnit } = useContext(UiPrefsContext);
   const nearbyCount = Array.isArray(nearbyAlerts) ? nearbyAlerts.length : 0;
   const radiusDisplay = distanceUnit === "mi" ? Math.round(alertRadiusKm / 1.609344) : alertRadiusKm;
   const unitLabel = distanceUnit === "mi" ? "mi" : "km";

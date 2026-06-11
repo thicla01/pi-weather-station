@@ -4,7 +4,7 @@ import { InlineIcon } from "@iconify/react";
 import maximize from "@iconify/icons-carbon/maximize";
 import minimize from "@iconify/icons-carbon/minimize";
 import axios from "axios";
-import { AppContext } from "~/AppContext";
+import { AppActionsContext, SystemContext, LocationContext, UiPrefsContext } from "~/AppContext";
 import styles from "./styles.css";
 
 const LABEL = { en: "AI SUMMARY", fr: "RÉSUMÉ IA", es: "RESUMEN IA" };
@@ -29,16 +29,16 @@ const REFRESH_INTERVAL = 15 * 60 * 1000;
  * @returns {JSX.Element|null} AI summary slab, or null when feature is unavailable
  */
 const AiSummaryInline = () => {
+  const { mapGeo } = useContext(LocationContext);
   const {
-    mapGeo,
     aiSummaryAvailable: serverAvailable,
-    setAiSummaryAvailable: setAvailable,
     aiSummaryUserVisible,
     tempUnit,
     speedUnit,
     distanceUnit,
-    sleepStage,
-  } = useContext(AppContext);
+  } = useContext(UiPrefsContext);
+  const { setAiSummaryAvailable: setAvailable } = useContext(AppActionsContext);
+  const { sleepStage } = useContext(SystemContext);
   // The slab renders only when BOTH the server has a working
   // Anthropic key (`serverAvailable`) AND the user hasn't hidden the
   // section via the debug-only dock toggle (`aiSummaryUserVisible`).

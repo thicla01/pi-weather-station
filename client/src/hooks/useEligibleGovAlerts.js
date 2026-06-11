@@ -1,5 +1,5 @@
 import { useContext, useMemo } from "react";
-import { AppContext } from "~/AppContext";
+import { AlertsContext, UiPrefsContext } from "~/AppContext";
 import useDismissedAlerts from "~/hooks/useDismissedAlerts";
 import { selectEligibleGovAlerts } from "~/ui/alertLogic";
 
@@ -45,7 +45,8 @@ import { selectEligibleGovAlerts } from "~/ui/alertLogic";
  *   alert (null when none), and whether any eligible alert exists
  */
 export default function useEligibleGovAlerts() {
-  const { govAlerts, govAlertIdx, showAdvisoryAlerts } = useContext(AppContext);
+  const { govAlerts, govAlertIdx } = useContext(AlertsContext);
+  const { showAdvisoryAlerts } = useContext(UiPrefsContext);
   const { isDismissed } = useDismissedAlerts();
 
   const eligibleGovAlerts = useMemo(() => {

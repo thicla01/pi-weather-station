@@ -1,5 +1,5 @@
 import React, { useContext, useEffect, useState } from "react";
-import { AppContext } from "~/AppContext";
+import { UiPrefsContext } from "~/AppContext";
 import styles from "./styles.css";
 import { getPalette } from "~/ui/tokens";
 import { useTimeOfDay, useHybridMode } from "~/ui/hybrid";
@@ -60,7 +60,7 @@ const AmbientLayers = () => {
   const tod = useTimeOfDay();
   const palette = getPalette(tod);
   const { level: hybridLevelValue } = useHybridMode();
-  const { fontSize } = useContext(AppContext);
+  const { fontSize } = useContext(UiPrefsContext);
   // FONT_SIZE_ZOOM kept in the module for the future fix — the
   // attribute hook is below.
   const fontSizeKey = fontSize && FONT_SIZE_ZOOM[fontSize] ? fontSize : "m";

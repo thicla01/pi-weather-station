@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
 import humidityAlt from "@iconify/icons-carbon/humidity-alt";
 import axios from "axios";
-import { AppContext } from "~/AppContext";
+import { UiPrefsContext } from "~/AppContext";
 import { convertTemp } from "~/services/conversions";
 import styles from "./styles.css";
 
@@ -34,7 +34,7 @@ const POLL_INTERVAL_MS = 60 * 1000;
  */
 const IndoorBlock = () => {
   const { t } = useTranslation();
-  const { tempUnit } = useContext(AppContext);
+  const { tempUnit } = useContext(UiPrefsContext);
   const [data, setData] = useState(null);
 
   useEffect(() => {

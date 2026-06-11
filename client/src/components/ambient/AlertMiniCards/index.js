@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
 import chevronRight from "@iconify/icons-carbon/chevron-right";
 import undoIcon from "@iconify/icons-carbon/undo";
-import { AppContext } from "~/AppContext";
+import { AppActionsContext } from "~/AppContext";
 import SeverityChip from "~/components/ambient/SeverityChip";
 import useDismissedAlerts from "~/hooks/useDismissedAlerts";
 import useEligibleGovAlerts from "~/hooks/useEligibleGovAlerts";
@@ -53,7 +53,7 @@ const SEVERITY_RANK = {
  *   pill, or null when there's nothing to render
  */
 const AlertMiniCards = () => {
-  const { selectGovAlert } = useContext(AppContext);
+  const { selectGovAlert } = useContext(AppActionsContext);
   const { t, i18n } = useTranslation();
   const { restoreAll, dismissedCount } = useDismissedAlerts();
   const lang = (i18n.language || "en").slice(0, 2);

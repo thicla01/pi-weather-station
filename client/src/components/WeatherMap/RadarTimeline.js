@@ -8,7 +8,7 @@ import React, {
 import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
 
-import { AppContext } from "~/AppContext";
+import { AppActionsContext, UiPrefsContext } from "~/AppContext";
 import styles from "./styles.css";
 
 const RADAR_SPEED_LABELS = { 1: "1×", 2: "2×", 4: "4×" };
@@ -33,13 +33,8 @@ const NOW_TICK_INTERVAL_MS = 30_000;
  */
 const RadarTimeline = ({ frames, currentIdx, onScrub, timezone, dark }) => {
   const { t } = useTranslation();
-  const {
-    radarSpeed,
-    cycleRadarSpeed,
-    animateWeatherMap,
-    toggleAnimateWeatherMap,
-    clockTime,
-  } = useContext(AppContext);
+  const { cycleRadarSpeed, toggleAnimateWeatherMap } = useContext(AppActionsContext);
+  const { radarSpeed, animateWeatherMap, clockTime } = useContext(UiPrefsContext);
 
   // Manual pointer-event handling on the scrubber input. Native
   // <input type="range"> on touch devices is heuristic-driven — Chrome

@@ -3,7 +3,12 @@ import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
 import closeIcon from "@iconify/icons-carbon/close";
 import chevronDown from "@iconify/icons-carbon/chevron-down";
-import { AppContext } from "~/AppContext";
+import {
+  RadarStateContext,
+  AlertsContext,
+  AppActionsContext,
+  WeatherDataContext,
+} from "~/AppContext";
 import SourceBadge from "~/components/ambient/SourceBadge";
 import ConfidencePill from "~/components/ambient/ConfidencePill";
 import SeverityChip from "~/components/ambient/SeverityChip";
@@ -46,10 +51,10 @@ const AlertBanner = () => {
     innerTrend, outerTrend,
     innerBumped, outerBumped,
     innerTrendConfidence, outerTrendConfidence,
-    govAlertExpanded,
-    setGovAlertExpanded,
-    currentWeatherData,
-  } = useContext(AppContext);
+  } = useContext(RadarStateContext);
+  const { govAlertExpanded } = useContext(AlertsContext);
+  const { setGovAlertExpanded } = useContext(AppActionsContext);
+  const { currentWeatherData } = useContext(WeatherDataContext);
   const { t, i18n } = useTranslation();
   const { dismiss } = useDismissedAlerts();
 

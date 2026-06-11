@@ -1,7 +1,7 @@
 import React, { useContext, useState, useEffect, useMemo } from "react";
 import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
-import { AppContext } from "~/AppContext";
+import { UiPrefsContext, WeatherDataContext } from "~/AppContext";
 import styles from "../styles.css";
 import {
   Chart as ChartJS,
@@ -203,13 +203,15 @@ const mapChartData = ({
 const HourlyChart = ({ altMode: altModeProp, onAltToggle }) => {
   const {
     hourlyWeatherData,
+    hourlyWeatherDataErr,
+  } = useContext(WeatherDataContext);
+  const {
     tempUnit,
     darkMode,
     clockTime,
     lengthUnit,
     speedUnit,
-    hourlyWeatherDataErr,
-  } = useContext(AppContext);
+  } = useContext(UiPrefsContext);
   const { t } = useTranslation();
   // Canvas-drawn chart text can't inherit CSS variables — pass the
   // active palette flag through to fontColor() so the title and axes

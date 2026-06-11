@@ -12,7 +12,7 @@ import chevronUpIcon from "@iconify/icons-carbon/chevron-up";
 import documentIcon from "@iconify/icons-carbon/document";
 import radarWeatherIcon from "@iconify/icons-carbon/radar-weather";
 import binocularsIcon from "@iconify/icons-carbon/binoculars";
-import { AppContext } from "~/AppContext";
+import { AlertsContext, AppActionsContext } from "~/AppContext";
 import QrCode from "~/components/ambient/QrCode";
 import useEligibleGovAlerts from "~/hooks/useEligibleGovAlerts";
 import { parseAlertText } from "~/ui/alertParser";
@@ -112,12 +112,8 @@ const SECTION_ICONS = {
  *   collapsed / no eligible alert
  */
 const AlertDetailInline = () => {
-  const {
-    govAlertExpanded,
-    setGovAlertExpanded,
-    highlightedAlertId,
-    setHighlightedAlertId,
-  } = useContext(AppContext);
+  const { govAlertExpanded, highlightedAlertId } = useContext(AlertsContext);
+  const { setGovAlertExpanded, setHighlightedAlertId } = useContext(AppActionsContext);
   const { i18n, t } = useTranslation();
 
   // Current eligible (red/orange, non-dismissed) gov alert, derived
