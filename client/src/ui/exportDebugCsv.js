@@ -48,7 +48,24 @@ export function formatUptime(seconds) {
  * @returns {void}
  */
 export function exportDebugCsv(data, clientMetrics, fps) {
-  const q = (val) => `"${String(val ?? "").replace(/"/g, '""')}"`;
+  // Quote a CSV cell. Two protections:
+  //  1. `"` doubled per RFC 4180.
+  //  2. Cells starting with a formula trigger get a leading `'` so
+  //     spreadsheet apps render them as text instead of evaluating
+  //     them (CSV formula injection, OWASP). `=`, `@`, tab and CR
+  //     always trigger; `+`/`-` only when the cell is NOT a plain
+  //     number, so negative coordinates (`-73.076935`) keep importing
+  //     as numbers. Defence in depth: the one attacker-influenced
+  //     column (remote-client IP) already shows the non-spoofable
+  //     socket peer since #204, but every future field stays covered.
+  const q = (val) => {
+    let s = String(val ?? "");
+    if (/^[=@\t\r]/.test(s)
+      || (/^[+-]/.test(s) && !/^[+-]?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(s))) {
+      s = `'${s}`;
+    }
+    return `"${s.replace(/"/g, '""')}"`;
+  };
   const rows = [];
 
   const section = (title) => {
