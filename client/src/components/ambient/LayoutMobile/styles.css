@@ -215,19 +215,20 @@
  * underneath the Leaflet tiles); same recipe ChartTabs uses. */
 .mapCard.mapCardMaximized {
   position: absolute;
-  /* v2.16.5: pushed past iOS PWA Control-Centre swipe zone — same
-   * rationale as the matching slabs in ChartTabs and AiSummaryInline.
-   * Top-right corner of a notched iPhone in portrait is reserved by
-   * iOS for the swipe-down Control Centre gesture (top ~84 px ×
-   * right ~30 % of viewport); a maximize-restore button at top:8
-   * inside a slab pinned at top:12 of the scroll lands inside that
-   * zone, and iOS intercepts the touch. */
-  top: max(12px, env(safe-area-inset-top, 0px));
-  left: 12px;
-  right: 12px;
-  /* Reach down past the chart slab to give the radar real room. The
-   * remaining 20 px clears the dock's top edge. */
-  bottom: 12px;
+  /* v3.1 Phase 3 follow-up (maintainer feedback): FULL-BLEED, like the
+   * big-screen radar — the maximized state fills 100 % of the app area
+   * (the scroll container; the dock keeps its own row below), no card
+   * margins, no rounded corners. The top edge still honours the iOS
+   * notch inset so the in-map controls (zoom, maximize button at
+   * top:8) stay below the Control-Centre swipe zone — the v2.16.5
+   * incident fix, carried over: button lands at inset+8, same
+   * clearance as the previous max(12px, inset)+8 card recipe. */
+  top: env(safe-area-inset-top, 0px);
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border: none;
+  border-radius: 0;
   height: auto;
   z-index: 10;
   background-color: var(--c-bg);
@@ -269,7 +270,12 @@
  * radar pixel. Z-index above the Leaflet controls (which top out at
  * 1000) so the button is tappable even over the +/- zoom stack in
  * the top-left corner. */
-.mapMaximizeButton {
+/* Selector doubled (.x.x): the global reset `.ambientRoot button`
+ * (ui/reset.css, specificity 0,1,1) strips background/border/colour
+ * from single-class button rules — this button was nearly invisible
+ * on the map until the bump (maintainer-reported; same trap and same
+ * fix as the WeatherMap Phase 3 buttons). */
+.mapMaximizeButton.mapMaximizeButton {
   position: absolute;
   top: 8px;
   right: 8px;
@@ -303,7 +309,7 @@
 /* The inline-SVG bracket icons size to their container — without this
  * they'd expand to the SVG default viewport. 18 px matches the
  * desktop/7" radar-focus button so the pair reads identically. */
-.mapMaximizeButton svg {
+.mapMaximizeButton.mapMaximizeButton svg {
   width: 18px;
   height: 18px;
 }
@@ -311,18 +317,18 @@
 /* Pressed feedback — same :active grammar as the desktop/7" focus
  * button (Q6 harmonization). :active releases cleanly on touch,
  * unlike :hover (which stays banned on kiosk surfaces). */
-.mapMaximizeButton:active {
+.mapMaximizeButton.mapMaximizeButton:active {
   background-color: var(--c-accent-soft);
   color: var(--c-accent);
   transform: scale(0.96);
 }
 
-.mapMaximizeButton:focus-visible {
+.mapMaximizeButton.mapMaximizeButton:focus-visible {
   outline: 2px dashed var(--c-text);
   outline-offset: 1px;
 }
 
-.mapMaximizeButton[aria-pressed="true"] {
+.mapMaximizeButton.mapMaximizeButton[aria-pressed="true"] {
   color: var(--c-text);
   background-color: var(--c-accent-soft);
   border-color: var(--c-accent);

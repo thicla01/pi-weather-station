@@ -43,10 +43,10 @@ Variant A "Compagnon nomade" from the design package. Single scrollable column t
 
 ### Maximizable radar card
 
-- ⛶ button in the top-right corner of the mini card (44×44 px, Apple HIG compliant).
-- In mini mode (220 px), the **radar legend and timeline scrubber are CSS-hidden** — no readable room. The corresponding dock buttons are greyed out and a toast invites the user to maximize the card.
-- When maximized, the card leaves the flow (`position: absolute`) and pins to the scroll container's bounds; the legend and scrubber reappear.
-- The maximized `top:` uses `max(12px, env(safe-area-inset-top))` to clear iOS's **Control-Centre swipe zone** (top-right quadrant ~84 px × 30 % viewport width in notched portrait), which was intercepting taps on the minimize button.
+- Maximize button in the top-right corner of the mini card (44×44 px, Apple HIG compliant) — four-corner-bracket SVG pair since Phase 3 (outward = expand, inward = restore, same icons as the desktop/7" focus toggle).
+- In mini mode (220 px), the **radar legend strip and timeline are CSS-hidden** — no readable room. The corresponding dock buttons are greyed out and a toast invites the user to maximize the card.
+- When maximized, the card goes **full-bleed**: it fills 100 % of the app area above the dock (`inset` to the scroll container's edges, no margins, no rounded corners) — the same "radar owns the screen" treatment as the big-screen layouts. The compact legend strip and the timeline bar reappear.
+- The maximized `top:` keeps `env(safe-area-inset-top)` so the in-map controls clear iOS's **Control-Centre swipe zone** (top-right quadrant ~84 px × 30 % viewport width in notched portrait), which was intercepting taps on the minimize button (v2.16.5).
 
 ### Pull-to-refresh
 

@@ -43,10 +43,10 @@ Variante A « Compagnon nomade » du dossier de design. Colonne unique défilant
 
 ### Carte radar maximisable
 
-- Bouton ⛶ dans le coin supérieur droit de la carte mini (44×44 px, conforme Apple HIG).
-- En mode mini (220 px), la **légende radar et le scrubber de chronologie sont cachés en CSS** — pas de place lisible. Les boutons correspondants du dock sont grisés et un toast invite à maximiser la carte.
-- En mode maximisé, la carte sort du flux (`position: absolute`) et s'épingle aux bords du conteneur défilant ; la légende et la chronologie réapparaissent.
-- Le `top:` maximisé utilise `max(12px, env(safe-area-inset-top))` pour éviter la **zone Control-Centre d'iOS** (coin supérieur droit ~84 px × 30 % de la largeur en portrait notché) qui interceptait les taps sur le bouton de minimiser.
+- Bouton maximiser dans le coin supérieur droit de la carte mini (44×44 px, conforme Apple HIG) — paire SVG à quatre équerres depuis la Phase 3 (vers l'extérieur = agrandir, vers l'intérieur = restaurer, mêmes icônes que le toggle focus desktop/7").
+- En mode mini (220 px), la **bande de légende radar et la timeline sont cachées en CSS** — pas de place lisible. Les boutons correspondants du dock sont grisés et un toast invite à maximiser la carte.
+- En mode maximisé, la carte passe en **pleine surface** : elle remplit 100 % de l'espace applicatif au-dessus du dock (`inset` aux bords du conteneur défilant, sans marges ni coins arrondis) — le même traitement « le radar possède l'écran » que les grandes dispositions. La bande de légende compacte et la barre de timeline réapparaissent.
+- Le `top:` maximisé conserve `env(safe-area-inset-top)` pour que les contrôles sur la carte évitent la **zone Control-Centre d'iOS** (coin supérieur droit ~84 px × 30 % de la largeur en portrait notché) qui interceptait les taps sur le bouton de minimiser (v2.16.5).
 
 ### Pull-to-refresh
 
