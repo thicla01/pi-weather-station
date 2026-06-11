@@ -1199,29 +1199,80 @@
   margin-bottom: 0;
 }
 
-.netConn {
-  display: block;
-  margin-top: 4px;
-  font-weight: 600;
+/* ── Connectivity hero card (F27) ─────────────────────────────────
+ * Coloured LED + plain-words state + ping values + the dual TCP/HTTPS
+ * scales, leading the Server bucket. Replaces the former `.netConn`
+ * "Internet: ONLINE · …" line. The LED greens reuse the #3e9d68 family
+ * of the status pills (no green palette token). */
+.netHero {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 12px 14px;
+  background-color: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  margin-bottom: 16px;
+}
+
+.netHeroLed {
+  width: 36px;
+  height: 36px;
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.netHeroIcon {
+  width: 18px;
+  height: 18px;
+}
+
+.netHeroLedOk {
+  background-color: #3e9d68;
+  box-shadow: 0 0 0 4px color-mix(in srgb, #3e9d68 18%, transparent);
+}
+
+.netHeroLedWarn {
+  background-color: var(--c-warn);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--c-warn) 18%, transparent);
+}
+
+.netHeroLedErr {
+  background-color: var(--c-danger);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--c-danger) 18%, transparent);
+}
+
+.netHeroBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.netHeroState {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--c-text);
+  margin-bottom: 2px;
+}
+
+.netHeroPing {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 4px 10px;
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10.5px;
+  color: var(--c-text-dim);
   letter-spacing: 0.4px;
-  /* Allow wrap on narrow viewports — the enriched indicator
-   * (`Internet: ONLINE · 1.1.1.1 · TCP 14 ms · HTTPS 431 ms`) can
-   * easily exceed 50 chars and would overflow a 7" Pi cell
-   * without this. Same rationale as the `.kvValue` change from
-   * 2026-05-27 — wrap is preferable to clip / overflow on the
-   * Pi 7" / 800×480 viewports the field uses. */
-  overflow-wrap: anywhere;
 }
 
-.netConnOnline {
-  color: var(--c-cool);
+.netHeroTarget {
+  color: var(--c-text-dim);
 }
 
-.netConnOffline {
-  color: var(--c-danger);
-}
-
-/* Inline colour-coded TCP latency tag, embedded in the .netConn
+/* Inline colour-coded latency values, embedded in the hero's ping
  * line. Three tiers tied to a "raw link latency" mental model
  * (see tcpLatencyTier helper in index.js). Bold to lift the tag
  * out of the surrounding mono text. */

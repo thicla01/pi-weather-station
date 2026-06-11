@@ -673,6 +673,11 @@ const BucketServer = ({ data, lang, gridTwoWide }) => {
   const conn = data.connectivity || null;
   return (
     <div className={styles.bucket}>
+      {/* Connectivity hero (F27) — the network state is the first
+        * thing the user opens this panel for, so it leads the bucket
+        * as a card instead of being a line lost in the Network list. */}
+      {conn ? <NetStatusHero conn={conn} lang={lang} /> : null}
+
       <SectionTitle title={lbl(lang, "Server config", "Configuration serveur", "Configuración servidor")} />
       <div className={`${styles.gridTwo} ${gridTwoWide ? styles.gridTwoWide : ""}`}>
         <KV k={lbl(lang, "version", "version", "versión")}  v={`${v.name || "?"} v${v.version || "?"} · ${v.commit || "?"}`} />
@@ -704,102 +709,6 @@ const BucketServer = ({ data, lang, gridTwoWide }) => {
             {`${net.protocol || "?"}://localhost:${net.port || "?"}`}
           </span>
         )}
-        {conn ? (
-          <>
-            {/* Internet indicator — enriched 2026-05-27 to surface
-              * the probe target (`conn.host`, typically 1.1.1.1)
-              * and to split the latency into two measurements:
-              * `tcpLatencyMs` (raw TCP handshake) is what carries
-              * the colour-coded "ping" status; `latencyMs` (full
-              * HTTPS HEAD with TLS handshake) is shown next to it
-              * as raw diagnostic info, no colour. The gap between
-              * the two reveals whether a slow indicator is link-
-              * bound (TCP high) or TLS-bound (TCP low, HTTPS high).
-              *
-              * Pre-2026-05-27 the field had only one untagged value
-              * ("Internet: ONLINE · 431 ms") whose meaning was
-              * ambiguous — the user reported they could not tell
-              * whether 431 ms meant "your link is slow" or "this
-              * is normal for HTTPS". */}
-            <span className={`${styles.netConn} ${conn.online ? styles.netConnOnline : styles.netConnOffline}`}>
-              {`Internet: ${conn.online
-                ? lbl(lang, "ONLINE", "EN LIGNE", "EN LÍNEA")
-                : lbl(lang, "OFFLINE", "HORS LIGNE", "DESCONECTADO")}`}
-              {conn.online && conn.host ? ` · ${conn.host}` : ""}
-              {conn.online && conn.tcpLatencyMs != null ? (
-                <>
-                  {" · TCP "}
-                  <span className={styles[`netLatency${tcpLatencyTier(conn.tcpLatencyMs) || "Unknown"}`] || ""}>
-                    {`${conn.tcpLatencyMs} ms`}
-                  </span>
-                </>
-              ) : null}
-              {conn.online && conn.latencyMs != null ? (
-                <>
-                  {" · HTTPS "}
-                  <span className={styles[`netLatency${httpsLatencyTier(conn.latencyMs) || "Unknown"}`] || ""}>
-                    {`${conn.latencyMs} ms`}
-                  </span>
-                </>
-              ) : null}
-            </span>
-            {/* Two mini latency scales below the indicator — TCP on
-              * top, HTTPS below. Each scale has its own colour
-              * thresholds and SI domain so the marker positions
-              * are meaningful per metric:
-              *
-              *  - TCP scale: 0-1000 ms, segments 20 % green
-              *    (0-200), 30 % yellow (200-500), 50 % red
-              *    (500-1000+). Matches `tcpLatencyTier`.
-              *  - HTTPS scale: 0-2000 ms, segments 20 % green
-              *    (0-400), 20 % yellow (400-800), 60 % red
-              *    (800-2000+). Matches `httpsLatencyTier`. The
-              *    2 s domain reflects that HTTPS calls realistically
-              *    range further than raw TCP — 2 s is the point
-              *    where /api/update starts hitting the new 90 s
-              *    timeout's lower edge.
-              *
-              * Labels on the left distinguish the two bars so the
-              * user knows which marker reads which value. Each row
-              * suppresses independently when its probe failed. */}
-            {conn.online && (conn.tcpLatencyMs != null || conn.latencyMs != null) ? (
-              <div className={styles.latencyScales} aria-hidden="true">
-                {conn.tcpLatencyMs != null ? (
-                  <div className={styles.latencyScaleRow}>
-                    <span className={styles.latencyScaleLabel}>TCP</span>
-                    <div className={styles.latencyScale}>
-                      <div className={styles.latencyScaleTrack}>
-                        <span className={styles.latencyScaleGreen} />
-                        <span className={styles.latencyScaleYellow} />
-                        <span className={styles.latencyScaleRed} />
-                      </div>
-                      <div
-                        className={styles.latencyScaleMarker}
-                        style={{ left: `${Math.min(100, Math.max(0, (conn.tcpLatencyMs / 1000) * 100))}%` }}
-                      />
-                    </div>
-                  </div>
-                ) : null}
-                {conn.latencyMs != null ? (
-                  <div className={styles.latencyScaleRow}>
-                    <span className={styles.latencyScaleLabel}>HTTPS</span>
-                    <div className={styles.latencyScale}>
-                      <div className={styles.latencyScaleTrack}>
-                        <span className={styles.latencyScaleHttpsGreen} />
-                        <span className={styles.latencyScaleHttpsYellow} />
-                        <span className={styles.latencyScaleHttpsRed} />
-                      </div>
-                      <div
-                        className={styles.latencyScaleMarker}
-                        style={{ left: `${Math.min(100, Math.max(0, (conn.latencyMs / 2000) * 100))}%` }}
-                      />
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-          </>
-        ) : null}
       </div>
 
       <SectionTitle title={lbl(lang, "Server KPI", "KPI serveur", "KPI servidor")} gap />
@@ -845,6 +754,125 @@ const BucketServer = ({ data, lang, gridTwoWide }) => {
 
       <SectionTitle title={lbl(lang, "Recent logs", "Journaux récents", "Registros recientes")} gap />
       <LogsBlock logs={data.logs} lang={lang} />
+    </div>
+  );
+};
+
+/**
+ * Connectivity hero card (F27) — coloured LED + plain-words state +
+ * both latency readings + the two threshold scales, leading the Server
+ * bucket. Replaces the former "Internet: ONLINE · …" line in the
+ * Network list.
+ *
+ * The two measurements (2026-05-27 enrichment, kept as-is): the probe
+ * target is `conn.host` (typically 1.1.1.1) and the latency is split
+ * in two — `tcpLatencyMs` (raw TCP handshake) carries the colour-coded
+ * "ping" status, `latencyMs` (full HTTPS HEAD with TLS handshake) sits
+ * next to it with its own wider tiers. The gap between the two reveals
+ * whether a slow indicator is link-bound (TCP high) or TLS-bound (TCP
+ * low, HTTPS high). The mockup shows a single scale; the dual scale is
+ * a field-tested improvement we deliberately keep:
+ *
+ *  - TCP scale: 0-1000 ms, segments 20 % green (0-200), 30 % yellow
+ *    (200-500), 50 % red (500-1000+). Matches `tcpLatencyTier`.
+ *  - HTTPS scale: 0-2000 ms, segments 20 % green (0-400), 20 % yellow
+ *    (400-800), 60 % red (800-2000+). Matches `httpsLatencyTier` —
+ *    the 2 s domain reflects that HTTPS calls realistically range
+ *    further than raw TCP. Each row suppresses independently when its
+ *    probe failed.
+ *
+ * The LED colour follows the TCP tier (HTTPS tier as fallback when the
+ * TCP probe failed): green = fast, yellow = slow, red = degraded or
+ * offline. The state words carry the meaning in night-red.
+ *
+ * @param {object} props
+ * @param {object} props.conn — `data.connectivity` payload
+ * @param {string} props.lang — 2-letter UI language
+ * @returns {JSX.Element}
+ */
+const NetStatusHero = ({ conn, lang }) => {
+  const tcpTier = tcpLatencyTier(conn.tcpLatencyMs);
+  const httpsTier = httpsLatencyTier(conn.latencyMs);
+  const tier = conn.online ? (tcpTier || httpsTier) : null;
+  const ledKind = !conn.online || tier === "Red" ? "Err" : tier === "Yellow" ? "Warn" : "Ok";
+  const stateText = !conn.online
+    ? lbl(lang, "Offline — check the connection", "Hors ligne — vérifiez la connexion", "Sin conexión — compruebe la conexión")
+    : tier === "Red"
+      ? lbl(lang, "Online · degraded network", "En ligne · réseau dégradé", "En línea · red degradada")
+      : tier === "Yellow"
+        ? lbl(lang, "Online · slow network", "En ligne · réseau lent", "En línea · red lenta")
+        : lbl(lang, "Online · fast network", "En ligne · réseau rapide", "En línea · red rápida");
+  return (
+    <div className={styles.netHero}>
+      <span className={`${styles.netHeroLed} ${styles[`netHeroLed${ledKind}`]}`} aria-hidden="true">
+        {conn.online ? (
+          <svg viewBox="0 0 24 24" className={styles.netHeroIcon}>
+            <path d="M5 12 L 10 17 L 19 7" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 24 24" className={styles.netHeroIcon}>
+            <path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+          </svg>
+        )}
+      </span>
+      <div className={styles.netHeroBody}>
+        <div className={styles.netHeroState}>{stateText}</div>
+        {conn.online && (conn.tcpLatencyMs != null || conn.latencyMs != null || conn.host) ? (
+          <div className={styles.netHeroPing}>
+            {conn.tcpLatencyMs != null ? (
+              <span>
+                {"TCP "}
+                <strong className={styles[`netLatency${tcpTier || "Unknown"}`] || ""}>{`${conn.tcpLatencyMs} ms`}</strong>
+              </span>
+            ) : null}
+            {conn.latencyMs != null ? (
+              <span>
+                {"HTTPS "}
+                <strong className={styles[`netLatency${httpsTier || "Unknown"}`] || ""}>{`${conn.latencyMs} ms`}</strong>
+              </span>
+            ) : null}
+            {conn.host ? (
+              <span className={styles.netHeroTarget}>{`→ ${conn.host}`}</span>
+            ) : null}
+          </div>
+        ) : null}
+        {conn.online && (conn.tcpLatencyMs != null || conn.latencyMs != null) ? (
+          <div className={styles.latencyScales} aria-hidden="true">
+            {conn.tcpLatencyMs != null ? (
+              <div className={styles.latencyScaleRow}>
+                <span className={styles.latencyScaleLabel}>TCP</span>
+                <div className={styles.latencyScale}>
+                  <div className={styles.latencyScaleTrack}>
+                    <span className={styles.latencyScaleGreen} />
+                    <span className={styles.latencyScaleYellow} />
+                    <span className={styles.latencyScaleRed} />
+                  </div>
+                  <div
+                    className={styles.latencyScaleMarker}
+                    style={{ left: `${Math.min(100, Math.max(0, (conn.tcpLatencyMs / 1000) * 100))}%` }}
+                  />
+                </div>
+              </div>
+            ) : null}
+            {conn.latencyMs != null ? (
+              <div className={styles.latencyScaleRow}>
+                <span className={styles.latencyScaleLabel}>HTTPS</span>
+                <div className={styles.latencyScale}>
+                  <div className={styles.latencyScaleTrack}>
+                    <span className={styles.latencyScaleHttpsGreen} />
+                    <span className={styles.latencyScaleHttpsYellow} />
+                    <span className={styles.latencyScaleHttpsRed} />
+                  </div>
+                  <div
+                    className={styles.latencyScaleMarker}
+                    style={{ left: `${Math.min(100, Math.max(0, (conn.latencyMs / 2000) * 100))}%` }}
+                  />
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 };
