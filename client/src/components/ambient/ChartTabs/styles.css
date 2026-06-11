@@ -1,9 +1,9 @@
-/* ChartTabs — tabbed slab containing the hourly or daily chart.
+/* ChartTabs — forecast slab, v3.1 Phase 5 ("Prévisions, nommées").
  *
- * Tabs are pill-shaped buttons in the slab header. Active tab gets
- * the accent underline + brighter text; inactive stays dim. Chart
- * area has a fixed height (140px) so the slab doesn't reflow when
- * Chart.js renders the canvas. */
+ * Header (title · period pills · expand) + a labelled metric
+ * segmented control (Temp · Vent · Précip · Heures) replacing the
+ * pre-Phase-5 cryptic carousel dots (audit F9). Chart area keeps a
+ * fixed height so the slab doesn't reflow when Chart.js renders. */
 
 .slab {
   background-color: var(--c-surface);
@@ -24,12 +24,12 @@
  * views floated in a sea of empty space ("données justifiées au haut
  * dans un cas et au milieu dans l'autre" — user report).
  *
- * Now the slab sizes to its natural content height (tabs + legend +
- * chartArea + dots) capped by the chartArea's explicit height set
- * below. The slab still covers what sits directly below it in the
- * rail flow because z-index 5 stays in place; siblings further down
- * become visible again, which is fine — the maximize affordance is
- * "make this card bigger", not "take over the rail".
+ * Now the slab sizes to its natural content height capped by the
+ * chartArea's explicit height set below. The slab still covers what
+ * sits directly below it in the rail flow because z-index 5 stays in
+ * place; siblings further down become visible again, which is fine —
+ * the maximize affordance is "make this card bigger", not "take over
+ * the rail".
  *
  * `--c-bg` is the only token guaranteed 100 % opaque on every palette
  * (`--c-surface` sits at 85 %, the radar would bleed through at this
@@ -37,11 +37,11 @@
 .slab.slabMaximized {
   position: absolute;
   /* v2.16.5: pushed the maximized slab further down on iOS PWA
-   * portrait — `top: 12` placed the tab-row buttons (24h/5j) and
-   * the maximize chevron inside iOS's Control-Centre swipe-down
-   * zone (top-right corner, ~84 px tall × ~30 % of viewport width
-   * on a notched iPhone in portrait). iOS intercepted the touches
-   * as Control-Centre opens, so the buttons looked unresponsive.
+   * portrait — `top: 12` placed the header buttons and the expand
+   * button inside iOS's Control-Centre swipe-down zone (top-right
+   * corner, ~84 px tall × ~30 % of viewport width on a notched
+   * iPhone in portrait). iOS intercepted the touches as
+   * Control-Centre opens, so the buttons looked unresponsive.
    * The scroll container's padding-top already accounts for
    * safe-area-inset-top; we just need ~30 px more clearance so the
    * slab's top edge — and its top-right action button — sit below
@@ -57,126 +57,148 @@
   -webkit-backdrop-filter: blur(6px);
 }
 
-/* Tab row — two standalone toggle-style buttons (v2.14.74 — was a
- * unified segmented control before). The active tab gets the same
- * subtle `--c-accent-soft` fill the dock's auto-mode / nightRed
- * toggles use, so the visual language is consistent across all the
- * toggleable controls in the app: surface stays transparent when
- * inactive, accent-soft when active. The row container drops the
- * wrap-around border + background and just lays the buttons out
- * with a gap. */
-.tabRow {
-  display: inline-flex;
-  width: 100%;
-  margin-bottom: 12px;
-  gap: 6px;
-  align-items: center;
-}
-
-/* Specificity note (v2.14.74): selectors below are scoped under the
- * parent `.tabRow` to bump specificity to (0,2,0), which beats the
- * `.ambientRoot button` reset in ui/reset.css (0,1,1). Without this,
- * the reset's `background: transparent; border: 0` wins over the
- * module's bare `.tab` / `.active` rules (0,1,0) — the buttons render
- * unstyled and `.active` produces no visible accent fill (the symptom
- * the user flagged when 24h/5j tabs looked indistinguishable from
- * inactive).
+/* ---- Header row: PRÉVISIONS · period pills · expand ----------------
  *
- * Same fix pattern as `.cycleDots .dot` below — see its specificity
- * note for the longer-form explanation. */
-.tabRow .tab {
+ * Specificity note: every button rule in this file is scoped under its
+ * parent container, bumping it to (0,2,0) so it beats the
+ * `.ambientRoot button` reset in ui/reset.css (0,1,1) — the documented
+ * trap that previously rendered the cycle dots and the 24h/5j tabs
+ * unstyled (v2.14.52 / v2.14.74 notes, same fix pattern). */
+.headerRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.headerTitle {
+  font-family: "Geist Mono", monospace;
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--c-text-dim);
   flex: 1;
+  min-width: 0;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.periodPills {
   display: inline-flex;
   align-items: center;
-  justify-content: center;
-  background-color: transparent;
-  border: 1px solid transparent;
-  padding: 7px 14px;
-  font-family: inherit;
-  font-size: 12px;
+  gap: 4px;
+  flex: none;
+}
+
+.periodPills .periodPill {
+  font-family: "Geist Mono", monospace;
   font-weight: 500;
-  letter-spacing: 0.2px;
+  font-size: 9.5px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 3px 9px;
+  border-radius: 999px;
+  background-color: transparent;
+  border: 1px solid var(--c-border);
   color: var(--c-text-dim);
-  border-radius: 6px;
   cursor: pointer;
-  transition: background-color 120ms ease-out, color 120ms ease-out, border-color 120ms ease-out;
+  white-space: nowrap;
   -webkit-tap-highlight-color: transparent;
+  transition: background-color 120ms ease-out, color 120ms ease-out, border-color 120ms ease-out;
 }
 
-@media (hover: hover) and (pointer: fine) {
-  .tabRow .tab:hover {
-    color: var(--c-text);
-  }
+.periodPills .periodPillActive {
+  background-color: var(--c-accent-soft);
+  color: var(--c-accent);
+  border-color: var(--c-accent);
 }
 
-.tabRow .tab:focus-visible {
+.periodPills .periodPill:focus-visible {
   outline: 2px dashed var(--c-text);
   outline-offset: 2px;
 }
 
-.tabRow .active {
-  color: var(--c-text);
+/* ---- Metric tabs — labelled segmented control (audit F9) ----------- */
+.metricTabs {
+  display: flex;
+  gap: 0;
+  background-color: var(--c-surface-hybrid, var(--c-surface));
+  border: 1px solid var(--c-border);
+  border-radius: 10px;
+  padding: 3px;
+  margin-bottom: 10px;
+}
+
+.metricTabs .metricTab {
+  flex: 1;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 5px;
+  padding: 7px 6px;
+  border: none;
+  background-color: transparent;
+  color: var(--c-text-dim);
+  font-family: inherit;
+  font-size: 11.5px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  border-radius: 7px;
+  cursor: pointer;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+  transition: background-color 120ms ease-out, color 120ms ease-out;
+}
+
+.metricTabs .metricTab svg {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  opacity: 0.7;
+}
+
+.metricTabs .metricTab:focus-visible {
+  outline: 2px dashed var(--c-text);
+  outline-offset: 1px;
+}
+
+.metricTabs .metricTabActive {
   background-color: var(--c-accent-soft);
-  border-color: var(--c-border-hybrid);
+  color: var(--c-text);
   font-weight: 600;
 }
 
-/* Small custom legend row above the chart canvas. The Chart.js
- * native legend is disabled (we render the title there instead and
- * vertical space is scarce in compact mode), so the colour key for
- * the two-series line charts is supplied by this row.
- *
- * v2.14.54: row now ALWAYS renders so it reserves vertical space —
- * cycling between line and columns views keeps the slab the same
- * total height, which keeps the AI summary card below at a stable
- * position rather than jumping up when the columns view shortens
- * the chart card. `min-height` guarantees the reservation even
- * when the row content is empty (columns view). */
-.legendRow {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 14px;
-  margin: 4px 0 6px 0;
-  min-height: 16px;
-  font-size: 11px;
-  font-weight: 500;
-  color: var(--c-text-dim);
-  letter-spacing: 0.2px;
-}
-
-.legendItem {
-  display: inline-flex;
-  align-items: center;
-  gap: 5px;
-}
-
-.legendDot {
-  display: inline-block;
-  width: 9px;
-  height: 9px;
-  border-radius: 50%;
-}
-
-/* Colours match the Chart.js dataset borderColor/backgroundColor in
- * HourlyChart / DailyChart (see chartColors in their respective
- * common.js / index.js — grey for temp / wind, blue for precip).
- * Hard-coded RGB matches the rgba(.., 0.5) lines visually at 1.0
- * alpha; if those line colours ever change, sync the dot here.
- *
- * Note: opaque (no alpha) since the dot is small enough that
- * transparency over the slab surface would wash it out. */
-.legendDotMain {
-  background-color: rgb(127, 127, 127);
-}
-
-.legendDotPrecip {
-  background-color: rgb(63, 127, 191);
+.metricTabs .metricTabActive svg {
+  opacity: 1;
+  color: var(--c-accent);
 }
 
 .chartArea {
   height: 140px;
   position: relative;
+}
+
+/* Grid metric (Heures/Jours): natural height — the icon grid is taller
+ * than the chart heights (compact 2×4 ≈ 160 px, expanded 3×8 ≈ 330 px)
+ * and clipping forecast cells is worse than the slab growing a little
+ * on this one tab. min-height keeps the floor so a short daily strip
+ * doesn't shrink the slab below its chart-tab size. */
+.chartArea.chartAreaGrid {
+  height: auto;
+  min-height: 140px;
+}
+
+.slabMaximized .chartArea.chartAreaGrid {
+  height: auto;
+  min-height: 240px;
+}
+
+@media (min-width: 1280px) {
+  .slabMaximized .chartArea.chartAreaGrid {
+    min-height: 320px;
+  }
 }
 
 /* When the slab is maximized, the chartArea grows to a sensible fixed
@@ -187,11 +209,7 @@
  *     which exceeded the visible rail on the user's remote Pi
  *     viewport — the chart card needed scrolling to see the bottom.
  *     240 px brings the slab to ~366 px, which fits even on shorter
- *     viewports / higher font-scales. The 24h hourly columns at
- *     compact typography (~70 px per row × 3 + gaps ≈ 226 px)
- *     centre with ~7 px top/bottom — tight but the content reads
- *     as a single unit. The 5-day expanded view at sub-1280 typo
- *     (~140 px content) centres with ~50 px each side.
+ *     viewports / higher font-scales.
  *
  *   - ≥ 1280 (LayoutDesktop): 320 px. The hourly columns at EXPANDED
  *     desktop typography (~93 px per row × 3 + gaps ≈ 295 px) need
@@ -213,122 +231,175 @@
   max-height: 100%;
 }
 
-/* Action button (maximize / restore) lives at the right end of the tab
- * row. Same visual language as AiSummaryInline's button: transparent
- * background, dim icon, hover lights it up via `--c-accent-soft`.
- * v2.16.4: bumped to 44×44 (Apple HIG minimum) — see the parallel
- * comment in AiSummaryInline/styles.css for the iOS-PWA portrait-mode
- * unresponsiveness diagnostic. */
-.actionButton {
+/* Action button (maximize / restore) at the right end of the header.
+ * v2.16.4: 44×44 (Apple HIG minimum) — see the parallel comment in
+ * AiSummaryInline/styles.css for the iOS-PWA portrait-mode
+ * unresponsiveness diagnostic; the hit area must NOT shrink below
+ * 44 px (Phase 5 design review D8 — the visual restyle below adopts
+ * the reference's bordered-surface look at the full hit size).
+ * Bracket-icon pair (expand/restore) shared with the radar focus
+ * toggle and the mobile maximize button — one icon vocabulary. */
+.headerRow .actionButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  position: relative;
   width: 44px;
   height: 44px;
   margin-left: 4px;
   padding: 0;
   background-color: transparent;
   border: 0;
-  border-radius: 5px;
   cursor: pointer;
   color: var(--c-text-dim);
   -webkit-tap-highlight-color: transparent;
   flex-shrink: 0;
 }
 
-.actionButton:hover {
-  color: var(--c-text);
+/* The VISIBLE box is a centred 28×28 pseudo-element (the reference's
+ * expand-btn size) while the button keeps the full 44 px hit area —
+ * painting the whole hit box read as a huge square dominating the
+ * slim header (maintainer-reported). */
+.headerRow .actionButton::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border-radius: 6px;
+  background-color: var(--c-surface-hybrid, var(--c-surface));
+  border: 1px solid var(--c-border);
+}
+
+.headerRow .actionButton .actionIcon {
+  position: relative;
+}
+
+.headerRow .actionButton:active {
+  color: var(--c-accent);
+  transform: scale(0.96);
+}
+
+.headerRow .actionButton:active::before {
   background-color: var(--c-accent-soft);
 }
 
-.actionButton:focus-visible {
+.headerRow .actionButton:focus-visible {
   outline: 2px dashed var(--c-text);
-  outline-offset: 1px;
+  outline-offset: -4px;
 }
 
-.actionButton[aria-pressed="true"] {
+.headerRow .actionButton[aria-pressed="true"] {
   color: var(--c-text);
+}
+
+.headerRow .actionButton[aria-pressed="true"]::before {
   background-color: var(--c-accent-soft);
+  border-color: var(--c-accent);
 }
 
 .actionIcon {
-  font-size: 16px;
+  width: 14px;
+  height: 14px;
   flex-shrink: 0;
 }
 
-/* Cycle indicator dots — sit below the chart area, communicate that
- * the active tab has multiple views and which one is currently shown.
- * Tapping a dot jumps directly to that view; tapping the chart area
- * itself advances by one (existing v2 gesture preserved).
- *
- * v2.14.50: bumped from 8 px outline-only to 10 px filled dim/active
- * after user noticed they were "too faint to see" at 18 % border
- * opacity against the cream surface in day mode. Inactive dots now
- * use `--c-text-dim` as a soft solid fill; active flips to the
- * full accent token. Reads clearly on every palette. */
-.cycleDots {
+/* ---- Summary pills + precip-overlay chip under the chart ----------- */
+.summaryWrap {
   display: flex;
   align-items: center;
-  justify-content: center;
-  gap: 10px;
-  margin-top: 10px;
-  min-height: 20px;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--c-border);
+  min-height: 22px;
 }
 
-/* Specificity note (v2.14.52 fix): selectors below use the parent
- * `.cycleDots` to bump specificity to (0,2,0), which beats the
- * `.ambientRoot button` reset in ui/reset.css (0,1,1). Without this,
- * the reset's `background: transparent; border: 0` wins over the
- * module's `.dot` rule (0,1,0) and the dots render as invisible
- * 0-sized buttons — exactly what the user reported. */
-.cycleDots .dot {
-  width: 12px;
-  height: 12px;
-  padding: 0;
-  /* Subtle 1-px ring at the same dim text colour to give the dot a
-   * crisp edge even when its fill blends with the surface. */
-  border: 1px solid var(--c-text-dim);
-  border-radius: 50%;
-  /* Fill at the dim text token — no element-level opacity, no
-   * transparency multiplications. The dim token itself is already
-   * the muted variant. Reads clearly on every palette without
-   * disappearing into the surface. */
-  background-color: var(--c-text-dim);
+.summaryRow {
+  display: flex;
+  gap: 8px 12px;
+  flex-wrap: wrap;
+  align-items: baseline;
+  flex: 1;
+  min-width: 0;
+  font-family: "Geist Mono", monospace;
+  font-weight: 500;
+  font-size: 9.5px;
+  color: var(--c-text-dim);
+  letter-spacing: 0.04em;
+}
+
+.summaryPill {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+  white-space: nowrap;
+}
+
+.summaryPill strong {
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--c-text);
+  letter-spacing: -0.005em;
+}
+
+/* Line-style key pills ("— trait : vitesse · pointillé : rafales",
+ * "··· probabilité") — accent-tinted so they read as a legend, not a
+ * measurement. */
+.summaryPillAccent,
+.summaryPillAccent strong {
+  color: var(--c-accent);
+  font-size: 9.5px;
+}
+
+/* Optional precipitation overlay toggle (temp/wind tabs) — the
+ * maintainer-chosen continuation of the old paired charts. Checkbox
+ * grammar so the on/off nature is obvious at a glance. */
+.summaryWrap .overlayChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  padding: 3px 8px;
+  border-radius: 999px;
+  border: 1px solid var(--c-border);
+  background-color: transparent;
+  color: var(--c-text-dim);
+  font-family: "Geist Mono", monospace;
+  font-weight: 500;
+  font-size: 9px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
-  /* Larger invisible hit target — ~26 px tap zone via box-shadow
-   * extension so touchscreen taps don't miss the 12-px disc. */
-  box-shadow: 0 0 0 7px transparent;
-  transition: background-color 120ms ease-out, border-color 120ms ease-out, transform 120ms ease-out;
 }
 
-.cycleDots .dot:hover {
-  background-color: var(--c-text);
-  border-color: var(--c-text);
+.summaryWrap .overlayChipBox {
+  width: 11px;
+  height: 11px;
+  border: 1px solid currentColor;
+  border-radius: 3px;
+  display: inline-grid;
+  place-items: center;
+  font-size: 8px;
+  line-height: 1;
 }
 
-.cycleDots .dot:focus-visible {
-  outline: 2px dashed var(--c-text);
-  outline-offset: 3px;
-}
-
-.cycleDots .dotActive {
-  background-color: var(--c-accent);
+.summaryWrap .overlayChipActive {
+  color: var(--c-accent);
   border-color: var(--c-accent);
-  transform: scale(1.25);
+  background-color: var(--c-accent-soft);
 }
 
-/* v2.14.74 removed the inline view-label that sat to the right of
- * the dots. The dots already carry the active-view state visually
- * (accent fill on the selected dot) and aria-label / title on each
- * dot keeps screen-readers + keyboard users informed. */
+.summaryWrap .overlayChip:focus-visible {
+  outline: 2px dashed var(--c-text);
+  outline-offset: 2px;
+}
 
-/* Columns view wrapper — the line-chart components ship their own
- * onClick on `.container`, but DailyForecastColumns and
- * HourlyForecastColumns don't, so we wrap them in a div that owns
- * the tap-to-cycle gesture. Sized to fill the chartArea so the tap
- * zone covers the full column strip rather than only the columns
- * themselves. */
+/* Columns view wrapper — the chart component ships its own onClick on
+ * `.container`, but DailyForecastColumns and HourlyForecastColumns
+ * don't, so we wrap them in a div that owns the tap-to-cycle gesture.
+ * Sized to fill the chartArea so the tap zone covers the full column
+ * strip rather than only the columns themselves. */
 .columnsClickable {
   width: 100%;
   height: 100%;
@@ -342,27 +413,53 @@
   border-radius: 6px;
 }
 
-/* HourlyChart ships its own wrapper `.container` with hardcoded
- * `width: 255px; height: 115px` (sized for v2's WeatherInfo panel).
- * In v3's ChartTabs the rail width varies (300/340 px) and the slab
- * inside is wider than 255 px — at fontSize=L (`zoom: 1.15` on the
- * rail) the canvas's right Y-axis labels ("100%", "0%") were getting
- * truncated to single digits because Chart.js's layout math assumed
- * the 255 px ceiling. Forcing the chart's wrapper div to fill the
- * chartArea via a descendant selector lets Chart.js measure the real
- * available width and lay out both Y-axes cleanly. Direct-child
- * selector (not `*`) so the error-state wrapper inside HourlyChart is
- * unaffected (it uses its own `.errContainer` class). */
+/* The chart components ship a wrapper `.container` originally sized
+ * for v2's 255 px panel — force it to fill the chartArea so Chart.js
+ * measures the real available width (axis labels were truncating at
+ * fontSize=L otherwise). Column layout so MetricChart's optional
+ * wind-direction row stacks under the canvas without overflowing the
+ * fixed chartArea height. */
 .chartArea > div {
   width: 100%;
   height: 100%;
+  display: flex;
+  flex-direction: column;
 }
 
-/* Chart.js canvas fills its parent; the existing HourlyChart /
- * DailyChart components bring their own colour scheme tied to
- * darkMode. They'll render correctly inside the slab but won't pick
- * up the warm-grey palette yet — Phase 10 cleanup will restyle them
- * to use the active palette tokens. */
 .chartArea canvas {
-  max-height: 140px;
+  max-height: 100%;
+}
+
+/* Sub-1280 rails (LayoutPi 300 px) — the mock's 7" tab compaction:
+ * smaller type + tighter padding so four labelled tabs fit the rail
+ * at every font-size preference. */
+@media (max-width: 1279px) {
+  .metricTabs .metricTab {
+    font-size: 10px;
+    padding: 6px 4px;
+    gap: 3px;
+    /* Flex children refuse to shrink below min-content without this —
+     * the active "Heures" pill was escaping the tab container on the
+     * 300 px rail (maintainer-reported). */
+    min-width: 0;
+    overflow: hidden;
+  }
+
+  .metricTabs .metricTab svg {
+    width: 11px;
+    height: 11px;
+  }
+
+  /* The title is decorative on narrow rails — the metric tabs already
+   * say what the card is, and the title was the element starving the
+   * header (truncating to "PRÉ…" at fontSize M, worse at L where the
+   * rail's zoom shrinks the effective width further). Period pills
+   * take over the left edge; the expand button stays right. */
+  .headerTitle {
+    display: none;
+  }
+
+  .periodPills {
+    margin-right: auto;
+  }
 }

@@ -70,6 +70,18 @@
   --rc-alert-adv: rgba(232, 88, 88, 0.32);
 }
 
+/* TYPOGRAPHY NOTE (post-Phase 3/5 field feedback): the user's S/M/L
+ * font-size preference is applied as `zoom` on the SCROLLABLE subtrees
+ * only (rail, heroSlot) — deliberately never on the map, so Leaflet
+ * stays at native resolution (Phase 7 incident). The map overlays
+ * therefore scale their TEXT through `calc(base × --c-font-scale)`
+ * instead: labels follow the preference while the geometries (40 px
+ * buttons, 4 px track, hit areas) stay fixed. Base sizes also sit
+ * ~1-1.5 px above the design reference's micro-type, which was
+ * calibrated for a 720 px mock device, not a real screen. The legal
+ * attribution strip is the one deliberate exception (fixed 10 px — it
+ * must fit the 16 px corridor under the bar). */
+
 /* ============================================================
  * Radar legend — bottom-left card, three sections (Phase 3 v2.1):
  * analysis radii · precipitation scale · nearby-alert tiers.
@@ -129,7 +141,7 @@
 }
 
 .legend-title {
-  font-size: 8.5px;
+  font-size: calc(10px * var(--c-font-scale, 1));
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--c-text-dim, inherit);
@@ -151,7 +163,7 @@
 }
 
 .legend-radii {
-  font-size: 9.5px;
+  font-size: calc(11px * var(--c-font-scale, 1));
   letter-spacing: 0.04em;
 }
 
@@ -181,7 +193,7 @@
 .scale-labels {
   display: flex;
   justify-content: space-between;
-  font-size: 7.5px;
+  font-size: calc(9px * var(--c-font-scale, 1));
   letter-spacing: 0.08em;
   color: var(--rc-ink-3);
 }
@@ -196,7 +208,7 @@
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  font-size: 8px;
+  font-size: calc(9.5px * var(--c-font-scale, 1));
   letter-spacing: 0.04em;
   white-space: nowrap;
 }
@@ -213,7 +225,7 @@
 .alert-tier-swatch-adv { background: var(--rc-alert-adv); }
 
 .alert-count {
-  font-size: 8.5px;
+  font-size: calc(10px * var(--c-font-scale, 1));
   letter-spacing: 0.04em;
   color: var(--c-text-dim, inherit);
 }
@@ -250,7 +262,7 @@
   cursor: pointer;
   font-family: "Geist Mono", monospace;
   font-weight: 500;
-  font-size: 9px;
+  font-size: calc(10.5px * var(--c-font-scale, 1));
   letter-spacing: 0.08em;
   text-transform: uppercase;
   color: var(--c-text, #3a3938);
@@ -273,7 +285,7 @@
   display: grid;
   place-items: center;
   font-style: italic;
-  font-size: 10px;
+  font-size: calc(11px * var(--c-font-scale, 1));
   text-transform: none;
 }
 
@@ -306,7 +318,7 @@
   -webkit-backdrop-filter: blur(8px);
   font-family: "Geist Mono", monospace;
   font-weight: 500;
-  font-size: 8.5px;
+  font-size: calc(10px * var(--c-font-scale, 1));
   letter-spacing: 0.06em;
   color: var(--c-text-dim, inherit);
   white-space: nowrap;
@@ -342,7 +354,7 @@
   place-items: center;
   color: var(--c-text, inherit);
   font-style: italic;
-  font-size: 11px;
+  font-size: calc(12px * var(--c-font-scale, 1));
   cursor: pointer;
   padding: 0;
   touch-action: manipulation;
@@ -450,7 +462,7 @@
 }
 
 .legend-overlay-title {
-  font-size: 9px;
+  font-size: calc(10.5px * var(--c-font-scale, 1));
   letter-spacing: 0.14em;
   text-transform: uppercase;
   color: var(--c-text-dim, inherit);
@@ -683,7 +695,7 @@
   padding: 0 6px;
   font-family: "Geist Mono", monospace;
   font-weight: 500;
-  font-size: 11px;
+  font-size: calc(12px * var(--c-font-scale, 1));
   color: var(--c-text-dim, inherit);
   letter-spacing: 0.04em;
 }
@@ -698,17 +710,22 @@
 }
 
 .rt-ts {
-  font-size: 13px;
+  font-size: calc(14px * var(--c-font-scale, 1));
   font-weight: 500;
   letter-spacing: -0.005em;
   line-height: 1.2;
   white-space: nowrap;
+  /* Without this the nowrap line paints PAST its flex box and under
+   * the return-to-now pill when the header runs tight (fontSize L on
+   * a mid-width window — maintainer-reported overlap). */
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .rt-now-tag {
   font-family: "Geist Mono", monospace;
   font-weight: 500;
-  font-size: 9px;
+  font-size: calc(10px * var(--c-font-scale, 1));
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: var(--c-accent, #b85a18);
@@ -731,7 +748,7 @@
 .rt-rel {
   font-family: "Geist Mono", monospace;
   font-weight: 500;
-  font-size: 10px;
+  font-size: calc(11px * var(--c-font-scale, 1));
   color: var(--c-text-dim, inherit);
   letter-spacing: 0.04em;
   white-space: nowrap;
@@ -751,7 +768,7 @@
   color: var(--c-accent, #b85a18);
   font-family: "Geist Mono", monospace;
   font-weight: 500;
-  font-size: 9.5px;
+  font-size: calc(10.5px * var(--c-font-scale, 1));
   letter-spacing: 0.1em;
   text-transform: uppercase;
   cursor: pointer;
@@ -770,10 +787,24 @@
   transform: scale(0.96);
 }
 
+/* Mid-width windows (and the 7"/10" kiosks): the pill goes icon-only —
+ * its title/aria keep the label for assistive tech, and the freed
+ * ~80 px is what the timestamp + chip need at fontSize L. The ambient
+ * mobile layout already does this via its own override below. */
+@media (max-width: 1279px) {
+  .rt-return-now .rt-return-label {
+    display: none;
+  }
+
+  .rt-return-now.rt-return-now {
+    padding: 0 9px;
+  }
+}
+
 .rt-source-chip {
   font-family: "Geist Mono", monospace;
   font-weight: 500;
-  font-size: 9.5px;
+  font-size: calc(10.5px * var(--c-font-scale, 1));
   letter-spacing: 0.1em;
   color: var(--c-text-dim, inherit);
   text-transform: uppercase;
@@ -871,7 +902,7 @@
   left: 50%;
   transform: translateX(-50%);
   font-family: "Geist Mono", monospace;
-  font-size: 8.5px;
+  font-size: calc(9.5px * var(--c-font-scale, 1));
   letter-spacing: 0.1em;
   text-transform: uppercase;
   color: var(--c-accent, #b85a18);
@@ -969,7 +1000,7 @@
   transform: translateX(-50%);
   font-family: "Geist Mono", monospace;
   font-weight: 500;
-  font-size: 8px;
+  font-size: calc(9.5px * var(--c-font-scale, 1));
   color: var(--rc-ink-3);
   letter-spacing: 0.08em;
   white-space: nowrap;
@@ -1050,7 +1081,7 @@
   color: var(--c-text, #3a3938);
   font-family: "Geist Mono", monospace;
   font-weight: 500;
-  font-size: 10px;
+  font-size: calc(11px * var(--c-font-scale, 1));
   letter-spacing: 0.06em;
   text-transform: uppercase;
   white-space: nowrap;
@@ -1083,7 +1114,7 @@
 :global(.ring-label) {
   font-family: "Geist Mono", monospace;
   font-weight: 500;
-  font-size: 9px;
+  font-size: calc(10.5px * var(--c-font-scale, 1));
   color: var(--map-circle-label);
   letter-spacing: 0.1em;
   background: var(--c-surface, rgba(255, 250, 240, 0.94));
@@ -1097,7 +1128,7 @@
 }
 
 :global(.ambientRoot[data-layout="pi"]) :global(.ring-label) {
-  font-size: 8px;
+  font-size: calc(9.5px * var(--c-font-scale, 1));
 }
 
 :global(.ambientRoot[data-layout="mobile"]) :global(.ring-label) {
@@ -1137,11 +1168,11 @@
 }
 
 :global(.ambientRoot[data-layout="mobile"]) .rt-ts {
-  font-size: 11px;
+  font-size: calc(12px * var(--c-font-scale, 1));
 }
 
 :global(.ambientRoot[data-layout="mobile"]) .rt-rel {
-  font-size: 8.5px;
+  font-size: calc(9.5px * var(--c-font-scale, 1));
 }
 
 :global(.ambientRoot[data-layout="mobile"]) .rt-source-chip {

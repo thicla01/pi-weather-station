@@ -25,6 +25,7 @@
     "axios": "^1.17.0",
     "babel-loader": "^10.1.1",
     "chart.js": "^4.5.1",
+    "chartjs-plugin-datalabels": "^2.2.0",
     "date-fns": "^4.4.0",
     "debounce": "^3.0.0",
     "i18next": "^26.3.1",
