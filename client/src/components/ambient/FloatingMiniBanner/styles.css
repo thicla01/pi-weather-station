@@ -77,3 +77,22 @@
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* "1 / N" counter — passive, mono, dim; mirrors the head-row counter
+ * in AlertBanner so the user knows more alerts wait behind this one. */
+.counter {
+  flex: none;
+  font-family: "Geist Mono", monospace;
+  font-weight: 500;
+  font-size: calc(10px * var(--c-font-scale, 1));
+  letter-spacing: 0.06em;
+  color: var(--c-text-dim);
+  white-space: nowrap;
+}
+
+.chevron {
+  flex: none;
+  width: 14px;
+  height: 14px;
+  color: var(--c-text-dim);
+}
