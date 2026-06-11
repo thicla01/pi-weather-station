@@ -1,91 +1,81 @@
-import { useEffect, useRef } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import PropTypes from "prop-types";
-import { useMap } from "react-leaflet";
-import L from "leaflet";
+
+import { ExpandIcon, RestoreIcon } from "./icons";
+import styles from "./styles.css";
+
+const TOAST_TIMEOUT_MS = 2000;
 
 /**
- * Radar-focus toggle rendered as a Leaflet control in the topleft
- * stack (sits under the zoom +/- and the direction-arrow toggle).
- * Used on LayoutDesktop only: tapping it hides HeroBand and the
- * right rail so the radar fills the entire viewport. Same imperative
- * Leaflet control pattern as ArrowToggleControl above so the icon
- * stack reads as a coherent set of map controls — no new visual
- * vocabulary, and the click+scroll propagation is killed at the
- * Leaflet layer so we don't re-centre the map underneath.
+ * Radar-focus toggle — the standalone 40 × 40 px button under the zoom
+ * stack (v3.1 Phase 3). Tapping it hides HeroBand and the right rail so
+ * the radar fills the viewport; tapping again restores them. Rendered
+ * as a plain absolutely-positioned button over the map (same overlay
+ * pattern as RadarTimeline / RadarLegend), replacing the previous
+ * Leaflet-bar control whose U+26F6 glyph rendered inconsistently
+ * across platforms — the four-corner-bracket SVG pair (outward =
+ * expand, inward = restore) is the cross-platform replacement, and
+ * `aria-pressed` carries the toggle state for both a11y and the active
+ * CSS paint.
  *
- * @param {Object} props
- * @param {Boolean} props.active Whether focus mode is currently on
+ * Each toggle confirms with a short self-dismissing toast next to the
+ * button (the action's effect — panels vanishing — happens away from
+ * where the finger is, so the confirmation anchors the cause).
+ *
+ * @param {object} props
+ * @param {boolean} props.active Whether focus mode is currently on
  * @param {Function} props.onToggle Click handler — flips `active`
- * @param {String} props.titleOn Tooltip when active (e.g. "Restore panels")
- * @param {String} props.titleOff Tooltip when inactive (e.g. "Hide panels")
- * @returns {null} Renders nothing — control is added imperatively
+ * @param {string} props.titleOn Tooltip + toast when active (e.g. "Restore panels")
+ * @param {string} props.titleOff Tooltip + toast when inactive (e.g. "Focus radar")
+ * @returns {JSX.Element} Focus toggle button + transient toast
  */
 const RadarFocusControl = ({ active, onToggle, titleOn, titleOff }) => {
-  const map = useMap();
-  const linkRef = useRef(null);
-  const onToggleRef = useRef(onToggle);
-  onToggleRef.current = onToggle;
+  const [toast, setToast] = useState(null);
+  const toastTimerRef = useRef(null);
+
+  // The toast names the action the tap just performed — i.e. the title
+  // the button was showing when pressed (`active` still holds the
+  // pre-toggle state here). Pressing "Focus radar" toasts "Focus
+  // radar"; pressing "Restore panels" toasts "Restore panels".
+  const handleClick = (e) => {
+    // Defensive: keep the click from bubbling out of the overlay (the
+    // map container is a sibling, but ancestors register handlers too).
+    e.stopPropagation();
+    setToast(active ? titleOn : titleOff);
+    onToggle();
+    // Blur so the button doesn't keep keyboard focus after a tap
+    // (legacy lesson from the Leaflet-anchor version of this control:
+    // lingering focus + sticky hover painted a stuck active state).
+    e.currentTarget.blur();
+  };
 
   useEffect(() => {
-    const control = L.control({ position: "topleft" });
-    control.onAdd = () => {
-      const container = L.DomUtil.create("div", "leaflet-bar leaflet-control");
-      const link = L.DomUtil.create("a", "", container);
-      link.href = "#";
-      link.setAttribute("role", "button");
-      // U+26F6 (squared four-corner): renders as four L-brackets
-      // pointing outward — the universal "maximize / fill" affordance.
-      // When active we switch to a "←→ inward" approximation via a
-      // contrasting fill colour so the user gets a clear toggle signal
-      // without juggling two unicode glyphs (most fonts don't carry a
-      // matching "minimize" symbol).
-      link.innerHTML = "⛶";
-      link.style.fontWeight = "bold";
-      link.style.fontSize = "22px";
-      link.style.lineHeight = "30px";
-      L.DomEvent.disableClickPropagation(container);
-      L.DomEvent.disableScrollPropagation(container);
-      L.DomEvent.on(link, "click", (e) => {
-        L.DomEvent.preventDefault(e);
-        L.DomEvent.stopPropagation(e);
-        onToggleRef.current?.();
-        // Blur immediately so the anchor doesn't keep keyboard focus
-        // after the click. Without this the :focus / :focus-visible
-        // pseudo stayed on the link and (combined with sticky :hover
-        // while the cursor was still over the button) painted the
-        // accent-soft hover fill — user-reported as "the button
-        // stays pale after I tap to deactivate". Browsers don't
-        // promote mouse-click focus to :focus-visible, but blurring
-        // is the cleanest defence against the next user not getting
-        // bitten by future Chrome behaviour changes here.
-        link.blur();
-      });
-      linkRef.current = link;
-      return container;
-    };
-    control.addTo(map);
-    return () => {
-      control.remove();
-      linkRef.current = null;
-    };
-  }, [map]);
+    if (toast == null) return undefined;
+    toastTimerRef.current = setTimeout(() => setToast(null), TOAST_TIMEOUT_MS);
+    return () => clearTimeout(toastTimerRef.current);
+  }, [toast]);
 
-  useEffect(() => {
-    const link = linkRef.current;
-    if (!link) return;
-    link.title = active ? titleOn : titleOff;
-    link.setAttribute("aria-pressed", String(active));
-    // Toggle a class instead of setting inline styles. The Leaflet
-    // base rules in ui/reset.css use !important, so inline styles
-    // without !important can't win — and even if they did, the
-    // :hover rule (also !important) sticks after a tap on touch /
-    // devtools and the button never visually resets when the user
-    // toggles focus off. The radar-focus-active CSS rule (also in
-    // reset.css, with matching !important) wins cleanly both ways.
-    link.classList.toggle("radar-focus-active", !!active);
-  }, [active, titleOn, titleOff]);
-
-  return null;
+  return (
+    <>
+      <button
+        type="button"
+        className={styles.radarFocusBtn}
+        onClick={handleClick}
+        onDoubleClick={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+        aria-pressed={active}
+        aria-label={active ? titleOn : titleOff}
+        title={active ? titleOn : titleOff}
+      >
+        {active ? <RestoreIcon /> : <ExpandIcon />}
+      </button>
+      {toast != null && (
+        <div className={styles.radarFocusToast} role="status">
+          {toast}
+        </div>
+      )}
+    </>
+  );
 };
 
 RadarFocusControl.propTypes = {

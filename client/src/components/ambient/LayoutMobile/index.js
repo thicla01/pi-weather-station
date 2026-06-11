@@ -1,8 +1,6 @@
 import React, { useContext, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { InlineIcon } from "@iconify/react";
-import maximize from "@iconify/icons-carbon/maximize";
-import minimize from "@iconify/icons-carbon/minimize";
+import { ExpandIcon, RestoreIcon } from "~/components/WeatherMap/icons";
 import { UiPrefsContext, SystemContext, AppActionsContext } from "~/AppContext";
 import WeatherMap from "~/components/WeatherMap";
 import HeroCompact from "~/components/ambient/HeroCompact";
@@ -317,7 +315,10 @@ const LayoutMobile = () => {
               defaultValue: mobileRadarMaximized ? "Restore radar size" : "Expand radar",
             })}
           >
-            <InlineIcon icon={mobileRadarMaximized ? minimize : maximize} />
+            {/* Same four-corner-bracket SVG pair as the desktop/7"
+              * radar-focus toggle (v3.1 Phase 3 harmonization — the
+              * Carbon diagonal arrows were the lone icon outlier). */}
+            {mobileRadarMaximized ? <RestoreIcon /> : <ExpandIcon />}
           </button>
         </div>
         <ChartTabs />

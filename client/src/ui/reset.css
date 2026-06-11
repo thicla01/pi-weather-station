@@ -100,20 +100,70 @@
   color: var(--c-text) !important;
 }
 
-/* Active state for the radar-focus Leaflet control (toggled via
- * .classList.toggle("radar-focus-active") in RadarFocusControl).
- * Needs !important to win over the base + hover rules above,
- * AND needs to also win when the cursor / touch is still over
- * the button after the tap that flipped the state. The hover
- * selector below mirrors the base hover rule so the user gets
- * the same visual on tap-release as on resting active. */
-.ambientRoot .leaflet-bar a.radar-focus-active,
-.ambientRoot .leaflet-bar a.radar-focus-active:hover,
-.ambientRoot .leaflet-bar a.radar-focus-active:focus,
-.ambientRoot .leaflet-touch .leaflet-bar a.radar-focus-active,
-.ambientRoot .leaflet-touch .leaflet-bar a.radar-focus-active:hover {
-  background-color: var(--c-accent) !important;
-  color: var(--c-bg) !important;
+/* The `.radar-focus-active` Leaflet-anchor rules that lived here were
+ * removed with v3.1 Phase 3: the radar-focus toggle is no longer a
+ * Leaflet bar control — it's a standalone module-scoped button (see
+ * WeatherMap/RadarFocusControl.js + `.radar-focus-btn` in the
+ * WeatherMap stylesheet), with its active state painted via
+ * [aria-pressed="true"]. */
+
+/* v3.1 Phase 3 — zoom buttons restyled to the design's 40 × 40 px
+ * touch targets (Leaflet ships 26–30 px, below the touch threshold —
+ * audit finding on the kiosk). Radius 10 on the bar to match the
+ * other floating radar controls, and an :active accent state as the
+ * kiosk's feedback channel (hover is deliberately a no-op, see the
+ * block above). 36 px on the mobile layout per the design. */
+.ambientRoot .leaflet-control-zoom.leaflet-bar {
+  border: 1px solid var(--c-border) !important;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 6px 16px rgba(0, 0, 0, 0.12);
+}
+
+.ambientRoot .leaflet-control-zoom a,
+.ambientRoot .leaflet-touch .leaflet-control-zoom a {
+  width: 40px !important;
+  height: 40px !important;
+  line-height: 40px !important;
+  font-size: 18px;
+  font-weight: 500;
+}
+
+/* Both selectors needed: during a touch press Chromium applies :hover
+ * AND :active simultaneously, and the no-op hover rule above peaks at
+ * (0,4,1) via its `.leaflet-touch` variant — the touch-qualified
+ * :active here matches that specificity and, being later in the
+ * sheet, wins. Without it the pressed state never paints on the
+ * kiosk (review finding).
+ *
+ * Pressed fill is an OPAQUE accent tint (accent mixed into the page
+ * bg), not `--c-accent-soft` directly: accent-soft is an ~18 % alpha
+ * and the Leaflet anchors carry their own surface (unlike the mock,
+ * where the bar held it) — swapping the surface for accent-soft made
+ * the pressed button go see-through over the map (Pi 7" field
+ * report). */
+.ambientRoot .leaflet-control-zoom a:active,
+.ambientRoot .leaflet-touch .leaflet-control-zoom a:active {
+  background-color: color-mix(in srgb, var(--c-accent) 18%, var(--c-bg)) !important;
+  color: var(--c-accent) !important;
+}
+
+/* Leaflet's stylesheet puts margin: 10px on every control — combined
+ * with the 16 px corner offset above, the zoom bar landed at 26/26
+ * instead of the design's 16/16, broke the single top-left guide
+ * line, and pushed the bar's bottom edge under the standalone
+ * radar-focus button on LayoutPi (review finding). Zero it: the
+ * corner offset is the whole inset now. */
+.ambientRoot .leaflet-top.leaflet-left .leaflet-control {
+  margin: 0;
+}
+
+.ambientRoot[data-layout="mobile"] .leaflet-control-zoom a,
+.ambientRoot[data-layout="mobile"] .leaflet-touch .leaflet-control-zoom a {
+  width: 36px !important;
+  height: 36px !important;
+  line-height: 36px !important;
+  font-size: 16px;
 }
 
 /* Push Leaflet's top-left control stack (zoom +/-) down + right to

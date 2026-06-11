@@ -17,16 +17,24 @@
   /* Mirror of `--c-rail-width` for consumers that need to know how
    * much horizontal room the rail is ACTUALLY OCCUPYING right now
    * — not how wide the rail's box is declared. v2.14.70: the
-   * RadarTimeline scrubber's horizontal centring uses this so the
-   * scrubber sits in the visible (non-rail) area in expanded
-   * states AND snaps back to the true viewport centre when the
-   * user collapses the rail. `.layout.collapsed` overrides this to
-   * 0 below. The original `--c-rail-width` keeps its declared
-   * value so the rail's own width / off-screen translate math
-   * continues to work. */
+   * The radar timeline bar's right inset and the attribution strip
+   * use this so they stop at the visible (non-rail) area edge. The
+   * `.layout.focused` override below zeroes it when radar-focus mode
+   * hides the rail — without it the "full-width" bar stopped a rail's
+   * width short of the right edge in the one mode built to give the
+   * radar everything (review finding; the stale comment claiming a
+   * `.collapsed` override predates the focus-mode rename). The
+   * original `--c-rail-width` keeps its declared value so the rail's
+   * own width / off-screen translate math continues to work. */
   --c-rail-visible-width: var(--c-rail-width);
   --c-dock-height: 52px;
   --c-edge-gap: 16px;
+}
+
+/* Radar-focus mode hides the rail entirely — the rail-aware insets
+ * (timeline bar, attribution) must follow it to zero. */
+.layout.focused {
+  --c-rail-visible-width: 0px;
 }
 
 @media (min-width: 1600px) {

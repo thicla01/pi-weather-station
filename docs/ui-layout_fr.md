@@ -43,10 +43,10 @@ Variante A « Compagnon nomade » du dossier de design. Colonne unique défilant
 
 ### Carte radar maximisable
 
-- Bouton ⛶ dans le coin supérieur droit de la carte mini (44×44 px, conforme Apple HIG).
-- En mode mini (220 px), la **légende radar et le scrubber de chronologie sont cachés en CSS** — pas de place lisible. Les boutons correspondants du dock sont grisés et un toast invite à maximiser la carte.
-- En mode maximisé, la carte sort du flux (`position: absolute`) et s'épingle aux bords du conteneur défilant ; la légende et la chronologie réapparaissent.
-- Le `top:` maximisé utilise `max(12px, env(safe-area-inset-top))` pour éviter la **zone Control-Centre d'iOS** (coin supérieur droit ~84 px × 30 % de la largeur en portrait notché) qui interceptait les taps sur le bouton de minimiser.
+- Bouton maximiser dans le coin supérieur droit de la carte mini (44×44 px, conforme Apple HIG) — paire SVG à quatre équerres depuis la Phase 3 (vers l'extérieur = agrandir, vers l'intérieur = restaurer, mêmes icônes que le toggle focus desktop/7").
+- En mode mini (220 px), la **bande de légende radar et la timeline sont cachées en CSS** — pas de place lisible. Les boutons correspondants du dock sont grisés et un toast invite à maximiser la carte.
+- En mode maximisé, la carte passe en **pleine surface** : elle remplit 100 % de l'espace applicatif au-dessus du dock (`inset` aux bords du conteneur défilant, sans marges ni coins arrondis) — le même traitement « le radar possède l'écran » que les grandes dispositions. La bande de légende compacte et la barre de timeline réapparaissent.
+- Le `top:` maximisé conserve `env(safe-area-inset-top)` pour que les contrôles sur la carte évitent la **zone Control-Centre d'iOS** (coin supérieur droit ~84 px × 30 % de la largeur en portrait notché) qui interceptait les taps sur le bouton de minimiser (v2.16.5).
 
 ### Pull-to-refresh
 
@@ -200,6 +200,20 @@ S'étend sur toute la largeur du viewport en bas des trois dispositions (Mobile 
 | ⬆ Mise à jour | Ouvrir la fenêtre de mise à jour | Quand une nouvelle version est disponible |
 
 L'apparence des boutons s'adapte à la palette Direction C via des propriétés CSS personnalisées : arrière-plans transparents (la surface du dock transparaît), séparateurs `--c-border-hybrid`, `--c-accent-soft` lors de l'appui/actif.
+
+---
+
+## Contrôles de la carte radar (v3.1 Phase 3)
+
+Tous les contrôles flottants sur la carte Leaflet suivent la référence Claude Design Phase 3 v2.1 (constats d'audit F7 · F8 · F20).
+
+- **Zoom +/−** — haut-gauche, 40 × 40 px (36 px sur mobile), surface teintée par la palette, retour `:active` accent uniquement (aucun survol sur les surfaces kiosque). Infobulles localisées.
+- **Focus radar (plein écran)** — bouton autonome 40 × 40 px sous la pile de zoom (top 110 px ; 100 px sur LayoutPi). Paire SVG à quatre équerres (vers l'extérieur = focus, vers l'intérieur = restaurer — la même paire que le toggle de maximisation de la carte mobile). Masque le HeroBand + le rail ; chaque bascule est confirmée par un bref toast. État actif = accent plein.
+- **Barre de timeline** — barre pleine largeur en bas (inset droit conscient du rail). En-tête : lecture/pause · pas ±1 · vitesse (1×/2×/4×) · horodatage + chip « now-tag » (jamais un décalage relatif nu ; les trames de prévision basculent vers un chip pointillé « Prévision · +N min ») · sous-ligne des comptes de trames · pilule retour-au-présent conditionnelle · chip source (« RainViewer · 10 min », cadence dérivée de l'espacement réel des trames ; teinte d'avertissement si le dernier rafraîchissement de la liste a échoué). Piste : remplissage passé, marqueur « Maintenant » étiqueté à la frontière passé→prévision, zone future hachurée **scrubbable**, et étiquettes de graduation dérivées au runtime (−2 h … +30 min). La surface de scrub reste l'input range natif (invisible, pleine largeur) — la gestion pointer-capture éprouvée sur le terrain et l'accessibilité clavier sont conservées.
+- **Légende** — carte bas-gauche à trois sections : *Rayons d'analyse* (sensible à l'unité ; cercle extérieur seulement si le rayon étendu est actif), *Précipitations* (la vraie barre à six segments du scheme 6 RainViewer — identique dans les quatre palettes, nuit-rouge incluse), *Alertes à proximité* (clé des tiers + compte honnête dans le rayon). Sur écrans courts (≤ 520 px de haut) avec la timeline ouverte, elle se replie en chip « (i) Légende » ; le chip — et le (i) de la bande mobile — ouvrent la légende complète en surimpression (scrim + ✕ + Échap). Sur la disposition mobile, la carte est remplacée par une bande compacte pleine largeur près du bord inférieur.
+- **Chips de rayon sur la carte** — étiquettes « 50 km » / « 100 km » à l'intersection sud-est des cercles (sensibles à l'unité ; masquées sur mobile et au-delà du zoom 13, même porte que les cercles).
+- **Attribution** — au ras du bas-droite, collée au bord du dock dans tous les états (obligation légale — visible partout, y compris la mini-carte mobile) ; amincie pour tenir dans le couloir de 16 px sous la barre de timeline / la bande de légende.
+- Les nouveaux tokens CSS du radar (`--rc-*`, `--map-*`) vivent dans `WeatherMap/styles.css`, commutés par palette via `data-palette` (délibérément pas ajoutés à `ui/tokens.js`). En nuit-rouge, les tokens des tiers d'alertes s'effondrent vers la famille rouge tandis que l'échelle de précipitations garde les vraies couleurs des tuiles.
 
 ---
 

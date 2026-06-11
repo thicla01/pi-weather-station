@@ -43,10 +43,10 @@ Variant A "Compagnon nomade" from the design package. Single scrollable column t
 
 ### Maximizable radar card
 
-- ⛶ button in the top-right corner of the mini card (44×44 px, Apple HIG compliant).
-- In mini mode (220 px), the **radar legend and timeline scrubber are CSS-hidden** — no readable room. The corresponding dock buttons are greyed out and a toast invites the user to maximize the card.
-- When maximized, the card leaves the flow (`position: absolute`) and pins to the scroll container's bounds; the legend and scrubber reappear.
-- The maximized `top:` uses `max(12px, env(safe-area-inset-top))` to clear iOS's **Control-Centre swipe zone** (top-right quadrant ~84 px × 30 % viewport width in notched portrait), which was intercepting taps on the minimize button.
+- Maximize button in the top-right corner of the mini card (44×44 px, Apple HIG compliant) — four-corner-bracket SVG pair since Phase 3 (outward = expand, inward = restore, same icons as the desktop/7" focus toggle).
+- In mini mode (220 px), the **radar legend strip and timeline are CSS-hidden** — no readable room. The corresponding dock buttons are greyed out and a toast invites the user to maximize the card.
+- When maximized, the card goes **full-bleed**: it fills 100 % of the app area above the dock (`inset` to the scroll container's edges, no margins, no rounded corners) — the same "radar owns the screen" treatment as the big-screen layouts. The compact legend strip and the timeline bar reappear.
+- The maximized `top:` keeps `env(safe-area-inset-top)` so the in-map controls clear iOS's **Control-Centre swipe zone** (top-right quadrant ~84 px × 30 % viewport width in notched portrait), which was intercepting taps on the minimize button (v2.16.5).
 
 ### Pull-to-refresh
 
@@ -200,6 +200,20 @@ Spans the full viewport width at the bottom of all three layouts (Mobile / Pi / 
 | ⬆ Update | Open update modal | When a new release is available |
 
 Button appearance adapts to the Direction C palette via CSS custom properties: transparent backgrounds (dock surface shows through), `--c-border-hybrid` dividers, `--c-accent-soft` on press/active.
+
+---
+
+## Radar map controls (v3.1 Phase 3)
+
+All floating controls over the Leaflet map follow the Claude Design Phase 3 v2.1 reference (audit findings F7 · F8 · F20).
+
+- **Zoom +/−** — top-left, 40 × 40 px (36 px on mobile), palette-tinted surface, `:active` accent feedback only (no hover on kiosk surfaces). Localized tooltips.
+- **Radar focus (fullscreen)** — standalone 40 × 40 px button below the zoom stack (top 110 px; 100 px on LayoutPi). Four-corner-bracket SVG pair (outward = focus, inward = restore — the same pair as the mobile card's maximize toggle). Hides HeroBand + the rail; each toggle confirms with a short toast. Active state = solid accent.
+- **Timeline bar** — full-width bottom bar (rail-aware right inset). Header: play/pause · step ±1 · speed (1×/2×/4×) · timestamp + "now-tag" chip (never a bare relative offset; forecast frames flip to a dashed "Forecast · +N min" chip) · frame-count sub-line · conditional return-to-now pill · source chip ("RainViewer · 10 min", cadence derived from the live frame spacing; warn-tinted when the last frame-list refresh failed). Track: past fill, a labelled "Now" marker at the past→nowcast boundary, a hatched **scrubbable** future zone, and runtime-derived tick labels (−2 h … +30 min). The scrub surface is still the native range input (invisible, full-width) — the field-hardened pointer-capture handling and keyboard accessibility carry over.
+- **Legend** — bottom-left card with three sections: *Analysis radii* (unit-aware; outer ring only when extended radius is on), *Precipitation* (the real RainViewer colour-scheme-6 six-segment bar — identical in all four palettes, nightRed included), *Nearby alerts* (tier key + honest in-radius count). On short screens (≤ 520 px height) with the timeline open it collapses to an "(i) Legend" chip; the chip — and the mobile strip's (i) — open the full legend as an overlay (scrim + ✕ + Escape). On the mobile layout the card is replaced by a compact full-width strip above the bottom edge.
+- **On-map radius chips** — "50 km" / "100 km" labels at the rings' south-east intersection (unit-aware; hidden on mobile and past zoom 13, same gate as the rings).
+- **Attribution** — flush bottom-right, hugging the dock edge in every state (legal requirement — visible everywhere, including the mobile mini-card); slimmed to fit the 16 px corridor under the timeline bar / legend strip.
+- New radar-scoped CSS tokens (`--rc-*`, `--map-*`) live in `WeatherMap/styles.css`, switched per palette via `data-palette` (deliberately not added to `ui/tokens.js`). In nightRed the alert-tier tokens collapse to the red family while the precipitation scale keeps the true tile colours.
 
 ---
 

@@ -11,6 +11,7 @@ import {
   TileLayer,
   WMSTileLayer,
   AttributionControl,
+  ZoomControl,
   Marker,
   Circle,
   CircleMarker,
@@ -65,6 +66,7 @@ import styles from "./styles.css";
 import RadarLegend from "./RadarLegend";
 import RadarTimeline from "./RadarTimeline";
 import RiskRing from "./RiskRing";
+import RingLabels from "./RingLabels";
 import MapResizer from "./MapResizer";
 import RadarFocusControl from "./RadarFocusControl";
 import {
@@ -361,9 +363,11 @@ ZoomLevelHandler.propTypes = {
  * @param {?string} props.highlightedAlertId — id of the alert whose
  *   polygon is currently shown; null = no overlay
  * @param {Array} props.govAlerts — list of active alerts
+ * @param {boolean} props.nightRed — night-vision palette active (alert
+ *   chrome collapses to the red family, Phase 3 rule A1)
  * @returns {JSX.Element|null}
  */
-const AlertGeometryOverlay = ({ highlightedAlertId, govAlerts }) => {
+const AlertGeometryOverlay = ({ highlightedAlertId, govAlerts, nightRed }) => {
   const map = useMap();
   // Find the matching alert. Memo because govAlerts changes on every
   // poll cycle but we only care about the active highlight.
@@ -371,19 +375,13 @@ const AlertGeometryOverlay = ({ highlightedAlertId, govAlerts }) => {
     if (!highlightedAlertId || !Array.isArray(govAlerts)) return null;
     return govAlerts.find((a) => a && a.id === highlightedAlertId && a.geometry) || null;
   }, [govAlerts, highlightedAlertId]);
-  // Tier → colour mapping. Aligned with the SeverityChip palette and
-  // the AlertBanner tier styling so the overlay visually agrees with
-  // the banner the user just tapped. `red` for warning-grade alerts
-  // (severe / extreme), `orange` for watch-grade (moderate),
-  // `yellow` for advisory (minor). Falls back to a neutral grey if
-  // the tier value is unexpected.
-  const colour = useMemo(() => {
-    if (!alert) return null;
-    if (alert.tier === "red") return "#e60000";
-    if (alert.tier === "orange") return "#ee7710";
-    if (alert.tier === "yellow") return "#f0c000";
-    return "#888";
-  }, [alert]);
+  // Tier → colour via the shared tierColour() (geometry.js) so the
+  // overlay, the nearby-alerts polygons and the legend key all agree —
+  // including the nightRed collapse-to-red rule (Phase 3, A1).
+  const colour = useMemo(
+    () => (alert ? tierColour(alert.tier, nightRed) : null),
+    [alert, nightRed]
+  );
   // GeoJSON style — 2 px border + 15 % fill so the polygon reads
   // clearly against the radar tiles without obscuring them.
   const style = useMemo(() => (colour ? {
@@ -431,6 +429,7 @@ AlertGeometryOverlay.propTypes = {
   highlightedAlertId: PropTypes.string,
   // eslint-disable-next-line react/forbid-prop-types -- alert objects are payload-shaped, not statically typed
   govAlerts: PropTypes.array,
+  nightRed: PropTypes.bool,
 };
 
 AlertGeometryOverlay.defaultProps = {
@@ -450,15 +449,16 @@ AlertGeometryOverlay.defaultProps = {
  *
  * @param {object} props
  * @param {Array<object>} props.alerts nearby alerts (each carries `geometry`)
+ * @param {boolean} props.nightRed night-vision palette active (tiers collapse to the red family)
  * @returns {JSX.Element|null} the polygon layers, or null when the list is empty
  */
-const NearbyAlertsOverlay = ({ alerts }) => {
+const NearbyAlertsOverlay = ({ alerts, nightRed }) => {
   if (!Array.isArray(alerts) || alerts.length === 0) return null;
   return (
     <>
       {alerts.map((a) => {
         if (!a || !a.geometry || !a.id) return null;
-        const colour = tierColour(a.tier);
+        const colour = tierColour(a.tier, nightRed);
         // Same 2 px solid border + 15 % fill as the single-alert overlay
         // so radar reads through and the solid border stays distinct from
         // the dashed radar/risk circles.
@@ -471,6 +471,7 @@ const NearbyAlertsOverlay = ({ alerts }) => {
 
 NearbyAlertsOverlay.propTypes = {
   alerts: PropTypes.array,
+  nightRed: PropTypes.bool,
 };
 
 NearbyAlertsOverlay.defaultProps = {
@@ -540,7 +541,10 @@ const WeatherMap = ({ zoom, dark }) => {
   // by both v2 and v3 layouts, so reading from useTimeOfDay keeps the
   // logic palette-aware without coupling to either layout.
   const nightRed = useTimeOfDay() === "nightRed";
-  const { t } = useTranslation();
+  // `i18n` feeds the ZoomControl remount key: react-leaflet only
+  // forwards `position` updates to an existing control, so the +/-
+  // titles would otherwise stay frozen in the mount-time language.
+  const { t, i18n } = useTranslation();
   // Pixel width of the v3 right rail when visible. Drives the
   // off-centre projection trick that keeps the marker at the visual
   // centre of the non-rail area; see panWithRailOffset for the math.
@@ -685,6 +689,11 @@ const WeatherMap = ({ zoom, dark }) => {
   );
 
   const [mapTimestamps, setMapTimestamps] = useState(null);
+  // True when the most recent RainViewer frame-list refresh failed —
+  // drives the timeline's source chip into its degraded (warn) state
+  // so a stale frame window is never a silent failure (Phase 3 design:
+  // "no silent failure" on the freshness chip).
+  const [timestampsStale, setTimestampsStale] = useState(false);
   const [mapTimestamp, setMapTimestamp] = useState(null);
   // Current playback position in the timeline. -1 = "use the most recent
   // past frame" (initial mount). Kept as local state — earlier we tried
@@ -717,6 +726,21 @@ const WeatherMap = ({ zoom, dark }) => {
     return () => mq.removeEventListener("change", handler);
   }, []);
 
+  // Narrow (phone-width) detection — mirrors AmbientLayers' mobile
+  // breakpoint (< 800 px). Drives the timeline's compact copy (short
+  // chips / frame counts): the height-based query above doesn't match
+  // portrait phones, which are short on WIDTH instead.
+  const NARROW_SCREEN_MQ = "(max-width: 799px)";
+  const [isNarrow, setIsNarrow] = useState(
+    () => typeof window !== "undefined" && window.matchMedia(NARROW_SCREEN_MQ).matches
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(NARROW_SCREEN_MQ);
+    const handler = (e) => setIsNarrow(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
+
   // Risk levels for the dashed circles live in AppContext (see InfoPanel's
   // AlertBanner, which reads the same state to surface the alert text). We
   // only keep the polling logic here because it's gated by the same
@@ -744,9 +768,13 @@ const WeatherMap = ({ zoom, dark }) => {
       getMapTimestamps()
         .then((res) => {
           setMapTimestamps(res);
+          setTimestampsStale(false);
         })
         .catch((err) => {
           console.log("err", err);
+          // Keep the last good frame list on screen but flag it stale —
+          // the timeline's source chip flips to the warn tone.
+          setTimestampsStale(true);
         });
     };
 
@@ -1004,8 +1032,20 @@ const WeatherMap = ({ zoom, dark }) => {
     );
   }
 
+  // `withTimeline` re-anchors the legend/chip and the attribution strip
+  // above the full-width timeline bar; without the bar they drop back
+  // to the bottom edge (legend-without-timeline state). `withLegend`
+  // does the mirror job for the MOBILE timeline: the design pins it at
+  // 78px to clear the compact legend strip below, but with the legend
+  // toggled off the strip isn't rendered and the bar must drop to the
+  // bottom edge instead of floating over a hole (maintainer-reported;
+  // the mock always showed the strip, so this combo wasn't specced).
+  const timelineShown = Boolean(mapTimestamps && mapTimestamps.length > 0)
+    && radarSource === "rainviewer" && radarTimelineVisible;
+  const legendShown = Boolean(mapTimestamps) && radarSource === "rainviewer" && !hideRadarLegend;
+
   return (
-    <div className={styles.mapWrapper}>
+    <div className={`${styles.mapWrapper} ${timelineShown ? styles.withTimeline : ""} ${legendShown ? styles.withLegend : ""}`}>
       <MapContainer
         center={[latitude, longitude]}
         zoom={zoom}
@@ -1027,10 +1067,20 @@ const WeatherMap = ({ zoom, dark }) => {
         maxZoom={18}
         style={{ width: "100%", height: "100%" }}
         attributionControl={false}
+        /* Default zoom control replaced by an explicit <ZoomControl>
+         * below so the +/- titles go through i18n (v3.1 Phase 3 —
+         * the 40 px restyle itself lives in ui/reset.css). */
+        zoomControl={false}
         touchZoom={true}
         dragging={true}
         fadeAnimation={false}
       >
+        <ZoomControl
+          key={`zoom-${i18n.language}`}
+          position="topleft"
+          zoomInTitle={t("radar.zoomIn", { defaultValue: "Zoom in" })}
+          zoomOutTitle={t("radar.zoomOut", { defaultValue: "Zoom out" })}
+        />
         <MapClickHandler onClick={mapClickHandler} />
         <PanHandler panToCoords={panToCoords} setPanToCoords={setPanToCoords} railOffset={railOffset} />
         <InitialOffsetCentering railOffset={railOffset} markerPosition={markerPosition} />
@@ -1046,34 +1096,10 @@ const WeatherMap = ({ zoom, dark }) => {
           longitude={longitude}
           zoom={zoom}
         />
-        {/* Focus / unfocus the radar — Leaflet control rendered when
-         * LayoutDesktop OR LayoutPi is the active layout (one of the
-         * two sentinels is non-null). Sits in the topleft Leaflet bar
-         * alongside zoom +/− and the direction-arrow toggle. Tapping
-         * it hides HeroBand + rail so the radar fills the entire
-         * viewport. The dock stays uncluttered. The 2026-05-28 v3.1
-         * consolidation extended this control from Desktop-only to
-         * Desktop + Pi, replacing the legacy chevron rail-collapse
-         * toggle that used to live on the right edge of the map on
-         * both layouts. The same Leaflet control now serves both
-         * layouts; we route the toggle to whichever sentinel is
-         * active (mutually exclusive — only one layout is mounted
-         * at a time). */}
-        {((desktopRadarMaximized !== null && desktopRadarMaximized !== undefined)
-          || (piRadarMaximized !== null && piRadarMaximized !== undefined)) && (
-          <RadarFocusControl
-            active={Boolean(piRadarMaximized != null ? piRadarMaximized : desktopRadarMaximized)}
-            onToggle={() => {
-              if (piRadarMaximized != null) {
-                setPiRadarMaximized(!piRadarMaximized);
-              } else {
-                setDesktopRadarMaximized(!desktopRadarMaximized);
-              }
-            }}
-            titleOn={t("controls.restorePanels", { defaultValue: "Restore panels" })}
-            titleOff={t("controls.focusRadar", { defaultValue: "Focus radar" })}
-          />
-        )}
+        {/* RadarFocusControl moved OUT of the MapContainer with v3.1
+         * Phase 3 — it's now a standalone overlay button (rendered
+         * after the map alongside RadarLegend/RadarTimeline), no
+         * longer a Leaflet bar control. */}
         {/* ArrowToggleControl lived here pre-2.14.15 as an imperative
          * Leaflet control at the topleft. Moved to BottomDock so the
          * top-left of the map stays uncluttered (and the dock has
@@ -1090,7 +1116,12 @@ const WeatherMap = ({ zoom, dark }) => {
          * `.leaflet-attribution-flag` only when `data-palette` on
          * `.ambientRoot` resolves to `nightRed`. See ui/reset.css.
          * No remount, no duplicated attributions. */}
-        <AttributionControl position="bottomleft" />
+        {/* bottomright since v3.1 Phase 3: the timeline is now a
+         * full-width bottom bar, so the strip docks above its right
+         * end (offset in styles.css, rail-aware). The legal Mapbox +
+         * RainViewer attribution stays visible in every state —
+         * including the mobile mini-card. */}
+        <AttributionControl position="bottomright" />
         <TileLayer
           attribution={MAPBOX_ATTRIBUTION}
           url={`/api/tiles/${dark ? darkModeStyle : lightModeStyle}/{z}/{x}/{y}`}
@@ -1210,6 +1241,17 @@ const WeatherMap = ({ zoom, dark }) => {
         {radarAnalysisEnabled && markerPosition && extendedRadarRadius && currentMapZoom < RING_HIDE_ZOOM ? (
           <RiskRing center={markerPosition} radius={outerRadiusMeters} risk={outerRisk} dark={dark} aiOff={!aiSummaryAvailable} nightRed={nightRed} />
         ) : null}
+        {/* On-map radius chips ("50 km" / "100 km") at the rings' SE
+            intersection (v3.1 Phase 3 — audit F7/F20). Same gates as
+            the rings so the labels never outlive their circles; the
+            mobile layout hides them in CSS. */}
+        {radarAnalysisEnabled && markerPosition && currentMapZoom < RING_HIDE_ZOOM ? (
+          <RingLabels
+            center={markerPosition}
+            distanceUnit={distanceUnit}
+            extendedRadarRadius={extendedRadarRadius}
+          />
+        ) : null}
         {/* Nearby-alerts radius ring (Phase 2) — the user's survey extent,
             persistent while the layer is on. A cool-blue dotted circle
             (red dash-dot in nightRed) kept distinct from the radar risk
@@ -1271,12 +1313,13 @@ const WeatherMap = ({ zoom, dark }) => {
         <AlertGeometryOverlay
           highlightedAlertId={highlightedAlertId}
           govAlerts={govAlerts}
+          nightRed={nightRed}
         />
         {/* Nearby-alerts survey polygons (Phase 2) — every active alert
             within the radius, painted tier-coloured. Display-only; gated
             on the layer toggle (OFF by default until the Phase 3 dock
             button). Never moves the map. */}
-        {showWeatherAlerts ? <NearbyAlertsOverlay alerts={nearbyAlerts} /> : null}
+        {showWeatherAlerts ? <NearbyAlertsOverlay alerts={nearbyAlerts} nightRed={nightRed} /> : null}
         {/* Survey tap popup (Phase 3b): opens at the tapped point when it
             landed inside one or more alert polygons. Lightweight subject +
             a single "Re-center here" that re-activates the point-based path. */}
@@ -1290,11 +1333,41 @@ const WeatherMap = ({ zoom, dark }) => {
           </Popup>
         ) : null}
       </MapContainer>
+      {/* Radar-focus toggle — standalone overlay button under the zoom
+          stack (v3.1 Phase 3; formerly a Leaflet bar control inside the
+          MapContainer). Rendered when LayoutDesktop OR LayoutPi is the
+          active layout (one of the two sentinels is non-null); tapping
+          it hides HeroBand + rail so the radar fills the viewport, and
+          a short toast confirms the toggle. LayoutMobile has its own
+          maximize button on the inset card (same icon pair). */}
+      {((desktopRadarMaximized !== null && desktopRadarMaximized !== undefined)
+        || (piRadarMaximized !== null && piRadarMaximized !== undefined)) && (
+        <RadarFocusControl
+          active={Boolean(piRadarMaximized != null ? piRadarMaximized : desktopRadarMaximized)}
+          onToggle={() => {
+            if (piRadarMaximized != null) {
+              setPiRadarMaximized(!piRadarMaximized);
+            } else {
+              setDesktopRadarMaximized(!desktopRadarMaximized);
+            }
+          }}
+          titleOn={t("controls.restorePanels", { defaultValue: "Restore panels" })}
+          titleOff={t("controls.focusRadar", { defaultValue: "Focus radar" })}
+        />
+      )}
       {/* Legend + timeline are RainViewer-specific (the legend's colour
           scale matches RainViewer's intensity-encoded palette, and the
           timeline drives RainViewer's frame URLs). Hidden entirely when
-          radarSource is ECCC — Phase A doesn't bring scrubbing across. */}
-      {mapTimestamps && radarSource === "rainviewer" && !hideRadarLegend && !(radarTimelineVisible && isSmallScreen) && <RadarLegend dark={dark} />}
+          radarSource is ECCC — Phase A doesn't bring scrubbing across.
+
+          Short screens (≤ 520 px height) with the timeline open get the
+          legend as a compact "(i)" chip instead of the card — the Q5
+          mutual-exclusion rule from the Phase 3 design: both can't fit
+          in the 7" kiosk's vertical budget, but the legend stays one
+          tap away instead of vanishing. */}
+      {mapTimestamps && radarSource === "rainviewer" && !hideRadarLegend && (
+        <RadarLegend dark={dark} chipMode={radarTimelineVisible && isSmallScreen} />
+      )}
       {mapTimestamps && radarSource === "rainviewer" && radarTimelineVisible && (
         <RadarTimeline
           frames={mapTimestamps}
@@ -1302,6 +1375,8 @@ const WeatherMap = ({ zoom, dark }) => {
           onScrub={setRadarFrameIdx}
           timezone={mapTimezone}
           dark={dark}
+          compact={isSmallScreen || isNarrow}
+          sourceStale={timestampsStale}
         />
       )}
     </div>

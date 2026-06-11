@@ -459,10 +459,22 @@ export function panWithRailOffset(map, latLng, offset, opts = {}) {
  * SeverityChip + AlertBanner palette so the map overlay and the banner
  * agree. Falls back to a neutral grey for an unexpected tier value.
  *
+ * In nightRed, app-painted alert chrome collapses to the red family
+ * (Phase 3 design rule A1) — opacity steps carry the tier hierarchy.
+ * The values mirror the `--rc-alert-*` nightRed tokens in styles.css
+ * so the on-map polygons/markers and the legend key recolour together.
+ *
  * @param {?String} tier "red" | "orange" | "yellow"
- * @returns {String} hex colour
+ * @param {Boolean} [nightRed] Night-vision palette active
+ * @returns {String} CSS colour (hex or rgba)
  */
-export function tierColour(tier) {
+export function tierColour(tier, nightRed = false) {
+  if (nightRed) {
+    if (tier === "red") return "#e85858";
+    if (tier === "orange") return "rgba(232, 88, 88, 0.6)";
+    if (tier === "yellow") return "rgba(232, 88, 88, 0.32)";
+    return "rgba(232, 88, 88, 0.4)";
+  }
   if (tier === "red") return "#e60000";
   if (tier === "orange") return "#ee7710";
   if (tier === "yellow") return "#f0c000";

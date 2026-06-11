@@ -324,8 +324,15 @@ const ControlButtons = ({ grouped = false }) => {
        * BottomDock/styles.css). On phones in portrait the dock
        * hides secondary buttons to keep room for the essentials
        * (recenter, marker, contrast, refresh, settings, health
-       * dot); rotating to landscape brings them back. */
-      data-dock-priority="secondary"
+       * dot); rotating to landscape brings them back.
+       *
+       * Phase 3 follow-up: when the MOBILE RADAR IS MAXIMIZED the
+       * flag is dropped — the timeline/legend are exactly the
+       * controls that matter in that mode, and portrait had no way
+       * to reach them (maintainer-reported; the only workaround was
+       * toggling from a wide window/landscape). Mini mode keeps the
+       * lean dock. */
+      data-dock-priority={mobileRadarMaximized === true ? undefined : "secondary"}
       onClick={(e) => {
         if (radarOverlaysDisabled) {
           // Mobile mini mode — scrubber is hidden, tapping the
@@ -403,7 +410,8 @@ const ControlButtons = ({ grouped = false }) => {
   const btnLegend = radarSource === "rainviewer" ? (
     <div
       key="legend"
-      data-dock-priority="secondary"
+      /* Same maximized-mobile promotion as the timeline button above. */
+      data-dock-priority={mobileRadarMaximized === true ? undefined : "secondary"}
       onClick={(e) => {
         if (radarOverlaysDisabled) {
           notify("toasts.radarOverlaysNeedMaximize", e);

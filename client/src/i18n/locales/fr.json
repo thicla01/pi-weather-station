@@ -325,12 +325,7 @@
     "qrCaption": "Scannez pour ouvrir sur votre téléphone"
   },
   "radar": {
-    "legend": "RADAR",
-    "veryLight": "Très léger",
     "light": "Léger",
-    "moderate": "Modéré",
-    "heavy": "Fort",
-    "veryHeavy": "Très fort",
     "extreme": "Extrême",
     "showDirectionArrows": "Afficher les flèches de direction",
     "hideDirectionArrows": "Masquer les flèches de direction",
@@ -341,17 +336,30 @@
     "nearbyHere": "{{count}} alertes ici",
     "timeline": {
       "now": "maintenant",
-      "plusMin": "+{{min}} min",
-      "minusMin": "−{{min}} min",
-      "forecast": "prévision",
       "speedAria": "Changer la vitesse de l'animation radar",
       "scrubberAria": "Parcourir les images radar",
       "returnToNowAria": "Revenir à l'image radar actuelle",
       "stepBackAria": "Image précédente",
       "stepForwardAria": "Image suivante",
       "playAria": "Lancer l'animation radar",
-      "pauseAria": "Mettre en pause l'animation radar"
-    }
+      "pauseAria": "Mettre en pause l'animation radar",
+      "nowMarker": "Maintenant",
+      "agoMin": "Il y a {{min}} min",
+      "agoHours": "Il y a {{hours}} h",
+      "forecastChip": "Prévision · {{off}}",
+      "frameCounts": "{{past}} trames passées · {{future}} prévisions",
+      "framesPastOnly": "{{past}} trames passées",
+      "sourceStale": "Liste des trames périmée — le dernier rafraîchissement a échoué",
+      "forecastChipShort": "Prév. {{off}}",
+      "frameCountsShort": "{{past}} + {{future}} trames"
+    },
+    "zoomIn": "Zoom avant",
+    "zoomOut": "Zoom arrière",
+    "legendTitle": "Légende",
+    "legendOpen": "Ouvrir la légende",
+    "legendClose": "Fermer",
+    "legendRadii": "Rayons d'analyse",
+    "legendPrecip": "Précipitations"
   },
   "controls": {
     "resetMapPosition": "Recentrer la carte sur la position actuelle",

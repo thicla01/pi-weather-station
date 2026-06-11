@@ -107,7 +107,10 @@
  * Essentials kept visible in portrait: recenter, marker toggle,
  * contrast, refresh, settings, and the health-indicator dot — plus any
  * conditionally-shown buttons that don't carry the secondary flag
- * (debug trio when isLocal, update when available).
+ * (debug trio when isLocal, update when available, and — since the
+ * Phase 3 follow-up — the timeline/legend toggles while the mobile
+ * radar is maximized: ControlButtons drops their secondary flag in
+ * that state so the full-bleed radar's own controls stay reachable).
  *
  * Threshold is 600 px (was 479): the full dock stops fitting well below
  * ~650 px, and a desktop browser resized to its ~500 px minimum width
