@@ -203,6 +203,20 @@ Button appearance adapts to the Direction C palette via CSS custom properties: t
 
 ---
 
+## Radar map controls (v3.1 Phase 3)
+
+All floating controls over the Leaflet map follow the Claude Design Phase 3 v2.1 reference (audit findings F7 · F8 · F20).
+
+- **Zoom +/−** — top-left, 40 × 40 px (36 px on mobile), palette-tinted surface, `:active` accent feedback only (no hover on kiosk surfaces). Localized tooltips.
+- **Radar focus (fullscreen)** — standalone 40 × 40 px button below the zoom stack (top 110 px; 100 px on LayoutPi). Four-corner-bracket SVG pair (outward = focus, inward = restore — the same pair as the mobile card's maximize toggle). Hides HeroBand + the rail; each toggle confirms with a short toast. Active state = solid accent.
+- **Timeline bar** — full-width bottom bar (rail-aware right inset). Header: play/pause · step ±1 · speed (1×/2×/4×) · timestamp + "now-tag" chip (never a bare relative offset; forecast frames flip to a dashed "Forecast · +N min" chip) · frame-count sub-line · conditional return-to-now pill · source chip ("RainViewer · 10 min", cadence derived from the live frame spacing; warn-tinted when the last frame-list refresh failed). Track: past fill, a labelled "Now" marker at the past→nowcast boundary, a hatched **scrubbable** future zone, and runtime-derived tick labels (−2 h … +30 min). The scrub surface is still the native range input (invisible, full-width) — the field-hardened pointer-capture handling and keyboard accessibility carry over.
+- **Legend** — bottom-left card with three sections: *Analysis radii* (unit-aware; outer ring only when extended radius is on), *Precipitation* (the real RainViewer colour-scheme-6 six-segment bar — identical in all four palettes, nightRed included), *Nearby alerts* (tier key + honest in-radius count). On short screens (≤ 520 px height) with the timeline open it collapses to an "(i) Legend" chip; the chip — and the mobile strip's (i) — open the full legend as an overlay (scrim + ✕ + Escape). On the mobile layout the card is replaced by a compact full-width strip above the bottom edge.
+- **On-map radius chips** — "50 km" / "100 km" labels at the rings' south-east intersection (unit-aware; hidden on mobile and past zoom 13, same gate as the rings).
+- **Attribution** — bottom-right, docked above the timeline bar (legal requirement — visible in every state, including the mobile mini-card).
+- New radar-scoped CSS tokens (`--rc-*`, `--map-*`) live in `WeatherMap/styles.css`, switched per palette via `data-palette` (deliberately not added to `ui/tokens.js`). In nightRed the alert-tier tokens collapse to the red family while the precipitation scale keeps the true tile colours.
+
+---
+
 ## Overlays
 
 All overlays render as `position: fixed; inset: 0; z-index 5000+` and mirror the active Direction C palette via inline CSS variables (they render outside `AmbientLayers`).

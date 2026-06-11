@@ -2,87 +2,492 @@
   width: 100%;
   height: 100%;
   position: relative;
+
+  /* ============================================================
+   * v3.1 Phase 3 — radar-scoped design tokens (Claude Design v2.1).
+   *
+   * Two families, both component-scoped (NOT added to ui/tokens.js —
+   * only the radar surfaces consume them, and the per-palette values
+   * come from the Phase 3 v2.1 normative table):
+   *
+   *   --rc-*   new radar-chrome roles (surface-2 fill, ink-3 micro-
+   *            label ink, alert-tier swatches, tile scale)
+   *   --map-*  on-map paint (analysis-circle stroke + label ink)
+   *
+   * RainViewer tile colours (--rc-tile-1…6) are the EXACT colour
+   * scheme 6 palette the tiles ship with (docs/radar-classification)
+   * — fixed across all four palettes, because the tiles themselves
+   * never recolour. Alert tiers match what the app paints on the map
+   * (geometry.js tierColour) in day/dusk/night; nightRed overrides
+   * them to the red family below (the markers are app chrome, fully
+   * recolourable, unlike the tiles).
+   *
+   * Defaults below are the `day` column; the dusk/night/nightRed
+   * overrides live in the `.ambientRoot[data-palette]` blocks after
+   * this rule. The v2 legacy tree (no .ambientRoot ancestor) gets the
+   * day values, which is acceptable until its scheduled removal.
+   * ============================================================ */
+  --rc-tile-1: #00d0d0;
+  --rc-tile-2: #00c800;
+  --rc-tile-3: #f0e600;
+  --rc-tile-4: #f08200;
+  --rc-tile-5: #e60000;
+  --rc-tile-6: #7800b4;
+  --rc-alert-warn: #e60000;
+  --rc-alert-watch: #ee7710;
+  --rc-alert-adv: #f0c000;
+  --rc-surface-2: #f3ecd9;
+  --rc-ink-3: #a39a82;
+  --map-circle: rgba(40, 30, 20, 0.4);
+  --map-circle-label: #594a36;
 }
 
-/* Radar precipitation legend */
+:global(.ambientRoot[data-palette="dusk"]) .map-wrapper {
+  --rc-surface-2: #332e26;
+  --rc-ink-3: #6c6253;
+  --map-circle: rgba(235, 222, 200, 0.42);
+  --map-circle-label: #c8baa2;
+}
+
+:global(.ambientRoot[data-palette="night"]) .map-wrapper {
+  --rc-surface-2: #28251e;
+  --rc-ink-3: #5e564a;
+  --map-circle: rgba(230, 220, 200, 0.4);
+  --map-circle-label: #b8b3a2;
+}
+
+:global(.ambientRoot[data-palette="nightRed"]) .map-wrapper {
+  --rc-surface-2: #1f0a0a;
+  --rc-ink-3: #5a2020;
+  --map-circle: rgba(220, 80, 80, 0.45);
+  --map-circle-label: rgba(220, 80, 80, 0.7);
+  /* Alert tiers collapse to the red family — opacity steps carry the
+   * tier hierarchy (warn 1 / watch .6 / adv .32). The tiles keep their
+   * true colours (§5 option a — an honest legend beats palette purity;
+   * the map shows those colours regardless). */
+  --rc-alert-warn: #e85858;
+  --rc-alert-watch: rgba(232, 88, 88, 0.6);
+  --rc-alert-adv: rgba(232, 88, 88, 0.32);
+}
+
+/* ============================================================
+ * Radar legend — bottom-left card, three sections (Phase 3 v2.1):
+ * analysis radii · precipitation scale · nearby-alert tiers.
+ * Replaces the previous 6-row labelled list with the design's
+ * 6-segment colour bar. Sections render conditionally (radii only
+ * when the analysis rings are on, alerts only when the overlay is
+ * on) so the composition holds in every settings combination.
+ * ============================================================ */
 .radar-legend {
   position: absolute;
-  bottom: 24px;
-  right: 10px;
+  bottom: 16px;
+  left: var(--c-edge-gap, 16px);
+  width: 178px;
   z-index: 1000;
-  padding: 6px 9px;
-  border-radius: 4px;
-  font-family: "Geist", system-ui, -apple-system, sans-serif;
-  font-size: clamp(9px, 0.75vw, 11px);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  border: 1px solid var(--c-border, rgba(0, 0, 0, 0.12));
+  background: var(--c-surface, rgba(255, 250, 240, 0.94));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 6px 16px rgba(0, 0, 0, 0.12);
   pointer-events: none;
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  font-family: "Geist Mono", monospace;
+  font-weight: 500;
 }
 
-/* Dark/light text colour uses var(--c-text, fallback) so the radar
- * legend follows the active ambient palette when rendered inside an
- * ambient layout (esp. picks up the red tint in nightRed mode) while
- * keeping the original near-white / dark grey fallback for v2 layouts
- * where the CSS variables aren't defined. */
+/* Variant classes kept for two consumers: the v2 legacy tree (no
+ * ambient CSS vars — fallbacks below) and LayoutMobile's mini-card
+ * hide rules, which match on the unhashed `radar-legend-dark` /
+ * `radar-legend-light` substrings (see LayoutMobile/styles.css).
+ * The dark variant re-declares surface/border with DARK fallbacks:
+ * in ambient layouts the var() always wins (same value either way),
+ * but in the v2 tree dark mode the base rule's light fallback would
+ * otherwise pair near-white text with a cream card. */
 .radar-legend-dark {
-  background: rgba(58, 57, 56, 0.88);
-  border: 1px solid rgba(117, 117, 117, 0.45);
   color: var(--c-text, #f6f6f4);
+  background: var(--c-surface, rgba(30, 30, 32, 0.92));
+  border-color: var(--c-border, rgba(255, 255, 255, 0.12));
 }
 
 .radar-legend-light {
-  background: rgba(var(--light-panel-bg-rgb, 238, 236, 232), 0.90);
-  border: 1px solid rgba(218, 218, 218, 0.85);
   color: var(--c-text, #3a3938);
 }
 
-.radar-legend-title {
-  font-size: clamp(8px, 0.65vw, 10px);
-  letter-spacing: 0.08em;
-  opacity: 0.55;
-  margin-bottom: 5px;
+.legend-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
 }
 
-.radar-legend-item {
+.legend-section + .legend-section {
+  padding-top: 6px;
+  border-top: 1px solid var(--c-border, rgba(120, 120, 120, 0.25));
+}
+
+.legend-title {
+  font-size: 8.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--c-text-dim, inherit);
+  opacity: 0.9;
+}
+
+.legend-circle-row {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-bottom: 3px;
+  gap: 8px;
 }
 
-.radar-legend-item:last-child {
-  margin-bottom: 0;
+.legend-circle-swatch {
+  width: 14px;
+  height: 14px;
+  flex: none;
+  border-radius: 50%;
+  border: 1.5px dashed var(--map-circle);
 }
 
-.radar-legend-swatch {
-  width: 16px;
+.legend-radii {
+  font-size: 9.5px;
+  letter-spacing: 0.04em;
+}
+
+.legend-radii-sep {
+  color: var(--c-text-dim, inherit);
+  opacity: 0.7;
+}
+
+.precip-scale {
+  display: flex;
   height: 8px;
   border-radius: 2px;
-  flex-shrink: 0;
+  overflow: hidden;
 }
 
-.radar-legend-label {
+.precip-scale span {
+  flex: 1;
+}
+
+.precip-scale .t1 { background: var(--rc-tile-1); }
+.precip-scale .t2 { background: var(--rc-tile-2); }
+.precip-scale .t3 { background: var(--rc-tile-3); }
+.precip-scale .t4 { background: var(--rc-tile-4); }
+.precip-scale .t5 { background: var(--rc-tile-5); }
+.precip-scale .t6 { background: var(--rc-tile-6); }
+
+.scale-labels {
+  display: flex;
+  justify-content: space-between;
+  font-size: 7.5px;
+  letter-spacing: 0.08em;
+  color: var(--rc-ink-3);
+}
+
+.alert-tiers {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+}
+
+.alert-tier {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-size: 8px;
+  letter-spacing: 0.04em;
   white-space: nowrap;
 }
 
-/* Nearby-alerts block appended to the legend when the survey overlay
-   is on (Phase 3): a separator, the alert-tier key, then the in-radius
-   count + an honest "+N not mapped" note. */
-.nearby-block {
-  margin-top: 7px;
-  padding-top: 7px;
-  border-top: 1px solid var(--c-border-hybrid, rgba(120, 120, 120, 0.35));
+.alert-tier-swatch {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  flex: none;
 }
-.nearby-count {
-  margin-top: 5px;
-  font-size: 10px;
-  line-height: 1.35;
+
+.alert-tier-swatch-warn { background: var(--rc-alert-warn); }
+.alert-tier-swatch-watch { background: var(--rc-alert-watch); }
+.alert-tier-swatch-adv { background: var(--rc-alert-adv); }
+
+.alert-count {
+  font-size: 8.5px;
+  letter-spacing: 0.04em;
+  color: var(--c-text-dim, inherit);
 }
-.nearby-more {
-  display: block;
-  margin-top: 2px;
+
+.alert-count-more {
+  color: var(--rc-ink-3);
+}
+
+/* Compact chip replacing the legend card when the timeline is open on
+ * short screens (≤ 520 px height — Q5 mutual-exclusion rule). Tapping
+ * it opens the full legend as an overlay sheet. Interactive, unlike
+ * the card. */
+/* Selector doubling (.x.x) on every <button>-styled rule below: the
+ * global reset `.ambientRoot button` (ui/reset.css) is (0,1,1) and
+ * strips font/color/background/border/padding from any single-class
+ * (0,1,0) rule — the documented specificity-war trap. Doubling lifts
+ * each rule to (0,2,0) without changing markup. */
+.legend-chip.legend-chip {
+  position: absolute;
+  bottom: 16px;
+  left: var(--c-edge-gap, 16px);
+  z-index: 1000;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 12px 0 8px;
+  background: var(--c-surface, rgba(255, 250, 240, 0.94));
+  border: 1px solid var(--c-border, rgba(0, 0, 0, 0.12));
+  border-radius: 999px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 6px 16px rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  cursor: pointer;
+  font-family: "Geist Mono", monospace;
+  font-weight: 500;
   font-size: 9px;
-  opacity: 0.7;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--c-text, #3a3938);
+  touch-action: manipulation;
+}
+
+.legend-chip.legend-chip:active {
+  background: var(--c-accent-soft, rgba(184, 90, 24, 0.18));
+  color: var(--c-accent, #b85a18);
+  transform: scale(0.96);
+}
+
+.legend-chip-i {
+  width: 20px;
+  height: 20px;
+  flex: none;
+  background: var(--rc-surface-2);
+  border: 1px solid var(--c-border, rgba(0, 0, 0, 0.12));
+  border-radius: 50%;
+  display: grid;
+  place-items: center;
+  font-style: italic;
+  font-size: 10px;
+  text-transform: none;
+}
+
+.legend-chip .precip-scale {
+  height: 5px;
+  width: 36px;
+  flex: none;
+}
+
+/* Mobile compact strip — full-width bar at the bottom of the maximized
+ * mobile radar card: radii · mini scale · alert count · (i). Hidden
+ * everywhere except the ambient mobile layout. Carries the same
+ * radar-legend-dark/light variant class as the card so LayoutMobile's
+ * mini-card hide/revert rules apply to it too. */
+.legend-mobile-strip {
+  display: none;
+  position: absolute;
+  bottom: 16px;
+  left: 16px;
+  right: 16px;
+  z-index: 1000;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 10px;
+  background: var(--c-surface, rgba(255, 250, 240, 0.94));
+  border: 1px solid var(--c-border, rgba(0, 0, 0, 0.12));
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 6px 16px rgba(0, 0, 0, 0.12);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  font-family: "Geist Mono", monospace;
+  font-weight: 500;
+  font-size: 8.5px;
+  letter-spacing: 0.06em;
+  color: var(--c-text-dim, inherit);
+  white-space: nowrap;
+}
+
+.legend-mobile-strip .precip-scale {
+  height: 6px;
+  width: 58px;
+  flex: none;
+}
+
+.legend-mobile-alert {
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  color: var(--rc-alert-warn);
+}
+
+.legend-mobile-alert svg {
+  width: 9px;
+  height: 8px;
+}
+
+.legend-info-btn.legend-info-btn {
+  margin-left: auto;
+  width: 24px;
+  height: 24px;
+  flex: none;
+  background: var(--rc-surface-2);
+  border-radius: 50%;
+  border: 1px solid var(--c-border, rgba(0, 0, 0, 0.12));
+  display: grid;
+  place-items: center;
+  color: var(--c-text, inherit);
+  font-style: italic;
+  font-size: 11px;
+  cursor: pointer;
+  padding: 0;
+  touch-action: manipulation;
+}
+
+.legend-info-btn.legend-info-btn:active {
+  background: var(--c-accent-soft, rgba(184, 90, 24, 0.18));
+  color: var(--c-accent, #b85a18);
+}
+
+:global(.ambientRoot[data-layout="mobile"]) .legend-mobile-strip {
+  display: flex;
+}
+
+/* On the ambient mobile layout the full card never shows — the strip
+ * (+ overlay sheet) is the mobile legend. The chip is a short-screen
+ * affordance for the 7" kiosk, also irrelevant on mobile. */
+:global(.ambientRoot[data-layout="mobile"]) .radar-legend,
+:global(.ambientRoot[data-layout="mobile"]) .legend-chip {
+  display: none;
+}
+
+/* When the full-width timeline bar is open, the legend (card or chip)
+ * re-anchors above it; without it they hug the bottom edge — the
+ * "legend without timeline" combination from the design review. */
+.with-timeline .radar-legend,
+.with-timeline .legend-chip {
+  bottom: 122px;
+}
+
+/* Attribution strip (legal requirement — Mapbox + RainViewer). Leaflet
+ * anchors it bottom-right inside the map pane; keep it clear of the
+ * rail, the timeline bar, and the mobile legend strip. On mobile the
+ * offsets only apply in the MAXIMIZED card state (LayoutMobile sets
+ * `data-mobile-radar-maximized` on the card): in mini mode the
+ * timeline/strip are hidden, so the strip's default bottom-edge
+ * anchor is correct — an offset there would float the attribution
+ * mid-card (review finding). */
+.map-wrapper :global(.leaflet-bottom.leaflet-right) {
+  right: var(--c-rail-visible-width, 0px);
+}
+
+.with-timeline :global(.leaflet-bottom.leaflet-right) {
+  bottom: 110px;
+}
+
+:global(.ambientRoot[data-layout="mobile"]) .map-wrapper :global(.leaflet-bottom.leaflet-right) {
+  bottom: 0;
+}
+
+:global(.ambientRoot[data-layout="mobile"] [data-mobile-radar-maximized="true"]) .map-wrapper :global(.leaflet-bottom.leaflet-right) {
+  bottom: 50px;
+}
+
+:global(.ambientRoot[data-layout="mobile"] [data-mobile-radar-maximized="true"]) .with-timeline :global(.leaflet-bottom.leaflet-right) {
+  bottom: 162px;
+}
+
+/* ============================================================
+ * Legend detail overlay (A3) — opened by the (i) chip / strip
+ * button. 7"/desktop: popover anchored bottom-left; mobile: bottom
+ * sheet. Scrim + ✕ + Escape dismiss (Escape wired in JSX). Contains
+ * the same three sections as the card.
+ * ============================================================ */
+.legend-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 1400;
+}
+
+.legend-overlay-scrim.legend-overlay-scrim {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  border: none;
+  padding: 0;
+  cursor: pointer;
+}
+
+.legend-overlay-sheet {
+  position: absolute;
+  left: var(--c-edge-gap, 16px);
+  bottom: 16px;
+  width: 216px;
+  color: var(--c-text, #3a3938);
+  background: var(--c-surface, rgba(255, 250, 240, 0.96));
+  border: 1px solid var(--c-border, rgba(0, 0, 0, 0.12));
+  border-radius: 14px;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 8px 24px rgba(0, 0, 0, 0.2);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  padding: 10px 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  font-family: "Geist Mono", monospace;
+  font-weight: 500;
+}
+
+:global(.ambientRoot[data-layout="mobile"]) .legend-overlay-sheet {
+  left: 10px;
+  right: 10px;
+  bottom: 10px;
+  width: auto;
+  border-radius: 16px;
+}
+
+.legend-overlay-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+}
+
+.legend-overlay-title {
+  font-size: 9px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--c-text-dim, inherit);
+}
+
+.legend-overlay-close.legend-overlay-close {
+  width: 28px;
+  height: 28px;
+  margin-right: -6px;
+  border: none;
+  background: transparent;
+  color: var(--c-text, inherit);
+  border-radius: 8px;
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  padding: 0;
+  touch-action: manipulation;
+}
+
+.legend-overlay-close svg {
+  width: 12px;
+  height: 12px;
+}
+
+.legend-overlay-close.legend-overlay-close:active {
+  background: var(--c-accent-soft, rgba(184, 90, 24, 0.18));
+  color: var(--c-accent, #b85a18);
+  transform: scale(0.96);
 }
 
 /* Nearby-alerts tap popup (Phase 3b). The wrapper class is applied to the
@@ -140,31 +545,6 @@
 }
 .survey-recenter:active { background: var(--c-accent-soft, rgba(184, 90, 24, 0.18)); }
 
-/* In v3 ambient layouts the right rail covers the bottom-right
- * corner of the map (where the legend lives by default), so the
- * legend sits behind the AI Summary slab and is invisible. Move it
- * to the bottom-LEFT in ambient mode — well clear of the rail and
- * still useful as a glance reference. `:global(.ambientRoot)` is
- * the CSS-Modules escape hatch that lets us target the global
- * `.ambientRoot` class from inside this module-scoped stylesheet
- * (the previous attempt in reset.css didn't match because the
- * `.radar-legend` class is module-hashed in the DOM and reset.css's
- * unhashed selector never lined up).
- *
- * `left` value clears the Leaflet zoom buttons' column (the +/-
- * stack sits at ~10 px from the left, ~50 px wide), and bottom: 24
- * matches the original vertical anchor so the legend sits a touch
- * above the attribution strip. */
-:global(.ambientRoot) .radar-legend {
-  /* Hug the left edge with the same edge-gap margin the cards use on
-   * the right side. `--c-edge-gap` is set by both LayoutDesktop and
-   * LayoutPi (16 px). Falls back to 16 px if the variable isn't
-   * defined (defensive — shouldn't happen since we're already scoped
-   * to `.ambientRoot`). */
-  left: var(--c-edge-gap, 16px);
-  right: auto;
-}
-
 .no-map {
   height: 100%;
   width: 100%;
@@ -184,533 +564,628 @@
   color: #3a393888;
 }
 
-/* Radar animation timeline overlay — bottom-centre of the map.
-   Sits inside the map wrapper, above the Leaflet attribution strip
-   (which is itself ~16 px from the bottom). z-index high enough to
-   sit above the tile layer but the Leaflet zoom controls (top-left)
-   and the radar legend (bottom-right corner) don't overlap. */
+/* ============================================================
+ * Radar timeline — full-width bottom bar (Phase 3 v2.1).
+ *
+ * Header row: transport cluster (play · step −1 · step +1 · speed),
+ * frame info (timestamp + now-tag chip, counts sub-line), the
+ * conditional return-to-now pill, and the source chip. Track row:
+ * 4 px custom track with past fill, hatched future zone, the
+ * "Maintenant" marker at the past→nowcast boundary, a 14 px visual
+ * thumb, and derived tick labels underneath.
+ *
+ * The native <input type="range"> survives underneath as an
+ * invisible full-surface hit layer — it keeps the field-hardened
+ * pointer-capture scrubbing (see RadarTimeline.js) and native
+ * keyboard accessibility. The visual layers are all
+ * pointer-events: none and driven by --thumb-frac / --past-frac
+ * set inline from JSX.
+ *
+ * On LayoutDesktop the right rail overlays the map, so the bar's
+ * right inset adds the rail's visible width (same variable the
+ * legend/scrubber used pre-redesign; falls back to 0 on LayoutPi
+ * and the v2 tree). */
 .radar-timeline {
   position: absolute;
-  bottom: 24px;
-  /* On LayoutDesktop the map is full-bleed (covers the entire
-   * viewport) and the rail OVERLAYS the right side. Centring the
-   * scrubber at 50 % puts it under viewport-centre, which is to
-   * the right of the visible (non-rail) area centre. Shift left
-   * by half the rail's visible width so the scrubber sits in the
-   * middle of the actually-readable map area.
-   *
-   * `--c-rail-visible-width` is set by LayoutDesktop's `.layout`
-   * rule (mirrors `--c-rail-width` while the panel is open, drops
-   * to 0 when collapsed). LayoutPi doesn't define it, so the
-   * fallback `0px` kicks in and the scrubber centres in its grid
-   * column (which is already the visible map area) — no shift
-   * needed there. Same trick: same variable, two layouts. */
-  left: calc(50% - var(--c-rail-visible-width, 0px) / 2);
-  transform: translateX(-50%);
-  width: clamp(280px, 45vw, 480px);
-  display: flex;
-  flex-direction: column;
-  /* Gap bumped from 4 px to 8 px so a finger reaching for the scrubber but
-     drifting upward by a few pixels doesn't accidentally land on the speed
-     or "Now" buttons that live in the labels row above. */
-  gap: 8px;
-  padding: 6px 10px 8px;
-  border-radius: 8px;
+  bottom: 16px;
+  left: var(--c-edge-gap, 16px);
+  right: calc(var(--c-rail-visible-width, 0px) + var(--c-edge-gap, 16px));
   z-index: 500;
-  font-family: monospace;
-  font-size: clamp(11px, 1.0vw, 13px);
-  pointer-events: auto;
+  border-radius: 12px;
+  padding: 10px 14px 12px;
+  border: 1px solid var(--c-border, rgba(0, 0, 0, 0.1));
+  background: var(--c-surface, rgba(245, 243, 238, 0.94));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 6px 16px rgba(0, 0, 0, 0.12);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  border: 1px solid;
+  pointer-events: auto;
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
 }
 
+/* Palette-variant classes — colour comes from the ambient tokens with
+ * v2-tree fallbacks, same convention (and same dark-fallback rationale)
+ * as the legend above. */
 .radar-timeline-dark {
-  background: rgba(20, 20, 22, 0.55);
-  border-color: rgba(255, 255, 255, 0.08);
-  color: #f6f6f4;
+  color: var(--c-text, #f6f6f4);
+  background: var(--c-surface, rgba(22, 22, 24, 0.92));
+  border-color: var(--c-border, rgba(255, 255, 255, 0.1));
 }
 
 .radar-timeline-light {
-  background: rgba(245, 243, 238, 0.75);
-  border-color: rgba(0, 0, 0, 0.08);
-  color: #3a3938;
+  color: var(--c-text, #3a3938);
 }
 
-.radar-timeline-labels {
+.rt-header {
   display: flex;
   align-items: center;
   gap: 8px;
+  margin-bottom: 8px;
 }
 
-.radar-timeline-time {
-  font-weight: 600;
-  font-size: 1.05em;
-  letter-spacing: 0.02em;
-}
-
-.radar-timeline-offset {
-  flex: 1;
-  font-size: 0.9em;
-  opacity: 0.75;
-}
-
-.radar-timeline-forecast {
-  /* When the current frame is a nowcast (forecast) frame, the offset label
-     gets a tinted accent so the user knows the displayed radar is predicted
-     rather than observed. */
-  color: #f08200;
-  opacity: 1;
-  font-weight: 600;
-}
-
-.radar-timeline-speed {
+.rt-ctl.rt-ctl {
+  flex: none;
+  border: none;
   background: transparent;
-  border: 1px solid currentColor;
-  color: inherit;
-  border-radius: 4px;
-  padding: 4px 10px;
-  font-family: inherit;
-  font-size: 0.95em;
-  font-weight: 600;
+  color: var(--c-text, inherit);
   cursor: pointer;
-  min-width: 44px;
-  min-height: 32px;
-  touch-action: manipulation;
-  transition: background 0.15s, color 0.15s;
-}
-
-/* Return-to-now button — appears only when the playhead is scrubbed
-   away from the most recent past frame ("now"). Positioned between
-   the offset label and the speed cycler. Tinted amber so it draws
-   the eye, since it's a transient affordance the user actively wants
-   to find when they want to go back to live radar. */
-.radar-timeline-now {
-  background: transparent;
-  border: 1px solid #f08200;
-  color: #f08200;
-  border-radius: 4px;
-  padding: 4px 10px;
-  font-family: inherit;
-  font-size: 0.85em;
-  font-weight: 600;
-  cursor: pointer;
-  white-space: nowrap;
-  min-height: 32px;
-  touch-action: manipulation;
-  transition: background 0.15s;
-}
-
-.radar-timeline-now:hover,
-.radar-timeline-now:focus {
-  background: rgba(240, 130, 0, 0.18);
-}
-
-/* Hover / focus feedback — keep the text colour intact (the previous
-   `background: currentColor` rule made the digit invisible by setting
-   background and foreground to the same value, especially noticeable
-   on touch devices where :hover sticks after tap). Use a subtle tinted
-   fill instead, per theme. */
-.radar-timeline-dark .radar-timeline-speed:hover,
-.radar-timeline-dark .radar-timeline-speed:focus {
-  background: rgba(255, 255, 255, 0.12);
-}
-
-.radar-timeline-light .radar-timeline-speed:hover,
-.radar-timeline-light .radar-timeline-speed:focus {
-  background: rgba(0, 0, 0, 0.08);
-}
-
-/* Transport controls row — step-back, play/pause, step-forward, then
-   the scrubber filling the rest of the width. Buttons sized for touch
-   targets ≥ 36 px (Apple HIG advises 44 px, but the bar floats over
-   the radar map and the 36/40 px hybrid keeps the overlay compact
-   while still being comfortable on a 10" touchscreen). Disabled-styled
-   at the timeline boundaries so a tap on a no-op button is silently
-   ignored without a visual change. `touch-action: manipulation` kills
-   the 300 ms tap delay and disables double-tap-to-zoom hijacking the
-   button taps. */
-.radar-timeline-controls {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  /* Bumped from 2 px to 4 px (combined with the parent's gap bump from 4 → 8)
-     to put more vertical breathing room between the labels row and the
-     transport row, reducing fat-finger taps that drift into the wrong row. */
-  margin-top: 4px;
-}
-
-.radar-timeline-step,
-.radar-timeline-play {
-  background: transparent;
-  border: 1px solid currentColor;
-  color: inherit;
-  border-radius: 4px;
-  font-family: inherit;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
   padding: 0;
   touch-action: manipulation;
-  transition: background 0.15s, opacity 0.15s;
+  transition: background 0.1s, transform 0.1s;
 }
 
-.radar-timeline-step {
+.rt-ctl.rt-ctl:active {
+  background: var(--c-accent-soft, rgba(184, 90, 24, 0.18));
+  color: var(--c-accent, #b85a18);
+  transform: scale(0.94);
+}
+
+.rt-play.rt-play {
   width: 36px;
   height: 36px;
-  font-size: 0.85em;
+  border-radius: 50%;
+  background: var(--c-accent, #b85a18);
+  color: #fff;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.15);
 }
 
-.radar-timeline-play {
-  width: 40px;
-  height: 36px;
-  font-size: 1em;
-  font-weight: 600;
+.rt-play svg {
+  width: 13px;
+  height: 13px;
 }
 
-.radar-timeline-step:disabled {
+.rt-play.rt-play:active {
+  background: var(--c-accent, #b85a18);
+  color: #fff;
+  transform: scale(0.94);
+}
+
+/* nightRed: white glyph would spike night vision — dark-on-red per the
+ * design (play button is the one solid-accent surface in the bar). */
+:global(.ambientRoot[data-palette="nightRed"]) .rt-play,
+:global(.ambientRoot[data-palette="nightRed"]) .rt-play:active {
+  color: var(--c-bg, #100404);
+}
+
+.rt-step.rt-step {
+  width: 32px;
+  height: 32px;
+  color: var(--c-text-dim, inherit);
+}
+
+.rt-step svg {
+  width: 14px;
+  height: 14px;
+}
+
+.rt-step.rt-step:disabled {
   opacity: 0.3;
   cursor: not-allowed;
 }
 
-.radar-timeline-dark .radar-timeline-step:not(:disabled):hover,
-.radar-timeline-dark .radar-timeline-step:not(:disabled):focus,
-.radar-timeline-dark .radar-timeline-play:hover,
-.radar-timeline-dark .radar-timeline-play:focus {
-  background: rgba(255, 255, 255, 0.12);
+.rt-speed.rt-speed {
+  height: 32px;
+  min-width: 32px;
+  padding: 0 6px;
+  font-family: "Geist Mono", monospace;
+  font-weight: 500;
+  font-size: 11px;
+  color: var(--c-text-dim, inherit);
+  letter-spacing: 0.04em;
 }
 
-.radar-timeline-light .radar-timeline-step:not(:disabled):hover,
-.radar-timeline-light .radar-timeline-step:not(:disabled):focus,
-.radar-timeline-light .radar-timeline-play:hover,
-.radar-timeline-light .radar-timeline-play:focus {
-  background: rgba(0, 0, 0, 0.08);
-}
-
-/* Active "playing" state — solid amber fill so the play/pause toggle
-   has a visually distinct on-state, matching the nowcast accent
-   colour used elsewhere in the bar (return-to-now button, scrubber
-   right-half gradient). */
-.radar-timeline-play-active {
-  background: #f08200;
-  border-color: #f08200;
-  color: #fff;
-}
-
-.radar-timeline-play-active:hover,
-.radar-timeline-play-active:focus {
-  background: #d57600;
-}
-
-/* Scrubber — native range input styled to a two-tone track (past on
-   the left, nowcast on the right). The split point is driven by the
-   --past-frac CSS variable (0 to 1) set inline by the component, and
-   the gradient uses a calc() expression that accounts for the input's
-   horizontal padding so the colour break visually lands exactly where
-   the thumb sits at the past→nowcast boundary.
-
-   Why the padding: native range inputs render the thumb's *centre* at
-   the value's position in the trackable range. At value=min that
-   means the thumb's centre is at the input's left content-edge, and
-   the thumb's left half extends *outside* the input element — which
-   is visible (Chrome doesn't clip a styled thumb) but **not
-   interactive** (only the half overlapping the input element is
-   grabbable). Same problem mirrored at value=max. The reported
-   symptom on the 10" touchscreen — "the slider is hard to grab when
-   the cursor is fully to the right or fully to the left" — was
-   exactly that: half the thumb was decorative, the user only had
-   half the area to land their finger on. Padding equal to the thumb
-   radius insets the trackable range so the thumb is fully within the
-   input element at both extremes (full hit area), with the visible
-   gradient still spanning the input's full width via calc().
-
-   Thumb 32 px (was 28) for a slightly more generous grab target now
-   that the layout has settled. `touch-action: manipulation` removes
-   the 300 ms tap delay and avoids double-tap zoom interfering. */
-/* Scrubber wrapper — sized identically to the input so the layout doesn't
-   shift, but provides a positioning context for the "now" tick marks
-   rendered as ::before / ::after pseudo-elements at the past→nowcast
-   boundary. The ticks stay visible regardless of the thumb's current
-   position (the colour gradient on the track is otherwise hidden by the
-   thumb when the playhead sits exactly on "now"). The wrapper also owns
-   the --thumb-w / --track-h CSS variables so both the input (track + thumb
-   sizing) and the wrapper (tick positioning + spacing) stay in sync. */
-.radar-timeline-scrubber-wrap {
-  --thumb-w: 32px;
-  --track-h: 10px;
-  position: relative;
-  flex: 1 1 auto;
-  min-width: 0;
-  /* Margin bumped from 6 px to 12 px so the leftmost-frame thumb sits with
-     finger-room between it and the step-forward button rather than visually
-     touching it — the previous spacing had the thumb's left edge almost
-     against the button's right edge at value=min, leaving no margin for a
-     missed tap. */
-  margin-left: 12px;
+.rt-frame-info {
   display: flex;
+  flex-direction: column;
+  gap: 1px;
+  flex: 1;
+  min-width: 0;
+  margin-left: 4px;
+}
+
+.rt-ts {
+  font-size: 13px;
+  font-weight: 500;
+  letter-spacing: -0.005em;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.rt-now-tag {
+  font-family: "Geist Mono", monospace;
+  font-weight: 500;
+  font-size: 9px;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--c-accent, #b85a18);
+  background: var(--c-accent-soft, rgba(184, 90, 24, 0.18));
+  padding: 1px 6px;
+  border-radius: 4px;
+  margin-left: 6px;
+  vertical-align: 2px;
+  white-space: nowrap;
+}
+
+/* Forecast frames are extrapolation, not observation — the chip flips
+ * to a dashed outline so the data-origin difference stays visible. */
+.rt-now-tag-forecast {
+  background: transparent;
+  border: 1px dashed var(--c-accent, #b85a18);
+  padding: 0 5px;
+}
+
+.rt-rel {
+  font-family: "Geist Mono", monospace;
+  font-weight: 500;
+  font-size: 10px;
+  color: var(--c-text-dim, inherit);
+  letter-spacing: 0.04em;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.rt-return-now.rt-return-now {
+  display: inline-flex;
   align-items: center;
-  /* Stacking context so the tick pseudo-elements can sit above the input. */
-  isolation: isolate;
+  gap: 6px;
+  height: 32px;
+  padding: 0 12px;
+  border: 1px solid var(--c-border, rgba(0, 0, 0, 0.12));
+  border-radius: 999px;
+  background: var(--rc-surface-2);
+  color: var(--c-accent, #b85a18);
+  font-family: "Geist Mono", monospace;
+  font-weight: 500;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  cursor: pointer;
+  white-space: nowrap;
+  touch-action: manipulation;
+  flex: none;
 }
 
-/* Vertical "now" hairline ticks at the past→nowcast boundary. Two ticks
-   (top + bottom) render outside the visible track band so the marker stays
-   readable even when the thumb covers the boundary — which is exactly when
-   the gradient transition becomes invisible. Coloured with the same amber
-   accent as the nowcast portion of the gradient and the return-to-now
-   button, tying the visual language together. pointer-events: none so taps
-   on the marker zone fall through to the input behind. The ticks render
-   only when the wrapper has the .with-now modifier class (added by JSX
-   when there are nowcast frames available — no point marking "now" if
-   the entire track is past).
+.rt-return-now svg {
+  width: 12px;
+  height: 12px;
+}
 
-   Sized 3 × 8 px (wider/taller than a single hairline) and given a
-   subtle white border so they stand out against both the gray-past and
-   amber-nowcast portions of the track regardless of which colour they
-   sit on. z-index: 3 to render above the input element. */
-.radar-timeline-scrubber-wrap-with-now::before,
-.radar-timeline-scrubber-wrap-with-now::after {
-  content: "";
-  position: absolute;
-  /* Same calc as the gradient stops in .radar-timeline-scrubber so the
-     ticks line up exactly with the colour transition. */
-  left: calc(var(--thumb-w) / 2 + var(--past-frac, 1) * (100% - var(--thumb-w)));
-  width: 3px;
-  height: 8px;
-  background: #f08200;
-  border: 1px solid rgba(255, 255, 255, 0.85);
-  box-sizing: content-box;
-  border-radius: 2px;
-  transform: translateX(-2px);
+.rt-return-now.rt-return-now:active {
+  background: var(--c-accent-soft, rgba(184, 90, 24, 0.18));
+  transform: scale(0.96);
+}
+
+.rt-source-chip {
+  font-family: "Geist Mono", monospace;
+  font-weight: 500;
+  font-size: 9.5px;
+  letter-spacing: 0.1em;
+  color: var(--c-text-dim, inherit);
+  text-transform: uppercase;
+  white-space: nowrap;
+  flex: none;
+}
+
+/* Degraded-data state — the last RainViewer frame-list refresh failed.
+ * No silent failure: the chip flips to the warn tone (visible in every
+ * palette; nightRed's warn is already in the red family). */
+.rt-source-chip-stale {
+  color: var(--c-warn, #c47a18);
+}
+
+/* ---------- Track row ---------- */
+.rt-track-wrap {
+  position: relative;
+  /* Headroom for the marker label above the 4 px track. */
+  padding-top: 14px;
+  /* Reserve space under the track for the tick labels. */
+  padding-bottom: 14px;
+}
+
+.rt-track {
+  height: 4px;
+  background: var(--rc-surface-2);
+  border-radius: 999px;
+  position: relative;
+}
+
+/* Visual layers must not eat taps — but NEVER a bare `.rt-track > *`:
+ * the invisible range input is ALSO a direct child, and pointer-events:
+ * none on it kills the entire scrub surface (caught in review — the
+ * pointer-capture handlers simply never fire). Explicit list instead. */
+.rt-track > *:not(.rt-scrubber) {
   pointer-events: none;
-  z-index: 3;
 }
-.radar-timeline-scrubber-wrap-with-now::before { top: 1px; }
-.radar-timeline-scrubber-wrap-with-now::after  { bottom: 1px; }
 
-/* Scrubber — native range input styled to a two-tone track (past on
-   the left, nowcast on the right). The split point is driven by the
-   --past-frac CSS variable (0 to 1) inherited from the wrapper, and
-   the gradient uses a calc() expression that accounts for the input's
-   horizontal padding so the colour break visually lands exactly where
-   the thumb sits at the past→nowcast boundary.
+.rt-past-fill {
+  position: absolute;
+  top: 0;
+  left: 0;
+  height: 100%;
+  width: calc(min(var(--thumb-frac, 1), var(--past-frac, 1)) * 100%);
+  background: linear-gradient(90deg, transparent, var(--c-accent, #b85a18));
+  border-radius: 999px 0 0 999px;
+}
 
-   Why the horizontal padding: native range inputs render the thumb's
-   *centre* at the value's position in the trackable range. At value=min
-   the thumb's centre is at the input's left content-edge, and the
-   thumb's left half extends *outside* the input element — which is
-   visible (Chrome doesn't clip a styled thumb) but **not interactive**
-   (only the half overlapping the input element is grabbable). Same
-   problem mirrored at value=max. Padding equal to the thumb radius
-   insets the trackable range so the thumb is fully within the input
-   element at both extremes (full hit area), with the visible gradient
-   still spanning the input's full width via calc().
+/* Future (nowcast) zone — hatched: extrapolation, not observation.
+ * 45 % accent stripes per the design spec (accent-soft's ~18 % alpha
+ * was too faint to read as a zone — review finding). */
+.rt-future-zone {
+  position: absolute;
+  top: 0;
+  left: calc(var(--past-frac, 1) * 100%);
+  right: 0;
+  height: 100%;
+  background: repeating-linear-gradient(
+    135deg,
+    color-mix(in srgb, var(--c-accent, #b85a18) 45%, transparent) 0 3px,
+    transparent 3px 6px
+  );
+  border-radius: 0 999px 999px 0;
+}
 
-   Why the input height equals the full thumb size (was 10 px): on the
-   7" / 10" touchscreen kiosks, field testing after the horizontal
-   padding fix still showed ~20 % missed grabs — finger landing slightly
-   above or below the 10 px-tall track fell outside the input element
-   entirely. Bumping the input's box-height to match --thumb-w gives the
-   user a full thumb-diameter vertical hit zone (32 / 24 px instead of
-   10 / 8 px) while keeping the visible track at its original height via
-   `background-size: 100% var(--track-h)` centered. The track end-caps
-   are no longer rounded (the input's border-radius applied to the now-
-   transparent box around the track), but at 10 px the cap shape is
-   barely visible behind the 32 px thumb anyway. `touch-action:
-   manipulation` removes the 300 ms tap delay and avoids double-tap
-   zoom interfering. */
-.radar-timeline-scrubber {
+/* Solid-hatch fill from "now" to the thumb while scrubbed into the
+ * future — width driven by the same two fractions. */
+.rt-nowcast-fill {
+  position: absolute;
+  top: 0;
+  left: calc(var(--past-frac, 1) * 100%);
+  height: 100%;
+  width: calc(max(0%, (var(--thumb-frac, 1) - var(--past-frac, 1)) * 100%));
+  background: repeating-linear-gradient(
+    135deg,
+    var(--c-accent, #b85a18) 0 3px,
+    color-mix(in srgb, var(--c-accent, #b85a18) 35%, transparent) 3px 6px
+  );
+}
+
+.rt-now-marker {
+  position: absolute;
+  top: -8px;
+  left: calc(var(--past-frac, 1) * 100%);
+  transform: translateX(-50%);
+  width: 2px;
+  height: 20px;
+  background: var(--c-accent, #b85a18);
+  border-radius: 1px;
+}
+
+.rt-now-marker-label {
+  position: absolute;
+  bottom: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  font-family: "Geist Mono", monospace;
+  font-size: 8.5px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--c-accent, #b85a18);
+  padding-bottom: 2px;
+  white-space: nowrap;
+  font-weight: 500;
+}
+
+.rt-thumb {
+  position: absolute;
+  top: 50%;
+  left: calc(var(--thumb-frac, 1) * 100%);
+  transform: translate(-50%, -50%);
+  width: 14px;
+  height: 14px;
+  background: var(--c-accent, #b85a18);
+  border-radius: 50%;
+  border: 2px solid var(--c-bg, #f4f0e8);
+  box-shadow: 0 1px 4px rgba(0, 0, 0, 0.2);
+}
+
+/* Invisible native range input stacked over the track — the actual hit
+ * surface. Tall enough (32 px centred on the 4 px track) that a finger
+ * landing slightly off the track still scrubs (the pre-redesign field
+ * fix for ~20 % missed grabs on the 7"/10" kiosks). The pointer-capture
+ * logic in RadarTimeline.js drives scrubbing from clientX over this
+ * element's full width; keyboard arrows still work natively. */
+.rt-scrubber {
   -webkit-appearance: none;
   appearance: none;
+  position: absolute;
+  left: 0;
   width: 100%;
-  min-width: 0;
-  height: var(--thumb-w);
-  box-sizing: border-box;
-  padding: 0 calc(var(--thumb-w) / 2);
-  background: linear-gradient(
-    to right,
-    #888 0,
-    #888 calc(var(--thumb-w) / 2 + var(--past-frac, 1) * (100% - var(--thumb-w))),
-    #f08200 calc(var(--thumb-w) / 2 + var(--past-frac, 1) * (100% - var(--thumb-w))),
-    #f08200 100%
-  ) no-repeat center / 100% var(--track-h);
+  top: 50%;
+  transform: translateY(-50%);
+  height: 32px;
+  margin: 0;
+  padding: 0;
+  background: transparent;
   outline: none;
   cursor: pointer;
-  margin: 0;
-  touch-action: manipulation;
+  pointer-events: auto;
+  /* `none`, not `manipulation`: a horizontal scrub that drifts a few
+   * degrees diagonal must stay a scrub — with `manipulation` the
+   * browser can still claim the gesture for vertical scroll (and the
+   * mobile layout's pull-to-refresh) mid-drag. The input is small and
+   * fully dedicated to scrubbing; the pointer-capture handlers own it. */
+  touch-action: none;
+  z-index: 2;
 }
 
-/* Defensive: Firefox renders its own ::-moz-range-track on top of the
-   input's background by default. Force it transparent so the input's
-   gradient remains the visible track. */
-.radar-timeline-scrubber::-moz-range-track {
-  background: transparent;
-  border: 0;
-  height: var(--track-h);
-}
-
-.radar-timeline-scrubber::-webkit-slider-thumb {
+.rt-scrubber::-webkit-slider-thumb {
   -webkit-appearance: none;
   appearance: none;
-  width: var(--thumb-w);
-  height: var(--thumb-w);
-  border-radius: 50%;
-  background: #fff;
-  border: 2px solid #3a3938;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
-  cursor: grab;
-  margin-top: 0;
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
-.radar-timeline-scrubber:active::-webkit-slider-thumb {
-  cursor: grabbing;
-  background: #f0e600;
+.rt-scrubber::-moz-range-track {
+  background: transparent;
+  border: 0;
 }
 
-.radar-timeline-scrubber::-moz-range-thumb {
-  width: var(--thumb-w);
-  height: var(--thumb-w);
-  border-radius: 50%;
-  background: #fff;
-  border: 2px solid #3a3938;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.35);
-  cursor: grab;
+.rt-scrubber::-moz-range-thumb {
+  width: 32px;
+  height: 32px;
+  background: transparent;
+  border: none;
+  box-shadow: none;
 }
 
-/* Compact small-screen variant for the 7" Pi kiosk (≤ 520 px height):
-   tighten padding and shrink controls a notch so the bar doesn't fight
-   for space with the InfoPanel-collapse toggle on the right. Touch
-   targets stay ≥ 32 px square — still finger-friendly on the 7". */
+/* Keyboard affordance — the invisible input still owns focus; surface
+ * it on the visual track so tab-navigation isn't a mystery. */
+.rt-scrubber:focus-visible {
+  outline: 2px dashed var(--c-accent, #b85a18);
+  outline-offset: 4px;
+  border-radius: 8px;
+}
+
+.rt-ticks {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 12px;
+  pointer-events: none;
+}
+
+.rt-tick {
+  position: absolute;
+  top: 2px;
+  transform: translateX(-50%);
+  font-family: "Geist Mono", monospace;
+  font-weight: 500;
+  font-size: 8px;
+  color: var(--rc-ink-3);
+  letter-spacing: 0.08em;
+  white-space: nowrap;
+}
+
+.rt-tick-start {
+  transform: translateX(0);
+}
+
+.rt-tick-end {
+  transform: translateX(-100%);
+}
+
+/* ============================================================
+ * Radar focus (fullscreen) button — standalone 40 px square under
+ * the zoom stack, top-left (Phase 3 v2.1). Replaces the previous
+ * Leaflet-bar ⛶ control. Top offset clears the restyled 40 px zoom
+ * pair (16 + 81 + 13). LayoutPi sits slightly tighter per the
+ * design (7" vertical budget).
+ * ============================================================ */
+.radar-focus-btn.radar-focus-btn {
+  position: absolute;
+  top: 110px;
+  left: var(--c-edge-gap, 16px);
+  width: 40px;
+  height: 40px;
+  z-index: 1000;
+  background: var(--c-surface, rgba(255, 250, 240, 0.94));
+  border: 1px solid var(--c-border, rgba(0, 0, 0, 0.12));
+  border-radius: 10px;
+  color: var(--c-text, #3a3938);
+  cursor: pointer;
+  display: grid;
+  place-items: center;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 6px 16px rgba(0, 0, 0, 0.12);
+  padding: 0;
+  touch-action: manipulation;
+  transition: background 0.1s, color 0.1s;
+}
+
+.radar-focus-btn svg {
+  width: 18px;
+  height: 18px;
+}
+
+.radar-focus-btn.radar-focus-btn:active {
+  background: var(--c-accent-soft, rgba(184, 90, 24, 0.18));
+  color: var(--c-accent, #b85a18);
+  transform: scale(0.96);
+}
+
+.radar-focus-btn.radar-focus-btn[aria-pressed="true"] {
+  background: var(--c-accent, #b85a18);
+  color: var(--c-bg, #f4f0e8);
+  border-color: var(--c-accent, #b85a18);
+}
+
+:global(.ambientRoot[data-layout="pi"]) .radar-focus-btn {
+  top: 100px;
+}
+
+/* Confirmation toast for the focus toggle — reuses the app's toast
+ * visual language (slide-up + fade, auto-dismiss in JSX). Anchored
+ * above the button so the eye doesn't have to travel. */
+.radar-focus-toast {
+  position: absolute;
+  top: 110px;
+  left: calc(var(--c-edge-gap, 16px) + 48px);
+  height: 40px;
+  display: flex;
+  align-items: center;
+  z-index: 1001;
+  padding: 0 12px;
+  border-radius: 8px;
+  background: var(--c-surface, rgba(255, 250, 240, 0.96));
+  border: 1px solid var(--c-border, rgba(0, 0, 0, 0.12));
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08), 0 6px 16px rgba(0, 0, 0, 0.12);
+  color: var(--c-text, #3a3938);
+  font-family: "Geist Mono", monospace;
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+  animation: radar-toast-in 0.18s ease-out;
+}
+
+:global(.ambientRoot[data-layout="pi"]) .radar-focus-toast {
+  top: 100px;
+}
+
+@keyframes radar-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* ============================================================
+ * On-map analysis-circle labels — divIcon markers at the south-east
+ * intersection of each ring (global classes: Leaflet renders divIcons
+ * outside the CSS-Modules scope). Hidden on the mobile layout per the
+ * design; the zoom gate (≥ 13) is handled at render time alongside
+ * the rings themselves.
+ * ============================================================ */
+:global(.ring-label) {
+  font-family: "Geist Mono", monospace;
+  font-weight: 500;
+  font-size: 9px;
+  color: var(--map-circle-label);
+  letter-spacing: 0.1em;
+  background: var(--c-surface, rgba(255, 250, 240, 0.94));
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid var(--c-border, rgba(0, 0, 0, 0.12));
+  pointer-events: none;
+  white-space: nowrap;
+  width: max-content !important;
+  height: auto !important;
+}
+
+:global(.ambientRoot[data-layout="pi"]) :global(.ring-label) {
+  font-size: 8px;
+}
+
+:global(.ambientRoot[data-layout="mobile"]) :global(.ring-label) {
+  display: none;
+}
+
+/* ============================================================
+ * Size adaptations
+ * ============================================================ */
+
+/* Mobile (ambient layout): tighter paddings, smaller transport
+ * cluster, no source chip, icon-only return-to-now, no mid tick —
+ * and the bar sits above the compact legend strip. */
+:global(.ambientRoot[data-layout="mobile"]) .radar-timeline {
+  bottom: 78px;
+  right: var(--c-edge-gap, 16px);
+  padding: 8px 10px 10px;
+}
+
+:global(.ambientRoot[data-layout="mobile"]) .rt-play {
+  width: 32px;
+  height: 32px;
+}
+
+:global(.ambientRoot[data-layout="mobile"]) .rt-step,
+:global(.ambientRoot[data-layout="mobile"]) .rt-speed {
+  width: 26px;
+  min-width: 26px;
+  height: 26px;
+}
+
+:global(.ambientRoot[data-layout="mobile"]) .rt-ts {
+  font-size: 11px;
+}
+
+:global(.ambientRoot[data-layout="mobile"]) .rt-rel {
+  font-size: 8.5px;
+}
+
+:global(.ambientRoot[data-layout="mobile"]) .rt-source-chip {
+  display: none;
+}
+
+:global(.ambientRoot[data-layout="mobile"]) .rt-return-now {
+  padding: 0 8px;
+  height: 28px;
+}
+
+:global(.ambientRoot[data-layout="mobile"]) .rt-return-now .rt-return-label {
+  display: none;
+}
+
+:global(.ambientRoot[data-layout="mobile"]) .rt-tick-mid {
+  display: none;
+}
+
+/* Short screens (7" kiosk, ≤ 520 px height): drop the mid tick and
+ * shorten the source chip via the JSX `compact` flag; tighten the
+ * header so the bar + ticks stay under ~90 px tall. The legend card
+ * (visible when the timeline is closed) tightens per the design's 7"
+ * variant: 6 px scale, 11 px circle swatch. */
 @media (max-height: 520px) {
+  .rt-tick-mid {
+    display: none;
+  }
+
   .radar-timeline {
-    bottom: 16px;
-    width: clamp(220px, 50vw, 360px);
-    padding: 4px 8px 6px;
+    padding: 8px 12px 10px;
   }
-  .radar-timeline-speed {
-    min-width: 36px;
-    min-height: 28px;
-    padding: 2px 8px;
-    font-size: 0.85em;
+
+  .rt-header {
+    margin-bottom: 6px;
   }
-  .radar-timeline-now {
-    min-height: 28px;
-    padding: 2px 8px;
+
+  .radar-legend .precip-scale {
+    height: 6px;
   }
-  .radar-timeline-step {
-    width: 32px;
-    height: 32px;
+
+  .legend-circle-swatch {
+    width: 11px;
+    height: 11px;
   }
-  .radar-timeline-play {
-    width: 36px;
-    height: 32px;
-  }
-  .radar-timeline-scrubber-wrap {
-    --thumb-w: 24px;
-    --track-h: 8px;
-    /* Match the default-size 12 px margin-left bump so the leftmost-frame
-       thumb stays clear of the step-forward button on the 7" kiosk too. */
-    margin-left: 12px;
-  }
-}
-
-/* The arrow-toggle button used to live here as an absolutely-positioned
-   <button>. It's now built imperatively via Leaflet's L.control API
-   (see ArrowToggleControl in index.js) so click propagation, hover
-   styling, and topleft positioning all match the built-in zoom +/-
-   buttons exactly. No CSS needed on this side anymore — Leaflet's
-   .leaflet-bar a rules cover the whole baseline. */
-
-/* nightRed scrubber overrides (v2.14.69) — every hard-coded amber
- * `#f08200` and yellow `#f0e600` in the default scrubber chrome was
- * the last visual element the night-vision palette didn't reach. The
- * backdrop, the forecast label, the return-to-now button, the
- * play-active state, the scrubber gradient's nowcast portion, the
- * "now" tick marks, and the thumb's grabbing-state colour all read
- * as alien bright accents against the dark-red basemap. Each rule
- * below swaps the literal colour for a nightRed-family token
- * (`var(--c-accent)` ≈ `#c44040`, `var(--c-text-dim)` for muted
- * track segments, `var(--c-bg)` for the slab backdrop).
- *
- * `:global(.ambientRoot[data-palette="nightRed"])` mirrors the
- * scope used by the `.radar-legend` override at the top of this
- * file — same CSS-Modules escape hatch for combining a global
- * ancestor with a local module class. */
-:global(.ambientRoot[data-palette="nightRed"]) .radar-timeline-dark {
-  /* Tint the slab so it harmonises with the rest of the UI cards
-   * (each ambient slab uses `--c-surface`-ish translucent fills). */
-  background: var(--c-surface-hybrid, rgba(40, 12, 12, 0.85));
-  border-color: var(--c-border-hybrid, rgba(176, 64, 64, 0.22));
-  color: var(--c-text, #d05050);
-}
-
-:global(.ambientRoot[data-palette="nightRed"]) .radar-timeline-forecast {
-  color: var(--c-accent, #c44040);
-}
-
-:global(.ambientRoot[data-palette="nightRed"]) .radar-timeline-now {
-  border-color: var(--c-accent, #c44040);
-  color: var(--c-accent, #c44040);
-}
-
-:global(.ambientRoot[data-palette="nightRed"]) .radar-timeline-now:hover,
-:global(.ambientRoot[data-palette="nightRed"]) .radar-timeline-now:focus {
-  background: var(--c-accent-soft, rgba(196, 64, 64, 0.18));
-}
-
-:global(.ambientRoot[data-palette="nightRed"]) .radar-timeline-play-active {
-  background: var(--c-accent, #c44040);
-  border-color: var(--c-accent, #c44040);
-  color: var(--c-bg, #100404);
-}
-
-:global(.ambientRoot[data-palette="nightRed"]) .radar-timeline-play-active:hover,
-:global(.ambientRoot[data-palette="nightRed"]) .radar-timeline-play-active:focus {
-  /* A slightly darker shade of the accent for the active-hover state.
-   * The default uses `#d57600` (one step darker than `#f08200`); we
-   * mirror that with a darker nightRed red. */
-  background: #a82828;
-}
-
-/* Scrubber track gradient — replace the past `#888` neutral grey and
- * nowcast `#f08200` amber with palette-aware tokens. The text-dim
- * stays as a muted "past" track since the nightRed text-dim is
- * already a soft red; the accent does the nowcast accent. */
-:global(.ambientRoot[data-palette="nightRed"]) .radar-timeline-scrubber {
-  background: linear-gradient(
-    to right,
-    var(--c-text-dim, #b84848) 0,
-    var(--c-text-dim, #b84848) calc(var(--thumb-w) / 2 + var(--past-frac, 1) * (100% - var(--thumb-w))),
-    var(--c-accent, #c44040) calc(var(--thumb-w) / 2 + var(--past-frac, 1) * (100% - var(--thumb-w))),
-    var(--c-accent, #c44040) 100%
-  ) no-repeat center / 100% var(--track-h);
-}
-
-/* "Now" tick marks at the past→nowcast boundary — same accent as the
- * gradient transition. The thin border that helps the tick stand
- * out on top of either track colour now uses a soft palette tone. */
-:global(.ambientRoot[data-palette="nightRed"]) .radar-timeline-scrubber-wrap-with-now::before,
-:global(.ambientRoot[data-palette="nightRed"]) .radar-timeline-scrubber-wrap-with-now::after {
-  background: var(--c-accent, #c44040);
-  border-color: rgba(255, 255, 255, 0.30);
-}
-
-/* Scrubber thumb — keep the high-contrast disc shape, but recolour
- * its border to a palette tone and swap the active-grab yellow for
- * a brighter red so the affordance still reads as a state change
- * but stays inside the red family. */
-:global(.ambientRoot[data-palette="nightRed"]) .radar-timeline-scrubber::-webkit-slider-thumb {
-  background: var(--c-text, #d05050);
-  border-color: var(--c-bg, #100404);
-}
-
-:global(.ambientRoot[data-palette="nightRed"]) .radar-timeline-scrubber:active::-webkit-slider-thumb {
-  background: var(--c-accent, #c44040);
-}
-
-:global(.ambientRoot[data-palette="nightRed"]) .radar-timeline-scrubber::-moz-range-thumb {
-  background: var(--c-text, #d05050);
-  border-color: var(--c-bg, #100404);
 }

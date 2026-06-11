@@ -194,6 +194,9 @@
  * that Leaflet keeps. */
 .mapCard :global([class*="radar-legend-dark"]),
 .mapCard :global([class*="radar-legend-light"]),
+.mapCard :global([class*="legend-mobile-strip--"]),
+.mapCard :global([class*="legend-chip--"]),
+.mapCard :global([class*="legend-overlay--"]),
 .mapCard :global([class*="radar-timeline-dark"]),
 .mapCard :global([class*="radar-timeline-light"]) {
   display: none !important;
@@ -230,15 +233,27 @@
   background-color: var(--c-bg);
 }
 
-/* Un-hide the radar legend and timeline once the card is maximized —
- * both fit comfortably in the larger space. Same variant-modifier
- * selectors as the hide rule above, for the same reason (avoid
- * touching the swatches' inline display). */
-.mapCard.mapCardMaximized :global([class*="radar-legend-dark"]),
-.mapCard.mapCardMaximized :global([class*="radar-legend-light"]),
+/* Un-hide the radar surfaces once the card is maximized. CONCRETE
+ * display values, never `revert` — `revert` in the author origin
+ * rolls back past ALL author rules to the UA value, which (a) broke
+ * the swatches in v2.15.2 (span → inline) and (b) would resurrect
+ * the desktop legend card here: since Phase 3 the mobile legend is
+ * the compact strip + overlay sheet, and the card/chip must STAY
+ * hidden on mobile (their WeatherMap hide rule is normal-importance
+ * and loses to any !important revert). The card and chip therefore
+ * have no un-hide rule at all — the strip, the overlay root and the
+ * timeline come back with the display each actually needs. */
+.mapCard.mapCardMaximized :global([class*="legend-mobile-strip--"]) {
+  display: flex !important;
+}
+
+.mapCard.mapCardMaximized :global([class*="legend-overlay--"]) {
+  display: block !important;
+}
+
 .mapCard.mapCardMaximized :global([class*="radar-timeline-dark"]),
 .mapCard.mapCardMaximized :global([class*="radar-timeline-light"]) {
-  display: revert !important;
+  display: block !important;
 }
 
 /* Maximize / minimize toggle button. Top-right corner of the card.
@@ -283,6 +298,23 @@
    * region in day mode (cream button over dark tile = invisible
    * border). */
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.25);
+}
+
+/* The inline-SVG bracket icons size to their container — without this
+ * they'd expand to the SVG default viewport. 18 px matches the
+ * desktop/7" radar-focus button so the pair reads identically. */
+.mapMaximizeButton svg {
+  width: 18px;
+  height: 18px;
+}
+
+/* Pressed feedback — same :active grammar as the desktop/7" focus
+ * button (Q6 harmonization). :active releases cleanly on touch,
+ * unlike :hover (which stays banned on kiosk surfaces). */
+.mapMaximizeButton:active {
+  background-color: var(--c-accent-soft);
+  color: var(--c-accent);
+  transform: scale(0.96);
 }
 
 .mapMaximizeButton:focus-visible {
