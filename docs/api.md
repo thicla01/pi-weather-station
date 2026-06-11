@@ -1,11 +1,11 @@
 # Pi Weather Station — API Reference
 
-*Current as of v2.16.5.*
+*Current as of v2.19.0.*
 
 All endpoints are served by the Express server on port **8443 (HTTPS)** or **8080 (HTTP)** as a fallback. Endpoints prefixed with `/api/` are subject to rate limiting unless noted otherwise.
 
 **Rate limits (per connection socket peer — `req.socket.remoteAddress`, not the X-Forwarded-For-spoofable `req.ip`):**
-- Weather, geocoding, summary, indoor-temperature, sensehat, update-check: **120 req / min**
+- Weather, geocoding, summary, indoor-temperature, sensehat, pollen, update-check: **120 req / min**
 - Map tiles: **600 req / min**
 
 **Access levels:**
@@ -341,6 +341,63 @@ Category cut-points per scale:
 
 ---
 
+## Pollen
+
+### `GET /api/pollen`
+Returns the current pollen readings for the six standard allergens — alder, birch, grass, mugwort, olive, and ragweed — via the [Open-Meteo Air Quality API](https://open-meteo.com/en/docs/air-quality-api) (free, no key required). Feeds the optional Pollen cell in the client's MetricsGrid: the worst-case category colours the cell, the per-allergen breakdown fills the detail popover.
+
+Coverage is **effectively Europe-only**: Open-Meteo's pollen variables come from the CAMS *European* air-quality model, and queries outside its domain (verified live: Montréal and New York return `null` for all six allergens, mid grass season) yield no data. Out-of-coverage regions and upstream failures both return HTTP 200 with `{ "available": false }` so the client hides the cell silently without a devtools error. No server-side cache — each request is one upstream fetch.
+
+**Category bucketing** — pollen has no universal scale, so a single approximate threshold set (in grains/m³) maps every allergen onto the same 4-tier vocabulary the UV and air-quality badges already use:
+
+| Value (grains/m³) | Category |
+|---:|---|
+| < 5 | `low` |
+| 5 – 19 | `moderate` |
+| 20 – 49 | `high` |
+| ≥ 50 | `veryHigh` |
+
+The aggregate `category` is the worst case across the six allergens; allergens absent from the upstream payload (`value: null` — common where the CAMS model lacks data for a specific pollen) are skipped.
+
+- **Access:** 🌐 Public — rate limited (120 req/min)
+- **Query params:**
+
+| Parameter | Type | Required | Description |
+|---|---|:---:|---|
+| `lat` | float | ✅ | Latitude (-90 to 90) |
+| `lon` | float | ✅ | Longitude (-180 to 180) |
+
+- **Response (data available):**
+
+```json
+{
+  "available": true,
+  "worstAllergen": "ragweed_pollen",
+  "worstValue": 42.5,
+  "category": "high",
+  "allergens": [
+    { "name": "alder_pollen",   "value": 0,    "category": "low" },
+    { "name": "birch_pollen",   "value": 1.2,  "category": "low" },
+    { "name": "grass_pollen",   "value": 12,   "category": "moderate" },
+    { "name": "mugwort_pollen", "value": null, "category": null },
+    { "name": "olive_pollen",   "value": 0,    "category": "low" },
+    { "name": "ragweed_pollen", "value": 42.5, "category": "high" }
+  ]
+}
+```
+
+| Field | Type | Description |
+|---|---|---|
+| `worstAllergen` | string \| null | The allergen that drove the worst-case category |
+| `worstValue` | number \| null | Its current value in grains/m³ |
+| `category` | string | `low` \| `moderate` \| `high` \| `veryHigh` — worst case across allergens |
+| `allergens` | array | All six allergens, in fixed order; `value`/`category` are `null` for allergens absent from the upstream payload |
+
+- **Response (out of coverage / upstream failure / no allergen data):** HTTP 200 `{ "available": false }`
+- **Errors:** HTTP 400 `{ "available": false, "error": "Invalid coordinates" }` on out-of-range or non-numeric coordinates
+
+---
+
 ## Severe Weather Alerts
 
 ### `GET /api/weather-alerts`
@@ -523,6 +580,95 @@ Push the kiosk's currently-viewed map coordinates into a server-side in-memory c
 - **Response:** `204 No Content` on success, `400` with `{ "error": "..." }` on validation failure
 - **Cache lifetime:** no TTL — last write wins, cleared on server restart. The kiosk client posts (debounced 1 s) every time `mapGeo` changes; restart of `pi-weather-server` reverts the Sense HAT location source to `settings.json` → ipapi.
 
+### `GET /api/sensehat-available`
+Reports whether a Sense HAT is physically attached to the host. Used by the v3 SettingsPanel to hide the Sense HAT block entirely on the Pis in the fleet that don't have the HAT.
+
+Detection scans sysfs (`/sys/class/graphics/fb*`) for the HAT's LED-matrix framebuffer (a `name` or backing driver mentioning "sense") — a **hardware** check, deliberately not `python3 -c "import sense_hat"`, which succeeds on any host where the apt package is installed even with no HAT attached. The result is cached for the process lifetime (physical attachment doesn't change at runtime). On hosts with no sysfs (e.g. macOS dev box) the probe returns `false`.
+
+- **Access:** 🌐 Public — rate limited (120 req/min)
+- **Query params:** none
+- **Response:** `{ "available": <boolean> }`
+
+---
+
+### `GET /api/sensehat-mode`
+Returns the persisted Sense HAT display mode (`advanced.sensehat.mode` in `settings.json`).
+
+- **Access:** 🌐 Public — rate limited (120 req/min)
+- **Query params:** none
+- **Response:** `{ "mode": "weather" | "clock" | "radar" | "auto" }` — defaults to `weather` when the setting is missing or invalid
+
+The four modes:
+
+| Mode | Daemon | Behaviour |
+|---|---|---|
+| `weather` | `pi-sensehat.service` | Weather glyphs only, radar never lit |
+| `clock` | `pi-sensehat-clock.service` | LED clock (`tools/horloge.py`) |
+| `radar` | `pi-sensehat.service` | Radar grid whenever echoes are present, centre dot when clear |
+| `auto` | `pi-sensehat.service` | alert > precip-on-me (glyph) > radar "incoming" > sky |
+
+---
+
+### `POST /api/sensehat-mode`
+Persists a new display mode and switches the systemd user services to match: the clock daemon for `clock`, the weather daemon for `weather`/`radar`/`auto` (those three share one service and only differ in the script's per-poll personality, read back from `GET /api/sensehat`). The switch stops the inactive service before starting the target one (so the LED matrix is released cleanly), and concurrent invocations are serialised server-side so a double-tap on the toggle can't leave both daemons driving the matrix. Idempotent — re-posting the active mode just refreshes the systemctl state.
+
+- **Access:** 🔒 Localhost only — `systemctl --user` starts a process on the kiosk; a remote client must not be able to flip the Sense HAT display
+- **Body:** `{ "mode": "weather" | "clock" | "radar" | "auto" }`
+- **Response:** `{ "mode": "<applied mode>" }`
+- **Errors:**
+  - `400` — `mode` not in the whitelist
+  - `503` — no Sense HAT detected on this host
+  - `500` — the target service failed to start (`{ "error": "..." }`)
+
+The persisted mode is re-applied at every server boot (`applySenseHatModeOnBoot`), so a Pi reboot doesn't silently revert to the weather daemon that `WantedBy=default.target` would otherwise enable.
+
+---
+
+### `GET /api/sensehat-clock-brightness`
+Returns the persisted LED-clock brightness (`advanced.sensehat.clockBrightness`).
+
+- **Access:** 🌐 Public — rate limited (120 req/min)
+- **Query params:** none
+- **Response:** `{ "brightness": <integer 0-100> }` — defaults to `50` when the setting is missing or invalid
+
+---
+
+### `POST /api/sensehat-clock-brightness`
+Persists a new clock brightness. The clock script reads the value **at start**, so when `pi-sensehat-clock.service` is currently active the endpoint restarts it to make the change take effect immediately; when the clock isn't running (weather mode), the restart is skipped and the value is picked up the next time the user flips to clock mode.
+
+- **Access:** 🔒 Localhost only
+- **Body:** `{ "brightness": <number 0-100> }` — rounded to the nearest integer before persisting
+- **Response:**
+  - `{ "brightness": <int>, "restarted": true }` — persisted, clock service restarted
+  - `{ "brightness": <int>, "restarted": false }` — persisted, clock service not active (no restart needed)
+  - `{ "brightness": <int>, "restarted": false, "warning": "..." }` — persisted but the restart failed; the next service start picks up the value (partial success, still HTTP 200)
+- **Errors:**
+  - `400` — `brightness` not a finite number in 0–100
+  - `503` — no Sense HAT detected on this host
+  - `500` — settings write failed
+
+---
+
+### `GET /api/sensehat-radar-brightness`
+Returns the persisted radar-grid brightness (`advanced.sensehat.radarBrightness`), applied in both day and night (like the clock).
+
+- **Access:** 🌐 Public — rate limited (120 req/min)
+- **Query params:** none
+- **Response:** `{ "brightness": <integer 0-100> }` — defaults to `60` when the setting is missing or invalid
+
+---
+
+### `POST /api/sensehat-radar-brightness`
+Persists a new radar brightness — and deliberately does **not** restart any service. Unlike the clock, the weather/radar daemon re-reads `radarBrightness` from `settings.json` live on a ~1 s cadence (`read_radar_brightness` in `tools/sensehat_weather.py`), so the slider takes effect without a restart. (The earlier restart-on-change behaviour left a stuck black frame when restarts overlapped on fast slider moves, most visible on the v1 HAT.) The client slider is pinned to a 20 % minimum — below ~15 % the matrix reads black on both HAT revisions — but the endpoint itself accepts the full 0–100 range.
+
+- **Access:** 🔒 Localhost only
+- **Body:** `{ "brightness": <number 0-100> }` — rounded to the nearest integer before persisting
+- **Response:** `{ "brightness": <int> }`
+- **Errors:**
+  - `400` — `brightness` not a finite number in 0–100
+  - `503` — no Sense HAT detected on this host
+  - `500` — settings write failed
+
 ---
 
 ## Indoor Temperature
@@ -663,6 +809,17 @@ Lightweight endpoint polled by the debug panel every 5 s while open, alongside `
 
 - **Access:** 🔒 Localhost only
 - **Response:** `{ "available": false }` when no fan sensor is exposed, otherwise `{ "available": true, "rpm": <number | null> }` (a value of `0` is valid — CPU cool, fan stopped — and is distinct from `null`, which means the file existed at detection time but became unreadable since).
+
+---
+
+### `POST /api/debug/radar-compression-report`
+Generates a Markdown report of the radar prompt-compression statistics accumulated in memory by `server/compressionStats.js` (character-count reduction of the hierarchical radar prompt format vs the pre-compression legacy format: count/avg/min/max/median, a reduction histogram, and the least-compressed recent frames). The stats are in-memory only — they reset on server restart, same lifecycle as the response-time KPIs.
+
+- **Access:** 🔒 Localhost only — the report is for the kiosk owner; remote clients shouldn't be able to fill the `report/` directory
+- **Body:** none
+- **Side effects:** writes `report/radar-compression-<ISO timestamp>.md` in the repo root (creates the `report/` directory if missing)
+- **Response:** `{ "ok": true, "path": "report/radar-compression-<ISO timestamp>.md" }` — the relative path, shown by the debug panel in a confirmation toast
+- **Errors:** HTTP 500 `{ "error": true, "message": "..." }` when the file write fails
 
 ---
 

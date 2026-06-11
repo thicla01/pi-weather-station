@@ -99,7 +99,7 @@ for tagged releases.
 >   (development resumed in 2026 after a multi-year hiatus).
 > - **This fork**
 >   ([thicla01](https://github.com/thicla01/pi-weather-station))
->   — actively developed since 2026, currently at **v2.18.x**.
+>   — actively developed since 2026, currently at **v2.19.x**.
 >   All the v2 features described in the screenshots above
 >   (AI summary, severe-alert banners with cycling, direction-arrow
 >   overlay, RADAR confidence pill, gov-alert detail section with

@@ -940,7 +940,8 @@ module.exports = {
   summaryCache,
   getRecentRadarSnapshots,
   // Exported for regression testing only — internal helpers, not part of
-  // the public surface. See test/aiSummary.cache.test.js.
+  // the public surface. See test/aiSummary.cache.test.js and
+  // test/aiSummaryCalmPath.test.js.
   __test: {
     buildSummaryCacheKey,
     SUMMARY_CACHE_TTL,
@@ -949,5 +950,11 @@ module.exports = {
     setSummaryCache,
     reserveClaudeCall,
     MAX_CLAUDE_CALLS_PER_MIN,
+    // Calm-day fast path (skips the billed Anthropic call)
+    isRadarClear,
+    isCalmStableState,
+    buildCalmDayTemplate,
+    getHourlyForecast,
+    getPeriod,
   },
 };

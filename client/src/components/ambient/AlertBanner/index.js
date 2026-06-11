@@ -100,7 +100,8 @@ const AlertBanner = () => {
           aria-label={t(govAlertExpanded ? "alert.collapseRow" : "alert.expandRow")}
         >
           {/* Three rows in the head:
-            *   1. topRow — severity chip on the left, chevron flush
+            *   1. topRow — source badge + severity chip cluster on the
+            *      left, chevron flush
             *      right. The title used to live here too but on the
             *      Pi 7" rail (~250 px wide) the chip + chevron +
             *      dismiss button left ~100 px for the title, which
@@ -112,7 +113,16 @@ const AlertBanner = () => {
             *   2. title — full-width, wraps freely on narrow rails.
             *   3. metaRow — chips + counter as before. */}
           <div className={styles.topRow}>
-            <SeverityChip severity={currentAlert.severity} />
+            {/* Leading source badge — project rule (CLAUDE.md → "Alert
+              * banners — always identify the source"): every banner
+              * names its authority at a glance, official feed (ECCC /
+              * NWS) vs derived (RADAR, in the radar branch below).
+              * Grouped with the severity chip so the topRow's
+              * space-between keeps the chevron flush right. */}
+            <div className={styles.topRowBadges}>
+              <SourceBadge source={currentAlert.source} />
+              <SeverityChip severity={currentAlert.severity} />
+            </div>
             <InlineIcon icon={chevronDown} className={styles.chevron} />
           </div>
           <div className={styles.title}>{title}</div>
