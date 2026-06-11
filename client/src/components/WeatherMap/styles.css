@@ -715,6 +715,11 @@
   letter-spacing: -0.005em;
   line-height: 1.2;
   white-space: nowrap;
+  /* Without this the nowrap line paints PAST its flex box and under
+   * the return-to-now pill when the header runs tight (fontSize L on
+   * a mid-width window — maintainer-reported overlap). */
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .rt-now-tag {
@@ -780,6 +785,20 @@
 .rt-return-now.rt-return-now:active {
   background: var(--c-accent-soft, rgba(184, 90, 24, 0.18));
   transform: scale(0.96);
+}
+
+/* Mid-width windows (and the 7"/10" kiosks): the pill goes icon-only —
+ * its title/aria keep the label for assistive tech, and the freed
+ * ~80 px is what the timestamp + chip need at fontSize L. The ambient
+ * mobile layout already does this via its own override below. */
+@media (max-width: 1279px) {
+  .rt-return-now .rt-return-label {
+    display: none;
+  }
+
+  .rt-return-now.rt-return-now {
+    padding: 0 9px;
+  }
 }
 
 .rt-source-chip {
