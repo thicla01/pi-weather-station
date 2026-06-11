@@ -100,7 +100,8 @@ const AlertBanner = () => {
           aria-label={t(govAlertExpanded ? "alert.collapseRow" : "alert.expandRow")}
         >
           {/* Three rows in the head:
-            *   1. topRow — severity chip on the left, chevron flush
+            *   1. topRow — source badge + severity chip cluster on the
+            *      left, chevron flush
             *      right. The title used to live here too but on the
             *      Pi 7" rail (~250 px wide) the chip + chevron +
             *      dismiss button left ~100 px for the title, which

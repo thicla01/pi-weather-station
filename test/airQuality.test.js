@@ -23,17 +23,20 @@ const {
 
 // === epaAqiFromConcentration — official EPA reference points ===
 
-test("PM2.5: official breakpoint values map to their exact AQI", () => {
+test("PM2.5: official breakpoint values map to their exact AQI (May-2024 EPA table)", () => {
+  // 89 FR 16202, effective 2024-05-06 — Good tightened to 9.0 µg/m³,
+  // single 301-500 top band ending at 325.4. The pre-2024 table lived
+  // in the code until 2026-06 (caught by the lot D adversarial review).
   assert.equal(epaAqiFromConcentration("pm25", 0.0), 0);
-  assert.equal(epaAqiFromConcentration("pm25", 12.0), 50);
-  assert.equal(epaAqiFromConcentration("pm25", 12.1), 51);
+  assert.equal(epaAqiFromConcentration("pm25", 9.0), 50);
+  assert.equal(epaAqiFromConcentration("pm25", 9.1), 51);
   assert.equal(epaAqiFromConcentration("pm25", 35.4), 100);
   assert.equal(epaAqiFromConcentration("pm25", 35.5), 101);
   assert.equal(epaAqiFromConcentration("pm25", 55.4), 150);
   assert.equal(epaAqiFromConcentration("pm25", 55.5), 151);
-  assert.equal(epaAqiFromConcentration("pm25", 150.4), 200);
-  assert.equal(epaAqiFromConcentration("pm25", 250.5), 301);
-  assert.equal(epaAqiFromConcentration("pm25", 500.4), 500);
+  assert.equal(epaAqiFromConcentration("pm25", 125.4), 200);
+  assert.equal(epaAqiFromConcentration("pm25", 225.5), 301);
+  assert.equal(epaAqiFromConcentration("pm25", 325.4), 500);
 });
 
 test("PM10: official breakpoint values map to their exact AQI", () => {
@@ -95,7 +98,8 @@ test("CO: official breakpoint values map to their exact AQI", () => {
 
 test("former gap values now resolve via EPA truncation", () => {
   // PM2.5 ]12.0, 12.1[ → truncate to 1 decimal → 12.0 → AQI 50
-  assert.equal(epaAqiFromConcentration("pm25", 12.05), 50);
+  assert.equal(epaAqiFromConcentration("pm25", 9.05), 50);   // the 2024 table's gap ]9.0, 9.1[
+  assert.equal(epaAqiFromConcentration("pm25", 12.05), 56);  // plain interpolation inside Moderate
   // PM10 ]54, 55[ → truncate to integer → 54 → AQI 50
   assert.equal(epaAqiFromConcentration("pm10", 54.7), 50);
   // CO ]4.4, 4.5[ → truncate to 1 decimal → 4.4 → AQI 50
@@ -113,8 +117,8 @@ test("former gap values now resolve via EPA truncation", () => {
 });
 
 test("truncation truncates (never rounds up): just-below-breakpoint stays in the lower band", () => {
-  // 12.09 is genuinely below 12.1 — must truncate to 12.0, not round to 12.1
-  assert.equal(epaAqiFromConcentration("pm25", 12.09), 50);
+  // 9.09 is genuinely below 9.1 — must truncate to 9.0, not round to 9.1
+  assert.equal(epaAqiFromConcentration("pm25", 9.09), 50);
   assert.equal(epaAqiFromConcentration("pm10", 154.9), 100);
   assert.equal(epaAqiFromConcentration("co", 4.49), 50);
 });

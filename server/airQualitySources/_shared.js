@@ -74,14 +74,19 @@ function categoryForIqa(value) {
 // ppb for NO2 / SO2. The OpenAQ source converts to these units
 // before calling `epaAqiFromConcentration`.
 const EPA_BREAKPOINTS = {
-  // PM2.5 24h average, μg/m³
+  // PM2.5 24h average, μg/m³ — the May-2024 EPA revision (89 FR 16202,
+  // effective 2024-05-06): Good tightened 12.0 → 9.0 µg/m³, Unhealthy
+  // bands compressed, and the former 301-400/401-500 split collapsed
+  // into a single 301-500 band ending at 325.4. The pre-2024 table
+  // lived here until 2026-06 and made the OpenAQ path read one
+  // category lower than AirNow (which relays EPA's upstream AQI).
   pm25: [
-    [0.0, 12.0,    0,  50],
-    [12.1, 35.4,  51, 100],
+    [0.0, 9.0,     0,  50],
+    [9.1, 35.4,   51, 100],
     [35.5, 55.4, 101, 150],
-    [55.5, 150.4, 151, 200],
-    [150.5, 250.4, 201, 300],
-    [250.5, 500.4, 301, 500],
+    [55.5, 125.4, 151, 200],
+    [125.5, 225.4, 201, 300],
+    [225.5, 325.4, 301, 500],
   ],
   // PM10 24h average, μg/m³
   pm10: [

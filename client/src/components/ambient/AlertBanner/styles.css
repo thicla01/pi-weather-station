@@ -92,10 +92,18 @@
 
 .topRowBadges {
   /* Source badge + severity chip cluster — same 6px rhythm as the
-   * radar branch's .chips row below. */
+   * radar branch's .chips row below. min-width:0 + wrap give the
+   * cluster shrink capacity on the ~250px Pi rail: the chip's own
+   * nowrap/flex-shrink:0 styles would otherwise push the row past
+   * the container in FR ("AVERTISSEMENT" + ECCC badge) — the same
+   * crowding class that forced the title onto its own row in the
+   * 2026-05-28 Saskatoon case. Wrapping drops the severity chip to
+   * a second line instead of overflowing. */
   display: flex;
   align-items: center;
-  gap: 6px;
+  flex-wrap: wrap;
+  gap: 4px 6px;
+  min-width: 0;
 }
 
 .topRow {

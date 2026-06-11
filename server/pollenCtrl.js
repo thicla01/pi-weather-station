@@ -4,10 +4,12 @@
 // the client's MetricsGrid uses as a 5th cell (opt-in per install).
 //
 // Source: https://open-meteo.com/en/docs/air-quality-api
-// Coverage:
-//   - Europe: CAMS native (high resolution)
-//   - North America: CAMS global via GEOS-CF (lower resolution but
-//     finely-resolved metros like Montreal / NYC read well)
+// Coverage: effectively EUROPE-ONLY — the pollen variables come from
+// the CAMS European model; outside its domain the API returns null for
+// every allergen (verified live 2026-06-10: Montréal and NYC both null
+// in mid grass season). The controller answers {available:false} and
+// the client hides the cell, so non-European installs simply never see
+// the pollen tile even with the opt-in enabled.
 //
 // Category bucketing: pollen has no universal scale. Allergen-specific
 // clinical thresholds vary widely (grass low ≤30 grains/m³, tree low

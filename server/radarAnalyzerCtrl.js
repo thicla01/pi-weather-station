@@ -1342,5 +1342,13 @@ module.exports = {
     computePerDirectionTrends,
     summarizeRingTrend,
     computeTrendConfidence,
+    // Cross-file contract tables — the client mirror in
+    // test/radarGeometry.test.js compares its copies against THESE
+    // (not against hardcoded literals), so a drift on either side
+    // fails mechanically.
+    RISK_LEVELS,
+    COMPASS_16,
+    INNER_DIRECTIONS,
+    OUTER_DIRECTIONS,
   },
 };

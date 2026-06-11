@@ -142,8 +142,11 @@ function buildSamplingPoints(center, extended, unit) {
 // ---------- end of verbatim copy ----------
 
 // ─── Server-side contracts, hardcoded from server/radarAnalyzerCtrl.js ───
-// These are deliberately NOT imported/derived — they restate what the
-// server commits to, so a change on EITHER side trips the tests.
+// The literals below RESTATE what the server commits to (so the client
+// copy is checked against an explicit, human-readable expectation) AND
+// are asserted against the live server module's __test exports in the
+// "server contract tables" test — a drift on either side fails
+// mechanically, not just by convention.
 
 // radarAnalyzerCtrl.js RISK_LEVELS — index = intensity level 0-6.
 // 0 → calm (client renders null/neutral), 1-3 → yellow, 4 → orange,
@@ -163,6 +166,15 @@ const SERVER_OUTER_NAMES = [
   "S", "191.25", "SSW", "213.75", "SW", "236.25", "WSW", "258.75",
   "W", "281.25", "WNW", "303.75", "NW", "326.25", "NNW", "348.75",
 ];
+
+const { __test: radarCtrlTest } = require("../server/radarAnalyzerCtrl");
+
+test("server contract tables match radarAnalyzerCtrl's actual exports", () => {
+  assert.deepEqual(radarCtrlTest.RISK_LEVELS, SERVER_RISK_LEVELS);
+  assert.deepEqual(radarCtrlTest.COMPASS_16, SERVER_INNER_NAMES);
+  assert.deepEqual(radarCtrlTest.INNER_DIRECTIONS.map((d) => d.name), SERVER_INNER_NAMES);
+  assert.deepEqual(radarCtrlTest.OUTER_DIRECTIONS.map((d) => d.name), SERVER_OUTER_NAMES);
+});
 
 // Expected sampling-point counts. Inner ring: 1 centre + 16 directions
 // × 10 distances = 161 (matches the "161 samples (1 + 16×10)" figure in

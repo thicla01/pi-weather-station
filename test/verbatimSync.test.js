@@ -61,14 +61,14 @@ const COPY_END_RE = /^\/\/ -{4,} end of verbatim copy -{4,}\s*$/m;
 // not be discovered as standalone declarations.
 const TOP_LEVEL_DECL_RE = /^(?:export\s+)?(?:async\s+)?(?:function\s+(\w+)\s*\(|const\s+(\w+)\s*=)/gm;
 
-// Inventory size as of 2026-06 (8 + 5 + 1 + 9 + 4). Guards against the
+// Inventory size as of 2026-06 (12 + 8 + 5 + 1 + 9 + 4). Guards against the
 // discovery silently finding nothing (which would fake-pass the suite).
 // If a copied declaration is legitimately removed from a test file,
 // lower this consciously.
-const EXPECTED_CHECK_COUNT = 27;
+const EXPECTED_CHECK_COUNT = 39;
 
 /**
- * The five copy-carrying test files and how to find their copies.
+ * The six copy-carrying test files and how to find their copies.
  *
  * Marker-delimited files (`conversions`, `alertParser`, `moonLitPath`)
  * need no `sourceFile`/`copiedNames`: the source path comes from the
@@ -90,6 +90,12 @@ const EXPECTED_CHECK_COUNT = 27;
  *     comparison fails — drift is still caught, never masked.
  */
 const PAIRS = [
+  {
+    // Marker-delimited copy of WeatherMap/geometry.js (12 declarations)
+    // — registered the day it was created so its own "fails loudly"
+    // header is mechanically true from the start.
+    testFile: "test/radarGeometry.test.js",
+  },
   {
     testFile: "test/conversions.test.js",
     // Marker-delimited. The copy drops the source's leftover
@@ -379,7 +385,7 @@ test("verbatimSync: discovery found the full copied-declaration inventory", () =
   assert.equal(
     CHECKS.length,
     EXPECTED_CHECK_COUNT,
-    `expected ${EXPECTED_CHECK_COUNT} copied declarations across the five test files, `
+    `expected ${EXPECTED_CHECK_COUNT} copied declarations across the six test files, `
       + `found ${CHECKS.length} (${CHECKS.map((c) => c.name).join(", ")}) — `
       + "update EXPECTED_CHECK_COUNT if a copy was deliberately added/removed",
   );

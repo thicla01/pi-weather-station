@@ -346,7 +346,7 @@ Category cut-points per scale:
 ### `GET /api/pollen`
 Returns the current pollen readings for the six standard allergens — alder, birch, grass, mugwort, olive, and ragweed — via the [Open-Meteo Air Quality API](https://open-meteo.com/en/docs/air-quality-api) (free, no key required). Feeds the optional Pollen cell in the client's MetricsGrid: the worst-case category colours the cell, the per-allergen breakdown fills the detail popover.
 
-Coverage follows the upstream CAMS model: Europe at native (high) resolution, North America via the lower-resolution global model (still finely-resolved over major metros). Out-of-coverage regions and upstream failures both return HTTP 200 with `{ "available": false }` so the client hides the cell silently without a devtools error. No server-side cache — each request is one upstream fetch.
+Coverage is **effectively Europe-only**: Open-Meteo's pollen variables come from the CAMS *European* air-quality model, and queries outside its domain (verified live: Montréal and New York return `null` for all six allergens, mid grass season) yield no data. Out-of-coverage regions and upstream failures both return HTTP 200 with `{ "available": false }` so the client hides the cell silently without a devtools error. No server-side cache — each request is one upstream fetch.
 
 **Category bucketing** — pollen has no universal scale, so a single approximate threshold set (in grains/m³) maps every allergen onto the same 4-tier vocabulary the UV and air-quality badges already use:
 
