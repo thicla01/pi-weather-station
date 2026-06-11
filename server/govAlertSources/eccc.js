@@ -33,9 +33,23 @@ const ALERTS_URL = "https://api.weather.gc.ca/collections/weather-alerts/items?f
 const FEED_TTL_MS = 5 * 60 * 1000; // 5 min — ECCC publishes alerts as they're issued
 
 let feedCache = null; // { features, expiresAt }
+let feedInflight = null; // shared promise — concurrent pollers reuse one upstream fetch
 
 /**
- * Fetch the full active-alerts feed (cached 5 min).
+ * Fetch the full active-alerts feed (cached 5 min). This is the only
+ * place that talks to ECCC upstream, so the requestCounter increment
+ * and serviceStatus record live HERE — on actual feed refresh only.
+ * The counter must mean "HTTP requests sent to ECCC", like every
+ * other requestCounter call site: it used to sit in tryAlerts after
+ * the point-in-polygon scan, where the Sense HAT daemon's 60 s poll
+ * inflated it to ~66/h (729/day observed on the SenseHat Pi,
+ * 2026-06-11) while real upstream traffic was 5-min-cached at ~12/h —
+ * the misplaced counter made the feed look hammered when it wasn't.
+ * See test/ecccAlertsCounter.test.js.
+ *
+ * Concurrent callers landing on a cold/expired cache (the kiosk's
+ * 5-min poll and the HAT's 60 s poll can hit the same expiry window)
+ * share one in-flight request instead of racing duplicate fetches.
  *
  * @returns {Promise<Array<Object>>} GeoJSON features
  */
@@ -43,10 +57,22 @@ async function getFeed() {
   if (feedCache && Date.now() < feedCache.expiresAt) {
     return feedCache.features;
   }
-  const resp = await axios.get(ALERTS_URL, { timeout: TIMEOUT_MS });
-  const features = resp.data?.features || [];
-  feedCache = { features, expiresAt: Date.now() + FEED_TTL_MS };
-  return features;
+  if (feedInflight) return feedInflight;
+  feedInflight = (async () => {
+    let resp;
+    try {
+      resp = await axios.get(ALERTS_URL, { timeout: TIMEOUT_MS });
+    } catch (err) {
+      recordServiceCall(SERVICE_NAME, err?.response?.status || 500, "feed fetch failed");
+      throw err;
+    }
+    const features = resp.data?.features || [];
+    feedCache = { features, expiresAt: Date.now() + FEED_TTL_MS };
+    recordServiceCall(SERVICE_NAME, 200, `feed refresh — ${features.length} active alert(s) in CA`);
+    increment("eccc", "alerts");
+    return features;
+  })().finally(() => { feedInflight = null; });
+  return feedInflight;
 }
 
 /**
@@ -132,8 +158,8 @@ async function tryAlerts(lat, lon) {
   let features;
   try {
     features = await getFeed();
-  } catch (err) {
-    recordServiceCall(SERVICE_NAME, err?.response?.status || 500, "feed fetch failed");
+  } catch {
+    // getFeed already recorded the failure in serviceStatus.
     return null;
   }
 
@@ -145,8 +171,6 @@ async function tryAlerts(lat, lon) {
     }
   }
 
-  recordServiceCall(SERVICE_NAME, 200, `${matching.length} alert(s) of ${features.length} active in CA`);
-  increment("eccc", "alerts");
   return matching;
 }
 
@@ -163,8 +187,8 @@ async function fetchAllNormalized() {
   let features;
   try {
     features = await getFeed();
-  } catch (err) {
-    recordServiceCall(SERVICE_NAME, err?.response?.status || 500, "feed fetch failed");
+  } catch {
+    // getFeed already recorded the failure in serviceStatus.
     return [];
   }
   const out = [];
@@ -175,4 +199,15 @@ async function fetchAllNormalized() {
   return out;
 }
 
-module.exports = { tryAlerts, SERVICE_NAME, fetchAllNormalized };
+module.exports = {
+  tryAlerts,
+  SERVICE_NAME,
+  fetchAllNormalized,
+  // Feed-cache controls exposed for regression testing only — they let
+  // test/ecccAlertsCounter.test.js drive the cold/expired-cache paths
+  // without reaching into module state. Never call these from app code.
+  __test: {
+    _resetFeedCache: () => { feedCache = null; },
+    _expireFeedCache: () => { if (feedCache) feedCache.expiresAt = 0; },
+  },
+};
