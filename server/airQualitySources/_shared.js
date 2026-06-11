@@ -117,9 +117,12 @@ const EPA_BREAKPOINTS = {
     [650,  1249,  201, 300],
     [1250, 2049,  301, 500],
   ],
-  // SO2 1h average, ppb (above 304 ppb the 24h average drives AQI;
-  // we cap at the 1h band's top so an extreme spike still reads as
-  // "very high" rather than going off the scale.)
+  // SO2 1h average, ppb. Per EPA, AQI values above 200 are defined
+  // only on the 24h average, which we never have (sources hand us
+  // the latest ~1h reading) — so for 1h readings above 304 ppb,
+  // `epaAqiFromConcentration` returns the EPA-prescribed fallback of
+  // exactly 200 (see SO2_1H_OFFSCALE_AQI) instead of going off the
+  // 1h scale or dropping the reading.
   so2: [
     [0,    35,    0,  50],
     [36,   75,   51, 100],
@@ -137,12 +140,60 @@ const EPA_BREAKPOINTS = {
   ],
 };
 
+// Decimal precision of each breakpoint table, per the EPA TAD: the
+// measured concentration must be TRUNCATED to the table's granularity
+// before band lookup (PM2.5 → 0.1 μg/m³, PM10 → 1 μg/m³, O3 → 0.001
+// ppm, CO → 0.1 ppm, NO2/SO2 → 1 ppb). Without this, raw/converted
+// floats fall into the gaps between bands (e.g. PM2.5 12.05 sits in
+// ]12.0, 12.1[) and the lookup wrongly returns null.
+const EPA_TRUNCATION_DECIMALS = {
+  pm25: 1,
+  pm10: 0,
+  o3_8h: 3,
+  o3_1h: 3,
+  no2: 0,
+  so2: 0,
+  co: 1,
+};
+
+// EPA-prescribed handling for 1h SO2 readings above the top of the 1h
+// table (304 ppb): AQI values above 200 are defined only on the 24h
+// average; when only a 1h value is available, EPA says to report 200.
+const SO2_1H_MAX_PPB = 304;
+const SO2_1H_OFFSCALE_AQI = 200;
+
+// Scale factor used to strip float-representation noise before
+// truncating (e.g. 55.4 * 10 could evaluate to 553.9999999999999 on
+// some inputs; rounding at the 1e-6 sub-step level restores the
+// intended 554 without affecting genuinely-below values).
+const FLOAT_NOISE_SCALE = 1e6;
+
+/**
+ * Truncate a positive concentration to a fixed number of decimals
+ * (EPA's prescribed pre-lookup step). Float-representation noise is
+ * rounded away at the 1e-6 sub-step level first, so a value that is
+ * mathematically on a breakpoint never truncates one step low.
+ *
+ * @param {Number} value Concentration (>= 0)
+ * @param {Number} decimals Decimal places to keep (0-3)
+ * @returns {Number} value truncated to `decimals` decimal places
+ */
+function truncateTo(value, decimals) {
+  const factor = 10 ** decimals;
+  const scaled = Math.round(value * factor * FLOAT_NOISE_SCALE) / FLOAT_NOISE_SCALE;
+  return Math.trunc(scaled) / factor;
+}
+
 /**
  * Convert a raw concentration in EPA-canonical units to the
- * corresponding EPA AQI sub-index. Returns null when the value is
- * below or above every band defined for the parameter (above-range
- * is rare in practice — only the PM bands cap at 500 — but we'd
- * rather skip than emit an unbounded number).
+ * corresponding EPA AQI sub-index. The value is first truncated to
+ * the breakpoint table's decimal precision (EPA TAD requirement —
+ * this is also what closes the gaps between bands, e.g. PM2.5
+ * ]12.0, 12.1[). Returns null when the truncated value is below or
+ * above every band defined for the parameter (above-range is rare in
+ * practice — only the PM bands cap at 500 — but we'd rather skip
+ * than emit an unbounded number), except 1h SO2 above 304 ppb which
+ * returns the EPA-prescribed 200.
  *
  * @param {String} parameter "pm25" | "pm10" | "o3_1h" | "o3_8h" | "no2" | "so2" | "co"
  * @param {Number} value Concentration in the canonical unit (see EPA_BREAKPOINTS comments)
@@ -152,10 +203,17 @@ function epaAqiFromConcentration(parameter, value) {
   if (value == null || isNaN(value) || value < 0) return null;
   const table = EPA_BREAKPOINTS[parameter];
   if (!table) return null;
+  const truncated = truncateTo(value, EPA_TRUNCATION_DECIMALS[parameter]);
   for (const [cLow, cHigh, iLow, iHigh] of table) {
-    if (value >= cLow && value <= cHigh) {
-      return Math.round(((iHigh - iLow) / (cHigh - cLow)) * (value - cLow) + iLow);
+    if (truncated >= cLow && truncated <= cHigh) {
+      return Math.round(((iHigh - iLow) / (cHigh - cLow)) * (truncated - cLow) + iLow);
     }
+  }
+  // 1h SO2 above the top of the 1h table: EPA defines AQI > 200 only
+  // on the 24h average, which our sources never have — report the
+  // prescribed 200 so an extreme spike still reads as "very high".
+  if (parameter === "so2" && truncated > SO2_1H_MAX_PPB) {
+    return SO2_1H_OFFSCALE_AQI;
   }
   // Below the lowest band — only happens for O3 1h (band starts at
   // 0.125 ppm); the caller is expected to have already tried the 8h
@@ -192,4 +250,7 @@ module.exports = {
   categoryForIqa,
   categoryForEpaAqi,
   epaAqiFromConcentration,
+  // Internal helpers exposed for unit tests only — not part of the
+  // module's public surface.
+  __test: { truncateTo, EPA_TRUNCATION_DECIMALS },
 };
