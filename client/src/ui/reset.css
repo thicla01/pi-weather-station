@@ -134,10 +134,17 @@
  * (0,4,1) via its `.leaflet-touch` variant — the touch-qualified
  * :active here matches that specificity and, being later in the
  * sheet, wins. Without it the pressed state never paints on the
- * kiosk (review finding). */
+ * kiosk (review finding).
+ *
+ * Pressed fill is an OPAQUE accent tint (accent mixed into the page
+ * bg), not `--c-accent-soft` directly: accent-soft is an ~18 % alpha
+ * and the Leaflet anchors carry their own surface (unlike the mock,
+ * where the bar held it) — swapping the surface for accent-soft made
+ * the pressed button go see-through over the map (Pi 7" field
+ * report). */
 .ambientRoot .leaflet-control-zoom a:active,
 .ambientRoot .leaflet-touch .leaflet-control-zoom a:active {
-  background-color: var(--c-accent-soft) !important;
+  background-color: color-mix(in srgb, var(--c-accent) 18%, var(--c-bg)) !important;
   color: var(--c-accent) !important;
 }
 
