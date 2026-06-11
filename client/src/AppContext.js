@@ -413,6 +413,17 @@ export function AppContextProvider({ children }) {
   // cadence the roadmap specified — alerts don't change minute-to-
   // minute and the upstreams already cache aggressively.
   const [govAlerts, setGovAlerts] = useState([]);
+  // Mirror ref (same convention as LayoutMobile's pullArmedRef):
+  // `govAlerts` is replaced by the 10-min poll further down, and having
+  // the two alert-index callbacks below close over it gave them a fresh
+  // identity on every poll payload — which rippled a new context value
+  // to every consumer. They only need the list length *at call time*
+  // (user taps the banner / a mini-card), so they read through the ref
+  // and keep empty dep arrays. The mirror effect re-runs on every
+  // govAlerts commit, so the ref is always current before any tap can
+  // land.
+  const govAlertsRef = useRef(govAlerts);
+  useEffect(() => { govAlertsRef.current = govAlerts; }, [govAlerts]);
   // Cycle index shared between AlertBanner (taps cycle the banner content)
   // and GovAlertDetail (the description section that mirrors the banner's
   // currently-displayed alert). Lives in context so the two components
@@ -421,11 +432,10 @@ export function AppContextProvider({ children }) {
   // callers don't need to know the list length.
   const [govAlertIdx, setGovAlertIdx] = useState(0);
   const cycleGovAlert = useCallback(() => {
-    setGovAlertIdx((prev) => {
-      const len = Array.isArray(govAlerts) ? govAlerts.length : 0;
-      return len > 0 ? (prev + 1) % len : 0;
-    });
-  }, [govAlerts]);
+    const alerts = govAlertsRef.current;
+    const len = Array.isArray(alerts) ? alerts.length : 0;
+    setGovAlertIdx((prev) => (len > 0 ? (prev + 1) % len : 0));
+  }, []);
   // v3.1 Phase 4c: explicit jump-to-alert by absolute index, used
   // when the user taps a mini-card in the "other active alerts"
   // list under the primary card. `cycleGovAlert` still exists for
@@ -435,11 +445,12 @@ export function AppContextProvider({ children }) {
   // mini-card click after the list shrinks can't put us into a
   // bad index.
   const selectGovAlert = useCallback((idx) => {
-    const len = Array.isArray(govAlerts) ? govAlerts.length : 0;
+    const alerts = govAlertsRef.current;
+    const len = Array.isArray(alerts) ? alerts.length : 0;
     if (len === 0) { setGovAlertIdx(0); return; }
     const safe = Number.isInteger(idx) && idx >= 0 && idx < len ? idx : 0;
     setGovAlertIdx(safe);
-  }, [govAlerts]);
+  }, []);
   // Reset cycle when the alert list shrinks (an alert expired, a new
   // payload landed with fewer entries). Otherwise the index could point
   // past the end and render the wrong description.
@@ -731,13 +742,29 @@ export function AppContextProvider({ children }) {
     });
   }, []);
 
+  // Mirror refs for the two menu-open flags (LayoutMobile pullArmedRef
+  // convention). The toggle callbacks below can't be plain functional
+  // updates: each one conditionally closes the *other* panel based on
+  // the current value, and calling a second setter from inside a
+  // functional updater would make the updater impure (StrictMode
+  // double-invokes updaters). Reading the current value through the
+  // ref keeps the cross-close logic in the callback body, the dep
+  // arrays empty, and the identities stable. The mirror effects also
+  // track direct external writes via the raw setters exposed in the
+  // context value (e.g. getWeatherApiKey's setSettingsMenuOpen(true)).
+  const settingsMenuOpenRef = useRef(settingsMenuOpen);
+  useEffect(() => { settingsMenuOpenRef.current = settingsMenuOpen; }, [settingsMenuOpen]);
+  const debugMenuOpenRef = useRef(debugMenuOpen);
+  useEffect(() => { debugMenuOpenRef.current = debugMenuOpen; }, [debugMenuOpen]);
+
   /**
    * Toggles debug menu open/closed — closes settings panel if open
    */
   const toggleDebugMenuOpen = useCallback(() => {
-    if (!debugMenuOpen) setSettingsMenuOpen(false);
-    setDebugMenuOpen(!debugMenuOpen);
-  }, [debugMenuOpen]);
+    const next = !debugMenuOpenRef.current;
+    if (next) setSettingsMenuOpen(false);
+    setDebugMenuOpen(next);
+  }, []);
 
   const loadStoredData = useCallback(() => {
     // Unit + clock + fontSize prefs (including first-launch system-prefs
@@ -1296,31 +1323,44 @@ export function AppContextProvider({ children }) {
     setMapPosition(browserGeo);
   }, [setMapPosition, browserGeo]);
 
+  // Mirror ref for markerIsVisible (same convention as the menu-open
+  // refs above). The toggle persists to localStorage, and a side effect
+  // is not allowed inside a functional setState updater (updaters must
+  // stay pure — StrictMode double-invokes them), so the toggle reads
+  // the current value through the ref and keeps the write in its own
+  // body. The mirror effect also tracks the loadStoredData() restore
+  // path, which sets the state directly.
+  const markerIsVisibleRef = useRef(markerIsVisible);
+  useEffect(() => { markerIsVisibleRef.current = markerIsVisible; }, [markerIsVisible]);
+
   /**
    * Toggles the marker on and off
    */
   const toggleMarker = useCallback(() => {
-    const next = !markerIsVisible;
+    const next = !markerIsVisibleRef.current;
     setMarkerIsVisible(next);
     // v2.14.74: persist the visibility choice. Default true on first
     // boot; restored from localStorage on subsequent boots.
     try { window.localStorage.setItem(MARKER_VISIBLE_STORAGE_KEY, String(next)); } catch { /* localStorage may be unavailable */ }
-  }, [markerIsVisible]);
+  }, []);
 
   /**
    * Toggles weather map animation on/off
    */
   const toggleAnimateWeatherMap = useCallback(() => {
-    setAnimateWeatherMap(!animateWeatherMap);
-  }, [animateWeatherMap]);
+    // Pure flip, no side effects — a functional update keeps the
+    // identity stable without needing a mirror ref.
+    setAnimateWeatherMap((prev) => !prev);
+  }, []);
 
   /**
    * Toggles settings menu open/closed — closes debug panel if open
    */
   const toggleSettingsMenuOpen = useCallback(() => {
-    if (!settingsMenuOpen) setDebugMenuOpen(false);
-    setSettingsMenuOpen(!settingsMenuOpen);
-  }, [settingsMenuOpen]);
+    const next = !settingsMenuOpenRef.current;
+    if (next) setDebugMenuOpen(false);
+    setSettingsMenuOpen(next);
+  }, []);
 
   /**
    * Saves settings to `settings.json`. Each key maps to a server-side
@@ -1369,67 +1409,56 @@ export function AppContextProvider({ children }) {
     });
   }, []);
 
-  /**
-   * Build the full `advanced.*` PATCH payload as a single object,
-   * optionally with per-section overrides spliced in. The server-side
-   * PATCH /setting endpoint replaces the entire `advanced` blob when
-   * called with `key: "advanced"`, so the body must always carry every
-   * section the kiosk still cares about — omitting one wipes it.
-   *
-   * Pre-2026-05-23 each saveAdvanced*Flag function re-assembled the
-   * tree inline, and three of them silently dropped sections
-   * (saveAdvancedDisplayFlag missed `darkModeStyle` inside its display
-   * branch; saveAdvancedDisplayFlag, saveAdvancedSleepFlag, and
-   * saveAdvancedExperimentalFlag all missed `pollen` entirely — toggling
-   * any of those flags would wipe `pollen.enabled` on the server side,
-   * silently disabling the pollen badge for that install). Centralising
-   * the assembly here fixes those by construction.
-   *
-   * @param {object} [overrides] optional per-section override, e.g.
-   *   `{ sleep: { nightMode: true } }` to flip one key while preserving
-   *   the rest of the sleep branch.
-   * @returns {object} the full `advanced.*` blob ready for PATCH
-   */
-  const buildAdvancedSubtree = useCallback((overrides = {}) => {
-    return {
-      ai: {
-        radarAnalysisEnabled,
-        extendedRadius: extendedRadarRadius,
-        showSamplingPoints,
-        calmDayFastPath,
-        ...(overrides.ai || {}),
-      },
-      display: {
-        lightModeStyle,
-        darkModeStyle,
-        radarOpacityLight,
-        radarOpacityDark,
-        ...(overrides.display || {}),
-      },
-      sleep: {
-        enabled: sleepEnabled,
-        stage1Delay: sleepStage1Delay,
-        stage1Brightness: sleepStage1Brightness,
-        stage2Enabled: sleepStage2Enabled,
-        stage2Delay: sleepStage2Delay,
-        nightMode: sleepNightMode,
-        ...(overrides.sleep || {}),
-      },
-      experimental: {
-        uiC: experimentalUiC,
-        ...(overrides.experimental || {}),
-      },
-      pollen: {
-        enabled: pollenEnabled,
-        ...(overrides.pollen || {}),
-      },
-      // Nearby-alerts radius. MUST stay in the builder: this function
-      // replaces the whole advanced blob on every PATCH, so any sub-tree
-      // omitted here is wiped (the documented 2026-05-23 clobber class).
-      alerts: {
-        radius: alertRadiusKm,
-        ...(overrides.alerts || {}),
-      },
+  // Single object-ref mirroring the 17 advanced.* atoms that feed the
+  // PATCH payload below (LayoutMobile pullArmedRef convention, batched).
+  // Pre-step-2a, buildAdvancedSubtree listed all 17 atoms as deps, so
+  // any advanced.* change minted a new builder identity AND new
+  // identities for its eight dependents (the saveAdvanced*Flag helpers
+  // + the three debounced slider setters) — a fresh context value for
+  // every consumer on every slider tick. The builder now reads through
+  // this ref at call time instead, so the whole chain is
+  // identity-stable. The mirror effect is cheap: it runs only when one
+  // of the 17 atoms actually changes. Seeded with the first-render
+  // values (useRef ignores the initializer afterwards) so the ref is
+  // never null even before the first effect commit.
+  const advancedStateRef = useRef({
+    radarAnalysisEnabled,
+    extendedRadarRadius,
+    showSamplingPoints,
+    calmDayFastPath,
+    lightModeStyle,
+    darkModeStyle,
+    radarOpacityLight,
+    radarOpacityDark,
+    sleepEnabled,
+    sleepStage1Delay,
+    sleepStage1Brightness,
+    sleepStage2Enabled,
+    sleepStage2Delay,
+    sleepNightMode,
+    experimentalUiC,
+    pollenEnabled,
+    alertRadiusKm,
+  });
+  useEffect(() => {
+    advancedStateRef.current = {
+      radarAnalysisEnabled,
+      extendedRadarRadius,
+      showSamplingPoints,
+      calmDayFastPath,
+      lightModeStyle,
+      darkModeStyle,
+      radarOpacityLight,
+      radarOpacityDark,
+      sleepEnabled,
+      sleepStage1Delay,
+      sleepStage1Brightness,
+      sleepStage2Enabled,
+      sleepStage2Delay,
+      sleepNightMode,
+      experimentalUiC,
+      pollenEnabled,
+      alertRadiusKm,
     };
   }, [
     radarAnalysisEnabled,
@@ -1450,6 +1479,82 @@ export function AppContextProvider({ children }) {
     pollenEnabled,
     alertRadiusKm,
   ]);
+
+  /**
+   * Build the full `advanced.*` PATCH payload as a single object,
+   * optionally with per-section overrides spliced in. The server-side
+   * PATCH /setting endpoint replaces the entire `advanced` blob when
+   * called with `key: "advanced"`, so the body must always carry every
+   * section the kiosk still cares about — omitting one wipes it.
+   *
+   * Pre-2026-05-23 each saveAdvanced*Flag function re-assembled the
+   * tree inline, and three of them silently dropped sections
+   * (saveAdvancedDisplayFlag missed `darkModeStyle` inside its display
+   * branch; saveAdvancedDisplayFlag, saveAdvancedSleepFlag, and
+   * saveAdvancedExperimentalFlag all missed `pollen` entirely — toggling
+   * any of those flags would wipe `pollen.enabled` on the server side,
+   * silently disabling the pollen badge for that install). Centralising
+   * the assembly here fixes those by construction.
+   *
+   * Read-at-call-time semantics (step 2a): the 17 atom values are read
+   * through `advancedStateRef` when the function is INVOKED, not closed
+   * over at render time — that's what keeps this builder's identity
+   * stable. For the immediate callers (saveAdvanced*Flag) the changed
+   * key always arrives via `overrides`, so the ref only supplies the
+   * unchanged siblings — same payload as the old closure version. For
+   * the debounced callers (radar-opacity + alert-radius sliders) the
+   * PATCH fires 500 ms after the last state update; the mirror effect
+   * above has refreshed the ref long before send time, so the payload
+   * carries the freshest committed values.
+   *
+   * @param {object} [overrides] optional per-section override, e.g.
+   *   `{ sleep: { nightMode: true } }` to flip one key while preserving
+   *   the rest of the sleep branch.
+   * @returns {object} the full `advanced.*` blob ready for PATCH
+   */
+  const buildAdvancedSubtree = useCallback((overrides = {}) => {
+    const s = advancedStateRef.current;
+    return {
+      ai: {
+        radarAnalysisEnabled: s.radarAnalysisEnabled,
+        extendedRadius: s.extendedRadarRadius,
+        showSamplingPoints: s.showSamplingPoints,
+        calmDayFastPath: s.calmDayFastPath,
+        ...(overrides.ai || {}),
+      },
+      display: {
+        lightModeStyle: s.lightModeStyle,
+        darkModeStyle: s.darkModeStyle,
+        radarOpacityLight: s.radarOpacityLight,
+        radarOpacityDark: s.radarOpacityDark,
+        ...(overrides.display || {}),
+      },
+      sleep: {
+        enabled: s.sleepEnabled,
+        stage1Delay: s.sleepStage1Delay,
+        stage1Brightness: s.sleepStage1Brightness,
+        stage2Enabled: s.sleepStage2Enabled,
+        stage2Delay: s.sleepStage2Delay,
+        nightMode: s.sleepNightMode,
+        ...(overrides.sleep || {}),
+      },
+      experimental: {
+        uiC: s.experimentalUiC,
+        ...(overrides.experimental || {}),
+      },
+      pollen: {
+        enabled: s.pollenEnabled,
+        ...(overrides.pollen || {}),
+      },
+      // Nearby-alerts radius. MUST stay in the builder: this function
+      // replaces the whole advanced blob on every PATCH, so any sub-tree
+      // omitted here is wiped (the documented 2026-05-23 clobber class).
+      alerts: {
+        radius: s.alertRadiusKm,
+        ...(overrides.alerts || {}),
+      },
+    };
+  }, []);
 
   /**
    * Persist a single advanced.ai.* flag to settings.json.
