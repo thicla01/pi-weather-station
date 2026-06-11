@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import axios from "axios";
 
 const BRIGHTNESS_SAVE_DEBOUNCE_MS = 250;
@@ -64,13 +64,13 @@ export function useScreenSaver() {
 
   // Debounced setter for the brightness slider.
   const brightnessSaveTimerRef = useRef(null);
-  const setBrightnessLive = (v) => {
+  const setBrightnessLive = useCallback((v) => {
     setBrightnessPercent(v);
     clearTimeout(brightnessSaveTimerRef.current);
     brightnessSaveTimerRef.current = setTimeout(() => {
       axios.post("/api/brightness", { percent: v }).catch(() => undefined);
     }, BRIGHTNESS_SAVE_DEBOUNCE_MS);
-  };
+  }, []);
 
   return {
     // Brightness

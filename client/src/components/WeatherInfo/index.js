@@ -142,8 +142,11 @@ const WeatherInfo = () => {
         console.log("error getting reverse geo api key:", err);
       });
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- the AppContext getter/setter functions used in this effect are stable per provider mount but not memoized, so listing them would cause the effect to re-run on every parent render. Keying on the actual API keys is the intent.
-  }, [weatherApiKey, reverseGeoApiKey]);
+    // The AppContext getters are memoized (useCallback, 2026-06 identity-
+    // stabilization pass) and setSettingsMenuOpen is a raw useState setter —
+    // all stable, so listing them is safe and the effect still only re-runs
+    // when the keys themselves land. Mirrors the same cleanup in AppContext.
+  }, [weatherApiKey, reverseGeoApiKey, getWeatherApiKey, getReverseGeoApiKey, setSettingsMenuOpen]);
 
   // The shell is always rendered so a single Tomorrow.io failure doesn't
   // black out everything in the panel — LocationName (LocationIQ),
