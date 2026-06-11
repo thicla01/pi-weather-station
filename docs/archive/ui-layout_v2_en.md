@@ -136,11 +136,11 @@ Pressing **AI SUMMARY ↓** restores the charts and automatically scrolls the vi
 | Location                    | `LocationName`           | `components/LocationName/index.js`          |
 | Current weather             | `CurrentWeather`         | `components/CurrentWeather/index.js`        |
 | Chart legend                | `ChartLegend`            | inside `WeatherInfo/index.js`               |
-| 24-hour chart               | `HourlyChart`            | `components/weatherCharts/HourlyChart/`     |
-| 5-day chart                 | `DailyChart`             | `components/weatherCharts/DailyChart/`      |
+| 24-hour chart               | `HourlyChart`            | `components/ambient/weatherCharts/HourlyChart/`     |
+| 5-day chart                 | `DailyChart`             | `components/ambient/weatherCharts/DailyChart/`      |
 | Chart tabs                  | `ChartTabs`              | inside `WeatherInfo/index.js` (small screen)|
 | AI summary                  | `AiSummary`              | `components/AiSummary/index.js`             |
-| Control buttons             | `ControlButtons`         | `components/ControlButtons/index.js`        |
+| Control buttons             | `ControlButtons`         | `components/ambient/ControlButtons/index.js`        |
 | Settings (overlay)          | `Settings`               | `components/Settings/index.js`              |
 | Debug (overlay)             | `Debug`                  | `components/Debug/index.js`                 |
 | Update modal (overlay)      | `UpdateModal`            | `components/UpdateModal/index.js`           |

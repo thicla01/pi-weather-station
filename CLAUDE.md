@@ -52,14 +52,13 @@ pi-weather-station/
 │   │   ├── AppContext.js             # Global state (composes useUpdateChecker, useScreenSaver, useUiPreferences hooks; inline state for the rest — weather data, geo, advanced.* save chain, UI state)
 │   │   ├── components/
 │   │   │   ├── App/                  # Root layout (CSS grid)
-│   │   │   ├── ambient/              # v3 "Ambient Layers" tree (default since v2.18) — LayoutDesktop/Mobile/Pi, HeroBand, HeroCompact, MetricsGrid, ChartTabs, BottomDock, alert banner + detail slab, ambient SettingsPanel/DebugPanel, MoonDetailsPopover, etc. (24 components)
+│   │   │   ├── ambient/              # v3 "Ambient Layers" tree (default since v2.18) — LayoutDesktop/Mobile/Pi, HeroBand, HeroCompact, MetricsGrid, ChartTabs, BottomDock, alert banner + detail slab, ambient SettingsPanel/DebugPanel, MoonDetailsPopover, etc. (32 components — incl. ControlButtons + weatherCharts, relocated here from the legacy tree in 2026-06 because the v3 dock and ChartTabs consume them)
 │   │   │   ├── AmbientLayers/        # Palette dispatcher (day/dusk/night/nightRed), viewport breakpoints, iOS PWA bg paint
-│   │   │   ├── WeatherMap/           # Leaflet radar — index.js + RadarTimeline + RadarLegend + RiskRing + MapResizer + RadarFocusControl + WeatherLayer + geometry.js (pure helpers + style tables)
+│   │   │   ├── WeatherMap/           # Leaflet radar — index.js + RadarTimeline + RadarLegend + RiskRing + MapResizer + RadarFocusControl + geometry.js (pure helpers + style tables)
 │   │   │   ├── UpdateModal/          # In-app updater UX (commits, warnings, errors)
 │   │   │   ├── ScreenSaver/          # Sleep mode (stage 1 minimal clock, stage 2 anti-burn-in dot)
 │   │   │   ├── LocationName/         # Reverse-geocoded place name (shared by v2 + v3)
-│   │   │   ├── Spinner/              # Loading spinner
-│   │   │   ├── Settings/, Debug/, InfoPanel/, CurrentWeather/, AiSummary/, Clock/, SunRiseSet/, WeatherInfo/, weatherCharts/, ControlButtons/, IndoorTemperature/  # Legacy v2 tree — still mounts when `experimentalUiC=false`, queued for wholesale removal once the v2.18 field-test trigger fires (no v3-only regression for 4 weeks)
+│   │   │   ├── Settings/, Debug/, InfoPanel/, CurrentWeather/, AiSummary/, Clock/, SunRiseSet/, WeatherInfo/, IndoorTemperature/, AlertBanner/, GovAlertDetail/, UvAqiBadges/, RangeSlider/, Spinner/  # Legacy v2 tree — still mounts when `experimentalUiC=false`, queued for WHOLESALE REMOVAL once the v2.18 field-test trigger fires (no v3-only regression for 4 weeks). This list IS the removal scope (audited 2026-06: the former v3→v2 imports were relocated — ControlButtons + weatherCharts now live under ambient/, exportDebugCsv under ui/ — so deleting these directories breaks nothing v3-side ONCE the v2 branch of `App/index.js` is unwired first: its static imports of InfoPanel/Settings/Debug and the `experimentalUiC=false` JSX branch must go in the same PR, along with the `experimentalUiC` flag itself)
 │   │   ├── hooks/
 │   │   │   ├── useDragScroll.js      # Drag-to-scroll via pointer events (callback ref pattern)
 │   │   │   ├── useUpdateChecker.js   # In-app update flow (state + periodic poll + actions)

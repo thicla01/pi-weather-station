@@ -3,7 +3,7 @@ import { AppContext } from "~/AppContext";
 import Clock from "~/components/Clock";
 import IndoorTemperature from "~/components/IndoorTemperature";
 import WeatherInfo from "~/components/WeatherInfo";
-import ControlButtons from "~/components/ControlButtons";
+import ControlButtons from "~/components/ambient/ControlButtons";
 import AlertBanner from "~/components/AlertBanner";
 import GovAlertDetail from "~/components/GovAlertDetail";
 import useDragScroll from "~/hooks/useDragScroll";
