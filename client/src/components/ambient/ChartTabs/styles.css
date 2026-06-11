@@ -450,8 +450,16 @@
     height: 11px;
   }
 
+  /* The title is decorative on narrow rails — the metric tabs already
+   * say what the card is, and the title was the element starving the
+   * header (truncating to "PRÉ…" at fontSize M, worse at L where the
+   * rail's zoom shrinks the effective width further). Period pills
+   * take over the left edge; the expand button stays right. */
   .headerTitle {
-    font-size: 9px;
-    letter-spacing: 0.1em;
+    display: none;
+  }
+
+  .periodPills {
+    margin-right: auto;
   }
 }
