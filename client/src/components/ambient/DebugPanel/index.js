@@ -7,6 +7,7 @@ import closeSharp from "@iconify/icons-ion/close-sharp";
 import refreshIcon from "@iconify/icons-carbon/restart";
 import upgradeIcon from "@iconify/icons-carbon/upgrade";
 import downloadIcon from "@iconify/icons-ion/download-outline";
+import launchIcon from "@iconify/icons-carbon/launch";
 // Bucket rail icons — inline SVG (Iconify) rather than raw Unicode
 // glyphs. Unicode glyphs render at font-dependent sizes across
 // platforms (e.g. `⌬`/`◇` shrink to a thin fallback on macOS while the
@@ -248,6 +249,15 @@ const DebugPanel = () => {
     >
       <div className={styles.body}>
         <nav className={styles.rail} role="group" aria-label="Debug sections">
+          {/* Multi-select made visible (F25): a counter at the head of
+            * the rail says how many sections are pinned, and each entry
+            * carries a corner checkbox that fills when pinned. Without
+            * these the rail read as single-select tabs and users never
+            * discovered that sections can stack. */}
+          <div className={styles.railHeader} aria-hidden="true">
+            <span className={styles.railHeaderTitle}>{lbl(lang, "Shown", "Affiché", "Visible")}</span>
+            <span className={styles.railHeaderCounter}>{`${activeBuckets.size} / ${BUCKETS.length}`}</span>
+          </div>
           {BUCKETS.map((b) => {
             const isActive = activeBuckets.has(b.id);
             // Phase 7: surface a "MAJ" badge on the About entry when an
@@ -279,6 +289,16 @@ const DebugPanel = () => {
                     {lbl(lang, "UPD", "MAJ", "ACT")}
                   </span>
                 ) : null}
+                {/* Corner checkbox (F25) — decorative, aria-pressed on the
+                  * button already carries the toggle state for AT. */}
+                <span
+                  className={`${styles.railCheck} ${isActive ? styles.railCheckOn : ""}`}
+                  aria-hidden="true"
+                >
+                  <svg viewBox="0 0 16 16" className={styles.railCheckMark}>
+                    <path d="M3 8 L 7 12 L 13 4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
                 <span className={styles.railIcon}><InlineIcon icon={b.icon} /></span>
                 <span className={styles.railLabel}>{bucketLabel(lang, b.id)}</span>
               </button>
@@ -381,9 +401,12 @@ const DebugPanel = () => {
  * DebugPanel only — never kiosk surfaces, never alert content. */
 const lbl = (lang, en, fr, es) => (lang === "fr" ? fr : lang === "es" ? es : en);
 
-const boolLabel = (lang, value) => (value
-  ? lbl(lang, "TRUE", "VRAI", "VERDADERO")
-  : lbl(lang, "FALSE", "FAUX", "FALSO"));
+/* On/off wording for the config-flag status pills (F26). The mockup's
+ * finding was that raw "TRUE/FALSE" reads as an exposed boolean — the
+ * pill carries a state word instead. */
+const onOffLabel = (lang, value) => (value
+  ? lbl(lang, "ON", "ACTIF", "ACTIVO")
+  : lbl(lang, "OFF", "INACTIF", "INACTIVO"));
 
 /* Atlassian Statuspage indicator → localised label. The platform uses
  * a fixed enum: none / minor / major / critical / maintenance. */
@@ -650,6 +673,11 @@ const BucketServer = ({ data, lang, gridTwoWide }) => {
   const conn = data.connectivity || null;
   return (
     <div className={styles.bucket}>
+      {/* Connectivity hero (F27) — the network state is the first
+        * thing the user opens this panel for, so it leads the bucket
+        * as a card instead of being a line lost in the Network list. */}
+      {conn ? <NetStatusHero conn={conn} lang={lang} /> : null}
+
       <SectionTitle title={lbl(lang, "Server config", "Configuration serveur", "Configuración servidor")} />
       <div className={`${styles.gridTwo} ${gridTwoWide ? styles.gridTwoWide : ""}`}>
         <KV k={lbl(lang, "version", "version", "versión")}  v={`${v.name || "?"} v${v.version || "?"} · ${v.commit || "?"}`} />
@@ -659,13 +687,15 @@ const BucketServer = ({ data, lang, gridTwoWide }) => {
         <KV k="Sense HAT" v={sys.senseHat || lbl(lang, "none", "aucun", "ninguno")} />
         <KV k={lbl(lang, "branch", "branche", "rama")}   v={v.branch || "?"} />
         <KV k="init"     v={(cfg.initManager || "—").toUpperCase()} />
-        {/* Boolean labels localised: VRAI/FAUX in FR, VERDADERO/FALSO in ES.
-         * ALLOW_REMOTE intentionally renders as `warn` (orange) when on
-         * — it's a security-relevant flag (opens network access). DEBUG
-         * renders as `ok` (green) when on because the panel exposing it
-         * is itself debug-only. */}
-        <KV k="DEBUG"    v={<Tag kind={cfg.debug ? "ok" : "neutral"}>{cfg.debug ? boolLabel(lang, true) : boolLabel(lang, false)}</Tag>} />
-        <KV k="ALLOW_REMOTE" v={<Tag kind={cfg.allowRemote ? "warn" : "neutral"}>{cfg.allowRemote ? boolLabel(lang, true) : boolLabel(lang, false)}</Tag>} />
+        {/* Config booleans render as dot+word status pills (F26) rather
+         * than TRUE/FALSE tags. ALLOW_REMOTE intentionally renders as
+         * `warn` (orange) when on — it's a security-relevant flag
+         * (opens network access). DEBUG renders as `on` (green) when on
+         * because the panel exposing it is itself debug-only. The word
+         * carries the meaning, so the pill survives night-red where the
+         * colours collapse. */}
+        <KV k="DEBUG"    v={<StatusPill kind={cfg.debug ? "on" : "off"}>{onOffLabel(lang, cfg.debug)}</StatusPill>} />
+        <KV k="ALLOW_REMOTE" v={<StatusPill kind={cfg.allowRemote ? "warn" : "off"}>{onOffLabel(lang, cfg.allowRemote)}</StatusPill>} />
       </div>
 
       <SectionTitle title={lbl(lang, "Network", "Réseau", "Red")} gap />
@@ -679,102 +709,6 @@ const BucketServer = ({ data, lang, gridTwoWide }) => {
             {`${net.protocol || "?"}://localhost:${net.port || "?"}`}
           </span>
         )}
-        {conn ? (
-          <>
-            {/* Internet indicator — enriched 2026-05-27 to surface
-              * the probe target (`conn.host`, typically 1.1.1.1)
-              * and to split the latency into two measurements:
-              * `tcpLatencyMs` (raw TCP handshake) is what carries
-              * the colour-coded "ping" status; `latencyMs` (full
-              * HTTPS HEAD with TLS handshake) is shown next to it
-              * as raw diagnostic info, no colour. The gap between
-              * the two reveals whether a slow indicator is link-
-              * bound (TCP high) or TLS-bound (TCP low, HTTPS high).
-              *
-              * Pre-2026-05-27 the field had only one untagged value
-              * ("Internet: ONLINE · 431 ms") whose meaning was
-              * ambiguous — the user reported they could not tell
-              * whether 431 ms meant "your link is slow" or "this
-              * is normal for HTTPS". */}
-            <span className={`${styles.netConn} ${conn.online ? styles.netConnOnline : styles.netConnOffline}`}>
-              {`Internet: ${conn.online
-                ? lbl(lang, "ONLINE", "EN LIGNE", "EN LÍNEA")
-                : lbl(lang, "OFFLINE", "HORS LIGNE", "DESCONECTADO")}`}
-              {conn.online && conn.host ? ` · ${conn.host}` : ""}
-              {conn.online && conn.tcpLatencyMs != null ? (
-                <>
-                  {" · TCP "}
-                  <span className={styles[`netLatency${tcpLatencyTier(conn.tcpLatencyMs) || "Unknown"}`] || ""}>
-                    {`${conn.tcpLatencyMs} ms`}
-                  </span>
-                </>
-              ) : null}
-              {conn.online && conn.latencyMs != null ? (
-                <>
-                  {" · HTTPS "}
-                  <span className={styles[`netLatency${httpsLatencyTier(conn.latencyMs) || "Unknown"}`] || ""}>
-                    {`${conn.latencyMs} ms`}
-                  </span>
-                </>
-              ) : null}
-            </span>
-            {/* Two mini latency scales below the indicator — TCP on
-              * top, HTTPS below. Each scale has its own colour
-              * thresholds and SI domain so the marker positions
-              * are meaningful per metric:
-              *
-              *  - TCP scale: 0-1000 ms, segments 20 % green
-              *    (0-200), 30 % yellow (200-500), 50 % red
-              *    (500-1000+). Matches `tcpLatencyTier`.
-              *  - HTTPS scale: 0-2000 ms, segments 20 % green
-              *    (0-400), 20 % yellow (400-800), 60 % red
-              *    (800-2000+). Matches `httpsLatencyTier`. The
-              *    2 s domain reflects that HTTPS calls realistically
-              *    range further than raw TCP — 2 s is the point
-              *    where /api/update starts hitting the new 90 s
-              *    timeout's lower edge.
-              *
-              * Labels on the left distinguish the two bars so the
-              * user knows which marker reads which value. Each row
-              * suppresses independently when its probe failed. */}
-            {conn.online && (conn.tcpLatencyMs != null || conn.latencyMs != null) ? (
-              <div className={styles.latencyScales} aria-hidden="true">
-                {conn.tcpLatencyMs != null ? (
-                  <div className={styles.latencyScaleRow}>
-                    <span className={styles.latencyScaleLabel}>TCP</span>
-                    <div className={styles.latencyScale}>
-                      <div className={styles.latencyScaleTrack}>
-                        <span className={styles.latencyScaleGreen} />
-                        <span className={styles.latencyScaleYellow} />
-                        <span className={styles.latencyScaleRed} />
-                      </div>
-                      <div
-                        className={styles.latencyScaleMarker}
-                        style={{ left: `${Math.min(100, Math.max(0, (conn.tcpLatencyMs / 1000) * 100))}%` }}
-                      />
-                    </div>
-                  </div>
-                ) : null}
-                {conn.latencyMs != null ? (
-                  <div className={styles.latencyScaleRow}>
-                    <span className={styles.latencyScaleLabel}>HTTPS</span>
-                    <div className={styles.latencyScale}>
-                      <div className={styles.latencyScaleTrack}>
-                        <span className={styles.latencyScaleHttpsGreen} />
-                        <span className={styles.latencyScaleHttpsYellow} />
-                        <span className={styles.latencyScaleHttpsRed} />
-                      </div>
-                      <div
-                        className={styles.latencyScaleMarker}
-                        style={{ left: `${Math.min(100, Math.max(0, (conn.latencyMs / 2000) * 100))}%` }}
-                      />
-                    </div>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-          </>
-        ) : null}
       </div>
 
       <SectionTitle title={lbl(lang, "Server KPI", "KPI serveur", "KPI servidor")} gap />
@@ -820,6 +754,125 @@ const BucketServer = ({ data, lang, gridTwoWide }) => {
 
       <SectionTitle title={lbl(lang, "Recent logs", "Journaux récents", "Registros recientes")} gap />
       <LogsBlock logs={data.logs} lang={lang} />
+    </div>
+  );
+};
+
+/**
+ * Connectivity hero card (F27) — coloured LED + plain-words state +
+ * both latency readings + the two threshold scales, leading the Server
+ * bucket. Replaces the former "Internet: ONLINE · …" line in the
+ * Network list.
+ *
+ * The two measurements (2026-05-27 enrichment, kept as-is): the probe
+ * target is `conn.host` (typically 1.1.1.1) and the latency is split
+ * in two — `tcpLatencyMs` (raw TCP handshake) carries the colour-coded
+ * "ping" status, `latencyMs` (full HTTPS HEAD with TLS handshake) sits
+ * next to it with its own wider tiers. The gap between the two reveals
+ * whether a slow indicator is link-bound (TCP high) or TLS-bound (TCP
+ * low, HTTPS high). The mockup shows a single scale; the dual scale is
+ * a field-tested improvement we deliberately keep:
+ *
+ *  - TCP scale: 0-1000 ms, segments 20 % green (0-200), 30 % yellow
+ *    (200-500), 50 % red (500-1000+). Matches `tcpLatencyTier`.
+ *  - HTTPS scale: 0-2000 ms, segments 20 % green (0-400), 20 % yellow
+ *    (400-800), 60 % red (800-2000+). Matches `httpsLatencyTier` —
+ *    the 2 s domain reflects that HTTPS calls realistically range
+ *    further than raw TCP. Each row suppresses independently when its
+ *    probe failed.
+ *
+ * The LED colour follows the TCP tier (HTTPS tier as fallback when the
+ * TCP probe failed): green = fast, yellow = slow, red = degraded or
+ * offline. The state words carry the meaning in night-red.
+ *
+ * @param {object} props
+ * @param {object} props.conn — `data.connectivity` payload
+ * @param {string} props.lang — 2-letter UI language
+ * @returns {JSX.Element}
+ */
+const NetStatusHero = ({ conn, lang }) => {
+  const tcpTier = tcpLatencyTier(conn.tcpLatencyMs);
+  const httpsTier = httpsLatencyTier(conn.latencyMs);
+  const tier = conn.online ? (tcpTier || httpsTier) : null;
+  const ledKind = !conn.online || tier === "Red" ? "Err" : tier === "Yellow" ? "Warn" : "Ok";
+  const stateText = !conn.online
+    ? lbl(lang, "Offline — check the connection", "Hors ligne — vérifiez la connexion", "Sin conexión — compruebe la conexión")
+    : tier === "Red"
+      ? lbl(lang, "Online · degraded network", "En ligne · réseau dégradé", "En línea · red degradada")
+      : tier === "Yellow"
+        ? lbl(lang, "Online · slow network", "En ligne · réseau lent", "En línea · red lenta")
+        : lbl(lang, "Online · fast network", "En ligne · réseau rapide", "En línea · red rápida");
+  return (
+    <div className={styles.netHero}>
+      <span className={`${styles.netHeroLed} ${styles[`netHeroLed${ledKind}`]}`} aria-hidden="true">
+        {conn.online ? (
+          <svg viewBox="0 0 24 24" className={styles.netHeroIcon}>
+            <path d="M5 12 L 10 17 L 19 7" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        ) : (
+          <svg viewBox="0 0 24 24" className={styles.netHeroIcon}>
+            <path d="M6 6l12 12M18 6 6 18" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" />
+          </svg>
+        )}
+      </span>
+      <div className={styles.netHeroBody}>
+        <div className={styles.netHeroState}>{stateText}</div>
+        {conn.online && (conn.tcpLatencyMs != null || conn.latencyMs != null || conn.host) ? (
+          <div className={styles.netHeroPing}>
+            {conn.tcpLatencyMs != null ? (
+              <span>
+                {"TCP "}
+                <strong className={styles[`netLatency${tcpTier || "Unknown"}`] || ""}>{`${conn.tcpLatencyMs} ms`}</strong>
+              </span>
+            ) : null}
+            {conn.latencyMs != null ? (
+              <span>
+                {"HTTPS "}
+                <strong className={styles[`netLatency${httpsTier || "Unknown"}`] || ""}>{`${conn.latencyMs} ms`}</strong>
+              </span>
+            ) : null}
+            {conn.host ? (
+              <span className={styles.netHeroTarget}>{`→ ${conn.host}`}</span>
+            ) : null}
+          </div>
+        ) : null}
+        {conn.online && (conn.tcpLatencyMs != null || conn.latencyMs != null) ? (
+          <div className={styles.latencyScales} aria-hidden="true">
+            {conn.tcpLatencyMs != null ? (
+              <div className={styles.latencyScaleRow}>
+                <span className={styles.latencyScaleLabel}>TCP</span>
+                <div className={styles.latencyScale}>
+                  <div className={styles.latencyScaleTrack}>
+                    <span className={styles.latencyScaleGreen} />
+                    <span className={styles.latencyScaleYellow} />
+                    <span className={styles.latencyScaleRed} />
+                  </div>
+                  <div
+                    className={styles.latencyScaleMarker}
+                    style={{ left: `${Math.min(100, Math.max(0, (conn.tcpLatencyMs / 1000) * 100))}%` }}
+                  />
+                </div>
+              </div>
+            ) : null}
+            {conn.latencyMs != null ? (
+              <div className={styles.latencyScaleRow}>
+                <span className={styles.latencyScaleLabel}>HTTPS</span>
+                <div className={styles.latencyScale}>
+                  <div className={styles.latencyScaleTrack}>
+                    <span className={styles.latencyScaleHttpsGreen} />
+                    <span className={styles.latencyScaleHttpsYellow} />
+                    <span className={styles.latencyScaleHttpsRed} />
+                  </div>
+                  <div
+                    className={styles.latencyScaleMarker}
+                    style={{ left: `${Math.min(100, Math.max(0, (conn.latencyMs / 2000) * 100))}%` }}
+                  />
+                </div>
+              </div>
+            ) : null}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 };
@@ -1476,15 +1529,29 @@ const BucketAbout = ({ data, lang, gridTwoWide, fetchDebug }) => {
             "El análisis de vulnerabilidades y los PR de seguridad automáticos viven ahora en GitHub vía Dependabot — consulta el panel de alertas para la fuente en tiempo real."
           )}
         </p>
+        {/* CTA button instead of the raw URL (F28) — the label says
+          * what the user will find, the launch icon signals an external
+          * opening, and the meta line below shows the destination. A
+          * direct <a> is the codified exception to the QR-only rule
+          * (CLAUDE.md → Debug panel derogation): this panel is
+          * localhost-only, reached from a desktop browser / SSH tunnel,
+          * never from the chrome-less kiosk. */}
         {data.vulnerabilityScanUrl ? (
-          <a
-            href={data.vulnerabilityScanUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className={styles.vulnLink}
-          >
-            {data.vulnerabilityScanUrl}
-          </a>
+          <div className={styles.vulnCtaWrap}>
+            <a
+              href={data.vulnerabilityScanUrl}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={styles.vulnCta}
+            >
+              {lbl(lang,
+                "Check security alerts on GitHub",
+                "Vérifier les alertes de sécurité sur GitHub",
+                "Ver las alertas de seguridad en GitHub")}
+              <InlineIcon icon={launchIcon} />
+            </a>
+            <span className={styles.vulnCtaMeta}>github.com · Dependabot</span>
+          </div>
         ) : null}
       </div>
     </div>
@@ -1504,6 +1571,16 @@ const KV = ({ k, v }) => (
 
 const Tag = ({ kind, children }) => (
   <span className={`${styles.tag} ${styles[`tag-${kind || "neutral"}`]}`}>{children}</span>
+);
+
+/* Dot + word status pill for boolean-ish states (F26). The dot carries
+ * the semantic colour, the word carries the meaning — unlike Tag,
+ * which paints a solid block. Kinds: on / off / warn. */
+const StatusPill = ({ kind, children }) => (
+  <span className={`${styles.statusPill} ${styles[`statusPill-${kind || "off"}`]}`}>
+    <span className={styles.statusPillDot} aria-hidden="true" />
+    {children}
+  </span>
 );
 
 const SectionTitle = ({ title, gap }) => (
