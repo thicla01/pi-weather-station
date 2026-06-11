@@ -243,39 +243,62 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  position: relative;
   width: 44px;
   height: 44px;
   margin-left: 4px;
   padding: 0;
-  background-color: var(--c-surface-hybrid, var(--c-surface));
-  border: 1px solid var(--c-border);
-  border-radius: 6px;
+  background-color: transparent;
+  border: 0;
   cursor: pointer;
   color: var(--c-text-dim);
   -webkit-tap-highlight-color: transparent;
   flex-shrink: 0;
 }
 
+/* The VISIBLE box is a centred 28×28 pseudo-element (the reference's
+ * expand-btn size) while the button keeps the full 44 px hit area —
+ * painting the whole hit box read as a huge square dominating the
+ * slim header (maintainer-reported). */
+.headerRow .actionButton::before {
+  content: "";
+  position: absolute;
+  inset: 8px;
+  border-radius: 6px;
+  background-color: var(--c-surface-hybrid, var(--c-surface));
+  border: 1px solid var(--c-border);
+}
+
+.headerRow .actionButton .actionIcon {
+  position: relative;
+}
+
 .headerRow .actionButton:active {
   color: var(--c-accent);
-  background-color: var(--c-accent-soft);
   transform: scale(0.96);
+}
+
+.headerRow .actionButton:active::before {
+  background-color: var(--c-accent-soft);
 }
 
 .headerRow .actionButton:focus-visible {
   outline: 2px dashed var(--c-text);
-  outline-offset: 1px;
+  outline-offset: -4px;
 }
 
 .headerRow .actionButton[aria-pressed="true"] {
   color: var(--c-text);
+}
+
+.headerRow .actionButton[aria-pressed="true"]::before {
   background-color: var(--c-accent-soft);
   border-color: var(--c-accent);
 }
 
 .actionIcon {
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   flex-shrink: 0;
 }
 
@@ -412,13 +435,23 @@
  * at every font-size preference. */
 @media (max-width: 1279px) {
   .metricTabs .metricTab {
-    font-size: 10.5px;
-    padding: 6px 5px;
-    gap: 4px;
+    font-size: 10px;
+    padding: 6px 4px;
+    gap: 3px;
+    /* Flex children refuse to shrink below min-content without this —
+     * the active "Heures" pill was escaping the tab container on the
+     * 300 px rail (maintainer-reported). */
+    min-width: 0;
+    overflow: hidden;
   }
 
   .metricTabs .metricTab svg {
     width: 11px;
     height: 11px;
+  }
+
+  .headerTitle {
+    font-size: 9px;
+    letter-spacing: 0.1em;
   }
 }
