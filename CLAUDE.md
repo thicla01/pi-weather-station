@@ -11,7 +11,7 @@ Pi Weather Station is a full-stack weather display application designed to run o
 - **Target hardware**: Raspberry Pi (Bullseye, Bookworm, Trixie) with 7" touchscreen running a kiosk browser; also runs on Debian/Ubuntu, openSUSE, and macOS
 - **Kiosk browser**: Chromium-family (Chromium, Chrome, Brave, Edge) or Firefox; choice prompted by `install.sh` and persisted in `~/.config/pi-weather-station/browser.conf` (`BROWSER_CMD` + `BROWSER_FAMILY`). Snap-Firefox is supported via named profile (`-P pi-weather-station`)
 - **Official 7" touchscreen on Trixie**: Mouse Emulation mode must be disabled — set DSI-1 to **Multitouch** via Control Centre → Screens → DSI-1 → Touchscreen. See `docs/troubleshooting-touchscreen.md`.
-- **Deployment**: systemd user service (`pi-weather-server.service`) on Linux + XDG autostart entry on GNOME/KDE; launchd agent (`com.pi-weather-station.plist`) on macOS. Optional `pi-sensehat.service` for Sense HAT readings.
+- **Deployment**: systemd user service (`pi-weather-server.service`) on Linux + XDG autostart entry on GNOME/KDE; launchd agent (`com.pi-weather-station.plist`) on macOS. Optional Sense HAT display daemons: `pi-sensehat.service` (weather/radar on the LED matrix) and `pi-sensehat-clock.service` (clock) — mutually exclusive, switched via `/api/sensehat-mode`.
 
 ## Architecture
 
@@ -22,12 +22,27 @@ pi-weather-station/
 │   ├── proxyCtrl.js      # Proxies all external API calls (weather, maps, geocoding)
 │   ├── aiSummaryCtrl.js  # Claude AI weather summary endpoint (current + radar paragraph)
 │   ├── radarAnalyzerCtrl.js # Parses RainViewer tile pixels for the 50 km zone
+│   ├── airQualityCtrl.js # Air-quality orchestrator — closest station wins across sources, ECCC AQHI fallback
+│   ├── airQualitySources/ # One module per AQ source (MELCC Mtl, MELCC RSQAQ, AirNow, OpenAQ, ECCC) + _shared.js helpers
+│   ├── govAlertsCtrl.js  # Gov severe-weather alerts orchestrator — merges sources in parallel, isolates failures
+│   ├── govAlertSources/  # One module per alert source (NWS point query, ECCC point-in-polygon) + _shared.js helpers
+│   ├── pollenCtrl.js     # Pollen badge — Open-Meteo Air Quality API, worst case of 6 allergens
+│   ├── openMeteoCtrl.js  # PoC Open-Meteo weather adapter in the Tomorrow.io envelope shape (source comparison)
 │   ├── indoorTempCtrl.js # Polls Homebridge for indoor temperature/humidity/air quality
-│   ├── sensehatCtrl.js   # Reads Sense HAT JSON dropped by tools/sensehat_weather.py
+│   ├── sensehatCtrl.js   # GET /api/sensehat — serves aggregated weather/alert/radar-grid data to the Sense HAT display daemons
+│   ├── sensehatModeCtrl.js # Sense HAT mode/availability/LED-brightness endpoints — switches pi-sensehat ↔ pi-sensehat-clock units
+│   ├── kioskLocationCtrl.js # In-memory cache of the kiosk's currently-viewed map coords (consumed by /api/sensehat)
+│   ├── brightnessCtrl.js # GET/POST /api/brightness — screen brightness via sysfs backlight (Pi) or DDC/CI (monitors)
+│   ├── healthCtrl.js     # GET /api/health — red/yellow/green roll-up of external-service statuses
 │   ├── debugCtrl.js      # Debug panel data endpoint (localhost-only)
 │   ├── clientTracker.js  # Tracks remote client IP addresses
 │   ├── geolocationCtrl.js # Default location lookup via ipapi.co (retry + 30-day disk cache)
 │   ├── responseTimer.js  # Per-endpoint response time tracking middleware
+│   ├── securityHeaders.js # Baseline security-header middleware (nosniff, frame DENY, no-referrer, CSP frame-ancestors)
+│   ├── rateLimitKey.js   # Rate-limit bucket key derived from the TCP socket peer — never req.ip/XFF
+│   ├── boundedCache.js   # BoundedMap + expiry-sweep primitives capping the in-memory caches (OOM guard)
+│   ├── singleFlight.js   # Single-flight guard middleware — 409s concurrent runs of a non-reentrant op (in-app updater)
+│   ├── compressionStats.js # In-memory stats on the radar-prompt compression (legacy vs hierarchical format)
 │   ├── settingsCtrl.js   # Reads/writes settings.json (server-side whitelist)
 │   ├── serviceStatus.js  # Tracks last status of each external service
 │   ├── requestCounter.js # API quota counters (persisted to request-counts.json)
@@ -59,7 +74,8 @@ pi-weather-station/
 │                          # harden-kiosk.sh, logrotate, launchd plist, uninstall.sh
 ├── docs/                 # api.md, architecture, KPI, security, troubleshooting, ui-layout (en/fr),
 │                          # radar-classification (RainViewer pixel → tier → display colour)
-└── tools/                # CSV→Excel converter, Sense HAT collector script
+└── tools/                # CSV→Excel converter, Sense HAT display daemons (sensehat_weather.py + horloge.py,
+                           # both poll GET /api/sensehat over HTTPS and render on the LED matrix)
 ```
 
 ## Key Conventions
@@ -198,6 +214,7 @@ These rules apply to every change, regardless of size. They exist to keep the co
 | Environment Canada AQHI | Air quality (Canada-wide AQHI fallback) | No key required |
 | EPA AirNow | Air quality (US AQI) | `airNowApiKey` in settings.json |
 | OpenAQ | Air quality (global fallback, ~150 countries) | `openAqApiKey` in settings.json |
+| Open-Meteo | Pollen (`pollenCtrl`, Air Quality API) + PoC weather adapter (`openMeteoCtrl`) | No key required |
 | NWS | US severe weather alerts | No key required (User-Agent only) |
 | Environment Canada (alerts) | Canadian severe weather alerts | No key required |
 
