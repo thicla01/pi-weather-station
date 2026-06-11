@@ -1,7 +1,7 @@
 import React, { useEffect, useContext, useState, useRef } from "react";
 import axios from "axios";
 import styles from "./styles.css";
-import { AppContext } from "~/AppContext";
+import { AppActionsContext, UiPrefsContext, SystemContext } from "~/AppContext";
 
 import WeatherMap from "~/components/WeatherMap";
 import InfoPanel from "~/components/InfoPanel";
@@ -34,20 +34,30 @@ const App = () => {
     getBrowserGeo,
     getCustomLatLon,
     loadStoredData,
+    checkIsLocal,
+    setInfoPanelCollapsed,
+  } = useContext(AppActionsContext);
+  const {
     darkMode,
     mouseHide,
-    checkIsLocal,
-    infoPanelCollapsed,
-    setInfoPanelCollapsed,
     fontSize,
     defaultMapZoom,
+  } = useContext(UiPrefsContext);
+  // App is the provider's stable child, so it re-renders ONLY through
+  // its context subscriptions. Subscribing to the cold slices (and not
+  // the legacy union, which re-mints on every slice change) is what
+  // cuts the app-wide cascade at the root: radar/weather/alert/location
+  // updates no longer re-render App — and therefore no longer re-render
+  // the whole tree below it (context-split step 2c).
+  const {
+    infoPanelCollapsed,
     sleepStage1Brightness,
     sleepStage: stage,
     brightnessAvailable,
     brightnessPercent,
     brightnessMinPercent,
     experimentalUiC,
-  } = useContext(AppContext);
+  } = useContext(SystemContext);
 
   // `stage` (0/1/2) now comes from AppContext — the underlying
   // `useIdleDetection` call lives there since v2.18.2 so background

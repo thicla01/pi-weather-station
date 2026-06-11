@@ -1,5 +1,5 @@
 import React, { useContext, useEffect } from "react";
-import { AppContext } from "~/AppContext";
+import { UiPrefsContext, SystemContext, AppActionsContext } from "~/AppContext";
 import WeatherMap from "~/components/WeatherMap";
 import HeroCompact from "~/components/ambient/HeroCompact";
 import TimeBlock from "~/components/ambient/TimeBlock";
@@ -60,13 +60,9 @@ import styles from "./styles.css";
  * @returns {JSX.Element} Pi layout
  */
 const LayoutPi = () => {
-  const {
-    darkMode,
-    defaultMapZoom,
-    mouseHide,
-    piRadarMaximized,
-    setPiRadarMaximized,
-  } = useContext(AppContext);
+  const { darkMode, defaultMapZoom, mouseHide } = useContext(UiPrefsContext);
+  const { piRadarMaximized } = useContext(SystemContext);
+  const { setPiRadarMaximized } = useContext(AppActionsContext);
 
   // Sentinel pattern: flip to `false` on mount so WeatherMap renders
   // the Leaflet focus control for this layout, and back to `null` on

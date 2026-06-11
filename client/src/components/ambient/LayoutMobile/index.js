@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
 import maximize from "@iconify/icons-carbon/maximize";
 import minimize from "@iconify/icons-carbon/minimize";
-import { AppContext } from "~/AppContext";
+import { UiPrefsContext, SystemContext, AppActionsContext } from "~/AppContext";
 import WeatherMap from "~/components/WeatherMap";
 import HeroCompact from "~/components/ambient/HeroCompact";
 import TimeBlock from "~/components/ambient/TimeBlock";
@@ -73,11 +73,13 @@ const LayoutMobile = () => {
     darkMode,
     defaultMapZoom,
     mouseHide,
-    mobileRadarMaximized,
-    setMobileRadarMaximized,
     radarTimelineVisible,
+  } = useContext(UiPrefsContext);
+  const { mobileRadarMaximized } = useContext(SystemContext);
+  const {
+    setMobileRadarMaximized,
     toggleRadarTimelineVisible,
-  } = useContext(AppContext);
+  } = useContext(AppActionsContext);
 
   // Radar maximize state lives in AppContext (see the field's comment
   // there for the full rationale). LayoutMobile owns the toggle UI;

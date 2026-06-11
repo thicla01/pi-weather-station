@@ -1,5 +1,5 @@
 import React, { useContext, useEffect } from "react";
-import { AppContext } from "~/AppContext";
+import { UiPrefsContext, SystemContext, AppActionsContext } from "~/AppContext";
 import WeatherMap from "~/components/WeatherMap";
 import HeroBand from "~/components/ambient/HeroBand";
 import MetricsGrid from "~/components/ambient/MetricsGrid";
@@ -60,13 +60,9 @@ import styles from "./styles.css";
  * @returns {JSX.Element} desktop layout
  */
 const LayoutDesktop = () => {
-  const {
-    darkMode,
-    defaultMapZoom,
-    mouseHide,
-    desktopRadarMaximized,
-    setDesktopRadarMaximized,
-  } = useContext(AppContext);
+  const { darkMode, defaultMapZoom, mouseHide } = useContext(UiPrefsContext);
+  const { desktopRadarMaximized } = useContext(SystemContext);
+  const { setDesktopRadarMaximized } = useContext(AppActionsContext);
 
   // Sentinel pattern: flip to `false` on mount so the Leaflet focus
   // control inside WeatherMap renders, and back to `null` on unmount
