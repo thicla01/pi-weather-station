@@ -180,6 +180,27 @@
   position: relative;
 }
 
+/* Grid metric (Heures/Jours): natural height — the icon grid is taller
+ * than the chart heights (compact 2×4 ≈ 160 px, expanded 3×8 ≈ 330 px)
+ * and clipping forecast cells is worse than the slab growing a little
+ * on this one tab. min-height keeps the floor so a short daily strip
+ * doesn't shrink the slab below its chart-tab size. */
+.chartArea.chartAreaGrid {
+  height: auto;
+  min-height: 140px;
+}
+
+.slabMaximized .chartArea.chartAreaGrid {
+  height: auto;
+  min-height: 240px;
+}
+
+@media (min-width: 1280px) {
+  .slabMaximized .chartArea.chartAreaGrid {
+    min-height: 320px;
+  }
+}
+
 /* When the slab is maximized, the chartArea grows to a sensible fixed
  * height. Two breakpoints (v2.14.61 after field test on remote Pi):
  *

@@ -224,7 +224,12 @@ const ChartTabs = () => {
           </button>
         ))}
       </div>
-      <div className={styles.chartArea}>{chartBody}</div>
+      {/* The grid metric gets a natural-height area: its 2×4 / 3×8
+        * cell rows are taller than the fixed chart heights and used to
+        * silently overflow into the (now removed) legend/dots cushion
+        * rows — visible clipping since Phase 5 (maintainer-reported).
+        * Charts keep the fixed height so Chart.js has a sized parent. */}
+      <div className={`${styles.chartArea} ${metric === "grid" ? styles.chartAreaGrid : ""}`}>{chartBody}</div>
       {/* Always rendered (empty on the grid tab) so the slab keeps a
         * constant height across the tap-cycle — the v2.14.54 rule that
         * keeps the AI summary card below from jumping. */}
