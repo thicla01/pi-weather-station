@@ -90,10 +90,18 @@
   outline-offset: -2px;
 }
 
+.topRowBadges {
+  /* Source badge + severity chip cluster — same 6px rhythm as the
+   * radar branch's .chips row below. */
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 .topRow {
   display: flex;
   align-items: center;
-  /* Chip on the left, chevron flush right. Title used to live
+  /* Badge + chip cluster on the left, chevron flush right. Title used to live
    * here too but has been promoted to its own row below so it
    * gets the full container width — see the JSDoc / comment in
    * AlertBanner/index.js for the 2026-05-28 Saskatoon case that
