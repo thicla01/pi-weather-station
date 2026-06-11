@@ -1009,21 +1009,22 @@ const WeatherMap = ({ zoom, dark }) => {
       <MapContainer
         center={[latitude, longitude]}
         zoom={zoom}
-        /* Capped at 16 (was 20) so the map peaks at "city block /
-         * street" detail rather than indoor / building zoom — which
-         * Mapbox raster doesn't have meaningful detail for anyway,
-         * and which made Safari iPad freeze under the cumulative
-         * memory pressure of tile cache + CSS transforms.
-         *
-         * User-reported (May 2026, brother + M4 iPad Pro): zooming
-         * progressively from z=9 (50 km circle visible) to z=17
-         * showed a step-function degradation — slight slowdown at
-         * z=11, 1 s response delay at z=13, 5-7 s at z=15, frozen
-         * white-screen at z=17. The radar TileLayer has a tighter
-         * cap (12) — see below — and the basemap below adds
-         * `updateWhenIdle` + a tighter keepBuffer to throttle
-         * Safari's continuous-redraw behaviour. */
-        maxZoom={16}
+        /* Raised 16 → 18 (2026-06) after the AppContext slice split:
+         * the May-2026 step-function degradation (slowdown at z=11,
+         * 1 s at z=13, 5-7 s at z=15, frozen white-screen at z=17 on
+         * an M4 iPad Pro) turned out to be largely REACT-RENDER churn
+         * — every zoom step re-rendered the whole app through the
+         * monolithic context — which the split fixed (zoom now only
+         * re-renders radar-slice consumers; field-confirmed smooth at
+         * max zoom on the kiosk). The OTHER half of that incident was
+         * Safari's tile-cache memory pressure, which is mitigated by
+         * `keepBuffer: 2` + `updateWhenIdle` below (kept) — but NOT
+         * eliminated: re-test a sustained z=9→18 zoom/pan on the
+         * original iPad before any further raise toward 20. streets-
+         * v12 has genuine building-level detail at 17-18. The radar
+         * overlays keep their own tighter caps (z=12 — that one is a
+         * DATA-resolution bound, not a perf cap; see below). */
+        maxZoom={18}
         style={{ width: "100%", height: "100%" }}
         attributionControl={false}
         touchZoom={true}
@@ -1095,7 +1096,7 @@ const WeatherMap = ({ zoom, dark }) => {
           url={`/api/tiles/${dark ? darkModeStyle : lightModeStyle}/{z}/{x}/{y}`}
           tileSize={512}
           zoomOffset={-1}
-          maxZoom={16}
+          maxZoom={18}
           /* `keepBuffer: 2` (Leaflet default, was 4 in v2.15.4) —
            * the wider buffer made zoom-out seamless on desktop but
            * doubled the resident tile count, which combined with
