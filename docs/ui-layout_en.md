@@ -47,6 +47,7 @@ Variant A "Compagnon nomade" from the design package. Single scrollable column t
 - In mini mode (220 px), the **radar legend strip and timeline are CSS-hidden** — no readable room. The corresponding dock buttons are greyed out and a toast invites the user to maximize the card.
 - When maximized, the card goes **full-bleed**: it fills 100 % of the app area above the dock (`inset` to the scroll container's edges, no margins, no rounded corners) — the same "radar owns the screen" treatment as the big-screen layouts. The compact legend strip and the timeline bar reappear.
 - The maximized `top:` keeps `env(safe-area-inset-top)` so the in-map controls clear iOS's **Control-Centre swipe zone** (top-right quadrant ~84 px × 30 % viewport width in notched portrait), which was intercepting taps on the minimize button (v2.16.5).
+- When a government alert is active while the card is maximized, the **FloatingMiniBanner** chip appears right-aligned under the restore button (the maximized card covers the column's AlertBanner — same "never blind the user to an active warning" property as the Desktop/Pi focus modes). Tapping the chip restores the mini card, revealing the full banner.
 
 ### Pull-to-refresh
 

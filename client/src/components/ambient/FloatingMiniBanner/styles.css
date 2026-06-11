@@ -64,6 +64,29 @@
   background-color: var(--c-danger);
 }
 
+/* `belowControls` placement — LayoutMobile's maximized radar card.
+ * The default top-right corner is occupied there by the card's
+ * 44 px restore button (top/right 8) and the top-left by the Leaflet
+ * zoom stack, so this variant tucks the chip right-aligned UNDER the
+ * restore button. Same (0,2,0) specificity as the `.banner.banner`
+ * base and declared after it in this file, so it wins on source
+ * order (single-file order is preserved by the bundler — the
+ * cross-file ambiguity behind the doubled-class trick doesn't apply
+ * within one module). */
+.banner.below-controls {
+  top: 60px; /* 8 px button top + 44 px button + 8 px gap */
+  right: 8px;
+  /* Keep the left edge clear of the zoom stack (40 px buttons +
+   * ~10 px Leaflet margin) on narrow phones; 360 px still caps the
+   * chip on wider viewports, matching the base rule. */
+  max-width: min(360px, calc(100% - 76px));
+  /* Above Leaflet's panes/controls (≤ 1000) — same tier as the
+   * card's restore button. Still under the BottomDock toast (1500):
+   * the maximized card's own stacking context (z-index 10) sits
+   * below the dock cell (z-index 1100) at the layout level. */
+  z-index: 1100;
+}
+
 .banner:hover,
 .banner:focus-visible {
   background-color: var(--c-surface-hybrid);

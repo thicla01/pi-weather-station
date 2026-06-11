@@ -9,6 +9,7 @@ import MetricsGrid from "~/components/ambient/MetricsGrid";
 import AlertBanner from "~/components/ambient/AlertBanner";
 import AlertDetailInline from "~/components/ambient/AlertDetailInline";
 import AlertMiniCards from "~/components/ambient/AlertMiniCards";
+import FloatingMiniBanner from "~/components/ambient/FloatingMiniBanner";
 import IndoorBlock from "~/components/ambient/IndoorBlock";
 import ChartTabs from "~/components/ambient/ChartTabs";
 import AiSummaryInline from "~/components/ambient/AiSummaryInline";
@@ -320,6 +321,23 @@ const LayoutMobile = () => {
               * Carbon diagonal arrows were the lone icon outlier). */}
             {mobileRadarMaximized ? <RestoreIcon /> : <ExpandIcon />}
           </button>
+          {/* The maximized card covers the whole scroll column —
+            * including the AlertBanner slab at its top — so an active
+            * gov alert would be invisible while the user studies the
+            * radar (P4 audit 2026-06-11). Same kiosk-grade safety
+            * property as the Desktop/Pi focus modes: never blind the
+            * user to an active Tornado Warning. Tapping the chip
+            * restores the mini card, which reveals the full banner.
+            * `belowControls` placement clears the restore button
+            * (top-right) and the Leaflet zoom stack (top-left). Not
+            * mounted in mini mode — the full AlertBanner is visible
+            * in the column there. */}
+          {mobileRadarMaximized && (
+            <FloatingMiniBanner
+              placement="belowControls"
+              onExpand={() => setMobileRadarMaximized(false)}
+            />
+          )}
         </div>
         <ChartTabs />
         <AiSummaryInline />
