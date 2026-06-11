@@ -328,9 +328,13 @@
   outline-offset: 1px;
 }
 
+/* Active (maximized) state — solid accent with bg-coloured glyph,
+ * matching the desktop/7" radar-focus toggle's aria-pressed paint
+ * exactly (Q6 harmonization, maintainer feedback: the previous
+ * accent-soft fill read as a different control across layouts). */
 .mapMaximizeButton.mapMaximizeButton[aria-pressed="true"] {
-  color: var(--c-text);
-  background-color: var(--c-accent-soft);
+  color: var(--c-bg);
+  background-color: var(--c-accent);
   border-color: var(--c-accent);
 }
 
