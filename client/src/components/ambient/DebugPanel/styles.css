@@ -167,6 +167,71 @@
   }
 }
 
+/* ── Rail multi-select affordances (F25) ──────────────────────────
+ * Counter header + per-entry corner checkbox so the multi-select
+ * nature of the rail is visible instead of implied. */
+.railHeader {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+  padding: 2px 2px 8px;
+  border-bottom: 1px solid var(--c-border-hybrid);
+  margin-bottom: 4px;
+}
+
+.railHeaderTitle {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 7.5px;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--c-text-dim);
+}
+
+.railHeaderCounter {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 9.5px;
+  font-variant-numeric: tabular-nums;
+  background-color: var(--c-accent-soft);
+  color: var(--c-accent);
+  padding: 1px 7px;
+  border-radius: 999px;
+}
+
+/* Corner checkbox on each bucket entry. Empty ring when unpinned;
+ * fills with the accent + white ✓ when pinned. Deliberately NO hover
+ * treatment — the rail already dropped hover fills entirely after the
+ * sticky-fill saga on Pi Chromium (see the .railButton comment). */
+.railCheck {
+  position: absolute;
+  top: 4px;
+  right: 5px;
+  width: 13px;
+  height: 13px;
+  border-radius: 50%;
+  border: 1.5px solid color-mix(in srgb, var(--c-text-dim) 55%, transparent);
+  background-color: var(--c-surface);
+  display: grid;
+  place-items: center;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+
+.railCheckMark {
+  width: 8px;
+  height: 8px;
+  color: #fff;
+  opacity: 0;
+}
+
+.railCheckOn {
+  background-color: var(--c-accent);
+  border-color: var(--c-accent);
+}
+
+.railCheckOn .railCheckMark {
+  opacity: 1;
+}
+
 /* ── Small-screen (7" kiosk, max-height: 520px) compact mode ──────
  * The overlay has zoom:1 on this form factor (JS-gated, see
  * DebugPanel/index.js) so pixel values here are true CSS pixels.
@@ -194,6 +259,24 @@
   .rail {
     width: 76px;
     padding: 6px 2px;
+  }
+
+  /* Tighter multi-select affordances on the 7" kiosk. */
+  .railHeader {
+    padding: 1px 1px 6px;
+    margin-bottom: 3px;
+  }
+
+  .railCheck {
+    top: 2px;
+    right: 3px;
+    width: 11px;
+    height: 11px;
+  }
+
+  .railCheckMark {
+    width: 7px;
+    height: 7px;
   }
 
   /* Tighter rail chips — reduce vertical padding so all 5 chips fit. */

@@ -249,6 +249,15 @@ const DebugPanel = () => {
     >
       <div className={styles.body}>
         <nav className={styles.rail} role="group" aria-label="Debug sections">
+          {/* Multi-select made visible (F25): a counter at the head of
+            * the rail says how many sections are pinned, and each entry
+            * carries a corner checkbox that fills when pinned. Without
+            * these the rail read as single-select tabs and users never
+            * discovered that sections can stack. */}
+          <div className={styles.railHeader} aria-hidden="true">
+            <span className={styles.railHeaderTitle}>{lbl(lang, "Shown", "Affiché", "Visible")}</span>
+            <span className={styles.railHeaderCounter}>{`${activeBuckets.size} / ${BUCKETS.length}`}</span>
+          </div>
           {BUCKETS.map((b) => {
             const isActive = activeBuckets.has(b.id);
             // Phase 7: surface a "MAJ" badge on the About entry when an
@@ -280,6 +289,16 @@ const DebugPanel = () => {
                     {lbl(lang, "UPD", "MAJ", "ACT")}
                   </span>
                 ) : null}
+                {/* Corner checkbox (F25) — decorative, aria-pressed on the
+                  * button already carries the toggle state for AT. */}
+                <span
+                  className={`${styles.railCheck} ${isActive ? styles.railCheckOn : ""}`}
+                  aria-hidden="true"
+                >
+                  <svg viewBox="0 0 16 16" className={styles.railCheckMark}>
+                    <path d="M3 8 L 7 12 L 13 4" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" />
+                  </svg>
+                </span>
                 <span className={styles.railIcon}><InlineIcon icon={b.icon} /></span>
                 <span className={styles.railLabel}>{bucketLabel(lang, b.id)}</span>
               </button>
