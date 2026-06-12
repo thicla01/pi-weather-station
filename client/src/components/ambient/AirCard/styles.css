@@ -11,6 +11,15 @@
   color: var(--c-text);
   font-family: "Geist", system-ui, -apple-system, sans-serif;
   overflow: hidden;
+  /* `flex-shrink: 0` is load-bearing: the Pi/Desktop rails are
+   * scrollable flex COLUMNS, and `overflow: hidden` (needed to clip
+   * the rows' :active fill to the rounded corners) zeroes a flex
+   * item's automatic minimum size — without this line the air card
+   * is the rail's only crushable slab and absorbs ALL the vertical
+   * shortage before the rail starts scrolling (field report: IQA
+   * row squashed flat on short macOS windows; the kiosk's Firefox
+   * happened to mask it). Slabs never compress — the rail scrolls. */
+  flex-shrink: 0;
   /* Hybrid-mode severity strip — propagates from AmbientLayers root. */
   box-shadow: inset 3px 0 0 var(--c-strip-color, transparent);
 }
