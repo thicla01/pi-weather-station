@@ -174,7 +174,7 @@ Components (top to bottom):
 1. **AlertBanner** — government severe-weather alert pill (hidden when no active alert)
 2. **AlertDetailInline** — expanded alert text (hidden when collapsed)
 3. **AirCard** — air-quality rows: AQI (value · label · category pill · chevron, tap → detail) + opt-in pollen (worst allergen · pill; hidden when the setting is off or out of coverage). In nightRed the pills collapse to red — the word carries the tier.
-4. **MetricsGrid** — strict 2×2 grid: wind speed · humidity · UV index (qualifier, tappable cell + chevron) · surface pressure (hPa)
+4. **MetricsGrid** — strict 2×2 grid: wind speed · humidity · UV index (qualifier, tappable cell + chevron) · surface pressure (hPa / inHg / kPa per the units preference)
 5. **IndoorBlock** — Homebridge indoor temperature / humidity / air quality (hidden if not configured)
 6. **ChartTabs** — 24-hour and 5-day forecast tabs with Recharts graphs
 7. **AiSummaryInline** — Claude AI weather summary; expandable to fill the rail (↑ button)

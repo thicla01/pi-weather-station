@@ -6,6 +6,7 @@ const TEMP_UNIT_STORAGE_KEY = "tempUnit";
 const SPEED_UNIT_STORAGE_KEY = "speedUnit";
 const LENGTH_UNIT_STORAGE_KEY = "lengthUnit";
 const DISTANCE_UNIT_STORAGE_KEY = "distanceUnit";
+const PRESSURE_UNIT_STORAGE_KEY = "pressureUnit";
 const CLOCK_UNIT_STORAGE_KEY = "clockTime";
 const FONT_SIZE_STORAGE_KEY = "fontSize";
 
@@ -19,10 +20,10 @@ const SYSTEM_PREFS_SEEDED_KEY = "systemPrefsSeeded_v1";
 /**
  * Self-contained state for the user's display preferences — the units
  * the dashboard renders weather data in (temperature, wind speed,
- * precipitation length, radius distance), the clock format (12 vs 24 h),
- * and the global font-size zoom.
+ * precipitation length, radius distance, surface pressure), the clock
+ * format (12 vs 24 h), and the global font-size zoom.
  *
- * All six values are persisted to localStorage so they survive reloads
+ * All seven values are persisted to localStorage so they survive reloads
  * (the kiosk's own browser writes them via the save* helpers exposed
  * here; remote clients also persist their per-device override). On
  * first mount the hook hydrates from localStorage, and for genuinely
@@ -34,7 +35,7 @@ const SYSTEM_PREFS_SEEDED_KEY = "systemPrefsSeeded_v1";
  * v2 → v2.18 upgrade can't accidentally flip a user from °F to °C
  * because their browser language happens to say fr-CA.
  *
- * @returns {object} the six values + their save* helpers (each save*
+ * @returns {object} the seven values + their save* helpers (each save*
  *   updates React state AND writes the localStorage key in one step)
  */
 export function useUiPreferences() {
@@ -42,6 +43,7 @@ export function useUiPreferences() {
   const [speedUnit, setSpeedUnit] = useState("mph");
   const [lengthUnit, setLengthUnit] = useState("in");
   const [distanceUnit, setDistanceUnit] = useState("mi");
+  const [pressureUnit, setPressureUnit] = useState("hpa");
   const [clockTime, setClockTime] = useState("12");
   const [fontSize, setFontSize] = useState("m");
 
@@ -89,6 +91,21 @@ export function useUiPreferences() {
       setDistanceUnit(sys.distanceUnit);
       window.localStorage.setItem(DISTANCE_UNIT_STORAGE_KEY, sys.distanceUnit);
     }
+    // Pressure (v3.1 Phase 2). Three paths: stored value wins; fresh
+    // installs seed from the locale like the other units; existing
+    // installs (seeded long before this key existed) derive a one-time
+    // default from their stored length unit — an imperial-precip user
+    // expects inHg on the barometer tile, everyone else gets hPa.
+    const pressure = window.localStorage.getItem(PRESSURE_UNIT_STORAGE_KEY);
+    if (pressure === "hpa" || pressure === "inhg" || pressure === "kpa") {
+      setPressureUnit(pressure);
+    } else if (sys) {
+      setPressureUnit(sys.pressureUnit);
+      window.localStorage.setItem(PRESSURE_UNIT_STORAGE_KEY, sys.pressureUnit);
+    } else if (length === "in") {
+      setPressureUnit("inhg");
+      window.localStorage.setItem(PRESSURE_UNIT_STORAGE_KEY, "inhg");
+    }
     if (clock) {
       setClockTime(clock);
     } else if (sys) {
@@ -115,6 +132,10 @@ export function useUiPreferences() {
     setDistanceUnit(val);
     window.localStorage.setItem(DISTANCE_UNIT_STORAGE_KEY, val);
   }, []);
+  const savePressureUnit = useCallback((val) => {
+    setPressureUnit(val);
+    window.localStorage.setItem(PRESSURE_UNIT_STORAGE_KEY, val);
+  }, []);
   const saveClockTime = useCallback((val) => {
     setClockTime(val);
     window.localStorage.setItem(CLOCK_UNIT_STORAGE_KEY, val);
@@ -129,6 +150,7 @@ export function useUiPreferences() {
     speedUnit, saveSpeedUnit,
     lengthUnit, saveLengthUnit,
     distanceUnit, saveDistanceUnit,
+    pressureUnit, savePressureUnit,
     clockTime, saveClockTime,
     fontSize, saveFontSize,
   };

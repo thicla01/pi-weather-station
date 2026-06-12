@@ -8,7 +8,7 @@ import sunIcon from "@iconify/icons-wi/day-sunny";
 import barometerIcon from "@iconify/icons-wi/barometer";
 import chevronRight from "@iconify/icons-carbon/chevron-right";
 import { WeatherDataContext, UiPrefsContext } from "~/AppContext";
-import { convertSpeed, speedUnitLabel } from "~/services/conversions";
+import { convertSpeed, speedUnitLabel, convertPressure, pressureUnitLabel } from "~/services/conversions";
 import { uvTier } from "~/ui/severity";
 import DetailsPopover from "~/components/ambient/DetailsPopover";
 import styles from "./styles.css";
@@ -45,7 +45,7 @@ const TIER_CLASS = {
  */
 const MetricsGrid = () => {
   const { currentWeatherData } = useContext(WeatherDataContext);
-  const { speedUnit } = useContext(UiPrefsContext);
+  const { speedUnit, pressureUnit } = useContext(UiPrefsContext);
   const { t } = useTranslation();
   // Single source of truth for which cell's popover is open. Tapping
   // a cell flips this; tapping the same cell again, the close icon,
@@ -57,10 +57,10 @@ const MetricsGrid = () => {
   const windSpeed = values?.windSpeed;
   const humidity = values?.humidity;
   const uvIndex = values?.uvIndex;
-  // Tomorrow.io serves `pressureSurfaceLevel` in hPa under the metric
-  // unit system the proxy requests. hPa is the display unit for now;
-  // the tile's unit slot is deliberately non-load-bearing (quiet
-  // suffix) so a future hPa/inHg preference swaps without reflow.
+  // Tomorrow.io serves `pressureSurfaceLevel` in hPa; the user's
+  // pressure-unit preference (hPa / inHg / kPa — Settings → Units)
+  // converts at display time. The tile's unit slot is deliberately
+  // non-load-bearing (quiet suffix) so the units swap without reflow.
   const pressure = values?.pressureSurfaceLevel;
 
   const uvT = uvTier(uvIndex);
@@ -117,8 +117,8 @@ const MetricsGrid = () => {
       </Cell>
       <Cell
         icon={barometerIcon}
-        value={pressure != null ? Math.round(pressure) : "—"}
-        unit="hPa"
+        value={pressure != null ? convertPressure(pressure, pressureUnit) : "—"}
+        unit={pressureUnitLabel(pressureUnit)}
         label={t("metrics.pressure")}
       />
     </div>

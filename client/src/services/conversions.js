@@ -96,6 +96,44 @@ export const speedUnitLabel = (unit) => {
 };
 
 /**
+ * Converts surface pressure from hPa (Tomorrow.io's native unit) to
+ * the user's preferred display unit. Decimal precision follows each
+ * unit's reading convention: inHg reads as "29.92" (two decimals on
+ * US barometers), kPa as "100.2" (Environment Canada / MétéoMédia
+ * one-decimal convention), hPa as a whole number.
+ *
+ * @param {Number} hPa pressure in hectopascals
+ * @param {String} units `hpa`, `inhg`, or `kpa`
+ * @returns {String|Number|null} display-ready value, or null when the
+ *   input is missing
+ */
+export const convertPressure = (hPa, units) => {
+  if (hPa == null) return null;
+  if (units && units.toLowerCase() === "inhg") {
+    return (hPa * 0.02953).toFixed(2);
+  }
+  if (units && units.toLowerCase() === "kpa") {
+    return (hPa / 10).toFixed(1);
+  }
+  return Math.round(hPa);
+};
+
+/**
+ * Returns the display label for a pressure unit.
+ *
+ * @param {String} unit `hpa`, `inhg`, or `kpa`
+ * @returns {String} display label
+ */
+export const pressureUnitLabel = (unit) => {
+  if (!unit) return "hPa";
+  switch (unit.toLowerCase()) {
+    case "inhg": return "inHg";
+    case "kpa":  return "kPa";
+    default:     return "hPa";
+  }
+};
+
+/**
  * Converts mm to inches
  *
  * @param {Number} mm length in millimetres

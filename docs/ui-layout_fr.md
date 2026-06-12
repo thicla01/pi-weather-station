@@ -174,7 +174,7 @@ Composants (de haut en bas) :
 1. **AlertBanner** — pastille d'alerte météo sévère gouvernementale (masquée en l'absence d'alerte active)
 2. **AlertDetailInline** — texte de l'alerte développée (masqué lorsque réduit)
 3. **AirCard** — rangées qualité de l'air : IQA (valeur · étiquette · pastille de catégorie · chevron, tap → détail) + pollen opt-in (pire allergène · pastille ; masquée si réglage off ou hors couverture). En nightRed, les pastilles s'effondrent au rouge — le mot porte le palier.
-4. **MetricsGrid** — grille 2×2 stricte : vitesse du vent · humidité · indice UV (qualificatif, cellule tappable + chevron) · pression de surface (hPa)
+4. **MetricsGrid** — grille 2×2 stricte : vitesse du vent · humidité · indice UV (qualificatif, cellule tappable + chevron) · pression de surface (hPa / inHg / kPa selon la préférence d'unités)
 5. **IndoorBlock** — température / humidité / qualité de l'air intérieurs Homebridge (masqué si non configuré)
 6. **ChartTabs** — onglets de prévisions sur 24 heures et 5 jours avec graphiques Recharts
 7. **AiSummaryInline** — résumé météo IA Claude ; expansible pour remplir le rail (bouton ↑)
