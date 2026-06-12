@@ -51,6 +51,17 @@ Ship order: Vent alone is worth a small PR; Humidité rides along; Pression just
 
 These items require new logic or UI work but remain well within the scope of the project.
 
+### 🎨 v3.1 Phase 8 — colour-system consolidation ("Système couleur + parité light/dark")
+The last v3.1 design phase, parked here by maintainer decision (2026-06-12) after P2 shipped. Not a new screen — a **synthesis pass**: the Claude Design mock (`Phase 8 - Systeme couleur.html` in the complete v3.1 bundle) unifies the per-phase colour choices into 7 semantic tokens (accent · ink ×3 · ok · warn · err · surfaces ×3 · borders ×2) across modes, formalizes the nightRed collapse rules (colour reinforces, never carries — icon/word holds the meaning), and ships a 21-combination WCAG contrast audit plus a Mapbox style-parity proposal.
+
+Much of the intent is already implemented piecemeal (`ui/tokens.js` roles, the nightRed collapse conventions, P2's `--mx-cat-*` family) — the real work is consolidation + audit + the deltas. Known adaptation flags for the request doc (same flow as P2/P3: our doc → designer v2 → multi-agent verification → implementation):
+
+- **3 modes in the mock vs our 4 palettes** — the dusk column must be demanded or derived (recurring per-phase correction).
+- **The Mapbox parity section collides with three settled decisions**: light-mode radar opacity 0.7 is deliberate (do NOT lower for basemap readability — the mock proposes 65/50 %); `streets-v12` was confirmed as the right basemap after the label-readability follow-up; and the proposed "Dark · Détaillé · Custom" style would hit the documented incident *Mapbox custom styles can't raster* (white PNGs from the raster endpoint). This whole section needs a reality rebase before any acceptance.
+- **The mock's WCAG audit runs on its own illustrative values, not ours** — e.g. its nightRed Ink-3 FAIL (1.9:1) partially predates our own fix (nightRed `textDim` already bumped to `#b84848` ≈ 4:1 after k5map field feedback). The deliverable worth keeping is the *audit method* re-run against the real `tokens.js` palettes; its two actionable findings (nightRed 3rd ink tier: raise or merge with tier 2; light Ink-3 at 3.2:1 borderline for 11 px helpers — test on the Pi in daylight) should be re-measured on our values first.
+
+Effort once started: an adaptation-requests doc (~half a session), then mostly a `ui/tokens.js` refactor + sweep — small compared to the screen phases.
+
 ### ✅ ~~Radar animation (play / pause / speed)~~ — **shipped May 2026**
 Full RadarTimeline overlay component embedded in WeatherMap: floating bar at the bottom of the map with date/offset labels, return-to-now button, speed cycler (1× / 2× / 4×), step-back / play-pause / step-forward transport controls, and a touch-friendly scrubber that walks past + nowcast frames from the RainViewer index. Multiple iterations refined the touchscreen UX: thumb hit-area expanded to full thumb-diameter vertical, padding inset of `var(--thumb-w)/2` to keep the thumb fully grabbable at both extremes, dwell-time-free pointer-event handlers (Chromium's heuristic was eating quick taps on the kiosk), legend auto-hide when the timeline collides with it on small screens, ghost-click absorber on close so the WeatherMap doesn't reposition the marker. "Now" tick markers (top + bottom of the input wrapper at the past→nowcast colour boundary) stay visible regardless of where the thumb is parked. Visible directly under the map when the timeline toggle in ControlButtons is active.
 
