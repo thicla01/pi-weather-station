@@ -7,6 +7,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [3.1.0] - 2026-06-12
+
+Version jumps 2.19 → 3.1.0 to align with the v3.1 design-pass naming: every screen-level phase of the program (P1 toolbar, P2 main card, P3 radar controls, P4 alerts, P5 forecast, P6 settings, P7 debug) has shipped; P8 (colour-system consolidation) is captured in the roadmap. The v3 Ambient UI has been the default since 2.18 — this release closes its design pass.
+
 ### Changed
 - **Main card — v3.1 Phase 2 redesign ("Carte principale"; Claude Design P2 v2.1 reference; audit F4 · F5 · F6).** The last screen-level phase of the v3.1 pass — the hero, the air readings and the metric grid get the explicit treatment, on all three layouts:
   - **Hero pyramid.** The hero card interior now reads in three tiers: a mono micro place-row (tap → the existing location popover, dotted-underline affordance), the dominant temperature (Geist Mono 500 tabular, °C top badge) with the condition icon/text and the always-on feels-like beside it, and a new **sun/moon meta-line** under a hairline. The feels-like line (shared `FeelsLikeLine`) gains the §4 **signed delta chip** — `RESSENTI 6° −6°` when |feels − temp| ≥ 2°, value alone below that (the threshold gates the ornament, never the presence — the v2.15.16 always-on ruling stands).
