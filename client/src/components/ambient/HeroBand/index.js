@@ -1,15 +1,12 @@
 import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
-import bxsSun from "@iconify/icons-bx/bxs-sun";
-import bxsMoon from "@iconify/icons-bx/bxs-moon";
 import { WeatherDataContext, UiPrefsContext, LocationContext } from "~/AppContext";
 import { convertTemp } from "~/services/conversions";
 import { parseWeatherCode, isDaylight } from "~/ui/weatherCodes";
-import { moonPhase, upcomingSolarEvent } from "~/ui/astronomy";
-import MoonGlyph from "~/components/ambient/MoonGlyph";
-import MoonDetailsPopover from "~/components/ambient/MoonDetailsPopover";
-import SunDetailsPopover from "~/components/ambient/SunDetailsPopover";
+import { upcomingSolarEvent } from "~/ui/astronomy";
+import AstroMetaLine from "~/components/ambient/AstroMetaLine";
+import FeelsLikeLine from "~/components/ambient/FeelsLikeLine";
 import LocationDetailsPopover from "~/components/ambient/LocationDetailsPopover";
 import LocationName from "~/components/LocationName";
 import styles from "./styles.css";
@@ -17,26 +14,25 @@ import styles from "./styles.css";
 const I18N_LOCALE = { en: "en-US", fr: "fr-FR", es: "es-ES" };
 
 /**
- * Direction C desktop hero band — a single wide slab anchored at the
- * top of the viewport, split into three logical panels:
+ * Direction C desktop hero band — v3.1 Phase 2 composition: a flex
+ * band of two cards floating over the full-bleed map.
  *
- *   ┌─────────────┬─────────────────┬───────────────┐
- *   │  Location   │  Temperature    │  Date / Time  │
- *   │  (caps)     │  + weather icon │  + sun row    │
- *   └─────────────┴─────────────────┴───────────────┘
+ *   ┌───────────────────────────────┬──────────────┐
+ *   │ hero card                     │ clock card   │
+ *   │  · place micro-row (popover)  │  date        │
+ *   │  · 72px temp + condition +    │  time        │
+ *   │    feels-like (+delta chip)   │              │
+ *   │  · sun/moon meta-line         │              │
+ *   └───────────────────────────────┴──────────────┘
  *
- * The plan called for three separate `HeroPlaceDesktop`,
- * `HeroTempDesktop`, `HeroClockDesktop` components — collapsed here
- * into a single `HeroBand` slab because the three panels share
- * surface, padding, and divider lines. Splitting into three slabs
- * would have introduced gap visual noise that doesn't match the
- * "wide single band" the Direction C mockups call for.
+ * The hero card interior follows the P2 pyramid: micro place label
+ * (tier 1), dominant temperature + condition + always-on feels-like
+ * (tier 2), sun/moon meta-line (tier 3 — the ONLY sun/moon home on
+ * screen, B1·a migration). The clock card keeps the date + time and
+ * the solstice/equinox marker, but its astro chip row moved into the
+ * hero meta-line.
  *
- * Sizes the temperature numeral relative to the band height (64 px
- * on the 140 px band ≥1280, 88 px on the 180 px band ≥1600) so the
- * hero scales with the viewport without re-rendering layout.
- *
- * @returns {JSX.Element} hero band slab
+ * @returns {JSX.Element} hero band (two floating cards)
  */
 const HeroBand = () => {
   const { currentWeatherData, sunriseTime, sunsetTime } = useContext(WeatherDataContext);
@@ -99,19 +95,18 @@ const HeroBand = () => {
   const parsed = parseWeatherCode(weatherCode, daylight);
   const tempUnitLabel = tempUnit === "k" ? "K" : `°${tempUnit.toUpperCase()}`;
 
-  // Feels-like — parity with HeroCompact (LayoutPi / LayoutMobile),
-  // where this chip ships always-on whenever Tomorrow.io returns a
-  // value. Without it the desktop hero panel reads as "missing" data
-  // that mobile/Pi users can see.
+  // Feels-like always-on (v2.15.16 ruling) — the delta-chip rendering
+  // rule lives in the shared FeelsLikeLine.
+  const tempConverted = temperature != null ? convertTemp(temperature, tempUnit) : null;
   const feelsConverted = temperatureApparent != null
     ? convertTemp(temperatureApparent, tempUnit)
     : null;
-  const showFeelsLike = feelsConverted != null;
+  const showFeelsLike = tempConverted != null && feelsConverted != null;
 
   const hour12 = clockTime === "12";
   // Intl.DateTimeFormat construction is the expensive half of date
   // formatting (locale data lookup) — memoized so each render only pays
-  // for format(), not for rebuilding three formatters.
+  // for format(), not for rebuilding the formatters.
   const dateFormatter = useMemo(
     () => new Intl.DateTimeFormat(locale, {
       weekday: "long",
@@ -139,43 +134,14 @@ const HeroBand = () => {
     .trim()
     .replace(/\s+h\s*$/i, "");
   const dayPeriod = parts.find((p) => p.type === "dayPeriod")?.value || "";
-  const sunFormatter = useMemo(
-    () => new Intl.DateTimeFormat("en-US", {
-      hour: "numeric",
-      minute: "2-digit",
-      hour12,
-      timeZone: mapTimezone,
-    }),
-    [hour12, mapTimezone]
-  );
 
-  // Astronomy add-ons (v2.16.x) — mirror TimeBlock so the desktop
-  // hero band carries the moon-phase chip and the optional
-  // solstice/equinox marker just like the Pi/mobile clock slab.
-  const moon = moonPhase(now);
   const upcoming = upcomingSolarEvent(now);
 
-  // Tap-for-details on the moon chip (same pattern as TimeBlock).
-  // Anchored to the LEFT of the chip so the popover extends rightward
-  // and stays inside the desktop clock panel rather than hanging off
-  // the right edge.
-  const moonChipRef = useRef(null);
-  const [moonOpen, setMoonOpen] = useState(false);
-  // Tap-for-details on the sun chips (sunrise + sunset). Both chips
-  // open the same SunDetailsPopover anchored to the sunrise chip;
-  // opening one closes the moon popover so the two never visually
-  // collide in the narrow clock panel.
-  const sunChipRef = useRef(null);
-  const [sunOpen, setSunOpen] = useState(false);
-  const toggleSun = () => { setMoonOpen(false); setSunOpen((v) => !v); };
-  const toggleMoon = () => { setSunOpen(false); setMoonOpen((v) => !v); };
-
-  // Tap-for-details on the location panel — surfaces the full
-  // LocationIQ reverse-geocode payload (admin hierarchy, postcode,
-  // precise coords) that `LocationName` necessarily truncates. Only
-  // wire up the button when we actually have geocode data OR a
-  // mapGeo to fall back to coords; otherwise the panel is just a
-  // placeholder and a tap would open an empty popover.
+  // Tap-for-details on the place row — surfaces the full LocationIQ
+  // reverse-geocode payload (admin hierarchy, postcode, precise
+  // coords) that `LocationName` necessarily truncates. Only wire up
+  // the button when we actually have geocode data; otherwise the row
+  // is just a placeholder and a tap would open an empty popover.
   const locationRef = useRef(null);
   const [locationOpen, setLocationOpen] = useState(false);
   const toggleLocation = () => setLocationOpen((v) => !v);
@@ -183,8 +149,9 @@ const HeroBand = () => {
 
   return (
     <div className={styles.band}>
-      <div className={styles.panelPlace}>
-        <div className={styles.placeLabel}>
+      <div className={styles.heroCard}>
+        {/* Tier 1 — place micro-row */}
+        <div className={styles.placeRow}>
           {locationClickable ? (
             <button
               ref={locationRef}
@@ -195,115 +162,49 @@ const HeroBand = () => {
               aria-label={t("location.details")}
               title={t("location.details")}
             >
-              <LocationName stacked />
+              <LocationName />
             </button>
           ) : (
-            <LocationName stacked />
+            <LocationName />
           )}
+          <LocationDetailsPopover
+            open={locationOpen}
+            onClose={() => setLocationOpen(false)}
+            triggerRef={locationRef}
+            anchor="left"
+          />
         </div>
-        <LocationDetailsPopover
-          open={locationOpen}
-          onClose={() => setLocationOpen(false)}
-          triggerRef={locationRef}
-          anchor="left"
-        />
-      </div>
-      <div className={styles.divider} />
-      <div className={styles.panelTemp}>
+        {/* Tier 2 — focal: dominant temp + condition + feels-like */}
         {temperature != null ? (
-          <>
+          <div className={styles.focal}>
             <div className={styles.tempBlock}>
-              <span className={styles.tempValue}>{convertTemp(temperature, tempUnit)}</span>
+              <span className={styles.tempValue}>{tempConverted}</span>
               <span className={styles.tempUnit}>{tempUnitLabel}</span>
             </div>
-            {parsed?.icon ? (
-              <div className={styles.tempIcon}>
-                <InlineIcon icon={parsed.icon} />
-              </div>
-            ) : null}
-            {(parsed?.descKey || showFeelsLike) ? (
-              <div className={styles.tempInfo}>
-                {parsed?.descKey ? (
-                  <div className={styles.tempDesc}>{t(parsed.descKey)}</div>
-                ) : null}
-                {showFeelsLike ? (
-                  <div className={styles.feelsLike}>
-                    <span className={styles.feelsLikeLabel}>{t("weather.feelsLike")}</span>
-                    <span className={styles.feelsLikeValue}>{feelsConverted}°</span>
-                  </div>
-                ) : null}
-              </div>
-            ) : null}
-          </>
+            <div className={styles.condCol}>
+              {parsed?.icon ? (
+                <span className={styles.condIcon}>
+                  <InlineIcon icon={parsed.icon} />
+                </span>
+              ) : null}
+              {parsed?.descKey ? (
+                <div className={styles.condText}>{t(parsed.descKey)}</div>
+              ) : null}
+              {showFeelsLike ? (
+                <FeelsLikeLine temp={tempConverted} feels={feelsConverted} />
+              ) : null}
+            </div>
+          </div>
         ) : null}
+        {/* Tier 3 — sun/moon meta-line (the only astro home, B1·a) */}
+        <AstroMetaLine />
       </div>
-      <div className={styles.divider} />
-      <div className={styles.panelClock}>
+      <div className={styles.clockCard}>
         <div className={styles.clockDate}>{dateStr}</div>
         <div className={styles.clockTime}>
           {hhmm}
           {hour12 && dayPeriod ? <span className={styles.clockAmPm}>{dayPeriod}</span> : null}
         </div>
-        {sunriseTime && sunsetTime ? (
-          <div className={styles.clockSunRow}>
-            <button
-              ref={sunChipRef}
-              type="button"
-              className={`${styles.clockSunChip} ${styles.moonChip}`}
-              title={t("astronomy.sunDetails")}
-              aria-label={t("astronomy.sunDetails")}
-              aria-expanded={sunOpen}
-              onClick={toggleSun}
-            >
-              <InlineIcon icon={bxsSun} />
-              {sunFormatter.format(new Date(sunriseTime))}
-            </button>
-            <button
-              type="button"
-              className={`${styles.clockSunChip} ${styles.moonChip}`}
-              title={t("astronomy.sunDetails")}
-              aria-label={t("astronomy.sunDetails")}
-              aria-expanded={sunOpen}
-              onClick={toggleSun}
-            >
-              <InlineIcon icon={bxsMoon} />
-              {sunFormatter.format(new Date(sunsetTime))}
-            </button>
-            <button
-              ref={moonChipRef}
-              type="button"
-              className={`${styles.clockSunChip} ${styles.moonChip}`}
-              title={t(`astronomy.moonPhase.${moon.i18nKey}`)}
-              aria-label={t(`astronomy.moonPhase.${moon.i18nKey}`)}
-              aria-expanded={moonOpen}
-              onClick={toggleMoon}
-            >
-              <span className={styles.moonGlyph}>
-                {/* `size="1em"` so the SVG renders at 1× of the wrapper's
-                 * own `font-size: 1.2em` — matches the prior Unicode-emoji
-                 * pixel footprint (the emoji also rendered at 1× of its
-                 * own font-size). Passing the component's default 1.2em
-                 * here would compound the multipliers to 1.44em and the
-                 * glyph would be ~20 % larger than before. */}
-                <MoonGlyph fraction={moon.fraction} size="1em" />
-              </span>
-              {Math.round(moon.illumination * 100)}%
-              <MoonDetailsPopover
-                open={moonOpen}
-                onClose={() => setMoonOpen(false)}
-                now={now}
-                triggerRef={moonChipRef}
-                anchor="right"
-              />
-            </button>
-            <SunDetailsPopover
-              open={sunOpen}
-              onClose={() => setSunOpen(false)}
-              triggerRef={sunChipRef}
-              anchor="right"
-            />
-          </div>
-        ) : null}
         {upcoming ? (
           <div className={styles.solarEventMarker}>
             {t("astronomy.solarEventIn", {

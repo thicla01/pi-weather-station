@@ -182,6 +182,7 @@
     "humidity": "Humidity",
     "uv": "UV",
     "aqi": "AQI",
+    "pressure": "Pressure",
     "detailValue": "Value",
     "detailStation": "Station",
     "detailSource": "Source",
@@ -246,6 +247,16 @@
       "waningGibbous": "Waning gibbous",
       "lastQuarter": "Last quarter",
       "waningCrescent": "Waning crescent"
+    },
+    "moonPhaseShort": {
+      "newMoon": "New moon",
+      "waxingCrescent": "Crescent",
+      "firstQuarter": "Quarter",
+      "waxingGibbous": "Gibbous",
+      "fullMoon": "Full moon",
+      "waningGibbous": "Gibbous",
+      "lastQuarter": "Quarter",
+      "waningCrescent": "Crescent"
     },
     "solarEvent": {
       "marchEquinox": "March equinox",

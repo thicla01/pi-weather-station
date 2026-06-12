@@ -1,8 +1,9 @@
-/* TimeBlock — date / time / sunrise-sunset slab.
+/* TimeBlock — date / time slab (kitchen clock).
  *
- * Time numeral takes the visual weight (Geist Mono, large, accent
- * colour). Date is a small caps caption above; sun row is a pair of
- * dim chips below. */
+ * Time numeral takes the visual weight (Geist Mono, large). Date is
+ * a small caps caption above. v3.1 Phase 2: the sun/moon chip row
+ * migrated to the hero's AstroMetaLine (B1·a) — the slab keeps its
+ * size, position and role. */
 
 .slab {
   background-color: var(--c-surface);
@@ -38,44 +39,13 @@
   vertical-align: 8px;
 }
 
-.sunRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 14px;
-  margin-top: 8px;
-  font-size: 12px;
-  color: var(--c-text-dim);
-}
-
-.sunChip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
 /* v2.15.6: mobile viewports (< 800 px wide — LayoutMobile path)
  * scale up the inner typography so the time block matches the
- * visual weight of the merged hero row's left column. On Pi 7"
- * (800-1279 px) and desktop (≥ 1280 px) the slab stays at the
- * compact original sizes. User-reported balance issue: "il faudrait
- * peut-être harmoniser la taille des éléments du côté horloge pour
- * avoir un rendu similaire de ce que nous avons à gauche du côté
- * localisation + température".
- *
- *   date     11 → 12 px (matches HeroCompact `.location` 12 px)
- *   time     40 → 56 px (matches HeroCompact `.tempValue` 56 px)
- *   amPm     14 → 22 px (matches HeroCompact `.tempUnit` 22 px)
- *   sunRow   12 → 14 px (matches HeroCompact `.description` 14 px)
+ * visual weight of the hero. On Pi 7" (800-1279 px) and desktop
+ * (≥ 1280 px) the slab stays at the compact original sizes.
  *
  * Verified at 390 px iPhone reference: "23:59" at 56 px Geist Mono
- * is ~110 px wide and fits inside the right column's ~151 px
- * content width (390 minus scroll padding, hero-row padding, grid
- * gap, and heroRight left-padding). No overflow risk. */
-/* v2.15.13: mobile clock typography retained from the merged-hero
- * experiment (56 px to match HeroCompact's temperature), but the
- * merged-row alignment overrides (right-align date/time, flex-end
- * sunRow) are removed since the card is back to being stacked at
- * the full rail width. */
+ * is ~110 px wide and fits inside the rail content width. */
 @media (max-width: 799px) {
   .date {
     font-size: 12px;
@@ -91,18 +61,12 @@
     margin-left: 8px;
     vertical-align: 12px;
   }
-  .sunRow {
-    font-size: 14px;
-    gap: 16px;
-    margin-top: 8px;
-  }
 }
 
 /* v2.15.13: Pi 7" + small desktop (800-1279 px). The 30 px clock
  * size from the merged-hero experiment is retained — the stacked
- * card now has the full rail width to work with, so 12h "10:37 AM"
- * fits inline easily without needing the AM-stacking or right-
- * align workarounds from v2.15.11/.12. */
+ * card has the full rail width to work with, so 12h "10:37 AM"
+ * fits inline easily. */
 @media (min-width: 800px) and (max-width: 1279px) {
   .date {
     font-size: 11px;
@@ -119,52 +83,9 @@
     margin-left: 5px;
     vertical-align: 6px;
   }
-  .sunRow {
-    font-size: 12px;
-    /* 7" Pi rail is 300 px wide — three chips (sun, moon, phase) don't
-     * fit on one line. Allow row wrap and tighten the column gap so
-     * the moon-phase chip wraps onto a 2nd line rather than being
-     * clipped by the rail's `overflow-x: hidden`. */
-    gap: 4px 10px;
-    margin-top: 6px;
-  }
 }
 
-/* Moon-phase glyph in the sun row. Emoji rendering varies wildly by
- * platform — slightly bigger font-size + tabular alignment keeps
- * the chip baseline stable next to the sun/moon icons (which are
- * Iconify SVGs at the row's font-size). */
-/* Moon chip is a <button> so it can be tapped to open the
- * MoonDetailsPopover. Reset button defaults so it visually matches
- * the neighbouring sun/sunset chips, and add `position: relative` so
- * the popover's `position: absolute` anchors to this chip. */
-.moonChip {
-  background: transparent;
-  border: 0;
-  padding: 0;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-  position: relative;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.moonChip:focus-visible {
-  outline: 1px solid var(--c-accent);
-  outline-offset: 2px;
-  border-radius: 4px;
-}
-
-.moonGlyph {
-  font-size: 1.2em;
-  line-height: 1;
-  margin-right: 2px;
-  /* Some fonts render moon emoji vertically off-baseline; nudge up */
-  position: relative;
-  top: -0.05em;
-}
-
-/* Solstice / equinox marker — small italic line below the sun row,
+/* Solstice / equinox marker — small italic line below the time,
  * visible only when within 14 days. Sized small + dim so it's a
  * "by the way" detail, not a primary information chunk. */
 .solarEventMarker {

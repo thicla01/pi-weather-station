@@ -182,6 +182,7 @@
     "humidity": "Humedad",
     "uv": "UV",
     "aqi": "ICA",
+    "pressure": "Presión",
     "detailValue": "Valor",
     "detailStation": "Estación",
     "detailSource": "Fuente",
@@ -245,6 +246,16 @@
       "fullMoon": "Luna llena",
       "waningGibbous": "Gibosa menguante",
       "lastQuarter": "Cuarto menguante",
+      "waningCrescent": "Menguante"
+    },
+    "moonPhaseShort": {
+      "newMoon": "Luna nueva",
+      "waxingCrescent": "Creciente",
+      "firstQuarter": "Cuarto",
+      "waxingGibbous": "Gibosa",
+      "fullMoon": "Luna llena",
+      "waningGibbous": "Gibosa",
+      "lastQuarter": "Cuarto",
       "waningCrescent": "Menguante"
     },
     "solarEvent": {

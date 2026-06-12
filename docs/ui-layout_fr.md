@@ -26,11 +26,13 @@ Variante A « Compagnon nomade » du dossier de design. Colonne unique défilant
 
 ```
 ┌──────────────────────────────┐
-│ TimeBlock                    │  ◀ horloge + lever/coucher
+│ TimeBlock                    │  ◀ horloge (date · heure)
 │ AlertBanner                  │  ◀ alerte gouvernementale (si active)
 │ AlertDetailInline            │  ◀ alerte développée (tap pour ouvrir)
-│ HeroCompact                  │  ◀ lieu, grosse temp, condition
-│ MetricsGrid                  │  ◀ tuiles vent / humidité / UV / AQ
+│ HeroCompact                  │  ◀ lieu · grosse temp · condition ·
+│                              │    ressenti · méta-ligne soleil/lune
+│ AirCard                      │  ◀ rangées IQA + pollen (pastilles)
+│ MetricsGrid                  │  ◀ tuiles vent / humidité / UV / pression
 │ IndoorBlock                  │  ◀ températures Homebridge (si configuré)
 │ Carte radar mini (~220 px) [⛶] │ ◀ carte inset; bouton maximiser
 │ ChartTabs                    │  ◀ graphique horaire 24 h
@@ -72,19 +74,22 @@ La carte occupe la colonne de gauche ; le rail (panneau d'information) occupe la
 ```
 ┌──────────────────────────┬──────────────────────────┐
 │                          │ TimeBlock                 │
-│                          │ (date · horloge · soleil) │
+│                          │ (date · horloge)          │
 │                          ├──────────────────────────┤
 │   WeatherMap             │ AlertBanner               │
 │   (Leaflet + tuiles radar├──────────────────────────┤
 │    RainViewer)           │ AlertDetailInline         │
 │                          ├──────────────────────────┤
 │         [›]              │ HeroCompact               │
-│    (chevron repliable)   │ (lieu · temp · icône ·   │
-│                          │  description)             │
+│    (chevron repliable)   │ (lieu · temp · condition ·│
+│                          │  ressenti · méta soleil/  │
+│                          │  lune)                    │
+│                          ├──────────────────────────┤
+│                          │ AirCard (IQA · pollen)    │
 │                          ├──────────────────────────┤
 │                          │ MetricsGrid               │
 │                          │ (vent · humidité · UV ·   │
-│                          │  qualité de l'air)        │
+│                          │  pression)                │
 │                          ├──────────────────────────┤
 │                          │ IndoorBlock (Homebridge)  │
 │                          ├──────────────────────────┤
@@ -135,12 +140,13 @@ La carte occupe tout le viewport en arrière-plan pleine saignée. Le HeroBand, 
 
 ```
 ┌─────────────────────────────────────────────┬───────────┐
-│ HeroBand (dalle flottante, max 1600 px)     │           │
-│ ┌──────────────┬──────────────┬───────────┐ │           │
-│ │ Localisation │ Temp + icône │ Date      │ │  Rail     │
-│ │ (nom ville)  │ + description│ Horloge   │ │  droit    │
-│ │              │              │ Soleil    │ │           │
-│ └──────────────┴──────────────┴───────────┘ │ - Métriq. │
+│ HeroBand (bande flottante, max 1600 px)     │           │
+│ ┌─────────────────────────────┬───────────┐ │           │
+│ │ Carte héros (pyramide P2)   │ Carte     │ │  Rail     │
+│ │  lieu (micro) · temp 72 px  │ horloge   │ │  droit    │
+│ │  + condition + ressenti     │  date     │ │           │
+│ │  méta-ligne soleil/lune     │  heure    │ │ - Air     │
+│ └─────────────────────────────┴───────────┘ │ - Métriq. │
 │                                         [›] │ - Alertes │
 │  WeatherMap                                 │ - Graphes │
 │  (pleine saignée — radar visible à travers) │ - Résumé  │
@@ -151,13 +157,12 @@ La carte occupe tout le viewport en arrière-plan pleine saignée. Le HeroBand, 
 └──────────────────────────────────────────────────────────┘
 ```
 
-### Panneaux du HeroBand
+### Cartes du HeroBand (v3.1 Phase 2)
 
-| Panneau | Contenu | Tailles de police |
-|---------|---------|-------------------|
-| **Gauche — Localisation** | Nom de la ville (LocationName, icône épingle) | 16 px → 20 px à ≥ 1600 px |
-| **Centre — Température** | Grand chiffre de temp. · badge unité · icône météo · description | 72 px → 88 px à ≥ 1600 px |
-| **Droite — Horloge** | Date (majuscules) · HH:MM · AM/PM (12h) · rangée lever/coucher | Horloge 44 px → 52 px ; rangée soleil 12 px → 14 px à ≥ 1600 px |
+| Carte | Contenu | Tailles de police |
+|-------|---------|-------------------|
+| **Héros (pyramide P2)** | Palier 1 : rangée lieu en micro-étiquette mono (épingle · trigger popover, souligné pointillé) · Palier 2 : grand chiffre de temp. (Geist Mono 500 tabulaire) + badge unité + icône/description + ligne **RESSENTI** always-on avec chip d'écart signée (±2°) · Palier 3 : **méta-ligne soleil/lune** (lever → coucher en SVG, glyphe de lune paramétrique + nom de phase + % — l'unique foyer des popovers soleil/lune, B1·a) | Temp 72 px → 88 px à ≥ 1600 px ; micro 11 px ; méta 12 px |
+| **Horloge** | Date (majuscules) · HH:MM · AM/PM (12h) — les chips astro ont migré dans la méta-ligne du héros | Horloge 44 px → 56 px à ≥ 1600 px |
 
 Le band a une limite de `max-width: 1600 px` — aux viewports ultra-larges (2560 px+), il reste riche en contenu plutôt que de s'étendre sur toute la largeur disponible.
 
@@ -168,10 +173,11 @@ Largeur : `320 px` (défaut) · `360 px` à ≥ 1600 px. Suit la préférence de
 Composants (de haut en bas) :
 1. **AlertBanner** — pastille d'alerte météo sévère gouvernementale (masquée en l'absence d'alerte active)
 2. **AlertDetailInline** — texte de l'alerte développée (masqué lorsque réduit)
-3. **MetricsGrid** — vitesse du vent · humidité · indice UV · indice de qualité de l'air
-4. **IndoorBlock** — température / humidité / qualité de l'air intérieurs Homebridge (masqué si non configuré)
-5. **ChartTabs** — onglets de prévisions sur 24 heures et 5 jours avec graphiques Recharts
-6. **AiSummaryInline** — résumé météo IA Claude ; expansible pour remplir le rail (bouton ↑)
+3. **AirCard** — rangées qualité de l'air : IQA (valeur · étiquette · pastille de catégorie · chevron, tap → détail) + pollen opt-in (pire allergène · pastille ; masquée si réglage off ou hors couverture). En nightRed, les pastilles s'effondrent au rouge — le mot porte le palier.
+4. **MetricsGrid** — grille 2×2 stricte : vitesse du vent · humidité · indice UV (qualificatif, cellule tappable + chevron) · pression de surface (hPa)
+5. **IndoorBlock** — température / humidité / qualité de l'air intérieurs Homebridge (masqué si non configuré)
+6. **ChartTabs** — onglets de prévisions sur 24 heures et 5 jours avec graphiques Recharts
+7. **AiSummaryInline** — résumé météo IA Claude ; expansible pour remplir le rail (bouton ↑)
 
 ### Rail replié (LayoutDesktop)
 

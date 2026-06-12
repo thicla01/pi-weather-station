@@ -4,6 +4,7 @@ import WeatherMap from "~/components/WeatherMap";
 import HeroCompact from "~/components/ambient/HeroCompact";
 import TimeBlock from "~/components/ambient/TimeBlock";
 import MetricsGrid from "~/components/ambient/MetricsGrid";
+import AirCard from "~/components/ambient/AirCard";
 import AlertBanner from "~/components/ambient/AlertBanner";
 import AlertDetailInline from "~/components/ambient/AlertDetailInline";
 import AlertMiniCards from "~/components/ambient/AlertMiniCards";
@@ -23,6 +24,7 @@ import styles from "./styles.css";
  *   │ RadarFocusControl (Leaflet,  │  HeroCompact           │
  *   │  top-left under +/-)         │  AlertBanner           │
  *   │  WeatherMap (full-bleed)     │  AlertDetailInline     │
+ *   │                              │  AirCard               │
  *   │                              │  MetricsGrid           │
  *   │                              │  IndoorBlock           │
  *   │                              │  ChartTabs             │
@@ -98,7 +100,11 @@ const LayoutPi = () => {
         <AlertBanner />
         <AlertDetailInline />
         <AlertMiniCards />
-        <HeroCompact />
+        {/* shortPhaseName: the 7" rail is too narrow for the full
+         * moon-phase string ("Gibbeuse croissante") in the hero
+         * meta-line — B4.7 ruling: short family name, no ellipsis. */}
+        <HeroCompact shortPhaseName />
+        <AirCard />
         <MetricsGrid />
         <IndoorBlock />
         <ChartTabs />

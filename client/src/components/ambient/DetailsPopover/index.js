@@ -94,6 +94,10 @@ const DetailsPopover = ({ open, onClose, title, anchor, triggerRef, portal, chil
         // palette inside the popover, even though HeroBand /
         // TimeBlock render correctly.
         "--c-moon-lit", "--c-moon-dark",
+        // Category-qualifier tokens (v3.1 Phase 2) — the AirCard's
+        // pollen popover colours its per-allergen tier words with
+        // these; same portal-scope rationale as the moon tokens.
+        "--mx-cat-good", "--mx-cat-mod", "--mx-cat-bad", "--mx-cat-vhigh",
       ]) {
         const v = cs.getPropertyValue(name);
         if (v) vars[name] = v.trim();

@@ -26,11 +26,13 @@ Variant A "Compagnon nomade" from the design package. Single scrollable column t
 
 ```
 ┌──────────────────────────────┐
-│ TimeBlock                    │  ◀ clock + sunrise/sunset
+│ TimeBlock                    │  ◀ clock (date · time)
 │ AlertBanner                  │  ◀ government alert (when active)
 │ AlertDetailInline            │  ◀ expanded alert (tap to open)
-│ HeroCompact                  │  ◀ location, big temp, condition
-│ MetricsGrid                  │  ◀ wind / humid / UV / AQ tiles
+│ HeroCompact                  │  ◀ location · big temp · condition ·
+│                              │    feels-like · sun/moon meta-line
+│ AirCard                      │  ◀ AQI + pollen rows (pills)
+│ MetricsGrid                  │  ◀ wind / humid / UV / pressure tiles
 │ IndoorBlock                  │  ◀ Homebridge temps (when configured)
 │ Radar mini (~220 px) [⛶]    │  ◀ small inset map; maximize toggle
 │ ChartTabs                    │  ◀ 24 h hourly chart
@@ -72,19 +74,22 @@ The map occupies the left column; the rail (info panel) occupies the right colum
 ```
 ┌──────────────────────────┬──────────────────────────┐
 │                          │ TimeBlock                 │
-│                          │ (date · clock · sun row)  │
+│                          │ (date · clock)            │
 │                          ├──────────────────────────┤
 │   WeatherMap             │ AlertBanner               │
 │   (Leaflet + RainViewer  ├──────────────────────────┤
 │    radar tiles)          │ AlertDetailInline         │
 │                          ├──────────────────────────┤
 │         [›]              │ HeroCompact               │
-│    (chevron toggle)      │ (location · temp · icon · │
-│                          │  description)             │
+│    (chevron toggle)      │ (location · temp ·        │
+│                          │  condition · feels-like · │
+│                          │  sun/moon meta-line)      │
+│                          ├──────────────────────────┤
+│                          │ AirCard (AQI · pollen)    │
 │                          ├──────────────────────────┤
 │                          │ MetricsGrid               │
 │                          │ (wind · humidity · UV ·   │
-│                          │  air quality)             │
+│                          │  pressure)                │
 │                          ├──────────────────────────┤
 │                          │ IndoorBlock (Homebridge)  │
 │                          ├──────────────────────────┤
@@ -135,12 +140,13 @@ The map fills the entire viewport as a full-bleed background. The HeroBand, righ
 
 ```
 ┌─────────────────────────────────────────────┬───────────┐
-│ HeroBand (floating slab, max 1600 px wide)  │           │
-│ ┌──────────────┬──────────────┬───────────┐ │           │
-│ │ Location     │ Temp + icon  │ Date      │ │  Right    │
-│ │ (city name)  │ + description│ Clock     │ │  Rail     │
-│ │              │              │ Sun row   │ │           │
-│ └──────────────┴──────────────┴───────────┘ │ - Metrics │
+│ HeroBand (floating band, max 1600 px wide)  │           │
+│ ┌─────────────────────────────┬───────────┐ │           │
+│ │ Hero card (P2 pyramid)      │ Clock     │ │  Right    │
+│ │  place (micro) · 72px temp  │ card      │ │  Rail     │
+│ │  + condition + feels-like   │  date     │ │           │
+│ │  sun/moon meta-line         │  time     │ │ - Air     │
+│ └─────────────────────────────┴───────────┘ │ - Metrics │
 │                                         [›] │ - Alerts  │
 │  WeatherMap                                 │ - Charts  │
 │  (full-bleed — radar visible through slabs) │ - AI sum. │
@@ -151,13 +157,12 @@ The map fills the entire viewport as a full-bleed background. The HeroBand, righ
 └──────────────────────────────────────────────────────────┘
 ```
 
-### HeroBand panels
+### HeroBand cards (v3.1 Phase 2)
 
-| Panel | Content | Font sizes |
-|-------|---------|------------|
-| **Left — Location** | City name (LocationName, pin icon) | 16 px → 20 px at ≥ 1600 px |
-| **Centre — Temperature** | Large temp numeral · unit badge · weather icon · description | 72 px → 88 px at ≥ 1600 px |
-| **Right — Clock** | Date (all-caps) · HH:MM · AM/PM (12h) · sunrise/sunset row | Clock 44 px → 52 px; sun row 12 px → 14 px at ≥ 1600 px |
+| Card | Content | Font sizes |
+|------|---------|------------|
+| **Hero (P2 pyramid)** | Tier 1: place row as a mono micro-label (pin · popover trigger, dotted underline) · Tier 2: large temp numeral (Geist Mono 500 tabular) + unit badge + condition icon/text + always-on **FEELS-LIKE** line with a signed delta chip (±2° gate on the ornament only) · Tier 3: **sun/moon meta-line** (sunrise → sunset with SVG arrow, parametric moon glyph + inline phase name + illumination % — the single home of the sun/moon popovers, B1·a) | Temp 72 px → 88 px at ≥ 1600 px; micro 11 px; meta 12 px |
+| **Clock** | Date (all-caps) · HH:MM · AM/PM (12h) — the astro chips migrated into the hero meta-line | Clock 44 px → 56 px at ≥ 1600 px |
 
 The band has a `max-width: 1600 px` cap — at ultra-wide viewports (2560 px+) it stays content-rich rather than sprawling across the full available area.
 
@@ -168,10 +173,11 @@ Width: `320 px` (default) · `360 px` at ≥ 1600 px. Zooms with the user's font
 Components (top to bottom):
 1. **AlertBanner** — government severe-weather alert pill (hidden when no active alert)
 2. **AlertDetailInline** — expanded alert text (hidden when collapsed)
-3. **MetricsGrid** — wind speed · humidity · UV index · air-quality index
-4. **IndoorBlock** — Homebridge indoor temperature / humidity / air quality (hidden if not configured)
-5. **ChartTabs** — 24-hour and 5-day forecast tabs with Recharts graphs
-6. **AiSummaryInline** — Claude AI weather summary; expandable to fill the rail (↑ button)
+3. **AirCard** — air-quality rows: AQI (value · label · category pill · chevron, tap → detail) + opt-in pollen (worst allergen · pill; hidden when the setting is off or out of coverage). In nightRed the pills collapse to red — the word carries the tier.
+4. **MetricsGrid** — strict 2×2 grid: wind speed · humidity · UV index (qualifier, tappable cell + chevron) · surface pressure (hPa)
+5. **IndoorBlock** — Homebridge indoor temperature / humidity / air quality (hidden if not configured)
+6. **ChartTabs** — 24-hour and 5-day forecast tabs with Recharts graphs
+7. **AiSummaryInline** — Claude AI weather summary; expandable to fill the rail (↑ button)
 
 ### Collapsed rail (LayoutDesktop)
 

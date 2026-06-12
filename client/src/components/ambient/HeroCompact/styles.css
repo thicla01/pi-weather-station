@@ -1,15 +1,18 @@
-/* HeroCompact — anchors the right rail. Big temperature numeral
- * paired with the weather icon; location above, description below.
- * The numeral is in Geist Mono so the right-aligned digits stay
- * column-locked when the temperature flips between e.g. 7° and 14°
- * (without mono, the kerning between '7' and '1'+'4' nudges the
- * unit label sideways — distracting at kiosk distance). */
+/* HeroCompact — anchors the right rail (Pi 7") / scroll column
+ * (mobile). v3.1 Phase 2 pyramid: micro place row, big mono numeral
+ * with the condition column beside it (icon + text + feels-like),
+ * sun/moon meta-line at the bottom.
+ *
+ * The numeral is in Geist Mono so the digits stay column-locked when
+ * the temperature flips between e.g. 7° and 14° (without mono, the
+ * kerning between '7' and '1'+'4' nudges the unit label sideways —
+ * distracting at kiosk distance). */
 
 .slab {
   background-color: var(--c-surface);
   border: 1px solid var(--c-border);
   border-radius: 10px;
-  padding: 16px 18px 14px 18px;
+  padding: 14px 16px 12px 16px;
   color: var(--c-text);
   font-family: "Geist", system-ui, -apple-system, sans-serif;
   /* Hybrid-mode severity strip on the left edge. Transparent in calm
@@ -22,28 +25,41 @@
   min-height: 110px;
 }
 
+/* ── Tier 1 — place micro-row ───────────────────────────────────── */
+
 .location {
-  font-size: 12px;
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
   font-weight: 500;
+  font-size: 11px;
   color: var(--c-text-dim);
   margin-bottom: 8px;
   text-transform: uppercase;
-  letter-spacing: 0.6px;
+  letter-spacing: 1.2px;
+  position: relative;
 }
 
 /* The internal LocationName component brings its own pin icon — keep
  * its container inline so it doesn't break the row alignment. */
-.location > div { display: inline-flex; align-items: center; gap: 4px; }
+.location > div > div,
+.location > button > div > div {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
 
-/* When the location row is rendered as a <button> (tap-for-details
- * popover trigger), reset all native button chrome so the visual
- * matches the non-clickable variant — same uppercase mini-caps,
- * same dim colour, no border, no background. */
-.locationButton {
+/* Popover-trigger variant of the place row — dotted underline
+ * affordance + :active pressed state (zero hover, kiosk rule), hit
+ * area extended to ≥ 44 px via the invisible pseudo-element.
+ * Doubled selector (.x.x → 0,2,0) on purpose: the `.ambientRoot
+ * button` reset (0,1,1) sets `border: 0; padding: 0` and would
+ * strip the dotted underline from a mono-class rule (P3/P5 lesson). */
+.locationButton.locationButton {
   background: transparent;
   border: 0;
-  padding: 0;
-  margin: 0;
+  border-bottom: 1px dotted var(--c-text-dim);
+  border-radius: 3px;
+  padding: 2px 2px 1px;
+  margin: -2px -2px -1px;
   text-align: left;
   font: inherit;
   color: inherit;
@@ -56,17 +72,32 @@
   align-items: center;
 }
 
+.locationButton::before {
+  content: "";
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  top: -16px;
+  bottom: -16px;
+}
+
+.locationButton:active {
+  background: var(--c-accent-soft);
+  border-bottom-color: transparent;
+}
+
 .locationButton:focus-visible {
   outline: 1px solid var(--c-accent);
   outline-offset: 3px;
-  border-radius: 4px;
 }
 
-.tempRow {
+/* ── Tier 2 — focal ─────────────────────────────────────────────── */
+
+.focal {
   display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 16px;
+  align-items: flex-start;
+  justify-content: flex-start;
+  gap: 14px;
 }
 
 /* See HeroBand/styles.css for the alignment rationale — same
@@ -82,6 +113,7 @@
   font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 56px;
   font-weight: 500;
+  font-variant-numeric: tabular-nums;
   letter-spacing: -1.5px;
   line-height: 1;
 }
@@ -93,115 +125,31 @@
   color: var(--c-text-dim);
 }
 
-.iconBlock {
-  font-size: 56px;
-  color: var(--c-accent);
-  line-height: 1;
-  flex-shrink: 0;
+/* Condition column — icon, condition text, feels-like line stacked
+ * beside the digits. */
+.condCol {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
 }
 
-.description {
+.condIcon {
+  font-size: 24px;
+  color: var(--c-accent);
+  line-height: 1;
+}
+
+.condText {
   font-size: 14px;
   font-weight: 500;
   color: var(--c-text);
-  margin-top: 8px;
 }
 
-/* v2.15.17: feels-like chip — sits at the right edge of `.tempRow`
- * via `margin-left: auto`, filling the horizontal space that was
- * freed when v2.15.14 packed the temp + icon to the left. Sized to
- * feel like a sibling of the main temp numeral (not a tiny outlier
- * in the corner) — value scales by viewport via component-local
- * media queries below. Label on top in dim mono small-caps (matches
- * the .location caption rhythm), value below in Geist Mono so the
- * numeral lines up cleanly with the big temp digits to its left. */
-.feels-like {
-  margin-left: auto;
-  display: flex;
-  flex-direction: column;
-  align-items: flex-end;
-  gap: 2px;
-  padding-left: 12px;
-  border-left: 1px solid var(--c-border);
-}
-
-.feels-like-label {
-  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  font-size: 11px;
-  letter-spacing: 1px;
-  color: var(--c-text-dim);
-  text-transform: uppercase;
-  line-height: 1;
-}
-
-.feels-like-value {
-  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  /* Base 22 px — sized for the LayoutDesktop / v2 baseline where the
-   * main temperature is 56 px. Roughly 40 % of the headline, big
-   * enough to read at kiosk distance without competing for the eye.
-   * Viewport-specific overrides below scale the chip to match the
-   * reduced temp size on smaller layouts. */
-  font-size: 22px;
-  font-weight: 500;
-  color: var(--c-text);
-  line-height: 1;
-  font-variant-numeric: tabular-nums;
-}
-
-/* Mobile (< 800 px) — temp is at 56 px (.tempValue mobile rule).
- * Match the chip value to ~58 % of that so it reads as a confident
- * sibling next to the headline, not a tooltip footnote. */
-@media (max-width: 799px) {
-  .feels-like-label {
-    font-size: 12px;
-  }
-  .feels-like-value {
-    font-size: 32px;
-  }
-}
-
-/* Pi 7" + small desktop (800-1279 px) — temp dialled down to 30 px
- * by the matching `.tempValue` media query. Scale the chip down
- * proportionally so it doesn't dominate the slab. */
-@media (min-width: 800px) and (max-width: 1279px) {
-  .feels-like-label {
-    font-size: 10px;
-  }
-  .feels-like-value {
-    font-size: 20px;
-  }
-}
-
-/* v2.15.14: mobile (< 800 px) — same `flex-start` pack as the Pi
- * range below, so the 56 px temp + 56 px icon sit together at the
- * left of the slab instead of getting pushed apart by the base
- * `space-between`. Original v2 used 56 px sizes that nearly filled
- * the slab, so space-between looked natural; the typography is
- * unchanged on mobile (still 56 px), but the slab is wider on a
- * 390 px phone than it was on the v2 grid, leaving room for the
- * same empty-gap effect the Pi range had. */
-@media (max-width: 799px) {
-  .tempRow {
-    justify-content: flex-start;
-    gap: 12px;
-  }
-}
-
-/* v2.15.14: reduced typography on small viewports — kept after the
- * v2.15.5-12 merged-hero experiment was reverted. The hero block
- * stays stacked above the TimeBlock (original v2 structure), but
- * with these smaller sizes the combined height is meaningfully
- * less than the v2.14 baseline.
- *
- * The base `.tempRow` uses `justify-content: space-between` which
- * was sized for the v2 56 px temp + 56 px icon — both nearly
- * filling the slab width. With the new 30 px sizes, the temp and
- * icon together take only ~80 px in a ~270 px rail content area,
- * leaving a ~190 px empty gap between them (user-reported on Pi:
- * "l'icône est complètement à droite, il y a un grand espace avec
- * la température"). Switching to `flex-start` with a 12 px gap
- * packs the temp + icon left-aligned, keeping the visual rhythm
- * close to the v2 baseline where the two sat together. */
+/* Pi 7" + small desktop (800-1279 px) — reduced typography kept from
+ * v2.15.14: the 30 px numeral + compact condition column keep the
+ * combined rail height meaningfully under the v2.14 baseline. */
 @media (min-width: 800px) and (max-width: 1279px) {
   .tempValue {
     font-size: 30px;
@@ -210,18 +158,16 @@
   .tempUnit {
     font-size: 13px;
   }
-  .iconBlock {
-    font-size: 30px;
+  .condIcon {
+    font-size: 18px;
   }
-  .description {
+  .condText {
     font-size: 13px;
-    margin-top: 6px;
   }
   .location {
     margin-bottom: 6px;
   }
-  .tempRow {
-    justify-content: flex-start;
+  .focal {
     gap: 12px;
   }
 }

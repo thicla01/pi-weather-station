@@ -6,6 +6,7 @@ import WeatherMap from "~/components/WeatherMap";
 import HeroCompact from "~/components/ambient/HeroCompact";
 import TimeBlock from "~/components/ambient/TimeBlock";
 import MetricsGrid from "~/components/ambient/MetricsGrid";
+import AirCard from "~/components/ambient/AirCard";
 import AlertBanner from "~/components/ambient/AlertBanner";
 import AlertDetailInline from "~/components/ambient/AlertDetailInline";
 import AlertMiniCards from "~/components/ambient/AlertMiniCards";
@@ -31,7 +32,8 @@ import styles from "./styles.css";
  *   │ AlertBanner                  │  ◀ government alert (when active)
  *   │ HeroCompact                  │  ◀ location, big temp, condition
  *   │ AlertDetailInline            │  ◀ expanded alert (tap to open)
- *   │ MetricsGrid                  │  ◀ wind / humid / UV / AQ tiles
+ *   │ AirCard                      │  ◀ AQI + pollen rows
+ *   │ MetricsGrid                  │  ◀ wind / humid / UV / pressure tiles
  *   │ IndoorBlock                  │  ◀ Homebridge temps (when configured)
  *   │ Radar mini (~220 px) [⛶]    │  ◀ small inset map; maximize toggle
  *   │ ChartTabs                    │  ◀ 24h hourly chart
@@ -296,6 +298,7 @@ const LayoutMobile = () => {
         <AlertDetailInline />
         <AlertMiniCards />
         <HeroCompact />
+        <AirCard />
         <MetricsGrid />
         <IndoorBlock />
         <div
