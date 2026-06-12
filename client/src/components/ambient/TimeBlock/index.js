@@ -1,25 +1,25 @@
-import React, { useContext, useEffect, useRef, useState } from "react";
+import React, { useContext, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { InlineIcon } from "@iconify/react";
-import bxsSun from "@iconify/icons-bx/bxs-sun";
-import bxsMoon from "@iconify/icons-bx/bxs-moon";
-import { WeatherDataContext, UiPrefsContext, LocationContext } from "~/AppContext";
-import { moonPhase, upcomingSolarEvent } from "~/ui/astronomy";
-import MoonGlyph from "~/components/ambient/MoonGlyph";
-import MoonDetailsPopover from "~/components/ambient/MoonDetailsPopover";
-import SunDetailsPopover from "~/components/ambient/SunDetailsPopover";
+import { UiPrefsContext, LocationContext } from "~/AppContext";
+import { upcomingSolarEvent } from "~/ui/astronomy";
 import styles from "./styles.css";
 
 const I18N_LOCALE = { en: "en-US", fr: "fr-FR", es: "es-ES" };
 
 /**
- * Direction C time slab — date, current time, and sunrise/sunset row.
+ * Direction C time slab — date and current time (the household's
+ * kitchen clock).
  *
- * The data flow mirrors the v2 `Clock` and `SunRiseSet` components
- * exactly (timezone follows the marker via `mapTimezone`, 12/24 h
- * via `clockTime`, locale via i18n). The visual treatment is
- * Direction-C-native: large Geist Mono time in `--c-text`, dim date
- * caption above, sunrise/sunset chips inline below.
+ * The data flow mirrors the v2 `Clock` component exactly (timezone
+ * follows the marker via `mapTimezone`, 12/24 h via `clockTime`,
+ * locale via i18n). The visual treatment is Direction-C-native:
+ * large Geist Mono time in `--c-text`, dim date caption above.
+ *
+ * v3.1 Phase 2 (B1·a migration): the sunrise/sunset chips, the moon
+ * chip and their popovers moved into the hero's `AstroMetaLine` —
+ * one sun/moon home per screen. The slab keeps its size, position
+ * and kitchen-clock role (§5 ruling), plus the passive solstice/
+ * equinox marker.
  *
  * Clock ticks via a 1 s `setInterval`. The interval is cleared on
  * unmount — important for the experimental flag toggle, which
@@ -28,7 +28,6 @@ const I18N_LOCALE = { en: "en-US", fr: "fr-FR", es: "es-ES" };
  * @returns {JSX.Element} time slab
  */
 const TimeBlock = () => {
-  const { sunriseTime, sunsetTime } = useContext(WeatherDataContext);
   const { clockTime } = useContext(UiPrefsContext);
   const { mapTimezone } = useContext(LocationContext);
   const { i18n, t } = useTranslation();
@@ -70,45 +69,11 @@ const TimeBlock = () => {
     .replace(/\s+h\s*$/i, "");
   const dayPeriod = parts.find((p) => p.type === "dayPeriod")?.value || "";
 
-  // Sunrise/sunset formatted in the marker's local timezone (same
-  // timezone Clock uses) so the kiosk reads sunrise consistently with
-  // the AI summary's "ce soir entre 18h et 21h" wording.
-  const sunFormatter = new Intl.DateTimeFormat("en-US", {
-    hour: "numeric",
-    minute: "2-digit",
-    hour12,
-    timeZone: mapTimezone,
-  });
-  const hasSun = sunriseTime && sunsetTime;
-
-  // Astronomy add-ons (v2.16.x). Moon phase glyph + illumination %
-  // travels in the sunrise/sunset row as a third chip — same
-  // glanceable density as the existing chips, no API call, no
-  // network cost (purely a date-driven calculation). The phase
-  // moves slowly enough that recomputing on every `now` tick is
-  // fine — JS does the trig in microseconds.
-  //
-  // The solstice / equinox marker surfaces ONLY when within 14
-  // days of the next event. The rest of the year `upcoming` is
-  // null and the row collapses, so the marker doesn't compete
-  // with the always-on sun row for attention.
-  const moon = moonPhase(now);
+  // The solstice / equinox marker surfaces ONLY when within 14 days
+  // of the next event. The rest of the year `upcoming` is null and
+  // the line collapses, so the marker doesn't compete with the clock
+  // for attention.
   const upcoming = upcomingSolarEvent(now);
-
-  // Tap-for-details on the moon chip — same pattern as the
-  // UV / AQ / Pollen cells in MetricsGrid (a `triggerRef` on the
-  // chip + a `DetailsPopover` anchored to it). Popover anchored to
-  // the LEFT edge of the chip so it stays inside the rail / slab on
-  // narrow viewports.
-  const moonChipRef = useRef(null);
-  const [moonOpen, setMoonOpen] = useState(false);
-  // Sunrise + sunset chips both open the same SunDetailsPopover.
-  // Mutual exclusivity with the moon popover so the two never visually
-  // collide in the narrow Pi/mobile rail.
-  const sunChipRef = useRef(null);
-  const [sunOpen, setSunOpen] = useState(false);
-  const toggleSun = () => { setMoonOpen(false); setSunOpen((v) => !v); };
-  const toggleMoon = () => { setSunOpen(false); setMoonOpen((v) => !v); };
 
   return (
     <div className={styles.slab}>
@@ -117,61 +82,6 @@ const TimeBlock = () => {
         {hhmm}
         {hour12 && dayPeriod ? <span className={styles.amPm}>{dayPeriod}</span> : null}
       </div>
-      {hasSun ? (
-        <div className={styles.sunRow}>
-          <button
-            ref={sunChipRef}
-            type="button"
-            className={`${styles.sunChip} ${styles.moonChip}`}
-            title={t("astronomy.sunDetails")}
-            aria-label={t("astronomy.sunDetails")}
-            aria-expanded={sunOpen}
-            onClick={toggleSun}
-          >
-            <InlineIcon icon={bxsSun} />
-            {sunFormatter.format(new Date(sunriseTime))}
-          </button>
-          <button
-            type="button"
-            className={`${styles.sunChip} ${styles.moonChip}`}
-            title={t("astronomy.sunDetails")}
-            aria-label={t("astronomy.sunDetails")}
-            aria-expanded={sunOpen}
-            onClick={toggleSun}
-          >
-            <InlineIcon icon={bxsMoon} />
-            {sunFormatter.format(new Date(sunsetTime))}
-          </button>
-          <button
-            ref={moonChipRef}
-            type="button"
-            className={`${styles.sunChip} ${styles.moonChip}`}
-            title={t(`astronomy.moonPhase.${moon.i18nKey}`)}
-            aria-label={t(`astronomy.moonPhase.${moon.i18nKey}`)}
-            aria-expanded={moonOpen}
-            onClick={toggleMoon}
-          >
-            <span className={styles.moonGlyph}>
-              {/* `size="1em"` — see HeroBand for the compound-em rationale. */}
-              <MoonGlyph fraction={moon.fraction} size="1em" />
-            </span>
-            {Math.round(moon.illumination * 100)}%
-            <MoonDetailsPopover
-              open={moonOpen}
-              onClose={() => setMoonOpen(false)}
-              now={now}
-              triggerRef={moonChipRef}
-              anchor="right"
-            />
-          </button>
-          <SunDetailsPopover
-            open={sunOpen}
-            onClose={() => setSunOpen(false)}
-            triggerRef={sunChipRef}
-            anchor="right"
-          />
-        </div>
-      ) : null}
       {upcoming ? (
         <div className={styles.solarEventMarker}>
           {t("astronomy.solarEventIn", {

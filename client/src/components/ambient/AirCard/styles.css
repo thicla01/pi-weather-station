@@ -1,0 +1,232 @@
+/* AirCard — IQA + pollen rows above the metrics grid (§3 option B).
+ * Row grammar: value · mono label · category pill · chevron. The
+ * pill colour comes entirely from one `--mx-cat-*` token (ink +
+ * color-mix bg/border) so nightRed collapses all tiers to red and
+ * the word alone carries the meaning. */
+
+.card {
+  background-color: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  color: var(--c-text);
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+  /* `flex-shrink: 0` is load-bearing: the Pi/Desktop rails are
+   * scrollable flex COLUMNS, and `overflow: hidden` (needed to clip
+   * the rows' :active fill to the rounded corners) zeroes a flex
+   * item's automatic minimum size — without this line the air card
+   * is the rail's only crushable slab and absorbs ALL the vertical
+   * shortage before the rail starts scrolling (field report: IQA
+   * row squashed flat on short macOS windows; the kiosk's Firefox
+   * happened to mask it). Slabs never compress — the rail scrolls. */
+  flex-shrink: 0;
+  /* Hybrid-mode severity strip — propagates from AmbientLayers root. */
+  box-shadow: inset 3px 0 0 var(--c-strip-color, transparent);
+}
+
+.row {
+  /* The row's popovers render in PORTAL mode (the card's
+   * `overflow: hidden` would clip an absolute popover anchored
+   * here); `position: relative` only scopes potential future
+   * decorations. */
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 12px 12px;
+  min-height: 44px; /* full-row tap target ≥ 44 px */
+}
+
+.row + .row {
+  border-top: 1px solid var(--c-border);
+}
+
+.row-interactive {
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Zero hover on kiosk surfaces ("drop, don't gate") — pressed
+ * feedback only, same accent-soft + scale pair as the metric tiles. */
+.row-interactive:active {
+  background: var(--c-accent-soft);
+  transform: scale(0.985);
+}
+
+.row-interactive:focus-visible {
+  outline: 2px dashed var(--c-text);
+  outline-offset: -2px;
+}
+
+.value {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 22px;
+  font-weight: 500;
+  letter-spacing: -0.5px;
+  line-height: 1;
+  font-variant-numeric: tabular-nums;
+  flex: none;
+}
+
+/* Worst-allergen variant of the leading value — body text, and the
+ * one flexible element in the row: the pill, label and chevron never
+ * compress; the name ellipsizes under pressure (7" × L overflow
+ * rule). */
+.value-text {
+  font-size: 14px;
+  font-weight: 500;
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.label {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-weight: 500;
+  font-size: 11px; /* normative micro base (P2 type scale) */
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--c-text-dim);
+  flex: none;
+}
+
+/* Category pill — dot + word, colored entirely from the row's
+ * `--cat` token: ink = token, bg = 13 % mix, border = 26 % mix. */
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  white-space: nowrap;
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-weight: 500;
+  font-size: 11px; /* normative micro base (P2 type scale) */
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  padding: 3px 8px;
+  border-radius: 999px;
+  margin-left: auto;
+  flex: none;
+  color: var(--cat, var(--c-text-dim));
+  background: color-mix(in srgb, var(--cat, var(--c-text-dim)) 13%, transparent);
+  border: 1px solid color-mix(in srgb, var(--cat, var(--c-text-dim)) 26%, transparent);
+}
+
+.pill-dot {
+  width: 5px;
+  height: 5px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
+}
+
+/* Tier classes — shared by the pill (`--cat` indirection) and the
+ * popover tier words (plain `color`). */
+.cat-good  { --cat: var(--mx-cat-good);  color: var(--mx-cat-good); }
+.cat-mod   { --cat: var(--mx-cat-mod);   color: var(--mx-cat-mod); }
+.cat-bad   { --cat: var(--mx-cat-bad);   color: var(--mx-cat-bad); }
+.cat-vhigh { --cat: var(--mx-cat-vhigh); color: var(--mx-cat-vhigh); }
+
+/* Pill keeps its token ink even though the tier classes also set
+ * `color` (for popover words) — same value, no conflict. */
+
+.chevron {
+  font-size: 16px;
+  color: var(--c-text-dim);
+  flex: none;
+}
+
+/* 7" rail tightening (overflow rule: pill/label/chevron never
+ * compress, the allergen name cedes). */
+:global(.ambientRoot[data-layout="pi"]) .row {
+  gap: 5px;
+  padding: 9px 10px;
+}
+
+:global(.ambientRoot[data-layout="pi"]) .pill {
+  padding: 3px 6px;
+  letter-spacing: 0.5px;
+}
+
+:global(.ambientRoot[data-layout="pi"]) .value {
+  font-size: 17px;
+}
+
+:global(.ambientRoot[data-layout="pi"]) .value-text {
+  font-size: 12px;
+}
+
+/* ── DetailsPopover content ─────────────────────────────────────── */
+
+.detail-row {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-bottom: 8px;
+}
+
+.detail-row:last-child {
+  margin-bottom: 0;
+}
+
+.detail-label {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--c-text-dim);
+}
+
+.detail-value {
+  font-size: 13px;
+  /* 500, not 600 — only Geist 400/500/700 are self-hosted; 600 would
+   * render as a synthesized fake weight (house font rule). */
+  font-weight: 500;
+}
+
+/* Pollen popover — allergen name (flexible, ellipsis), gr/m³ value
+ * (mono, dim), tier word (token-coloured; `—` for null = no data,
+ * deliberately NOT a tier). */
+.allergen-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.allergen-row {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  font-size: 12px;
+}
+
+.allergen-name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.allergen-value {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-weight: 500;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--c-text-dim);
+  flex: none;
+}
+
+.allergen-tier {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-weight: 500;
+  font-size: 10px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  flex: none;
+}
+
+.no-data {
+  color: var(--c-text-dim);
+}

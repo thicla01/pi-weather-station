@@ -51,22 +51,24 @@ const SECTIONS = [
 ];
 
 /**
- * Map the four individual unit selections back to a single
+ * Map the five individual unit selections back to a single
  * "Metric" / "Imperial" preset, or "custom" when the user has
- * mixed them (e.g. °C + mph). Used by the unit-system Seg to
- * highlight the active preset; "custom" results in neither
- * button reading as active, which is the right signal for "your
- * individual selectors below are the source of truth".
+ * mixed them (e.g. °C + mph, or metric units with the kPa
+ * barometer reading). Used by the unit-system Seg to highlight
+ * the active preset; "custom" results in neither button reading
+ * as active, which is the right signal for "your individual
+ * selectors below are the source of truth".
  *
  * @param {string} t tempUnit ("c" / "f" / "k")
  * @param {string} s speedUnit ("kmh" / "ms" / "mph")
  * @param {string} l lengthUnit ("mm" / "in")
  * @param {string} d distanceUnit ("km" / "mi")
+ * @param {string} p pressureUnit ("hpa" / "inhg" / "kpa")
  * @returns {"metric"|"imperial"|"custom"}
  */
-function unitSystemPreset(t, s, l, d) {
-  if (t === "c" && s === "kmh" && l === "mm" && d === "km") return "metric";
-  if (t === "f" && s === "mph" && l === "in" && d === "mi") return "imperial";
+function unitSystemPreset(t, s, l, d, p) {
+  if (t === "c" && s === "kmh" && l === "mm" && d === "km" && p === "hpa") return "metric";
+  if (t === "f" && s === "mph" && l === "in" && d === "mi" && p === "inhg") return "imperial";
   return "custom";
 }
 
@@ -78,7 +80,7 @@ function unitSystemPreset(t, s, l, d) {
  * Structure (4 sections, decreasing local-vs-server gradient):
  *
  *   1. Préférences locales         — language, font size, dark mode,
- *                                    clock, units (×4), hide flags
+ *                                    clock, units (×5), hide flags
  *   2. Configuration & clés API    — settings.json side, write-locked
  *                                    from remote clients; API keys
  *                                    (variant B), coords, radar source,
@@ -243,6 +245,7 @@ const SectionLocalPrefs = ({ ctx, lang }) => {
     speedUnit, saveSpeedUnit,
     lengthUnit, saveLengthUnit,
     distanceUnit, saveDistanceUnit,
+    pressureUnit, savePressureUnit,
     mouseHide, saveMouseHide,
     showAdvisoryAlerts, saveShowAdvisoryAlerts,
   } = ctx;
@@ -308,18 +311,20 @@ const SectionLocalPrefs = ({ ctx, lang }) => {
             { v: "metric", l: lbl(lang, "Metric", "Métrique", "Métrico") },
             { v: "imperial", l: lbl(lang, "Imperial", "Impérial", "Imperial") },
           ]}
-          value={unitSystemPreset(tempUnit, speedUnit, lengthUnit, distanceUnit)}
+          value={unitSystemPreset(tempUnit, speedUnit, lengthUnit, distanceUnit, pressureUnit)}
           onChange={(preset) => {
             if (preset === "metric") {
               saveTempUnit("c");
               saveSpeedUnit("kmh");
               saveLengthUnit("mm");
               saveDistanceUnit("km");
+              savePressureUnit("hpa");
             } else if (preset === "imperial") {
               saveTempUnit("f");
               saveSpeedUnit("mph");
               saveLengthUnit("in");
               saveDistanceUnit("mi");
+              savePressureUnit("inhg");
             }
           }}
         />
@@ -346,6 +351,16 @@ const SectionLocalPrefs = ({ ctx, lang }) => {
           options={[{ v: "mi", l: "mi" }, { v: "km", l: "km" }]}
           value={distanceUnit}
           onChange={saveDistanceUnit}
+        />
+        {/* Pressure (v3.1 Phase 2 — the 4th metric tile). kPa is the
+          * Environment Canada / MétéoMédia reading convention, offered
+          * for Canadian kiosks even though no preset selects it (manual
+          * choice → the preset Seg correctly reads "custom"). */}
+        <Seg
+          label={lbl(lang, "Pressure", "Pression", "Presión")}
+          options={[{ v: "hpa", l: "hPa" }, { v: "inhg", l: "inHg" }, { v: "kpa", l: "kPa" }]}
+          value={pressureUnit}
+          onChange={savePressureUnit}
         />
       </div>
 

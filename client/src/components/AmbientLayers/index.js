@@ -180,6 +180,16 @@ const AmbientLayers = () => {
     // dark silhouette on a light page.
     "--c-moon-lit": palette.moonLit,
     "--c-moon-dark": palette.moonDark,
+    // v3.1 Phase 2 — category-qualifier tokens (`--mx-*` family from
+    // the Claude Design P2 handoff; names kept verbatim for handoff
+    // traceability). Tier mapping documented in `ui/tokens.js`:
+    // good=low · mod=moderate · bad=high · vhigh=veryHigh(+extreme).
+    // Consumed by the AirCard pills and the MetricsGrid qualifiers;
+    // in nightRed all four resolve to the same red.
+    "--mx-cat-good": palette.catGood,
+    "--mx-cat-mod": palette.catMod,
+    "--mx-cat-bad": palette.catBad,
+    "--mx-cat-vhigh": palette.catVhigh,
     // Font-size scaling is exposed as `--c-font-scale` and consumed by
     // the scrollable subtrees (rail in both layouts, heroSlot in
     // LayoutDesktop). Applying `zoom` here on the root broke

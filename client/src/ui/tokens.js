@@ -89,6 +89,19 @@ const day = {
   // removes the cross-mode reading ambiguity.
   moonLit: "#f4e4a8",
   moonDark: "#7a6a48",
+  // Category-qualifier tokens (v3.1 Phase 2, normative `--mx-*` table
+  // from the Claude Design P2 v2.1 handoff). One token per severity
+  // tier of the app's category system (`ui/severity.js`):
+  //   catGood → low · catMod → moderate · catBad → high ·
+  //   catVhigh → veryHigh (UV "extreme" aliases catVhigh — no 5th token).
+  // These drive the air-card pills and the metric-tile qualifiers so
+  // the words stay legible per palette — including nightRed, where all
+  // four tiers collapse to the red family and the WORD alone carries
+  // the meaning (this closes the known nightRed-override gap).
+  catGood: "#3e7d52",
+  catMod: "#a8801f",
+  catBad: "#b54848",
+  catVhigh: "#7e3fb1",
 };
 
 const dusk = {
@@ -118,6 +131,11 @@ const dusk = {
   // with the dusk bg #1c1a17.
   moonLit: "#f0ddb8",
   moonDark: "#3a3528",
+  // Category tokens — see the `day` palette for the tier mapping.
+  catGood: "#79b389",
+  catMod: "#d3a953",
+  catBad: "#d97070",
+  catVhigh: "#a778d0",
 };
 
 const night = {
@@ -150,6 +168,11 @@ const night = {
   // above the AA threshold for non-text decoration.
   moonLit: "#f0ddb8",
   moonDark: "#3a3528",
+  // Category tokens — see the `day` palette for the tier mapping.
+  catGood: "#6db582",
+  catMod: "#d9b260",
+  catBad: "#d56f6f",
+  catVhigh: "#a87fd4",
 };
 
 const nightRed = {
@@ -193,6 +216,12 @@ const nightRed = {
   // intent the way a warm-cream lit side would.
   moonLit: "#d04848",
   moonDark: "#2a0e0e",
+  // Category tokens collapse to a single red — night-vision rule. The
+  // pill/qualifier WORD carries the tier; colour only signals "category".
+  catGood: "#d04848",
+  catMod: "#d04848",
+  catBad: "#d04848",
+  catVhigh: "#d04848",
 };
 
 export const tokens = { day, dusk, night, nightRed };

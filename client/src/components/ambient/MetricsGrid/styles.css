@@ -1,7 +1,9 @@
-/* MetricsGrid — 2×2 of compact stat cells. Each cell is its own
- * mini-slab so the grid reads as a cluster of four chips rather than
- * a single chunky block. The icon, value, and label stack tightly
- * to keep the grid compact on the Pi's 800px-wide column. */
+/* MetricsGrid — strict 2×2 of compact stat cells (Wind / Humidity /
+ * UV / Pressure). Each cell is its own mini-slab so the grid reads
+ * as a cluster of four chips rather than a single chunky block. The
+ * icon, value, and label stack tightly to keep the grid compact on
+ * the Pi's 800px-wide column. The 2×2 template is never overridden —
+ * no setting may break it (§3). */
 
 .grid {
   display: grid;
@@ -29,21 +31,18 @@
   box-shadow: inset 3px 0 0 var(--c-strip-color, transparent);
 }
 
-/* Interactive cells (UV + AQ) — render as a <button>. Reset the
- * native button defaults so the cell still reads as a slab, then
- * add a subtle hover/focus affordance so the user discovers the
- * tap target. Keyboard accessibility comes from the underlying
- * <button> element. */
+/* Interactive cell (UV) — full-surface tap target. Zero hover on
+ * kiosk surfaces ("drop, don't gate" — field incidents); the pressed
+ * state is the affordance feedback, paired with the chevron. */
 .cellInteractive {
   cursor: pointer;
   font: inherit;
   -webkit-tap-highlight-color: transparent;
 }
 
-@media (hover: hover) {
-  .cellInteractive:hover {
-    border-color: var(--c-text-dim);
-  }
+.cellInteractive:active {
+  background: var(--c-accent-soft);
+  transform: scale(0.985);
 }
 
 .cellInteractive:focus-visible {
@@ -51,48 +50,16 @@
   outline-offset: -2px;
 }
 
-/* Pollen cell uses col-span 2 so the 5th cell fills the bottom
- * row cleanly instead of leaving a gap. The detail popover anchors
- * bottom-right of the cell as usual. */
-.cellSpanFull {
-  grid-column: 1 / -1;
-}
-
-/* Tap-for-details hint — small ⓘ icon in the top-right corner of
- * interactive cells. Discoverable affordance for touch users
- * (where :hover doesn't help) without adding text labels that
- * would need i18n. Dim by default so it doesn't compete with the
- * value, brightens on hover/focus. */
-.cellInfoHint {
+/* Tap-for-details affordance — SVG chevron in the top-right corner
+ * of interactive cells (F6: replaces the timid ⓘ). Dim so it doesn't
+ * compete with the value. */
+.cellChevron {
   position: absolute;
-  top: 6px;
-  right: 6px;
-  font-size: 14px;
+  top: 8px;
+  right: 8px;
+  font-size: 15px;
   color: var(--c-text-dim);
-  opacity: 0.6;
   pointer-events: none;
-}
-
-.cellInteractive:hover .cellInfoHint,
-.cellInteractive:focus-visible .cellInfoHint {
-  opacity: 1;
-  color: var(--c-text);
-}
-
-/* Pollen popover — per-allergen list with the allergen name on the
- * left and the value (colour-coded by tier) on the right. */
-.allergenList {
-  display: flex;
-  flex-direction: column;
-  gap: 4px;
-  margin-top: 4px;
-}
-
-.allergenRow {
-  display: flex;
-  justify-content: space-between;
-  font-size: 12px;
-  text-transform: capitalize;
 }
 
 .iconRow {
@@ -116,6 +83,7 @@
   font-weight: 500;
   letter-spacing: -0.5px;
   line-height: 1;
+  font-variant-numeric: tabular-nums;
 }
 
 .unit {
@@ -125,7 +93,7 @@
 }
 
 .label {
-  font-size: 10px;
+  font-size: 11px; /* normative micro base (P2 type scale) */
   font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.6px;
@@ -133,23 +101,31 @@
   margin-top: auto;
 }
 
-/* Severity qualifier — green / yellow / orange / red wording shown
- * under the label for UV and AQ cells. Colour is set inline by
- * MetricsGrid from the severity tier; this rule controls typography
- * only. Slightly heavier weight than the dim grey label above so
- * the colour reads without competing with the value. */
+/* Severity qualifier — tier wording shown under the label for the UV
+ * cell. Colour comes from the `--mx-cat-*` tier classes below (token
+ * per palette — in nightRed all four collapse to red and the word
+ * carries the tier). Slightly heavier weight than the dim grey label
+ * above so the colour reads without competing with the value. */
 .qualifier {
-  font-size: 10px;
-  font-weight: 600;
+  font-size: 11px; /* normative micro base (P2 type scale) */
+  /* 500, not 600 — only Geist 400/500/700 are self-hosted; 600 would
+   * render as a synthesized fake weight (house font rule). */
+  font-weight: 500;
   text-transform: uppercase;
   letter-spacing: 0.6px;
   margin-top: 2px;
 }
 
+/* Tier colour classes — shared by the qualifier line and the popover
+ * value wording. */
+.cat-good  { color: var(--mx-cat-good); }
+.cat-mod   { color: var(--mx-cat-mod); }
+.cat-bad   { color: var(--mx-cat-bad); }
+.cat-vhigh { color: var(--mx-cat-vhigh); }
+
 /* DetailsPopover content typography — label/value pairs stacked
  * with a slight indent so the popover reads as a structured
- * mini-table rather than a paragraph. Re-used by AQ + (future)
- * Pollen popovers. */
+ * mini-table rather than a paragraph. */
 .detailRow {
   display: flex;
   flex-direction: column;
@@ -171,7 +147,8 @@
 
 .detailValue {
   font-size: 13px;
-  font-weight: 600;
+  /* 500, not 600 — house font rule (no synthesized weights). */
+  font-weight: 500;
 }
 
 .detailGuidance {

@@ -108,6 +108,9 @@ function adaptCurrent(src) {
     temperature: src.temperature_2m,
     temperatureApparent: src.apparent_temperature,
     uvIndex: src.uv_index,
+    // v3.1 Phase 2 envelope parity — the kiosk's 4th metric tile reads
+    // pressureSurfaceLevel; Open-Meteo's surface_pressure is hPa too.
+    pressureSurfaceLevel: src.surface_pressure ?? null,
     weatherCode: mapWmoCode(src.weather_code),
     windSpeed: src.wind_speed_10m,
   })]);
@@ -207,7 +210,7 @@ async function getOpenMeteoWeather(req, res) {
 
   const url = "https://api.open-meteo.com/v1/forecast"
     + `?latitude=${lat}&longitude=${lon}`
-    + "&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m,uv_index"
+    + "&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m,uv_index,surface_pressure"
     + "&hourly=temperature_2m,relative_humidity_2m,precipitation,precipitation_probability,weather_code,wind_speed_10m,uv_index"
     + "&daily=weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,precipitation_sum,rain_sum,snowfall_sum,precipitation_probability_max,uv_index_max,sunrise,sunset"
     + `&timezone=${encodeURIComponent(tz)}`

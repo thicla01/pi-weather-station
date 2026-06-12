@@ -170,6 +170,12 @@ const CURRENT_FIELDS = [
   "temperature", "temperatureApparent", "humidity", "windSpeed", "precipitationIntensity",
   "precipitationType", "precipitationProbability", "cloudCover",
   "weatherCode", "uvIndex", "epaIndex",
+  // v3.1 Phase 2 — surface pressure feeds the 4th metric tile of the
+  // strict 2×2 grid (AQI moved out to the dedicated air card). Adding
+  // the field bumps CURRENT_FIELDS_HASH, which orphans every cached
+  // current entry on the fleet — one fresh fetch per Pi, no extra
+  // request volume (the field travels in the same call).
+  "pressureSurfaceLevel",
 ];
 const HOURLY_FIELDS = [
   "temperature", "precipitationProbability", "precipitationIntensity", "windSpeed",

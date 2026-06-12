@@ -1,306 +1,209 @@
-/* HeroBand — wide top slab for the desktop layout.
+/* HeroBand — v3.1 Phase 2: two floating cards (hero + clock) over
+ * the full-bleed map.
  *
- * Three horizontal panels separated by 1px vertical dividers, on the
- * standard warm-grey surface. The whole band floats over the
- * full-bleed map, so the surface includes the slight opacity baked
- * into `--c-surface` and a subtle drop shadow to lift it visually
- * off the radar tiles below. */
+ * The hero card interior follows the P2 pyramid — micro place row,
+ * dominant 72 px temperature with condition + feels-like beside it,
+ * sun/moon meta-line under a hairline. The clock card keeps the
+ * date/time role (kitchen clock, §5) without the astro chips.
+ *
+ * Both cards share the warm-grey translucent surface; the drop
+ * shadow lifts them off the radar tiles, the inset strip picks up
+ * the hybrid severity colour when a serious alert is active. */
 
 .band {
-  display: grid;
-  grid-template-columns: minmax(220px, 1fr) 1px minmax(280px, 2fr) 1px minmax(220px, 1fr);
-  align-items: center;
-  background-color: var(--c-surface);
-  border: 1px solid var(--c-border);
-  border-radius: 12px;
-  color: var(--c-text);
+  display: flex;
+  align-items: stretch;
+  gap: 8px;
   font-family: "Geist", system-ui, -apple-system, sans-serif;
-  /* Two box-shadows: outer drop shadow lifts the band off the radar
-   * tiles below, inner shadow on the left edge picks up the hybrid
-   * severity colour (warn / danger) when a serious alert is active.
-   * In calm conditions `--c-strip-color` resolves to `transparent` so
-   * the inner shadow disappears. */
-  box-shadow:
-    inset 4px 0 0 var(--c-strip-color, transparent),
-    0 8px 24px rgba(0, 0, 0, 0.25);
-  /* At ultra-wide viewports (2560px+) the heroSlot can be 2100+ px
-   * wide — each of the three panels would stretch to 500+ px, leaving
-   * large amounts of empty space ("désert" feeling). Cap at 1600px so
-   * the band stays content-rich at any viewport width. */
+  color: var(--c-text);
+  /* At ultra-wide viewports the heroSlot can be 2100+ px wide — cap
+   * the band so the cards stay content-sized instead of stretching
+   * into a "désert". */
   max-width: 1600px;
 }
 
-.divider {
-  width: 1px;
-  height: 60%;
-  background-color: var(--c-border);
-  align-self: center;
+.hero-card,
+.clock-card {
+  background-color: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: 12px;
+  box-shadow:
+    inset 4px 0 0 var(--c-strip-color, transparent),
+    0 8px 24px rgba(0, 0, 0, 0.25);
 }
 
-/* ── Location panel ─────────────────────────────────────────────── */
-
-.panelPlace {
-  padding: 20px 24px;
+.hero-card {
+  padding: 14px 18px;
+  position: relative;
 }
 
-.placeLabel {
-  /* Sized for the stacked LocationName variant — the city sits at this
-   * font-size and the country on its own line at 0.65em, giving the panel
-   * enough visual weight to balance the 72-88 px temperature numeral. */
-  font-size: 28px;
-  font-weight: 600;
-  letter-spacing: 0.2px;
-  line-height: 1.1;
-  color: var(--c-text);
+/* ── Tier 1 — place micro-row ───────────────────────────────────── */
+
+.place-row {
+  display: flex;
+  align-items: center;
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-weight: 500;
+  /* Micro base 11px. The heroSlot is excluded from the rail `zoom`
+   * (Phase 7 decision), so the S/M/L preference reaches this micro
+   * text via calc() — HeroBand only mounts on LayoutDesktop, no
+   * double-scale risk. */
+  font-size: calc(11px * var(--c-font-scale, 1));
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
+  color: var(--c-text-dim);
+  margin-bottom: 10px;
+  position: relative;
 }
 
-/* LocationName (non-stacked v2 variant) brings its own pin icon — keep the
- * row inline. The stacked variant handles its own layout via its scoped
- * `.primary` rule, so this only affects the legacy inline path. */
-.placeLabel > div:not([class*="stacked"]) { display: inline-flex; align-items: center; gap: 6px; }
+/* LocationName brings its own pin icon — keep its container inline so
+ * the row stays a single line in both the <button> and <div> paths. */
+.place-row > div > div,
+.place-row > button > div > div {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
 
-/* When the location panel is rendered as a <button> (tap-for-details
- * popover trigger), reset all native button chrome so the visual
- * matches the non-clickable <div> variant — same font, colour,
- * alignment, no border, no background. Keep the cursor as a pointer
- * and an accessible focus ring for keyboard navigation. Sits INSIDE
- * `.placeLabel`, not stacked alongside it — the previous version
- * combined both classes on the button, but `.placeButton`'s
- * `font: inherit` is declared later in this stylesheet and was
- * overriding `.placeLabel`'s `font-size: 28px`, shrinking the city
- * name down to whatever the parent inherited (16 px default).
- * `display: block; width: 100%` so the click target covers the full
- * panel like the old div did. */
-.placeButton {
-  display: block;
-  width: 100%;
+/* Popover-trigger variant of the place row: reset the native button
+ * chrome so the visual matches the non-clickable <div>, add the
+ * dotted-underline tap affordance + pressed state (zero hover —
+ * kiosk rule), and extend the hit area to ≥ 44 px via an invisible
+ * pseudo-element. Doubled selector (.x.x → 0,2,0) on purpose: the
+ * `.ambientRoot button` reset (0,1,1) sets `border: 0; padding: 0`
+ * and would strip the dotted underline from a mono-class rule
+ * (P3/P5 lesson). */
+.place-button.place-button {
   background: transparent;
   border: 0;
-  padding: 0;
-  margin: 0;
+  border-bottom: 1px dotted var(--c-text-dim);
+  border-radius: 3px;
+  padding: 2px 2px 1px;
+  margin: -2px -2px -1px;
   text-align: left;
   font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
   color: inherit;
   cursor: pointer;
   position: relative;
   -webkit-tap-highlight-color: transparent;
 }
 
-.placeButton:focus-visible {
-  outline: 1px solid var(--c-accent);
-  outline-offset: 4px;
-  border-radius: 4px;
+.place-button::before {
+  content: "";
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  top: -16px;
+  bottom: -16px;
 }
 
-/* ── Temperature panel ──────────────────────────────────────────── */
+.place-button:active {
+  background: var(--c-accent-soft);
+  border-bottom-color: transparent;
+}
 
-.panelTemp {
-  display: grid;
-  /* Three columns: temp digit, weather icon, then a flex column
-   * (`tempInfo`) that stacks the description above the feels-like
-   * chip. Earlier iterations put the feels-like chip in its own
-   * 4ᵗʰ grid column with a left border, but at viewports just
-   * above the LayoutPi breakpoint (~1280-1320 px) the panel's
-   * min-content exceeded its grid track and the clock panel's
-   * divider overlapped "RESSENTI 23°". Stacking inside col 3
-   * keeps the min-content narrow enough for the band to fit at
-   * any LayoutDesktop width. */
-  grid-template-columns: auto auto 1fr;
-  align-items: center;
-  column-gap: 16px;
-  padding: 16px 24px;
+.place-button:focus-visible {
+  outline: 1px solid var(--c-accent);
+  outline-offset: 2px;
+}
+
+/* ── Tier 2 — focal ─────────────────────────────────────────────── */
+
+.focal {
+  display: flex;
+  align-items: flex-start;
+  gap: 18px;
 }
 
 /* Temp block — MétéoMédia / TWN-style alignment: huge number + small
- * unit "badge" attached to the top-right of the digit. `align-items:
- * flex-start` aligns the small `°C` with the TOP of the big number
- * (vs `baseline` which dropped it to the bottom — read as orphaned).
- * `line-height: 1` on the value keeps the cap-height equal to font
- * size so flex-start lands at the digit's actual top edge. */
-.tempBlock {
+ * unit "badge" attached to the top-right of the digit (settled
+ * treatment, kept from the pre-P2 band). */
+.temp-block {
   display: flex;
   align-items: flex-start;
   gap: 2px;
-  grid-column: 1;
 }
 
-.tempValue {
+.temp-value {
   font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  /* Normative P2 base: 72 px, Geist Mono 500, tabular digits. */
   font-size: 72px;
   font-weight: 500;
+  font-variant-numeric: tabular-nums;
   letter-spacing: -2px;
   line-height: 1;
 }
 
-.tempUnit {
-  /* Bumped from 24 to 28 px — at top-right "badge" position the
-   * unit needs slightly more presence to read at kiosk distance,
-   * and the typographic balance against the 72 px number is better
-   * at ~38 % than the previous ~33 %. Keep `line-height: 1` so the
-   * unit's top hugs the same horizontal line as the digit's top. */
+.temp-unit {
   font-size: 28px;
   line-height: 1;
   font-weight: 500;
   color: var(--c-text-dim);
 }
 
-.tempIcon {
-  grid-column: 2;
-  font-size: 64px;
+/* Condition column — icon, condition text, feels-like line stacked
+ * beside the digits, vertically centred against the digit body. */
+.cond-col {
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 6px;
+  min-width: 0;
+  padding-top: 2px;
+}
+
+.cond-icon {
+  font-size: 30px;
   color: var(--c-accent);
   line-height: 1;
 }
 
-/* `tempInfo` column — stacks the description on top and the
- * feels-like chip below. Vertical centring inside the column
- * pairs the stack with the temp digit's mid-line. */
-.tempInfo {
-  grid-column: 3;
-  display: flex;
-  flex-direction: column;
-  justify-content: center;
-  gap: 8px;
-  min-width: 0;
-}
-
-.tempDesc {
+.cond-text {
   font-size: 16px;
   font-weight: 500;
 }
 
-/* Feels-like chip — sits under the description as a horizontal
- * row (label + value) so the stack fits naturally in the same
- * grid column as the desc. Label in mono caps small-print,
- * value in Geist Mono at ~38 % of the headline temp digit. */
-.feelsLike {
+/* ── Clock card (B1·a: date + time stay, astro chips migrated) ──── */
+
+.clock-card {
+  padding: 14px 18px;
   display: flex;
-  align-items: baseline;
-  gap: 8px;
-}
-
-.feelsLikeLabel {
-  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  font-size: 11px;
-  letter-spacing: 1px;
-  color: var(--c-text-dim);
-  text-transform: uppercase;
-  line-height: 1;
-}
-
-.feelsLikeValue {
-  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  /* Inline next to the label rather than stacked below, so the
-   * whole feels-like row stays a single line — keeps the panel
-   * compact at the narrow end of the LayoutDesktop range. */
-  font-size: 20px;
-  font-weight: 500;
-  line-height: 1;
-}
-
-/* Bigger content on wider viewports — keeps the hero band feeling
- * proportional on 1080p/4K displays rather than puny in the corner.
- * All three panels scale together so no panel reads as sparser than
- * its neighbours. */
-@media (min-width: 1600px) {
-  /* Temperature panel */
-  .tempValue { font-size: 88px; }
-  /* Scale the badge unit alongside the value so the ratio stays
-   * consistent at ~38 % across breakpoints. Was 28 px (default) →
-   * 28 px (wide), which felt cramped against the 88 px digit. */
-  .tempUnit { font-size: 34px; }
-  .tempIcon { font-size: 76px; }
-  .tempDesc { font-size: 17px; }
-  .feelsLikeValue { font-size: 24px; }
-  .panelTemp { padding: 24px 32px; }
-
-  /* Location panel — larger city name to fill the panel proportionally
-   * (the stacked country line scales automatically via the 0.65em rule). */
-  .placeLabel { font-size: 34px; }
-  .panelPlace { padding: 24px 32px; }
-
-  /* Clock panel — date label and sunrise/sunset row up to match */
-  .clockDate { font-size: 16px; letter-spacing: 1.1px; }
-  .clockTime { font-size: 56px; }
-  .clockAmPm { font-size: 20px; }
-  .clockSunRow { font-size: 16px; margin-top: 10px; gap: 20px; }
-  .panelClock { padding: 24px 32px; }
-}
-
-/* ── Clock panel ────────────────────────────────────────────────── */
-
-.panelClock {
-  padding: 20px 24px;
+  flex-direction: column;
+  justify-content: center;
+  gap: 4px;
   text-align: right;
+  min-width: 150px;
 }
 
-.clockDate {
+.clock-date {
   font-size: 14px;
   font-weight: 500;
   letter-spacing: 0.9px;
   color: var(--c-text-dim);
-  margin-bottom: 4px;
 }
 
-.clockTime {
+.clock-time {
   font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 44px;
   font-weight: 500;
+  font-variant-numeric: tabular-nums;
   letter-spacing: -1px;
   line-height: 1;
 }
 
-.clockAmPm {
+.clock-am-pm {
   font-size: 16px;
   color: var(--c-text-dim);
   margin-left: 6px;
   vertical-align: 8px;
 }
 
-.clockSunRow {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 6px 14px;
-  justify-content: flex-end;
-  margin-top: 8px;
-  font-size: 14px;
-  color: var(--c-text-dim);
-}
-
-/* Moon chip is a <button> so it can be tapped to open the
- * MoonDetailsPopover. Reset native button defaults and add
- * `position: relative` so the popover anchors to the chip. */
-.moonChip {
-  background: transparent;
-  border: 0;
-  padding: 0;
-  color: inherit;
-  font: inherit;
-  cursor: pointer;
-  position: relative;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.moonChip:focus-visible {
-  outline: 1px solid var(--c-accent);
-  outline-offset: 2px;
-  border-radius: 4px;
-}
-
-/* Moon-phase glyph in the sun row — mirrors TimeBlock styling so the
- * chip baseline stays stable next to the Iconify sun/moon SVGs. */
-.moonGlyph {
-  font-size: 1.2em;
-  line-height: 1;
-  margin-right: 2px;
-  position: relative;
-  top: -0.05em;
-}
-
-/* Solstice / equinox marker — small italic line below the sun row,
- * visible only when within 14 days. Right-aligned to match the
- * desktop clock panel's right-aligned date/time. */
-.solarEventMarker {
-  margin-top: 4px;
+/* Solstice / equinox marker — small italic line under the time,
+ * visible only when within 14 days. */
+.solar-event-marker {
+  margin-top: 2px;
   font-size: 12px;
   font-style: italic;
   color: var(--c-text-dim);
@@ -308,13 +211,18 @@
   text-align: right;
 }
 
-.clockSunChip {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-}
-
+/* ── Bigger content on wider viewports ──────────────────────────── */
+/* Keeps the band proportional on 1080p/4K displays rather than puny
+ * in the corner — same scaling intent as the pre-P2 band. */
 @media (min-width: 1600px) {
-  .clockTime { font-size: 56px; }
-  .clockAmPm { font-size: 20px; }
+  .temp-value { font-size: 88px; }
+  .temp-unit { font-size: 34px; }
+  .cond-icon { font-size: 38px; }
+  .cond-text { font-size: 17px; }
+  .hero-card { padding: 18px 24px; }
+
+  .clock-card { padding: 18px 24px; }
+  .clock-date { font-size: 16px; letter-spacing: 1.1px; }
+  .clock-time { font-size: 56px; }
+  .clock-am-pm { font-size: 20px; }
 }

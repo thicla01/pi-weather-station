@@ -3,6 +3,7 @@ import { UiPrefsContext, SystemContext, AppActionsContext } from "~/AppContext";
 import WeatherMap from "~/components/WeatherMap";
 import HeroBand from "~/components/ambient/HeroBand";
 import MetricsGrid from "~/components/ambient/MetricsGrid";
+import AirCard from "~/components/ambient/AirCard";
 import AlertBanner from "~/components/ambient/AlertBanner";
 import AlertDetailInline from "~/components/ambient/AlertDetailInline";
 import AlertMiniCards from "~/components/ambient/AlertMiniCards";
@@ -113,6 +114,7 @@ const LayoutDesktop = () => {
         <AlertBanner />
         <AlertDetailInline />
         <AlertMiniCards />
+        <AirCard />
         <MetricsGrid />
         <IndoorBlock />
         <ChartTabs />

@@ -1,0 +1,111 @@
+/* AstroMetaLine — hero pyramid tier 3: sun + moon triggers on a
+ * top-bordered mono micro line.
+ *
+ * Font-scale strategy: plain px bases. On LayoutPi the rail subtree
+ * applies the S/M/L preference via `zoom`, so a calc() here would
+ * double-scale (kickoff piège). On LayoutDesktop the heroSlot
+ * deliberately has NO zoom (Phase 7: zoom desynced the slot's visual
+ * vs declared width and clipped the clock) — so the desktop-scoped
+ * rule at the bottom re-applies the preference via calc() there
+ * only. LayoutMobile's scroll column doesn't zoom at all (app-wide
+ * convention, predates P2). */
+
+.meta-line {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  padding-top: 10px;
+  margin-top: 10px;
+  border-top: 1px solid var(--c-border);
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-weight: 500;
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  color: var(--c-text-dim);
+  line-height: 1;
+}
+
+/* Trigger buttons. `.meta-line .tap` is (0,2,0) on purpose — the
+ * `.ambientRoot button` reset in ui/reset.css sits at (0,1,1) and
+ * strips any mono-class button rule (P3/P5 lesson). Dotted underline
+ * = tappable affordance; feedback is `:active` only (zero hover on
+ * kiosk surfaces — "drop, don't gate"). */
+.meta-line .tap {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px dotted var(--c-text-dim);
+  border-radius: 3px;
+  padding: 2px 2px 1px;
+  margin: -2px -2px -1px;
+  color: inherit;
+  font: inherit;
+  letter-spacing: inherit;
+  cursor: pointer;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Invisible hit extension — the micro line is ~16 px tall; the
+ * pseudo-element stretches each trigger's touch target to ≥ 44 px
+ * without growing the visual (house hit-area rule, iOS PWA). */
+.meta-line .tap::before {
+  content: "";
+  position: absolute;
+  left: -4px;
+  right: -4px;
+  top: -14px;
+  bottom: -14px;
+}
+
+.meta-line .tap:active {
+  background: var(--c-accent-soft);
+  border-bottom-color: transparent;
+}
+
+.meta-line .tap:focus-visible {
+  outline: 1px solid var(--c-accent);
+  outline-offset: 2px;
+}
+
+/* Icon sizes in em so they ride the line's font-size (and therefore
+ * the desktop calc() below). 1.083em × 12px base = 13px. */
+.sun-icon {
+  color: var(--c-accent);
+  font-size: 1.083em;
+}
+
+.arrow {
+  font-size: 1em;
+  color: var(--c-text-dim);
+}
+
+.sep {
+  color: var(--c-text-dim);
+  opacity: 0.6;
+}
+
+.moon-glyph {
+  font-size: 1.2em;
+  line-height: 1;
+  position: relative;
+  top: -0.05em;
+}
+
+/* 7" rail tightening (mock: gap/padding/margin 7). */
+:global(.ambientRoot[data-layout="pi"]) .meta-line {
+  gap: 4px 7px;
+  padding-top: 7px;
+  margin-top: 7px;
+}
+
+/* Desktop: the heroSlot is excluded from the rail `zoom` (Phase 7),
+ * so the user's S/M/L preference reaches the meta text via calc()
+ * here — meta base 12px × scale. Children (taps, icons, glyph) are
+ * font:inherit / em-sized, so they follow. */
+:global(.ambientRoot[data-layout="desktop"]) .meta-line {
+  font-size: calc(12px * var(--c-font-scale, 1));
+}
