@@ -12,6 +12,15 @@ A full-stack weather display application originally designed for the Raspberry P
 
 The kiosk browser is chosen interactively by `install.sh` (Chromium, Chrome, Brave, Edge, or Firefox) and persisted in `~/.config/pi-weather-station/browser.conf`. Snap-confined Firefox is supported via a named profile (`-P pi-weather-station`).
 
+## 📣 Highlights — June 2026
+
+A major milestone just landed (full details in [CHANGELOG.md](./CHANGELOG.md) and on the [Releases](https://github.com/thicla01/pi-weather-station/releases) page):
+
+- **Release 3.1.0 — the v3.1 interface pass is complete.** All seven surfaces were redesigned against dedicated design references: toolbar, radar controls, alert stack, forecast panel, settings, debug panel, and finally the main card (hero with sun/moon meta-line, dedicated air-quality card, pressure tile with an hPa / inHg / kPa preference).
+- **Security audit + penetration re-test.** Server-side gates hardened: localhost checks and rate limiting now keyed on the kernel-level socket peer (header-spoof-proof), resource ceilings on the paid endpoints, owner-only settings file.
+- **Full code-quality audit.** 91 findings triaged and resolved, the server test suite grew from 285 to 453 tests, and the React state layer was re-architected into frequency-grouped context slices for Pi-class hardware.
+- **Built with Claude.** The design references come from Claude Design; the implementation, the adversarial multi-agent reviews, and both audits were carried out with [Claude Code](https://claude.com/claude-code) running Anthropic's **Fable 5** (earlier phases: Opus 4.8).
+
 ## Interface
 
 Since **v2.18**, the default interface is **v3 "Ambient Layers"** — a full rebuild of the dashboard, settings, and debug panels with a refreshed visual language and responsive layouts for the 7" Pi, desktop, and phone. The legacy v2 interface remains available as a temporary fallback while the v3 rollout settles; its code path will be removed in a future release.
@@ -99,15 +108,16 @@ for tagged releases.
 >   (development resumed in 2026 after a multi-year hiatus).
 > - **This fork**
 >   ([thicla01](https://github.com/thicla01/pi-weather-station))
->   — actively developed since 2026, currently at **v2.19.x**.
->   All the v2 features described in the screenshots above
+>   — actively developed since 2026, currently at **v3.1.x**.
+>   All the features described in the screenshots above
 >   (AI summary, severe-alert banners with cycling, direction-arrow
 >   overlay, RADAR confidence pill, gov-alert detail section with
 >   QR code, etc.) were built in this fork.
 >
 > Version numbers don't map between the two — @elewin's line reaches
-> v3.x on its track, this fork extended the v2.x line forward
-> independently.
+> v3.x on its own track; this fork extended the v2.x line forward
+> independently, then jumped 2.19 → 3.1.0 in June 2026 to align the
+> release number with its completed "v3.1" interface program.
 >
 > The historical
 > [v1 tag](https://github.com/elewin/pi-weather-station/releases/tag/v1.0)
