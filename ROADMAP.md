@@ -36,6 +36,15 @@ Manual brightness slider in Advanced settings, backed by `/sys/class/backlight/*
 
 > Future extension to HDMI monitors via DDC/CI is captured as its own item in the medium-term section below.
 
+### 📊 P2.1 — Detail popovers for the remaining metric tiles (Vent · Pression · Humidité)
+Follow-up to the v3.1 Phase 2 main card (maintainer ruling, 2026-06-12). The accepted P2 v2.1 mock draws a tap chevron on **all four** metric tiles, but only UV has a detail surface behind it today — the implementation deliberately ships chevrons only where a tap leads somewhere (an affordance that leads nowhere is worse than none). This item closes the gap the honest way: build the three missing detail popovers, and the chevrons appear with them. Per-tile content, in increasing effort order:
+
+- **Vent** (quasi-free): gusts + wind direction — `windGust` / `windDirection` already travel in the hourly Tomorrow.io payload since Phase 5; the popover surfaces the current values + an 8-point compass word (i18n keys already exist for the Phase 5 chart tabs). All client-side, ~1 h.
+- **Humidité** (small): dew point — needs `dewPoint` added to `CURRENT_FIELDS` (same auto cache-hash bump as `pressureSurfaceLevel`, no extra request volume). Optionally a one-line comfort qualifier (the dew-point comfort bands are a well-known fixed scale). ~1-2 h.
+- **Pression** (the substantial one): barometric **trend** ("↗ en hausse / → stable / ↘ en baisse") — the classic barometer reading, and the reason the mock's `qual` slot exists on this tile. Needs a short server-side history of pressure readings (a few hours, in-memory ring buffer next to the existing weather cache — survives nothing, which is fine: the trend re-establishes within 2-3 polls). Tendency thresholds are standardized (WMO: ±1 hPa / 3 h). ~3-4 h including tests.
+
+Ship order: Vent alone is worth a small PR; Humidité rides along; Pression justifies its own pass (server + client + tests). The Cell component already supports `onClick`/chevron/popover — each tile flips from passive to interactive by passing the props.
+
 ---
 
 ## Medium term — high impact, moderate complexity
