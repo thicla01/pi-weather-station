@@ -245,24 +245,51 @@ export function solarEventDate(year, event) {
  * @returns {{event: string, date: Date, daysAway: number}|null}
  */
 export function upcomingSolarEvent(now = new Date(), windowDays = 14) {
+  const next = sortedFutureEvents(now)[0];
+  if (!next || next.daysAway > windowDays) return null;
+  return next;
+}
+
+/**
+ * All future solstices/equinoxes after `now`, soonest first, each
+ * with its whole-days countdown. Spans this year + next so at least
+ * the next four (one of each type) are always present.
+ *
+ * @param {Date} [now=new Date()]
+ * @returns {Array<{event: string, date: Date, daysAway: number}>}
+ */
+function sortedFutureEvents(now) {
   const year = now.getUTCFullYear();
-  // Try this year's events + next year's January-February in case
-  // we're sitting in December approaching the next March equinox.
+  // This year's events + next year's, so December (approaching the
+  // March equinox) and "give me the next four" both resolve.
   const candidates = [];
   for (const event of EVENT_KEYS) {
     candidates.push({ event, date: solarEventDate(year, event) });
     candidates.push({ event, date: solarEventDate(year + 1, event) });
   }
-  // Filter to future events, sort by date, pick the closest.
-  const future = candidates
+  return candidates
     .filter((c) => c.date.getTime() > now.getTime())
-    .sort((a, b) => a.date.getTime() - b.date.getTime());
-  if (future.length === 0) return null;
-  const next = future[0];
-  const msAway = next.date.getTime() - now.getTime();
-  const daysAway = Math.ceil(msAway / 86400000);
-  if (daysAway > windowDays) return null;
-  return { event: next.event, date: next.date, daysAway };
+    .sort((a, b) => a.date.getTime() - b.date.getTime())
+    .map((c) => ({
+      event: c.event,
+      date: c.date,
+      daysAway: Math.ceil((c.date.getTime() - now.getTime()) / 86400000),
+    }));
+}
+
+/**
+ * The next `count` solstices/equinoxes after `now`, soonest first.
+ * Feeds the "Saisons" popover (v3.1 Phase 2) — the four upcoming
+ * seasonal turning points with their dates and day-counts. Unlike
+ * `upcomingSolarEvent` there is no window gate: the list is shown on
+ * demand (the user taps the date, which is the year-round trigger).
+ *
+ * @param {Date} [now=new Date()]
+ * @param {number} [count=4]
+ * @returns {Array<{event: string, date: Date, daysAway: number}>}
+ */
+export function nextSolarEvents(now = new Date(), count = 4) {
+  return sortedFutureEvents(now).slice(0, count);
 }
 
 /**

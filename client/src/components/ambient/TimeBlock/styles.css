@@ -85,13 +85,15 @@
   }
 }
 
-/* Solstice / equinox marker — small italic line below the time,
- * visible only when within 14 days. Sized small + dim so it's a
- * "by the way" detail, not a primary information chunk. */
+/* In-window seasonal countdown — its own line below the time (the tap
+ * trigger for the Saisons popover is the date caption above, not this
+ * line). Mono micro caps, dim — a "by the way" detail. */
 .solarEventMarker {
   margin-top: 4px;
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-weight: 500;
   font-size: 11px;
-  font-style: italic;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
   color: var(--c-text-dim);
-  letter-spacing: 0.2px;
 }

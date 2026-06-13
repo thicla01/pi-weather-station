@@ -241,8 +241,9 @@
   white-space: nowrap;
 }
 
-/* C2 — seasonal countdown segment. Same dim ink as the date, no
- * accent: ambient calendar info, not an alert. */
+/* C2 — seasonal countdown text riding inline after the date inside the
+ * Seasons trigger (the trigger affordance + popover live in Seasons/).
+ * Same dim ink as the date, no accent: ambient calendar info. */
 .clock-countdown {
   color: var(--c-text-dim);
 }

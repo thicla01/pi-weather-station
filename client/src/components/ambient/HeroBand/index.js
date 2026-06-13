@@ -4,9 +4,9 @@ import { InlineIcon } from "@iconify/react";
 import { WeatherDataContext, UiPrefsContext, LocationContext } from "~/AppContext";
 import { convertTemp } from "~/services/conversions";
 import { parseWeatherCode, isDaylight } from "~/ui/weatherCodes";
-import { upcomingSolarEvent, solarEventType } from "~/ui/astronomy";
 import AstroMetaLine from "~/components/ambient/AstroMetaLine";
 import FeelsLikeLine from "~/components/ambient/FeelsLikeLine";
+import SeasonsTrigger, { seasonCountdownLabel } from "~/components/ambient/Seasons";
 import LocationDetailsPopover from "~/components/ambient/LocationDetailsPopover";
 import LocationName from "~/components/LocationName";
 import styles from "./styles.css";
@@ -154,17 +154,9 @@ const HeroBand = () => {
     .replace(/\s+h\s*$/i, "");
   const dayPeriod = parts.find((p) => p.type === "dayPeriod")?.value || "";
 
-  // Seasonal countdown (C2). Within the 14-day window the upcoming
-  // solstice/equinox joins the date meta behind the hairline as an
-  // ambient calendar note (dim, no accent). Copy is tightened to the
-  // generic event type — only one event is possible in-window.
-  const upcoming = upcomingSolarEvent(now);
-  const countdown = upcoming
-    ? t("astronomy.solarEventIn", {
-      event: t(`astronomy.solarEventShort.${solarEventType(upcoming.event)}`),
-      count: upcoming.daysAway,
-    })
-    : null;
+  // In-window seasonal countdown text (« · Solstice dans 8 j ») that
+  // rides inside the date trigger; null the rest of the year.
+  const seasonLabel = seasonCountdownLabel(now, t);
 
   // Tap-for-details on the place row — surfaces the full LocationIQ
   // reverse-geocode payload (admin hierarchy, postcode, precise
@@ -238,11 +230,16 @@ const HeroBand = () => {
           {hhmm}
           {hour12 && dayPeriod ? <span className={styles.clockAmPm}>{dayPeriod}</span> : null}
         </div>
+        {/* The date is the year-round trigger for the Saisons popover;
+          * the in-window countdown rides inline after it as enriching
+          * text (part of the same tap target). */}
         <div className={styles.clockDateMeta}>
-          {dayMonthStr}
-          {countdown ? (
-            <span className={styles.clockCountdown}> · {countdown}</span>
-          ) : null}
+          <SeasonsTrigger now={now}>
+            {dayMonthStr}
+            {seasonLabel ? (
+              <span className={styles.clockCountdown}> · {seasonLabel}</span>
+            ) : null}
+          </SeasonsTrigger>
         </div>
       </div>
     </div>
