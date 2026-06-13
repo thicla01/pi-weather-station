@@ -258,15 +258,13 @@
       "lastQuarter": "Quarter",
       "waningCrescent": "Crescent"
     },
-    "solarEvent": {
-      "marchEquinox": "March equinox",
-      "juneSolstice": "June solstice",
-      "septemberEquinox": "September equinox",
-      "decemberSolstice": "December solstice"
+    "solarEventShort": {
+      "solstice": "Solstice",
+      "equinox": "Equinox"
     },
-    "solarEventIn": "{{event}} in {{days}} day(s)",
-    "solarEventIn_one": "{{event}} in {{days}} day",
-    "solarEventIn_other": "{{event}} in {{days}} days",
+    "solarEventIn": "{{event}} in {{count}} days",
+    "solarEventIn_one": "{{event}} in {{count}} day",
+    "solarEventIn_other": "{{event}} in {{count}} days",
     "moonDetails": "Moon",
     "phase": "Phase",
     "moonrise": "Moonrise",

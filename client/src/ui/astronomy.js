@@ -264,3 +264,19 @@ export function upcomingSolarEvent(now = new Date(), windowDays = 14) {
   if (daysAway > windowDays) return null;
   return { event: next.event, date: next.date, daysAway };
 }
+
+/**
+ * Collapse a specific solar-event key (`juneSolstice`,
+ * `marchEquinox`, …) to its generic type. The countdown copy drops
+ * the month ("Solstice de juin" → "Solstice") because, inside the
+ * 14-day window, only one event is ever upcoming — the month is
+ * redundant (v3.1 Phase 2 C2). Shared by HeroBand and TimeBlock so
+ * the `astronomy.solarEventShort.{solstice,equinox}` lookup is
+ * derived in exactly one place.
+ *
+ * @param {string} eventKey one of the `EVENT_KEYS`
+ * @returns {"solstice"|"equinox"} the generic event type
+ */
+export function solarEventType(eventKey) {
+  return eventKey.includes("Solstice") ? "solstice" : "equinox";
+}

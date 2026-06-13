@@ -165,23 +165,40 @@
   font-weight: 500;
 }
 
-/* ── Clock card (B1·a: date + time stay, astro chips migrated) ──── */
+/* ── Clock card — C1 three-tier grammar (desktop band only) ─────── */
+/* Mirrors the hero card's tiers so tier 1 (eyebrow / place-row) and
+ * the bottom hairline land on the same lines across the band: same
+ * paddings (14/18 · 18/24 @≥1600), same eyebrow margin-bottom (10),
+ * same hairline padding-top/margin-top (10). The time tier carries
+ * `margin-bottom: auto` to push the date meta to the card's bottom,
+ * so the hairline aligns with the hero meta-line regardless of the
+ * height difference between the 72 px temp and the 44 px clock. The
+ * B1 migration still holds: no astro chips here — date + time only,
+ * plus the C2 seasonal countdown when in window. */
 
 .clock-card {
   padding: 14px 18px;
   display: flex;
   flex-direction: column;
-  justify-content: center;
-  gap: 4px;
-  text-align: right;
-  min-width: 150px;
+  justify-content: flex-start;
+  min-width: 132px;
 }
 
-.clock-date {
-  font-size: 14px;
+/* Tier 1 — weekday eyebrow. Mirrors the hero place-row exactly
+ * (micro mono uppercase, margin-bottom 10) — it carries a real
+ * datum (the most-glanced clock info), not decorative structure. */
+.clock-eyebrow {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
   font-weight: 500;
-  letter-spacing: 0.9px;
+  font-size: calc(11px * var(--c-font-scale, 1));
+  /* Match the hero place-row's effective line box (LocationName
+   * `.primary` is line-height 1.1) so tier 1 is the same height in
+   * both cards and the bottom hairlines stay pixel-aligned. */
+  line-height: 1.1;
+  letter-spacing: 1.2px;
+  text-transform: uppercase;
   color: var(--c-text-dim);
+  margin-bottom: 10px;
 }
 
 .clock-time {
@@ -191,6 +208,9 @@
   font-variant-numeric: tabular-nums;
   letter-spacing: -1px;
   line-height: 1;
+  /* Push the date meta to the card's bottom so its hairline aligns
+   * with the hero meta-line's hairline across the band. */
+  margin-bottom: auto;
 }
 
 .clock-am-pm {
@@ -200,15 +220,29 @@
   vertical-align: 8px;
 }
 
-/* Solstice / equinox marker — small italic line under the time,
- * visible only when within 14 days. */
-.solar-event-marker {
-  margin-top: 2px;
-  font-size: 12px;
-  font-style: italic;
+/* Tier 3 — date meta behind the shared hairline. Mirrors the hero
+ * meta-line (meta mono, padding-top + margin-top 10, 1px border).
+ * Single line (the band's shared hairline never wraps); the C2
+ * countdown segment rides inline after the date. */
+.clock-date-meta {
+  padding-top: 10px;
+  margin-top: 10px;
+  border-top: 1px solid var(--c-border);
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-weight: 500;
+  font-size: calc(12px * var(--c-font-scale, 1));
+  /* Mirror the hero meta-line's `line-height: 1` so the text below
+   * the shared hairline sits at the same offset in both cards. */
+  line-height: 1;
+  letter-spacing: 0.5px;
   color: var(--c-text-dim);
-  letter-spacing: 0.2px;
-  text-align: right;
+  white-space: nowrap;
+}
+
+/* C2 — seasonal countdown segment. Same dim ink as the date, no
+ * accent: ambient calendar info, not an alert. */
+.clock-countdown {
+  color: var(--c-text-dim);
 }
 
 /* ── Bigger content on wider viewports ──────────────────────────── */
@@ -221,8 +255,11 @@
   .cond-text { font-size: 17px; }
   .hero-card { padding: 18px 24px; }
 
+  /* Padding bumps with the hero so the tier-1 top and the hairline
+   * stay aligned; the eyebrow/date-meta bases follow `--c-font-scale`
+   * via calc() (parity with the hero's place-row + meta-line, which
+   * carry no 1600 bump either). */
   .clock-card { padding: 18px 24px; }
-  .clock-date { font-size: 16px; letter-spacing: 1.1px; }
   .clock-time { font-size: 56px; }
   .clock-am-pm { font-size: 20px; }
 }

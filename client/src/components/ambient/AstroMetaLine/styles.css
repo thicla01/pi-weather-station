@@ -105,7 +105,17 @@
 /* Desktop: the heroSlot is excluded from the rail `zoom` (Phase 7),
  * so the user's S/M/L preference reaches the meta text via calc()
  * here — meta base 12px × scale. Children (taps, icons, glyph) are
- * font:inherit / em-sized, so they follow. */
+ * font:inherit / em-sized, so they follow.
+ *
+ * `nowrap` is desktop-ONLY (C1): on the desktop band the meta-line is
+ * the hero card's bottom hairline, mirrored by the clock card's date
+ * hairline — a wrapped meta-line would break that alignment, so the
+ * card widens instead (the band has ~180 px of slack at 1280 px).
+ * The Pi/mobile rule above keeps `flex-wrap: wrap`: the 7" rail is
+ * only ~300 px and the line WOULD overflow/clip there at 115 %, so
+ * wrapping is correct on those layouts (it has no hairline to mirror). */
 :global(.ambientRoot[data-layout="desktop"]) .meta-line {
   font-size: calc(12px * var(--c-font-scale, 1));
+  flex-wrap: nowrap;
+  white-space: nowrap;
 }
