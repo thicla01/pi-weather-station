@@ -52,7 +52,14 @@ const day = {
   accentSoft: "rgba(184, 90, 24, 0.18)",
   surface: "rgba(255, 250, 240, 0.85)",
   surfaceHybrid: "rgba(255, 250, 240, 0.96)",
-  border: "rgba(42, 38, 32, 0.10)",
+  // Bumped 0.10 → 0.16 (v3.1 Phase 2 polish): dark-on-cream at 10 %
+  // alpha read as near-invisible in daylight — the structural
+  // hairlines (clock panel C1, card edges, grid + air-card dividers)
+  // were getting lost. 0.16 stays clearly below the hybrid/alert
+  // weight (0.18) so calm light mode still reads calm. Dark-on-light
+  // is intrinsically fainter than light-on-dark at equal alpha, which
+  // is why only day needed the lift (dusk/night/nightRed read fine).
+  border: "rgba(42, 38, 32, 0.16)",
   borderHybrid: "rgba(42, 38, 32, 0.18)",
   warn: "#c47a18",
   danger: "#b03028",
