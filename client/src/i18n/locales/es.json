@@ -262,9 +262,19 @@
       "solstice": "Solsticio",
       "equinox": "Equinoccio"
     },
+    "solarEvent": {
+      "marchEquinox": "Equinoccio de marzo",
+      "juneSolstice": "Solsticio de junio",
+      "septemberEquinox": "Equinoccio de septiembre",
+      "decemberSolstice": "Solsticio de diciembre"
+    },
     "solarEventIn": "{{event}} en {{count}} d",
     "solarEventIn_one": "{{event}} en {{count}} d",
     "solarEventIn_other": "{{event}} en {{count}} d",
+    "solarEventDays": "en {{count}} d",
+    "solarEventDays_one": "en {{count}} d",
+    "solarEventDays_other": "en {{count}} d",
+    "seasonsTitle": "Estaciones",
     "moonDetails": "Luna",
     "phase": "Fase",
     "moonrise": "Salida de la luna",

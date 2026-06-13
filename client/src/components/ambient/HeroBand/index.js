@@ -4,9 +4,9 @@ import { InlineIcon } from "@iconify/react";
 import { WeatherDataContext, UiPrefsContext, LocationContext } from "~/AppContext";
 import { convertTemp } from "~/services/conversions";
 import { parseWeatherCode, isDaylight } from "~/ui/weatherCodes";
-import { upcomingSolarEvent, solarEventType } from "~/ui/astronomy";
 import AstroMetaLine from "~/components/ambient/AstroMetaLine";
 import FeelsLikeLine from "~/components/ambient/FeelsLikeLine";
+import SeasonsCountdown from "~/components/ambient/SeasonsCountdown";
 import LocationDetailsPopover from "~/components/ambient/LocationDetailsPopover";
 import LocationName from "~/components/LocationName";
 import styles from "./styles.css";
@@ -154,18 +154,6 @@ const HeroBand = () => {
     .replace(/\s+h\s*$/i, "");
   const dayPeriod = parts.find((p) => p.type === "dayPeriod")?.value || "";
 
-  // Seasonal countdown (C2). Within the 14-day window the upcoming
-  // solstice/equinox joins the date meta behind the hairline as an
-  // ambient calendar note (dim, no accent). Copy is tightened to the
-  // generic event type — only one event is possible in-window.
-  const upcoming = upcomingSolarEvent(now);
-  const countdown = upcoming
-    ? t("astronomy.solarEventIn", {
-      event: t(`astronomy.solarEventShort.${solarEventType(upcoming.event)}`),
-      count: upcoming.daysAway,
-    })
-    : null;
-
   // Tap-for-details on the place row — surfaces the full LocationIQ
   // reverse-geocode payload (admin hierarchy, postcode, precise
   // coords) that `LocationName` necessarily truncates. Only wire up
@@ -240,9 +228,7 @@ const HeroBand = () => {
         </div>
         <div className={styles.clockDateMeta}>
           {dayMonthStr}
-          {countdown ? (
-            <span className={styles.clockCountdown}> · {countdown}</span>
-          ) : null}
+          <SeasonsCountdown now={now} variant="inline" />
         </div>
       </div>
     </div>

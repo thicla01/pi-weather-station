@@ -241,11 +241,9 @@
   white-space: nowrap;
 }
 
-/* C2 — seasonal countdown segment. Same dim ink as the date, no
- * accent: ambient calendar info, not an alert. */
-.clock-countdown {
-  color: var(--c-text-dim);
-}
+/* The C2 seasonal countdown that rides after the date is now the
+ * `SeasonsCountdown` component (inline variant) — its own styles
+ * live there. */
 
 /* ── Bigger content on wider viewports ──────────────────────────── */
 /* Keeps the band proportional on 1080p/4K displays rather than puny

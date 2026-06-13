@@ -1,0 +1,115 @@
+/* SeasonsCountdown — the in-window seasonal countdown, now a tap
+ * trigger opening the "Saisons" popover. Mono micro to match the
+ * date-meta (desktop) and the TimeBlock caption rhythm (Pi/mobile).
+ * Plain px: inline rides in HeroBand (desktop calc handled by the
+ * parent date-meta font-size) / block sits in the zoomed rail. */
+
+.sep {
+  color: var(--c-text-dim);
+  opacity: 0.6;
+}
+
+/* Trigger button. `.trigger.trigger` (0,2,0) beats the `.ambientRoot
+ * button` reset (0,1,1) so the dotted underline + padding survive
+ * (P3/P5 lesson). Inherits the surrounding mono type so the inline
+ * variant matches the date-meta exactly. */
+.trigger.trigger {
+  display: inline-flex;
+  align-items: baseline;
+  background: transparent;
+  border: 0;
+  border-bottom: 1px dotted var(--c-text-dim);
+  border-radius: 3px;
+  padding: 1px 2px 0;
+  margin: 0 -2px;
+  font: inherit;
+  letter-spacing: inherit;
+  text-transform: inherit;
+  color: inherit;
+  cursor: pointer;
+  position: relative;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Invisible hit extension to clear 44 px around the micro text
+ * (iOS PWA hit-area rule). */
+.trigger::before {
+  content: "";
+  position: absolute;
+  left: -6px;
+  right: -6px;
+  top: -14px;
+  bottom: -14px;
+}
+
+.trigger:active {
+  background: var(--c-accent-soft);
+  border-bottom-color: transparent;
+}
+
+.trigger:focus-visible {
+  outline: 1px solid var(--c-accent);
+  outline-offset: 2px;
+}
+
+/* Block variant (Pi/mobile TimeBlock) — its own line under the time,
+ * replacing the old solar-event marker. */
+.block {
+  margin-top: 4px;
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-weight: 500;
+  font-size: 11px;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--c-text-dim);
+}
+
+/* ── Popover content — the four upcoming events ─────────────────── */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  font-size: 13px;
+}
+
+/* The nearest event (first row) is the one whose countdown opened the
+ * popover — let the name carry the eye, the rest stay calm. */
+.row:first-child .name {
+  color: var(--c-text);
+  font-weight: 500;
+}
+
+.name {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  color: var(--c-text);
+}
+
+.date {
+  flex: none;
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-weight: 500;
+  font-variant-numeric: tabular-nums;
+  color: var(--c-text);
+}
+
+.days {
+  flex: none;
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-weight: 500;
+  font-size: 11px;
+  font-variant-numeric: tabular-nums;
+  color: var(--c-text-dim);
+  min-width: 56px;
+  text-align: right;
+}

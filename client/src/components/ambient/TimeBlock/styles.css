@@ -85,13 +85,6 @@
   }
 }
 
-/* Solstice / equinox marker — small italic line below the time,
- * visible only when within 14 days. Sized small + dim so it's a
- * "by the way" detail, not a primary information chunk. */
-.solarEventMarker {
-  margin-top: 4px;
-  font-size: 11px;
-  font-style: italic;
-  color: var(--c-text-dim);
-  letter-spacing: 0.2px;
-}
+/* The in-window seasonal countdown below the time is now the
+ * `SeasonsCountdown` component (block variant) — its styles live
+ * there. */
