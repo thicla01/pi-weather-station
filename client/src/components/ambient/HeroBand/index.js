@@ -6,7 +6,7 @@ import { convertTemp } from "~/services/conversions";
 import { parseWeatherCode, isDaylight } from "~/ui/weatherCodes";
 import AstroMetaLine from "~/components/ambient/AstroMetaLine";
 import FeelsLikeLine from "~/components/ambient/FeelsLikeLine";
-import SeasonsCountdown from "~/components/ambient/SeasonsCountdown";
+import SeasonsTrigger, { seasonCountdownLabel } from "~/components/ambient/Seasons";
 import LocationDetailsPopover from "~/components/ambient/LocationDetailsPopover";
 import LocationName from "~/components/LocationName";
 import styles from "./styles.css";
@@ -154,6 +154,10 @@ const HeroBand = () => {
     .replace(/\s+h\s*$/i, "");
   const dayPeriod = parts.find((p) => p.type === "dayPeriod")?.value || "";
 
+  // In-window seasonal countdown text (« · Solstice dans 8 j ») that
+  // rides inside the date trigger; null the rest of the year.
+  const seasonLabel = seasonCountdownLabel(now, t);
+
   // Tap-for-details on the place row — surfaces the full LocationIQ
   // reverse-geocode payload (admin hierarchy, postcode, precise
   // coords) that `LocationName` necessarily truncates. Only wire up
@@ -226,9 +230,16 @@ const HeroBand = () => {
           {hhmm}
           {hour12 && dayPeriod ? <span className={styles.clockAmPm}>{dayPeriod}</span> : null}
         </div>
+        {/* The date is the year-round trigger for the Saisons popover;
+          * the in-window countdown rides inline after it as enriching
+          * text (part of the same tap target). */}
         <div className={styles.clockDateMeta}>
-          {dayMonthStr}
-          <SeasonsCountdown now={now} variant="inline" />
+          <SeasonsTrigger now={now}>
+            {dayMonthStr}
+            {seasonLabel ? (
+              <span className={styles.clockCountdown}> · {seasonLabel}</span>
+            ) : null}
+          </SeasonsTrigger>
         </div>
       </div>
     </div>

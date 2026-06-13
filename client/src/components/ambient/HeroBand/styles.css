@@ -241,9 +241,12 @@
   white-space: nowrap;
 }
 
-/* The C2 seasonal countdown that rides after the date is now the
- * `SeasonsCountdown` component (inline variant) — its own styles
- * live there. */
+/* C2 — seasonal countdown text riding inline after the date inside the
+ * Seasons trigger (the trigger affordance + popover live in Seasons/).
+ * Same dim ink as the date, no accent: ambient calendar info. */
+.clock-countdown {
+  color: var(--c-text-dim);
+}
 
 /* ── Bigger content on wider viewports ──────────────────────────── */
 /* Keeps the band proportional on 1080p/4K displays rather than puny

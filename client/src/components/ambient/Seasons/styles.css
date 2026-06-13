@@ -1,18 +1,14 @@
-/* SeasonsCountdown — the in-window seasonal countdown, now a tap
- * trigger opening the "Saisons" popover. Mono micro to match the
- * date-meta (desktop) and the TimeBlock caption rhythm (Pi/mobile).
- * Plain px: inline rides in HeroBand (desktop calc handled by the
- * parent date-meta font-size) / block sits in the zoomed rail. */
-
-.sep {
-  color: var(--c-text-dim);
-  opacity: 0.6;
-}
+/* Seasons — the clock's date is a tap trigger opening the "Saisons"
+ * popover (next 4 solstices/equinoxes). The trigger wraps whatever the
+ * parent passes (the date, plus the inline countdown on desktop) and
+ * inherits the surrounding type, so it matches the date-meta (desktop)
+ * / the date caption (Pi/mobile) exactly. */
 
 /* Trigger button. `.trigger.trigger` (0,2,0) beats the `.ambientRoot
  * button` reset (0,1,1) so the dotted underline + padding survive
- * (P3/P5 lesson). Inherits the surrounding mono type so the inline
- * variant matches the date-meta exactly. */
+ * (P3/P5 lesson). It sits INSIDE the date element (a div that keeps the
+ * C1 hairline on desktop), so the reset's `border: 0` here doesn't
+ * touch that hairline. */
 .trigger.trigger {
   display: inline-flex;
   align-items: baseline;
@@ -52,18 +48,6 @@
   outline-offset: 2px;
 }
 
-/* Block variant (Pi/mobile TimeBlock) — its own line under the time,
- * replacing the old solar-event marker. */
-.block {
-  margin-top: 4px;
-  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  font-weight: 500;
-  font-size: 11px;
-  letter-spacing: 0.4px;
-  text-transform: uppercase;
-  color: var(--c-text-dim);
-}
-
 /* ── Popover content — the four upcoming events ─────────────────── */
 
 .list {
@@ -79,14 +63,12 @@
   font-size: 13px;
 }
 
-/* The nearest event (first row) is the one whose countdown opened the
- * popover — let the name carry the eye, the rest stay calm. */
-.row:first-child .name {
-  color: var(--c-text);
+/* The nearest event (first row) carries the eye; the rest stay calm. */
+.row:first-child .ev-name {
   font-weight: 500;
 }
 
-.name {
+.ev-name {
   flex: 1 1 auto;
   min-width: 0;
   overflow: hidden;
@@ -95,7 +77,7 @@
   color: var(--c-text);
 }
 
-.date {
+.ev-date {
   flex: none;
   font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
   font-weight: 500;
@@ -103,7 +85,7 @@
   color: var(--c-text);
 }
 
-.days {
+.ev-days {
   flex: none;
   font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
   font-weight: 500;

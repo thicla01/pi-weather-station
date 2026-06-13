@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { UiPrefsContext, LocationContext } from "~/AppContext";
-import SeasonsCountdown from "~/components/ambient/SeasonsCountdown";
+import SeasonsTrigger, { seasonCountdownLabel } from "~/components/ambient/Seasons";
 import styles from "./styles.css";
 
 const I18N_LOCALE = { en: "en-US", fr: "fr-FR", es: "es-ES" };
@@ -18,9 +18,9 @@ const I18N_LOCALE = { en: "en-US", fr: "fr-FR", es: "es-ES" };
  * v3.1 Phase 2 (B1·a migration): the sunrise/sunset chips, the moon
  * chip and their popovers moved into the hero's `AstroMetaLine` —
  * one sun/moon home per screen. The slab keeps its size, position
- * and kitchen-clock role (§5 ruling). The in-window seasonal
- * countdown rides below as `SeasonsCountdown` (its own line; tap
- * opens the Saisons popover).
+ * and kitchen-clock role (§5 ruling). The date caption is the
+ * year-round trigger for the Saisons popover (`SeasonsTrigger`); the
+ * in-window countdown rides below as a plain text line.
  *
  * Clock ticks via a 1 s `setInterval`. The interval is cleared on
  * unmount — important for the experimental flag toggle, which
@@ -31,7 +31,7 @@ const I18N_LOCALE = { en: "en-US", fr: "fr-FR", es: "es-ES" };
 const TimeBlock = () => {
   const { clockTime } = useContext(UiPrefsContext);
   const { mapTimezone } = useContext(LocationContext);
-  const { i18n } = useTranslation();
+  const { i18n, t } = useTranslation();
   const localeKey = i18n.language.startsWith("fr")
     ? "fr"
     : i18n.language.startsWith("es")
@@ -70,16 +70,23 @@ const TimeBlock = () => {
     .replace(/\s+h\s*$/i, "");
   const dayPeriod = parts.find((p) => p.type === "dayPeriod")?.value || "";
 
+  // In-window seasonal countdown text shown on its own line below the
+  // clock; null the rest of the year.
+  const seasonLabel = seasonCountdownLabel(now, t);
+
   return (
     <div className={styles.slab}>
-      <div className={styles.date}>{dateStr}</div>
+      {/* The date is the year-round trigger for the Saisons popover. */}
+      <div className={styles.date}>
+        <SeasonsTrigger now={now}>{dateStr}</SeasonsTrigger>
+      </div>
       <div className={styles.time}>
         {hhmm}
         {hour12 && dayPeriod ? <span className={styles.amPm}>{dayPeriod}</span> : null}
       </div>
-      {/* Seasonal countdown on its own line (Pi/mobile) — tap opens the
-        * Saisons popover. Renders null outside the 14-day window. */}
-      <SeasonsCountdown now={now} variant="block" />
+      {seasonLabel ? (
+        <div className={styles.solarEventMarker}>{seasonLabel}</div>
+      ) : null}
     </div>
   );
 };

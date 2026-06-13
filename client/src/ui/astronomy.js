@@ -282,7 +282,7 @@ function sortedFutureEvents(now) {
  * Feeds the "Saisons" popover (v3.1 Phase 2) — the four upcoming
  * seasonal turning points with their dates and day-counts. Unlike
  * `upcomingSolarEvent` there is no window gate: the list is shown on
- * demand (the user taps the in-window countdown to open it).
+ * demand (the user taps the date, which is the year-round trigger).
  *
  * @param {Date} [now=new Date()]
  * @param {number} [count=4]
