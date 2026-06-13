@@ -113,6 +113,7 @@ const MARKER_VISIBLE_STORAGE_KEY = "markerIsVisible";
 const AI_USER_VISIBLE_STORAGE_KEY = "aiSummaryUserVisible";
 const MOUSE_HIDE_STORAGE_KEY = "mouseHide";
 const SHOW_ADVISORY_ALERTS_STORAGE_KEY = "showAdvisoryAlerts";
+const SHOW_ALERT_RING_STORAGE_KEY = "showAlertRing";
 const HIDE_RADAR_LEGEND_STORAGE_KEY = "hideRadarLegend";
 const RADAR_SOURCE_STORAGE_KEY = "radarSource";
 const RADAR_SOURCE_VALUES = ["rainviewer", "eccc"];
@@ -486,6 +487,17 @@ export function AppContextProvider({ children }) {
       return next;
     });
   }, []);
+  // Whether the dashed radius ring is drawn alongside the nearby-alerts
+  // layer. Per-device display preference (localStorage), DEFAULT ON so the
+  // existing "polygons + ring" look is preserved; a user who wants the bare
+  // alert polygons (no proxy circle) turns it off. Gates only the <Circle>
+  // in WeatherMap — the polygons stay on showWeatherAlerts alone. Settings
+  // toggle via saveBoolFlag → saveShowAlertRing.
+  const [showAlertRing, setShowAlertRing] = useState(() => {
+    if (typeof window === "undefined") return true;
+    // Default ON — only an explicit stored "false" hides the ring.
+    return window.localStorage.getItem(SHOW_ALERT_RING_STORAGE_KEY) !== "false";
+  });
   // Canonical alert-survey radius in KILOMETRES (the Phase 3 slider derives
   // its mi labels from this). Default 50 km — the quietest stop; overwritten
   // from advanced.alerts.radius on settings load.
@@ -732,6 +744,24 @@ export function AppContextProvider({ children }) {
     }
     setShowAdvisoryAlerts(newState);
     window.localStorage.setItem(SHOW_ADVISORY_ALERTS_STORAGE_KEY, newState);
+  }, []);
+
+  /**
+   * Save the "show alert radius ring" preference (per-device).
+   *
+   * @param {Boolean} newVal — JSON-encoded boolean, passed by the
+   *   Settings toggle via saveBoolFlag
+   */
+  const saveShowAlertRing = useCallback((newVal) => {
+    let newState;
+    try {
+      newState = JSON.parse(newVal);
+    } catch (e) {
+      console.log("saveShowAlertRing", e);
+      return;
+    }
+    setShowAlertRing(newState);
+    window.localStorage.setItem(SHOW_ALERT_RING_STORAGE_KEY, newState);
   }, []);
 
   /**
@@ -2122,6 +2152,7 @@ export function AppContextProvider({ children }) {
     updateHourlyWeatherData,
     saveMouseHide,
     saveShowAdvisoryAlerts,
+    saveShowAlertRing,
     saveHideRadarLegend,
     saveRadarSource,
     setInfoPanelCollapsed,
@@ -2208,6 +2239,7 @@ export function AppContextProvider({ children }) {
     updateHourlyWeatherData,
     saveMouseHide,
     saveShowAdvisoryAlerts,
+    saveShowAlertRing,
     saveHideRadarLegend,
     saveRadarSource,
     setInfoPanelCollapsed,
@@ -2447,6 +2479,7 @@ export function AppContextProvider({ children }) {
     nearbyAlerts,
     nearbyResidualCount,
     showWeatherAlerts,
+    showAlertRing,
     alertRadiusKm,
   }), [
     govAlerts,
@@ -2456,6 +2489,7 @@ export function AppContextProvider({ children }) {
     nearbyAlerts,
     nearbyResidualCount,
     showWeatherAlerts,
+    showAlertRing,
     alertRadiusKm,
   ]);
 

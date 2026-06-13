@@ -613,6 +613,7 @@ const WeatherMap = ({ zoom, dark }) => {
     // user-set radius. Display-only — gated on showWeatherAlerts, OFF by
     // default until the Phase 3 dock toggle wires it up.
     showWeatherAlerts,
+    showAlertRing,
     nearbyAlerts,
     alertRadiusKm,
   } = useContext(AlertsContext);
@@ -1256,8 +1257,11 @@ const WeatherMap = ({ zoom, dark }) => {
             persistent while the layer is on. A cool-blue dotted circle
             (red dash-dot in nightRed) kept distinct from the radar risk
             rings. Hidden when zoomed in past the radar rings' threshold,
-            same as them, since a 50-100 km circle is off-screen there. */}
-        {showWeatherAlerts && markerPosition && currentMapZoom < RING_HIDE_ZOOM ? (
+            same as them, since a 50-100 km circle is off-screen there.
+            Independently gated on showAlertRing: a user can keep the alert
+            polygons while hiding the ring (the ring is a round proxy for the
+            survey radius; the polygon is the alert's real geometry). */}
+        {showWeatherAlerts && showAlertRing && markerPosition && currentMapZoom < RING_HIDE_ZOOM ? (
           <Circle
             center={markerPosition}
             radius={alertRadiusKm * 1000}
