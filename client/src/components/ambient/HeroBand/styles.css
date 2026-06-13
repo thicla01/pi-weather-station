@@ -231,9 +231,11 @@
   font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
   font-weight: 500;
   font-size: calc(12px * var(--c-font-scale, 1));
-  /* Mirror the hero meta-line's `line-height: 1` so the text below
-   * the shared hairline sits at the same offset in both cards. */
-  line-height: 1;
+  /* Match the hero meta-line's deterministic 1.25 line box so both
+   * tier-3 blocks are the same height and the shared band hairline
+   * lands on the same line in both cards (the meta-line's box is
+   * inflated by its 1.2em moon glyph — see AstroMetaLine). */
+  line-height: 1.25;
   letter-spacing: 0.5px;
   color: var(--c-text-dim);
   white-space: nowrap;

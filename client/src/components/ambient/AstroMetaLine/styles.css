@@ -118,4 +118,10 @@
   font-size: calc(12px * var(--c-font-scale, 1));
   flex-wrap: nowrap;
   white-space: nowrap;
+  /* Deterministic line box (≥ the 1.2em moon glyph) so this tier-3
+   * block is exactly as tall as the clock card's date-meta — the two
+   * share the band's bottom hairline and must align to the pixel.
+   * Without this the icon-driven line box (~14.4px) sat a few px above
+   * the clock's text-only date line (C1 alignment polish). */
+  line-height: 1.25;
 }
