@@ -101,12 +101,73 @@ if [ "$BROWSER_FAMILY" = "chromium" ]; then
     esac
 fi
 
+# Force Firefox's device-pixel-ratio via a profile user.js pref — Firefox has
+# no --force-device-scale-factor flag. Locates the named profile through
+# profiles.ini (deb path or snap-confined path) and manages a single pref line
+# (filtering any prior value so the choice self-corrects). Best-effort: logs
+# and returns if the profile can't be found — the kiosk still launches.
+apply_firefox_scale() {
+    profile_name="$1"
+    scale="$2"
+    for base in "$HOME/.mozilla/firefox" "$HOME/snap/firefox/common/.mozilla/firefox"; do
+        ini="$base/profiles.ini"
+        [ -f "$ini" ] || continue
+        rel=$(awk -v name="$profile_name" '
+            /^\[Profile/   { p = ""; n = ""; isrel = "" }
+            /^Name=/       { n = substr($0, 6) }
+            /^Path=/       { p = substr($0, 6) }
+            /^IsRelative=/ { isrel = substr($0, 12) }
+            /^[[:space:]]*$/ { if (n == name && p != "") { print isrel "|" p; exit } }
+            END            { if (n == name && p != "") { print isrel "|" p } }
+        ' "$ini")
+        [ -z "$rel" ] && continue
+        isrel="${rel%%|*}"
+        path="${rel#*|}"
+        if [ "$isrel" = "0" ]; then profdir="$path"; else profdir="$base/$path"; fi
+        [ -d "$profdir" ] || continue
+        uj="$profdir/user.js"
+        tmp="$uj.pwx.$$"
+        {
+            [ -f "$uj" ] && grep -v 'layout.css.devicePixelRatio' "$uj"
+            echo "user_pref(\"layout.css.devicePixelRatio\", \"$scale\"); // pi-weather-station auto-scale"
+        } > "$tmp" 2>/dev/null && mv "$tmp" "$uj" && {
+            echo "start-server: set Firefox devicePixelRatio=$scale in $uj" >&2
+            return 0
+        }
+    done
+    echo "start-server: could not locate Firefox profile '$profile_name' to apply display scale (kiosk still launches)." >&2
+    return 1
+}
+
+# --- 2.6. Auto display-scale for dense panels ----------------------------
+# A small high-density screen (e.g. a 10" 800x1280 DSI panel at ~150 PPI)
+# renders the UI tiny at compositor scale 1. detect-display-scale derives a
+# factor from the panel's PHYSICAL density so the UI keeps a consistent
+# physical size across the fleet. It emits a value ONLY when scaling helps
+# (most screens stay untouched). Override with DISPLAY_SCALE in browser.conf.
+DISPLAY_SCALE_VALUE=""
+for cand in "$(dirname "$0")/detect-display-scale.sh" "$HOME/.local/bin/detect-display-scale.sh"; do
+    if [ -x "$cand" ]; then
+        export DISPLAY_SCALE
+        DISPLAY_SCALE_VALUE=$("$cand" || true)
+        break
+    fi
+done
+[ -n "$DISPLAY_SCALE_VALUE" ] && echo "start-server: applying display scale ${DISPLAY_SCALE_VALUE}." >&2
+
 # --- 3. Launch in kiosk mode with family-specific flags ------------------
 case "$BROWSER_FAMILY" in
     chromium)
         FLAGS=""
         if [ -n "$WAYLAND_DISPLAY" ]; then
             FLAGS="--ozone-platform=wayland --enable-features=OverlayScrollbar --start-maximized"
+        fi
+        # Auto display-scale (see section 2.6). --force-device-scale-factor sets
+        # the device scale ABSOLUTELY (it replaces, not compounds with, the
+        # compositor scale), so the computed target is correct regardless of the
+        # Wayland output scale. Only added when scaling is actually needed.
+        if [ -n "$DISPLAY_SCALE_VALUE" ]; then
+            FLAGS="$FLAGS --force-device-scale-factor=$DISPLAY_SCALE_VALUE"
         fi
         # Chrome DevTools remote-debugging port (localhost:9222). OFF by
         # default: while open, ANY local process can attach and drive the
@@ -137,6 +198,11 @@ case "$BROWSER_FAMILY" in
         # — both work without intervention.
         PROFILE_NAME="pi-weather-station"
         "$BROWSER_CMD" -CreateProfile "$PROFILE_NAME" >/dev/null 2>&1 || true
+        # Auto display-scale (see section 2.6) — applied as a profile pref since
+        # Firefox has no equivalent CLI flag. Only when scaling is needed.
+        if [ -n "$DISPLAY_SCALE_VALUE" ]; then
+            apply_firefox_scale "$PROFILE_NAME" "$DISPLAY_SCALE_VALUE"
+        fi
         # --no-remote ensures we don't reuse a non-kiosk Firefox window if one
         # is already open with another profile.
         "$BROWSER_CMD" --kiosk --no-remote -P "$PROFILE_NAME" "$URL"

@@ -9,7 +9,8 @@ Pi Weather Station is a full-stack weather display application designed to run o
 - **Frontend**: React (webpack, CSS Modules, i18next for EN/FR/ES)
 - **Backend**: Node.js / Express
 - **Target hardware**: Raspberry Pi (Bullseye, Bookworm, Trixie) with 7" touchscreen running a kiosk browser; also runs on Debian/Ubuntu, openSUSE, and macOS
-- **Kiosk browser**: Chromium-family (Chromium, Chrome, Brave, Edge) or Firefox; choice prompted by `install.sh` and persisted in `~/.config/pi-weather-station/browser.conf` (`BROWSER_CMD` + `BROWSER_FAMILY`). Snap-Firefox is supported via named profile (`-P pi-weather-station`)
+- **Kiosk browser**: Chromium-family (Chromium, Chrome, Brave, Edge) or Firefox; choice prompted by `install.sh` and persisted in `~/.config/pi-weather-station/browser.conf` (`BROWSER_CMD` + `BROWSER_FAMILY`, plus an optional `DISPLAY_SCALE` override). Snap-Firefox is supported via named profile (`-P pi-weather-station`)
+- **Kiosk display auto-scale**: `deploy/detect-display-scale.sh` derives a per-panel scale from the screen's **physical** density (`wlr-randr`/`xrandr` → diagonal PPI) so a small high-density panel (e.g. 10.1" 800×1280 ≈ 150 PPI) doesn't render the UI tiny. Target is `TARGET_PPI=130` (the 7" official screen's density); `start-server` applies it at every boot via Chromium `--force-device-scale-factor` or a Firefox `layout.css.devicePixelRatio` profile pref. Emitted only when scaling helps; pin/disable via `DISPLAY_SCALE` (`auto`/number/`off`) in `browser.conf`
 - **Official 7" touchscreen on Trixie**: Mouse Emulation mode must be disabled — set DSI-1 to **Multitouch** via Control Centre → Screens → DSI-1 → Touchscreen. See `docs/troubleshooting-touchscreen.md`.
 - **Deployment**: systemd user service (`pi-weather-server.service`) on Linux + XDG autostart entry on GNOME/KDE; launchd agent (`com.pi-weather-station.plist`) on macOS. Optional Sense HAT display daemons: `pi-sensehat.service` (weather/radar on the LED matrix) and `pi-sensehat-clock.service` (clock) — mutually exclusive, switched via `/api/sensehat-mode`.
 
@@ -70,6 +71,7 @@ pi-weather-station/
 │   │   └── services/conversions.js   # Unit conversions (temp, speed, length, distance)
 │   └── dist/             # Compiled bundle (committed to git)
 ├── deploy/               # Multi-distro install.sh, systemd units, autostart, kiosk launcher,
+│                          # detect-display-scale.sh (per-panel kiosk auto-scale from physical PPI),
 │                          # harden-kiosk.sh, logrotate, launchd plist, uninstall.sh
 ├── docs/                 # api.md, architecture, KPI, security, troubleshooting, ui-layout (en/fr),
 │                          # radar-classification (RainViewer pixel → tier → display colour)

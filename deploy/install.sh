@@ -607,6 +607,14 @@ if [ "$KIOSK_MODE" = "yes" ]; then
 # Re-run install.sh to change the browser, or edit the values directly.
 BROWSER_CMD="$KIOSK_BROWSER"
 BROWSER_FAMILY="$KIOSK_BROWSER_FAMILY"
+
+# Kiosk display scale. Small high-density panels (e.g. a 10" 800x1280 DSI
+# screen) render the UI tiny at compositor scale 1; start-server auto-detects
+# the panel's physical density and enlarges the UI to match the 7" reference.
+#   auto  (default) detect from the panel's physical pixel density
+#   1.5   pin a specific factor (overrides detection)
+#   off   disable scaling entirely
+#DISPLAY_SCALE=auto
 EOF
     fi
 fi
@@ -813,7 +821,24 @@ EOF
     mkdir -p ~/.local/bin
     cp "$REPO_DIR/deploy/start-server" ~/.local/bin/start-server
     chmod +x ~/.local/bin/start-server
+    cp "$REPO_DIR/deploy/detect-display-scale.sh" ~/.local/bin/detect-display-scale.sh
+    chmod +x ~/.local/bin/detect-display-scale.sh
     echo ">> ~/.local/bin/start-server installed."
+
+    # Report the auto-detected display scale so the installer can sanity-check
+    # it — useful when a panel reports bad/zero EDID dimensions (pin a value via
+    # DISPLAY_SCALE in browser.conf then). Informational only: start-server
+    # re-runs this at every boot, so the choice self-corrects if the panel is
+    # ever swapped.
+    if [ "$KIOSK_MODE" = "yes" ]; then
+        DETECTED_SCALE=$(~/.local/bin/detect-display-scale.sh 2>/dev/null || true)
+        if [ -n "$DETECTED_SCALE" ]; then
+            echo ">> Display auto-scale: ${DETECTED_SCALE}x — dense panel detected; the kiosk UI will be enlarged to match the 7\" reference density."
+            echo "   Override anytime via DISPLAY_SCALE in ~/.config/pi-weather-station/browser.conf."
+        else
+            echo ">> Display auto-scale: none needed (panel density ≈ design baseline, or geometry unavailable)."
+        fi
+    fi
 
     # ========================================================================
     # Phase 6 — Autostart (kiosk only)
@@ -1295,6 +1320,9 @@ if [ -n "$KIOSK_BROWSER" ]; then
     if [ "$KIOSK_BROWSER_FAMILY" = "firefox" ]; then
         echo "     NOTE: First launch will prompt to accept the self-signed certificate."
         echo "     Click \"Accept the Risk and Continue\" — Firefox will remember the choice."
+    fi
+    if [ -n "$DETECTED_SCALE" ]; then
+        echo "   Display auto-scale: ${DETECTED_SCALE}x (dense panel — UI enlarged to the 7\" reference)."
     fi
     echo ""
 fi
