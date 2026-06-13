@@ -7,6 +7,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+- **Desktop clock panel — three-tier grammar + seasonal countdown (v3.1 Phase 2 follow-up, C1 · C2; Claude Design v2.3 reference).** A small refinement to the main card, **desktop band only**:
+  - **C1** — the HeroBand clock card restructures into the hero's three tiers: a **weekday eyebrow** (« JEUDI », micro mono uppercase) / the focal time (unchanged) / a **hairline + date** (« 11 juin », meta mono). It reuses the hero card's paddings, eyebrow rhythm and 1 px hairline exactly, so tier 1 and the bottom hairline land on the same lines across the two cards — the band reads as one system. The eyebrow carries a real datum (the weekday, the most-glanced clock info), not decorative structure. Size and role are unchanged (B1 still holds — no astro chips). The hero meta-line is now single-line on desktop (it *is* the band's shared hairline); the Pi/mobile TimeBlock keeps its compact stacked form and its wrapping meta-line (a 7" rail is too narrow to forbid wrapping).
+  - **C2** — the solstice/equinox countdown (shown in the 14-day window before each event) now joins the date behind the hairline on desktop (« 11 juin · Solstice dans 9 j », same dim ink, no accent — ambient calendar info, not an alert); the Pi/mobile TimeBlock keeps it on its own line under the time. Copy is tightened to the generic event type (« Solstice » / « Équinoxe » instead of « Solstice de juin ») — inside the window only one event is ever upcoming, so the month is redundant. This also fixes a latent i18n bug where the English countdown rendered « in 9 day(s) » (the plural variants were never selected — `count` is now passed). New `astronomy.solarEventShort.{solstice,equinox}` keys (EN/FR/ES); shared `solarEventType()` helper. `docs/ui-layout_{en,fr}.md` updated.
+
 ## [3.1.0] - 2026-06-12
 
 Version jumps 2.19 → 3.1.0 to align with the v3.1 design-pass naming: every screen-level phase of the program (P1 toolbar, P2 main card, P3 radar controls, P4 alerts, P5 forecast, P6 settings, P7 debug) has shipped; P8 (colour-system consolidation) is captured in the roadmap. The v3 Ambient UI has been the default since 2.18 — this release closes its design pass.

@@ -162,7 +162,7 @@ La carte occupe tout le viewport en arrière-plan pleine saignée. Le HeroBand, 
 | Carte | Contenu | Tailles de police |
 |-------|---------|-------------------|
 | **Héros (pyramide P2)** | Palier 1 : rangée lieu en micro-étiquette mono (épingle · trigger popover, souligné pointillé) · Palier 2 : grand chiffre de temp. (Geist Mono 500 tabulaire) + badge unité + icône/description + ligne **RESSENTI** always-on avec chip d'écart signée (±2°) · Palier 3 : **méta-ligne soleil/lune** (lever → coucher en SVG, glyphe de lune paramétrique + nom de phase + % — l'unique foyer des popovers soleil/lune, B1·a) | Temp 72 px → 88 px à ≥ 1600 px ; micro 11 px ; méta 12 px |
-| **Horloge** | Date (majuscules) · HH:MM · AM/PM (12h) — les chips astro ont migré dans la méta-ligne du héros | Horloge 44 px → 56 px à ≥ 1600 px |
+| **Horloge (grammaire C1, grand écran)** | Reflète les 3 paliers du héros pour aligner palier 1 + hairline à travers le bandeau — Palier 1 : **sourcil jour-semaine** (« JEUDI », micro mono majuscules) · Palier 2 : heure focale HH:MM · AM/PM (12h) · Palier 3 : **hairline + date** (« 11 juin », méta mono). Les chips astro ont migré dans la méta-ligne du héros (B1). Pendant la fenêtre de 14 j avant un solstice/équinoxe, le **compte à rebours C2** rejoint la date derrière la hairline (« 11 juin · Solstice dans 9 j », encre dim, sans accent). | Horloge 44 px → 56 px à ≥ 1600 px ; sourcil 11 px ; date-méta 12 px |
 
 Le band a une limite de `max-width: 1600 px` — aux viewports ultra-larges (2560 px+), il reste riche en contenu plutôt que de s'étendre sur toute la largeur disponible.
 

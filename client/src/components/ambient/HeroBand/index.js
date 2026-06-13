@@ -4,7 +4,7 @@ import { InlineIcon } from "@iconify/react";
 import { WeatherDataContext, UiPrefsContext, LocationContext } from "~/AppContext";
 import { convertTemp } from "~/services/conversions";
 import { parseWeatherCode, isDaylight } from "~/ui/weatherCodes";
-import { upcomingSolarEvent } from "~/ui/astronomy";
+import { upcomingSolarEvent, solarEventType } from "~/ui/astronomy";
 import AstroMetaLine from "~/components/ambient/AstroMetaLine";
 import FeelsLikeLine from "~/components/ambient/FeelsLikeLine";
 import LocationDetailsPopover from "~/components/ambient/LocationDetailsPopover";
@@ -19,18 +19,25 @@ const I18N_LOCALE = { en: "en-US", fr: "fr-FR", es: "es-ES" };
  *
  *   ┌───────────────────────────────┬──────────────┐
  *   │ hero card                     │ clock card   │
- *   │  · place micro-row (popover)  │  date        │
+ *   │  · place micro-row (popover)  │  WEEKDAY     │  ← tier 1 (aligned)
  *   │  · 72px temp + condition +    │  time        │
- *   │    feels-like (+delta chip)   │              │
- *   │  · sun/moon meta-line         │              │
+ *   │    feels-like (+delta chip)   │  ─────────── │  ← shared hairline
+ *   │  · sun/moon meta-line ──────  │  date · C2   │  ← tier 3 (aligned)
  *   └───────────────────────────────┴──────────────┘
  *
  * The hero card interior follows the P2 pyramid: micro place label
  * (tier 1), dominant temperature + condition + always-on feels-like
  * (tier 2), sun/moon meta-line (tier 3 — the ONLY sun/moon home on
- * screen, B1·a migration). The clock card keeps the date + time and
- * the solstice/equinox marker, but its astro chip row moved into the
- * hero meta-line.
+ * screen, B1·a migration).
+ *
+ * The clock card mirrors the same three tiers (v3.1 Phase 2 C1, desktop
+ * band only): weekday eyebrow / focal time / hairline + date — so tier 1
+ * and the bottom hairline land on the same lines across the band, and it
+ * reads as one system. Size and role are unchanged from B1 (no astro
+ * chips — date + time only). During the 14-day window before a solstice
+ * or equinox the C2 countdown joins the date behind the hairline
+ * (« 11 juin · Solstice dans 9 j », dim, no accent). The Pi/mobile
+ * TimeBlock keeps its compact stacked form (nothing to mirror).
  *
  * @returns {JSX.Element} hero band (two floating cards)
  */
@@ -107,9 +114,18 @@ const HeroBand = () => {
   // Intl.DateTimeFormat construction is the expensive half of date
   // formatting (locale data lookup) — memoized so each render only pays
   // for format(), not for rebuilding the formatters.
-  const dateFormatter = useMemo(
+  // C1 splits the date across two clock-card tiers: the weekday is
+  // the eyebrow (top), the day+month is the bottom hairline meta —
+  // so two formatters instead of one full-date string.
+  const weekdayFormatter = useMemo(
     () => new Intl.DateTimeFormat(locale, {
       weekday: "long",
+      timeZone: mapTimezone,
+    }),
+    [locale, mapTimezone]
+  );
+  const dayMonthFormatter = useMemo(
+    () => new Intl.DateTimeFormat(locale, {
       month: "long",
       day: "numeric",
       timeZone: mapTimezone,
@@ -125,7 +141,10 @@ const HeroBand = () => {
     }),
     [locale, hour12, mapTimezone]
   );
-  const dateStr = dateFormatter.format(now).toUpperCase();
+  // Eyebrow is uppercased in CSS (text-transform); the day+month meta
+  // stays sentence-case ("11 juin" / "June 11").
+  const weekdayStr = weekdayFormatter.format(now);
+  const dayMonthStr = dayMonthFormatter.format(now);
   const parts = timeFormatter.formatToParts(now);
   const hhmm = parts
     .filter((p) => ["hour", "minute", "literal"].includes(p.type))
@@ -135,7 +154,17 @@ const HeroBand = () => {
     .replace(/\s+h\s*$/i, "");
   const dayPeriod = parts.find((p) => p.type === "dayPeriod")?.value || "";
 
+  // Seasonal countdown (C2). Within the 14-day window the upcoming
+  // solstice/equinox joins the date meta behind the hairline as an
+  // ambient calendar note (dim, no accent). Copy is tightened to the
+  // generic event type — only one event is possible in-window.
   const upcoming = upcomingSolarEvent(now);
+  const countdown = upcoming
+    ? t("astronomy.solarEventIn", {
+      event: t(`astronomy.solarEventShort.${solarEventType(upcoming.event)}`),
+      count: upcoming.daysAway,
+    })
+    : null;
 
   // Tap-for-details on the place row — surfaces the full LocationIQ
   // reverse-geocode payload (admin hierarchy, postcode, precise
@@ -199,20 +228,22 @@ const HeroBand = () => {
         {/* Tier 3 — sun/moon meta-line (the only astro home, B1·a) */}
         <AstroMetaLine />
       </div>
+      {/* Clock card — C1 mirrors the hero's three tiers so tier 1 and
+        * the bottom hairline align across the band (eyebrow weekday /
+        * focal time / hairline date). Desktop band only; the Pi/mobile
+        * TimeBlock keeps its compact form. */}
       <div className={styles.clockCard}>
-        <div className={styles.clockDate}>{dateStr}</div>
+        <div className={styles.clockEyebrow}>{weekdayStr}</div>
         <div className={styles.clockTime}>
           {hhmm}
           {hour12 && dayPeriod ? <span className={styles.clockAmPm}>{dayPeriod}</span> : null}
         </div>
-        {upcoming ? (
-          <div className={styles.solarEventMarker}>
-            {t("astronomy.solarEventIn", {
-              event: t(`astronomy.solarEvent.${upcoming.event}`),
-              days: upcoming.daysAway,
-            })}
-          </div>
-        ) : null}
+        <div className={styles.clockDateMeta}>
+          {dayMonthStr}
+          {countdown ? (
+            <span className={styles.clockCountdown}> · {countdown}</span>
+          ) : null}
+        </div>
       </div>
     </div>
   );

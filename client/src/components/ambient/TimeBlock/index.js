@@ -1,7 +1,7 @@
 import React, { useContext, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { UiPrefsContext, LocationContext } from "~/AppContext";
-import { upcomingSolarEvent } from "~/ui/astronomy";
+import { upcomingSolarEvent, solarEventType } from "~/ui/astronomy";
 import styles from "./styles.css";
 
 const I18N_LOCALE = { en: "en-US", fr: "fr-FR", es: "es-ES" };
@@ -72,7 +72,10 @@ const TimeBlock = () => {
   // The solstice / equinox marker surfaces ONLY when within 14 days
   // of the next event. The rest of the year `upcoming` is null and
   // the line collapses, so the marker doesn't compete with the clock
-  // for attention.
+  // for attention. On the stacked Pi/mobile TimeBlock it keeps its
+  // own line under the time (C2); the desktop band inlines it behind
+  // the clock-panel hairline instead (see HeroBand). Copy is tightened
+  // to the generic event type — only one event is possible in-window.
   const upcoming = upcomingSolarEvent(now);
 
   return (
@@ -85,8 +88,8 @@ const TimeBlock = () => {
       {upcoming ? (
         <div className={styles.solarEventMarker}>
           {t("astronomy.solarEventIn", {
-            event: t(`astronomy.solarEvent.${upcoming.event}`),
-            days: upcoming.daysAway,
+            event: t(`astronomy.solarEventShort.${solarEventType(upcoming.event)}`),
+            count: upcoming.daysAway,
           })}
         </div>
       ) : null}
