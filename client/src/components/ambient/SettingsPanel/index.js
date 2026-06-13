@@ -248,6 +248,7 @@ const SectionLocalPrefs = ({ ctx, lang }) => {
     pressureUnit, savePressureUnit,
     mouseHide, saveMouseHide,
     showAdvisoryAlerts, saveShowAdvisoryAlerts,
+    showAlertRing, saveShowAlertRing,
   } = ctx;
 
   // The MouseHide / HideRadarLegend save helpers take a JSON-encoded
@@ -391,6 +392,24 @@ const SectionLocalPrefs = ({ ctx, lang }) => {
             "Muestra también las alertas de nivel « aviso » (aviso de inundación, calor, viento). Desactivado por defecto.")}
           value={Boolean(showAdvisoryAlerts)}
           onChange={saveBoolFlag(saveShowAdvisoryAlerts)}
+        />
+      </div>
+
+      {/* Alert-radius-ring toggle (per-device, localStorage). On by
+        * default so the existing "polygons + ring" look is preserved.
+        * Turning it off keeps the alert polygons (the real geometry)
+        * while hiding the dashed proxy circle — requested by mlcampbe,
+        * who wanted the polygon boxes without the ring. Only affects the
+        * map when the nearby-alerts layer is on (dock toggle). */}
+      <div className={styles.toggleRow}>
+        <Toggle
+          label={lbl(lang, "Show alert radius ring", "Afficher l'anneau du rayon d'alerte", "Mostrar el anillo del radio de alerta")}
+          sub={lbl(lang,
+            "Draws the dashed circle at the alert radius. Turn off to keep only the alert polygons. On by default.",
+            "Trace le cercle pointillé au rayon d'alerte. Désactiver pour ne garder que les polygones d'alerte. Activé par défaut.",
+            "Dibuja el círculo punteado en el radio de alerta. Desactívalo para conservar solo los polígonos de alerta. Activado por defecto.")}
+          value={Boolean(showAlertRing)}
+          onChange={saveBoolFlag(saveShowAlertRing)}
         />
       </div>
 
