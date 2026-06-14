@@ -167,6 +167,7 @@ These rules apply to every change, regardless of size. They exist to keep the co
   - `ECCC` — Environment and Climate Change Canada (official Canadian alerts)
   - `NWS` — US National Weather Service (official US alerts)
   - `RADAR` — derived from RainViewer pixel analysis via `radarAnalyzerCtrl`
+  - `FCST` — Tomorrow.io forecast threshold. Not a banner: it tags the auto-select forecast-tab **reason chip** in `ChartTabs` (the chip reuses the same `SourceBadge` visual), shown when the chart's metric tab was auto-selected from a forecast threshold rather than a gov alert (`NWS`/`ECCC`) or radar (`RADAR`). See `docs/auto-forecast-tab-selection-design.md`.
 - When introducing a new banner-producing source, **assign it a short uppercase tag (3-5 chars)** following the same visual convention. Honest about origin (`AQI`, `SENSE`, `CLAUDE`, etc.); avoid vague labels like `LOCAL` or `AUTO`. Document the new tag in this file and in the JSDoc of `AlertBanner/index.js`.
 - All banner badges share the `styles.sourceBadge` CSS class — reuse it, don't fork.
 

@@ -125,6 +125,7 @@
     "tabDays": "Jours",
     "maximize": "Agrandir",
     "restore": "Restaurer",
+    "autoSelected": "Sélection auto",
     "overlayPrecip": "Superposer les précipitations sur ce graphique",
     "pillMax": "max",
     "pillMin": "min",

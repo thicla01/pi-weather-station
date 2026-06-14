@@ -305,8 +305,38 @@ function selectAutoTab(signals, state, now) {
   return null;
 }
 
+/**
+ * The ungated hazard verdict for the reason chip: what tab the live signals
+ * currently justify (gov alert → its tab, radar → Precip, forecast → its
+ * tab), ignoring the gates, the dwell floor, the manual hold, the severe
+ * puncture, and the same-tab collapse. This is NOT a switch decision — it
+ * drives the chip honestly: the chip shows only while the visible tab is
+ * still justified by a live hazard, and clears when this returns null
+ * (genuine calm) so a stale chip can't outlive the weather that caused it.
+ *
+ * @param {Object} signals { govAlerts, radarAlertState, forecast }
+ * @param {?String} currentTab the active tab (for forecast hysteresis)
+ * @returns {?{tab: String, sourceBadge: String}} the live verdict, or null
+ */
+function hazardTab(signals, currentTab) {
+  const s = signals || {};
+  const gov = topEligibleGovAlert(s.govAlerts);
+  if (gov) {
+    const tab = classifyAlertTab(gov);
+    if (tab) return { tab, sourceBadge: gov.source };
+  }
+  const r = s.radarAlertState;
+  if (r && (r.confidenceBucket === "mid" || r.confidenceBucket === "high")) {
+    return { tab: TABS.PRECIP, sourceBadge: "RADAR" };
+  }
+  const fc = forecastTab(s.forecast, currentTab);
+  if (fc) return { tab: fc.tab, sourceBadge: "FCST" };
+  return null;
+}
+
 module.exports = {
   selectAutoTab,
+  hazardTab,
   // pure helpers (exported for the Phase-1 hook + tests)
   classifyAlertTab,
   summarizeForecast,
