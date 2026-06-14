@@ -26,7 +26,7 @@ pi-weather-station/
 │   ├── airQualityCtrl.js # Air-quality orchestrator — closest station wins across sources, ECCC AQHI fallback
 │   ├── airQualitySources/ # One module per AQ source (MELCC Mtl, MELCC RSQAQ, AirNow, OpenAQ, ECCC) + _shared.js helpers
 │   ├── govAlertsCtrl.js  # Gov severe-weather alerts orchestrator — merges sources in parallel, isolates failures
-│   ├── govAlertSources/  # One module per alert source (NWS point query, ECCC point-in-polygon) + _shared.js helpers
+│   ├── govAlertSources/  # One module per alert source (NWS point query, ECCC point-in-polygon) + nwsZones.js (resolves NWS zone-only alerts to polygons via affectedZones, 24 h cache) + _shared.js helpers
 │   ├── pollenCtrl.js     # Pollen badge — Open-Meteo Air Quality API, worst case of 6 allergens
 │   ├── openMeteoCtrl.js  # PoC Open-Meteo weather adapter in the Tomorrow.io envelope shape (source comparison)
 │   ├── indoorTempCtrl.js # Polls Homebridge for indoor temperature/humidity/air quality
