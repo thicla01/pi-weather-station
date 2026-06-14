@@ -107,9 +107,18 @@ async function getZoneGeometry(url) {
     return null;
   }
 
-  const geometry = resp.data && resp.data.geometry;
-  // Some zones return without a geometry (rare administrative zones,
-  // marine zones offshore that aren't polygonal). Treat as a soft
+  let geometry = resp.data && resp.data.geometry;
+  // NWS occasionally serves a zone as a GeometryCollection mixing Polygon
+  // + MultiPolygon members (e.g. forecast zone TXZ213 "Inland Harris" over
+  // Houston) rather than a single polygonal geometry. Flatten it to a
+  // MultiPolygon so it survives the polygonal-only guard below — otherwise
+  // the zone is dropped and the alert's rendered footprint has a hole
+  // exactly over it (the 2026-06-14 Houston Flood Watch case).
+  if (geometry && geometry.type === "GeometryCollection") {
+    geometry = mergeAsMultiPolygon([geometry]);
+  }
+  // Some zones return without a (usable) geometry (rare administrative
+  // zones, marine zones offshore that aren't polygonal). Treat as a soft
   // failure — cache the null result so we don't refetch every alert
   // cycle, but the TTL is the same so a future zone update would
   // pick up if NWS ever populates the geometry.
@@ -123,10 +132,12 @@ async function getZoneGeometry(url) {
 }
 
 /**
- * Combine an array of GeoJSON geometries (each Polygon or MultiPolygon)
- * into a single MultiPolygon. Drops null / undefined / non-polygonal
- * inputs silently. Returns null if no valid input survives, so the
- * caller can fall back to a null geometry on the alert.
+ * Combine an array of GeoJSON geometries into a single MultiPolygon.
+ * Accepts Polygon and MultiPolygon members, plus GeometryCollection
+ * (flattened recursively into its polygonal parts — see the Houston
+ * note below). Drops null / undefined / non-polygonal inputs silently.
+ * Returns null if no valid input survives, so the caller can fall back
+ * to a null geometry on the alert.
  *
  * The resulting MultiPolygon is the canonical shape Leaflet's
  * `<GeoJSON>` layer renders. Coordinates aren't re-projected or
@@ -148,6 +159,20 @@ function mergeAsMultiPolygon(geometries) {
       // Polygon coordinate sets) directly into the merged list.
       for (const poly of g.coordinates) {
         coords.push(poly);
+      }
+    } else if (g.type === "GeometryCollection" && Array.isArray(g.geometries)) {
+      // Some NWS zones are served as a GeometryCollection mixing Polygon
+      // + MultiPolygon members (e.g. forecast zone TXZ213 "Inland Harris"
+      // over Houston) instead of a single polygonal geometry. Recurse so
+      // its members contribute their polygons rather than being silently
+      // dropped — a dropped zone punches a hole in the merged alert
+      // footprint exactly over that zone (the 2026-06-14 Houston Flood
+      // Watch case). Recursion also covers nested collections.
+      const inner = mergeAsMultiPolygon(g.geometries);
+      if (inner) {
+        for (const poly of inner.coordinates) {
+          coords.push(poly);
+        }
       }
     }
   }
