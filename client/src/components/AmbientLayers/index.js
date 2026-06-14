@@ -161,19 +161,19 @@ const AmbientLayers = () => {
     "--c-cool": palette.cool,
     "--c-strip-color": stripColor,
     // v3.1 Phase 4 — severity-chip palette tokens. Three tiers
-    // (advisory / watch / warning) each with bg/border/ink triplets
+    // (low / med / high severity colours) each with bg/border/ink triplets
     // so the chip surface, outline, and label colour all rotate
     // through the palette in lockstep. Components read these via
-    // `var(--sev-{adv|watch|warn}-{bg|border|ink})`.
-    "--sev-adv-bg": palette.sevAdvBg,
-    "--sev-adv-border": palette.sevAdvBorder,
-    "--sev-adv-ink": palette.sevAdvInk,
-    "--sev-watch-bg": palette.sevWatchBg,
-    "--sev-watch-border": palette.sevWatchBorder,
-    "--sev-watch-ink": palette.sevWatchInk,
-    "--sev-warn-bg": palette.sevWarnBg,
-    "--sev-warn-border": palette.sevWarnBorder,
-    "--sev-warn-ink": palette.sevWarnInk,
+    // `var(--sev-{low|med|high}-{bg|border|ink})`.
+    "--sev-low-bg": palette.sevLowBg,
+    "--sev-low-border": palette.sevLowBorder,
+    "--sev-low-ink": palette.sevLowInk,
+    "--sev-med-bg": palette.sevMedBg,
+    "--sev-med-border": palette.sevMedBorder,
+    "--sev-med-ink": palette.sevMedInk,
+    "--sev-high-bg": palette.sevHighBg,
+    "--sev-high-border": palette.sevHighBorder,
+    "--sev-high-ink": palette.sevHighInk,
     // Moon-glyph palette tokens (used by `MoonGlyph`). Names match
     // what each token paints, not relative brightness — day palette
     // has a DARK `moonLit` because the lit shape is rendered as a

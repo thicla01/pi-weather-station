@@ -60,7 +60,7 @@ const FloatingMiniBanner = ({ onExpand, placement = "topRight" }) => {
       onClick={onExpand}
     >
       <SourceBadge source={currentAlert.source} />
-      <SeverityChip severity={currentAlert.severity} compact />
+      <SeverityChip severity={currentAlert.severity} eventName={currentAlert.title_en} compact />
       <span className={styles.title}>{title}</span>
       {eligibleGovAlerts.length > 1 ? (
         <span className={styles.counter}>{safeIdx + 1} / {eligibleGovAlerts.length}</span>

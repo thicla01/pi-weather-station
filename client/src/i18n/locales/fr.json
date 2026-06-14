@@ -324,6 +324,7 @@
     "severityAdvisory": "Avis",
     "severityWatch": "Veille",
     "severityWarning": "Avertissement",
+    "severityStatement": "Bulletin",
     "severityEmergency": "Urgence",
     "issuedHoursAgo": "Émis il y a {{hours}} h",
     "issuedMinutesAgo": "Émis il y a {{minutes}} min",
