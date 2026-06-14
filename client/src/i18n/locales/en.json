@@ -324,6 +324,7 @@
     "severityAdvisory": "Advisory",
     "severityWatch": "Watch",
     "severityWarning": "Warning",
+    "severityStatement": "Statement",
     "severityEmergency": "Emergency",
     "issuedHoursAgo": "Issued {{hours}}h ago",
     "issuedMinutesAgo": "Issued {{minutes}} min ago",

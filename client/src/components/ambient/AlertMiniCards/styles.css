@@ -39,7 +39,7 @@
    * an absolute pseudo because the card has no overflow concern
    * (no body text below to clip) and the simpler markup is one
    * fewer rule to maintain. */
-  border-left: 4px solid var(--sev-watch-border);
+  border-left: 4px solid var(--sev-med-border);
   border-radius: 8px;
   color: var(--c-text);
   cursor: pointer;
@@ -50,9 +50,9 @@
 
 /* Tier-specific left border colour. The card itself inherits the
  * palette surface; only the strip changes. */
-.tier-red    { border-left-color: var(--sev-warn-border); }
-.tier-orange { border-left-color: var(--sev-watch-border); }
-.tier-yellow { border-left-color: var(--sev-adv-border); }
+.tier-red    { border-left-color: var(--sev-high-border); }
+.tier-orange { border-left-color: var(--sev-med-border); }
+.tier-yellow { border-left-color: var(--sev-low-border); }
 
 .card:hover,
 .card:focus-visible {

@@ -37,7 +37,7 @@
  */
 
 // Severity sub-palettes — used by the v3.1 Phase 4 alert chips.
-// Three tiers (advisory / watch / warning) each carry a bg / border /
+// Three tiers (low / med / high severity colours) each carry a bg / border /
 // ink triplet so a chip can be painted with consistent visual weight
 // across palettes. Values mirror the synthesis design's `--sev-*`
 // tokens. The `_emergency` slug doesn't exist as a distinct tier —
@@ -67,19 +67,19 @@ const day = {
   // Advisory (yellow) tier accent — the solid alert-gold used for the
   // AlertBanner / FloatingMiniBanner left severity strip. Matches the
   // gold the WeatherMap alert-zone polygon paints (#f0c000) so the
-  // banner strip and the map zone agree. Distinct from `sevAdvInk`,
+  // banner strip and the map zone agree. Distinct from `sevLowInk`,
   // which is a DARK text-ink colour (dark-on-light) — using it on the
   // strip rendered as a muddy olive instead of yellow.
   advisory: "#f0c000",
-  sevAdvBg: "rgba(232, 200, 122, 0.18)",
-  sevAdvBorder: "rgba(232, 200, 122, 0.5)",
-  sevAdvInk: "#8a6a18",
-  sevWatchBg: "rgba(232, 150, 87, 0.20)",
-  sevWatchBorder: "rgba(232, 150, 87, 0.55)",
-  sevWatchInk: "#b85a2d",
-  sevWarnBg: "rgba(220, 80, 80, 0.18)",
-  sevWarnBorder: "rgba(220, 80, 80, 0.55)",
-  sevWarnInk: "#b03030",
+  sevLowBg: "rgba(232, 200, 122, 0.18)",
+  sevLowBorder: "rgba(232, 200, 122, 0.5)",
+  sevLowInk: "#8a6a18",
+  sevMedBg: "rgba(232, 150, 87, 0.20)",
+  sevMedBorder: "rgba(232, 150, 87, 0.55)",
+  sevMedInk: "#b85a2d",
+  sevHighBg: "rgba(220, 80, 80, 0.18)",
+  sevHighBorder: "rgba(220, 80, 80, 0.55)",
+  sevHighInk: "#b03030",
   // Moon-phase glyph (used by `MoonGlyph` SVG component). Naming
   // follows what each token PAINTS:
   //   - moonLit  : colour of the LIT-side path (the phase outline)
@@ -125,15 +125,15 @@ const dusk = {
   danger: "#d8503c",
   cool: "#7a98b8",
   advisory: "#f0c000",
-  sevAdvBg: "rgba(232, 200, 122, 0.12)",
-  sevAdvBorder: "rgba(232, 200, 122, 0.40)",
-  sevAdvInk: "#e8c87a",
-  sevWatchBg: "rgba(232, 150, 87, 0.15)",
-  sevWatchBorder: "rgba(232, 150, 87, 0.48)",
-  sevWatchInk: "#f0b27a",
-  sevWarnBg: "rgba(220, 80, 80, 0.16)",
-  sevWarnBorder: "rgba(220, 80, 80, 0.48)",
-  sevWarnInk: "#ee9090",
+  sevLowBg: "rgba(232, 200, 122, 0.12)",
+  sevLowBorder: "rgba(232, 200, 122, 0.40)",
+  sevLowInk: "#e8c87a",
+  sevMedBg: "rgba(232, 150, 87, 0.15)",
+  sevMedBorder: "rgba(232, 150, 87, 0.48)",
+  sevMedInk: "#f0b27a",
+  sevHighBg: "rgba(220, 80, 80, 0.16)",
+  sevHighBorder: "rgba(220, 80, 80, 0.48)",
+  sevHighInk: "#ee9090",
   // Warm cream lit side on a dim brown dark side — both contrast
   // with the dusk bg #1c1a17.
   moonLit: "#f0ddb8",
@@ -159,15 +159,15 @@ const night = {
   danger: "#b04030",
   cool: "#5a7898",
   advisory: "#f0c000",
-  sevAdvBg: "rgba(232, 200, 122, 0.10)",
-  sevAdvBorder: "rgba(232, 200, 122, 0.35)",
-  sevAdvInk: "#e8c87a",
-  sevWatchBg: "rgba(232, 150, 87, 0.14)",
-  sevWatchBorder: "rgba(232, 150, 87, 0.45)",
-  sevWatchInk: "#f0b27a",
-  sevWarnBg: "rgba(220, 80, 80, 0.14)",
-  sevWarnBorder: "rgba(220, 80, 80, 0.45)",
-  sevWarnInk: "#ee9090",
+  sevLowBg: "rgba(232, 200, 122, 0.10)",
+  sevLowBorder: "rgba(232, 200, 122, 0.35)",
+  sevLowInk: "#e8c87a",
+  sevMedBg: "rgba(232, 150, 87, 0.14)",
+  sevMedBorder: "rgba(232, 150, 87, 0.45)",
+  sevMedInk: "#f0b27a",
+  sevHighBg: "rgba(220, 80, 80, 0.14)",
+  sevHighBorder: "rgba(220, 80, 80, 0.45)",
+  sevHighInk: "#ee9090",
   // Same warm-cream / dim-brown pair as dusk — both palettes share
   // the "dark surface, warm lit side" treatment. Tested against the
   // night bg #0e0c0a for the night-vision palette criterion: cream
@@ -208,15 +208,15 @@ const nightRed = {
   // `advisory` therefore collapses to red here too (it would otherwise
   // be the alert-gold #f0c000), so the banner strip stays night-safe.
   advisory: "#c44040",
-  sevAdvBg: "rgba(232, 80, 80, 0.10)",
-  sevAdvBorder: "rgba(232, 80, 80, 0.30)",
-  sevAdvInk: "#d04848",
-  sevWatchBg: "rgba(232, 80, 80, 0.14)",
-  sevWatchBorder: "rgba(232, 80, 80, 0.40)",
-  sevWatchInk: "#e05858",
-  sevWarnBg: "rgba(232, 80, 80, 0.20)",
-  sevWarnBorder: "rgba(232, 80, 80, 0.55)",
-  sevWarnInk: "#f06060",
+  sevLowBg: "rgba(232, 80, 80, 0.10)",
+  sevLowBorder: "rgba(232, 80, 80, 0.30)",
+  sevLowInk: "#d04848",
+  sevMedBg: "rgba(232, 80, 80, 0.14)",
+  sevMedBorder: "rgba(232, 80, 80, 0.40)",
+  sevMedInk: "#e05858",
+  sevHighBg: "rgba(232, 80, 80, 0.20)",
+  sevHighBorder: "rgba(232, 80, 80, 0.55)",
+  sevHighInk: "#f06060",
   // Night-red mode: red lit side on a deeper red dark side. Both
   // stay within the red-only constraint that the palette is
   // designed for, so the moon glyph doesn't break the night-vision

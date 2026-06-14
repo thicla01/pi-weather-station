@@ -126,7 +126,7 @@ const AlertBanner = () => {
               * space-between keeps the chevron flush right. */}
             <div className={styles.topRowBadges}>
               <SourceBadge source={currentAlert.source} />
-              <SeverityChip severity={currentAlert.severity} />
+              <SeverityChip severity={currentAlert.severity} eventName={currentAlert.title_en} />
             </div>
             <InlineIcon icon={chevronDown} className={styles.chevron} />
           </div>

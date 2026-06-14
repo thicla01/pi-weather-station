@@ -2,7 +2,7 @@
  *
  * Visual structure: triangle SVG + uppercase mono label, all painted
  * with the palette's `--sev-{tier}-{ink|bg|border}` tokens. The
- * tier-suffixed classes (`tier-advisory|watch|warning`) are added
+ * tier-suffixed classes (`tier-low|med|high`) are added
  * by the React component based on the alert's severity.
  *
  * `currentColor` on the inner SVG follows the `color` set by the
@@ -26,9 +26,9 @@
   /* Default colour is overridden by a tier rule below — the var
    * fallback prevents a flash of unstyled chip on first paint
    * before the React tier class lands. */
-  color: var(--sev-watch-ink, var(--c-text));
-  background: var(--sev-watch-bg, transparent);
-  border-color: var(--sev-watch-border, var(--c-border));
+  color: var(--sev-med-ink, var(--c-text));
+  background: var(--sev-med-bg, transparent);
+  border-color: var(--sev-med-border, var(--c-border));
 }
 
 .chip svg {
@@ -52,20 +52,20 @@
  * adding a `sev{Name}{Bg|Border|Ink}` token set in `ui/tokens.js`
  * and one rule here.
  * ============================================================ */
-.tier-advisory {
-  color: var(--sev-adv-ink);
-  background: var(--sev-adv-bg);
-  border-color: var(--sev-adv-border);
+.tier-low {
+  color: var(--sev-low-ink);
+  background: var(--sev-low-bg);
+  border-color: var(--sev-low-border);
 }
 
-.tier-watch {
-  color: var(--sev-watch-ink);
-  background: var(--sev-watch-bg);
-  border-color: var(--sev-watch-border);
+.tier-med {
+  color: var(--sev-med-ink);
+  background: var(--sev-med-bg);
+  border-color: var(--sev-med-border);
 }
 
-.tier-warning {
-  color: var(--sev-warn-ink);
-  background: var(--sev-warn-bg);
-  border-color: var(--sev-warn-border);
+.tier-high {
+  color: var(--sev-high-ink);
+  background: var(--sev-high-bg);
+  border-color: var(--sev-high-border);
 }

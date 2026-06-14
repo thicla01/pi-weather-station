@@ -75,6 +75,30 @@ export function severity(level) {
 }
 
 /**
+ * Classify an NWS/ECCC alert's English event name to its PRODUCT TYPE
+ * (Warning > Watch > Advisory > Statement), independent of CAP severity.
+ * Both sources expose an English name carrying the product word: NWS
+ * `event` / `title_en` ("Heat Advisory", "Flood Watch"), ECCC `alert_name_en`
+ * / `title_en` ("Wind warning", "Special weather statement"). This lets the
+ * SeverityChip print the real product word — so a Heat *Advisory* (CAP
+ * severity Moderate) reads "Avis", never "Veille" (watch). Returns null when
+ * no product type is recognizable (caller falls back to a severity word).
+ * Order matters: a "Severe Thunderstorm Warning" is a warning, not a "severe".
+ *
+ * @param {?string} name — the English event name (alert.title_en / eventType)
+ * @returns {?string} the product-type slug ("warning" | "watch" | "advisory" |
+ *   "statement"), or null when none is recognizable
+ */
+export function eventProductType(name) {
+  const s = String(name || "").toLowerCase();
+  if (/\bwarning\b/.test(s)) return "warning";
+  if (/\bwatch\b/.test(s)) return "watch";
+  if (/\badvisory\b/.test(s)) return "advisory";
+  if (/\bstatement\b/.test(s)) return "statement";
+  return null;
+}
+
+/**
  * True when the user's current weather code reports active precipitation —
  * rain, snow, freezing rain, ice pellets, or thunderstorm. Used to choose
  * "intensifying" wording over "approaching" wording when the trend-bump

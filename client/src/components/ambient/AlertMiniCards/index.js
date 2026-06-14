@@ -114,7 +114,7 @@ const AlertMiniCards = () => {
                 }}
                 aria-label={t("alert.selectAlertAria")}
               >
-                <SeverityChip severity={alert.severity} />
+                <SeverityChip severity={alert.severity} eventName={alert.title_en} />
                 <span className={styles.title}>{title}</span>
                 <InlineIcon icon={chevronRight} className={styles.chevron} />
               </li>
