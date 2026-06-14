@@ -99,6 +99,20 @@ import {
  * and restores smooth panning. */
 const RING_HIDE_ZOOM = 13;
 
+// Visual nudge for the nearby-alerts radius ring when it would land exactly
+// on a drawn radar analysis ring. This only happens in KM mode at 50 / 100 km
+// (the radar rings are 50 / 100 km): the alert radius is always stored in km,
+// so its drawn circle coincides pixel-for-pixel with the radar circle and the
+// dotted ring hides under it, reading as invisible. In MI mode the radar rings
+// are 30 / 60 mi (48.3 / 96.6 km) while the alert ring is still drawn from km
+// (50 / 100 km), so they're already ~1.7 / 3.4 km apart and visible — no nudge.
+// Display-only: the survey *query* radius (alertRadiusKm) is unchanged; only
+// the drawn circle is pushed a few km outward (matching the mi-mode offset) so
+// it stays legible. The ring is a round proxy for the radius, never a precise
+// instrument, so a ~3 km visual offset on a 50 km circle is immaterial.
+const ALERT_RING_OVERLAP_EPS_M = 500;   // treat as "on top of" a radar ring within 0.5 km
+const ALERT_RING_NUDGE_M = 3000;        // push 3 km outward, just past the radar ring
+
 /**
  * Build the custom DivIcon used for the user's location marker. v2.14.64
  * replaces Leaflet's default blue teardrop pin — that bright blue
@@ -651,6 +665,20 @@ const WeatherMap = ({ zoom, dark }) => {
   const outerRadiusMeters =
     RADAR_GEOMETRY[distanceUnit].outer[RADAR_GEOMETRY[distanceUnit].outer.length - 1] *
     METERS_PER_UNIT[distanceUnit];
+
+  // Drawn radius for the alert ring. If it coincides with a currently-drawn
+  // radar ring (inner whenever radar analysis is on; outer only when the
+  // extended radius is enabled), nudge it outward so it doesn't hide under
+  // the radar ring — see ALERT_RING_* above for the km-vs-mi rationale.
+  const alertRingBaseMeters = alertRadiusKm * 1000;
+  const alertRingCollides =
+    (radarAnalysisEnabled &&
+      Math.abs(alertRingBaseMeters - innerRadiusMeters) < ALERT_RING_OVERLAP_EPS_M) ||
+    (radarAnalysisEnabled && extendedRadarRadius &&
+      Math.abs(alertRingBaseMeters - outerRadiusMeters) < ALERT_RING_OVERLAP_EPS_M);
+  const alertRingMeters = alertRingCollides
+    ? alertRingBaseMeters + ALERT_RING_NUDGE_M
+    : alertRingBaseMeters;
 
   // Nearby-alerts tap popup (Phase 3b): { latlng: [lat, lon], alerts: [...] }
   // when the user tapped inside one or more survey polygons; null otherwise.
@@ -1264,7 +1292,7 @@ const WeatherMap = ({ zoom, dark }) => {
         {showWeatherAlerts && showAlertRing && markerPosition && currentMapZoom < RING_HIDE_ZOOM ? (
           <Circle
             center={markerPosition}
-            radius={alertRadiusKm * 1000}
+            radius={alertRingMeters}
             pathOptions={radiusRingOptions}
           />
         ) : null}
