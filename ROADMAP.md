@@ -291,6 +291,17 @@ Triggered if any of the following materializes:
 
 Until then, RainViewer is "good enough" for US users in the existing fleet, and ECCC is the more impactful next radar source for the Quebec-heavy current install base.
 
+### 🌊 NWPS hydrologic / river-flood data (US) — gauges + Long Range Flood Outlook
+**Exploration only — not scheduled.** NOAA's [National Water Prediction Service](https://water.noaa.gov/) exposes a free, public, no-key API (`api.water.noaa.gov/nwps/v1/`) for river-gauge **observations + forecasts** with flood categories (Major/Moderate/Minor/Action/No-Flood), crest history, and a probabilistic **Long Range Flood Outlook**. This is *complementary* to what we already ship: we surface flood **alerts** (NWS+ECCC warnings/advisories); NWPS would add the **measurements & forecasts** tier (e.g. a "nearest river gauge flood status" badge in the AQI-badge idiom — a natural fit for a flood-prone user like k5map). Full verified notes, data model, and the US geospatial source landscape in [`docs/research-nws-hydro-and-gis-sources.md`](docs/research-nws-hydro-and-gis-sources.md).
+
+**Why long-term / not now:**
+- **US-only** — zero benefit to the Quebec-heavy fleet; the Canadian equivalent (ECCC hydrometric, `wateroffice.ec.gc.ca`) is a separate integration.
+- **Reliability flag** — NOAA states the API is *"not supported 24/7 and may be modified without advance notice"*; graceful degradation would be mandatory before it could drive anything kiosk-visible.
+- **Coverage/quality** — ~7,000 gauges report observations but only ~1,900 carry an official forecast, and ~half the network has no defined flood category (not categorizable). The usable subset is smaller than it looks.
+- **Open question** — the `/gauges` spatial-query syntax (for "nearest gauge to lat/lon") was not pinned down (bbox attempts returned empty/400; Swagger is JS-rendered). Resolve before any build.
+
+**Triggered if:** a US, flood-prone user joins the fleet and wants river-stage context the alert banner can't give. Until then it stays display-research; we already cover the flood-*alert* case via NWS+ECCC.
+
 ### 🔔 Browser push notifications (severe weather)
 If the Pi also serves remote clients on the local network, the Web Push API could deliver severe weather alerts to those devices even when the browser tab is not active. Requires a service worker, VAPID key generation, and a subscription management endpoint.
 
