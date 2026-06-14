@@ -98,6 +98,13 @@ The chart legend would grow from 2 → 4-6 entries; users could toggle individua
 
 **Why not start with a centred modal (Approach B)** : the kiosk's primary content is the radar context. Keeping the chart and radar side-by-side preserves the differentiating glance pattern of the Pi Weather Station. A modal can be added later as a third level (Approach C: compact → tall → wide → modal) if Approach A's ~50% width still feels too cramped after a few weeks of use.
 
+### 🔀 Auto-select forecast tab (hazard-priority router)
+The forecast-slab metric tab (Temp / Wind / Precip / Hours) is the one piece of UI state that stays frozen on whatever a human last tapped — so a wind warning can light the banner while the chart underneath sits on *Temp*. This item closes that gap: a deterministic router that points the metric tab at whatever explains the active weather, driven by signals the app **already** has (ECCC + NWS alerts, radar analysis, Tomorrow.io forecast). No new endpoint, no new fetch — the idle-stage gate, gov/radar/forecast signals, and decision helpers (`getRadarAlertState`, `confidenceBucket`, `isCurrentlyPrecipitating`) are all already in context.
+
+Designed as a **hazard router, not a "pick the interesting tab" ranker** — null-on-calm, never mutates the tab under an active reader (idle-stage gate), opt-in (default OFF, per-device toggle in the `local` settings section). Priority: new severe/extreme alert > active red/orange gov alert > radar nowcast > forecast threshold > do nothing. Four anti-flap brakes (refresh-tick eval + 30 s debounce + ENTER/EXIT hysteresis + 10-min dwell). Staged rollout behind a v2.18-style field-test flag.
+
+Full low-level design (priority ladder, native-unit threshold table, override semantics, file touch list, open questions): [`docs/auto-forecast-tab-selection-design.md`](docs/auto-forecast-tab-selection-design.md). **Load-bearing open question before Québec rollout:** ECCC `eventType` is an `alert_code`, not an English string like NWS — the keyword→tab map needs an explicit ECCC code lookup or server-side normalization first.
+
 ### 🇨🇦 Environment Canada radar source as an alternative to RainViewer
 Today's radar layer pulls 256×256 PNG tiles from RainViewer's CDN, which works globally but isn't optimal for the Quebec/Montreal-heavy fleet (7 Pis as of 2026-05-07). RainViewer's North American composite is downstream of the same MSC GeoMet feed that ECCC publishes directly, with extra latency and a ~10-min cadence. Two reasons to consider a Canadian-fleet switch:
 
