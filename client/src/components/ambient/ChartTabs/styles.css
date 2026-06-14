@@ -92,6 +92,23 @@
   flex: none;
 }
 
+/* Auto-select reason chip — shown only after the selector auto-switches
+ * the metric (opt-in). The SourceBadge (NWS/ECCC/FCST) carries the origin;
+ * the label echoes the metric. flex:none so it never steals tab/pill room. */
+.reasonChip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+}
+
+.reasonChipLabel {
+  font-family: "Geist Mono", monospace;
+  font-size: 11px;
+  letter-spacing: 0.04em;
+  color: var(--c-text-dim);
+}
+
 .periodPills .periodPill {
   font-family: "Geist Mono", monospace;
   font-weight: 500;

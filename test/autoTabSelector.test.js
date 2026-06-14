@@ -13,6 +13,7 @@ const assert = require("node:assert/strict");
 const A = require("../client/src/ui/autoTabSelector");
 const {
   selectAutoTab,
+  hazardTab,
   classifyAlertTab,
   summarizeForecast,
   firstNewSevereAlert,
@@ -312,6 +313,29 @@ test("summarizeForecast: partial data → nulls, no crash", () => {
   assert.equal(fc.maxGustMs, null);
   assert.equal(fc.maxPrecipProb, null);
   assert.equal(fc.currentWeatherCode, null);
+});
+
+// ───────────────────────── hazardTab (chip lifetime) ───────────────────
+test("hazardTab: ungated live verdict — gov/forecast/calm", () => {
+  // gov wind alert → wind, badge = source (ungated: no env needed)
+  const gov = hazardTab({ govAlerts: [govAlert()] }, TABS.GRID);
+  assert.equal(gov.tab, TABS.WIND);
+  assert.equal(gov.sourceBadge, "NWS");
+
+  // forecast precip → precip, FCST
+  const fcst = hazardTab({ forecast: { maxPrecipProb: 85 } }, TABS.GRID);
+  assert.equal(fcst.tab, TABS.PRECIP);
+  assert.equal(fcst.sourceBadge, "FCST");
+
+  // calm → null (this is what clears the chip on a passive display)
+  assert.equal(hazardTab({ govAlerts: [], forecast: {} }, TABS.GRID), null);
+});
+
+test("hazardTab: verdict is gate-independent (fires even when a switch would be held)", () => {
+  // No env / no gates passed in — hazardTab reflects the weather only, so a
+  // standing chip stays lit while a hazard persists even under a manual hold.
+  const v = hazardTab({ forecast: { currentWeatherCode: 8000 } }, TABS.PRECIP);
+  assert.equal(v.tab, TABS.PRECIP);
 });
 
 // ───────────────────────── firstNewSevereAlert ─────────────────────────

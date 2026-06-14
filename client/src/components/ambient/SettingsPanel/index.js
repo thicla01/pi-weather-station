@@ -248,6 +248,7 @@ const SectionLocalPrefs = ({ ctx, lang }) => {
     pressureUnit, savePressureUnit,
     mouseHide, saveMouseHide,
     showAdvisoryAlerts, saveShowAdvisoryAlerts,
+    autoSelectTab, saveAutoSelectTab,
     showAlertRing, saveShowAlertRing,
   } = ctx;
 
@@ -410,6 +411,24 @@ const SectionLocalPrefs = ({ ctx, lang }) => {
             "Dibuja el círculo punteado en el radio de alerta. Desactívalo para conservar solo los polígonos de alerta. Activado por defecto.")}
           value={Boolean(showAlertRing)}
           onChange={saveBoolFlag(saveShowAlertRing)}
+        />
+      </div>
+
+      {/* Auto-select forecast tab (per-device, localStorage). Off by
+        * default (opt-in): when on, the forecast chart's metric tab
+        * (Temp/Wind/Precip) follows active hazards — gov alerts +
+        * forecast thresholds. See docs/auto-forecast-tab-selection-design.md.
+        * On a non-touch display (stable monitor) it switches even at idle
+        * stage 0 since there's no reader to protect. */}
+      <div className={styles.toggleRow}>
+        <Toggle
+          label={lbl(lang, "Auto-select forecast tab", "Sélection auto de l'onglet", "Selección automática de pestaña")}
+          sub={lbl(lang,
+            "Switches Temp/Wind/Precip when the weather turns. Off by default.",
+            "Bascule Temp/Vent/Précip selon la météo. Désactivé par défaut.",
+            "Cambia Temp/Viento/Precip. según el tiempo. Desactivado por defecto.")}
+          value={Boolean(autoSelectTab)}
+          onChange={saveBoolFlag(saveAutoSelectTab)}
         />
       </div>
 

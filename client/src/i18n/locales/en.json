@@ -125,6 +125,7 @@
     "tabDays": "Days",
     "maximize": "Maximize",
     "restore": "Restore",
+    "autoSelected": "Auto-selected",
     "overlayPrecip": "Overlay precipitation on this chart",
     "pillMax": "max",
     "pillMin": "min",

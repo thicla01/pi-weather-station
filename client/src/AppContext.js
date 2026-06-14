@@ -113,6 +113,7 @@ const MARKER_VISIBLE_STORAGE_KEY = "markerIsVisible";
 const AI_USER_VISIBLE_STORAGE_KEY = "aiSummaryUserVisible";
 const MOUSE_HIDE_STORAGE_KEY = "mouseHide";
 const SHOW_ADVISORY_ALERTS_STORAGE_KEY = "showAdvisoryAlerts";
+const AUTO_SELECT_TAB_STORAGE_KEY = "autoSelectTab";
 const SHOW_ALERT_RING_STORAGE_KEY = "showAlertRing";
 const HIDE_RADAR_LEGEND_STORAGE_KEY = "hideRadarLegend";
 const RADAR_SOURCE_STORAGE_KEY = "radarSource";
@@ -662,6 +663,11 @@ export function AppContextProvider({ children }) {
   // alerts. Off by default; persisted to localStorage like mouseHide.
   // Threaded into selectEligibleGovAlerts via useEligibleGovAlerts.
   const [showAdvisoryAlerts, setShowAdvisoryAlerts] = useState(false);
+  // Per-device opt-in to auto-select the forecast chart's metric tab from
+  // active hazards (gov alerts / forecast). Off by default (LLD §7);
+  // persisted to localStorage like showAdvisoryAlerts. Consumed by
+  // useAutoTabSelector via UiPrefsContext.
+  const [autoSelectTab, setAutoSelectTab] = useState(false);
   const [hideRadarLegend, setHideRadarLegend] = useState(false);
   // Visual radar source on the map. "rainviewer" (default) keeps the existing
   // CDN-cached PNG tiles + timeline scrubber; "eccc" swaps to Environment
@@ -744,6 +750,24 @@ export function AppContextProvider({ children }) {
     }
     setShowAdvisoryAlerts(newState);
     window.localStorage.setItem(SHOW_ADVISORY_ALERTS_STORAGE_KEY, newState);
+  }, []);
+
+  /**
+   * Save the per-device "auto-select forecast tab" opt-in. Mirrors
+   * saveShowAdvisoryAlerts (JSON-encoded boolean from the Settings Toggle).
+   *
+   * @param {String} newVal JSON-encoded boolean ("true" / "false")
+   */
+  const saveAutoSelectTab = useCallback((newVal) => {
+    let newState;
+    try {
+      newState = JSON.parse(newVal);
+    } catch (e) {
+      console.log("saveAutoSelectTab", e);
+      return;
+    }
+    setAutoSelectTab(newState);
+    window.localStorage.setItem(AUTO_SELECT_TAB_STORAGE_KEY, newState);
   }, []);
 
   /**
@@ -928,6 +952,16 @@ export function AppContextProvider({ children }) {
       console.log("showAdvisoryAlerts", e);
     }
     setShowAdvisoryAlerts(!!showAdvisoryAlerts);
+
+    let autoSelectTab;
+    try {
+      autoSelectTab = JSON.parse(
+        window.localStorage.getItem(AUTO_SELECT_TAB_STORAGE_KEY)
+      );
+    } catch (e) {
+      console.log("autoSelectTab", e);
+    }
+    setAutoSelectTab(!!autoSelectTab);
 
     let hideRadarLegend;
     try {
@@ -2152,6 +2186,7 @@ export function AppContextProvider({ children }) {
     updateHourlyWeatherData,
     saveMouseHide,
     saveShowAdvisoryAlerts,
+    saveAutoSelectTab,
     saveShowAlertRing,
     saveHideRadarLegend,
     saveRadarSource,
@@ -2239,6 +2274,7 @@ export function AppContextProvider({ children }) {
     updateHourlyWeatherData,
     saveMouseHide,
     saveShowAdvisoryAlerts,
+    saveAutoSelectTab,
     saveShowAlertRing,
     saveHideRadarLegend,
     saveRadarSource,
@@ -2402,6 +2438,7 @@ export function AppContextProvider({ children }) {
     radarSpeed,
     radarTimelineVisible,
     showAdvisoryAlerts,
+    autoSelectTab,
   }), [
     darkMode,
     darkModeAuto,
@@ -2433,6 +2470,7 @@ export function AppContextProvider({ children }) {
     radarSpeed,
     radarTimelineVisible,
     showAdvisoryAlerts,
+    autoSelectTab,
   ]);
 
   // Weather data: polled environmental payloads + their error states.

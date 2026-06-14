@@ -5,6 +5,8 @@ import HourlyForecastColumns from "~/components/ambient/HourlyForecastColumns";
 import DailyForecastColumns from "~/components/ambient/DailyForecastColumns";
 import { ExpandIcon, RestoreIcon } from "~/components/WeatherMap/icons";
 import ForecastSummaryPills from "./ForecastSummaryPills";
+import SourceBadge from "~/components/ambient/SourceBadge";
+import useAutoTabSelector from "~/hooks/useAutoTabSelector";
 import styles from "./styles.css";
 
 // Metric tabs, in display order (v3.1 Phase 5). "grid" is the
@@ -71,6 +73,11 @@ function readStoredView(key, max) {
  * `:has()`); the grid metric densifies (8 → 24 cells) and the chart
  * area grows.
  *
+ * When the user opts in (Settings → "Auto-select forecast tab"),
+ * `useAutoTabSelector` may command the active metric from current hazards;
+ * a small source-badge reason chip in the header marks an auto-switch, and
+ * any manual tap holds the user's choice. Period is never auto-driven.
+ *
  * @returns {JSX.Element} forecast slab
  */
 const ChartTabs = () => {
@@ -119,11 +126,30 @@ const ChartTabs = () => {
     else setDailyMetric(index);
   }, [period]);
 
+  // Auto-tab selector (Phase 1): the hook commands a metric from active
+  // hazards (gov alerts / forecast); we apply it here without ever touching
+  // `period`. A user gesture stamps a manual hold the hook honours.
+  const { commandedMetric, autoSwitchSource, stampManualHold } = useAutoTabSelector(metric);
+  const appliedCmdRef = useRef(null);
+  useEffect(() => {
+    if (!commandedMetric) {
+      appliedCmdRef.current = null;
+      return;
+    }
+    if (appliedCmdRef.current === commandedMetric) return; // already applied this command
+    const idx = METRICS.indexOf(commandedMetric);
+    if (idx === -1) return;
+    appliedCmdRef.current = commandedMetric;
+    if (idx !== metricIndex) setMetricIndex(idx); // metric only — never period
+  }, [commandedMetric, metricIndex, setMetricIndex]);
+
   // Tap-on-chart cycles to the next metric (wraps) — kept from the
-  // dot-cycle era because users already know the gesture.
+  // dot-cycle era because users already know the gesture. A cycle is a
+  // user gesture, so it also stamps the manual hold.
   const cycleMetric = useCallback(() => {
     setMetricIndex((metricIndex + 1) % METRICS.length);
-  }, [metricIndex, setMetricIndex]);
+    stampManualHold();
+  }, [metricIndex, setMetricIndex, stampManualHold]);
 
   const metricLabel = (m) => {
     if (m === "grid") {
@@ -189,6 +215,15 @@ const ChartTabs = () => {
             {t("charts.period5d", { defaultValue: "5 days" })}
           </button>
         </span>
+        {commandedMetric && autoSwitchSource && commandedMetric === metric ? (
+          <span
+            className={styles.reasonChip}
+            aria-label={`${t("charts.autoSelected", { defaultValue: "Auto-selected" })}: ${metricLabel(commandedMetric)}`}
+          >
+            <SourceBadge source={autoSwitchSource} />
+            <span className={styles.reasonChipLabel}>{metricLabel(commandedMetric)}</span>
+          </span>
+        ) : null}
         <button
           type="button"
           className={styles.actionButton}
@@ -208,7 +243,7 @@ const ChartTabs = () => {
             role="tab"
             aria-selected={i === metricIndex}
             className={`${styles.metricTab} ${i === metricIndex ? styles.metricTabActive : ""}`}
-            onClick={() => setMetricIndex(i)}
+            onClick={() => { setMetricIndex(i); stampManualHold(); }}
           >
             {m === "grid" ? (
               <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
