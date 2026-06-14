@@ -498,7 +498,15 @@ export function buildRadiusRingOptions(dark, nightRed = false) {
     return { color: "#e07070", weight: 2.5, dashArray: "11 5 2 5", lineCap: "round", fill: false };
   }
   return {
-    color: dark ? "#6a8ca8" : "#3a5a78",
+    // Light-mode value is a clearly-saturated blue (#1565c0), NOT a muted
+    // slate. The radar calm-rings are #3a3938; a desaturated blue like the
+    // former #3a5a78 shares their exact red channel (0x3a) and is close in
+    // green, so only the blue channel differed — it read as "grey with a
+    // hint of blue" against the light, colourful basemap and was
+    // indistinguishable from the radar rings (reported 2026-06-13).
+    // Dark mode keeps the lighter cool blue — it reads cool against the
+    // dark basemap, distinct from the warm-grey (#a8a097) radar rings.
+    color: dark ? "#6a8ca8" : "#1565c0",
     weight: 2.5,
     dashArray: "2 7",
     lineCap: "round",
