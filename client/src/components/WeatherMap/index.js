@@ -683,6 +683,10 @@ const WeatherMap = ({ zoom, dark }) => {
   // Nearby-alerts tap popup (Phase 3b): { latlng: [lat, lon], alerts: [...] }
   // when the user tapped inside one or more survey polygons; null otherwise.
   const [surveyPopup, setSurveyPopup] = useState(null);
+  // Holds the deferred-close timer id for the survey popup, so the
+  // "Re-center here" close can be cancelled if the map unmounts first
+  // (see handleSurveyRecenter for why the close is deferred).
+  const recenterCloseTimerRef = useRef(null);
 
   const handleMapClick = useCallback((e) => {
     const { lat: latitude, lng: longitude } = e.latlng;
@@ -705,12 +709,27 @@ const WeatherMap = ({ zoom, dark }) => {
   // "Re-center here" — move the location to the tapped point (guaranteed
   // inside the tapped polygon(s)) so the existing point-based banner +
   // GovAlertDetail surface the full alert(s); then close the popup.
+  //
+  // The close is deferred to the next tick on purpose. Clearing the
+  // popup synchronously here removes it from the DOM in the middle of
+  // the originating click's propagation. Leaflet suppresses clicks that
+  // land on a popup via a `_leaflet_disable_click` flag on the popup
+  // container; once that container is gone, the same click reaches the
+  // map, Leaflet fires a map `click`, and the debounced `handleMapClick`
+  // re-opens a survey popup at the click point — so the popup appears to
+  // "stick" after re-centering. Keeping it mounted until the click has
+  // finished propagating lets Leaflet's own guard swallow the click
+  // (this is exactly what Leaflet's built-in popup close button does via
+  // DomEvent.stop). See incident_survey_popup_recenter_click_leak.md.
   const handleSurveyRecenter = useCallback(() => {
     if (surveyPopup) {
       setMapPosition({ latitude: surveyPopup.latlng[0], longitude: surveyPopup.latlng[1] });
-      setSurveyPopup(null);
+      recenterCloseTimerRef.current = setTimeout(() => setSurveyPopup(null), 0);
     }
   }, [surveyPopup, setMapPosition]);
+
+  // Cancel a pending deferred close if the map unmounts before it fires.
+  useEffect(() => () => clearTimeout(recenterCloseTimerRef.current), []);
 
   const mapClickHandler = useMemo(
     () => debounce(handleMapClick, MAP_CLICK_DEBOUNCE_TIME),
