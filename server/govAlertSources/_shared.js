@@ -146,9 +146,10 @@ function isWatchEvent(name) {
  * Flash Flood / Tornado Watches CAP `Severe`, which would otherwise paint
  * them red and make them shout exactly as loud as a Warning on the banner,
  * the map overlay and the SenseHat pulse. Capping the *severity* (not just
- * the tier) keeps every downstream consumer consistent: the tier drops to
- * orange, the SeverityChip word becomes "Watch/Veille" (it re-derives from
- * severity), and severity-sorting ranks the watch below real warnings.
+ * the tier) keeps every severity-derived consumer consistent: the tier
+ * drops to orange, the SeverityChip's *colour* follows (its word is
+ * independent — it comes from the alert's product type, not severity), and
+ * severity-sorting ranks the watch below real warnings.
  * Non-watch alerts and already-sub-severe watches pass through untouched.
  *
  * @param {String} severity normalized severity
