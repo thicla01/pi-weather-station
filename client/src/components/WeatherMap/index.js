@@ -82,7 +82,7 @@ import {
   DIR_OUTER_TO_BEARING,
   ARROW_COLOR,
   DOT_COLOR_BY_TIER,
-  tierColour,
+  buildAlertPolygonLayers,
   buildRadiusRingOptions,
   pointInGeometry,
 } from "./geometry";
@@ -390,9 +390,11 @@ ZoomLevelHandler.propTypes = {
  * @param {Array} props.govAlerts — list of active alerts
  * @param {boolean} props.nightRed — night-vision palette active (alert
  *   chrome collapses to the red family, Phase 3 rule A1)
+ * @param {boolean} props.dark — dark-mode flag (light mode adds the dark
+ *   casing beneath the coloured stroke; dark/nightRed skip it)
  * @returns {JSX.Element|null}
  */
-const AlertGeometryOverlay = ({ highlightedAlertId, govAlerts, nightRed }) => {
+const AlertGeometryOverlay = ({ highlightedAlertId, govAlerts, nightRed, dark }) => {
   const map = useMap();
   // Find the matching alert. Memo because govAlerts changes on every
   // poll cycle but we only care about the active highlight.
@@ -400,26 +402,15 @@ const AlertGeometryOverlay = ({ highlightedAlertId, govAlerts, nightRed }) => {
     if (!highlightedAlertId || !Array.isArray(govAlerts)) return null;
     return govAlerts.find((a) => a && a.id === highlightedAlertId && a.geometry) || null;
   }, [govAlerts, highlightedAlertId]);
-  // Tier → colour via the shared tierColour() (geometry.js) so the
-  // overlay, the nearby-alerts polygons and the legend key all agree —
-  // including the nightRed collapse-to-red rule (Phase 3, A1).
-  const colour = useMemo(
-    () => (alert ? tierColour(alert.tier, nightRed) : null),
-    [alert, nightRed]
+  // Tier → stacked path layers via the shared builder (geometry.js) so the
+  // overlay and the nearby-alerts polygons agree — including the nightRed
+  // collapse-to-red rule (Phase 3, A1) and the light-mode dark casing that
+  // lifts the warm hues off the light basemap (2 px solid border + 15 %
+  // fill on top, distinct from the dashed radar circles).
+  const layers = useMemo(
+    () => (alert ? buildAlertPolygonLayers(alert.tier, nightRed, dark) : null),
+    [alert, nightRed, dark]
   );
-  // GeoJSON style — 2 px border + 15 % fill so the polygon reads
-  // clearly against the radar tiles without obscuring them.
-  const style = useMemo(() => (colour ? {
-    color: colour,
-    weight: 2,
-    fillColor: colour,
-    fillOpacity: 0.15,
-    // `dashArray: null` keeps the border solid — distinct from the
-    // dashed radar circles, which use 6/4 dash arrays. The user
-    // should be able to tell at a glance "this is a real alert
-    // boundary, not a derived radar ring".
-    dashArray: null,
-  } : null), [colour]);
   // fitBounds when the alert (or its geometry) changes. Generous
   // padding via `padding: [40, 40]` so the polygon doesn't sit
   // edge-to-edge against the map viewport — gives the user context
@@ -440,13 +431,16 @@ const AlertGeometryOverlay = ({ highlightedAlertId, govAlerts, nightRed }) => {
       // Leaflet can't parse the geometry.
     }
   }, [alert, map]);
-  if (!alert || !style) return null;
+  if (!alert || !layers) return null;
+  // One <GeoJSON> per layer (casing under, coloured over) — mirrors how
+  // RiskRing stacks buildRingLayers. Keyed per layer so the alert change
+  // re-mounts both.
   return (
-    <GeoJSON
-      key={alert.id}
-      data={alert.geometry}
-      style={() => style}
-    />
+    <>
+      {layers.map((ly, i) => (
+        <GeoJSON key={`${alert.id}-${i}`} data={alert.geometry} style={() => ly} />
+      ))}
+    </>
   );
 };
 
@@ -455,11 +449,13 @@ AlertGeometryOverlay.propTypes = {
   // eslint-disable-next-line react/forbid-prop-types -- alert objects are payload-shaped, not statically typed
   govAlerts: PropTypes.array,
   nightRed: PropTypes.bool,
+  dark: PropTypes.bool,
 };
 
 AlertGeometryOverlay.defaultProps = {
   highlightedAlertId: null,
   govAlerts: [],
+  dark: false,
 };
 
 /**
@@ -475,9 +471,10 @@ AlertGeometryOverlay.defaultProps = {
  * @param {object} props
  * @param {Array<object>} props.alerts nearby alerts (each carries `geometry`)
  * @param {boolean} props.nightRed night-vision palette active (tiers collapse to the red family)
+ * @param {boolean} props.dark dark-mode flag (light mode adds the dark casing; dark/nightRed skip it)
  * @returns {JSX.Element|null} the polygon layers, or null when the list is empty
  */
-const NearbyAlertsOverlay = ({ alerts, nightRed }) => {
+const NearbyAlertsOverlay = ({ alerts, nightRed, dark }) => {
   if (!Array.isArray(alerts) || alerts.length === 0) return null;
   // Sort ascending by severity tier so the most severe polygon is inserted
   // last and Leaflet paints it on top of any lower-tier polygon it overlaps
@@ -491,12 +488,15 @@ const NearbyAlertsOverlay = ({ alerts, nightRed }) => {
   return (
     <>
       {painted.map((a) => {
-        const colour = tierColour(a.tier, nightRed);
-        // Same 2 px solid border + 15 % fill as the single-alert overlay
-        // so radar reads through and the solid border stays distinct from
-        // the dashed radar/risk circles.
-        const style = { color: colour, weight: 2, fillColor: colour, fillOpacity: 0.15, dashArray: null };
-        return <GeoJSON key={a.id} data={a.geometry} style={() => style} />;
+        // Same stacked layers as the single-alert overlay (light-mode dark
+        // casing under, coloured stroke + 15 % fill over) so radar reads
+        // through and the solid border stays distinct from the dashed
+        // radar/risk circles. Ascending-severity sort keeps the worst
+        // alert's coloured stroke painting last.
+        const layers = buildAlertPolygonLayers(a.tier, nightRed, dark);
+        return layers.map((ly, i) => (
+          <GeoJSON key={`${a.id}-${i}`} data={a.geometry} style={() => ly} />
+        ));
       })}
     </>
   );
@@ -505,10 +505,12 @@ const NearbyAlertsOverlay = ({ alerts, nightRed }) => {
 NearbyAlertsOverlay.propTypes = {
   alerts: PropTypes.array,
   nightRed: PropTypes.bool,
+  dark: PropTypes.bool,
 };
 
 NearbyAlertsOverlay.defaultProps = {
   alerts: [],
+  dark: false,
 };
 
 /**
@@ -1384,12 +1386,13 @@ const WeatherMap = ({ zoom, dark }) => {
           highlightedAlertId={highlightedAlertId}
           govAlerts={govAlerts}
           nightRed={nightRed}
+          dark={dark}
         />
         {/* Nearby-alerts survey polygons (Phase 2) — every active alert
             within the radius, painted tier-coloured. Display-only; gated
             on the layer toggle (OFF by default until the Phase 3 dock
             button). Never moves the map. */}
-        {showWeatherAlerts ? <NearbyAlertsOverlay alerts={nearbyAlerts} nightRed={nightRed} /> : null}
+        {showWeatherAlerts ? <NearbyAlertsOverlay alerts={nearbyAlerts} nightRed={nightRed} dark={dark} /> : null}
         {/* Survey tap popup (Phase 3b): opens at the tapped point when it
             landed inside one or more alert polygons. Lightweight subject +
             a single "Re-center here" that re-activates the point-based path. */}
