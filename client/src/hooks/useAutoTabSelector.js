@@ -1,11 +1,13 @@
-import { useContext, useEffect, useRef, useState, useCallback } from "react";
+import { useContext, useEffect, useMemo, useRef, useState, useCallback } from "react";
 import {
   SystemContext,
   AlertsContext,
   WeatherDataContext,
   UiPrefsContext,
+  RadarStateContext,
 } from "~/AppContext";
 import { useTimeOfDay } from "~/ui/hybrid";
+import { getRadarAlertState, severity } from "~/ui/alertLogic";
 import {
   selectAutoTab,
   hazardTab,
@@ -38,13 +40,15 @@ function readManualHold() {
 }
 
 /**
- * Phase-1 driver for the auto-tab selector. Subscribes to the existing
- * contexts, assembles the native-unit signals snapshot, evaluates the pure
- * reducer (client/src/ui/autoTabSelector.js) on data-refresh ticks
- * (debounced), and exposes the commanded metric + a manual-hold stamper.
+ * Driver for the auto-tab selector. Subscribes to the existing contexts,
+ * assembles the native-unit signals snapshot (gov alerts, radar nowcast,
+ * Tomorrow.io forecast), evaluates the pure reducer
+ * (client/src/ui/autoTabSelector.js) on data-refresh ticks (debounced), and
+ * exposes the commanded metric + a manual-hold stamper.
  *
- * NO radar in Phase 1: `radarAlertState` is always null, so the reducer's
- * radar class is skipped (it is partial-data-tolerant). Radar is Phase 2.
+ * Phase 2: the radar nowcast is wired (Class 3 + the A2 red-radar override),
+ * and the active-reader inhibit is scoped to the forecast card (LLD §13) — the
+ * caller passes a ref it stamps on slab interaction.
  *
  * The reducer is pure; all the React-specific plumbing (context reads, the
  * debounce, the manual-hold round-trip through localStorage, the
@@ -52,15 +56,18 @@ function readManualHold() {
  *
  * @param {?String} activeMetric the metric currently shown (the active
  *   period's tab — "temp" | "wind" | "precip" | "grid")
+ * @param {?{current: Number}} cardActivityRef a ref whose `.current` holds the
+ *   epoch ms of the last interaction with the forecast card (touch inhibit)
  * @returns {{commandedMetric: ?String, autoSwitchSource: ?String, stampManualHold: (function(): void)}}
  *   the commanded metric (null = leave the user's tab), the source badge for
  *   the reason chip, and a callback to stamp the manual hold on a user tap
  */
-export default function useAutoTabSelector(activeMetric) {
+export default function useAutoTabSelector(activeMetric, cardActivityRef) {
   const ui = useContext(UiPrefsContext);
   const system = useContext(SystemContext);
   const alerts = useContext(AlertsContext);
   const weather = useContext(WeatherDataContext);
+  const radar = useContext(RadarStateContext);
   const palette = useTimeOfDay();
 
   const autoSelectTab = !!(ui && ui.autoSelectTab);
@@ -68,6 +75,37 @@ export default function useAutoTabSelector(activeMetric) {
   const govAlerts = (alerts && alerts.govAlerts) || null;
   const currentWeatherData = weather && weather.currentWeatherData;
   const hourlyWeatherData = weather && weather.hourlyWeatherData;
+
+  // Radar nowcast → the reducer's Class 3 (Phase 2). Reduce the radar slice to
+  // the verdict the reducer needs: { tier, confidenceBucket, approaching }.
+  // `approaching` mirrors getRadarAlertState's source-trend pick (bumped, or a
+  // genuine "approaching" trend on the higher-severity ring). Memoized on the
+  // 8 risk/trend fields ONLY — never on currentMapZoom — so a map pan can't
+  // re-trigger the eval. currentlyPrecipitating only changes the (unused)
+  // i18nKey, so it's passed false.
+  const innerRisk = radar && radar.innerRisk;
+  const outerRisk = radar && radar.outerRisk;
+  const innerTrend = radar && radar.innerTrend;
+  const outerTrend = radar && radar.outerTrend;
+  const innerBumped = radar && radar.innerBumped;
+  const outerBumped = radar && radar.outerBumped;
+  const innerConf = radar && radar.innerTrendConfidence;
+  const outerConf = radar && radar.outerTrendConfidence;
+  const radarAlertState = useMemo(() => {
+    const rs = getRadarAlertState(
+      innerRisk, outerRisk, innerTrend, outerTrend,
+      innerBumped, outerBumped, innerConf, outerConf, false,
+    );
+    if (!rs) return null;
+    const innerIsSource = severity(innerRisk) >= severity(outerRisk);
+    const srcTrend = innerIsSource ? innerTrend : outerTrend;
+    const srcBumped = innerIsSource ? innerBumped : outerBumped;
+    return {
+      tier: rs.tier,
+      confidenceBucket: rs.confidenceBucket,
+      approaching: !!(srcBumped || srcTrend === "approaching"),
+    };
+  }, [innerRisk, outerRisk, innerTrend, outerTrend, innerBumped, outerBumped, innerConf, outerConf]);
 
   // The metric the hook is currently commanding (null = leave the user's
   // tab; the null-on-calm contract). Source is the badge for the chip.
@@ -132,10 +170,13 @@ export default function useAutoTabSelector(activeMetric) {
         autoSelectEnabled: autoSelectTab,
         touchCapable:
           typeof navigator !== "undefined" && navigator.maxTouchPoints > 0,
-        sleepStage,
+        // Active-reader inhibit is scoped to the FORECAST CARD (LLD §13): the
+        // most recent interaction timestamp on the slab, read at eval time.
+        lastCardActivityAt:
+          cardActivityRef && cardActivityRef.current ? cardActivityRef.current : null,
         nightQuiet: palette === "nightRed",
       };
-      const signals = { govAlerts, radarAlertState: null, forecast, env };
+      const signals = { govAlerts, radarAlertState, forecast, env };
       const state = {
         currentTab: activeMetric,
         manualHoldAt: readManualHold(),
@@ -171,10 +212,11 @@ export default function useAutoTabSelector(activeMetric) {
     currentWeatherData,
     hourlyWeatherData,
     govAlerts,
-    sleepStage,
+    radarAlertState,
     autoSelectTab,
     palette,
     activeMetric,
+    cardActivityRef,
   ]);
 
   return {

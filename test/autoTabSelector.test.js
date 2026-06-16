@@ -21,6 +21,7 @@ const {
   TABS,
   HOLD_MS,
   DWELL_MS,
+  CARD_ACTIVE_MS,
 } = A;
 
 const NOW = 1_700_000_000_000; // fixed epoch ms — pure, no Date.now()
@@ -40,7 +41,7 @@ const govAlert = (over = {}) => ({
 const env = (over = {}) => ({
   autoSelectEnabled: true,
   touchCapable: true,
-  sleepStage: 1, // glance mode — switching allowed
+  lastCardActivityAt: null, // no recent forecast-card interaction → not inhibited
   nightQuiet: false,
   ...over,
 });
@@ -132,25 +133,34 @@ test("red/orange but unmappable event (fog) → falls through to calm → null",
 
 // ───────────────────────── gating ──────────────────────────────────────
 // Non-severe (orange) alert so the new-severe puncture doesn't fire — we're
-// isolating the stage-0 gate, which a severe alert would (correctly) override.
+// isolating a gate, which a severe alert would (correctly) override.
 const orangeWind = govAlert({ severity: "moderate", tier: "orange" });
 
-test("stage-0 on a TOUCH device → inhibited (don't yank from a reader)", () => {
+test("B2: recent forecast-card activity on a TOUCH device → inhibited", () => {
   const r = selectAutoTab(
-    { govAlerts: [orangeWind], env: env({ touchCapable: true, sleepStage: 0 }) },
+    { govAlerts: [orangeWind], env: env({ touchCapable: true, lastCardActivityAt: NOW - 10_000 }) },
     baseState(),
     NOW,
   );
-  assert.equal(r, null);
+  assert.equal(r, null); // reading/scrolling the card → don't switch under them
 });
 
-test("stage-0 on a NON-touch display → NOT inhibited (the stable case, §6.1)", () => {
+test("B2: recent card activity on a NON-touch display → NOT inhibited (stable case, §6.1)", () => {
   const r = selectAutoTab(
-    { govAlerts: [orangeWind], env: env({ touchCapable: false, sleepStage: 0 }) },
+    { govAlerts: [orangeWind], env: env({ touchCapable: false, lastCardActivityAt: NOW - 10_000 }) },
     baseState(),
     NOW,
   );
-  assert.equal(r.tab, TABS.WIND); // switches — no reader to protect on a non-touch monitor
+  assert.equal(r.tab, TABS.WIND); // no reader to protect on a non-touch monitor
+});
+
+test("B2: STALE card activity (> CARD_ACTIVE_MS) on touch → NOT inhibited", () => {
+  const r = selectAutoTab(
+    { govAlerts: [orangeWind], env: env({ touchCapable: true, lastCardActivityAt: NOW - (CARD_ACTIVE_MS + 1000) }) },
+    baseState(),
+    NOW,
+  );
+  assert.equal(r.tab, TABS.WIND); // grace expired → free to switch
 });
 
 test("manual hold active → forecast/gov suppressed", () => {
@@ -251,6 +261,109 @@ test("priority: gov alert beats radar nowcast", () => {
     NOW,
   );
   assert.equal(r.tab, TABS.WIND); // gov wins
+});
+
+// ───────────────────────── A2: radar override (Phase 2) ────────────────
+const orangeHeat = govAlert({ severity: "moderate", tier: "orange", eventType: "Heat Advisory", title_en: "Heat Advisory" });
+const redRadarApproaching = { tier: "red", approaching: true, confidenceBucket: "high" };
+
+test("A2: red + approaching + high-conf radar beats an ORANGE gov advisory → Precip", () => {
+  const r = selectAutoTab(
+    { govAlerts: [orangeHeat], radarAlertState: redRadarApproaching, env: env() },
+    baseState(),
+    NOW,
+  );
+  assert.equal(r.tab, TABS.PRECIP);
+  assert.equal(r.sourceBadge, "RADAR"); // the imminent storm the warning hasn't caught yet
+});
+
+test("A2: a RED (severe/extreme) gov alert still beats the radar override", () => {
+  // Already-known red gov so the puncture doesn't fire — this tests the ladder.
+  const redWind = govAlert({ id: "rw", severity: "severe", tier: "red", eventType: "High Wind Warning", title_en: "High Wind Warning" });
+  const r = selectAutoTab(
+    { govAlerts: [redWind], radarAlertState: redRadarApproaching, env: env() },
+    baseState({ knownSevereAlertKeys: [alertKey(redWind)] }),
+    NOW,
+  );
+  assert.equal(r.tab, TABS.WIND);
+  assert.equal(r.sourceBadge, "NWS"); // authoritative red alert wins outright
+});
+
+test("A2: the override needs BOTH approaching AND high confidence — else orange gov keeps the tab", () => {
+  const notApproaching = selectAutoTab(
+    { govAlerts: [orangeHeat], radarAlertState: { tier: "red", approaching: false, confidenceBucket: "high" }, env: env() },
+    baseState(),
+    NOW,
+  );
+  assert.equal(notApproaching.tab, TABS.TEMP);
+  const midConf = selectAutoTab(
+    { govAlerts: [orangeHeat], radarAlertState: { tier: "red", approaching: true, confidenceBucket: "mid" }, env: env() },
+    baseState(),
+    NOW,
+  );
+  assert.equal(midConf.tab, TABS.TEMP);
+});
+
+test("A2: an ORANGE radar (not red) never overrides an orange gov", () => {
+  const r = selectAutoTab(
+    { govAlerts: [orangeHeat], radarAlertState: { tier: "orange", approaching: true, confidenceBucket: "high" }, env: env() },
+    baseState(),
+    NOW,
+  );
+  assert.equal(r.tab, TABS.TEMP); // override is red-tier only; orange gov keeps it
+});
+
+// ── A2 ENTER/EXIT hysteresis (warm-band) — Phase 2 review fix ────────────
+// A red echo near its thresholds jitters tick-to-tick (`approaching` flips,
+// confidence wobbles across the high/mid line). Without hysteresis the winner
+// seesaws between Precip (A2 fires) and the persistent orange gov's tab (A2
+// misses). The warm-band must commit Precip ONCE and hold it through the
+// jitter, releasing only when BOTH axes genuinely weaken.
+
+test("A2 hysteresis: a wobbling red echo under a persistent orange gov switches ONCE, no seesaw", () => {
+  const ticks = [
+    { tier: "red", approaching: true,  confidenceBucket: "high" }, // ENTER → Precip
+    { tier: "red", approaching: false, confidenceBucket: "high" }, // approaching flickers off → HOLD
+    { tier: "red", approaching: true,  confidenceBucket: "mid"  }, // confidence wobbles down → HOLD
+    { tier: "red", approaching: false, confidenceBucket: "high" }, // jitter again → HOLD
+    { tier: "red", approaching: true,  confidenceBucket: "high" }, // back to full → HOLD
+  ];
+  let state = baseState({ currentTab: TABS.TEMP }); // start on the gov's tab
+  let switches = 0;
+  ticks.forEach((radar, i) => {
+    const now = NOW + i * (DWELL_MS + 60_000); // each tick past the dwell floor
+    const r = selectAutoTab(
+      { govAlerts: [orangeHeat], radarAlertState: radar, env: env() },
+      state,
+      now,
+    );
+    if (r) { // commit() collapses same-tab → a non-null return is a real switch
+      switches += 1;
+      state = { ...state, currentTab: r.tab, lastAutoSwitchAt: now };
+    }
+  });
+  assert.equal(switches, 1); // Temp → Precip once, then held; never back to Temp
+  assert.equal(state.currentTab, TABS.PRECIP);
+});
+
+test("A2 hysteresis: a one-axis flicker (still high) HOLDS Precip — no switch to the orange gov", () => {
+  const state = baseState({ currentTab: TABS.PRECIP, lastAutoSwitchAt: NOW - (DWELL_MS + 1) });
+  const r = selectAutoTab(
+    { govAlerts: [orangeHeat], radarAlertState: { tier: "red", approaching: false, confidenceBucket: "high" }, env: env() },
+    state,
+    NOW,
+  );
+  assert.equal(r, null); // held on Precip; the orange gov does NOT reclaim on a single-axis dip
+});
+
+test("A2 hysteresis: when BOTH axes weaken, the held Precip releases back to the orange gov", () => {
+  const state = baseState({ currentTab: TABS.PRECIP, lastAutoSwitchAt: NOW - (DWELL_MS + 1) });
+  const r = selectAutoTab(
+    { govAlerts: [orangeHeat], radarAlertState: { tier: "red", approaching: false, confidenceBucket: "mid" }, env: env() },
+    state,
+    NOW,
+  );
+  assert.equal(r.tab, TABS.TEMP); // not-approaching AND mid → genuine recede → EXIT → gov reclaims
 });
 
 // ───────────────────────── forecast class + hysteresis ─────────────────

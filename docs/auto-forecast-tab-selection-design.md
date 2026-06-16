@@ -1,6 +1,8 @@
 # LLD — Auto-select forecast tab (hazard-priority router)
 
-**Status:** Phase 0 (pure reducer + tests, PR #243) and Phase 1 (wiring — `useAutoTabSelector` hook + opt-in toggle + reason chip) **landed 2026-06-14**. This is the low-level design of record. Remaining: Phase 2 (radar class), Phase 3 (optional default-ON flip), and the **deferred** fleet-wide field-test flag (see §7/§10).
+**Status:** Phase 0 (pure reducer + tests, PR #243), Phase 1 (wiring — `useAutoTabSelector` hook + opt-in toggle + reason chip, PR #245), and **Phase 2** (radar nowcast class + **A2** priority override + **B2** card-scoped active-reader gate) **landed**. This is the low-level design of record. Remaining: Phase 3 (optional default-ON flip) and the **deferred** fleet-wide field-test flag (see §7/§10).
+
+> **Phase 2 decisions (resolved 2026-06-15):** **A2** — a red + approaching + high-confidence radar echo outranks an *orange* (moderate) gov advisory (surfaces an imminent storm before a warning is issued), but a *red* (severe/extreme) gov alert wins outright and the severe puncture beats all. The shared ladder is one `pickHazardTab()` used by both the gated switch and the chip verdict. **B2** — the touch "active reader" inhibit is scoped to recent interaction with the **forecast card** (`slabRef` pointer/scroll, `CARD_ACTIVE_MS = 60 s`) instead of any global screen activity; non-touch displays stay uninhibited, and the 20-min manual hold still wins on a tab tap.
 **Audience:** maintainer / implementer (dev-facing).
 **One-liner:** when the weather turns, point the forecast-chart metric tab (Temp / Wind / Precip / Hours) at the metric that explains it — driven by the signals the app *already* has (ECCC + NWS alerts, radar analysis, Tomorrow.io forecast), gated hard so it never yanks the view out from under a reader, and opt-in.
 
