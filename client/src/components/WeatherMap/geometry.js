@@ -482,6 +482,51 @@ export function tierColour(tier, nightRed = false) {
 }
 
 /**
+ * Tier → Leaflet path layers for an alert polygon. Returned innermost-first
+ * so the caller maps them to stacked layers in z-order, exactly like
+ * `RiskRing` does with `buildRingLayers`.
+ *
+ * Light/day mode gets the same dark-casing contrast trick as the radar
+ * rings: the warm alert hues lose contrast against the warm, light basemap
+ * (orange ≈ 2.3:1, yellow ≈ 1.3:1 — below the 3:1 floor for a graphical
+ * boundary), so a solid `RING_OUTLINE_COLOR` casing is drawn beneath the
+ * coloured stroke (weight 2 + RING_OUTLINE_EXTRA_WEIGHT) to restore a
+ * glanceable edge. Dark mode already contrasts the same hues against the
+ * near-black basemap, and nightRed deliberately keeps a single red family
+ * (Phase 3 A1) that a grey casing would break — both render the single
+ * coloured layer only. The 15 % fill rides the coloured (top) layer; the
+ * casing is stroke-only so the interior isn't double-filled.
+ *
+ * @param {?String} tier "red" | "orange" | "yellow"
+ * @param {Boolean} [nightRed] night-vision palette active (tiers → red family)
+ * @param {Boolean} [dark] dark-mode flag
+ * @returns {Array<object>} one (dark / nightRed) or two (light) path-option objects
+ */
+export function buildAlertPolygonLayers(tier, nightRed = false, dark = false) {
+  const colour = tierColour(tier, nightRed);
+  const fill = {
+    color: colour,
+    weight: 2,
+    fillColor: colour,
+    fillOpacity: 0.15,
+    // Solid border — distinct from the dashed radar circles, so the user
+    // reads "real alert boundary" vs "derived radar ring" at a glance.
+    dashArray: null,
+  };
+  if (nightRed || dark) return [fill];
+  return [
+    {
+      color: RING_OUTLINE_COLOR,
+      weight: 2 + RING_OUTLINE_EXTRA_WEIGHT,
+      opacity: 0.85,
+      fill: false,
+      dashArray: null,
+    },
+    fill,
+  ];
+}
+
+/**
  * Leaflet pathOptions for the "nearby alerts" radius ring — the user's
  * chosen survey extent, drawn as a persistent circle kept visually
  * distinct from the radar risk rings. Day / dusk / night use the cool
