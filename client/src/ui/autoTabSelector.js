@@ -322,6 +322,8 @@ function hazardTab(signals, currentTab) {
  *      Precip. Sits ABOVE an orange (moderate) gov alert but BELOW a red gov:
  *      it surfaces an imminent storm the radar sees before any warning is
  *      issued. (A severe puncture, handled in selectAutoTab, is above this.)
+ *      ENTER/EXIT hysteresis keeps it from seesawing against the orange gov
+ *      when the radar trend/confidence jitters near a threshold.
  *   3. Orange (moderate) gov alert → its tab.
  *   4. Radar nowcast, mid+ confidence (getRadarAlertState already gates at
  *      maxSev ≥ 2) → Precip.
@@ -344,9 +346,20 @@ function pickHazardTab(signals, currentTab) {
     // red but unmappable (fog, special statement) → fall through (no guess).
   }
 
-  // 2. A2 radar override — red + approaching + high confidence beats orange gov.
-  if (r && r.tier === "red" && r.approaching && r.confidenceBucket === "high") {
-    return { tab: TABS.PRECIP, sourceBadge: "RADAR", reason: { badge: "RADAR", radar: r } };
+  // 2. A2 radar override — a strong, approaching, high-confidence RED echo beats
+  //    an orange gov alert. ENTER/EXIT hysteresis (§9 brake 2): ENTER needs the
+  //    full signal (approaching AND high); once we hold Precip we KEEP it while
+  //    the echo stays red and at least one axis still holds (approaching OR
+  //    high). Both axes must weaken to hand the tab back to the orange gov — so
+  //    a one-tick flicker of `approaching`, or a confidence wobble across the
+  //    high/mid line, can't seesaw the tab between Precip and the gov's tab.
+  if (r && r.tier === "red") {
+    const a2Enter = r.approaching && r.confidenceBucket === "high";
+    const a2Hold = currentTab === TABS.PRECIP
+      && (r.approaching || r.confidenceBucket === "high");
+    if (a2Enter || a2Hold) {
+      return { tab: TABS.PRECIP, sourceBadge: "RADAR", reason: { badge: "RADAR", radar: r } };
+    }
   }
 
   // 3. Orange (moderate) gov alert.

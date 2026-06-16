@@ -313,6 +313,59 @@ test("A2: an ORANGE radar (not red) never overrides an orange gov", () => {
   assert.equal(r.tab, TABS.TEMP); // override is red-tier only; orange gov keeps it
 });
 
+// ── A2 ENTER/EXIT hysteresis (warm-band) — Phase 2 review fix ────────────
+// A red echo near its thresholds jitters tick-to-tick (`approaching` flips,
+// confidence wobbles across the high/mid line). Without hysteresis the winner
+// seesaws between Precip (A2 fires) and the persistent orange gov's tab (A2
+// misses). The warm-band must commit Precip ONCE and hold it through the
+// jitter, releasing only when BOTH axes genuinely weaken.
+
+test("A2 hysteresis: a wobbling red echo under a persistent orange gov switches ONCE, no seesaw", () => {
+  const ticks = [
+    { tier: "red", approaching: true,  confidenceBucket: "high" }, // ENTER → Precip
+    { tier: "red", approaching: false, confidenceBucket: "high" }, // approaching flickers off → HOLD
+    { tier: "red", approaching: true,  confidenceBucket: "mid"  }, // confidence wobbles down → HOLD
+    { tier: "red", approaching: false, confidenceBucket: "high" }, // jitter again → HOLD
+    { tier: "red", approaching: true,  confidenceBucket: "high" }, // back to full → HOLD
+  ];
+  let state = baseState({ currentTab: TABS.TEMP }); // start on the gov's tab
+  let switches = 0;
+  ticks.forEach((radar, i) => {
+    const now = NOW + i * (DWELL_MS + 60_000); // each tick past the dwell floor
+    const r = selectAutoTab(
+      { govAlerts: [orangeHeat], radarAlertState: radar, env: env() },
+      state,
+      now,
+    );
+    if (r) { // commit() collapses same-tab → a non-null return is a real switch
+      switches += 1;
+      state = { ...state, currentTab: r.tab, lastAutoSwitchAt: now };
+    }
+  });
+  assert.equal(switches, 1); // Temp → Precip once, then held; never back to Temp
+  assert.equal(state.currentTab, TABS.PRECIP);
+});
+
+test("A2 hysteresis: a one-axis flicker (still high) HOLDS Precip — no switch to the orange gov", () => {
+  const state = baseState({ currentTab: TABS.PRECIP, lastAutoSwitchAt: NOW - (DWELL_MS + 1) });
+  const r = selectAutoTab(
+    { govAlerts: [orangeHeat], radarAlertState: { tier: "red", approaching: false, confidenceBucket: "high" }, env: env() },
+    state,
+    NOW,
+  );
+  assert.equal(r, null); // held on Precip; the orange gov does NOT reclaim on a single-axis dip
+});
+
+test("A2 hysteresis: when BOTH axes weaken, the held Precip releases back to the orange gov", () => {
+  const state = baseState({ currentTab: TABS.PRECIP, lastAutoSwitchAt: NOW - (DWELL_MS + 1) });
+  const r = selectAutoTab(
+    { govAlerts: [orangeHeat], radarAlertState: { tier: "red", approaching: false, confidenceBucket: "mid" }, env: env() },
+    state,
+    NOW,
+  );
+  assert.equal(r.tab, TABS.TEMP); // not-approaching AND mid → genuine recede → EXIT → gov reclaims
+});
+
 // ───────────────────────── forecast class + hysteresis ─────────────────
 test("forecast gust at exactly the ENTER band (25.0 m/s) → wind", () => {
   const r = selectAutoTab({ forecast: { maxGustMs: 25.0 }, env: env() }, baseState(), NOW);
