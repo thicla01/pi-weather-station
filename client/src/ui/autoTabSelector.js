@@ -41,6 +41,7 @@ const COLD_EXIT_C = -20;
 // ── Timing ──
 const HOLD_MS = 20 * 60 * 1000; // manual-tap hold TTL
 const DWELL_MS = 10 * 60 * 1000; // min interval between auto switches
+const CARD_ACTIVE_MS = 60 * 1000; // touch only: grace after interacting with the forecast card
 const FORECAST_WINDOW_MS = 6 * 60 * 60 * 1000; // "next 6 h" forecast window
 
 // ── Eligibility / severity (mirror client/src/ui/alertLogic.js) ──
@@ -273,35 +274,22 @@ function selectAutoTab(signals, state, now) {
   }
 
   // ── Gates (non-puncture). Any true → do nothing. ──
-  // Stage-0 inhibit applies ONLY to touch-capable devices: a non-touch
-  // display (the stable monitor) has no reader to protect, so it must NOT
-  // be inhibited — see §6.1 of the LLD.
-  if (env.touchCapable && env.sleepStage === 0) return null;
+  // Active-reader inhibit (TOUCH only): recent interaction with the FORECAST
+  // CARD itself — not global screen activity (LLD §13 refinement) — holds the
+  // tab so it can't change under someone reading/scrolling that card. A
+  // non-touch display (the stable monitor) has no reader to protect → never
+  // inhibited. A manual tab tap additionally arms the 20-min hold below.
+  if (env.touchCapable && env.lastCardActivityAt != null
+      && now - env.lastCardActivityAt < CARD_ACTIVE_MS) return null;
   if (st.manualHoldAt != null && now - st.manualHoldAt < HOLD_MS) return null;
   if (st.lastAutoSwitchAt != null && now - st.lastAutoSwitchAt < DWELL_MS) return null;
   if (env.nightQuiet) return null; // red-tier already handled by the puncture above
 
-  // ── Priority ladder. ──
-  // Class 2 — active eligible (red/orange) gov alert.
-  const gov = topEligibleGovAlert(s.govAlerts);
-  if (gov) {
-    const tab = classifyAlertTab(gov);
-    if (tab) return commit(tab, { badge: gov.source, alert: gov }, currentTab);
-    // red/orange but unmappable (fog, special statement) → fall through (no guess).
-  }
+  // ── Priority ladder (shared with hazardTab via pickHazardTab). ──
+  const pick = pickHazardTab(s, currentTab);
+  if (pick) return commit(pick.tab, pick.reason, currentTab);
 
-  // Class 3 — radar nowcast (getRadarAlertState already gates at maxSev ≥ 2;
-  // require ≥ mid confidence). Always → Precip (radar only measures rain).
-  const r = s.radarAlertState;
-  if (r && (r.confidenceBucket === "mid" || r.confidenceBucket === "high")) {
-    return commit(TABS.PRECIP, { badge: "RADAR", radar: r }, currentTab);
-  }
-
-  // Class 4 — forecast threshold (Wind → Precip → Temp, hysteresis-gated).
-  const fc = forecastTab(s.forecast, currentTab);
-  if (fc) return commit(fc.tab, { badge: "FCST", reasonKey: fc.reasonKey }, currentTab);
-
-  // Class 5 — calm: keep the user's tab.
+  // Calm: keep the user's tab.
   return null;
 }
 
@@ -319,24 +307,70 @@ function selectAutoTab(signals, state, now) {
  * @returns {?{tab: String, sourceBadge: String}} the live verdict, or null
  */
 function hazardTab(signals, currentTab) {
+  const pick = pickHazardTab(signals, currentTab);
+  return pick ? { tab: pick.tab, sourceBadge: pick.sourceBadge } : null;
+}
+
+/**
+ * The shared priority ladder — picks the tab the live hazard signals justify,
+ * with its source badge + a `reason` for the chip. Used by BOTH the gated
+ * switch (`selectAutoTab`) and the ungated chip verdict (`hazardTab`) so the
+ * two can never drift. Priority (first match wins):
+ *
+ *   1. Red-tier (severe/extreme) gov alert → its tab (authoritative).
+ *   2. A2 OVERRIDE — a strong, approaching, high-confidence RED radar echo →
+ *      Precip. Sits ABOVE an orange (moderate) gov alert but BELOW a red gov:
+ *      it surfaces an imminent storm the radar sees before any warning is
+ *      issued. (A severe puncture, handled in selectAutoTab, is above this.)
+ *   3. Orange (moderate) gov alert → its tab.
+ *   4. Radar nowcast, mid+ confidence (getRadarAlertState already gates at
+ *      maxSev ≥ 2) → Precip.
+ *   5. Forecast threshold (Wind → Precip → Temp, hysteresis-gated).
+ *
+ * @param {Object} signals { govAlerts, radarAlertState, forecast }
+ * @param {?String} currentTab the active tab (for forecast hysteresis)
+ * @returns {?{tab: String, sourceBadge: String, reason: Object}} or null
+ */
+function pickHazardTab(signals, currentTab) {
   const s = signals || {};
   const gov = topEligibleGovAlert(s.govAlerts);
-  if (gov) {
-    const tab = classifyAlertTab(gov);
-    if (tab) return { tab, sourceBadge: gov.source };
-  }
+  const govIsRed = !!(gov && gov.tier === "red");
   const r = s.radarAlertState;
-  if (r && (r.confidenceBucket === "mid" || r.confidenceBucket === "high")) {
-    return { tab: TABS.PRECIP, sourceBadge: "RADAR" };
+
+  // 1. Red-tier gov alert wins outright.
+  if (govIsRed) {
+    const tab = classifyAlertTab(gov);
+    if (tab) return { tab, sourceBadge: gov.source, reason: { badge: gov.source, alert: gov } };
+    // red but unmappable (fog, special statement) → fall through (no guess).
   }
+
+  // 2. A2 radar override — red + approaching + high confidence beats orange gov.
+  if (r && r.tier === "red" && r.approaching && r.confidenceBucket === "high") {
+    return { tab: TABS.PRECIP, sourceBadge: "RADAR", reason: { badge: "RADAR", radar: r } };
+  }
+
+  // 3. Orange (moderate) gov alert.
+  if (gov && !govIsRed) {
+    const tab = classifyAlertTab(gov);
+    if (tab) return { tab, sourceBadge: gov.source, reason: { badge: gov.source, alert: gov } };
+  }
+
+  // 4. Radar nowcast (mid+ confidence) → Precip (radar only measures rain).
+  if (r && (r.confidenceBucket === "mid" || r.confidenceBucket === "high")) {
+    return { tab: TABS.PRECIP, sourceBadge: "RADAR", reason: { badge: "RADAR", radar: r } };
+  }
+
+  // 5. Forecast threshold.
   const fc = forecastTab(s.forecast, currentTab);
-  if (fc) return { tab: fc.tab, sourceBadge: "FCST" };
+  if (fc) return { tab: fc.tab, sourceBadge: "FCST", reason: { badge: "FCST", reasonKey: fc.reasonKey } };
+
   return null;
 }
 
 module.exports = {
   selectAutoTab,
   hazardTab,
+  pickHazardTab,
   // pure helpers (exported for the Phase-1 hook + tests)
   classifyAlertTab,
   summarizeForecast,
@@ -362,6 +396,7 @@ module.exports = {
   COLD_EXIT_C,
   HOLD_MS,
   DWELL_MS,
+  CARD_ACTIVE_MS,
   FORECAST_WINDOW_MS,
   ELIGIBLE_GOV_TIERS,
   SEVERE_SEVERITIES,

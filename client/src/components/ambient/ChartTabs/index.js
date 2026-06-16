@@ -90,6 +90,7 @@ const ChartTabs = () => {
   });
   const [maximized, setMaximized] = useState(false);
   const slabRef = useRef(null);
+  const cardActivityRef = useRef(0);
 
   // Persist on change. Wrapped in try/catch because localStorage can
   // throw in some private-browsing modes — failing silently is
@@ -119,6 +120,19 @@ const ChartTabs = () => {
     }
   }, [maximized]);
 
+  // Touch active-reader inhibit (LLD §13): stamp the last-interaction time on
+  // the forecast card so the auto-tab selector doesn't change the tab under
+  // someone reading / scrolling THIS card (vs any global screen activity).
+  // Passive ref writes — no re-render. Scoped to the slab via its ref.
+  useEffect(() => {
+    const el = slabRef.current;
+    if (!el) return undefined;
+    const mark = () => { cardActivityRef.current = Date.now(); };
+    const events = ["pointerdown", "pointermove", "wheel", "touchstart"];
+    events.forEach((e) => el.addEventListener(e, mark, { passive: true }));
+    return () => events.forEach((e) => el.removeEventListener(e, mark));
+  }, []);
+
   const metricIndex = period === "hourly" ? hourlyMetric : dailyMetric;
   const metric = METRICS[metricIndex];
   const setMetricIndex = useCallback((index) => {
@@ -126,10 +140,11 @@ const ChartTabs = () => {
     else setDailyMetric(index);
   }, [period]);
 
-  // Auto-tab selector (Phase 1): the hook commands a metric from active
-  // hazards (gov alerts / forecast); we apply it here without ever touching
-  // `period`. A user gesture stamps a manual hold the hook honours.
-  const { commandedMetric, autoSwitchSource, stampManualHold } = useAutoTabSelector(metric);
+  // Auto-tab selector: the hook commands a metric from active hazards (gov
+  // alerts / radar / forecast); we apply it here without ever touching
+  // `period`. A user gesture stamps a manual hold the hook honours; the
+  // cardActivityRef feeds the touch active-reader inhibit (LLD §13).
+  const { commandedMetric, autoSwitchSource, stampManualHold } = useAutoTabSelector(metric, cardActivityRef);
   const appliedCmdRef = useRef(null);
   useEffect(() => {
     if (!commandedMetric) {
