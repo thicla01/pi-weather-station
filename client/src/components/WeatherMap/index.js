@@ -113,6 +113,17 @@ const RING_HIDE_ZOOM = 13;
 const ALERT_RING_OVERLAP_EPS_M = 500;   // treat as "on top of" a radar ring within 0.5 km
 const ALERT_RING_NUDGE_M = 3000;        // push 3 km outward, just past the radar ring
 
+// Paint order for the nearby-alerts survey polygons, keyed by display tier.
+// Leaflet paints later-inserted vector layers ON TOP, and the survey routinely
+// contains overlapping — or identical — NWS geometries (a Flood Warning nested
+// in a Flood Watch + Advisory; or two zone-based alerts sharing one county
+// polygon). The incoming list is sorted worst-first, so a naive map() inserts
+// the most severe FIRST (bottom) and the least severe LAST (top) — the yellow
+// Advisory then buries the red Warning, and a shared zone reads yellow even
+// though a Warning covers it. Rendering in ASCENDING severity puts the worst
+// tier last so it paints on top. See issue #252.
+const TIER_PAINT_ORDER = { yellow: 0, orange: 1, red: 2 };
+
 /**
  * Build the custom DivIcon used for the user's location marker. v2.14.64
  * replaces Leaflet's default blue teardrop pin — that bright blue
@@ -468,10 +479,18 @@ AlertGeometryOverlay.defaultProps = {
  */
 const NearbyAlertsOverlay = ({ alerts, nightRed }) => {
   if (!Array.isArray(alerts) || alerts.length === 0) return null;
+  // Sort ascending by severity tier so the most severe polygon is inserted
+  // last and Leaflet paints it on top of any lower-tier polygon it overlaps
+  // (see TIER_PAINT_ORDER). Without this the worst-first input would bury the
+  // red Warning under a yellow Advisory drawn over it. A stable sort keeps the
+  // server's worst-first order within a single tier. Copy first — never mutate
+  // the prop.
+  const painted = [...alerts]
+    .filter((a) => a && a.geometry && a.id)
+    .sort((a, b) => (TIER_PAINT_ORDER[a.tier] || 0) - (TIER_PAINT_ORDER[b.tier] || 0));
   return (
     <>
-      {alerts.map((a) => {
-        if (!a || !a.geometry || !a.id) return null;
+      {painted.map((a) => {
         const colour = tierColour(a.tier, nightRed);
         // Same 2 px solid border + 15 % fill as the single-alert overlay
         // so radar reads through and the solid border stays distinct from
