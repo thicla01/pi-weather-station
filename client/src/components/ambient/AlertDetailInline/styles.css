@@ -61,6 +61,15 @@
 .text {
   font-size: 13px;
   line-height: 1.55;
+  /* Defensive: `overflow-wrap: anywhere` lets an upstream-supplied
+   * single unbreakable token wrap at any character — NWS description
+   * bodies embed bare URLs (e.g. `http://www.weather.gov/safety/...`)
+   * that have no break opportunity and otherwise overflow the slab
+   * width and clip at the right edge. Same treatment AlertBanner
+   * applies to its title; the detail body never got it. Inherited,
+   * so it also covers the `<p>` children of `.sectionDetail` /
+   * `.groupBody` below. */
+  overflow-wrap: anywhere;
 }
 
 .text + .text {
@@ -142,6 +151,9 @@
   font-size: 12.5px;
   color: var(--c-text-dim);
   line-height: 1.55;
+  /* See `.text` — a group body (e.g. SITUATION OVERVIEW / NEXT
+   * UPDATE prose) can also carry a bare upstream URL; break it. */
+  overflow-wrap: anywhere;
 }
 
 /* A `* ` bullet section directly under a group header is that
@@ -226,6 +238,9 @@
   font-size: 12.5px;
   color: var(--c-text-dim);
   line-height: 1.55;
+  /* See `.text` — break bare upstream URLs so they wrap instead of
+   * overflowing the section's content column. */
+  overflow-wrap: anywhere;
 }
 
 .sectionPara {
