@@ -313,6 +313,17 @@ const MetricChart = ({ cadence, metric, precipOverlay, onCycle }) => {
           // against a 0-anchored axis (review finding). Wind/precip
           // genuinely start at zero.
           beginAtZero: metric !== "temp",
+          // Temp only: a grace band above the max (and below the min) so
+          // the key-point value labels — drawn ABOVE their points
+          // (`align: "top"`) — sit inside the plot area instead of
+          // clipping at the canvas top when the data max coincides with
+          // the top gridline (e.g. an 82° peak landing exactly on the
+          // 82° tick). The `layout.padding.top` alone wasn't enough: the
+          // label height + offset ≈ the padding, leaving its top row to
+          // clip. `grace` pushes the peak down by a fraction of the data
+          // range — pixel-independent, so it holds across font-size zoom
+          // and any range. Wind/precip carry no key-point labels.
+          grace: metric === "temp" ? "10%" : 0,
           ticks: {
             color: tickColor,
             font: axisFont,
