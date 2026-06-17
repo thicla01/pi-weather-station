@@ -15,7 +15,7 @@ import binocularsIcon from "@iconify/icons-carbon/binoculars";
 import { AlertsContext, AppActionsContext } from "~/AppContext";
 import QrCode from "~/components/ambient/QrCode";
 import useEligibleGovAlerts from "~/hooks/useEligibleGovAlerts";
-import { parseAlertText } from "~/ui/alertParser";
+import { parseAlertText, splitBody } from "~/ui/alertParser";
 import styles from "./styles.css";
 
 // Source landing pages — see `GovAlertDetail` for the long-form
@@ -175,9 +175,13 @@ const AlertDetailInline = () => {
                 ? sections.map((section, i) => (
                   <SectionBlock key={i} section={section} t={t} />
                 ))
-                : description.split(/\n\n+/).map((paragraph, i) => (
-                  <p key={i} className={styles.text}>{paragraph}</p>
-                ))}
+                : (
+                  <RichText
+                    text={description}
+                    paraClass={styles.text}
+                    listClass={styles.textList}
+                  />
+                )}
             </div>
             {/* Phase 4d (2026-05-28): action footer with two buttons
               * sitting above the QR footer.
@@ -246,59 +250,130 @@ const AlertDetailInline = () => {
 };
 
 /**
- * Render one parsed section. Intro sections collapse to a bare
- * paragraph (the leading prose before the first structured
- * heading); structured sections (hazard / where / when / action /
- * section) get a 2-column layout — icon column + content column
- * with a localized lead row above the upstream detail text.
+ * Render a section's body text as paragraphs + bulleted lists.
+ * `splitBody` turns the raw detail text into ordered blocks so NWS
+ * `- ` sub-items (storm coordinates, per-impact bullets) render as a
+ * real `<ul>` instead of folding into a run-on paragraph.
  *
  * @param {object} props
- * @param {{ type: string, lead: string, detail: string }} props.section
+ * @param {string} props.text - the body / detail text to render
+ * @param {string} props.paraClass - CSS module class for paragraphs
+ * @param {string} props.listClass - CSS module class for `<ul>` lists
+ * @returns {JSX.Element} the rendered blocks
+ */
+const RichText = ({ text, paraClass, listClass }) => (
+  <>
+    {splitBody(text).map((block, j) => (block.type === "list" ? (
+      <ul key={j} className={listClass}>
+        {block.items.map((item, k) => <li key={k}>{item}</li>)}
+      </ul>
+    ) : (
+      <p key={j} className={paraClass}>{block.text}</p>
+    )))}
+  </>
+);
+
+RichText.propTypes = {
+  text: PropTypes.string.isRequired,
+  paraClass: PropTypes.string.isRequired,
+  listClass: PropTypes.string.isRequired,
+};
+
+/**
+ * Render one parsed section. Three shapes:
+ *   - **intro** — a bare paragraph (the leading prose before the
+ *     first structured heading): no icon, no lead row.
+ *   - **group** (`section.group`) — an NWS Level-1 (dash-underlined)
+ *     section that groups the bullets below it: a full-width eyebrow
+ *     divider (no icon column), optionally with its own body.
+ *   - **structured** (hazard / where / when / action / section) —
+ *     a 2-column layout (icon column + content column) with a
+ *     localized lead row above the upstream detail text; reads as
+ *     subordinate to the group header above it.
+ *
+ * @param {object} props
+ * @param {{ type: string, lead: string, detail: string, group: boolean }} props.section
  * @param {Function} props.t — i18next translator
  * @returns {JSX.Element|null} the section block, or null if empty
  */
 const SectionBlock = ({ section, t }) => {
   if (!section) return null;
-  // Short single-line sections (e.g. NWS Special Marine Warning's
-  // `* Until 845 PM CDT.` — the whole content is the lead, parser
-  // returns detail=""). Without this fallback the section silently
-  // dropped because of the empty-detail guard below; that lost a
-  // genuine timing/location cue that the user needs.
-  const detailContent = section.detail
-    ? section.detail
-    : (section.lead && section.type !== "intro" ? section.lead : "");
-  if (!detailContent) return null;
   if (section.type === "intro") {
     // No icon, no lead — the intro is just the leading paragraph.
     // Split on \n\n so multi-paragraph intros still read as
     // distinct blocks instead of one wall of text.
+    if (!section.detail) return null;
     return (
       <div className={styles.intro}>
-        {section.detail.split(/\n\n+/).map((p, j) => (
-          <p key={j} className={styles.text}>{p}</p>
-        ))}
+        <RichText text={section.detail} paraClass={styles.text} listClass={styles.textList} />
       </div>
     );
   }
-  const icon = SECTION_ICONS[section.type] || SECTION_ICONS.section;
   // Localized lead — falls back to the upstream lead text
   // (`section.lead`) if there's no i18n key for the type. For
   // the generic `section` type (heading we recognised but
   // couldn't classify), the upstream wording IS the lead.
   const i18nKey = `alert.section${section.type.charAt(0).toUpperCase()}${section.type.slice(1)}`;
   const localizedLead = t(i18nKey, { defaultValue: section.lead || "" });
+
+  // Body text under the lead row. Three cases:
+  //   - `detail` present → that's the body.
+  //   - `detail` empty + a sentence-like lead (contains a lowercase
+  //     letter, e.g. NWS Special Marine Warning's `* Until 845 PM
+  //     CDT.` where the whole content IS the lead) → promote the
+  //     lead to the body so the genuine timing/location cue isn't
+  //     lost.
+  //   - `detail` empty + an ALL-CAPS category lead (the `POTENTIAL
+  //     IMPACTS` / `PRECAUTIONARY/PREPAREDNESS ACTIONS` umbrella
+  //     headers that only group the bullets below them) → no body;
+  //     render the localized heading alone as a group label.
+  //     Echoing the lead under its own translated heading
+  //     ("Possible impacts" / "POTENTIAL IMPACTS") would read as a
+  //     duplicate.
+  let body = section.detail || "";
+  if (!body && section.lead && /[a-z]/.test(section.lead)) {
+    body = section.lead;
+  }
+  // Nothing renderable (no heading, no body) → drop the section.
+  if (!localizedLead && !body) return null;
+
+  // Group header — an NWS Level-1 (dash-underlined) section such as
+  // NEW INFORMATION / POTENTIAL IMPACTS / PRECAUTIONARY-PREPAREDNESS
+  // ACTIONS. It groups the icon-led `* ` bullet sections that follow,
+  // so it renders as a full-width eyebrow divider (no icon column);
+  // the indented icon-led sections beneath it then read as
+  // subordinate. A group header may also carry its own body (e.g.
+  // SITUATION OVERVIEW's prose, which has no bullet children).
+  if (section.group) {
+    return (
+      <div className={styles.groupHeader}>
+        {localizedLead ? (
+          <div className={styles.groupLabel}>{localizedLead}</div>
+        ) : null}
+        {body ? (
+          <div className={styles.groupBody}>
+            <RichText text={body} paraClass={styles.sectionPara} listClass={styles.sectionList} />
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  const icon = SECTION_ICONS[section.type] || SECTION_ICONS.section;
   return (
     <div className={styles.section}>
       <span className={styles.sectionIcon}>
         <InlineIcon icon={icon} />
       </span>
       <div className={styles.sectionContent}>
-        <div className={styles.sectionLead}>{localizedLead}</div>
-        <div className={styles.sectionDetail}>
-          {detailContent.split(/\n\n+/).map((p, j) => (
-            <p key={j} className={styles.sectionPara}>{p}</p>
-          ))}
-        </div>
+        {localizedLead ? (
+          <div className={styles.sectionLead}>{localizedLead}</div>
+        ) : null}
+        {body ? (
+          <div className={styles.sectionDetail}>
+            <RichText text={body} paraClass={styles.sectionPara} listClass={styles.sectionList} />
+          </div>
+        ) : null}
       </div>
     </div>
   );
@@ -309,6 +384,7 @@ SectionBlock.propTypes = {
     type: PropTypes.string.isRequired,
     lead: PropTypes.string,
     detail: PropTypes.string,
+    group: PropTypes.bool,
   }).isRequired,
   t: PropTypes.func.isRequired,
 };

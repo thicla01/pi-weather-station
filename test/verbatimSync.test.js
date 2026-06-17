@@ -61,11 +61,11 @@ const COPY_END_RE = /^\/\/ -{4,} end of verbatim copy -{4,}\s*$/m;
 // not be discovered as standalone declarations.
 const TOP_LEVEL_DECL_RE = /^(?:export\s+)?(?:async\s+)?(?:function\s+(\w+)\s*\(|const\s+(\w+)\s*=)/gm;
 
-// Inventory size as of 2026-06 (12 + 8 + 5 + 1 + 9 + 4). Guards against the
+// Inventory size as of 2026-06 (12 + 8 + 6 + 1 + 9 + 4). Guards against the
 // discovery silently finding nothing (which would fake-pass the suite).
 // If a copied declaration is legitimately removed from a test file,
 // lower this consciously.
-const EXPECTED_CHECK_COUNT = 39;
+const EXPECTED_CHECK_COUNT = 40;
 
 /**
  * The six copy-carrying test files and how to find their copies.

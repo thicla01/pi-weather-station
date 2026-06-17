@@ -61,6 +61,15 @@
 .text {
   font-size: 13px;
   line-height: 1.55;
+  /* Defensive: `overflow-wrap: anywhere` lets an upstream-supplied
+   * single unbreakable token wrap at any character — NWS description
+   * bodies embed bare URLs (e.g. `http://www.weather.gov/safety/...`)
+   * that have no break opportunity and otherwise overflow the slab
+   * width and clip at the right edge. Same treatment AlertBanner
+   * applies to its title; the detail body never got it. Inherited,
+   * so it also covers the `<p>` children of `.sectionDetail` /
+   * `.groupBody` below. */
+  overflow-wrap: anywhere;
 }
 
 .text + .text {
@@ -91,6 +100,70 @@
   font-size: 13px;
   line-height: 1.55;
   color: var(--c-text);
+}
+
+/* Group header — an NWS Level-1 (dash-underlined) section like
+ * NEW INFORMATION / POTENTIAL IMPACTS / PRECAUTIONARY-PREPAREDNESS
+ * ACTIONS. These group the `* ` bullet sections beneath them, so
+ * they render as a full-width eyebrow divider (no icon column) and
+ * the icon-led `.section` blocks that follow read as subordinate
+ * (their content starts past the 16 px icon column, the group label
+ * starts at x=0 — the offset reads as a light indent without
+ * needing an explicit one, too tight on the 7" rail). The stronger
+ * top rule + larger gap distinguish a group break from the hairline
+ * that separates two sibling sections. */
+.groupHeader {
+  margin-top: 18px;
+  padding-top: 14px;
+  border-top: 1px solid var(--c-border);
+}
+
+/* First block in the scroll area (no intro, alert opens straight on
+ * a group header): drop the top rule so it doesn't read as a stray
+ * line at the very top of the slab. */
+.groupHeader:first-child {
+  margin-top: 0;
+  padding-top: 0;
+  border-top: none;
+}
+
+.groupLabel {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 11px;
+  letter-spacing: 0.8px;
+  text-transform: uppercase;
+  font-weight: 500;
+  /* Accent eyebrow — same role the `.sectionIcon` accent plays, so a
+   * group header reads as a labelled divider rather than a content
+   * row missing its content. */
+  color: var(--c-accent);
+}
+
+[data-palette="nightRed"] .groupLabel {
+  /* In night-red `--c-accent` IS the muddy palette red against the
+   * dark slab — lift to the bright `--c-text` red, mirroring the
+   * `.sectionIcon` override. */
+  color: var(--c-text);
+}
+
+.groupBody {
+  margin-top: 8px;
+  font-size: 12.5px;
+  color: var(--c-text-dim);
+  line-height: 1.55;
+  /* See `.text` — a group body (e.g. SITUATION OVERVIEW / NEXT
+   * UPDATE prose) can also carry a bare upstream URL; break it. */
+  overflow-wrap: anywhere;
+}
+
+/* A `* ` bullet section directly under a group header is that
+ * group's first child — drop the inter-section hairline so it reads
+ * as attached to the header above, not separated from it. (Children
+ * after the first keep the normal `.section + .section` divider.) */
+.groupHeader + .section {
+  margin-top: 10px;
+  padding-top: 0;
+  border-top: none;
 }
 
 /* `.section` — icon column + content column for each parsed
@@ -165,6 +238,9 @@
   font-size: 12.5px;
   color: var(--c-text-dim);
   line-height: 1.55;
+  /* See `.text` — break bare upstream URLs so they wrap instead of
+   * overflowing the section's content column. */
+  overflow-wrap: anywhere;
 }
 
 .sectionPara {
@@ -172,6 +248,37 @@
 }
 
 .sectionPara:last-child {
+  margin-bottom: 0;
+}
+
+/* Bulleted lists for NWS `- ` sub-items (storm coordinates under
+ * STORM INFORMATION, the per-impact bullets under FLOODING RAIN …).
+ * `splitBody` (alertParser) extracts them; rendering a real `<ul>`
+ * gives each item its own line + marker instead of folding them into
+ * a run-on paragraph. Two variants mirror the two paragraph classes:
+ * `.sectionList` inherits the dim 12.5 px detail look from its
+ * `.sectionDetail` / `.groupBody` parent; `.textList` matches the
+ * brighter 13 px intro / fallback `.text`. */
+.sectionList,
+.textList {
+  margin: 4px 0;
+  padding-left: 18px;
+  /* Break bare upstream URLs inside a bullet too — see `.text`. */
+  overflow-wrap: anywhere;
+}
+
+.textList {
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.sectionList li,
+.textList li {
+  margin: 0 0 4px;
+}
+
+.sectionList li:last-child,
+.textList li:last-child {
   margin-bottom: 0;
 }
 
