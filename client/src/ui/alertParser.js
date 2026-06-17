@@ -52,6 +52,40 @@ export function parseAlertText(text, lang = "en") {
   const safe = (text || "").trim();
   if (!safe) return [];
 
+  // Strip Markdown-style bold markers. NWS Hurricane Local
+  // Statement / Tropical Cyclone products wrap their headline in
+  // `**...**` (e.g. `**Potential Tropical Cyclone One Expected to
+  // Bring Heavy Rainfall...**`). We render plain text, not Markdown,
+  // so without this the literal asterisks leak to the screen. `**`
+  // (two adjacent asterisks) never appears in the structural markup
+  // we parse — NWS bullets are `* ` (one asterisk + a space) on
+  // their own lines — so removing every `**` pair is safe.
+  const noBold = safe.replace(/\*\*/g, "");
+
+  // Normalise NWS "setext" section headers — a heading line
+  // immediately followed by a rule of dashes:
+  //
+  //     SITUATION OVERVIEW
+  //     ------------------
+  //
+  // These appear in the longer-form products (Hurricane Local
+  // Statement / Tropical Cyclone Statement) ALONGSIDE the `* WHAT:`
+  // asterisk bullets. The parser only knew the asterisk / `KEYWORD...`
+  // / `Heading:` forms, so a dash-underlined header leaked into the
+  // previous section's body as raw text — dragging its ASCII dash
+  // rule along — and its content got mis-filed under the preceding
+  // heading. Rewrite each into a canonical `* HEADER:` bullet
+  // (dropping the dash rule) so the existing asterisk-split +
+  // lead-extraction path picks it up and classifies it. Anchored to
+  // a whole ALL-CAPS line so it can't fire on a wrapped sentence
+  // that merely happens to precede a line of dashes.
+  // `\r?` on both line ends so the match survives CRLF payloads
+  // (the upstream paragraph de-dup doesn't strip carriage returns).
+  const withSetextHeaders = noBold.replace(
+    /^([A-Z][A-Z0-9 /&'()-]{2,60})[ \t]*\r?\n-{3,}[ \t]*\r?$/gm,
+    "\n* $1:\n",
+  );
+
   // Pre-process: some NWS alerts (Special Marine Warning, etc.)
   // embed ALL-CAPS keyword markers like `HAZARD...`, `SOURCE...`,
   // `IMPACT...` INSIDE asterisked blocks rather than as their own
@@ -65,7 +99,7 @@ export function parseAlertText(text, lang = "en") {
   // mid-sentence acronyms like "US..."). The `(?=...)` lookahead
   // keeps the keyword in the inserted line — we're just adding
   // a paragraph break BEFORE it.
-  const preprocessed = safe.replace(
+  const preprocessed = withSetextHeaders.replace(
     /([^\n])\n(?=[A-Z]{3,}(?:\/[A-Z]+)?\.\.\.)/g,
     "$1\n\n",
   );
@@ -386,7 +420,7 @@ function classifyHeading(heading, lang) {
   // rendered "What's happening" twice in the detail view (observed on
   // the Klamath Falls Frost Advisory — the impacts block "Frost could
   // harm sensitive outdoor vegetation" wore the wrong heading).
-  if (/^(impacts?|conséquences?|impactos?)/i.test(h)) return "impact";
+  if (/^(impacts?|potential impacts?|conséquences?|impactos?)/i.test(h)) return "impact";
   // Hazards — the danger the alert warns about. Now distinct from
   // `source` and `impact` (which used to fold here). WHAT, HAZARD,
   // Dangers, Risques, Aléas, Peligros all answer "what's the danger?".

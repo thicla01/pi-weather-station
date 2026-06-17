@@ -28,7 +28,7 @@ function classifyHeading(heading) {
   if (/^at \d/i.test(h)) return "observation";
   if (/^source/i.test(h)) return "source";
   if (/^(when|timing|period|période|periodo|until|jusqu')/i.test(h)) return "when";
-  if (/^(impacts?|conséquences?|impactos?)/i.test(h)) return "impact";
+  if (/^(impacts?|potential impacts?|conséquences?|impactos?)/i.test(h)) return "impact";
   if (/^(what|hazards?|dangers?|risques?|aléas?|peligros?)/i.test(h)) return "hazard";
   return "section";
 }
@@ -134,9 +134,20 @@ function parseHeadingBlocks(text, lang) {
 function parseAlertText(text, lang = "en") {
   const safe = (text || "").trim();
   if (!safe) return [];
+  // Strip Markdown-style bold markers (NWS HLS / Tropical Cyclone
+  // headline `**...**`). `**` never appears in the structural markup
+  // (bullets are `* ` — one asterisk + space), so removing pairs is safe.
+  const noBold = safe.replace(/\*\*/g, "");
+  // Normalise NWS "setext" section headers (`SITUATION OVERVIEW\n----`)
+  // into canonical `* HEADER:` bullets, dropping the dash rule, so the
+  // asterisk-split path picks them up instead of leaking them as raw text.
+  const withSetextHeaders = noBold.replace(
+    /^([A-Z][A-Z0-9 /&'()-]{2,60})[ \t]*\r?\n-{3,}[ \t]*\r?$/gm,
+    "\n* $1:\n",
+  );
   // Promote embedded ALL-CAPS keywords (HAZARD..., SOURCE...,
   // IMPACT...) to their own paragraph so the split below catches them.
-  const preprocessed = safe.replace(
+  const preprocessed = withSetextHeaders.replace(
     /([^\n])\n(?=[A-Z]{3,}(?:\/[A-Z]+)?\.\.\.)/g,
     "$1\n\n",
   );
@@ -468,6 +479,111 @@ test("classifyHeading: NWS Special Marine Warning leads", () => {
   assert.equal(classifyHeading("HAZARD"), "hazard");
   assert.equal(classifyHeading("SOURCE"), "source");
   assert.equal(classifyHeading("IMPACT"), "impact");
+});
+
+test("classifyHeading: HLS / Tropical Cyclone setext headers", () => {
+  // The dash-underlined section headers in NWS Hurricane Local
+  // Statement / Tropical Cyclone products. These now flow through
+  // the same classifier after the setext → `* HEADER:` rewrite.
+  assert.equal(classifyHeading("POTENTIAL IMPACTS"), "impact");
+  assert.equal(classifyHeading("SITUATION OVERVIEW"), "section");
+  assert.equal(classifyHeading("NEXT UPDATE"), "section");
+  assert.equal(classifyHeading("ADDITIONAL SOURCES OF INFORMATION"), "section");
+});
+
+test("parseAlertText: NWS Hurricane Local Statement (setext headers + ** headline)", () => {
+  // Regression for the Houston/Galveston PTC One Tropical Cyclone
+  // Statement (2026-06-16). The product mixes `* HEADER:` asterisk
+  // bullets with dash-underlined "setext" section headers AND wraps
+  // its headline in `**...**`. Before the fix: the `**` leaked
+  // verbatim, the dash-underlined headers leaked as raw text WITH
+  // their ASCII dash rule, and their content got mis-filed under the
+  // preceding asterisk bullet (SITUATION OVERVIEW nested under STORM
+  // INFORMATION, NEXT UPDATE under ADDITIONAL SOURCES).
+  const text = [
+    "**Potential Tropical Cyclone One Expected to Bring Heavy Rainfall to Portions of Southeast Texas**",
+    "",
+    "This product covers Southeast Texas",
+    "",
+    "* STORM INFORMATION:",
+    "- About 220 miles southwest of Galveston TX - 27.3N 97.6W",
+    "- Storm Intensity 30 mph",
+    "",
+    "SITUATION OVERVIEW",
+    "-------------------",
+    "",
+    "Potential Tropical Cyclone 1 will move into the western Gulf and meander along the coast.",
+    "",
+    "POTENTIAL IMPACTS",
+    "-----------------",
+    "",
+    "* FLOODING RAIN:",
+    "Prepare for life-threatening rainfall flooding.",
+    "",
+    "PRECAUTIONARY/PREPAREDNESS ACTIONS",
+    "----------------------------------",
+    "",
+    "* EVACUATIONS:",
+    "Follow the advice of local officials.",
+    "",
+    "NEXT UPDATE",
+    "-----------",
+    "",
+    "The next local statement will be issued around 10 PM CDT.",
+  ].join("\n");
+  const sections = parseAlertText(text, "en");
+
+  // 1. No `**` Markdown markers survive anywhere.
+  for (const s of sections) {
+    assert.ok(!s.lead.includes("**"), `lead must not contain **: ${s.lead}`);
+    assert.ok(!s.detail.includes("**"), `detail must not contain **: ${s.detail}`);
+  }
+  // 2. No leaked ASCII dash rules anywhere.
+  for (const s of sections) {
+    assert.ok(!/-{3,}/.test(s.detail), `detail must not contain a dash rule: ${s.detail}`);
+  }
+  // 3. The headline + cover line make up the intro (no asterisks).
+  assert.equal(sections[0].type, "intro");
+  assert.match(sections[0].detail, /Potential Tropical Cyclone One Expected/);
+  assert.match(sections[0].detail, /This product covers Southeast Texas/);
+
+  // 4. SITUATION OVERVIEW is its OWN section with its prose — not
+  //    swallowed into STORM INFORMATION's body.
+  const storm = sections.find((s) => s.lead === "STORM INFORMATION");
+  assert.ok(storm, "STORM INFORMATION must be its own section");
+  assert.ok(!/SITUATION OVERVIEW/.test(storm.detail), "STORM INFORMATION must not swallow SITUATION OVERVIEW");
+  const overview = sections.find((s) => s.lead === "SITUATION OVERVIEW");
+  assert.ok(overview, "SITUATION OVERVIEW must become its own section");
+  assert.equal(overview.type, "section");
+  assert.match(overview.detail, /will move into the western Gulf/);
+
+  // 5. The dash-underlined category headers classify correctly.
+  const impacts = sections.find((s) => s.lead === "POTENTIAL IMPACTS");
+  assert.ok(impacts, "POTENTIAL IMPACTS must become its own section");
+  assert.equal(impacts.type, "impact");
+  const actions = sections.find((s) => s.lead === "PRECAUTIONARY/PREPAREDNESS ACTIONS");
+  assert.ok(actions, "PRECAUTIONARY/PREPAREDNESS ACTIONS must become its own section");
+  assert.equal(actions.type, "action");
+
+  // 6. NEXT UPDATE is its own section, not nested under EVACUATIONS.
+  const evac = sections.find((s) => s.lead === "EVACUATIONS");
+  assert.ok(evac, "EVACUATIONS must be its own section");
+  assert.ok(!/NEXT UPDATE/.test(evac.detail), "EVACUATIONS must not swallow NEXT UPDATE");
+  const next = sections.find((s) => s.lead === "NEXT UPDATE");
+  assert.ok(next, "NEXT UPDATE must become its own section");
+  assert.match(next.detail, /issued around 10 PM CDT/);
+});
+
+test("parseAlertText: setext headers survive CRLF line endings", () => {
+  // Defensive — the upstream paragraph de-dup doesn't strip carriage
+  // returns, so if NWS ever ships a CRLF payload the setext rewrite
+  // must still fire. `\r\n` between the header and its dash rule.
+  const text = "Lead paragraph.\r\n\r\nSITUATION OVERVIEW\r\n-------------------\r\n\r\nThe storm will move inland.";
+  const sections = parseAlertText(text, "en");
+  const overview = sections.find((s) => s.lead === "SITUATION OVERVIEW");
+  assert.ok(overview, "SITUATION OVERVIEW must parse even with CRLF");
+  assert.ok(!/-{3,}/.test(overview.detail), "no dash rule leaks under CRLF");
+  assert.match(overview.detail, /will move inland/);
 });
 
 test("parseAlertText: heading split — unknown heading keeps source wording", () => {

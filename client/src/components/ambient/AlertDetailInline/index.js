@@ -259,19 +259,11 @@ const AlertDetailInline = () => {
  */
 const SectionBlock = ({ section, t }) => {
   if (!section) return null;
-  // Short single-line sections (e.g. NWS Special Marine Warning's
-  // `* Until 845 PM CDT.` — the whole content is the lead, parser
-  // returns detail=""). Without this fallback the section silently
-  // dropped because of the empty-detail guard below; that lost a
-  // genuine timing/location cue that the user needs.
-  const detailContent = section.detail
-    ? section.detail
-    : (section.lead && section.type !== "intro" ? section.lead : "");
-  if (!detailContent) return null;
   if (section.type === "intro") {
     // No icon, no lead — the intro is just the leading paragraph.
     // Split on \n\n so multi-paragraph intros still read as
     // distinct blocks instead of one wall of text.
+    if (!section.detail) return null;
     return (
       <div className={styles.intro}>
         {section.detail.split(/\n\n+/).map((p, j) => (
@@ -287,18 +279,44 @@ const SectionBlock = ({ section, t }) => {
   // couldn't classify), the upstream wording IS the lead.
   const i18nKey = `alert.section${section.type.charAt(0).toUpperCase()}${section.type.slice(1)}`;
   const localizedLead = t(i18nKey, { defaultValue: section.lead || "" });
+
+  // Body text under the lead row. Three cases:
+  //   - `detail` present → that's the body.
+  //   - `detail` empty + a sentence-like lead (contains a lowercase
+  //     letter, e.g. NWS Special Marine Warning's `* Until 845 PM
+  //     CDT.` where the whole content IS the lead) → promote the
+  //     lead to the body so the genuine timing/location cue isn't
+  //     lost.
+  //   - `detail` empty + an ALL-CAPS category lead (the `POTENTIAL
+  //     IMPACTS` / `PRECAUTIONARY/PREPAREDNESS ACTIONS` umbrella
+  //     headers that only group the bullets below them) → no body;
+  //     render the localized heading alone as a group label.
+  //     Echoing the lead under its own translated heading
+  //     ("Possible impacts" / "POTENTIAL IMPACTS") would read as a
+  //     duplicate.
+  let body = section.detail || "";
+  if (!body && section.lead && /[a-z]/.test(section.lead)) {
+    body = section.lead;
+  }
+  // Nothing renderable (no heading, no body) → drop the section.
+  if (!localizedLead && !body) return null;
+
   return (
     <div className={styles.section}>
       <span className={styles.sectionIcon}>
         <InlineIcon icon={icon} />
       </span>
       <div className={styles.sectionContent}>
-        <div className={styles.sectionLead}>{localizedLead}</div>
-        <div className={styles.sectionDetail}>
-          {detailContent.split(/\n\n+/).map((p, j) => (
-            <p key={j} className={styles.sectionPara}>{p}</p>
-          ))}
-        </div>
+        {localizedLead ? (
+          <div className={styles.sectionLead}>{localizedLead}</div>
+        ) : null}
+        {body ? (
+          <div className={styles.sectionDetail}>
+            {body.split(/\n\n+/).map((p, j) => (
+              <p key={j} className={styles.sectionPara}>{p}</p>
+            ))}
+          </div>
+        ) : null}
       </div>
     </div>
   );
