@@ -41,7 +41,7 @@ function scrubNwsIntro(intro) {
     .trim();
 }
 
-function parseAsteriskedBlocks(parts, lang) {
+function parseAsteriskedBlocks(parts, lang, groupHeaders = new Set()) {
   const sections = [];
   let startIdx = 0;
   const first = (parts[0] || "").trim();
@@ -84,9 +84,11 @@ function parseAsteriskedBlocks(parts, lang) {
       }
     }
     if (lead) {
-      sections.push({ type: classifyHeading(lead, lang), lead, detail });
+      sections.push({
+        type: classifyHeading(lead, lang), lead, detail, group: groupHeaders.has(lead),
+      });
     } else {
-      sections.push({ type: "section", lead: "", detail: stripped });
+      sections.push({ type: "section", lead: "", detail: stripped, group: false });
     }
   }
   return sections;
@@ -140,11 +142,14 @@ function parseAlertText(text, lang = "en") {
   const noBold = safe.replace(/\*\*/g, "");
   // Normalise NWS "setext" section headers (`SITUATION OVERVIEW\n----`)
   // into canonical `* HEADER:` bullets, dropping the dash rule, so the
-  // asterisk-split path picks them up instead of leaking them as raw text.
-  const withSetextHeaders = noBold.replace(
-    /^([A-Z][A-Z0-9 /&'()-]{2,60})[ \t]*\r?\n-{3,}[ \t]*\r?$/gm,
-    "\n* $1:\n",
-  );
+  // asterisk-split path picks them up. Remember each rewritten header
+  // so parseAsteriskedBlocks can flag its section as a group header.
+  const setextRe = /^([A-Z][A-Z0-9 /&'()-]{2,60})[ \t]*\r?\n-{3,}[ \t]*\r?$/gm;
+  const setextHeaders = new Set();
+  for (const m of noBold.matchAll(setextRe)) {
+    setextHeaders.add(m[1].trim());
+  }
+  const withSetextHeaders = noBold.replace(setextRe, "\n* $1:\n");
   // Promote embedded ALL-CAPS keywords (HAZARD..., SOURCE...,
   // IMPACT...) to their own paragraph so the split below catches them.
   const preprocessed = withSetextHeaders.replace(
@@ -159,7 +164,7 @@ function parseAlertText(text, lang = "en") {
     asteriskParts.length >= 2
     || /^(\*\s+|[A-Z]{3,}(?:\/[A-Z]+)?\.\.\.)/.test(preprocessed)
   ) {
-    return parseAsteriskedBlocks(asteriskParts, lang);
+    return parseAsteriskedBlocks(asteriskParts, lang, setextHeaders);
   }
   const headingRe = /^([A-Z][A-Za-zÀ-ÿ' ]{2,30})\s*:\s*$/m;
   if (headingRe.test(safe)) {
@@ -505,6 +510,12 @@ test("parseAlertText: NWS Hurricane Local Statement (setext headers + ** headlin
     "",
     "This product covers Southeast Texas",
     "",
+    "NEW INFORMATION",
+    "---------------",
+    "",
+    "* CHANGES TO WATCHES AND WARNINGS:",
+    "- The Tropical Storm Watch has been cancelled for Matagorda Islands",
+    "",
     "* STORM INFORMATION:",
     "- About 220 miles southwest of Galveston TX - 27.3N 97.6W",
     "- Storm Intensity 30 mph",
@@ -572,6 +583,26 @@ test("parseAlertText: NWS Hurricane Local Statement (setext headers + ** headlin
   const next = sections.find((s) => s.lead === "NEXT UPDATE");
   assert.ok(next, "NEXT UPDATE must become its own section");
   assert.match(next.detail, /issued around 10 PM CDT/);
+
+  // 7. Hierarchy is preserved: the dash-underlined Level-1 headers are
+  //    flagged `group: true` (the renderer draws them as group
+  //    dividers); the `* ` bullet sections under them are NOT — they
+  //    read as subordinate. NEW INFORMATION is a body-less container
+  //    that groups CHANGES / STORM INFORMATION; it must still appear
+  //    (as a group header) rather than vanish or render flat.
+  const newInfo = sections.find((s) => s.lead === "NEW INFORMATION");
+  assert.ok(newInfo, "NEW INFORMATION must be present as its own (group) section");
+  assert.equal(newInfo.group, true, "NEW INFORMATION is a setext Level-1 group header");
+  assert.equal(newInfo.detail, "", "NEW INFORMATION is a body-less container");
+  for (const lead of ["SITUATION OVERVIEW", "POTENTIAL IMPACTS", "PRECAUTIONARY/PREPAREDNESS ACTIONS", "NEXT UPDATE"]) {
+    assert.equal(sections.find((s) => s.lead === lead).group, true, `${lead} is a group header`);
+  }
+  const changes = sections.find((s) => s.lead && s.lead.startsWith("CHANGES TO WATCHES"));
+  assert.ok(changes, "CHANGES TO WATCHES must be its own section");
+  for (const lead of ["STORM INFORMATION", "FLOODING RAIN", "EVACUATIONS"]) {
+    assert.ok(!sections.find((s) => s.lead === lead).group, `${lead} is a bullet child, not a group header`);
+  }
+  assert.ok(!changes.group, "CHANGES TO WATCHES is a bullet child, not a group header");
 });
 
 test("parseAlertText: setext headers survive CRLF line endings", () => {

@@ -79,12 +79,21 @@ export function parseAlertText(text, lang = "en") {
   // lead-extraction path picks it up and classifies it. Anchored to
   // a whole ALL-CAPS line so it can't fire on a wrapped sentence
   // that merely happens to precede a line of dashes.
-  // `\r?` on both line ends so the match survives CRLF payloads
-  // (the upstream paragraph de-dup doesn't strip carriage returns).
-  const withSetextHeaders = noBold.replace(
-    /^([A-Z][A-Z0-9 /&'()-]{2,60})[ \t]*\r?\n-{3,}[ \t]*\r?$/gm,
-    "\n* $1:\n",
-  );
+  // Each rewritten header is also recorded in `setextHeaders` so the
+  // asterisk parser can flag its section as a GROUP header — an NWS
+  // Level-1 section (NEW INFORMATION / POTENTIAL IMPACTS /
+  // PRECAUTIONARY/PREPAREDNESS ACTIONS …) that groups the `* ` bullets
+  // beneath it. Keeping the two levels distinct lets the renderer
+  // restore the source hierarchy (the bullets read as subordinate to
+  // their group) instead of laying everything out flat. `\r?` on both
+  // line ends so the match survives CRLF payloads (the upstream
+  // paragraph de-dup doesn't strip carriage returns).
+  const setextRe = /^([A-Z][A-Z0-9 /&'()-]{2,60})[ \t]*\r?\n-{3,}[ \t]*\r?$/gm;
+  const setextHeaders = new Set();
+  for (const m of noBold.matchAll(setextRe)) {
+    setextHeaders.add(m[1].trim());
+  }
+  const withSetextHeaders = noBold.replace(setextRe, "\n* $1:\n");
 
   // Pre-process: some NWS alerts (Special Marine Warning, etc.)
   // embed ALL-CAPS keyword markers like `HAZARD...`, `SOURCE...`,
@@ -129,7 +138,7 @@ export function parseAlertText(text, lang = "en") {
     asteriskParts.length >= 2
     || /^(\*\s+|[A-Z]{3,}(?:\/[A-Z]+)?\.\.\.)/.test(preprocessed)
   ) {
-    return parseAsteriskedBlocks(asteriskParts, lang);
+    return parseAsteriskedBlocks(asteriskParts, lang, setextHeaders);
   }
 
   // Try ECCC-style heading split. A "heading" is a line of just
@@ -212,9 +221,12 @@ function scrubNwsIntro(intro) {
  *
  * @param {string[]} parts
  * @param {string} lang
- * @returns {Array<{type: string, lead: string, detail: string}>}
+ * @param {Set<string>} [groupHeaders] - leads that originated from a
+ *   setext (dash-underlined) header; their sections are flagged
+ *   `group: true` so the renderer can subordinate the bullets below.
+ * @returns {Array<{type: string, lead: string, detail: string, group: boolean}>}
  */
-function parseAsteriskedBlocks(parts, lang) {
+function parseAsteriskedBlocks(parts, lang, groupHeaders = new Set()) {
   const sections = [];
   // The first split piece, if it doesn't start with `*` or an
   // uppercase-keyword `...`, is intro text. Once we've pushed
@@ -298,12 +310,14 @@ function parseAsteriskedBlocks(parts, lang) {
     }
 
     if (lead) {
-      sections.push({ type: classifyHeading(lead, lang), lead, detail });
+      sections.push({
+        type: classifyHeading(lead, lang), lead, detail, group: groupHeaders.has(lead),
+      });
     } else {
       // Couldn't extract a lead — render the whole block as
       // a plain paragraph under a `section` type so the icon
       // is at least neutral instead of being silently lost.
-      sections.push({ type: "section", lead: "", detail: stripped });
+      sections.push({ type: "section", lead: "", detail: stripped, group: false });
     }
   }
   return sections;

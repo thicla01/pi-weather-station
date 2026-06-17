@@ -246,14 +246,19 @@ const AlertDetailInline = () => {
 };
 
 /**
- * Render one parsed section. Intro sections collapse to a bare
- * paragraph (the leading prose before the first structured
- * heading); structured sections (hazard / where / when / action /
- * section) get a 2-column layout — icon column + content column
- * with a localized lead row above the upstream detail text.
+ * Render one parsed section. Three shapes:
+ *   - **intro** — a bare paragraph (the leading prose before the
+ *     first structured heading): no icon, no lead row.
+ *   - **group** (`section.group`) — an NWS Level-1 (dash-underlined)
+ *     section that groups the bullets below it: a full-width eyebrow
+ *     divider (no icon column), optionally with its own body.
+ *   - **structured** (hazard / where / when / action / section) —
+ *     a 2-column layout (icon column + content column) with a
+ *     localized lead row above the upstream detail text; reads as
+ *     subordinate to the group header above it.
  *
  * @param {object} props
- * @param {{ type: string, lead: string, detail: string }} props.section
+ * @param {{ type: string, lead: string, detail: string, group: boolean }} props.section
  * @param {Function} props.t — i18next translator
  * @returns {JSX.Element|null} the section block, or null if empty
  */
@@ -272,7 +277,6 @@ const SectionBlock = ({ section, t }) => {
       </div>
     );
   }
-  const icon = SECTION_ICONS[section.type] || SECTION_ICONS.section;
   // Localized lead — falls back to the upstream lead text
   // (`section.lead`) if there's no i18n key for the type. For
   // the generic `section` type (heading we recognised but
@@ -301,6 +305,31 @@ const SectionBlock = ({ section, t }) => {
   // Nothing renderable (no heading, no body) → drop the section.
   if (!localizedLead && !body) return null;
 
+  // Group header — an NWS Level-1 (dash-underlined) section such as
+  // NEW INFORMATION / POTENTIAL IMPACTS / PRECAUTIONARY-PREPAREDNESS
+  // ACTIONS. It groups the icon-led `* ` bullet sections that follow,
+  // so it renders as a full-width eyebrow divider (no icon column);
+  // the indented icon-led sections beneath it then read as
+  // subordinate. A group header may also carry its own body (e.g.
+  // SITUATION OVERVIEW's prose, which has no bullet children).
+  if (section.group) {
+    return (
+      <div className={styles.groupHeader}>
+        {localizedLead ? (
+          <div className={styles.groupLabel}>{localizedLead}</div>
+        ) : null}
+        {body ? (
+          <div className={styles.groupBody}>
+            {body.split(/\n\n+/).map((p, j) => (
+              <p key={j} className={styles.sectionPara}>{p}</p>
+            ))}
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
+  const icon = SECTION_ICONS[section.type] || SECTION_ICONS.section;
   return (
     <div className={styles.section}>
       <span className={styles.sectionIcon}>
@@ -327,6 +356,7 @@ SectionBlock.propTypes = {
     type: PropTypes.string.isRequired,
     lead: PropTypes.string,
     detail: PropTypes.string,
+    group: PropTypes.bool,
   }).isRequired,
   t: PropTypes.func.isRequired,
 };
