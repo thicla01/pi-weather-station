@@ -444,6 +444,54 @@ function classifyHeading(heading, lang) {
   return "section";
 }
 
+/**
+ * Split a section's detail / body text into ordered render blocks —
+ * paragraphs and bulleted lists.
+ *
+ * NWS products list sub-items with a leading `- ` on their own line
+ * (storm coordinates under `* STORM INFORMATION:`, the per-impact
+ * bullets under `* FLOODING RAIN:` …) and the detail text keeps those
+ * as hard newlines. Rendering the body by splitting on blank lines
+ * alone collapses each `- ` item into a run-on paragraph (the single
+ * newlines fold to spaces), so the bullets read as one wall of text.
+ * Walking the text into blocks lets the renderer emit a real `<ul>`.
+ *
+ *   - blank line (`\n\n`)        → block boundary
+ *   - line starting with `- `    → a list item (marker stripped);
+ *     consecutive items form one list, and a soft-wrapped
+ *     continuation line (no leading `- `) folds into the item.
+ *   - any other text             → a paragraph (soft wraps folded)
+ *
+ * Only a LINE-LEADING `-`/`•` followed by whitespace counts as a
+ * bullet — an inline ` - ` separator (`Galveston TX - 27.3N`) and a
+ * numeric range (`1-3 feet`, no trailing space) are left intact.
+ *
+ * @param {string} text - a section's detail / body text
+ * @returns {Array<{type: "paragraph", text: string}
+ *   | {type: "list", items: string[]}>} ordered render blocks
+ */
+export function splitBody(text) {
+  const collapse = (s) => s.replace(/\s+/g, " ").trim();
+  const blocks = [];
+  const paragraphs = (text || "").split(/\n\n+/);
+  for (const para of paragraphs) {
+    if (!para.trim()) continue;
+    // Split at every line-leading `- ` / `• `. `parts[0]` is the text
+    // before the first bullet (a lead-in like "...include:"), which is
+    // empty when the paragraph opens directly on a bullet.
+    const parts = para.split(/(?:^|\n)[ \t]*[-•][ \t]+/);
+    const leadIn = collapse(parts[0]);
+    const items = parts.slice(1).map(collapse).filter(Boolean);
+    if (items.length) {
+      if (leadIn) blocks.push({ type: "paragraph", text: leadIn });
+      blocks.push({ type: "list", items });
+    } else if (leadIn) {
+      blocks.push({ type: "paragraph", text: leadIn });
+    }
+  }
+  return blocks;
+}
+
 /* Test exports — `classifyHeading` is the only piece worth
  * unit-testing internally; the parsers above are covered by
  * full-text end-to-end tests in `test/alertParser.test.js`. */

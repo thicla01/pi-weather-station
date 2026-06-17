@@ -15,7 +15,7 @@ import binocularsIcon from "@iconify/icons-carbon/binoculars";
 import { AlertsContext, AppActionsContext } from "~/AppContext";
 import QrCode from "~/components/ambient/QrCode";
 import useEligibleGovAlerts from "~/hooks/useEligibleGovAlerts";
-import { parseAlertText } from "~/ui/alertParser";
+import { parseAlertText, splitBody } from "~/ui/alertParser";
 import styles from "./styles.css";
 
 // Source landing pages — see `GovAlertDetail` for the long-form
@@ -175,9 +175,13 @@ const AlertDetailInline = () => {
                 ? sections.map((section, i) => (
                   <SectionBlock key={i} section={section} t={t} />
                 ))
-                : description.split(/\n\n+/).map((paragraph, i) => (
-                  <p key={i} className={styles.text}>{paragraph}</p>
-                ))}
+                : (
+                  <RichText
+                    text={description}
+                    paraClass={styles.text}
+                    listClass={styles.textList}
+                  />
+                )}
             </div>
             {/* Phase 4d (2026-05-28): action footer with two buttons
               * sitting above the QR footer.
@@ -246,6 +250,36 @@ const AlertDetailInline = () => {
 };
 
 /**
+ * Render a section's body text as paragraphs + bulleted lists.
+ * `splitBody` turns the raw detail text into ordered blocks so NWS
+ * `- ` sub-items (storm coordinates, per-impact bullets) render as a
+ * real `<ul>` instead of folding into a run-on paragraph.
+ *
+ * @param {object} props
+ * @param {string} props.text - the body / detail text to render
+ * @param {string} props.paraClass - CSS module class for paragraphs
+ * @param {string} props.listClass - CSS module class for `<ul>` lists
+ * @returns {JSX.Element} the rendered blocks
+ */
+const RichText = ({ text, paraClass, listClass }) => (
+  <>
+    {splitBody(text).map((block, j) => (block.type === "list" ? (
+      <ul key={j} className={listClass}>
+        {block.items.map((item, k) => <li key={k}>{item}</li>)}
+      </ul>
+    ) : (
+      <p key={j} className={paraClass}>{block.text}</p>
+    )))}
+  </>
+);
+
+RichText.propTypes = {
+  text: PropTypes.string.isRequired,
+  paraClass: PropTypes.string.isRequired,
+  listClass: PropTypes.string.isRequired,
+};
+
+/**
  * Render one parsed section. Three shapes:
  *   - **intro** — a bare paragraph (the leading prose before the
  *     first structured heading): no icon, no lead row.
@@ -271,9 +305,7 @@ const SectionBlock = ({ section, t }) => {
     if (!section.detail) return null;
     return (
       <div className={styles.intro}>
-        {section.detail.split(/\n\n+/).map((p, j) => (
-          <p key={j} className={styles.text}>{p}</p>
-        ))}
+        <RichText text={section.detail} paraClass={styles.text} listClass={styles.textList} />
       </div>
     );
   }
@@ -320,9 +352,7 @@ const SectionBlock = ({ section, t }) => {
         ) : null}
         {body ? (
           <div className={styles.groupBody}>
-            {body.split(/\n\n+/).map((p, j) => (
-              <p key={j} className={styles.sectionPara}>{p}</p>
-            ))}
+            <RichText text={body} paraClass={styles.sectionPara} listClass={styles.sectionList} />
           </div>
         ) : null}
       </div>
@@ -341,9 +371,7 @@ const SectionBlock = ({ section, t }) => {
         ) : null}
         {body ? (
           <div className={styles.sectionDetail}>
-            {body.split(/\n\n+/).map((p, j) => (
-              <p key={j} className={styles.sectionPara}>{p}</p>
-            ))}
+            <RichText text={body} paraClass={styles.sectionPara} listClass={styles.sectionList} />
           </div>
         ) : null}
       </div>

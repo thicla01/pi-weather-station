@@ -173,6 +173,25 @@ function parseAlertText(text, lang = "en") {
   return [{ type: "intro", lead: "", detail: safe }];
 }
 
+function splitBody(text) {
+  const collapse = (s) => s.replace(/\s+/g, " ").trim();
+  const blocks = [];
+  const paragraphs = (text || "").split(/\n\n+/);
+  for (const para of paragraphs) {
+    if (!para.trim()) continue;
+    const parts = para.split(/(?:^|\n)[ \t]*[-•][ \t]+/);
+    const leadIn = collapse(parts[0]);
+    const items = parts.slice(1).map(collapse).filter(Boolean);
+    if (items.length) {
+      if (leadIn) blocks.push({ type: "paragraph", text: leadIn });
+      blocks.push({ type: "list", items });
+    } else if (leadIn) {
+      blocks.push({ type: "paragraph", text: leadIn });
+    }
+  }
+  return blocks;
+}
+
 // ---------- end of verbatim copy ----------
 
 // classifyHeading — the canonical type lookup is the most error-prone
@@ -635,4 +654,66 @@ test("parseAlertText: heading split — unknown heading keeps source wording", (
   assert.ok(refs, "References heading must be preserved as a section");
   assert.equal(refs.type, "section");
   assert.equal(refs.detail, "Multiple radar observations.");
+});
+
+// splitBody — render-layer helper that turns a section's detail text
+// into paragraph / list blocks. NWS `- ` sub-items (storm coordinates,
+// per-impact bullets) must become real list items instead of folding
+// into a run-on paragraph (the AccuWeather-parity fix, 2026-06-16).
+
+test("splitBody: line-leading `- ` items become a bulleted list", () => {
+  // STORM INFORMATION shape — four `- ` lines, no lead-in text.
+  const text = [
+    "- About 220 miles southwest of Galveston TX",
+    "- 27.3N 97.6W",
+    "- Storm Intensity 30 mph",
+    "- Movement Northeast or 45 degrees at 6 mph",
+  ].join("\n");
+  const blocks = splitBody(text);
+  assert.equal(blocks.length, 1);
+  assert.equal(blocks[0].type, "list");
+  assert.deepEqual(blocks[0].items, [
+    "About 220 miles southwest of Galveston TX",
+    "27.3N 97.6W",
+    "Storm Intensity 30 mph",
+    "Movement Northeast or 45 degrees at 6 mph",
+  ]);
+});
+
+test("splitBody: lead-in text before bullets becomes a paragraph, then the list", () => {
+  // FLOODING RAIN shape — a lead-in sentence, then `- ` items, one of
+  // which is soft-wrapped across source lines (must fold into the item).
+  const text = [
+    "Prepare for life-threatening rainfall flooding. Potential impacts include:",
+    "- Major rainfall flooding may prompt many rescues.",
+    "- Rivers and tributaries may rapidly overflow their banks in",
+    "multiple places. Small streams may become dangerous rivers.",
+  ].join("\n");
+  const blocks = splitBody(text);
+  assert.equal(blocks.length, 2);
+  assert.equal(blocks[0].type, "paragraph");
+  assert.match(blocks[0].text, /Potential impacts include:$/);
+  assert.equal(blocks[1].type, "list");
+  assert.equal(blocks[1].items.length, 2, "soft-wrapped continuation folds into its bullet");
+  assert.match(blocks[1].items[1], /overflow their banks in multiple places\. Small streams/);
+});
+
+test("splitBody: inline ` - ` and numeric ranges are NOT treated as bullets", () => {
+  // Only a LINE-LEADING `-` + space is a bullet. A mid-line ` - `
+  // separator (NWS coords) and a hyphen range (`1-3 feet`) must stay
+  // inside the paragraph text untouched.
+  const text = "Locally heavy rainfall, 1-3 feet of coastal flooding. Storm at Galveston TX - 27.3N 97.6W.";
+  const blocks = splitBody(text);
+  assert.equal(blocks.length, 1);
+  assert.equal(blocks[0].type, "paragraph");
+  assert.match(blocks[0].text, /1-3 feet/);
+  assert.match(blocks[0].text, /Galveston TX - 27\.3N 97\.6W/);
+});
+
+test("splitBody: blank lines separate blocks; empty input yields no blocks", () => {
+  assert.deepEqual(splitBody(""), []);
+  assert.deepEqual(splitBody("   "), []);
+  const blocks = splitBody("First paragraph.\n\n- one\n- two\n\nClosing paragraph.");
+  assert.deepEqual(blocks.map((b) => b.type), ["paragraph", "list", "paragraph"]);
+  assert.equal(blocks[1].items.length, 2);
 });

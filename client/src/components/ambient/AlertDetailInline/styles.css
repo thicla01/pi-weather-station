@@ -251,6 +251,37 @@
   margin-bottom: 0;
 }
 
+/* Bulleted lists for NWS `- ` sub-items (storm coordinates under
+ * STORM INFORMATION, the per-impact bullets under FLOODING RAIN …).
+ * `splitBody` (alertParser) extracts them; rendering a real `<ul>`
+ * gives each item its own line + marker instead of folding them into
+ * a run-on paragraph. Two variants mirror the two paragraph classes:
+ * `.sectionList` inherits the dim 12.5 px detail look from its
+ * `.sectionDetail` / `.groupBody` parent; `.textList` matches the
+ * brighter 13 px intro / fallback `.text`. */
+.sectionList,
+.textList {
+  margin: 4px 0;
+  padding-left: 18px;
+  /* Break bare upstream URLs inside a bullet too — see `.text`. */
+  overflow-wrap: anywhere;
+}
+
+.textList {
+  font-size: 13px;
+  line-height: 1.55;
+}
+
+.sectionList li,
+.textList li {
+  margin: 0 0 4px;
+}
+
+.sectionList li:last-child,
+.textList li:last-child {
+  margin-bottom: 0;
+}
+
 /* On phones, drop the icon column to save horizontal room — the
  * section lead alone carries enough semantic weight without the
  * 16 px + 12 px gap eating into the content width. */
