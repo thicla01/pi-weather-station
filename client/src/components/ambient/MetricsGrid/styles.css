@@ -25,7 +25,7 @@
   font-family: "Geist", system-ui, -apple-system, sans-serif;
   display: flex;
   flex-direction: column;
-  min-height: 78px;
+  min-height: 58px;
   text-align: left;
   /* Hybrid-mode severity strip — propagates from AmbientLayers root. */
   box-shadow: inset 3px 0 0 var(--c-strip-color, transparent);
@@ -62,19 +62,27 @@
   pointer-events: none;
 }
 
-.iconRow {
+/* Top row: icon INLINE with the value (mockup parity) — keeps each tile to
+ * two rows (value + label) so the 2×2 stays compact. */
+.topRow {
   display: flex;
   align-items: center;
-  font-size: 16px;
-  color: var(--c-accent);
-  margin-bottom: 2px;
+  gap: 7px;
+  margin-bottom: 4px;
 }
 
-.valueRow {
+.icon {
+  flex: none;
+  display: inline-flex;
+  font-size: 16px;
+  color: var(--c-accent);
+}
+
+.valueGroup {
   display: flex;
   align-items: baseline;
   gap: 3px;
-  margin-bottom: 4px;
+  min-width: 0;
 }
 
 .value {

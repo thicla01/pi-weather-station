@@ -173,12 +173,17 @@ const Cell = ({ icon, value, unit, label, qualifier, qualifierTier, onClick, ari
       {interactive ? (
         <InlineIcon icon={chevronRight} className={styles.cellChevron} aria-hidden="true" />
       ) : null}
-      <div className={styles.iconRow}>
-        <InlineIcon icon={icon} />
-      </div>
-      <div className={styles.valueRow}>
-        <span className={styles.value}>{value}</span>
-        {unit ? <span className={styles.unit}>{unit}</span> : null}
+      {/* Icon INLINE with the value (one row) — "icon 21 kph" — so the tile
+        * is two rows (value-row + label) and stays compact, matching the
+        * mockup. The icon on its own row made the tiles a third taller. */}
+      <div className={styles.topRow}>
+        <span className={styles.icon}>
+          <InlineIcon icon={icon} />
+        </span>
+        <span className={styles.valueGroup}>
+          <span className={styles.value}>{value}</span>
+          {unit ? <span className={styles.unit}>{unit}</span> : null}
+        </span>
       </div>
       {/* The severity qualifier (UV "modéré") rides INLINE in the label —
         * "UV · modéré" on one line — so the cell stays the same height as
