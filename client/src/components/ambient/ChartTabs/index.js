@@ -1,5 +1,6 @@
-import React, { useEffect, useRef, useState, useCallback } from "react";
+import React, { useContext, useEffect, useRef, useState, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { SystemContext, AppActionsContext } from "~/AppContext";
 import MetricChart from "~/components/ambient/weatherCharts/MetricChart";
 import HourlyForecastColumns from "~/components/ambient/HourlyForecastColumns";
 import DailyForecastColumns from "~/components/ambient/DailyForecastColumns";
@@ -67,11 +68,13 @@ function readStoredView(key, max) {
  * superimposes the precipitation pair on the active chart — the
  * maintainer-chosen replacement for the old always-paired charts.
  *
- * Maximize keeps the v2.14.39 mechanics: the slab promotes to
- * `position: absolute; inset: 12px` over its rail and emits
- * `data-chart-maximized="true"` (LayoutDesktop widens the rail via
- * `:has()`); the grid metric densifies (8 → 24 cells) and the chart
- * area grows.
+ * Maximize: on LayoutDesktop / LayoutMobile it keeps the v2.14.39
+ * mechanics — the slab promotes to `position: absolute; inset: 12px`
+ * over its rail and emits `data-chart-maximized="true"` (the layout
+ * widens the rail via `:has()`). On LayoutPi (v3.2) the expand button
+ * instead drives the shell MAX state (`piLayoutState`): the map shrinks
+ * to a thumbnail and the rail goes full-width. Either way the grid
+ * metric densifies (8 → 24 cells) and the chart area grows.
  *
  * When the user opts in (Settings → "Auto-select forecast tab"),
  * `useAutoTabSelector` may command the active metric from current hazards;
@@ -88,7 +91,20 @@ const ChartTabs = () => {
   const [precipOverlay, setPrecipOverlay] = useState(() => {
     try { return window.localStorage.getItem(STORAGE_KEY_OVERLAY) === "1"; } catch { return false; }
   });
-  const [maximized, setMaximized] = useState(false);
+  // v3.2: on LayoutPi the forecast slab no longer maximizes in place — its
+  // expand button drives the shell into the MAX state (forecast-forward:
+  // map → thumbnail, rail → full-width). `piLayoutState` is non-null only
+  // while LayoutPi is mounted, so on LayoutDesktop / LayoutMobile the slab
+  // keeps its original local in-rail maximize.
+  const { piLayoutState } = useContext(SystemContext);
+  const { setPiLayoutState } = useContext(AppActionsContext);
+  const onPi = piLayoutState != null;
+  const [localMaximized, setLocalMaximized] = useState(false);
+  const maximized = onPi ? piLayoutState === "max" : localMaximized;
+  const toggleMaximized = useCallback(() => {
+    if (onPi) setPiLayoutState(piLayoutState === "max" ? "mid" : "max");
+    else setLocalMaximized((m) => !m);
+  }, [onPi, piLayoutState, setPiLayoutState]);
   const slabRef = useRef(null);
   const cardActivityRef = useRef(0);
 
@@ -242,7 +258,7 @@ const ChartTabs = () => {
         <button
           type="button"
           className={styles.actionButton}
-          onClick={() => setMaximized((m) => !m)}
+          onClick={toggleMaximized}
           aria-pressed={maximized}
           aria-label={expandLabel}
           title={expandLabel}

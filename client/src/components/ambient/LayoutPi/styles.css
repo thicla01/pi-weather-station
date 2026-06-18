@@ -43,44 +43,40 @@
   grid-template-columns: 1fr 0;
 }
 
-/* Expandable rail (v2.14.46 ChartTabs, v2.14.47 AiSummaryInline) — when
- * either maximizable slab in the rail emits its
- * `data-{slab}-maximized="true"` flag, widen the rail so the promoted
- * slab has more room. Same affordance LayoutDesktop offers, adapted to
- * the smaller viewport widths LayoutPi serves (800-1279 px).
- *
- * Cap (`min(60vw, 600px)`) keeps the map area readable:
- *   - 800 px (7" Pi):  rail grows from 300 px → 480 px (map = 320 px)
- *   - 1024 px:         rail grows from 300 px → 600 px (map = 424 px)
- *   - 1279 px:         rail grows from 340 px → 600 px (map = 679 px)
- *
- * The `transition: grid-template-columns 200 ms ease-out` rule on
- * `.layout` (set above for the collapse animation) is reused here, so
- * the rail slides open smoothly instead of snapping.
- *
- * If the user has already entered focus mode via the RadarFocusControl
- * (.focused), neither maximized state is reachable (both slabs live
- * inside the rail), so there's no conflict between the grid-template-
- * columns values — .focused always wins because of source order. */
-.layout:has([data-chart-maximized="true"]),
+/* v3.2 MAX state — forecast-forward. On LayoutPi the forecast slab's
+ * expand button no longer maximizes in place; it drives the shell into
+ * `data-pi-state="max"`, where the map collapses to a thumbnail (first
+ * column) and the rail takes the rest so the forecast detail owns the
+ * screen. The base 200 ms grid transition animates the morph. The
+ * thumbnail width is a custom property so a later step can tune it per
+ * panel density without touching this rule. */
+.layout[data-pi-state="max"] {
+  grid-template-columns: var(--pi-max-map, 190px) 1fr;
+}
+
+/* In MAX, hide every rail card except the maximized forecast slab (it
+ * still carries `data-chart-maximized="true"`), and drop the rail's
+ * opaque background + border so the radar thumbnail reads cleanly
+ * beside the full-width chart. */
+.layout[data-pi-state="max"] .rail > *:not([data-chart-maximized="true"]) {
+  display: none;
+}
+.layout[data-pi-state="max"] .rail {
+  background-color: transparent;
+  border-left-color: transparent;
+}
+
+/* AiSummaryInline keeps its in-rail maximize during the v3.2 transition
+ * (it folds into MAX in a later step); its `:has()` widen + sibling-hide
+ * stay until then. ChartTabs no longer participates here on LayoutPi —
+ * its maximize IS the shell MAX state above — so only the AI flag is
+ * matched now. */
 .layout:has([data-ai-maximized="true"]) {
   grid-template-columns: 1fr min(60vw, 600px);
 }
-
-/* Hide sibling rail slabs and drop the rail's opaque background when
- * any card is maximized — see LayoutDesktop styles for the rationale.
- * On LayoutPi the rail's own `background-color: var(--c-bg)` (line
- * ~93 above) would still paint a tall dark strip below the focused
- * card even after the siblings are hidden, so we transparenter it
- * here too. The rail border-left is also dropped because at the
- * expanded rail width it would otherwise read as a stray vertical
- * line where the radar map should show through. */
-.layout:has([data-chart-maximized="true"]) .rail > *:not([data-chart-maximized="true"]),
 .layout:has([data-ai-maximized="true"]) .rail > *:not([data-ai-maximized="true"]) {
   display: none;
 }
-
-.layout:has([data-chart-maximized="true"]) .rail,
 .layout:has([data-ai-maximized="true"]) .rail {
   background-color: transparent;
   border-left-color: transparent;
