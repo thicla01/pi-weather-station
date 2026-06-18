@@ -60,6 +60,7 @@
 }
 .layout[data-pi-state="max"] .forecastHost {
   display: flex;
+  flex-direction: column;
   flex: 1;
   min-height: 0;
 }
