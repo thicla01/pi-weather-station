@@ -69,16 +69,25 @@ function severityFallbackWord(severity) {
  *   (`title_en` / `eventType`); drives the product-type word. Default "".
  * @param {boolean} [props.compact] - When true, render label-less for tight
  *   spaces (mini-card list). Default false — full icon + label.
+ * @param {boolean} [props.abbreviated] - When true, render the icon + the
+ *   SHORT product word (e.g. FR "Avert." for Avertissement). Used by the
+ *   v3.2 compact Pi alert card, where the full word ("AVERTISSEMENT" ≈
+ *   140 px) squeezes the one-row title to nothing. The full word stays on
+ *   the `title` tooltip. Ignored when `compact` (icon-only) is set.
  * @returns {JSX.Element} the chip
  */
-const SeverityChip = ({ severity, eventName = "", compact = false }) => {
+const SeverityChip = ({ severity, eventName = "", compact = false, abbreviated = false }) => {
   const { t } = useTranslation();
   const colourTier = severityToColourTier(severity);
   const word = eventProductType(eventName) || severityFallbackWord(severity);
-  const labelKey = `alert.severity${word.charAt(0).toUpperCase() + word.slice(1)}`;
+  const wordCap = word.charAt(0).toUpperCase() + word.slice(1);
+  const labelKey = `alert.severity${wordCap}`;
+  // Abbreviated mode swaps in the short product word for the label while
+  // keeping the full word on the tooltip.
+  const shownKey = abbreviated ? `${labelKey}Short` : labelKey;
   return (
     <span
-      className={`${styles.chip} ${styles[`tier-${colourTier}`]}`}
+      className={`${styles.chip} ${styles[`tier-${colourTier}`]} ${abbreviated ? styles.abbrev : ""}`}
       data-severity={colourTier}
       title={t(labelKey)}
     >
@@ -91,7 +100,7 @@ const SeverityChip = ({ severity, eventName = "", compact = false }) => {
         <line x1="12" y1="9" x2="12" y2="14" strokeLinecap="round" />
         <circle cx="12" cy="17.5" r="0.5" fill="currentColor" />
       </svg>
-      {!compact && <span className={styles.label}>{t(labelKey)}</span>}
+      {!compact && <span className={styles.label}>{t(shownKey)}</span>}
     </span>
   );
 };
@@ -100,6 +109,7 @@ SeverityChip.propTypes = {
   severity: PropTypes.string.isRequired,
   eventName: PropTypes.string,
   compact: PropTypes.bool,
+  abbreviated: PropTypes.bool,
 };
 
 export default SeverityChip;

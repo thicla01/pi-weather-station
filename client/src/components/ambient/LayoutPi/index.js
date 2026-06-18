@@ -1,13 +1,14 @@
 import React, { useContext, useEffect } from "react";
-import { UiPrefsContext, SystemContext, AppActionsContext } from "~/AppContext";
+import { UiPrefsContext, SystemContext, AppActionsContext, WeatherDataContext } from "~/AppContext";
+import { getAirAlertState } from "~/ui/alertLogic";
 import WeatherMap from "~/components/WeatherMap";
 import HeroCompact from "~/components/ambient/HeroCompact";
 import TimeBlock from "~/components/ambient/TimeBlock";
 import MetricsGrid from "~/components/ambient/MetricsGrid";
 import AirCard from "~/components/ambient/AirCard";
+import AirAlertCard from "~/components/ambient/AirAlertCard";
 import AlertBanner from "~/components/ambient/AlertBanner";
 import AlertDetailInline from "~/components/ambient/AlertDetailInline";
-import AlertMiniCards from "~/components/ambient/AlertMiniCards";
 import IndoorBlock from "~/components/ambient/IndoorBlock";
 import ChartTabs from "~/components/ambient/ChartTabs";
 import NowcastLine from "~/components/ambient/NowcastLine";
@@ -75,6 +76,13 @@ const LayoutPi = () => {
   const { darkMode, defaultMapZoom, mouseHide } = useContext(UiPrefsContext);
   const { piLayoutState } = useContext(SystemContext);
   const { setPiLayoutState } = useContext(AppActionsContext);
+  const { aqhiInfo } = useContext(WeatherDataContext);
+
+  // v3.2 air-quality alert: escalate to a top-of-rail AIR card only at the
+  // health-risk band (high/veryHigh). Computed once here so the inline
+  // AirCard's AQ row can be suppressed in the same render — no duplicate
+  // AQHI reading (the AIR card carries it, with its own tap-for-detail).
+  const airAlert = getAirAlertState(aqhiInfo?.category);
 
   // Sentinel pattern: flip to `false` on mount so WeatherMap renders
   // the Leaflet focus control for this layout, and back to `null` on
@@ -111,7 +119,11 @@ const LayoutPi = () => {
         <div className={styles.midPanel}>
           <AlertBanner />
           <AlertDetailInline />
-          <AlertMiniCards />
+          {/* AIR — air-quality alert card (v3.2). Renders only at the
+           * health-risk band; stacks under the gov alert (mockup case 4).
+           * The AlertMiniCards "other gov alerts" list is gone from the Pi
+           * rail — the compact AlertBanner counter cycles instead. */}
+          {airAlert && <AirAlertCard alert={airAlert} />}
           <TimeBlock compact />
           {/* shortPhaseName: the 7" rail is too narrow for the full
            * moon-phase string ("Gibbeuse croissante") in the hero
@@ -123,7 +135,7 @@ const LayoutPi = () => {
            * column's single entry into MAX, so there is no separate
            * "Prévisions" button. */}
           <NowcastLine />
-          <AirCard />
+          <AirCard suppressAqRow={!!airAlert} />
           <MetricsGrid />
           <IndoorBlock />
         </div>

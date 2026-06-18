@@ -200,13 +200,97 @@
    * any button styling signals at a glance. */
 }
 
-[data-palette="nightRed"] .cycleBtn { color: var(--c-text); }
+/* ============================================================
+ * v3.2 COMPACT gov card — 7" Pi MID rail (.banner.govAlert on Pi)
+ * ============================================================
+ * Swaps the Phase-4 stacked head for a single tight row. Two SIBLING
+ * tap zones live in `.compactRow` (NOT nested — the cycle button can't
+ * sit inside the role="button" expand zone): `.headCompact` (chip +
+ * source + ellipsized title, taps to expand) and `.cycleCounter` (the
+ * "1 / N" doubling as the next-alert control, sized to a real touch
+ * target). No dismiss ✕ on Pi (it relocates to the detail footer), so
+ * the row's whole width goes to the title + a comfortable counter. */
+.compactRow {
+  display: flex;
+  align-items: stretch;
+  gap: 6px;
+  padding: 7px 12px;
+}
 
-.cycleBtn:hover { background-color: var(--c-accent-soft); border-color: var(--c-accent); }
+.headCompact {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  border-radius: 8px;
+}
 
-.cycleBtn:focus-visible {
+.headCompact:focus-visible {
+  outline: 2px dashed var(--c-text);
+  outline-offset: -2px;
+}
+
+/* Single-line title — ellipsizes under pressure; the full description is
+ * a tap away (AlertDetailInline), matching the minimal-glance budget. */
+.titleCompact {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 13.5px;
+  font-weight: 500;
+  color: var(--c-text);
+  letter-spacing: -0.005em;
+}
+
+/* Cycle counter — "1 / N" doubling as the next-alert control, the whole
+ * multi-alert nav surface on Pi (mini-cards dropped). Sized as a real
+ * touch target (min 34px tall, stretches to the row) — accent-soft fill +
+ * chevron reads as a button (vs the passive desktop .counter). */
+.cycleCounter {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 3px;
+  flex-shrink: 0;
+  align-self: stretch;
+  min-height: 34px;
+  min-width: 44px;
+  padding: 0 9px;
+  background: var(--c-accent-soft);
+  border: 1px solid transparent;
+  border-radius: 8px;
+  color: var(--c-accent);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.cycleCounter:active { transform: scale(0.96); }
+
+.cycleCounter:focus-visible {
   outline: 2px dashed var(--c-text);
   outline-offset: 2px;
+}
+
+/* nightRed: accent collapses toward red; keep the counter legible by
+ * falling back to the primary text colour for the count + chevron. */
+[data-palette="nightRed"] .cycleCounter { color: var(--c-text); }
+
+.cycleCount {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+}
+
+.cycleChevron {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
 }
 
 /* ============================================================

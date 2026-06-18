@@ -202,3 +202,36 @@ export function getRadarAlertState(
   const i18nKey = `alert.${tier}${innerIsSource ? "Near" : "Approaching"}`;
   return { tier, i18nKey, confidence, confidenceBucket: bucket };
 }
+
+/**
+ * Map a server-normalised air-quality category to a top-of-rail alert
+ * state, or `null` when air quality doesn't warrant escalating beyond
+ * the inline AirCard reading.
+ *
+ * Threshold = the health-risk level (maintainer decision 2026-06-18,
+ * "afficher lorsqu'il y a des risques pour la santé"):
+ *   - "veryHigh" → red    (AQHI ≥ 10 / IQA > 100 / EPA AQI > 150)
+ *   - "high"     → orange  (AQHI 7-10 — the band where the official
+ *                           AQHI message tells the general population to
+ *                           reduce or reschedule strenuous outdoor activity)
+ *   - "moderate" / "low" / unknown → null (AirCard inline only —
+ *                           escalating "moderate" would keep the card up
+ *                           nearly year-round, defeating the glance)
+ *
+ * Keying on `category` (the four-tier word every AQ source is normalised
+ * to server-side via `_shared.js`) rather than the raw value means one
+ * threshold covers AQHI, IQA and EPA AQI without per-scale logic — the
+ * same reason the AirCard pill reads `category`, not the number.
+ *
+ * Mirrors `getRadarAlertState`'s tier vocabulary ("red" | "orange") so the
+ * AIR card shares the AlertBanner tier-strip colours.
+ *
+ * @param {?string} category — "low" | "moderate" | "high" | "veryHigh"
+ * @returns {{ tier: "red"|"orange", category: string } | null} the alert
+ *   tier + echoed category, or null below the health-risk band
+ */
+export function getAirAlertState(category) {
+  if (category === "veryHigh") return { tier: "red", category };
+  if (category === "high") return { tier: "orange", category };
+  return null;
+}
