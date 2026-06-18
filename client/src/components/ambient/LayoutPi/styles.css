@@ -34,7 +34,12 @@
   }
 }
 
-.layout.focused {
+/* v3.2: the focus/MIN state is now one value of the `data-pi-state` enum
+ * on the root (set by LayoutPi from `piLayoutState`), not a `.focused`
+ * class. The base `.layout` rule above is the MID (split) geometry; the
+ * MAX (forecast-forward, map → thumbnail) override is added in a later
+ * step. MIN collapses the rail column to zero. */
+.layout[data-pi-state="min"] {
   grid-template-columns: 1fr 0;
 }
 
@@ -135,7 +140,7 @@
   zoom: var(--c-font-scale, 1);
 }
 
-.layout.focused .rail {
+.layout[data-pi-state="min"] .rail {
   opacity: 0;
   pointer-events: none;
   visibility: hidden;

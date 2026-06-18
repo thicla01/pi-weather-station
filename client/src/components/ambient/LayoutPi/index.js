@@ -35,12 +35,13 @@ import styles from "./styles.css";
  *
  * Focus mode (toggled by the Leaflet RadarFocusControl in WeatherMap's
  * topleft control bar, sitting under the zoom +/- buttons) hides the
- * entire rail so the radar fills the available column. `piRadarMaximized`
- * carries the state — flipped to `false` on mount and back to `null` on
- * unmount, mirroring the LayoutDesktop sentinel pattern. The
- * RadarFocusControl renders only when one of `piRadarMaximized` or
- * `desktopRadarMaximized` is non-null, and routes its toggle to whichever
- * is active.
+ * entire rail so the radar fills the available column. `piLayoutState`
+ * carries the state (v3.2 enum: "min" | "mid" | "max" | null) — set to
+ * "mid" on mount and back to `null` on unmount, mirroring the LayoutDesktop
+ * sentinel pattern. MIN === fullscreen radar (the old focus mode). The
+ * RadarFocusControl renders only when one of `piRadarMaximized` (the derived
+ * boolean shim, MIN ⇔ true) or `desktopRadarMaximized` is non-null, and
+ * routes its toggle to whichever is active.
  *
  * Legacy note (2026-05-28 consolidation): the right-edge chevron that
  * used to toggle `infoPanelCollapsed` was removed in favour of the
@@ -63,8 +64,8 @@ import styles from "./styles.css";
  */
 const LayoutPi = () => {
   const { darkMode, defaultMapZoom, mouseHide } = useContext(UiPrefsContext);
-  const { piRadarMaximized } = useContext(SystemContext);
-  const { setPiRadarMaximized } = useContext(AppActionsContext);
+  const { piLayoutState } = useContext(SystemContext);
+  const { setPiLayoutState } = useContext(AppActionsContext);
 
   // Sentinel pattern: flip to `false` on mount so WeatherMap renders
   // the Leaflet focus control for this layout, and back to `null` on
@@ -72,19 +73,20 @@ const LayoutPi = () => {
   // LayoutDesktop / LayoutMobile (no orphan button on those layouts).
   // Mirrors what LayoutDesktop already does for desktopRadarMaximized.
   useEffect(() => {
-    setPiRadarMaximized(false);
-    return () => setPiRadarMaximized(null);
-  }, [setPiRadarMaximized]);
+    setPiLayoutState("mid");
+    return () => setPiLayoutState(null);
+  }, [setPiLayoutState]);
 
-  const focused = piRadarMaximized === true;
+  const focused = piLayoutState === "min";
 
   return (
     <div
-      className={`${styles.layout} ${focused ? styles.focused : ""}`}
+      className={styles.layout}
+      data-pi-state={piLayoutState || "mid"}
     >
       <div className={`${styles.mapArea} map-container ${darkMode ? "map-dark-mode" : ""} ${mouseHide ? "map-mouse-hide" : ""}`}>
         <WeatherMap zoom={defaultMapZoom} dark={darkMode} />
-        {focused && <FloatingMiniBanner onExpand={() => setPiRadarMaximized(false)} />}
+        {focused && <FloatingMiniBanner onExpand={() => setPiLayoutState("mid")} />}
       </div>
       <aside className={styles.rail} aria-hidden={focused}>
         <TimeBlock />
