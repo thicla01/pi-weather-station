@@ -59,7 +59,9 @@
   display: none;
 }
 .layout[data-pi-state="max"] .forecastHost {
-  display: block;
+  display: flex;
+  flex: 1;
+  min-height: 0;
 }
 /* Drop the rail's opaque background + border in MAX so the radar
  * thumbnail reads cleanly beside the full-width chart. */
@@ -86,7 +88,12 @@
  * calm-weather path into the forecast deep-dive). Full-width row: chart
  * glyph + label + a maximize square, >= 44 px tall. No background-painting
  * :hover — sticky-hover on the touch kiosk. */
-.forecastButton {
+/* Doubled class (`.forecastButton.forecastButton`, specificity 0,2,0) to
+ * beat the `.ambientRoot button { background: transparent; border: 0;
+ * padding: 0 }` reset (0,1,1) — the same documented trap NowcastLine's
+ * `.line.line` and every ChartTabs button guard against. A bare single
+ * class loses its surface/border/padding to the reset. */
+.forecastButton.forecastButton {
   display: flex;
   align-items: center;
   gap: 10px;
@@ -105,12 +112,12 @@
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
-.forecastButton svg {
+.forecastButton.forecastButton svg {
   flex: none;
   width: 18px;
   height: 18px;
 }
-.forecastButton svg:last-child {
+.forecastButton.forecastButton svg:last-child {
   margin-left: auto;
   color: var(--c-text-dim);
 }
@@ -118,7 +125,7 @@
   flex: 1;
   min-width: 0;
 }
-.forecastButton:focus-visible {
+.forecastButton.forecastButton:focus-visible {
   outline: 2px solid var(--c-accent);
   outline-offset: -2px;
 }

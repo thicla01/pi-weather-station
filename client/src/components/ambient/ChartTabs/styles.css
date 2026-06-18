@@ -57,6 +57,26 @@
   -webkit-backdrop-filter: blur(6px);
 }
 
+/* v3.2 Pi MAX (forecast-forward): unlike the Desktop/Mobile in-rail
+ * maximize above (.slabMaximized, absolute + top-pinned), on LayoutPi the
+ * slab sits IN FLOW inside `.forecastHost` — which LayoutPi flexes to
+ * fill the full-width rail — and the chart grows to use the height
+ * instead of leaving a strip of bare background below. Doubled class for
+ * the (0,1,1) reset, matching `.slab.slabMaximized`. */
+.slab.slabPiMax {
+  flex: 1;
+  min-height: 0;
+}
+.slabPiMax .chartArea {
+  flex: 1;
+  min-height: 200px;
+  height: auto;
+}
+.slabPiMax .chartArea.chartAreaGrid {
+  flex: 1;
+  min-height: 200px;
+}
+
 /* ---- Header row: PRÉVISIONS · period pills · expand ----------------
  *
  * Specificity note: every button rule in this file is scoped under its

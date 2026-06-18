@@ -326,7 +326,14 @@ export function AppContextProvider({ children }) {
   // those files can migrate independently rather than all in one commit.
   const piRadarMaximized = piLayoutState == null ? null : piLayoutState === "min";
   const setPiRadarMaximized = useCallback((value) => {
-    setPiLayoutState(value == null ? null : value ? "min" : "mid");
+    // Honour the old useState dispatcher contract, including the
+    // functional-updater form `setPiRadarMaximized(prev => !prev)`:
+    // resolve the updater against the derived boolean (MIN ⇔ true)
+    // before projecting back onto the enum.
+    setPiLayoutState((prevEnum) => {
+      const resolved = typeof value === "function" ? value(prevEnum === "min") : value;
+      return resolved == null ? null : resolved ? "min" : "mid";
+    });
   }, []);
   // Display sub-tree (advanced.display.* in settings.json).
   // lightModeStyle / darkModeStyle drive the Mapbox style for each theme.

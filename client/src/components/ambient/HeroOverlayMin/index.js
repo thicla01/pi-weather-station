@@ -69,7 +69,7 @@ const HeroOverlayMin = () => {
   const showFeelsLike = tempConverted != null && feelsConverted != null;
 
   return (
-    <div className={styles.overlay} role="status" aria-label={t("location.details")}>
+    <div className={styles.overlay}>
       <div className={styles.location}>
         <LocationName />
       </div>

@@ -221,7 +221,7 @@ const ChartTabs = () => {
   return (
     <div
       ref={slabRef}
-      className={`${styles.slab} ${maximized ? styles.slabMaximized : ""}`}
+      className={`${styles.slab} ${maximized ? (onPi ? styles.slabPiMax : styles.slabMaximized) : ""}`}
       data-chart-maximized={maximized ? "true" : undefined}
     >
       <div className={styles.headerRow}>
