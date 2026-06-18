@@ -69,7 +69,13 @@ Variant A "Compagnon nomade" from the design package. Single scrollable column t
 
 ## LayoutPi — 7" / 10" Pi touchscreen
 
-The map occupies the left column; the rail (info panel) occupies the right column. A collapsible chevron button on the map's right edge hides/shows the rail.
+**v3.2 — three layout states.** One `piLayoutState` enum (`"min" | "mid" | "max"`) drives the screen via `data-pi-state` on the root:
+
+- **MID** (default) — the split below: radar map on the left, the lean *radar-companion* rail on the right (alerts · slim clock · hero anchored on feels-like · NowcastLine · air quality · a 2×2 of Wind / Gust / UV / Humidity · indoor · a "Prévisions" button). The forecast chart and AI prose are not in this glance.
+- **MIN** — radar fullscreen (the old focus mode): the rail collapses and the dock hides so the radar fills the screen, with a compact place/temp **HeroOverlayMin** (and the **FloatingMiniBanner** when a gov alert is active) pinned over the map.
+- **MAX** — forecast-forward: the map shrinks to a frozen ~190 px thumbnail and the forecast chart takes the full-width rail. Reached from the "Prévisions" button or by tapping the NowcastLine; left via the chart's restore button.
+
+The diagram below details the **MID** rail.
 
 ```
 ┌──────────────────────────┬──────────────────────────┐

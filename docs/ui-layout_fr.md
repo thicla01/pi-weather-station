@@ -69,7 +69,13 @@ Variante A « Compagnon nomade » du dossier de design. Colonne unique défilant
 
 ## LayoutPi — écran tactile Pi 7" / 10"
 
-La carte occupe la colonne de gauche ; le rail (panneau d'information) occupe la colonne de droite. Un bouton chevron repliable sur le bord droit de la carte masque/affiche le rail.
+**v3.2 — trois états de mise en page.** Un seul enum `piLayoutState` (`"min" | "mid" | "max"`) pilote l'écran via `data-pi-state` sur la racine :
+
+- **MID** (défaut) — le split ci-dessous : carte radar à gauche, rail *compagnon du radar* allégé à droite (alertes · horloge slim · hero ancré sur le ressenti · NowcastLine · qualité de l'air · un 2×2 Vent / Rafales / UV / Humidité · intérieur · un bouton « Prévisions »). Le graphique de prévisions et le résumé IA ne sont pas dans ce coup d'œil.
+- **MIN** — radar plein écran (l'ancien mode focus) : le rail se replie et le dock se masque pour que le radar remplisse l'écran, avec un **HeroOverlayMin** compact (lieu / température) — et la **FloatingMiniBanner** si une alerte gouv est active — épinglés sur la carte.
+- **MAX** — prévisions prioritaires : la carte se réduit en vignette gelée ~190 px et le graphique de prévisions prend tout le rail. Atteint par le bouton « Prévisions » ou en touchant la NowcastLine ; quitté par le bouton restaurer du graphique.
+
+Le diagramme ci-dessous détaille le rail en **MID**.
 
 ```
 ┌──────────────────────────┬──────────────────────────┐

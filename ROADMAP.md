@@ -62,6 +62,16 @@ Much of the intent is already implemented piecemeal (`ui/tokens.js` roles, the n
 
 Effort once started: an adaptation-requests doc (~half a session), then mostly a `ui/tokens.js` refactor + sweep — small compared to the screen phases.
 
+### ✅ v3.2 — 3 radar states (MIN / MID / MAX) — **shipped Jun 2026**
+The 7" Pi radar screen gained three layout states driven by one `piLayoutState` enum (from the Claude Design "Prototype v3.2 — 3 états radar" handoff): MIN (radar fullscreen + HeroOverlayMin + dock hidden), MID (lean radar-companion column: alerts · clock · hero/feels-like · NowcastLine · air · 2×2 Wind/Gust/UV/Humidity · indoor · "Prévisions" button), MAX (forecast-forward: frozen map thumbnail + full-rail chart). New `NowcastLine` surfaces the existing radar verdict in the calm-state column; `MetricsGrid` re-spec'd to the decision-grade tiles. Built green + adversarially reviewed.
+
+**Deferred follow-ups (intentional, not bugs):**
+- **Re-surface the AI summary on Pi** — `AiSummaryInline` was removed from the lean MID glance; add it back via a MAX tab or a dock button (it stays on Desktop/Mobile).
+- **Elastic metrics grid** — under a stacked gov-alert + smog banner the 2×2 should shed to one decision-grade row (Wind + Gust) rather than scroll; needs height-budget logic.
+- **Context-promoted "spotlight" tile** — make one 2×2 tile adapt to current conditions (visibility in fog, pollen in spring, pressure on a fast drop), reusing the `selectAutoTab` hazard-priority signal (verdict → tile projection); keep the core tiles in stable positions.
+- **MAX detail-chrome polish** — the proto's metric-as-title + big-number stats row (the maximized ChartTabs is functional but not yet restyled to the detail mock).
+- **"Prévisions" entry in the bottom dock** — currently a button in the lean panel; the mock placed it in the toolbar.
+
 ### ✅ ~~Radar animation (play / pause / speed)~~ — **shipped May 2026**
 Full RadarTimeline overlay component embedded in WeatherMap: floating bar at the bottom of the map with date/offset labels, return-to-now button, speed cycler (1× / 2× / 4×), step-back / play-pause / step-forward transport controls, and a touch-friendly scrubber that walks past + nowcast frames from the RainViewer index. Multiple iterations refined the touchscreen UX: thumb hit-area expanded to full thumb-diameter vertical, padding inset of `var(--thumb-w)/2` to keep the thumb fully grabbable at both extremes, dwell-time-free pointer-event handlers (Chromium's heuristic was eating quick taps on the kiosk), legend auto-hide when the timeline collides with it on small screens, ghost-click absorber on close so the WeatherMap doesn't reposition the marker. "Now" tick markers (top + bottom of the input wrapper at the past→nowcast colour boundary) stay visible regardless of where the thumb is parked. Visible directly under the map when the timeline toggle in ControlButtons is active.
 
