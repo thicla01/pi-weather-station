@@ -178,8 +178,13 @@
       "5": "Muy mala"
     }
   },
+  "nowcast": {
+    "aria": "{{verdict}}. Toque para abrir el pronóstico.",
+    "openForecast": "Abrir el pronóstico"
+  },
   "metrics": {
     "wind": "Viento",
+    "gust": "Ráfagas",
     "humidity": "Humedad",
     "uv": "UV",
     "aqi": "ICA",

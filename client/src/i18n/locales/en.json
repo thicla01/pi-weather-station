@@ -178,8 +178,13 @@
       "5": "Poor"
     }
   },
+  "nowcast": {
+    "aria": "{{verdict}}. Tap to open the forecast.",
+    "openForecast": "Open the forecast"
+  },
   "metrics": {
     "wind": "Wind",
+    "gust": "Gust",
     "humidity": "Humidity",
     "uv": "UV",
     "aqi": "AQI",

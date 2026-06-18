@@ -178,8 +178,13 @@
       "5": "Très mauvaise"
     }
   },
+  "nowcast": {
+    "aria": "{{verdict}}. Touchez pour ouvrir les prévisions.",
+    "openForecast": "Ouvrir les prévisions"
+  },
   "metrics": {
     "wind": "Vent",
+    "gust": "Rafales",
     "humidity": "Humidité",
     "uv": "UV",
     "aqi": "IQA",

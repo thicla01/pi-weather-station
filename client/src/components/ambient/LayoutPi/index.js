@@ -1,4 +1,5 @@
 import React, { useContext, useEffect } from "react";
+import { useTranslation } from "react-i18next";
 import { UiPrefsContext, SystemContext, AppActionsContext } from "~/AppContext";
 import WeatherMap from "~/components/WeatherMap";
 import HeroCompact from "~/components/ambient/HeroCompact";
@@ -10,7 +11,8 @@ import AlertDetailInline from "~/components/ambient/AlertDetailInline";
 import AlertMiniCards from "~/components/ambient/AlertMiniCards";
 import IndoorBlock from "~/components/ambient/IndoorBlock";
 import ChartTabs from "~/components/ambient/ChartTabs";
-import AiSummaryInline from "~/components/ambient/AiSummaryInline";
+import NowcastLine from "~/components/ambient/NowcastLine";
+import HeroOverlayMin from "~/components/ambient/HeroOverlayMin";
 import BottomDock from "~/components/ambient/BottomDock";
 import FloatingMiniBanner from "~/components/ambient/FloatingMiniBanner";
 import styles from "./styles.css";
@@ -33,15 +35,23 @@ import styles from "./styles.css";
  *   │  BottomDock                                            │
  *   └────────────────────────────────────────────────────────┘
  *
- * Focus mode (toggled by the Leaflet RadarFocusControl in WeatherMap's
- * topleft control bar, sitting under the zoom +/- buttons) hides the
- * entire rail so the radar fills the available column. `piLayoutState`
- * carries the state (v3.2 enum: "min" | "mid" | "max" | null) — set to
- * "mid" on mount and back to `null` on unmount, mirroring the LayoutDesktop
- * sentinel pattern. MIN === fullscreen radar (the old focus mode). The
- * RadarFocusControl renders only when one of `piRadarMaximized` (the derived
- * boolean shim, MIN ⇔ true) or `desktopRadarMaximized` is non-null, and
- * routes its toggle to whichever is active.
+ * v3.2 "3 états radar": one `piLayoutState` enum ("min" | "mid" | "max"
+ * | null) drives the shell via `data-pi-state` on the root. MID (default)
+ * is the split above — radar map + the lean "radar-companion" rail
+ * (alerts · clock · hero/feels-like · NowcastLine · air · 2×2 metrics ·
+ * indoor · a "Prévisions" button into MAX); the forecast chart and AI
+ * prose are NOT in the glance (the chart lives in MAX). MIN collapses the
+ * rail so the radar fills the screen, with HeroOverlayMin + (when an
+ * eligible gov alert is active) FloatingMiniBanner pinned over the map and
+ * the dock hidden. MAX shrinks the map to a thumbnail and gives the rail's
+ * `forecastHost` (ChartTabs, maximized) the screen — reached from the
+ * "Prévisions" button or by tapping the NowcastLine, left via the chart's
+ * restore button.
+ *
+ * The sentinel: `piLayoutState` is "mid" on mount / `null` on unmount
+ * (mirroring LayoutDesktop). `null` keeps the WeatherMap RadarFocusControl
+ * from rendering on other layouts; the derived `piRadarMaximized` boolean
+ * shim (MIN ⇔ true) still drives that control's MIN↔MID toggle.
  *
  * Legacy note (2026-05-28 consolidation): the right-edge chevron that
  * used to toggle `infoPanelCollapsed` was removed in favour of the
@@ -66,6 +76,7 @@ const LayoutPi = () => {
   const { darkMode, defaultMapZoom, mouseHide } = useContext(UiPrefsContext);
   const { piLayoutState } = useContext(SystemContext);
   const { setPiLayoutState } = useContext(AppActionsContext);
+  const { t } = useTranslation();
 
   // Sentinel pattern: flip to `false` on mount so WeatherMap renders
   // the Leaflet focus control for this layout, and back to `null` on
@@ -86,31 +97,60 @@ const LayoutPi = () => {
     >
       <div className={`${styles.mapArea} map-container ${darkMode ? "map-dark-mode" : ""} ${mouseHide ? "map-mouse-hide" : ""}`}>
         <WeatherMap zoom={defaultMapZoom} dark={darkMode} />
+        {/* MIN overlays: a compact place/temp hero + (when an eligible
+         * gov alert is active) FloatingMiniBanner, both pinned over the
+         * fullscreen radar. HeroOverlayMin is purely presentational;
+         * tapping the mini-banner restores MID. */}
+        {focused && <HeroOverlayMin />}
         {focused && <FloatingMiniBanner onExpand={() => setPiLayoutState("mid")} />}
       </div>
       <aside className={styles.rail} aria-hidden={focused}>
-        <TimeBlock />
-        {/* AlertBanner + AlertDetailInline kept together at the top
-         * of the rail (just under TimeBlock, ABOVE HeroCompact).
-         * Restores parity with v2 InfoPanel where gov alerts sat in
-         * the .alertArea div between the Clock and CurrentWeather.
-         * Both components return null when no eligible alert is
-         * active, so this position is invisible in calm weather —
-         * no layout cost. When something fires, the alert reads as
-         * the highest-priority piece of info in the rail rather
-         * than sitting below the location + temperature card. */}
-        <AlertBanner />
-        <AlertDetailInline />
-        <AlertMiniCards />
-        {/* shortPhaseName: the 7" rail is too narrow for the full
-         * moon-phase string ("Gibbeuse croissante") in the hero
-         * meta-line — B4.7 ruling: short family name, no ellipsis. */}
-        <HeroCompact shortPhaseName />
-        <AirCard />
-        <MetricsGrid />
-        <IndoorBlock />
-        <ChartTabs />
-        <AiSummaryInline />
+        {/* MID lean panel — the radar's temporal + felt-conditions
+         * companion. Hidden in MAX (the forecastHost below takes over).
+         * The alert stack leads and returns null in calm weather (so it
+         * costs nothing then); the forecast chart and AI prose are
+         * deliberately absent from the glance — the chart lives in MAX. */}
+        <div className={styles.midPanel}>
+          <AlertBanner />
+          <AlertDetailInline />
+          <AlertMiniCards />
+          <TimeBlock />
+          {/* shortPhaseName: the 7" rail is too narrow for the full
+           * moon-phase string ("Gibbeuse croissante") in the hero
+           * meta-line — B4.7 ruling: short family name, no ellipsis. */}
+          <HeroCompact shortPhaseName />
+          {/* NowcastLine (v3.2 keystone): surfaces the radar nowcast
+           * verdict as one temporal line; collapses to null in calm.
+           * Tapping it enters MAX on the precip view. */}
+          <NowcastLine />
+          <AirCard />
+          <MetricsGrid />
+          <IndoorBlock />
+          {/* Always-available MID→MAX entry — the NowcastLine only shows
+           * when there's an echo, so this is the calm-weather path into
+           * the forecast deep-dive. */}
+          <button
+            type="button"
+            className={styles.forecastButton}
+            onClick={() => setPiLayoutState("max")}
+            aria-label={t("nowcast.openForecast", { defaultValue: "Open forecast" })}
+          >
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              <path d="M3 3 v 18 h 18 M 7 14 l 4 -4 l 3 3 l 5 -6" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span className={styles.forecastButtonLabel}>{t("charts.title", { defaultValue: "Forecast" })}</span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              <path d="M4 9 V 4 H 9 M 15 4 H 20 V 9 M 20 15 V 20 H 15 M 9 20 H 4 V 15" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+          </button>
+        </div>
+        {/* Forecast host — shown only in MAX, where ChartTabs renders its
+         * maximized detail view (it reads piLayoutState === "max"). Kept
+         * mounted (display:none in MID) so its metric/period state and the
+         * auto-tab selector survive the mid↔max round trip. */}
+        <div className={styles.forecastHost}>
+          <ChartTabs />
+        </div>
       </aside>
       <BottomDock />
     </div>

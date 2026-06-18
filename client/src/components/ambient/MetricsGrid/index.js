@@ -3,12 +3,12 @@ import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
 import strongWind from "@iconify/icons-wi/strong-wind";
+import windGusts from "@iconify/icons-carbon/wind-gusts";
 import humidityAlt from "@iconify/icons-carbon/humidity-alt";
 import sunIcon from "@iconify/icons-wi/day-sunny";
-import barometerIcon from "@iconify/icons-wi/barometer";
 import chevronRight from "@iconify/icons-carbon/chevron-right";
 import { WeatherDataContext, UiPrefsContext } from "~/AppContext";
-import { convertSpeed, speedUnitLabel, convertPressure, pressureUnitLabel } from "~/services/conversions";
+import { convertSpeed, speedUnitLabel } from "~/services/conversions";
 import { uvTier } from "~/ui/severity";
 import DetailsPopover from "~/components/ambient/DetailsPopover";
 import styles from "./styles.css";
@@ -29,12 +29,13 @@ const TIER_CLASS = {
 
 /**
  * Direction C metrics tile — strict 2×2 grid of compact stat cells:
- * Wind / Humidity / UV / Pressure (v3.1 Phase 2 — AQI moved out to
- * the dedicated `AirCard`, the opt-in pollen row joined it, and the
- * grid gained surface pressure as its 4th tile so the 2×2 is never
- * broken by any setting).
+ * Wind / Gust / UV / Humidity (v3.2 — the decision-grade set for a
+ * glanceable kiosk: wind + gust + UV are radar-invisible outdoor-
+ * activity inputs, humidity is the year-round comfort signal. The
+ * v3.1 enthusiast tile, surface pressure, was dropped because it
+ * drives no everyday household decision).
  *
- * Wind, humidity, UV and pressure all come from Tomorrow.io's
+ * Wind, gust, UV and humidity all come from Tomorrow.io's
  * `currentWeatherData` payload. The UV cell is a full-surface tap
  * target (SVG chevron affordance — F6) that opens a `DetailsPopover`
  * with the WMO category + guidance; the other cells carry no chevron
@@ -45,7 +46,7 @@ const TIER_CLASS = {
  */
 const MetricsGrid = () => {
   const { currentWeatherData } = useContext(WeatherDataContext);
-  const { speedUnit, pressureUnit } = useContext(UiPrefsContext);
+  const { speedUnit } = useContext(UiPrefsContext);
   const { t } = useTranslation();
   // Single source of truth for which cell's popover is open. Tapping
   // a cell flips this; tapping the same cell again, the close icon,
@@ -55,13 +56,9 @@ const MetricsGrid = () => {
 
   const values = currentWeatherData?.data?.timelines?.[0]?.intervals?.[0]?.values;
   const windSpeed = values?.windSpeed;
+  const windGust = values?.windGust;
   const humidity = values?.humidity;
   const uvIndex = values?.uvIndex;
-  // Tomorrow.io serves `pressureSurfaceLevel` in hPa; the user's
-  // pressure-unit preference (hPa / inHg / kPa — Settings → Units)
-  // converts at display time. The tile's unit slot is deliberately
-  // non-load-bearing (quiet suffix) so the units swap without reflow.
-  const pressure = values?.pressureSurfaceLevel;
 
   const uvT = uvTier(uvIndex);
   const uvQualifier = uvT ? t(`badges.uvLevel.${uvT.label}`) : null;
@@ -77,10 +74,10 @@ const MetricsGrid = () => {
         label={t("metrics.wind")}
       />
       <Cell
-        icon={humidityAlt}
-        value={humidity != null ? Math.round(humidity) : "—"}
-        unit="%"
-        label={t("metrics.humidity")}
+        icon={windGusts}
+        value={windGust != null ? convertSpeed(windGust, speedUnit) : "—"}
+        unit={speedUnitLabel(speedUnit)}
+        label={t("metrics.gust")}
       />
       <Cell
         cellRef={uvCellRef}
@@ -116,10 +113,10 @@ const MetricsGrid = () => {
         </DetailsPopover>
       </Cell>
       <Cell
-        icon={barometerIcon}
-        value={pressure != null ? convertPressure(pressure, pressureUnit) : "—"}
-        unit={pressureUnitLabel(pressureUnit)}
-        label={t("metrics.pressure")}
+        icon={humidityAlt}
+        value={humidity != null ? Math.round(humidity) : "—"}
+        unit="%"
+        label={t("metrics.humidity")}
       />
     </div>
   );

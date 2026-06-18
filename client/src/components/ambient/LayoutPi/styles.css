@@ -25,7 +25,7 @@
   color: var(--c-text);
   font-family: "Geist", system-ui, -apple-system, sans-serif;
   overflow: hidden;
-  transition: grid-template-columns 200ms ease-out;
+  transition: grid-template-columns 200ms ease-out, grid-template-rows 200ms ease-out;
 }
 
 @media (min-width: 1280px) {
@@ -38,48 +38,89 @@
  * on the root (set by LayoutPi from `piLayoutState`), not a `.focused`
  * class. The base `.layout` rule above is the MID (split) geometry; the
  * MAX (forecast-forward, map → thumbnail) override is added in a later
- * step. MIN collapses the rail column to zero. */
+ * step. MIN collapses the rail column to zero AND the dock row to zero
+ * (the dock itself slides out via the rule near the bottom of this file)
+ * so the radar truly fills the screen. */
 .layout[data-pi-state="min"] {
   grid-template-columns: 1fr 0;
+  grid-template-rows: 1fr 0;
 }
 
-/* v3.2 MAX state — forecast-forward. On LayoutPi the forecast slab's
- * expand button no longer maximizes in place; it drives the shell into
- * `data-pi-state="max"`, where the map collapses to a thumbnail (first
- * column) and the rail takes the rest so the forecast detail owns the
- * screen. The base 200 ms grid transition animates the morph. The
- * thumbnail width is a custom property so a later step can tune it per
- * panel density without touching this rule. */
+/* v3.2 MAX state — forecast-forward. The map collapses to a thumbnail
+ * (first column) and the rail takes the rest. The rail holds two
+ * children: `.midPanel` (the lean MID column) and `.forecastHost`
+ * (ChartTabs); MAX swaps which one is shown. The base 200 ms grid
+ * transition animates the morph; the thumbnail width is a custom
+ * property so a later step can tune it per panel density. */
 .layout[data-pi-state="max"] {
   grid-template-columns: var(--pi-max-map, 190px) 1fr;
 }
-
-/* In MAX, hide every rail card except the maximized forecast slab (it
- * still carries `data-chart-maximized="true"`), and drop the rail's
- * opaque background + border so the radar thumbnail reads cleanly
- * beside the full-width chart. */
-.layout[data-pi-state="max"] .rail > *:not([data-chart-maximized="true"]) {
+.layout[data-pi-state="max"] .midPanel {
   display: none;
 }
+.layout[data-pi-state="max"] .forecastHost {
+  display: block;
+}
+/* Drop the rail's opaque background + border in MAX so the radar
+ * thumbnail reads cleanly beside the full-width chart. */
 .layout[data-pi-state="max"] .rail {
   background-color: transparent;
   border-left-color: transparent;
 }
 
-/* AiSummaryInline keeps its in-rail maximize during the v3.2 transition
- * (it folds into MAX in a later step); its `:has()` widen + sibling-hide
- * stay until then. ChartTabs no longer participates here on LayoutPi —
- * its maximize IS the shell MAX state above — so only the AI flag is
- * matched now. */
-.layout:has([data-ai-maximized="true"]) {
-  grid-template-columns: 1fr min(60vw, 600px);
+/* MID lean column + forecast host. The rail is the scrolling flex
+ * column (gap/padding/overflow); `.midPanel` is a flex column for its
+ * cards; `.forecastHost` is hidden until MAX (kept mounted so ChartTabs'
+ * metric/period state survives the mid↔max round trip). */
+.midPanel {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
 }
-.layout:has([data-ai-maximized="true"]) .rail > *:not([data-ai-maximized="true"]) {
+.forecastHost {
   display: none;
 }
-.layout:has([data-ai-maximized="true"]) .rail {
-  background-color: transparent;
-  border-left-color: transparent;
+
+/* "Prévisions" button — the always-available MID→MAX entry (the
+ * NowcastLine only appears when there's a radar echo, so this is the
+ * calm-weather path into the forecast deep-dive). Full-width row: chart
+ * glyph + label + a maximize square, >= 44 px tall. No background-painting
+ * :hover — sticky-hover on the touch kiosk. */
+.forecastButton {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  margin: 0;
+  padding: 8px 12px;
+  border: 1px solid var(--c-border);
+  border-radius: 6px;
+  background-color: var(--c-surface-hybrid);
+  color: var(--c-text);
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
+  font-size: 13px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+.forecastButton svg {
+  flex: none;
+  width: 18px;
+  height: 18px;
+}
+.forecastButton svg:last-child {
+  margin-left: auto;
+  color: var(--c-text-dim);
+}
+.forecastButtonLabel {
+  flex: 1;
+  min-width: 0;
+}
+.forecastButton:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: -2px;
 }
 
 .mapArea {
@@ -169,6 +210,18 @@
   grid-row: 2;
   position: relative;
   z-index: 1100;
+  transition: opacity 150ms ease-out, transform 200ms ease-out;
+}
+
+/* v3.2: hide the dock in MIN (radar fullscreen / at-rest). Slide it out
+ * + fade rather than display:none — the dock row is collapsed to 0 by the
+ * `[data-pi-state="min"]` grid-template-rows above, and `.layout`'s
+ * overflow:hidden clips the translated dock. Restoring MIN→MID brings it
+ * back. pointer-events:none so it's inert while hidden. */
+.layout[data-pi-state="min"] > :last-child {
+  opacity: 0;
+  transform: translateY(60px);
+  pointer-events: none;
 }
 
 /* v2.15.9-12 experimented with a merged hero row (TimeBlock +
