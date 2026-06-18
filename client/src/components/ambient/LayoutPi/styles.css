@@ -21,11 +21,18 @@
   grid-template-rows: 1fr auto;
   width: 100%;
   height: 100dvh;
+  box-sizing: border-box;
+  /* v3.2: the mockup frames each surface (map · rail · dock) as a rounded
+   * card inset from the screen edges with gutters between them. The gap +
+   * padding here create those gutters; the map/dock get their own
+   * border-radius below. MIN drops both to 0 so the radar fills the screen. */
+  gap: 10px;
+  padding: 10px;
   background-color: var(--c-bg);
   color: var(--c-text);
   font-family: "Geist", system-ui, -apple-system, sans-serif;
   overflow: hidden;
-  transition: grid-template-columns 200ms ease-out, grid-template-rows 200ms ease-out;
+  transition: grid-template-columns 200ms ease-out, grid-template-rows 200ms ease-out, padding 200ms ease-out, gap 200ms ease-out;
 }
 
 @media (min-width: 1280px) {
@@ -44,6 +51,8 @@
 .layout[data-pi-state="min"] {
   grid-template-columns: 1fr 0;
   grid-template-rows: 1fr 0;
+  padding: 0;
+  gap: 0;
 }
 
 /* v3.2 MAX state — forecast-forward. The map collapses to a thumbnail
@@ -137,6 +146,16 @@
   grid-row: 1;
   background-color: var(--c-bg);
   overflow: hidden;
+  /* v3.2: the radar is a framed rounded card (mockup parity) — the border
+   * defines the card edge against the dark gutter (the inset alone is
+   * invisible dark-on-dark). MIN drops both so the fullscreen radar reaches
+   * the screen edges. */
+  border: 1px solid var(--c-border);
+  border-radius: 14px;
+}
+.layout[data-pi-state="min"] .mapArea {
+  border: none;
+  border-radius: 0;
 }
 
 .rail {
@@ -161,11 +180,14 @@
   display: flex;
   flex-direction: column;
   gap: 10px;
-  padding: 12px;
+  /* v3.2 framed layout: the rail is a transparent column of cards sitting
+   * in the gutter (the `.layout` gap/padding provide the insets), so drop
+   * the panel padding, border-left and opaque background — each card
+   * carries its own surface, mockup-style. */
+  padding: 0;
   overflow-y: auto;
   overflow-x: hidden;
-  border-left: 1px solid var(--c-border);
-  background-color: var(--c-bg);
+  background-color: transparent;
   /* `visibility` flips synchronously with `opacity` when expanding
    * (delay 0s) so the rail's content becomes interactive instantly.
    * When collapsing, visibility waits for the 150 ms opacity fade
