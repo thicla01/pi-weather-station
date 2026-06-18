@@ -612,6 +612,7 @@ const WeatherMap = ({ zoom, dark }) => {
     mobileRadarMaximized,
     desktopRadarMaximized,
     piRadarMaximized,
+    piLayoutState,
   } = useContext(SystemContext);
   const {
     browserGeo,
@@ -972,7 +973,11 @@ const WeatherMap = ({ zoom, dark }) => {
       animationIntervalRef.current = null;
     }
 
-    if (mapTimestamps && animateWeatherMap) {
+    // Freeze the radar animation in the v3.2 MAX state: there the map is a
+    // decorative ~190 px thumbnail, so cycling RainViewer frames just burns
+    // the Pi GPU. This doesn't touch the user's `animateWeatherMap`
+    // preference — leaving MAX resumes it.
+    if (mapTimestamps && animateWeatherMap && piLayoutState !== "max") {
       animationIntervalRef.current = setInterval(() => {
         setRadarFrameIdx((prev) => {
           // Advance from the resolved current index — which collapses
@@ -996,7 +1001,7 @@ const WeatherMap = ({ zoom, dark }) => {
     // closure over `prev`, so we don't need to recreate the interval
     // on every frame tick. Including it would clear and re-create the
     // interval every second, which previously starved button clicks.
-  }, [animateWeatherMap, mapTimestamps, radarSpeed, lastPastIdx]);
+  }, [animateWeatherMap, mapTimestamps, radarSpeed, lastPastIdx, piLayoutState]);
 
   // Initial mount: anchor the playhead at the most recent past frame
   // once the timestamps load, so the first paint shows current radar
@@ -1144,12 +1149,14 @@ const WeatherMap = ({ zoom, dark }) => {
         dragging={true}
         fadeAnimation={false}
       >
-        <ZoomControl
-          key={`zoom-${i18n.language}`}
-          position="topleft"
-          zoomInTitle={t("radar.zoomIn", { defaultValue: "Zoom in" })}
-          zoomOutTitle={t("radar.zoomOut", { defaultValue: "Zoom out" })}
-        />
+        {piLayoutState !== "max" && (
+          <ZoomControl
+            key={`zoom-${i18n.language}`}
+            position="topleft"
+            zoomInTitle={t("radar.zoomIn", { defaultValue: "Zoom in" })}
+            zoomOutTitle={t("radar.zoomOut", { defaultValue: "Zoom out" })}
+          />
+        )}
         <MapClickHandler onClick={mapClickHandler} />
         <PanHandler panToCoords={panToCoords} setPanToCoords={setPanToCoords} railOffset={railOffset} />
         <InitialOffsetCentering railOffset={railOffset} markerPosition={markerPosition} />
@@ -1161,6 +1168,7 @@ const WeatherMap = ({ zoom, dark }) => {
           mobileRadarMaximized={mobileRadarMaximized}
           desktopRadarMaximized={desktopRadarMaximized}
           piRadarMaximized={piRadarMaximized}
+          piLayoutState={piLayoutState}
           latitude={latitude}
           longitude={longitude}
           zoom={zoom}
@@ -1413,7 +1421,8 @@ const WeatherMap = ({ zoom, dark }) => {
           it hides HeroBand + rail so the radar fills the viewport, and
           a short toast confirms the toggle. LayoutMobile has its own
           maximize button on the inset card (same icon pair). */}
-      {((desktopRadarMaximized !== null && desktopRadarMaximized !== undefined)
+      {piLayoutState !== "max"
+        && ((desktopRadarMaximized !== null && desktopRadarMaximized !== undefined)
         || (piRadarMaximized !== null && piRadarMaximized !== undefined)) && (
         <RadarFocusControl
           active={Boolean(piRadarMaximized != null ? piRadarMaximized : desktopRadarMaximized)}
@@ -1438,10 +1447,10 @@ const WeatherMap = ({ zoom, dark }) => {
           mutual-exclusion rule from the Phase 3 design: both can't fit
           in the 7" kiosk's vertical budget, but the legend stays one
           tap away instead of vanishing. */}
-      {mapTimestamps && radarSource === "rainviewer" && !hideRadarLegend && (
+      {mapTimestamps && radarSource === "rainviewer" && !hideRadarLegend && piLayoutState !== "max" && (
         <RadarLegend dark={dark} chipMode={radarTimelineVisible && isSmallScreen} />
       )}
-      {mapTimestamps && radarSource === "rainviewer" && radarTimelineVisible && (
+      {mapTimestamps && radarSource === "rainviewer" && radarTimelineVisible && piLayoutState !== "max" && (
         <RadarTimeline
           frames={mapTimestamps}
           currentIdx={currentMapTimestampIdx}

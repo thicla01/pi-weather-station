@@ -25,7 +25,11 @@ const MOBILE_INVALIDATE_FINAL_MS = 350;
  *    off-centre. `infoPanelCollapsed` is still passed in for v2
  *    InfoPanel compatibility (legacy `experimentalUiC=false` path)
  *    but the Pi rail collapse path on v3 is now driven by
- *    `piRadarMaximized` instead.
+ *    `piRadarMaximized` instead. v3.2 adds the MID↔MAX morph (the map
+ *    shrinks to a ~190 px thumbnail and back): `piRadarMaximized` does
+ *    NOT change across that (both MID and MAX read as "not focused"),
+ *    so `piLayoutState` is also in the dep set to fire the invalidate
+ *    on that geometry change.
  *
  * 2. LayoutDesktop radar focus toggle — `desktopRadarMaximized` flips
  *    on/off, HeroBand + rail hide/show. Reuses the same 50 + 250 ms
@@ -50,13 +54,14 @@ const MOBILE_INVALIDATE_FINAL_MS = 350;
  * @param {boolean} props.infoPanelCollapsed v2 InfoPanel collapse state (legacy)
  * @param {boolean} props.mobileRadarMaximized null on non-mobile layouts
  * @param {boolean} props.desktopRadarMaximized Desktop focus-mode state
- * @param {boolean} props.piRadarMaximized LayoutPi focus-mode state
+ * @param {boolean} props.piRadarMaximized LayoutPi focus-mode state (MIN ⇔ true; derived shim)
+ * @param {string} props.piLayoutState LayoutPi v3.2 layout enum ("min"|"mid"|"max"|null) — re-triggers the invalidate on the mid↔max thumbnail morph
  * @param {number} props.latitude Current marker latitude
  * @param {number} props.longitude Current marker longitude
  * @param {number} props.zoom Current map zoom level
  * @returns {null} renders nothing
  */
-const MapResizer = ({ infoPanelCollapsed, mobileRadarMaximized, desktopRadarMaximized, piRadarMaximized, latitude, longitude, zoom }) => {
+const MapResizer = ({ infoPanelCollapsed, mobileRadarMaximized, desktopRadarMaximized, piRadarMaximized, piLayoutState, latitude, longitude, zoom }) => {
   const map = useMap();
   useEffect(() => {
     const live = setTimeout(() => map.invalidateSize(), COLLAPSE_INVALIDATE_LIVE_MS);
@@ -65,8 +70,8 @@ const MapResizer = ({ infoPanelCollapsed, mobileRadarMaximized, desktopRadarMaxi
       clearTimeout(live);
       clearTimeout(final);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- desktopRadarMaximized + piRadarMaximized purposely re-trigger the same handler
-  }, [infoPanelCollapsed, desktopRadarMaximized, piRadarMaximized, map]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- desktopRadarMaximized + piRadarMaximized + piLayoutState purposely re-trigger the same handler
+  }, [infoPanelCollapsed, desktopRadarMaximized, piRadarMaximized, piLayoutState, map]);
 
   useEffect(() => {
     if (mobileRadarMaximized == null) return undefined;
@@ -95,6 +100,7 @@ MapResizer.propTypes = {
   mobileRadarMaximized: PropTypes.bool,
   desktopRadarMaximized: PropTypes.bool,
   piRadarMaximized: PropTypes.bool,
+  piLayoutState: PropTypes.string,
   latitude: PropTypes.number,
   longitude: PropTypes.number,
   zoom: PropTypes.number,
