@@ -180,12 +180,20 @@ const Cell = ({ icon, value, unit, label, qualifier, qualifierTier, onClick, ari
         <span className={styles.value}>{value}</span>
         {unit ? <span className={styles.unit}>{unit}</span> : null}
       </div>
-      <div className={styles.label}>{label}</div>
-      {qualifier ? (
-        <div className={`${styles.qualifier} ${(qualifierTier && styles[TIER_CLASS[qualifierTier]]) || ""}`}>
-          {qualifier}
-        </div>
-      ) : null}
+      {/* The severity qualifier (UV "modéré") rides INLINE in the label —
+        * "UV · modéré" on one line — so the cell stays the same height as
+        * the non-qualified tiles (Wind / Gust / Humidity) and the 2×2 reads
+        * as four uniform rectangles. The tier colour stays on the qualifier
+        * word so the UV severity is still glanceable. */}
+      <div className={styles.label}>
+        {label}
+        {qualifier ? (
+          <span className={(qualifierTier && styles[TIER_CLASS[qualifierTier]]) || undefined}>
+            {" · "}
+            {qualifier}
+          </span>
+        ) : null}
+      </div>
       {children}
     </div>
   );
