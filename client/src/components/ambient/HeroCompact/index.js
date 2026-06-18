@@ -35,9 +35,13 @@ import styles from "./styles.css";
  * @param {boolean} [props.shortPhaseName] — forwarded to
  *   `AstroMetaLine`; LayoutPi passes true (7" rail too narrow for
  *   "Gibbeuse croissante"), LayoutMobile keeps the full name.
+ * @param {boolean} [props.hideAstro] — drop the sun/moon meta-line
+ *   entirely. The v3.2 lean Pi MID hero is anchored on feels-like and the
+ *   sunrise/sunset already lives on the clock card, so LayoutPi passes true
+ *   to avoid the redundant (and taller) hero.
  * @returns {JSX.Element} hero slab
  */
-const HeroCompact = ({ shortPhaseName }) => {
+const HeroCompact = ({ shortPhaseName, hideAstro }) => {
   const { currentWeatherData, sunriseTime, sunsetTime } = useContext(WeatherDataContext);
   const { tempUnit } = useContext(UiPrefsContext);
   const { reverseGeoResult } = useContext(LocationContext);
@@ -89,7 +93,7 @@ const HeroCompact = ({ shortPhaseName }) => {
           {locationRow}
           {locationPopover}
         </div>
-        <AstroMetaLine shortPhaseName={shortPhaseName} />
+        {!hideAstro && <AstroMetaLine shortPhaseName={shortPhaseName} />}
       </div>
     );
   }
@@ -137,17 +141,19 @@ const HeroCompact = ({ shortPhaseName }) => {
           ) : null}
         </div>
       </div>
-      <AstroMetaLine shortPhaseName={shortPhaseName} />
+      {!hideAstro && <AstroMetaLine shortPhaseName={shortPhaseName} />}
     </div>
   );
 };
 
 HeroCompact.propTypes = {
   shortPhaseName: PropTypes.bool,
+  hideAstro: PropTypes.bool,
 };
 
 HeroCompact.defaultProps = {
   shortPhaseName: false,
+  hideAstro: false,
 };
 
 export default HeroCompact;

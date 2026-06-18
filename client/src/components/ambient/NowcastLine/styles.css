@@ -53,6 +53,17 @@
   color: var(--c-danger);
 }
 
+/* Calm tier — the radar shows nothing notable; the line stays present
+ * (maintainer ruling: NowcastLine is always there) but QUIET — a soft
+ * accent edge + surface fill instead of the alarm tint — so it doesn't
+ * compete with the hero. The sky icon + message carry the meaning. Doubled
+ * class to win the source-order tie with the `.line.line` base fill. */
+.tier-calm.tier-calm {
+  border-left-color: var(--c-accent-soft);
+  background-color: var(--c-surface-hybrid);
+  color: var(--c-accent-soft);
+}
+
 /* NO background-painting :hover — sticky-hover on the touch kiosk ("drop,
  * don't gate"). A non-painting focus outline is fine for keyboard users and
  * never sticks on touch. */
@@ -68,6 +79,17 @@
   flex: none;
   width: calc(18px * var(--c-font-scale, 1));
   height: calc(18px * var(--c-font-scale, 1));
+}
+
+/* Calm-state sky icon (sun / moon / cloud / fog / precip) — same footprint
+ * as the alarm arrow; follows currentColor (the calm tier's soft accent). */
+.icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: calc(18px * var(--c-font-scale, 1));
+  height: calc(18px * var(--c-font-scale, 1));
+  font-size: calc(18px * var(--c-font-scale, 1));
 }
 
 /* approaching -> arrow points inward/down toward "here" (rotate the

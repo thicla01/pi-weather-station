@@ -1,5 +1,4 @@
 import React, { useContext, useEffect } from "react";
-import { useTranslation } from "react-i18next";
 import { UiPrefsContext, SystemContext, AppActionsContext } from "~/AppContext";
 import WeatherMap from "~/components/WeatherMap";
 import HeroCompact from "~/components/ambient/HeroCompact";
@@ -76,7 +75,6 @@ const LayoutPi = () => {
   const { darkMode, defaultMapZoom, mouseHide } = useContext(UiPrefsContext);
   const { piLayoutState } = useContext(SystemContext);
   const { setPiLayoutState } = useContext(AppActionsContext);
-  const { t } = useTranslation();
 
   // Sentinel pattern: flip to `false` on mount so WeatherMap renders
   // the Leaflet focus control for this layout, and back to `null` on
@@ -118,31 +116,16 @@ const LayoutPi = () => {
           {/* shortPhaseName: the 7" rail is too narrow for the full
            * moon-phase string ("Gibbeuse croissante") in the hero
            * meta-line — B4.7 ruling: short family name, no ellipsis. */}
-          <HeroCompact shortPhaseName />
-          {/* NowcastLine (v3.2 keystone): surfaces the radar nowcast
-           * verdict as one temporal line; collapses to null in calm.
-           * Tapping it enters MAX on the precip view. */}
+          <HeroCompact shortPhaseName hideAstro />
+          {/* NowcastLine (v3.2 keystone): ALWAYS present — an active radar
+           * echo shows the verdict, otherwise a quiet sky-adaptive calm
+           * state. Tapping it (the square maximize affordance) is the MID
+           * column's single entry into MAX, so there is no separate
+           * "Prévisions" button. */}
           <NowcastLine />
           <AirCard />
           <MetricsGrid />
           <IndoorBlock />
-          {/* Always-available MID→MAX entry — the NowcastLine only shows
-           * when there's an echo, so this is the calm-weather path into
-           * the forecast deep-dive. */}
-          <button
-            type="button"
-            className={styles.forecastButton}
-            onClick={() => setPiLayoutState("max")}
-            aria-label={t("nowcast.openForecast", { defaultValue: "Open forecast" })}
-          >
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-              <path d="M3 3 v 18 h 18 M 7 14 l 4 -4 l 3 3 l 5 -6" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-            <span className={styles.forecastButtonLabel}>{t("charts.title", { defaultValue: "Forecast" })}</span>
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-              <path d="M4 9 V 4 H 9 M 15 4 H 20 V 9 M 20 15 V 20 H 15 M 9 20 H 4 V 15" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </button>
         </div>
         {/* Forecast host — shown only in MAX, where ChartTabs renders its
          * maximized detail view (it reads piLayoutState === "max"). Kept

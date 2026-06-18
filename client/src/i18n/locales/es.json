@@ -180,7 +180,17 @@
   },
   "nowcast": {
     "aria": "{{verdict}}. Toque para abrir el pronóstico.",
-    "openForecast": "Abrir el pronóstico"
+    "openForecast": "Abrir el pronóstico",
+    "calm": {
+      "clearDay": "Cielo despejado",
+      "clearNight": "Noche despejada",
+      "partly": "Algunas nubes",
+      "cloudy": "Cielo cubierto",
+      "fog": "Niebla",
+      "lightSnow": "Nieve ligera",
+      "lightPrecip": "Precipitación ligera",
+      "none": "Nada en el radar"
+    }
   },
   "metrics": {
     "wind": "Viento",

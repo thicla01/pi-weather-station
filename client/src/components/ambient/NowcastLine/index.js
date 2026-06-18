@@ -1,11 +1,22 @@
 import React, { useContext, useMemo, useCallback } from "react";
 import { useTranslation } from "react-i18next";
+import { InlineIcon } from "@iconify/react";
+import daySunny from "@iconify/icons-wi/day-sunny";
+import nightClear from "@iconify/icons-wi/night-clear";
+import daySunnyOvercast from "@iconify/icons-wi/day-sunny-overcast";
+import nightAltCloudy from "@iconify/icons-wi/night-alt-cloudy";
+import cloudyIcon from "@iconify/icons-wi/cloudy";
+import fogIcon from "@iconify/icons-wi/fog";
+import rainMix from "@iconify/icons-wi/rain-mix";
+import snowIcon from "@iconify/icons-ion/snow";
 import {
   RadarStateContext,
+  WeatherDataContext,
   SystemContext,
   AppActionsContext,
 } from "~/AppContext";
 import { getRadarAlertState, severity } from "~/ui/alertLogic";
+import { isDaylight } from "~/ui/weatherCodes";
 import styles from "./styles.css";
 
 // The layout state NowcastLine promotes to on tap — the forecast-forward
@@ -15,13 +26,11 @@ const MAX_STATE = "max";
 
 // `currentlyPrecipitating` is passed false on purpose. It only affects the
 // bumped-tier wording (alert.*Intensifying vs alert.*Approaching) inside
-// getRadarAlertState, and reading the live weather code would force this
-// component to subscribe to WeatherDataContext and re-render on every 10-min
-// current-conditions poll. The auto-tab selector
-// (hooks/useAutoTabSelector.js) makes the same trade-off for the same reason
-// — the radar slice alone is enough to drive the verdict, and the
-// "approaching" wording reads correctly in the dry-onset case this kiosk
-// most cares about.
+// getRadarAlertState; the "approaching" wording reads correctly in the
+// dry-onset case this kiosk most cares about. (The component DOES read the
+// weather code now — for the calm-state message below — so the original
+// "don't subscribe to WeatherDataContext" trade-off no longer applies; the
+// re-render on the 10-min current-conditions poll is cheap.)
 const ASSUME_PRECIPITATING = false;
 
 /**
@@ -50,31 +59,71 @@ function arrowDirection(innerRisk, outerRisk, innerTrend, outerTrend, innerBumpe
 }
 
 /**
+ * Calm-state verdict — when the radar shows no notable echo
+ * (getRadarAlertState === null), the line still renders (maintainer ruling:
+ * NowcastLine is ALWAYS present), reflecting the sky: a sun on a clear day,
+ * the moon on a clear night, clouds, fog, or a light-precip note. The
+ * message adapts to the Tomorrow.io weather code AND the day/night phase.
+ *
+ * @param {?number} code — Tomorrow.io weatherCode (4- or 5-digit variant)
+ * @param {boolean} isDay — true during daylight hours
+ * @returns {{ i18nKey: string, icon: object }} calm message key + icon
+ */
+function calmNowcast(code, isDay) {
+  const base = code != null && code > 9999 ? Math.floor(code / 10) : code;
+  // Precip below the radar-alarm threshold (light/isolated) — the verdict is
+  // null but the weather code still reports falling precip.
+  if (base >= 5000 && base < 6000) return { i18nKey: "nowcast.calm.lightSnow", icon: snowIcon };
+  if (base >= 4000 && base < 9000) return { i18nKey: "nowcast.calm.lightPrecip", icon: rainMix };
+  switch (base) {
+    case 1000:
+    case 1100:
+      return isDay
+        ? { i18nKey: "nowcast.calm.clearDay", icon: daySunny }
+        : { i18nKey: "nowcast.calm.clearNight", icon: nightClear };
+    case 1101:
+    case 1103:
+      return { i18nKey: "nowcast.calm.partly", icon: isDay ? daySunnyOvercast : nightAltCloudy };
+    case 1001:
+    case 1102:
+      return { i18nKey: "nowcast.calm.cloudy", icon: cloudyIcon };
+    case 2000:
+    case 2100:
+    case 2101:
+    case 2102:
+    case 2103:
+    case 2106:
+    case 2107:
+    case 2108:
+      return { i18nKey: "nowcast.calm.fog", icon: fogIcon };
+    default:
+      return { i18nKey: "nowcast.calm.none", icon: cloudyIcon };
+  }
+}
+
+/**
  * NowcastLine — the keystone glanceable line of the lean MID column on the
- * 7" Pi kiosk (v3.2 "3 états radar"). It translates the radar's spatial
- * verdict into a single temporal sentence (e.g. "Heavy precipitation
- * nearby") with a trend arrow, accent-tinted with a left accent border so
- * it reads as the one thing happening right now. Tapping anywhere on the
- * line — or its trailing square maximize affordance — promotes the layout
- * to MAX (forecast-forward) via setPiLayoutState("max").
+ * 7" Pi kiosk (v3.2 "3 états radar"). It is ALWAYS present (maintainer
+ * ruling): when an orange/red radar echo is active it translates the
+ * radar's verdict into a temporal sentence ("Heavy precipitation nearby")
+ * with a trend arrow + accent tint; otherwise it shows a quiet, sky-adaptive
+ * calm state ("Soleil radieux" by day, "Nuit claire" at night, "Ciel
+ * couvert", etc.). Tapping anywhere on the line — or its trailing square
+ * maximize affordance — promotes the layout to MAX (forecast-forward) via
+ * setPiLayoutState("max"); it is the MID column's single entry into MAX.
  *
- * It reuses the EXISTING radar verdict (getRadarAlertState, the same state
- * machine + i18n keys the RADAR alert banner and the auto-tab selector
- * consume) so it invents no new severity opinion. The verdict text comes
- * straight from the `alert.*` locale block; only the line's own aria
- * strings are new (`nowcast.*`).
+ * The alarm verdict reuses the EXISTING radar state machine
+ * (getRadarAlertState, the same one the RADAR banner + auto-tab selector
+ * consume) so it invents no new severity opinion; the calm state is derived
+ * from the Tomorrow.io weather code + day/night phase (`calmNowcast`).
  *
- * SHOW gate: identical to the banner — getRadarAlertState returns non-null
- * only at orange/red tier. When it returns null (calm / yellow-only / no
- * echo) this component renders null, so it costs zero layout in calm
- * weather and the MID column stays lean.
- *
- * @returns {JSX.Element|null} the nowcast line, or null when there is no
- *   notable radar verdict to surface
+ * @returns {JSX.Element|null} the nowcast line (null only when the layout
+ *   shell isn't mounted — defensive; NowcastLine only mounts inside LayoutPi)
  */
 const NowcastLine = () => {
   const { t } = useTranslation();
   const radar = useContext(RadarStateContext);
+  const weather = useContext(WeatherDataContext);
   const system = useContext(SystemContext);
   const { setPiLayoutState } = useContext(AppActionsContext);
 
@@ -109,56 +158,80 @@ const NowcastLine = () => {
     setPiLayoutState(MAX_STATE);
   }, [setPiLayoutState]);
 
-  // Same null contract as the banner: no notable verdict → no line, no
-  // layout cost. Also bail if the layout shell isn't mounted (defensive —
-  // NowcastLine only ever mounts inside LayoutPi).
-  if (!verdict || !system) return null;
+  // Defensive: NowcastLine only ever mounts inside LayoutPi.
+  if (!system) return null;
 
-  const verdictText = t(verdict.i18nKey);
-  const { tier } = verdict; // "orange" | "red"
+  // The trailing square maximize affordance — shared across both states; the
+  // whole line is the tap target, this icon is the visual hint that tapping
+  // opens the forecast (MAX). The aria on the button carries the action.
+  const maximizeIcon = (
+    <svg
+      className={styles.maximize}
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      aria-hidden="true"
+    >
+      <rect x="4" y="4" width="16" height="16" rx="2" />
+      <path d="M9 15 L 15 9 M15 9 H 10 M15 9 V 14" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  );
 
+  // ALARM tiers (orange / red) — an active radar echo drives the line.
+  if (verdict) {
+    const verdictText = t(verdict.i18nKey);
+    const { tier } = verdict; // "orange" | "red"
+    return (
+      <button
+        type="button"
+        className={`${styles.line} ${styles.line} ${styles[`tier-${tier}`]}`}
+        onClick={enterMax}
+        aria-label={t("nowcast.aria", { verdict: verdictText })}
+      >
+        {/* Trend arrow — inline SVG (house rule: no Unicode glyphs), rotated
+          * per direction via a CSS data-attribute hook. Follows currentColor
+          * so it inherits the tier accent set on the line. */}
+        <svg
+          className={styles.arrow}
+          data-direction={direction}
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2.2"
+          aria-hidden="true"
+        >
+          <path d="M5 12 H 19" strokeLinecap="round" />
+          <path d="M13 6 L 19 12 L 13 18" strokeLinecap="round" strokeLinejoin="round" />
+        </svg>
+        <span className={styles.verdict}>{verdictText}</span>
+        {/* Confidence dot — bucket-coloured (high/mid/low), a passive nuance
+          * pip read off the verdict object. */}
+        <span className={`${styles.dot} ${styles[`dot-${verdict.confidenceBucket}`]}`} aria-hidden="true" />
+        {maximizeIcon}
+      </button>
+    );
+  }
+
+  // CALM tier — always present, sky- and time-of-day-adaptive.
+  const values = weather && weather.currentWeatherData?.data?.timelines?.[0]?.intervals?.[0]?.values;
+  const isDay = weather && weather.sunriseTime && weather.sunsetTime
+    ? isDaylight(weather.sunriseTime, weather.sunsetTime)
+    : true;
+  const calm = calmNowcast(values?.weatherCode, isDay);
+  const calmText = t(calm.i18nKey);
   return (
     <button
       type="button"
-      className={`${styles.line} ${styles.line} ${styles[`tier-${tier}`]}`}
+      className={`${styles.line} ${styles.line} ${styles["tier-calm"]}`}
       onClick={enterMax}
-      aria-label={t("nowcast.aria", { verdict: verdictText })}
+      aria-label={t("nowcast.aria", { verdict: calmText })}
     >
-      {/* Trend arrow — inline SVG (house rule: no Unicode glyphs), rotated
-        * per direction via a CSS data-attribute hook. Follows currentColor
-        * so it inherits the tier accent set on the line. */}
-      <svg
-        className={styles.arrow}
-        data-direction={direction}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2.2"
-        aria-hidden="true"
-      >
-        <path d="M5 12 H 19" strokeLinecap="round" />
-        <path d="M13 6 L 19 12 L 13 18" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
-      <span className={styles.verdict}>{verdictText}</span>
-      {/* Confidence dot — bucket-coloured (high/mid/low), purely a passive
-        * nuance pip. confidenceBucket already rode into verdict, so we read
-        * it off the verdict object rather than recomputing. */}
-      <span className={`${styles.dot} ${styles[`dot-${verdict.confidenceBucket}`]}`} aria-hidden="true" />
-      {/* Square maximize affordance — visual hint that tapping opens the
-        * forecast (MAX). It shares the line's single onClick (the whole line
-        * is the tap target); the icon is decorative, the aria on the button
-        * carries the action. */}
-      <svg
-        className={styles.maximize}
-        viewBox="0 0 24 24"
-        fill="none"
-        stroke="currentColor"
-        strokeWidth="2"
-        aria-hidden="true"
-      >
-        <rect x="4" y="4" width="16" height="16" rx="2" />
-        <path d="M9 15 L 15 9 M15 9 H 10 M15 9 V 14" strokeLinecap="round" strokeLinejoin="round" />
-      </svg>
+      <span className={styles.icon} aria-hidden="true">
+        <InlineIcon icon={calm.icon} />
+      </span>
+      <span className={styles.verdict}>{calmText}</span>
+      {maximizeIcon}
     </button>
   );
 };

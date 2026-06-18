@@ -180,7 +180,17 @@
   },
   "nowcast": {
     "aria": "{{verdict}}. Tap to open the forecast.",
-    "openForecast": "Open the forecast"
+    "openForecast": "Open the forecast",
+    "calm": {
+      "clearDay": "Clear and sunny",
+      "clearNight": "Clear night",
+      "partly": "A few clouds",
+      "cloudy": "Overcast",
+      "fog": "Fog",
+      "lightSnow": "Light snow",
+      "lightPrecip": "Light precipitation",
+      "none": "Nothing on radar"
+    }
   },
   "metrics": {
     "wind": "Wind",
