@@ -1,6 +1,9 @@
 import React, { useContext, useEffect, useState } from "react";
+import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
-import { UiPrefsContext, LocationContext } from "~/AppContext";
+import { InlineIcon } from "@iconify/react";
+import sunsetIcon from "@iconify/icons-wi/sunset";
+import { UiPrefsContext, LocationContext, WeatherDataContext } from "~/AppContext";
 import SeasonsTrigger, { seasonCountdownLabel } from "~/components/ambient/Seasons";
 import styles from "./styles.css";
 
@@ -26,11 +29,17 @@ const I18N_LOCALE = { en: "en-US", fr: "fr-FR", es: "es-ES" };
  * unmount — important for the experimental flag toggle, which
  * unmounts the entire AmbientLayers subtree.
  *
+ * @param {object} props
+ * @param {boolean} [props.compact] — v3.2 slim Pi MID layout: a single row
+ *   of time + abbreviated date + a sunset chip (the sunset moved here from
+ *   the hero's now-hidden AstroMetaLine), dropping the seasonal-countdown
+ *   line. The date stays the year-round Saisons-popover trigger.
  * @returns {JSX.Element} time slab
  */
-const TimeBlock = () => {
+const TimeBlock = ({ compact }) => {
   const { clockTime } = useContext(UiPrefsContext);
   const { mapTimezone } = useContext(LocationContext);
+  const { sunsetTime } = useContext(WeatherDataContext);
   const { i18n, t } = useTranslation();
   const localeKey = i18n.language.startsWith("fr")
     ? "fr"
@@ -74,6 +83,38 @@ const TimeBlock = () => {
   // clock; null the rest of the year.
   const seasonLabel = seasonCountdownLabel(now, t);
 
+  // v3.2 slim Pi MID variant: time + abbreviated date + sunset chip in one
+  // row. The sunset lives here now (it left the hero with the lean redesign),
+  // so the Pi MID screen doesn't lose it. The date keeps the Saisons trigger.
+  if (compact) {
+    const dateShort = new Intl.DateTimeFormat(locale, {
+      weekday: "short",
+      month: "long",
+      day: "numeric",
+      timeZone: mapTimezone,
+    }).format(now);
+    const sunsetStr = sunsetTime
+      ? timeFormatter.format(new Date(sunsetTime)).replace(/\s+h\s*$/i, "")
+      : null;
+    return (
+      <div className={`${styles.slab} ${styles.compact}`}>
+        <div className={styles.time}>
+          {hhmm}
+          {hour12 && dayPeriod ? <span className={styles.amPm}>{dayPeriod}</span> : null}
+        </div>
+        <div className={styles.dateCompact}>
+          <SeasonsTrigger now={now}>{dateShort}</SeasonsTrigger>
+        </div>
+        {sunsetStr ? (
+          <div className={styles.sunset}>
+            <InlineIcon icon={sunsetIcon} aria-hidden="true" />
+            <span>{sunsetStr}</span>
+          </div>
+        ) : null}
+      </div>
+    );
+  }
+
   return (
     <div className={styles.slab}>
       {/* The date is the year-round trigger for the Saisons popover. */}
@@ -89,6 +130,14 @@ const TimeBlock = () => {
       ) : null}
     </div>
   );
+};
+
+TimeBlock.propTypes = {
+  compact: PropTypes.bool,
+};
+
+TimeBlock.defaultProps = {
+  compact: false,
 };
 
 export default TimeBlock;

@@ -112,7 +112,7 @@ const LayoutPi = () => {
           <AlertBanner />
           <AlertDetailInline />
           <AlertMiniCards />
-          <TimeBlock />
+          <TimeBlock compact />
           {/* shortPhaseName: the 7" rail is too narrow for the full
            * moon-phase string ("Gibbeuse croissante") in the hero
            * meta-line — B4.7 ruling: short family name, no ellipsis. */}

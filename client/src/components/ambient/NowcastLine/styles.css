@@ -132,9 +132,20 @@
 /* Square maximize affordance — decorative hint that tapping opens the
  * forecast (MAX). The whole line is the tap target; this just signals it.
  * Dim relative to the arrow so it reads as a secondary affordance. */
+/* Maximize square — the radar screen's four-corner ExpandIcon in a bordered
+ * box (mockup parity), in the tier accent (currentColor) so it reads as the
+ * MAX affordance. The whole line is the tap target, so this is a visual hint
+ * sized as a comfortable ~28 px square rather than a separate 44 px button. */
 .maximize {
   flex: none;
-  width: calc(18px * var(--c-font-scale, 1));
-  height: calc(18px * var(--c-font-scale, 1));
-  color: var(--c-text-dim);
+  display: grid;
+  place-items: center;
+  width: calc(28px * var(--c-font-scale, 1));
+  height: calc(28px * var(--c-font-scale, 1));
+  border: 1px solid currentColor;
+  border-radius: 7px;
+}
+.maximizeIcon {
+  width: calc(16px * var(--c-font-scale, 1));
+  height: calc(16px * var(--c-font-scale, 1));
 }

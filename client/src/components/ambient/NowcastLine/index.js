@@ -9,6 +9,7 @@ import cloudyIcon from "@iconify/icons-wi/cloudy";
 import fogIcon from "@iconify/icons-wi/fog";
 import rainMix from "@iconify/icons-wi/rain-mix";
 import snowIcon from "@iconify/icons-ion/snow";
+import { ExpandIcon } from "~/components/WeatherMap/icons";
 import {
   RadarStateContext,
   WeatherDataContext,
@@ -161,21 +162,15 @@ const NowcastLine = () => {
   // Defensive: NowcastLine only ever mounts inside LayoutPi.
   if (!system) return null;
 
-  // The trailing square maximize affordance — shared across both states; the
-  // whole line is the tap target, this icon is the visual hint that tapping
-  // opens the forecast (MAX). The aria on the button carries the action.
+  // The trailing maximize affordance — the SAME four-corner "expand" square
+  // the radar screen uses (WeatherMap's `ExpandIcon`, the RadarFocusControl
+  // glyph), set in a bordered box so it reads as a button. Shared across both
+  // states; the whole line is the tap target, this is the visual hint that
+  // tapping opens the forecast (MAX). The aria on the button carries the action.
   const maximizeIcon = (
-    <svg
-      className={styles.maximize}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      aria-hidden="true"
-    >
-      <rect x="4" y="4" width="16" height="16" rx="2" />
-      <path d="M9 15 L 15 9 M15 9 H 10 M15 9 V 14" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
+    <span className={styles.maximize} aria-hidden="true">
+      <ExpandIcon className={styles.maximizeIcon} />
+    </span>
   );
 
   // ALARM tiers (orange / red) — an active radar echo drives the line.
