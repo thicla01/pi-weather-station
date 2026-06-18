@@ -9,6 +9,7 @@ import AirCard from "~/components/ambient/AirCard";
 import AirAlertCard from "~/components/ambient/AirAlertCard";
 import AlertBanner from "~/components/ambient/AlertBanner";
 import AlertDetailInline from "~/components/ambient/AlertDetailInline";
+import AlertMiniCards from "~/components/ambient/AlertMiniCards";
 import IndoorBlock from "~/components/ambient/IndoorBlock";
 import ChartTabs from "~/components/ambient/ChartTabs";
 import NowcastLine from "~/components/ambient/NowcastLine";
@@ -119,10 +120,14 @@ const LayoutPi = () => {
         <div className={styles.midPanel}>
           <AlertBanner />
           <AlertDetailInline />
+          {/* AlertMiniCards on Pi renders ONLY its "restore N hidden alerts"
+           * pill (the mini-card list is dropped — the compact AlertBanner
+           * counter cycles instead). Without it a dismissed alert (via the
+           * detail footer's "Masquer") was unrecoverable on the 7" until the
+           * 4 h auto-resurface. */}
+          <AlertMiniCards />
           {/* AIR — air-quality alert card (v3.2). Renders only at the
-           * health-risk band; stacks under the gov alert (mockup case 4).
-           * The AlertMiniCards "other gov alerts" list is gone from the Pi
-           * rail — the compact AlertBanner counter cycles instead. */}
+           * health-risk band; stacks under the gov alert (mockup case 4). */}
           {airAlert && <AirAlertCard alert={airAlert} />}
           <TimeBlock compact />
           {/* shortPhaseName: the 7" rail is too narrow for the full
