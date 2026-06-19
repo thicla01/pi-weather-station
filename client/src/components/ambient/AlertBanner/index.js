@@ -130,7 +130,7 @@ const AlertBanner = () => {
 
     return (
       <div
-        className={`${styles.banner} ${styles[`tier-${currentAlert.tier}`]} ${styles.govAlert}`}
+        className={`${styles.banner} ${styles[`tier-${currentAlert.tier}`]} ${styles.govAlert} ${isPi && currentAlert.severity === "extreme" ? styles.compactExtreme : ""}`}
         data-state={govAlertExpanded ? "expanded" : "collapsed"}
       >
         {isPi ? (

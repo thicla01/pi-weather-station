@@ -293,6 +293,17 @@
   flex-shrink: 0;
 }
 
+/* v3.3: the glance compact gov card escalates a notch for an EXTREME alert
+ * (Tornado / Hurricane) — a red wash + a thicker strip so it stands apart
+ * from an ordinary red-tier (severe) alert, echoing the Alert view's red
+ * band. Pi compact card only (the class is added only when isPi). */
+.compactExtreme {
+  background-color: color-mix(in srgb, var(--c-danger) 16%, var(--c-surface-hybrid, var(--c-surface)));
+}
+.compactExtreme::before {
+  width: 6px;
+}
+
 /* ============================================================
  * RADAR-DERIVED LAYOUT — unchanged from v3.0
  * ============================================================ */
