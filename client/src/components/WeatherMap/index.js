@@ -59,6 +59,7 @@ import useEligibleGovAlerts from "~/hooks/useEligibleGovAlerts";
 import SourceBadge from "~/components/ambient/SourceBadge";
 import SeverityChip from "~/components/ambient/SeverityChip";
 import { useTimeOfDay } from "~/ui/hybrid";
+import { isPiMaxView } from "~/ui/piLayout";
 import { useTranslation } from "react-i18next";
 import debounce from "debounce";
 import axios from "axios";
@@ -977,7 +978,7 @@ const WeatherMap = ({ zoom, dark }) => {
     // decorative ~190 px thumbnail, so cycling RainViewer frames just burns
     // the Pi GPU. This doesn't touch the user's `animateWeatherMap`
     // preference — leaving MAX resumes it.
-    if (mapTimestamps && animateWeatherMap && piLayoutState !== "max") {
+    if (mapTimestamps && animateWeatherMap && !isPiMaxView(piLayoutState)) {
       animationIntervalRef.current = setInterval(() => {
         setRadarFrameIdx((prev) => {
           // Advance from the resolved current index — which collapses
@@ -1149,7 +1150,7 @@ const WeatherMap = ({ zoom, dark }) => {
         dragging={true}
         fadeAnimation={false}
       >
-        {piLayoutState !== "max" && (
+        {!isPiMaxView(piLayoutState) && (
           <ZoomControl
             key={`zoom-${i18n.language}`}
             position="topleft"
@@ -1421,7 +1422,7 @@ const WeatherMap = ({ zoom, dark }) => {
           it hides HeroBand + rail so the radar fills the viewport, and
           a short toast confirms the toggle. LayoutMobile has its own
           maximize button on the inset card (same icon pair). */}
-      {piLayoutState !== "max"
+      {!isPiMaxView(piLayoutState)
         && ((desktopRadarMaximized !== null && desktopRadarMaximized !== undefined)
         || (piRadarMaximized !== null && piRadarMaximized !== undefined)) && (
         <RadarFocusControl
@@ -1447,10 +1448,10 @@ const WeatherMap = ({ zoom, dark }) => {
           mutual-exclusion rule from the Phase 3 design: both can't fit
           in the 7" kiosk's vertical budget, but the legend stays one
           tap away instead of vanishing. */}
-      {mapTimestamps && radarSource === "rainviewer" && !hideRadarLegend && piLayoutState !== "max" && (
+      {mapTimestamps && radarSource === "rainviewer" && !hideRadarLegend && !isPiMaxView(piLayoutState) && (
         <RadarLegend dark={dark} chipMode={radarTimelineVisible && isSmallScreen} />
       )}
-      {mapTimestamps && radarSource === "rainviewer" && radarTimelineVisible && piLayoutState !== "max" && (
+      {mapTimestamps && radarSource === "rainviewer" && radarTimelineVisible && !isPiMaxView(piLayoutState) && (
         <RadarTimeline
           frames={mapTimestamps}
           currentIdx={currentMapTimestampIdx}

@@ -192,6 +192,11 @@
       "none": "Nothing on radar"
     }
   },
+  "conditions": {
+    "title": "Conditions",
+    "back": "Overview",
+    "openAria": "Open the conditions detail"
+  },
   "metrics": {
     "wind": "Wind",
     "gust": "Gust",

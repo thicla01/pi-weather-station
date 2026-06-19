@@ -9,6 +9,7 @@
  * distracting at kiosk distance). */
 
 .slab {
+  position: relative;
   background-color: var(--c-surface);
   border: 1px solid var(--c-border);
   border-radius: 10px;
@@ -170,4 +171,41 @@
   .focal {
     gap: 12px;
   }
+}
+
+/* v3.3 glance: corner ⤢ that opens the Conditions view — the radar
+ * screen's four-corner ExpandIcon in a bordered square (mockup parity).
+ * Absolute so it adds no card height; accent-coloured (currentColor
+ * drives the icon stroke). */
+.maximize {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 26px;
+  height: 26px;
+  padding: 0;
+  border: 1px solid currentColor;
+  border-radius: 7px;
+  background: transparent;
+  color: var(--c-accent);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.maximize:active { transform: scale(0.94); }
+
+.maximize:focus-visible {
+  outline: 2px dashed var(--c-text);
+  outline-offset: 2px;
+}
+
+[data-palette="nightRed"] .maximize { color: var(--c-text); }
+
+.maximizeIcon {
+  width: 15px;
+  height: 15px;
+  display: block;
 }

@@ -1,7 +1,9 @@
 import React, { useContext, useEffect } from "react";
 import { UiPrefsContext, SystemContext, AppActionsContext, WeatherDataContext } from "~/AppContext";
 import { getAirAlertState } from "~/ui/alertLogic";
+import { priorityViewsEnabled } from "~/ui/piLayout";
 import WeatherMap from "~/components/WeatherMap";
+import ConditionsView from "~/components/ambient/ConditionsView";
 import HeroCompact from "~/components/ambient/HeroCompact";
 import TimeBlock from "~/components/ambient/TimeBlock";
 import MetricsGrid from "~/components/ambient/MetricsGrid";
@@ -85,6 +87,11 @@ const LayoutPi = () => {
   // AQHI reading (the AIR card carries it, with its own tap-for-detail).
   const airAlert = getAirAlertState(aqhiInfo?.category);
 
+  // v3.3 priority-views model — opt-in/short-7" only. When on, the rail is a
+  // compact glance whose Hero ⤢ opens the Conditions view (metrics + indoor
+  // move there); off, it's the v3.2 stacked rail (unchanged).
+  const priority = priorityViewsEnabled();
+
   // Sentinel pattern: flip to `false` on mount so WeatherMap renders
   // the Leaflet focus control for this layout, and back to `null` on
   // unmount so the control disappears when the user switches to
@@ -133,7 +140,12 @@ const LayoutPi = () => {
           {/* shortPhaseName: the 7" rail is too narrow for the full
            * moon-phase string ("Gibbeuse croissante") in the hero
            * meta-line — B4.7 ruling: short family name, no ellipsis. */}
-          <HeroCompact shortPhaseName hideAstro />
+          <HeroCompact
+            shortPhaseName
+            hideAstro
+            hideFeelsLike={priority}
+            onMaximize={priority ? () => setPiLayoutState("conditions") : undefined}
+          />
           {/* NowcastLine (v3.2 keystone): ALWAYS present — an active radar
            * echo shows the verdict, otherwise a quiet sky-adaptive calm
            * state. Tapping it (the square maximize affordance) is the MID
@@ -141,8 +153,11 @@ const LayoutPi = () => {
            * "Prévisions" button. */}
           <NowcastLine />
           <AirCard suppressAqRow={!!airAlert} />
-          <MetricsGrid />
-          <IndoorBlock />
+          {/* Metrics + indoor: in the v3.3 glance these relocate to the
+            * Conditions view (the glance stays compact for the font-size
+            * budget); the v3.2 stacked rail keeps them inline. */}
+          {!priority && <MetricsGrid />}
+          {!priority && <IndoorBlock />}
         </div>
         {/* Forecast host — shown only in MAX, where ChartTabs renders its
          * maximized detail view (it reads piLayoutState === "max"). Kept
@@ -151,6 +166,13 @@ const LayoutPi = () => {
         <div className={styles.forecastHost}>
           <ChartTabs />
         </div>
+        {/* v3.3 Conditions view host — mounted alongside the glance, shown
+         * only in the "conditions" state (same pattern as forecastHost). */}
+        {priority && (
+          <div className={styles.conditionsHost}>
+            <ConditionsView />
+          </div>
+        )}
       </aside>
       <BottomDock />
     </div>

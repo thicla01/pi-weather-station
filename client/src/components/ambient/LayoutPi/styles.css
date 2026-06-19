@@ -61,10 +61,16 @@
  * (ChartTabs); MAX swaps which one is shown. The base 200 ms grid
  * transition animates the morph; the thumbnail width is a custom
  * property so a later step can tune it per panel density. */
-.layout[data-pi-state="max"] {
+/* The full-rail "maximized" views — v3.2 MAX (forecast) plus the v3.3
+ * priority views (conditions, and later alert). All share the same shell
+ * treatment: map shrinks to a thumbnail, the glance is hidden, the rail
+ * goes transparent. Each view's own host is then shown below. */
+.layout[data-pi-state="max"],
+.layout[data-pi-state="conditions"] {
   grid-template-columns: var(--pi-max-map, 190px) 1fr;
 }
-.layout[data-pi-state="max"] .midPanel {
+.layout[data-pi-state="max"] .midPanel,
+.layout[data-pi-state="conditions"] .midPanel {
   display: none;
 }
 .layout[data-pi-state="max"] .forecastHost {
@@ -73,9 +79,16 @@
   flex: 1;
   min-height: 0;
 }
-/* Drop the rail's opaque background + border in MAX so the radar
- * thumbnail reads cleanly beside the full-width chart. */
-.layout[data-pi-state="max"] .rail {
+.layout[data-pi-state="conditions"] .conditionsHost {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
+/* Drop the rail's opaque background + border in the maximized views so the
+ * radar thumbnail reads cleanly beside the full-width content. */
+.layout[data-pi-state="max"] .rail,
+.layout[data-pi-state="conditions"] .rail {
   background-color: transparent;
   border-left-color: transparent;
 }
@@ -90,6 +103,11 @@
   gap: 10px;
 }
 .forecastHost {
+  display: none;
+}
+/* v3.3 conditions view host — mounted but hidden until the user opens it
+ * (same pattern as forecastHost: state survives the round trip). */
+.conditionsHost {
   display: none;
 }
 

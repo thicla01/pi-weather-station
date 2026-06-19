@@ -9,6 +9,7 @@ import AstroMetaLine from "~/components/ambient/AstroMetaLine";
 import FeelsLikeLine from "~/components/ambient/FeelsLikeLine";
 import LocationName from "~/components/LocationName";
 import LocationDetailsPopover from "~/components/ambient/LocationDetailsPopover";
+import { ExpandIcon } from "~/components/WeatherMap/icons";
 import styles from "./styles.css";
 
 /**
@@ -39,13 +40,34 @@ import styles from "./styles.css";
  *   entirely. The v3.2 lean Pi MID hero is anchored on feels-like and the
  *   sunrise/sunset already lives on the clock card, so LayoutPi passes true
  *   to avoid the redundant (and taller) hero.
+ * @param {boolean} [props.hideFeelsLike] — drop the feels-like line. The
+ *   v3.3 glance hero shows place + temp + condition only; the feels-like
+ *   moves into the Conditions view.
+ * @param {() => void} [props.onMaximize] — when set, the slab carries a ⤢
+ *   corner affordance (the radar screen's four-corner square) that calls
+ *   this; the v3.3 glance hero opens the Conditions view with it. Adds no
+ *   card height (absolute corner).
  * @returns {JSX.Element} hero slab
  */
-const HeroCompact = ({ shortPhaseName, hideAstro }) => {
+const HeroCompact = ({ shortPhaseName, hideAstro, hideFeelsLike, onMaximize }) => {
   const { currentWeatherData, sunriseTime, sunsetTime } = useContext(WeatherDataContext);
   const { tempUnit } = useContext(UiPrefsContext);
   const { reverseGeoResult } = useContext(LocationContext);
   const { t } = useTranslation();
+
+  // v3.3 glance: a corner ⤢ that opens the Conditions view. Rendered in both
+  // the placeholder and populated slabs so the affordance doesn't pop in when
+  // the first payload lands. Absolute-positioned — costs no card height.
+  const maximizeBtn = onMaximize ? (
+    <button
+      type="button"
+      className={styles.maximize}
+      onClick={onMaximize}
+      aria-label={t("conditions.openAria", { defaultValue: "Open conditions" })}
+    >
+      <ExpandIcon className={styles.maximizeIcon} />
+    </button>
+  ) : null;
 
   // Tap-for-details on the location row (same UX as HeroBand on desktop).
   // Anchored to the left edge so the popover extends rightward — the
@@ -89,6 +111,7 @@ const HeroCompact = ({ shortPhaseName, hideAstro }) => {
   if (!weatherData) {
     return (
       <div className={`${styles.slab} ${styles.empty}`}>
+        {maximizeBtn}
         <div className={styles.location}>
           {locationRow}
           {locationPopover}
@@ -114,10 +137,11 @@ const HeroCompact = ({ shortPhaseName, hideAstro }) => {
   const feelsConverted = temperatureApparent != null
     ? convertTemp(temperatureApparent, tempUnit)
     : null;
-  const showFeelsLike = tempConverted != null && feelsConverted != null;
+  const showFeelsLike = !hideFeelsLike && tempConverted != null && feelsConverted != null;
 
   return (
     <div className={styles.slab}>
+      {maximizeBtn}
       <div className={styles.location}>
         {locationRow}
         {locationPopover}
@@ -149,11 +173,15 @@ const HeroCompact = ({ shortPhaseName, hideAstro }) => {
 HeroCompact.propTypes = {
   shortPhaseName: PropTypes.bool,
   hideAstro: PropTypes.bool,
+  hideFeelsLike: PropTypes.bool,
+  onMaximize: PropTypes.func,
 };
 
 HeroCompact.defaultProps = {
   shortPhaseName: false,
   hideAstro: false,
+  hideFeelsLike: false,
+  onMaximize: undefined,
 };
 
 export default HeroCompact;
