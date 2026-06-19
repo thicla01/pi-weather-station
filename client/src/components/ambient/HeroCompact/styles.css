@@ -181,6 +181,12 @@
   position: absolute;
   top: 10px;
   right: 12px;
+  /* z-index is load-bearing: `.maximize` is the slab's FIRST child but
+   * `.location` (a later, position:relative sibling spanning the full slab
+   * width) paints on top of it, so without this a real touch at the corner
+   * hit `.location`, not the button — the maximize fired on a synthetic
+   * .click() (test) but never on a real finger tap (kiosk). Lift it above. */
+  z-index: 2;
   display: inline-flex;
   align-items: center;
   justify-content: center;
