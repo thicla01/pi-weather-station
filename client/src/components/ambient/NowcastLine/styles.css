@@ -115,16 +115,24 @@
  * box (mockup parity), in the tier accent (currentColor) so it reads as the
  * MAX affordance. The whole line is the tap target, so this is a visual hint
  * sized as a comfortable ~28 px square rather than a separate 44 px button. */
+/* Maximize square — the canonical "bordered-surface" look shared with the
+ * forecast (ChartTabs), the glance Hero and the radar-focus control: a
+ * --c-border edge on a --c-surface-hybrid box with a dim bracket icon, so
+ * every maximize square reads identically. Fixed 28px (the root font-zoom
+ * scales it physically — no separate --c-font-scale, which double-scaled it
+ * larger than its siblings). */
 .maximize {
   flex: none;
   display: grid;
   place-items: center;
-  width: calc(28px * var(--c-font-scale, 1));
-  height: calc(28px * var(--c-font-scale, 1));
-  border: 1px solid currentColor;
-  border-radius: 7px;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--c-border);
+  border-radius: 6px;
+  background-color: var(--c-surface-hybrid, var(--c-surface));
+  color: var(--c-text-dim);
 }
 .maximizeIcon {
-  width: calc(16px * var(--c-font-scale, 1));
-  height: calc(16px * var(--c-font-scale, 1));
+  width: 16px;
+  height: 16px;
 }

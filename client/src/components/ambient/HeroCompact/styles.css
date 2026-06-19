@@ -173,11 +173,17 @@
   }
 }
 
-/* v3.3 glance: corner ⤢ that opens the Conditions view — the radar
- * screen's four-corner ExpandIcon in a bordered square (mockup parity).
- * Absolute so it adds no card height; accent-coloured (currentColor
- * drives the icon stroke). */
-.maximize {
+/* v3.3 glance: corner ⤢ that opens the Conditions view — the canonical
+ * "bordered-surface" maximize look shared with the forecast (ChartTabs) and
+ * the radar-focus control (a --c-border edge on a --c-surface-hybrid box, a
+ * dim bracket icon) so every maximize square reads identically across views.
+ * Absolute → adds no card height.
+ *
+ * The DOUBLED class (.maximize.maximize) is load-bearing: this is a <button>,
+ * and the `.ambientRoot button` reset (0,1,1) sets `border: 0` — a single
+ * `.maximize` (0,1,0) loses, stripping the frame (field-reported: "the
+ * square on the dark card has no cadre"). The doubled selector (0,2,0) wins. */
+.maximize.maximize {
   position: absolute;
   top: 10px;
   right: 12px;
@@ -190,13 +196,13 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   padding: 0;
-  border: 1px solid currentColor;
-  border-radius: 7px;
-  background: transparent;
-  color: var(--c-accent);
+  border: 1px solid var(--c-border);
+  border-radius: 6px;
+  background-color: var(--c-surface-hybrid, var(--c-surface));
+  color: var(--c-text-dim);
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }
@@ -208,11 +214,9 @@
   outline-offset: 2px;
 }
 
-[data-palette="nightRed"] .maximize { color: var(--c-text); }
-
 .maximizeIcon {
-  width: 15px;
-  height: 15px;
+  width: 16px;
+  height: 16px;
   display: block;
 }
 
