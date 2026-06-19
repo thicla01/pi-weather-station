@@ -98,9 +98,9 @@
   color: var(--c-text-dim);
 }
 
-/* v3.2 slim Pi MID clock — a single row: big time + abbreviated date + a
- * right-aligned sunset chip (the sunset moved here from the hero). Overrides
- * the default stacked layout; drops the seasonal-countdown line. */
+/* Slim Pi glance clock — big time beside a right-aligned 2-line meta column
+ * (date on top, next sun event below). Overrides the default stacked layout;
+ * drops the seasonal-countdown line. */
 .slab.compact {
   display: flex;
   align-items: center;
@@ -126,7 +126,9 @@
   text-transform: capitalize;
   white-space: nowrap;
 }
-.sunset {
+/* Next sun event — sunset (daytime) or sunrise (overnight); the icon swaps
+ * with the event. Named `.sun`, not `.sunset`, since it shows both. */
+.sun {
   display: inline-flex;
   align-items: center;
   gap: 4px;
@@ -135,7 +137,7 @@
   color: var(--c-text-dim);
   white-space: nowrap;
 }
-.sunset svg {
+.sun svg {
   width: 16px;
   height: 16px;
   color: var(--c-accent-soft);
