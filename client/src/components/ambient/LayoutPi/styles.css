@@ -66,11 +66,13 @@
  * treatment: map shrinks to a thumbnail, the glance is hidden, the rail
  * goes transparent. Each view's own host is then shown below. */
 .layout[data-pi-state="max"],
-.layout[data-pi-state="conditions"] {
+.layout[data-pi-state="conditions"],
+.layout[data-pi-state="alert"] {
   grid-template-columns: var(--pi-max-map, 190px) 1fr;
 }
 .layout[data-pi-state="max"] .midPanel,
-.layout[data-pi-state="conditions"] .midPanel {
+.layout[data-pi-state="conditions"] .midPanel,
+.layout[data-pi-state="alert"] .midPanel {
   display: none;
 }
 .layout[data-pi-state="max"] .forecastHost {
@@ -79,7 +81,8 @@
   flex: 1;
   min-height: 0;
 }
-.layout[data-pi-state="conditions"] .conditionsHost {
+.layout[data-pi-state="conditions"] .conditionsHost,
+.layout[data-pi-state="alert"] .alertHost {
   display: flex;
   flex-direction: column;
   flex: 1;
@@ -88,7 +91,8 @@
 /* Drop the rail's opaque background + border in the maximized views so the
  * radar thumbnail reads cleanly beside the full-width content. */
 .layout[data-pi-state="max"] .rail,
-.layout[data-pi-state="conditions"] .rail {
+.layout[data-pi-state="conditions"] .rail,
+.layout[data-pi-state="alert"] .rail {
   background-color: transparent;
   border-left-color: transparent;
 }
@@ -105,9 +109,10 @@
 .forecastHost {
   display: none;
 }
-/* v3.3 conditions view host — mounted but hidden until the user opens it
- * (same pattern as forecastHost: state survives the round trip). */
-.conditionsHost {
+/* v3.3 conditions + alert view hosts — mounted but hidden until the user
+ * opens them (same pattern as forecastHost: state survives the round trip). */
+.conditionsHost,
+.alertHost {
   display: none;
 }
 

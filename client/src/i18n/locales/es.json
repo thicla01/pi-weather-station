@@ -368,6 +368,12 @@
     "activeAlertsCount_one": "{{current}} / {{count}} alerta activa",
     "activeAlertsCount_other": "{{current}} / {{count}} alertas activas",
     "activeAlertsCountShort": "{{current}} / {{count}}",
+    "view": {
+      "openRow": "Abrir el detalle de la alerta",
+      "back": "Volver al resumen",
+      "until": "Hasta {{time}}",
+      "alsoActive": "También activas"
+    },
     "cycleNextAria": "Mostrar la siguiente alerta",
     "airQualityAria": "Alerta de calidad del aire — {{value}} {{scale}}, {{level}}. Tocar para detalles.",
     "selectAlertAria": "Cambiar a esta alerta",

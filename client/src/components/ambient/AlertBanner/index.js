@@ -21,6 +21,7 @@ import {
   isCurrentlyPrecipitating,
   getRadarAlertState,
 } from "~/ui/alertLogic";
+import { priorityViewsEnabled } from "~/ui/piLayout";
 import styles from "./styles.css";
 
 /**
@@ -68,7 +69,7 @@ const AlertBanner = () => {
     innerTrendConfidence, outerTrendConfidence,
   } = useContext(RadarStateContext);
   const { govAlertExpanded } = useContext(AlertsContext);
-  const { setGovAlertExpanded, selectGovAlert } = useContext(AppActionsContext);
+  const { setGovAlertExpanded, selectGovAlert, setPiLayoutState } = useContext(AppActionsContext);
   const { currentWeatherData } = useContext(WeatherDataContext);
   const { piLayoutState } = useContext(SystemContext);
   const { t, i18n } = useTranslation();
@@ -81,6 +82,9 @@ const AlertBanner = () => {
   // the same verdict. Desktop / mobile keep the full Phase-4 head + radar
   // banner unchanged.
   const isPi = piLayoutState != null;
+  // v3.3 priority model (opt-in/short-7"): the compact gov card opens the
+  // full Alert view on tap instead of expanding AlertDetailInline inline.
+  const priority = isPi && priorityViewsEnabled();
 
   // Eligible (red/orange, non-dismissed) gov alerts and the current
   // one, derived by the shared hook so the counter, the primary
@@ -108,6 +112,13 @@ const AlertBanner = () => {
         e.preventDefault();
         toggleExpanded();
       }
+    };
+    // The compact card's tap target: open the full Alert view in the v3.3
+    // priority model, else toggle the inline AlertDetailInline (v3.2). The
+    // cycle counter keeps its own (stop-propagated) tap zone either way.
+    const headAction = priority ? () => setPiLayoutState("alert") : toggleExpanded;
+    const headKeyDown = (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); headAction(); }
     };
 
     // Cycle to the next eligible gov alert. The compact Pi counter doubles
@@ -142,10 +153,12 @@ const AlertBanner = () => {
               className={styles.headCompact}
               role="button"
               tabIndex={0}
-              onClick={toggleExpanded}
-              onKeyDown={onKeyDown}
-              aria-expanded={govAlertExpanded}
-              aria-label={t(govAlertExpanded ? "alert.collapseRow" : "alert.expandRow")}
+              onClick={headAction}
+              onKeyDown={headKeyDown}
+              aria-expanded={priority ? undefined : govAlertExpanded}
+              aria-label={priority
+                ? t("alert.view.openRow", { defaultValue: "Open alert detail" })
+                : t(govAlertExpanded ? "alert.collapseRow" : "alert.expandRow")}
             >
               <SeverityChip severity={currentAlert.severity} eventName={currentAlert.title_en} abbreviated />
               <SourceBadge source={currentAlert.source} />

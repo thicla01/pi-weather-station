@@ -4,6 +4,7 @@ import { getAirAlertState } from "~/ui/alertLogic";
 import { priorityViewsEnabled } from "~/ui/piLayout";
 import WeatherMap from "~/components/WeatherMap";
 import ConditionsView from "~/components/ambient/ConditionsView";
+import AlertView from "~/components/ambient/AlertView";
 import HeroCompact from "~/components/ambient/HeroCompact";
 import TimeBlock from "~/components/ambient/TimeBlock";
 import MetricsGrid from "~/components/ambient/MetricsGrid";
@@ -126,7 +127,9 @@ const LayoutPi = () => {
          * deliberately absent from the glance — the chart lives in MAX. */}
         <div className={styles.midPanel}>
           <AlertBanner />
-          <AlertDetailInline />
+          {/* v3.2 inline expansion — in the v3.3 priority model the alert
+            * card opens the full AlertView instead, so drop the inline body. */}
+          {!priority && <AlertDetailInline />}
           {/* AlertMiniCards on Pi renders ONLY its "restore N hidden alerts"
            * pill (the mini-card list is dropped — the compact AlertBanner
            * counter cycles instead). Without it a dismissed alert (via the
@@ -171,6 +174,12 @@ const LayoutPi = () => {
         {priority && (
           <div className={styles.conditionsHost}>
             <ConditionsView />
+          </div>
+        )}
+        {/* v3.3 Alert view host — shown only in the "alert" state. */}
+        {priority && (
+          <div className={styles.alertHost}>
+            <AlertView />
           </div>
         )}
       </aside>

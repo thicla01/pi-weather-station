@@ -24,7 +24,7 @@ import styles from "./styles.css";
 // rationale on URL choices and the deliberate omission of lat/lon
 // query parameters. Coordinates with this comment if either gets
 // changed: both components must point at the same destination.
-const SOURCE_LINKS = {
+export const SOURCE_LINKS = {
   ECCC: {
     fr: "https://meteo.gc.ca/index_f.html#alerttable",
     en: "https://weather.gc.ca/index_e.html#alerttable",
@@ -286,7 +286,7 @@ const AlertDetailInline = () => {
  * @param {string} props.listClass - CSS module class for `<ul>` lists
  * @returns {JSX.Element} the rendered blocks
  */
-const RichText = ({ text, paraClass, listClass }) => (
+export const RichText = ({ text, paraClass, listClass }) => (
   <>
     {splitBody(text).map((block, j) => (block.type === "list" ? (
       <ul key={j} className={listClass}>
@@ -321,7 +321,7 @@ RichText.propTypes = {
  * @param {Function} props.t — i18next translator
  * @returns {JSX.Element|null} the section block, or null if empty
  */
-const SectionBlock = ({ section, t }) => {
+export const SectionBlock = ({ section, t }) => {
   if (!section) return null;
   if (section.type === "intro") {
     // No icon, no lead — the intro is just the leading paragraph.
