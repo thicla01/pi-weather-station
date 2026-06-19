@@ -48,9 +48,11 @@ const TIER_CLASS = {
  * @param {boolean} [props.extended] — v3.3 Conditions view: append the
  *   Pressure + Visibility tiles. Default false — the glance keeps the strict
  *   2×2 (the v3.2 stacked rail is unchanged).
+ * @param {2|3} [props.columns] — grid columns. Default 2 (glance / stacked
+ *   rail); 3 for the wide Conditions view (6 tiles → two themed rows).
  * @returns {JSX.Element} metrics grid slab
  */
-const MetricsGrid = ({ extended = false }) => {
+const MetricsGrid = ({ extended = false, columns = 2 }) => {
   const { currentWeatherData } = useContext(WeatherDataContext);
   const { speedUnit, pressureUnit, distanceUnit } = useContext(UiPrefsContext);
   const { t } = useTranslation();
@@ -76,7 +78,7 @@ const MetricsGrid = ({ extended = false }) => {
   const toggle = (key) => setOpenKey((cur) => (cur === key ? null : key));
 
   return (
-    <div className={styles.grid}>
+    <div className={`${styles.grid} ${columns === 3 ? styles.cols3 : ""}`}>
       <Cell
         icon={strongWind}
         value={windSpeed != null ? convertSpeed(windSpeed, speedUnit) : "—"}
@@ -260,10 +262,15 @@ MetricsGrid.propTypes = {
   // v3.3 Conditions view: add the Pressure + Visibility tiles (the glance
   // keeps the strict 2×2). Default false — the v3.2 stacked rail is unchanged.
   extended: PropTypes.bool,
+  // Column count. 2 (default) for the glance/stacked rail; 3 for the wide
+  // Conditions view, where the 6 extended tiles read as two themed rows
+  // (Wind/Gust/UV · Humidity/Pressure/Visibility).
+  columns: PropTypes.oneOf([2, 3]),
 };
 
 MetricsGrid.defaultProps = {
   extended: false,
+  columns: 2,
 };
 
 export default MetricsGrid;

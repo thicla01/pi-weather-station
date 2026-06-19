@@ -1,14 +1,19 @@
-/* MetricsGrid — strict 2×2 of compact stat cells (Wind / Humidity /
- * UV / Pressure). Each cell is its own mini-slab so the grid reads
- * as a cluster of four chips rather than a single chunky block. The
- * icon, value, and label stack tightly to keep the grid compact on
- * the Pi's 800px-wide column. The 2×2 template is never overridden —
- * no setting may break it (§3). */
+/* MetricsGrid — compact stat cells (Wind / Gust / UV / Humidity, plus
+ * Pressure / Visibility when `extended`). Each cell is its own mini-slab so
+ * the grid reads as a cluster of chips rather than one chunky block. The
+ * GLANCE keeps the strict 2×2 (no setting may break it, §3); the wide
+ * Conditions view opts into the 3-column variant below via `columns={3}`. */
 
 .grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 8px;
+}
+
+/* 3-column variant — the wide Conditions view, where the 6 extended tiles
+ * read as two themed rows (Wind/Gust/UV · Humidity/Pressure/Visibility). */
+.cols3 {
+  grid-template-columns: 1fr 1fr 1fr;
 }
 
 .cell {

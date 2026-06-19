@@ -6,6 +6,7 @@ import { convertTemp } from "~/services/conversions";
 import MetricsGrid from "~/components/ambient/MetricsGrid";
 import IndoorBlock from "~/components/ambient/IndoorBlock";
 import FeelsLikeLine from "~/components/ambient/FeelsLikeLine";
+import SunMoonBlock from "~/components/ambient/SunMoonBlock";
 import RailSquareButton from "~/components/ambient/RailSquareButton";
 import styles from "./styles.css";
 
@@ -17,10 +18,11 @@ import styles from "./styles.css";
  * where the full rail gives them room. Mounted alongside the glance (hidden
  * via `data-pi-state`) so its state survives the round trip.
  *
- * Carries the feels-like (relocated off the glance Hero, design §5.2), the
- * metric grid in its EXTENDED form (the glance's 2×2 Wind / Gust / UV /
- * Humidity plus Pressure / Visibility, which only fit here), and the indoor
- * block.
+ * Order (priority for the household majority): feels-like → outdoor metrics →
+ * indoor → sun/moon almanac. The metric grid is EXTENDED + 3-column here (the
+ * wide view), reading as two themed rows (Wind/Gust/UV · Humidity/Pressure/
+ * Visibility). The Soleil/Lune section closes it, its headers opening the same
+ * detail popovers the desktop hero uses.
  *
  * @returns {JSX.Element} the conditions view
  */
@@ -53,8 +55,9 @@ const ConditionsView = () => {
             <FeelsLikeLine temp={temp} feels={feels} />
           </div>
         ) : null}
-        <MetricsGrid extended />
+        <MetricsGrid extended columns={3} />
         <IndoorBlock />
+        <SunMoonBlock />
       </div>
     </div>
   );

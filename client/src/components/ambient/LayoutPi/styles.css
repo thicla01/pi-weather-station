@@ -69,6 +69,11 @@
 .layout[data-pi-state="conditions"],
 .layout[data-pi-state="alert"] {
   grid-template-columns: var(--pi-max-map, 190px) 1fr;
+  /* Hide the dock in the maximized views too (it already hides in MIN):
+   * collapse its row so the maximized content reclaims the ~50-60px of
+   * height — precious on the 7". The dock lives on the glance; each view's
+   * minimize square is the guaranteed way back. */
+  grid-template-rows: 1fr 0;
 }
 .layout[data-pi-state="max"] .midPanel,
 .layout[data-pi-state="conditions"] .midPanel,
@@ -224,7 +229,10 @@
  * `[data-pi-state="min"]` grid-template-rows above, and `.layout`'s
  * overflow:hidden clips the translated dock. Restoring MIN→MID brings it
  * back. pointer-events:none so it's inert while hidden. */
-.layout[data-pi-state="min"] > :last-child {
+.layout[data-pi-state="min"] > :last-child,
+.layout[data-pi-state="max"] > :last-child,
+.layout[data-pi-state="conditions"] > :last-child,
+.layout[data-pi-state="alert"] > :last-child {
   opacity: 0;
   transform: translateY(60px);
   pointer-events: none;
