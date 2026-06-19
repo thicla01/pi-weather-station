@@ -23,6 +23,12 @@
   border-left: 4px solid var(--c-danger);
 }
 
+/* Tier strip — the left edge follows the alert's tier so a moderate
+ * (orange) alert doesn't read as red. tier-red keeps the default; extreme
+ * overrides the whole header below. */
+.header.tier-orange { border-left-color: var(--c-warn); }
+.header.tier-yellow { border-left-color: var(--c-advisory); }
+
 /* Extreme severity (Tornado, Hurricane…) — solid red band, white text. The
  * gradation's loud end: a life-threatening alert must not whisper. */
 .header.extreme {
@@ -131,13 +137,16 @@
   align-items: center;
   gap: 5px;
   flex: none;
+  /* min-height keeps the multi-alert nav chips a comfortable touch target
+   * (the selector is the most mis-tappable row); content stays centred. */
+  min-height: 32px;
   font: inherit;
   font-size: 11px;
   color: var(--c-text);
   background: transparent;
   border: 1px solid var(--c-border);
   border-radius: 999px;
-  padding: 4px 9px;
+  padding: 4px 11px;
   white-space: nowrap;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;

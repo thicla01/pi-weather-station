@@ -209,3 +209,10 @@
   height: 15px;
   display: block;
 }
+
+/* Reserve room for the corner ⤢ so a long place name (e.g.
+ * SAINT-AUGUSTIN-DE-DESMAURES) doesn't render under it. Only when the
+ * maximize affordance is present (v3.3 glance); v2/desktop unaffected. */
+.withMax .location {
+  padding-right: 34px;
+}

@@ -1,10 +1,10 @@
-import React, { useContext, useMemo } from "react";
+import React, { useContext, useEffect, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
 import closeIcon from "@iconify/icons-carbon/close";
 import warningAltIcon from "@iconify/icons-carbon/warning-alt";
 import timeIcon from "@iconify/icons-carbon/time";
-import { AppActionsContext } from "~/AppContext";
+import { AppActionsContext, SystemContext } from "~/AppContext";
 import { parseAlertText } from "~/ui/alertParser";
 import useEligibleGovAlerts from "~/hooks/useEligibleGovAlerts";
 import useDismissedAlerts from "~/hooks/useDismissedAlerts";
@@ -43,6 +43,7 @@ const DOT_CLASS = { red: "dotRed", orange: "dotOrange", yellow: "dotYellow" };
  */
 const AlertView = () => {
   const { setPiLayoutState, selectGovAlert } = useContext(AppActionsContext);
+  const { piLayoutState } = useContext(SystemContext);
   const { dismiss } = useDismissedAlerts();
   const { i18n, t } = useTranslation();
   const { eligibleGovAlerts, safeIdx, currentAlert } = useEligibleGovAlerts();
@@ -56,6 +57,16 @@ const AlertView = () => {
       : (currentAlert.description_en || currentAlert.alert_text_en || "").trim();
     return description ? parseAlertText(description, lang) : [];
   }, [currentAlert, lang]);
+
+  // Anti-stranding: this view is the ONLY rail content in the "alert" state
+  // (the glance is display:none), and it renders null with no alert. If the
+  // backing alert vanishes while the user is reading it (it expires, a ~15 min
+  // /api/update payload drops it, or the eligible set changes), bounce back to
+  // the glance so the rail can't go blank with no escape on the keyboard-less
+  // kiosk. Mirrors AppContext's govAlertIdx-reset-on-shrink effect.
+  useEffect(() => {
+    if (piLayoutState === "alert" && !currentAlert) setPiLayoutState("mid");
+  }, [piLayoutState, currentAlert, setPiLayoutState]);
 
   // Defensive: the view only renders in the "alert" state, which the glance
   // alert card only reaches when an alert is active — but guard anyway.
@@ -73,7 +84,7 @@ const AlertView = () => {
 
   return (
     <div className={styles.view}>
-      <div className={`${styles.header} ${extreme ? styles.extreme : ""}`}>
+      <div className={`${styles.header} ${styles[`tier-${currentAlert.tier}`] || ""} ${extreme ? styles.extreme : ""}`}>
         <div className={styles.headRow}>
           {extreme ? (
             <InlineIcon icon={warningAltIcon} className={styles.bigIcon} aria-hidden="true" />

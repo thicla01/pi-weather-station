@@ -110,7 +110,7 @@ const HeroCompact = ({ shortPhaseName, hideAstro, hideFeelsLike, onMaximize }) =
   const weatherData = currentWeatherData?.data?.timelines?.[0]?.intervals?.[0]?.values;
   if (!weatherData) {
     return (
-      <div className={`${styles.slab} ${styles.empty}`}>
+      <div className={`${styles.slab} ${styles.empty} ${onMaximize ? styles.withMax : ""}`}>
         {maximizeBtn}
         <div className={styles.location}>
           {locationRow}
@@ -140,7 +140,7 @@ const HeroCompact = ({ shortPhaseName, hideAstro, hideFeelsLike, onMaximize }) =
   const showFeelsLike = !hideFeelsLike && tempConverted != null && feelsConverted != null;
 
   return (
-    <div className={styles.slab}>
+    <div className={`${styles.slab} ${onMaximize ? styles.withMax : ""}`}>
       {maximizeBtn}
       <div className={styles.location}>
         {locationRow}

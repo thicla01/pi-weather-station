@@ -20,7 +20,7 @@ const MAX_VIEWS = ["max", "alert", "conditions"];
  * thumbnail + frozen-animation mode for ANY of them.
  *
  * @param {?string} state — the `piLayoutState` value
- * @returns {boolean}
+ * @returns {boolean} true when the state renders as a full-rail view
  */
 export function isPiMaxView(state) {
   return MAX_VIEWS.includes(state);
@@ -38,7 +38,7 @@ export function isPiMaxView(state) {
  * (`window.screen.height <= 540`, font-size-zoom independent so the model
  * stays stable per device) alongside this override.
  *
- * @returns {boolean}
+ * @returns {boolean} true when the priority-views model should be used
  */
 export function priorityViewsEnabled() {
   if (typeof window === "undefined") return false;
