@@ -58,16 +58,27 @@ const SunMoonBlock = () => {
     }),
     [locale, hour12, mapTimezone]
   );
-  const fmt = (iso) => (iso ? timeFmt.format(new Date(iso)) : "—");
+  // Guard malformed date strings — Intl.format() throws "Invalid time value"
+  // on an Invalid Date, which would crash the whole view. (Mirrors the
+  // Number.isNaN(getTime()) guard used elsewhere, e.g. AlertMetaChips.)
+  const fmt = (iso) => {
+    if (!iso) return "—";
+    const d = new Date(iso);
+    return Number.isNaN(d.getTime()) ? "—" : timeFmt.format(d);
+  };
 
   const hasSun = sunriseTime && sunsetTime;
   // Day length = sunset − sunrise (both today's, from the same feed), so it's
   // correct regardless of the current time. Formatted "15 h 40 min" to mirror
-  // SunDetailsPopover.
+  // SunDetailsPopover. Guarded against unparseable strings (→ "—").
   let dayLength = "—";
   if (hasSun) {
-    const totalMin = Math.max(0, Math.round((new Date(sunsetTime) - new Date(sunriseTime)) / 60000));
-    dayLength = `${Math.floor(totalMin / 60)} h ${String(totalMin % 60).padStart(2, "0")} min`;
+    const rise = new Date(sunriseTime).getTime();
+    const set = new Date(sunsetTime).getTime();
+    if (!Number.isNaN(rise) && !Number.isNaN(set)) {
+      const totalMin = Math.max(0, Math.round((set - rise) / 60000));
+      dayLength = `${Math.floor(totalMin / 60)} h ${String(totalMin % 60).padStart(2, "0")} min`;
+    }
   }
 
   const moon = moonPhase(now);
@@ -100,6 +111,7 @@ const SunMoonBlock = () => {
           className={styles.head}
           onClick={toggleSun}
           aria-expanded={sunOpen}
+          aria-haspopup="dialog"
           aria-label={t("astronomy.sunDetails")}
         >
           <InlineIcon icon={bxsSun} className={styles.headIcon} aria-hidden="true" />
@@ -127,6 +139,7 @@ const SunMoonBlock = () => {
           className={styles.head}
           onClick={toggleMoon}
           aria-expanded={moonOpen}
+          aria-haspopup="dialog"
           aria-label={t("astronomy.moonDetails")}
         >
           <span className={styles.headGlyph}><MoonGlyph fraction={moon.fraction} size="1em" /></span>
