@@ -102,15 +102,19 @@ const TimeBlock = ({ compact }) => {
           {hhmm}
           {hour12 && dayPeriod ? <span className={styles.amPm}>{dayPeriod}</span> : null}
         </div>
-        <div className={styles.dateCompact}>
-          <SeasonsTrigger now={now}>{dateShort}</SeasonsTrigger>
-        </div>
-        {sunsetStr ? (
-          <div className={styles.sunset}>
-            <InlineIcon icon={sunsetIcon} aria-hidden="true" />
-            <span>{sunsetStr}</span>
+        {/* Right-side meta column: day/date/month on top, the sun time below
+         * (maintainer request). The date stays the Saisons-popover trigger. */}
+        <div className={styles.meta}>
+          <div className={styles.dateCompact}>
+            <SeasonsTrigger now={now}>{dateShort}</SeasonsTrigger>
           </div>
-        ) : null}
+          {sunsetStr ? (
+            <div className={styles.sunset}>
+              <InlineIcon icon={sunsetIcon} aria-hidden="true" />
+              <span>{sunsetStr}</span>
+            </div>
+          ) : null}
+        </div>
       </div>
     );
   }

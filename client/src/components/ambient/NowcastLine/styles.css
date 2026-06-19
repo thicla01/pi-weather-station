@@ -92,13 +92,30 @@
 .verdict {
   flex: 1;
   min-width: 0;
-  white-space: nowrap;
+  /* Wrap to a 2nd line rather than truncate — the full nowcast verdict must
+   * stay readable (maintainer request). 2-line clamp as a safety cap; the
+   * line grows to fit (min-height 44px floor, align-items: center keeps the
+   * dot + maximize square centred against the taller text). */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
-  text-overflow: ellipsis;
+  line-height: 1.2;
   /* The verdict text reads in the neutral body colour, not the tier accent
    * (the accent is carried by the border). Override the inherited
    * tier `color` back to --c-text for legibility on the tinted fill. */
   color: var(--c-text);
+}
+
+/* Alarm verdicts (orange/red) run long — up to ~50 chars across EN/FR/ES
+ * (e.g. "Alerte — précipitations sévères qui s'intensifient"). A notch
+ * smaller (12px vs the calm 14px) so the FULL verdict fits the 2-line clamp
+ * without truncation (maintainer: show the whole title). Calm verdicts are
+ * short (≤ ~22 chars, one line) and keep the larger line size. Tier class
+ * sits on `.line`; `.verdict` is its child. */
+.tier-orange .verdict,
+.tier-red .verdict {
+  font-size: 12px;
 }
 
 /* Confidence dot — small passive pip, bucket-coloured. high -> calm accent

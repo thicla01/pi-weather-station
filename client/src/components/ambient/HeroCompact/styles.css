@@ -152,12 +152,15 @@
  * v2.15.14: the 30 px numeral + compact condition column keep the
  * combined rail height meaningfully under the v2.14 baseline. */
 @media (min-width: 800px) and (max-width: 1279px) {
+  /* Temperature is the hero's focal point (Claude Design: weightier than the
+   * clock). Bumped 30 → 39px: it renders ≈ the condition column's height, so
+   * the focal row (condCol-bound) and the card height are unchanged. */
   .tempValue {
-    font-size: 30px;
-    letter-spacing: -0.5px;
+    font-size: 39px;
+    letter-spacing: -1px;
   }
   .tempUnit {
-    font-size: 13px;
+    font-size: 15px;
   }
   .condIcon {
     font-size: 18px;
