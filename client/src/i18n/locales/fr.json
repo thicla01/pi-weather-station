@@ -204,6 +204,7 @@
     "uv": "UV",
     "aqi": "IQA",
     "pressure": "Pression",
+    "visibility": "Visibilité",
     "detailValue": "Valeur",
     "detailStation": "Station",
     "detailSource": "Source",

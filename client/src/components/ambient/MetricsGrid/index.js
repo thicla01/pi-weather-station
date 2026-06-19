@@ -7,8 +7,10 @@ import windGusts from "@iconify/icons-carbon/wind-gusts";
 import humidityAlt from "@iconify/icons-carbon/humidity-alt";
 import sunIcon from "@iconify/icons-wi/day-sunny";
 import chevronRight from "@iconify/icons-carbon/chevron-right";
+import barometer from "@iconify/icons-wi/barometer";
+import viewIcon from "@iconify/icons-carbon/view";
 import { WeatherDataContext, UiPrefsContext } from "~/AppContext";
-import { convertSpeed, speedUnitLabel } from "~/services/conversions";
+import { convertSpeed, speedUnitLabel, convertPressure, pressureUnitLabel } from "~/services/conversions";
 import { uvTier } from "~/ui/severity";
 import DetailsPopover from "~/components/ambient/DetailsPopover";
 import styles from "./styles.css";
@@ -42,11 +44,15 @@ const TIER_CLASS = {
  * because they have no detail surface behind them — an affordance
  * that leads nowhere is worse than none.
  *
+ * @param {object} props
+ * @param {boolean} [props.extended] — v3.3 Conditions view: append the
+ *   Pressure + Visibility tiles. Default false — the glance keeps the strict
+ *   2×2 (the v3.2 stacked rail is unchanged).
  * @returns {JSX.Element} metrics grid slab
  */
-const MetricsGrid = () => {
+const MetricsGrid = ({ extended = false }) => {
   const { currentWeatherData } = useContext(WeatherDataContext);
-  const { speedUnit } = useContext(UiPrefsContext);
+  const { speedUnit, pressureUnit, distanceUnit } = useContext(UiPrefsContext);
   const { t } = useTranslation();
   // Single source of truth for which cell's popover is open. Tapping
   // a cell flips this; tapping the same cell again, the close icon,
@@ -59,6 +65,10 @@ const MetricsGrid = () => {
   const windGust = values?.windGust;
   const humidity = values?.humidity;
   const uvIndex = values?.uvIndex;
+  // Extended set (v3.3 Conditions view only) — pressure + visibility, the
+  // enthusiast data the glance has no room for but the full-rail view does.
+  const pressure = values?.pressureSurfaceLevel;
+  const visibility = values?.visibility;
 
   const uvT = uvTier(uvIndex);
   const uvQualifier = uvT ? t(`badges.uvLevel.${uvT.label}`) : null;
@@ -118,6 +128,24 @@ const MetricsGrid = () => {
         unit="%"
         label={t("metrics.humidity")}
       />
+      {extended ? (
+        <Cell
+          icon={barometer}
+          value={pressure != null ? convertPressure(pressure, pressureUnit) : "—"}
+          unit={pressureUnitLabel(pressureUnit)}
+          label={t("metrics.pressure")}
+        />
+      ) : null}
+      {extended ? (
+        <Cell
+          icon={viewIcon}
+          value={visibility != null
+            ? Math.round(distanceUnit === "mi" ? visibility * 0.621371 : visibility)
+            : "—"}
+          unit={distanceUnit === "mi" ? "mi" : "km"}
+          label={t("metrics.visibility")}
+        />
+      ) : null}
     </div>
   );
 };
@@ -226,6 +254,16 @@ Cell.defaultProps = {
   ariaExpanded: undefined,
   cellRef: null,
   children: null,
+};
+
+MetricsGrid.propTypes = {
+  // v3.3 Conditions view: add the Pressure + Visibility tiles (the glance
+  // keeps the strict 2×2). Default false — the v3.2 stacked rail is unchanged.
+  extended: PropTypes.bool,
+};
+
+MetricsGrid.defaultProps = {
+  extended: false,
 };
 
 export default MetricsGrid;

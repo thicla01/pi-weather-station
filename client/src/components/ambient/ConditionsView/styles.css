@@ -58,3 +58,14 @@
   flex-direction: column;
   gap: 10px;
 }
+
+/* Feels-like card — the ressenti relocated off the glance Hero, shown as a
+ * labelled card above the metric grid. FeelsLikeLine brings its own inline
+ * "RESSENTI x° delta" markup; this just frames it as a slab. */
+.feels {
+  flex: none;
+  background-color: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  padding: 10px 12px;
+}
