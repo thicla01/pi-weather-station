@@ -16,7 +16,7 @@ import {
   SystemContext,
   AppActionsContext,
 } from "~/AppContext";
-import { getRadarAlertState, severity } from "~/ui/alertLogic";
+import { getRadarAlertState } from "~/ui/alertLogic";
 import { isDaylight } from "~/ui/weatherCodes";
 import styles from "./styles.css";
 
@@ -33,31 +33,6 @@ const MAX_STATE = "max";
 // "don't subscribe to WeatherDataContext" trade-off no longer applies; the
 // re-render on the 10-min current-conditions poll is cheap.)
 const ASSUME_PRECIPITATING = false;
-
-/**
- * Reduce the source ring's trend to one of four glyph directions for the
- * trend arrow. Mirrors getRadarAlertState's source-ring pick (the
- * higher-severity ring drives the verdict) so the arrow agrees with the
- * verdict text. `bumped` reads as "approaching" because the server raised
- * the tier on an incoming band.
- *
- * @param {string|null} innerRisk
- * @param {string|null} outerRisk
- * @param {string} innerTrend — "approaching" | "leaving" | "stable" | "drifting"
- * @param {string} outerTrend — same vocabulary as innerTrend
- * @param {boolean} innerBumped — server flag: inner tier bumped by trend
- * @param {boolean} outerBumped — server flag: outer tier bumped by trend
- * @returns {"approaching"|"leaving"|"drifting"|"near"} arrow direction slug
- */
-function arrowDirection(innerRisk, outerRisk, innerTrend, outerTrend, innerBumped, outerBumped) {
-  const innerIsSource = severity(innerRisk) >= severity(outerRisk);
-  const srcTrend = innerIsSource ? innerTrend : outerTrend;
-  const srcBumped = innerIsSource ? innerBumped : outerBumped;
-  if (srcBumped || srcTrend === "approaching") return "approaching";
-  if (srcTrend === "leaving") return "leaving";
-  if (srcTrend === "drifting") return "drifting";
-  return "near";
-}
 
 /**
  * Calm-state verdict — when the radar shows no notable echo
@@ -150,11 +125,6 @@ const NowcastLine = () => {
     [innerRisk, outerRisk, innerTrend, outerTrend, innerBumped, outerBumped, innerConf, outerConf],
   );
 
-  const direction = useMemo(
-    () => arrowDirection(innerRisk, outerRisk, innerTrend, outerTrend, innerBumped, outerBumped),
-    [innerRisk, outerRisk, innerTrend, outerTrend, innerBumped, outerBumped],
-  );
-
   const enterMax = useCallback(() => {
     setPiLayoutState(MAX_STATE);
   }, [setPiLayoutState]);
@@ -184,21 +154,6 @@ const NowcastLine = () => {
         onClick={enterMax}
         aria-label={t("nowcast.aria", { verdict: verdictText })}
       >
-        {/* Trend arrow — inline SVG (house rule: no Unicode glyphs), rotated
-          * per direction via a CSS data-attribute hook. Follows currentColor
-          * so it inherits the tier accent set on the line. */}
-        <svg
-          className={styles.arrow}
-          data-direction={direction}
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.2"
-          aria-hidden="true"
-        >
-          <path d="M5 12 H 19" strokeLinecap="round" />
-          <path d="M13 6 L 19 12 L 13 18" strokeLinecap="round" strokeLinejoin="round" />
-        </svg>
         <span className={styles.verdict}>{verdictText}</span>
         {/* Confidence dot — bucket-coloured (high/mid/low), a passive nuance
           * pip read off the verdict object. */}

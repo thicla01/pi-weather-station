@@ -72,17 +72,8 @@
   outline-offset: -2px;
 }
 
-/* Trend arrow — points by direction. Base SVG draws a right-pointing arrow;
- * the data-direction hook rotates it. Inherits the tier accent via
- * currentColor. */
-.arrow {
-  flex: none;
-  width: calc(18px * var(--c-font-scale, 1));
-  height: calc(18px * var(--c-font-scale, 1));
-}
-
-/* Calm-state sky icon (sun / moon / cloud / fog / precip) — same footprint
- * as the alarm arrow; follows currentColor (the calm tier's soft accent). */
+/* Calm-state sky icon (sun / moon / cloud / fog / precip) — leads the calm
+ * line; follows currentColor (the calm tier's soft accent). */
 .icon {
   flex: none;
   display: grid;
@@ -92,15 +83,6 @@
   font-size: calc(18px * var(--c-font-scale, 1));
 }
 
-/* approaching -> arrow points inward/down toward "here" (rotate the
- * right-arrow 45deg). leaving -> points away (up-right, -45deg). drifting ->
- * a sideways/circulating read (90deg). near -> no strong direction; keep the
- * arrow flat but dimmed so it doesn't over-claim movement. */
-.arrow[data-direction="approaching"] { transform: rotate(135deg); }
-.arrow[data-direction="leaving"]     { transform: rotate(-45deg); }
-.arrow[data-direction="drifting"]    { transform: rotate(90deg); }
-.arrow[data-direction="near"]        { opacity: 0.55; }
-
 .verdict {
   flex: 1;
   min-width: 0;
@@ -108,7 +90,7 @@
   overflow: hidden;
   text-overflow: ellipsis;
   /* The verdict text reads in the neutral body colour, not the tier accent
-   * (the accent is carried by the border + arrow). Override the inherited
+   * (the accent is carried by the border). Override the inherited
    * tier `color` back to --c-text for legibility on the tinted fill. */
   color: var(--c-text);
 }
@@ -129,9 +111,6 @@
 .dot-mid  { background-color: var(--c-warn); }
 .dot-low  { background-color: var(--c-danger); }
 
-/* Square maximize affordance — decorative hint that tapping opens the
- * forecast (MAX). The whole line is the tap target; this just signals it.
- * Dim relative to the arrow so it reads as a secondary affordance. */
 /* Maximize square — the radar screen's four-corner ExpandIcon in a bordered
  * box (mockup parity), in the tier accent (currentColor) so it reads as the
  * MAX affordance. The whole line is the tap target, so this is a visual hint
