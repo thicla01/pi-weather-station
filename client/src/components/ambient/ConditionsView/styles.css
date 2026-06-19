@@ -17,37 +17,20 @@
   flex: none;
 }
 
-.back {
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  font-family: "Geist", system-ui, -apple-system, sans-serif;
-  font-size: 12px;
-  color: var(--c-accent);
-  background: transparent;
-  border: 0;
-  padding: 6px 6px 6px 2px;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.back:active { opacity: 0.7; }
-
-.back:focus-visible {
-  outline: 2px dashed var(--c-text);
-  outline-offset: 2px;
-}
-
-[data-palette="nightRed"] .back { color: var(--c-text); }
-
+/* Title left, minimize square right (margin-left:auto) — mirrors the
+ * ChartTabs forecast header (title left, restore square right) so the three
+ * priority views share one minimize affordance. */
 .title {
-  margin-left: auto;
   font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 1px;
   text-transform: uppercase;
   color: var(--c-text-dim);
+}
+
+.minimize {
+  margin-left: auto;
 }
 
 .body {

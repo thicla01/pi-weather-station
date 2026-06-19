@@ -1,0 +1,42 @@
+/* Canonical bordered-surface square — matches the glance maximize ⤢ squares
+ * (HeroCompact / NowcastLine) and the ChartTabs forecast button, so the whole
+ * maximize/minimize family reads identically.
+ *
+ * DOUBLED class (.square.square) is load-bearing: this is a <button>, and the
+ * `.ambientRoot button` reset (0,1,1) sets `border: 0; background: ...;
+ * padding: 0` — a single `.square` (0,1,0) loses, stripping the frame. The
+ * doubled selector (0,2,0) wins. (Same trick the HeroCompact maximize uses.)
+ *
+ * Fixed 28px — the LayoutPi `.rail` already applies `zoom: var(--c-font-scale)`,
+ * which scales this physically; a `* var(--c-font-scale)` here would double-
+ * scale it (see reference_font_scale_zoom_architecture). */
+.square.square {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--c-border);
+  border-radius: 6px;
+  background-color: var(--c-surface-hybrid, var(--c-surface));
+  color: var(--c-text-dim);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.square:active {
+  transform: scale(0.94);
+}
+
+.square:focus-visible {
+  outline: 2px dashed var(--c-text);
+  outline-offset: 2px;
+}
+
+.icon {
+  width: 16px;
+  height: 16px;
+  display: block;
+}

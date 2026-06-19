@@ -72,28 +72,15 @@
   flex: none;
 }
 
-.close {
-  flex: none;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 28px;
-  height: 28px;
-  padding: 0;
-  border: 0;
-  border-radius: 7px;
-  background: transparent;
-  color: inherit;
-  cursor: pointer;
-  font-size: 16px;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.close:active { opacity: 0.7; }
-
-.close:focus-visible {
-  outline: 2px dashed currentColor;
-  outline-offset: -2px;
+/* Minimize square — RailSquareButton owns the bordered-surface box; here we
+ * only re-skin it for the EXTREME red band, where the default
+ * --c-surface-hybrid fill would read as a hole. White-outlined to match the
+ * white header text + .srcWhite badge. `.header.extreme .minimize` (0,3,0)
+ * beats RailSquareButton's `.square.square` (0,2,0). */
+.header.extreme .minimize {
+  border-color: rgba(255, 255, 255, 0.55);
+  background-color: rgba(255, 255, 255, 0.14);
+  color: #fff;
 }
 
 .meta {

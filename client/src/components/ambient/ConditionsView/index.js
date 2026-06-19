@@ -1,12 +1,12 @@
 import React, { useContext } from "react";
 import { useTranslation } from "react-i18next";
-import { InlineIcon } from "@iconify/react";
-import chevronLeft from "@iconify/icons-carbon/chevron-left";
+import { RestoreIcon } from "~/components/WeatherMap/icons";
 import { AppActionsContext, WeatherDataContext, UiPrefsContext } from "~/AppContext";
 import { convertTemp } from "~/services/conversions";
 import MetricsGrid from "~/components/ambient/MetricsGrid";
 import IndoorBlock from "~/components/ambient/IndoorBlock";
 import FeelsLikeLine from "~/components/ambient/FeelsLikeLine";
+import RailSquareButton from "~/components/ambient/RailSquareButton";
 import styles from "./styles.css";
 
 /**
@@ -39,16 +39,13 @@ const ConditionsView = () => {
   return (
     <div className={styles.view}>
       <div className={styles.header}>
-        <button
-          type="button"
-          className={styles.back}
-          onClick={() => setPiLayoutState("mid")}
-          aria-label={t("conditions.back", { defaultValue: "Back to overview" })}
-        >
-          <InlineIcon icon={chevronLeft} />
-          <span>{t("conditions.back", { defaultValue: "Back" })}</span>
-        </button>
         <span className={styles.title}>{t("conditions.title", { defaultValue: "Conditions" })}</span>
+        <RailSquareButton
+          icon={RestoreIcon}
+          onClick={() => setPiLayoutState("mid")}
+          ariaLabel={t("conditions.back", { defaultValue: "Back to overview" })}
+          className={styles.minimize}
+        />
       </div>
       <div className={styles.body}>
         {showFeels ? (

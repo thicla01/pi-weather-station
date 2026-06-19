@@ -4,12 +4,14 @@ import { InlineIcon } from "@iconify/react";
 import closeIcon from "@iconify/icons-carbon/close";
 import warningAltIcon from "@iconify/icons-carbon/warning-alt";
 import timeIcon from "@iconify/icons-carbon/time";
+import { RestoreIcon } from "~/components/WeatherMap/icons";
 import { AppActionsContext, SystemContext } from "~/AppContext";
 import { parseAlertText } from "~/ui/alertParser";
 import useEligibleGovAlerts from "~/hooks/useEligibleGovAlerts";
 import useDismissedAlerts from "~/hooks/useDismissedAlerts";
 import SeverityChip from "~/components/ambient/SeverityChip";
 import SourceBadge from "~/components/ambient/SourceBadge";
+import RailSquareButton from "~/components/ambient/RailSquareButton";
 import QrCode from "~/components/ambient/QrCode";
 import { SectionBlock, SOURCE_LINKS } from "~/components/ambient/AlertDetailInline";
 import styles from "./styles.css";
@@ -93,14 +95,12 @@ const AlertView = () => {
           )}
           <span className={styles.title}>{title}</span>
           {extreme ? <span className={styles.srcWhite}>{source}</span> : <SourceBadge source={source} />}
-          <button
-            type="button"
-            className={styles.close}
+          <RailSquareButton
+            icon={RestoreIcon}
             onClick={back}
-            aria-label={t("alert.view.back", { defaultValue: "Back to overview" })}
-          >
-            <InlineIcon icon={closeIcon} />
-          </button>
+            ariaLabel={t("alert.view.back", { defaultValue: "Back to overview" })}
+            className={styles.minimize}
+          />
         </div>
         {currentAlert.expiresAt ? (
           <div className={styles.meta}>
