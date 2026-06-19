@@ -28,7 +28,12 @@
   background-color: var(--c-accent-soft);
   color: var(--c-text);
   font-family: "Geist", system-ui, -apple-system, sans-serif;
-  font-size: calc(14px * var(--c-font-scale, 1));
+  /* Plain px — NowcastLine renders ONLY inside the LayoutPi `.rail`, which
+   * already applies `zoom: var(--c-font-scale)`. A `calc(* font-scale)` here
+   * double-scaled it (1.15² ≈ 1.32 at G) — the container zoom carries the
+   * S/M/L preference on its own. (Same reason the maximize square below and
+   * the .icon use plain px.) */
+  font-size: 14px;
   font-weight: 500;
   text-align: left;
   cursor: pointer;
@@ -78,9 +83,10 @@
   flex: none;
   display: grid;
   place-items: center;
-  width: calc(18px * var(--c-font-scale, 1));
-  height: calc(18px * var(--c-font-scale, 1));
-  font-size: calc(18px * var(--c-font-scale, 1));
+  /* Plain px — the rail zoom scales it; see the .line.line font-size note. */
+  width: 18px;
+  height: 18px;
+  font-size: 18px;
 }
 
 .verdict {
