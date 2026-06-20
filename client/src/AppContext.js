@@ -320,6 +320,12 @@ export function AppContextProvider({ children }) {
   // RadarFocusControl gate keys on non-null). MIN maps to the old focus-mode
   // `true`; MID/MAX map to `false`.
   const [piLayoutState, setPiLayoutState] = useState(null);
+  // v3.3 priority: ephemeral (NOT persisted) "radar scrubber open in MIN" flag.
+  // Decouples the priority MIN scrubber from the shared, persisted
+  // `radarTimelineVisible` pref so a layout transition never mutates a
+  // v2/desktop/mobile setting (the regression LayoutMobile already guards). Set
+  // by the dock timeline button on entering MIN; cleared on leaving MIN.
+  const [piScrubberOpen, setPiScrubberOpen] = useState(false);
   // Back-compat shim for the still-boolean Leaflet-side consumers (WeatherMap
   // focus gate + MapResizer): they read `piRadarMaximized` (MIN ⇔ true) and
   // call `setPiRadarMaximized(bool)`. Both are projected onto the enum so
@@ -2164,6 +2170,7 @@ export function AppContextProvider({ children }) {
     setDesktopRadarMaximized,
     setPiRadarMaximized,
     setPiLayoutState,
+    setPiScrubberOpen,
     setMapPosition,
     resetMapPosition,
     setPanToCoords,
@@ -2253,6 +2260,7 @@ export function AppContextProvider({ children }) {
     setDesktopRadarMaximized,
     setPiRadarMaximized,
     setPiLayoutState,
+    setPiScrubberOpen,
     setMapPosition,
     resetMapPosition,
     setPanToCoords,
@@ -2366,6 +2374,7 @@ export function AppContextProvider({ children }) {
     desktopRadarMaximized,
     piRadarMaximized,
     piLayoutState,
+    piScrubberOpen,
   }), [
     weatherApiKey,
     reverseGeoApiKey,
@@ -2410,6 +2419,7 @@ export function AppContextProvider({ children }) {
     desktopRadarMaximized,
     piRadarMaximized,
     piLayoutState,
+    piScrubberOpen,
   ]);
 
   // Location: the position of record + its derived lookups.

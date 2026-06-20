@@ -197,6 +197,20 @@
     "back": "Overview",
     "openAria": "Open the conditions detail"
   },
+  "aiView": {
+    "title": "AI summary",
+    "back": "Overview",
+    "now": "Now",
+    "nextPeriod": "Next period",
+    "period": {
+      "evening": "This evening",
+      "overnight": "Overnight",
+      "tomorrow": "Tomorrow"
+    },
+    "radar": "Radar analysis",
+    "loading": "Generating summary…",
+    "unavailable": "AI summary unavailable."
+  },
   "metrics": {
     "wind": "Wind",
     "gust": "Gust",
@@ -461,6 +475,7 @@
     "recenterHere": "Re-center here",
     "showAiSummary": "Show AI summary section",
     "hideAiSummary": "Hide AI summary section",
+    "openAiView": "Open AI summary",
     "openUpdate": "Show update modal",
     "closeUpdate": "Close update modal",
     "updateAvailableRemote": "Update available — connect locally to install",

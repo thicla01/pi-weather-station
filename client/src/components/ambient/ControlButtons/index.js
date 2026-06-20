@@ -7,6 +7,7 @@ import {
   UiPrefsContext,
   AlertsContext,
 } from "~/AppContext";
+import { priorityViewsEnabled } from "~/ui/piLayout";
 import styles from "./styles.css";
 import { InlineIcon } from "@iconify/react";
 
@@ -104,6 +105,8 @@ const ControlButtons = ({ grouped = false }) => {
     toggleSettingsMenuOpen,
     toggleDebugMenuOpen,
     setUpdateModalOpen,
+    setPiLayoutState,
+    setPiScrubberOpen,
   } = useContext(AppActionsContext);
   const {
     sleepNightMode,
@@ -114,6 +117,7 @@ const ControlButtons = ({ grouped = false }) => {
     updateAvailable,
     updateModalOpen,
     mobileRadarMaximized,
+    piLayoutState,
   } = useContext(SystemContext);
   const {
     darkMode,
@@ -132,6 +136,12 @@ const ControlButtons = ({ grouped = false }) => {
     showWeatherAlerts,
     nearbyAlerts,
   } = useContext(AlertsContext);
+
+  // v3.3 priority-views dock context: true only inside LayoutPi (piLayoutState
+  // is set) with the opt-in flag on. Drives the IA button (opens AiView) and
+  // the radar-timeline button (maximizes to MIN so the scrubber gets the full
+  // radar width instead of the cramped MID half-pane).
+  const inPriorityDock = priorityViewsEnabled() && piLayoutState != null;
 
   // When LayoutMobile is active and the radar card is in mini mode,
   // the timeline scrubber and the precipitation legend are CSS-hidden
@@ -341,16 +351,27 @@ const ControlButtons = ({ grouped = false }) => {
           notify("toasts.radarOverlaysNeedMaximize", e);
           return;
         }
-        toggleRadarTimelineVisible();
-        notify(radarTimelineVisible ? "toasts.timelineHidden" : "toasts.timelineShown", e);
+        if (inPriorityDock) {
+          // v3.3 priority: the scrubber belongs on the fullscreen radar. Open it
+          // on MIN via the EPHEMERAL piScrubberOpen flag — never the shared,
+          // persisted radarTimelineVisible (a layout transition must not mutate
+          // that v2/desktop/mobile pref). The dock is hidden in MIN, so this only
+          // ever fires from the MID glance.
+          setPiScrubberOpen(true);
+          setPiLayoutState("min");
+          notify("toasts.timelineShown", e);
+        } else {
+          toggleRadarTimelineVisible();
+          notify(radarTimelineVisible ? "toasts.timelineHidden" : "toasts.timelineShown", e);
+        }
       }}
-      className={`${radarOverlaysDisabled ? styles.buttonDisabled : ""} ${radarTimelineVisible && !radarOverlaysDisabled ? styles.buttonDown : ""}`}
+      className={`${radarOverlaysDisabled ? styles.buttonDisabled : ""} ${!inPriorityDock && radarTimelineVisible && !radarOverlaysDisabled ? styles.buttonDown : ""}`}
       title={radarOverlaysDisabled
         ? t("controls.radarOverlaysNeedMaximize")
-        : t(radarTimelineVisible ? "controls.hideTimeline" : "controls.showTimeline")}
+        : t(!inPriorityDock && radarTimelineVisible ? "controls.hideTimeline" : "controls.showTimeline")}
       aria-label={radarOverlaysDisabled
         ? t("controls.radarOverlaysNeedMaximize")
-        : t(radarTimelineVisible ? "controls.hideTimeline" : "controls.showTimeline")}
+        : t(!inPriorityDock && radarTimelineVisible ? "controls.hideTimeline" : "controls.showTimeline")}
       aria-disabled={radarOverlaysDisabled || undefined}
     >
       <InlineIcon icon={timePlotIcon} />
@@ -576,23 +597,40 @@ const ControlButtons = ({ grouped = false }) => {
       <InlineIcon icon={circleDashIcon} />
     </div>
   ) : null;
-  // Debug-only — hide the entire AI summary section without
-  // touching the Anthropic key (which keeps server availability
-  // = true). `aiSummaryAvailable` is the server-driven flag (key
-  // is configured + reachable); `aiSummaryUserVisible` is this
-  // user-controlled override. Both AI summary components render
-  // only when both are true.
-  const btnBot = isLocal && debugEnabled && aiSummaryAvailable ? (
-    <div
-      key="bot"
-      onClick={(e) => { saveAiSummaryUserVisible(!aiSummaryUserVisible); notify(aiSummaryUserVisible ? "toasts.aiSummaryHidden" : "toasts.aiSummaryShown", e); }}
-      className={`${aiSummaryUserVisible ? styles.buttonDown : ""}`}
-      title={t(aiSummaryUserVisible ? "controls.hideAiSummary" : "controls.showAiSummary")}
-      aria-label={t(aiSummaryUserVisible ? "controls.hideAiSummary" : "controls.showAiSummary")}
-    >
-      <InlineIcon icon={sparkleIcon} />
-    </div>
-  ) : null;
+  // IA button — two behaviours sharing the sparkle glyph:
+  //  • v3.3 priority model (LayoutPi, flag on → `piLayoutState != null`):
+  //    opens the full-rail AiView (the Claude summary was dropped from the
+  //    glance, so the toggle had nothing to act on). Shown whenever the AI is
+  //    configured server-side — NOT debug-gated, it's a real feature. It does
+  //    NOT gate on `aiSummaryUserVisible`: that's the v2 "hide the inline
+  //    section" debug toggle, meaningless for a deliberate view open (and it
+  //    persists, so a stale `false` would wrongly suppress the view).
+  //  • v2 / desktop: the original debug-only toggle that hides the inline AI
+  //    summary section without touching the Anthropic key (`aiSummaryAvailable`
+  //    = server key reachable; `aiSummaryUserVisible` = this override).
+  const btnBot = inPriorityDock
+    ? (aiSummaryAvailable ? (
+      <div
+        key="bot"
+        onClick={() => setPiLayoutState("ai")}
+        className={`${piLayoutState === "ai" ? styles.buttonDown : ""}`}
+        title={t("controls.openAiView")}
+        aria-label={t("controls.openAiView")}
+      >
+        <InlineIcon icon={sparkleIcon} />
+      </div>
+    ) : null)
+    : (isLocal && debugEnabled && aiSummaryAvailable ? (
+      <div
+        key="bot"
+        onClick={(e) => { saveAiSummaryUserVisible(!aiSummaryUserVisible); notify(aiSummaryUserVisible ? "toasts.aiSummaryHidden" : "toasts.aiSummaryShown", e); }}
+        className={`${aiSummaryUserVisible ? styles.buttonDown : ""}`}
+        title={t(aiSummaryUserVisible ? "controls.hideAiSummary" : "controls.showAiSummary")}
+        aria-label={t(aiSummaryUserVisible ? "controls.hideAiSummary" : "controls.showAiSummary")}
+      >
+        <InlineIcon icon={sparkleIcon} />
+      </div>
+    ) : null);
   const btnUpdateLocal = updateAvailable && isLocal ? (
     <div
       key="updateLocal"

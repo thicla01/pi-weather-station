@@ -9,10 +9,10 @@
 
 // The `piLayoutState` values that render as a full-rail "maximized" view —
 // the map shrinks to a thumbnail and the rail takes the screen. v3.2 had
-// only "max" (forecast); v3.3 adds "alert" and "conditions" as siblings.
+// only "max" (forecast); v3.3 adds "alert", "conditions" and "ai" as siblings.
 // Kept as a single list so WeatherMap's thumbnail/freeze logic covers every
 // view, not just the forecast.
-const MAX_VIEWS = ["max", "alert", "conditions"];
+const MAX_VIEWS = ["max", "alert", "conditions", "ai"];
 
 /**
  * True when the layout state is one of the full-rail views (forecast /

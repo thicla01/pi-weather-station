@@ -5,6 +5,7 @@ import { priorityViewsEnabled } from "~/ui/piLayout";
 import WeatherMap from "~/components/WeatherMap";
 import ConditionsView from "~/components/ambient/ConditionsView";
 import AlertView from "~/components/ambient/AlertView";
+import AiView from "~/components/ambient/AiView";
 import HeroCompact from "~/components/ambient/HeroCompact";
 import TimeBlock from "~/components/ambient/TimeBlock";
 import MetricsGrid from "~/components/ambient/MetricsGrid";
@@ -78,8 +79,8 @@ import styles from "./styles.css";
  */
 const LayoutPi = () => {
   const { darkMode, defaultMapZoom, mouseHide } = useContext(UiPrefsContext);
-  const { piLayoutState } = useContext(SystemContext);
-  const { setPiLayoutState } = useContext(AppActionsContext);
+  const { piLayoutState, piScrubberOpen } = useContext(SystemContext);
+  const { setPiLayoutState, setPiScrubberOpen } = useContext(AppActionsContext);
   const { aqhiInfo } = useContext(WeatherDataContext);
 
   // v3.2 air-quality alert: escalate to a top-of-rail AIR card only at the
@@ -102,6 +103,19 @@ const LayoutPi = () => {
     setPiLayoutState("mid");
     return () => setPiLayoutState(null);
   }, [setPiLayoutState]);
+
+  // v3.3 priority: the radar scrubber is a fullscreen-radar (MIN) tool, tracked
+  // by the ephemeral `piScrubberOpen` flag (the dock timeline button sets it +
+  // maximizes to MIN). Whenever we leave MIN by ANY path (focus square,
+  // mini-banner), clear it so the glance never shows the cramped half-width
+  // timeline and the next MIN entry via the focus square is clean — the scrubber
+  // returns only via its dedicated button. The flag is in-memory only, so this
+  // never mutates the shared, persisted `radarTimelineVisible` pref.
+  useEffect(() => {
+    if (priority && piLayoutState && piLayoutState !== "min" && piScrubberOpen) {
+      setPiScrubberOpen(false);
+    }
+  }, [priority, piLayoutState, piScrubberOpen, setPiScrubberOpen]);
 
   const focused = piLayoutState === "min";
 
@@ -180,6 +194,15 @@ const LayoutPi = () => {
         {priority && (
           <div className={styles.alertHost}>
             <AlertView />
+          </div>
+        )}
+        {/* v3.3 IA view host — mounted LAZILY (only in the "ai" state), unlike
+          * the always-mounted hosts above: the AI view has no interactive state
+          * to preserve, and lazy mount means the paid Anthropic fetch fires on
+          * open rather than as background overhead. */}
+        {priority && piLayoutState === "ai" && (
+          <div className={styles.aiHost}>
+            <AiView />
           </div>
         )}
       </aside>

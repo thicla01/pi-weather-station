@@ -59,7 +59,7 @@ import useEligibleGovAlerts from "~/hooks/useEligibleGovAlerts";
 import SourceBadge from "~/components/ambient/SourceBadge";
 import SeverityChip from "~/components/ambient/SeverityChip";
 import { useTimeOfDay } from "~/ui/hybrid";
-import { isPiMaxView } from "~/ui/piLayout";
+import { isPiMaxView, priorityViewsEnabled } from "~/ui/piLayout";
 import { useTranslation } from "react-i18next";
 import debounce from "debounce";
 import axios from "axios";
@@ -614,6 +614,7 @@ const WeatherMap = ({ zoom, dark }) => {
     desktopRadarMaximized,
     piRadarMaximized,
     piLayoutState,
+    piScrubberOpen,
   } = useContext(SystemContext);
   const {
     browserGeo,
@@ -1115,8 +1116,19 @@ const WeatherMap = ({ zoom, dark }) => {
   // toggled off the strip isn't rendered and the bar must drop to the
   // bottom edge instead of floating over a hole (maintainer-reported;
   // the mock always showed the strip, so this combo wasn't specced).
+  // v3.3 priority: the scrubber is a fullscreen-radar (MIN) tool, opened via the
+  // ephemeral `piScrubberOpen` flag (the dock timeline button sets it + maximizes
+  // to MIN) — never the shared persisted `radarTimelineVisible` pref, and never on
+  // the cramped MID half-pane. Outside the priority model (v2 / desktop / mobile —
+  // piLayoutState null or flag off) it falls back to the persisted pref exactly as
+  // before. ONE boolean drives BOTH the wrapper padding AND the actual render
+  // below, so they can't desync (no half-pane flash on a MIN→MID exit).
+  const priorityActive = priorityViewsEnabled() && piLayoutState != null;
   const timelineShown = Boolean(mapTimestamps && mapTimestamps.length > 0)
-    && radarSource === "rainviewer" && radarTimelineVisible;
+    && radarSource === "rainviewer"
+    && (priorityActive
+      ? (piLayoutState === "min" && piScrubberOpen)
+      : (radarTimelineVisible && !isPiMaxView(piLayoutState)));
   const legendShown = Boolean(mapTimestamps) && radarSource === "rainviewer" && !hideRadarLegend;
 
   return (
@@ -1451,7 +1463,7 @@ const WeatherMap = ({ zoom, dark }) => {
       {mapTimestamps && radarSource === "rainviewer" && !hideRadarLegend && !isPiMaxView(piLayoutState) && (
         <RadarLegend dark={dark} chipMode={radarTimelineVisible && isSmallScreen} />
       )}
-      {mapTimestamps && radarSource === "rainviewer" && radarTimelineVisible && !isPiMaxView(piLayoutState) && (
+      {timelineShown && (
         <RadarTimeline
           frames={mapTimestamps}
           currentIdx={currentMapTimestampIdx}

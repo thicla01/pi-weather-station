@@ -62,12 +62,13 @@
  * transition animates the morph; the thumbnail width is a custom
  * property so a later step can tune it per panel density. */
 /* The full-rail "maximized" views — v3.2 MAX (forecast) plus the v3.3
- * priority views (conditions, and later alert). All share the same shell
+ * priority views (conditions, alert, ai). All share the same shell
  * treatment: map shrinks to a thumbnail, the glance is hidden, the rail
  * goes transparent. Each view's own host is then shown below. */
 .layout[data-pi-state="max"],
 .layout[data-pi-state="conditions"],
-.layout[data-pi-state="alert"] {
+.layout[data-pi-state="alert"],
+.layout[data-pi-state="ai"] {
   grid-template-columns: var(--pi-max-map, 190px) 1fr;
   /* Hide the dock in the maximized views too (it already hides in MIN):
    * collapse its row so the maximized content reclaims the ~50-60px of
@@ -77,7 +78,8 @@
 }
 .layout[data-pi-state="max"] .midPanel,
 .layout[data-pi-state="conditions"] .midPanel,
-.layout[data-pi-state="alert"] .midPanel {
+.layout[data-pi-state="alert"] .midPanel,
+.layout[data-pi-state="ai"] .midPanel {
   display: none;
 }
 .layout[data-pi-state="max"] .forecastHost {
@@ -93,11 +95,20 @@
   flex: 1;
   min-height: 0;
 }
+/* The IA host is mounted lazily (only present in the "ai" state), so it needs
+ * no data-pi-state guard — when in the DOM it always fills the rail. */
+.aiHost {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+}
 /* Drop the rail's opaque background + border in the maximized views so the
  * radar thumbnail reads cleanly beside the full-width content. */
 .layout[data-pi-state="max"] .rail,
 .layout[data-pi-state="conditions"] .rail,
-.layout[data-pi-state="alert"] .rail {
+.layout[data-pi-state="alert"] .rail,
+.layout[data-pi-state="ai"] .rail {
   background-color: transparent;
   border-left-color: transparent;
 }
@@ -232,7 +243,8 @@
 .layout[data-pi-state="min"] > :last-child,
 .layout[data-pi-state="max"] > :last-child,
 .layout[data-pi-state="conditions"] > :last-child,
-.layout[data-pi-state="alert"] > :last-child {
+.layout[data-pi-state="alert"] > :last-child,
+.layout[data-pi-state="ai"] > :last-child {
   opacity: 0;
   transform: translateY(60px);
   pointer-events: none;

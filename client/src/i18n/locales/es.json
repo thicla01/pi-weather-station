@@ -197,6 +197,20 @@
     "back": "Resumen",
     "openAria": "Abrir el detalle de condiciones"
   },
+  "aiView": {
+    "title": "Resumen IA",
+    "back": "Resumen",
+    "now": "Ahora",
+    "nextPeriod": "Próximo período",
+    "period": {
+      "evening": "Esta noche",
+      "overnight": "Durante la noche",
+      "tomorrow": "Mañana"
+    },
+    "radar": "Análisis de radar",
+    "loading": "Generando el resumen…",
+    "unavailable": "Resumen IA no disponible."
+  },
   "metrics": {
     "wind": "Viento",
     "gust": "Ráfagas",
@@ -461,6 +475,7 @@
     "recenterHere": "Recentrar aquí",
     "showAiSummary": "Mostrar la sección de IA",
     "hideAiSummary": "Ocultar la sección de IA",
+    "openAiView": "Abrir el resumen IA",
     "openUpdate": "Mostrar la ventana de actualización",
     "closeUpdate": "Cerrar la ventana de actualización",
     "updateAvailableRemote": "Actualización disponible — conéctese en local para instalar",
