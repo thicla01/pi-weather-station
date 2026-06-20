@@ -905,9 +905,11 @@ const SectionAdvanced = ({ ctx, lang, remote }) => {
             {lbl(lang, "AI · radar analysis", "IA · analyse radar", "IA · análisis radar")}
           </div>
           {/* grid2 (not grid4): each toggle carries a multi-line sub-text
-           * label that wraps badly at ~200 px (4-col width inside the
-           * 880 px body). 2 columns gives ~400 px per cell on all
-           * viewports — enough for the sub-text to breathe. */}
+           * label that wraps badly in a narrow cell. grid2 is SINGLE-column
+           * across the whole kiosk family (< 1280 px) — at the 7" kiosk 2
+           * columns left the sub-text only ~150 px and it wrapped word-per-word
+           * — and only goes 2-col on the wide desktop panel (≥ 1280 px). See
+           * the breakpoint rationale in styles.css (.grid2). */}
           <div className={styles.grid2}>
             <Toggle
               label={lbl(lang, "Radar analysis enabled", "Analyse radar activée", "Análisis radar activado")}

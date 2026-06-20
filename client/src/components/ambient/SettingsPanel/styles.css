@@ -983,9 +983,13 @@
   align-items: start;
 }
 
-/* Phase 6: 720 → 760 to keep the rail overhead out of the 2-col cells
- * (the 7" kiosk at 800 px viewport still lands here → 2 columns). */
-@media (min-width: 760px) {
+/* These AI-radar toggles each carry a multi-line sub-text, so a 2-col split
+ * is only legible when the panel is genuinely wide. At the 7" kiosk (800 px
+ * viewport) the 2-col cells left the sub-text only ~150 px → word-per-line
+ * wrapping (maintainer-reported). Keep a SINGLE column across the whole kiosk
+ * family (LayoutPi, < 1280 px); only the wide desktop panel (≥ 1280) goes
+ * 2-col. (Was ≥ 760 px, which wrongly put the kiosk in 2 columns.) */
+@media (min-width: 1280px) {
   .grid2 {
     grid-template-columns: repeat(2, minmax(0, 1fr));
   }
