@@ -245,3 +245,32 @@ test("selectEligibleGovAlerts: defaults off — yellow dropped without the opt-i
   assert.deepEqual(selectEligibleGovAlerts([{ id: "adv", tier: "yellow" }]), []);
   assert.deepEqual(selectEligibleGovAlerts([{ id: "adv", tier: "yellow" }], false), []);
 });
+
+// ── getAirAlertState — AQ category → top-of-rail alert tier ──────────────
+// Re-implemented per the deps-free duplication pattern (see file header).
+// These lock the v3.2 health-risk threshold decision (2026-06-18): the AIR
+// alert card escalates ONLY at high/veryHigh; moderate/low stay as the
+// inline AirCard so the card isn't present nearly year-round.
+function getAirAlertState(category) {
+  if (category === "veryHigh") return { tier: "red", category };
+  if (category === "high") return { tier: "orange", category };
+  return null;
+}
+
+test("getAirAlertState: veryHigh → red alert", () => {
+  assert.deepEqual(getAirAlertState("veryHigh"), { tier: "red", category: "veryHigh" });
+});
+
+test("getAirAlertState: high → orange alert", () => {
+  assert.deepEqual(getAirAlertState("high"), { tier: "orange", category: "high" });
+});
+
+test("getAirAlertState: moderate / low / unknown never escalate", () => {
+  // The threshold floor: below 'high' there is no health-risk message,
+  // so no top-of-rail card — only the inline AirCard reading.
+  assert.equal(getAirAlertState("moderate"), null);
+  assert.equal(getAirAlertState("low"), null);
+  assert.equal(getAirAlertState(null), null);
+  assert.equal(getAirAlertState(undefined), null);
+  assert.equal(getAirAlertState("bogus"), null);
+});

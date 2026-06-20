@@ -3,10 +3,12 @@ import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
 import strongWind from "@iconify/icons-wi/strong-wind";
+import windGusts from "@iconify/icons-carbon/wind-gusts";
 import humidityAlt from "@iconify/icons-carbon/humidity-alt";
 import sunIcon from "@iconify/icons-wi/day-sunny";
-import barometerIcon from "@iconify/icons-wi/barometer";
 import chevronRight from "@iconify/icons-carbon/chevron-right";
+import barometer from "@iconify/icons-wi/barometer";
+import viewIcon from "@iconify/icons-carbon/view";
 import { WeatherDataContext, UiPrefsContext } from "~/AppContext";
 import { convertSpeed, speedUnitLabel, convertPressure, pressureUnitLabel } from "~/services/conversions";
 import { uvTier } from "~/ui/severity";
@@ -29,23 +31,30 @@ const TIER_CLASS = {
 
 /**
  * Direction C metrics tile — strict 2×2 grid of compact stat cells:
- * Wind / Humidity / UV / Pressure (v3.1 Phase 2 — AQI moved out to
- * the dedicated `AirCard`, the opt-in pollen row joined it, and the
- * grid gained surface pressure as its 4th tile so the 2×2 is never
- * broken by any setting).
+ * Wind / Gust / UV / Humidity (v3.2 — the decision-grade set for a
+ * glanceable kiosk: wind + gust + UV are radar-invisible outdoor-
+ * activity inputs, humidity is the year-round comfort signal. The
+ * v3.1 enthusiast tile, surface pressure, was dropped because it
+ * drives no everyday household decision).
  *
- * Wind, humidity, UV and pressure all come from Tomorrow.io's
+ * Wind, gust, UV and humidity all come from Tomorrow.io's
  * `currentWeatherData` payload. The UV cell is a full-surface tap
  * target (SVG chevron affordance — F6) that opens a `DetailsPopover`
  * with the WMO category + guidance; the other cells carry no chevron
  * because they have no detail surface behind them — an affordance
  * that leads nowhere is worse than none.
  *
+ * @param {object} props
+ * @param {boolean} [props.extended] — v3.3 Conditions view: append the
+ *   Pressure + Visibility tiles. Default false — the glance keeps the strict
+ *   2×2 (the v3.2 stacked rail is unchanged).
+ * @param {2|3} [props.columns] — grid columns. Default 2 (glance / stacked
+ *   rail); 3 for the wide Conditions view (6 tiles → two themed rows).
  * @returns {JSX.Element} metrics grid slab
  */
-const MetricsGrid = () => {
+const MetricsGrid = ({ extended = false, columns = 2 }) => {
   const { currentWeatherData } = useContext(WeatherDataContext);
-  const { speedUnit, pressureUnit } = useContext(UiPrefsContext);
+  const { speedUnit, pressureUnit, distanceUnit } = useContext(UiPrefsContext);
   const { t } = useTranslation();
   // Single source of truth for which cell's popover is open. Tapping
   // a cell flips this; tapping the same cell again, the close icon,
@@ -55,13 +64,13 @@ const MetricsGrid = () => {
 
   const values = currentWeatherData?.data?.timelines?.[0]?.intervals?.[0]?.values;
   const windSpeed = values?.windSpeed;
+  const windGust = values?.windGust;
   const humidity = values?.humidity;
   const uvIndex = values?.uvIndex;
-  // Tomorrow.io serves `pressureSurfaceLevel` in hPa; the user's
-  // pressure-unit preference (hPa / inHg / kPa — Settings → Units)
-  // converts at display time. The tile's unit slot is deliberately
-  // non-load-bearing (quiet suffix) so the units swap without reflow.
+  // Extended set (v3.3 Conditions view only) — pressure + visibility, the
+  // enthusiast data the glance has no room for but the full-rail view does.
   const pressure = values?.pressureSurfaceLevel;
+  const visibility = values?.visibility;
 
   const uvT = uvTier(uvIndex);
   const uvQualifier = uvT ? t(`badges.uvLevel.${uvT.label}`) : null;
@@ -69,7 +78,7 @@ const MetricsGrid = () => {
   const toggle = (key) => setOpenKey((cur) => (cur === key ? null : key));
 
   return (
-    <div className={styles.grid}>
+    <div className={`${styles.grid} ${columns === 3 ? styles.cols3 : ""}`}>
       <Cell
         icon={strongWind}
         value={windSpeed != null ? convertSpeed(windSpeed, speedUnit) : "—"}
@@ -77,10 +86,10 @@ const MetricsGrid = () => {
         label={t("metrics.wind")}
       />
       <Cell
-        icon={humidityAlt}
-        value={humidity != null ? Math.round(humidity) : "—"}
-        unit="%"
-        label={t("metrics.humidity")}
+        icon={windGusts}
+        value={windGust != null ? convertSpeed(windGust, speedUnit) : "—"}
+        unit={speedUnitLabel(speedUnit)}
+        label={t("metrics.gust")}
       />
       <Cell
         cellRef={uvCellRef}
@@ -116,11 +125,29 @@ const MetricsGrid = () => {
         </DetailsPopover>
       </Cell>
       <Cell
-        icon={barometerIcon}
-        value={pressure != null ? convertPressure(pressure, pressureUnit) : "—"}
-        unit={pressureUnitLabel(pressureUnit)}
-        label={t("metrics.pressure")}
+        icon={humidityAlt}
+        value={humidity != null ? Math.round(humidity) : "—"}
+        unit="%"
+        label={t("metrics.humidity")}
       />
+      {extended ? (
+        <Cell
+          icon={barometer}
+          value={pressure != null ? convertPressure(pressure, pressureUnit) : "—"}
+          unit={pressureUnitLabel(pressureUnit)}
+          label={t("metrics.pressure")}
+        />
+      ) : null}
+      {extended ? (
+        <Cell
+          icon={viewIcon}
+          value={visibility != null
+            ? Math.round(distanceUnit === "mi" ? visibility * 0.621371 : visibility)
+            : "—"}
+          unit={distanceUnit === "mi" ? "mi" : "km"}
+          label={t("metrics.visibility")}
+        />
+      ) : null}
     </div>
   );
 };
@@ -176,19 +203,32 @@ const Cell = ({ icon, value, unit, label, qualifier, qualifierTier, onClick, ari
       {interactive ? (
         <InlineIcon icon={chevronRight} className={styles.cellChevron} aria-hidden="true" />
       ) : null}
-      <div className={styles.iconRow}>
-        <InlineIcon icon={icon} />
+      {/* Icon INLINE with the value (one row) — "icon 21 kph" — so the tile
+        * is two rows (value-row + label) and stays compact, matching the
+        * mockup. The icon on its own row made the tiles a third taller. */}
+      <div className={styles.topRow}>
+        <span className={styles.icon}>
+          <InlineIcon icon={icon} />
+        </span>
+        <span className={styles.valueGroup}>
+          <span className={styles.value}>{value}</span>
+          {unit ? <span className={styles.unit}>{unit}</span> : null}
+        </span>
       </div>
-      <div className={styles.valueRow}>
-        <span className={styles.value}>{value}</span>
-        {unit ? <span className={styles.unit}>{unit}</span> : null}
+      {/* The severity qualifier (UV "modéré") rides INLINE in the label —
+        * "UV · modéré" on one line — so the cell stays the same height as
+        * the non-qualified tiles (Wind / Gust / Humidity) and the 2×2 reads
+        * as four uniform rectangles. The tier colour stays on the qualifier
+        * word so the UV severity is still glanceable. */}
+      <div className={styles.label}>
+        {label}
+        {qualifier ? (
+          <span className={(qualifierTier && styles[TIER_CLASS[qualifierTier]]) || undefined}>
+            {" · "}
+            {qualifier}
+          </span>
+        ) : null}
       </div>
-      <div className={styles.label}>{label}</div>
-      {qualifier ? (
-        <div className={`${styles.qualifier} ${(qualifierTier && styles[TIER_CLASS[qualifierTier]]) || ""}`}>
-          {qualifier}
-        </div>
-      ) : null}
       {children}
     </div>
   );
@@ -216,6 +256,21 @@ Cell.defaultProps = {
   ariaExpanded: undefined,
   cellRef: null,
   children: null,
+};
+
+MetricsGrid.propTypes = {
+  // v3.3 Conditions view: add the Pressure + Visibility tiles (the glance
+  // keeps the strict 2×2). Default false — the v3.2 stacked rail is unchanged.
+  extended: PropTypes.bool,
+  // Column count. 2 (default) for the glance/stacked rail; 3 for the wide
+  // Conditions view, where the 6 extended tiles read as two themed rows
+  // (Wind/Gust/UV · Humidity/Pressure/Visibility).
+  columns: PropTypes.oneOf([2, 3]),
+};
+
+MetricsGrid.defaultProps = {
+  extended: false,
+  columns: 2,
 };
 
 export default MetricsGrid;

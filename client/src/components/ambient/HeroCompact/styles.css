@@ -9,6 +9,7 @@
  * distracting at kiosk distance). */
 
 .slab {
+  position: relative;
   background-color: var(--c-surface);
   border: 1px solid var(--c-border);
   border-radius: 10px;
@@ -131,7 +132,10 @@
   display: flex;
   flex-direction: column;
   justify-content: center;
-  gap: 4px;
+  /* Tight icon→label gap. The weather icon already carries ~6px of intrinsic
+   * whitespace below its glyph (varies per condition), so the visible gap to
+   * the label reads larger than this value — keep the column's own gap small. */
+  gap: 2px;
   min-width: 0;
 }
 
@@ -151,12 +155,23 @@
  * v2.15.14: the 30 px numeral + compact condition column keep the
  * combined rail height meaningfully under the v2.14 baseline. */
 @media (min-width: 800px) and (max-width: 1279px) {
+  /* Vertical padding tightened from the desktop 14/12 to free card height for
+   * the 2-line gov alert card's glance budget — WITHOUT shrinking the
+   * temperature (the focal row, kept weightier than the clock). Loosened back
+   * to 10/9 (from a tighter 7/6) once the budget proved comfortable (~+10 px
+   * worst case, identical in Chrome and Firefox), so the card breathes again. */
+  .slab {
+    padding: 10px 16px 9px 16px;
+  }
+  /* Temperature is the hero's focal point (Claude Design: weightier than the
+   * clock). Bumped 30 → 39px: it renders ≈ the condition column's height, so
+   * the focal row stays condCol-bound. */
   .tempValue {
-    font-size: 30px;
-    letter-spacing: -0.5px;
+    font-size: 39px;
+    letter-spacing: -1px;
   }
   .tempUnit {
-    font-size: 13px;
+    font-size: 15px;
   }
   .condIcon {
     font-size: 18px;
@@ -167,7 +182,72 @@
   .location {
     margin-bottom: 6px;
   }
+  /* The LocationName container is a block; its inline-flex (pin + place name)
+   * baseline-aligns in the block's line-box, adding ~10px of descent below
+   * the glyphs — which pushed the dotted underline (at the box bottom) that
+   * far under the text. Make the container a flex box (no line-box descent)
+   * and drop its min-height so it hugs the content, pulling the underline up
+   * to sit right beneath the place name. */
+  .locationButton > div {
+    display: flex;
+    align-items: center;
+    min-height: 0;
+  }
   .focal {
     gap: 12px;
   }
+}
+
+/* v3.3 glance: corner ⤢ that opens the Conditions view — the canonical
+ * "bordered-surface" maximize look shared with the forecast (ChartTabs) and
+ * the radar-focus control (a --c-border edge on a --c-surface-hybrid box, a
+ * dim bracket icon) so every maximize square reads identically across views.
+ * Absolute → adds no card height.
+ *
+ * The DOUBLED class (.maximize.maximize) is load-bearing: this is a <button>,
+ * and the `.ambientRoot button` reset (0,1,1) sets `border: 0` — a single
+ * `.maximize` (0,1,0) loses, stripping the frame (field-reported: "the
+ * square on the dark card has no cadre"). The doubled selector (0,2,0) wins. */
+.maximize.maximize {
+  position: absolute;
+  top: 10px;
+  right: 12px;
+  /* z-index is load-bearing: `.maximize` is the slab's FIRST child but
+   * `.location` (a later, position:relative sibling spanning the full slab
+   * width) paints on top of it, so without this a real touch at the corner
+   * hit `.location`, not the button — the maximize fired on a synthetic
+   * .click() (test) but never on a real finger tap (kiosk). Lift it above. */
+  z-index: 2;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border: 1px solid var(--c-border);
+  border-radius: 6px;
+  background-color: var(--c-surface-hybrid, var(--c-surface));
+  color: var(--c-text-dim);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.maximize:active { transform: scale(0.94); }
+
+.maximize:focus-visible {
+  outline: 2px dashed var(--c-text);
+  outline-offset: 2px;
+}
+
+.maximizeIcon {
+  width: 16px;
+  height: 16px;
+  display: block;
+}
+
+/* Reserve room for the corner ⤢ so a long place name (e.g.
+ * SAINT-AUGUSTIN-DE-DESMAURES) doesn't render under it. Only when the
+ * maximize affordance is present (v3.3 glance); v2/desktop unaffected. */
+.withMax .location {
+  padding-right: 34px;
 }

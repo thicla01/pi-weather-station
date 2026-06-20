@@ -1,0 +1,150 @@
+/* AirAlertCard — v3.2 top-of-rail air-quality alert card (tag AIR).
+ *
+ * Shares the gov AlertBanner's compact-card grammar so the two alert
+ * families read identically: a tier-coloured left strip, a tinted
+ * leading badge (here AIR, matching the gov SeverityChip's tinted pill
+ * rather than a solid fill), the source badge, then the reading. Tier
+ * colour flows through three CSS vars set by .tierOrange / .tierRed so a
+ * single class drives the strip, the badge tint and the level word. */
+
+.card {
+  position: relative;
+  background-color: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  padding: 9px 12px 9px 16px;
+  color: var(--c-text);
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
+  overflow: hidden;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  /* Slabs never compress — the rail scrolls (same rule as AirCard). */
+  flex-shrink: 0;
+}
+
+/* Zero hover on kiosk surfaces ("drop, don't gate"); pressed feedback
+ * only, the accent-soft + scale pair used across the metric tiles. */
+.card:active {
+  background: var(--c-accent-soft);
+  transform: scale(0.99);
+}
+
+.card:focus-visible {
+  outline: 2px dashed var(--c-text);
+  outline-offset: -2px;
+}
+
+/* Severity strip — absolute left edge, tier-coloured (matches the
+ * AlertBanner ::before strip exactly). */
+.card::before {
+  content: "";
+  position: absolute;
+  inset: 0 auto 0 0;
+  width: 4px;
+  border-radius: 8px 0 0 8px;
+  background-color: var(--strip, var(--c-cool));
+}
+
+.tierOrange {
+  --strip: var(--c-warn);
+  --tint-bg: var(--sev-med-bg);
+  --tint-border: var(--sev-med-border);
+  --tint-ink: var(--sev-med-ink);
+}
+
+.tierRed {
+  --strip: var(--c-danger);
+  --tint-bg: var(--sev-high-bg);
+  --tint-border: var(--sev-high-border);
+  --tint-ink: var(--sev-high-ink);
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+/* Tinted AIR badge — same tinted-pill treatment as SeverityChip (icon +
+ * uppercase mono label, bg/border/ink from the tier tint vars). */
+.airBadge {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 9.5px;
+  font-weight: 600;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  padding: 4px 9px 4px 7px;
+  border-radius: 999px;
+  border: 1px solid var(--tint-border, var(--c-border));
+  background: var(--tint-bg, transparent);
+  color: var(--tint-ink, var(--c-text));
+  flex-shrink: 0;
+  white-space: nowrap;
+}
+
+.airIcon {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+}
+
+/* Reading — "value · level" in the existing AQ vocabulary. The number is
+ * mono (matches the AirCard value); the level word carries the tier ink. */
+.reading {
+  display: inline-flex;
+  align-items: baseline;
+  min-width: 0;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.value {
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 16px;
+  font-weight: 500;
+  letter-spacing: -0.3px;
+  font-variant-numeric: tabular-nums;
+  color: var(--c-text);
+}
+
+.sep {
+  color: var(--c-text-dim);
+  white-space: pre;
+}
+
+.level {
+  font-weight: 500;
+  font-size: 13px;
+  color: var(--tint-ink, var(--c-text));
+}
+
+/* ── DetailsPopover content (mirrors AirCard's detail rows) ──────────── */
+
+.detailRow {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  margin-bottom: 8px;
+}
+
+.detailRow:last-child {
+  margin-bottom: 0;
+}
+
+.detailLabel {
+  font-size: 10px;
+  font-weight: 500;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: var(--c-text-dim);
+}
+
+.detailValue {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--tint-ink, var(--c-text));
+}

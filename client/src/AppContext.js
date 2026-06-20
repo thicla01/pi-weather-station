@@ -313,7 +313,34 @@ export function AppContextProvider({ children }) {
   // The WeatherMap RadarFocusControl renders whenever *either*
   // `piRadarMaximized` or `desktopRadarMaximized` is non-null, and
   // routes its toggle to whichever sentinel is active.
-  const [piRadarMaximized, setPiRadarMaximized] = useState(null);
+  // v3.2 "3 états radar": the 7" Pi screen now has THREE layout states
+  // (MIN fullscreen radar / MID split / MAX forecast-forward), carried by a
+  // single enum `piLayoutState: "min" | "mid" | "max" | null`. `null` keeps
+  // the sentinel meaning "LayoutPi not mounted" (the WeatherMap
+  // RadarFocusControl gate keys on non-null). MIN maps to the old focus-mode
+  // `true`; MID/MAX map to `false`.
+  const [piLayoutState, setPiLayoutState] = useState(null);
+  // v3.3 priority: ephemeral (NOT persisted) "radar scrubber open in MIN" flag.
+  // Decouples the priority MIN scrubber from the shared, persisted
+  // `radarTimelineVisible` pref so a layout transition never mutates a
+  // v2/desktop/mobile setting (the regression LayoutMobile already guards). Set
+  // by the dock timeline button on entering MIN; cleared on leaving MIN.
+  const [piScrubberOpen, setPiScrubberOpen] = useState(false);
+  // Back-compat shim for the still-boolean Leaflet-side consumers (WeatherMap
+  // focus gate + MapResizer): they read `piRadarMaximized` (MIN ⇔ true) and
+  // call `setPiRadarMaximized(bool)`. Both are projected onto the enum so
+  // those files can migrate independently rather than all in one commit.
+  const piRadarMaximized = piLayoutState == null ? null : piLayoutState === "min";
+  const setPiRadarMaximized = useCallback((value) => {
+    // Honour the old useState dispatcher contract, including the
+    // functional-updater form `setPiRadarMaximized(prev => !prev)`:
+    // resolve the updater against the derived boolean (MIN ⇔ true)
+    // before projecting back onto the enum.
+    setPiLayoutState((prevEnum) => {
+      const resolved = typeof value === "function" ? value(prevEnum === "min") : value;
+      return resolved == null ? null : resolved ? "min" : "mid";
+    });
+  }, []);
   // Display sub-tree (advanced.display.* in settings.json).
   // lightModeStyle / darkModeStyle drive the Mapbox style for each theme.
   // For light mode, the panel background tint also follows via the
@@ -2142,6 +2169,8 @@ export function AppContextProvider({ children }) {
     setMobileRadarMaximized,
     setDesktopRadarMaximized,
     setPiRadarMaximized,
+    setPiLayoutState,
+    setPiScrubberOpen,
     setMapPosition,
     resetMapPosition,
     setPanToCoords,
@@ -2230,6 +2259,8 @@ export function AppContextProvider({ children }) {
     setMobileRadarMaximized,
     setDesktopRadarMaximized,
     setPiRadarMaximized,
+    setPiLayoutState,
+    setPiScrubberOpen,
     setMapPosition,
     resetMapPosition,
     setPanToCoords,
@@ -2342,6 +2373,8 @@ export function AppContextProvider({ children }) {
     mobileRadarMaximized,
     desktopRadarMaximized,
     piRadarMaximized,
+    piLayoutState,
+    piScrubberOpen,
   }), [
     weatherApiKey,
     reverseGeoApiKey,
@@ -2385,6 +2418,8 @@ export function AppContextProvider({ children }) {
     mobileRadarMaximized,
     desktopRadarMaximized,
     piRadarMaximized,
+    piLayoutState,
+    piScrubberOpen,
   ]);
 
   // Location: the position of record + its derived lookups.

@@ -46,6 +46,20 @@
   display: inline-block;
 }
 
+/* Abbreviated variant (v3.2 compact Pi alert card) — tighter spacing +
+ * padding + icon so the short word ("AVERT.") claws back every px for the
+ * one-row title beside it. */
+.abbrev {
+  gap: 4px;
+  letter-spacing: 0.04em;
+  padding: 4px 7px 4px 6px;
+}
+
+.abbrev svg {
+  width: 10px;
+  height: 10px;
+}
+
 /* ============================================================
  * Tier-specific palettes — each rotates the bg/border/ink trio
  * through the palette's severity tokens. Adding a new tier means

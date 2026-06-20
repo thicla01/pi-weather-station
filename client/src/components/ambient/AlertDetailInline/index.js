@@ -12,9 +12,11 @@ import chevronUpIcon from "@iconify/icons-carbon/chevron-up";
 import documentIcon from "@iconify/icons-carbon/document";
 import radarWeatherIcon from "@iconify/icons-carbon/radar-weather";
 import binocularsIcon from "@iconify/icons-carbon/binoculars";
-import { AlertsContext, AppActionsContext } from "~/AppContext";
+import closeIcon from "@iconify/icons-carbon/close";
+import { AlertsContext, AppActionsContext, SystemContext } from "~/AppContext";
 import QrCode from "~/components/ambient/QrCode";
 import useEligibleGovAlerts from "~/hooks/useEligibleGovAlerts";
+import useDismissedAlerts from "~/hooks/useDismissedAlerts";
 import { parseAlertText, splitBody } from "~/ui/alertParser";
 import styles from "./styles.css";
 
@@ -22,7 +24,7 @@ import styles from "./styles.css";
 // rationale on URL choices and the deliberate omission of lat/lon
 // query parameters. Coordinates with this comment if either gets
 // changed: both components must point at the same destination.
-const SOURCE_LINKS = {
+export const SOURCE_LINKS = {
   ECCC: {
     fr: "https://meteo.gc.ca/index_f.html#alerttable",
     en: "https://weather.gc.ca/index_e.html#alerttable",
@@ -114,7 +116,14 @@ const SECTION_ICONS = {
 const AlertDetailInline = () => {
   const { govAlertExpanded, highlightedAlertId } = useContext(AlertsContext);
   const { setGovAlertExpanded, setHighlightedAlertId } = useContext(AppActionsContext);
+  const { piLayoutState } = useContext(SystemContext);
+  const { dismiss } = useDismissedAlerts();
   const { i18n, t } = useTranslation();
+  // On the 7" Pi compact card the dismiss ✕ is dropped from the banner row
+  // (it crowded the cycle counter), so the dismiss affordance lives here in
+  // the expanded detail footer instead — Pi only; desktop / mobile keep the
+  // banner ✕.
+  const isPi = piLayoutState != null;
 
   // Current eligible (red/orange, non-dismissed) gov alert, derived
   // by the same shared hook AlertBanner uses so the detail body and
@@ -231,6 +240,22 @@ const AlertDetailInline = () => {
                   </span>
                 </button>
               ) : null}
+              {/* Dismiss — Pi only. The 7" compact banner card drops its ✕
+                * (it crowded the cycle counter), so dismissing the alert for
+                * 4 h lives here in the detail footer. Desktop / mobile keep
+                * the banner ✕ and don't render this. */}
+              {isPi ? (
+                <button
+                  type="button"
+                  className={styles.actionButton}
+                  onClick={() => dismiss(currentAlert)}
+                  aria-label={t("alert.dismiss", { defaultValue: "Dismiss" })}
+                  title={t("alert.dismissTooltip", { defaultValue: "Hide for 4 h (re-surfaces if it escalates)" })}
+                >
+                  <InlineIcon icon={closeIcon} />
+                  <span>{t("alert.dismiss", { defaultValue: "Dismiss" })}</span>
+                </button>
+              ) : null}
             </div>
             <div className={styles.footer}>
               <QrCode value={linkHref} title={t("govAlertDetail.qrCaption")} />
@@ -261,7 +286,7 @@ const AlertDetailInline = () => {
  * @param {string} props.listClass - CSS module class for `<ul>` lists
  * @returns {JSX.Element} the rendered blocks
  */
-const RichText = ({ text, paraClass, listClass }) => (
+export const RichText = ({ text, paraClass, listClass }) => (
   <>
     {splitBody(text).map((block, j) => (block.type === "list" ? (
       <ul key={j} className={listClass}>
@@ -296,7 +321,7 @@ RichText.propTypes = {
  * @param {Function} props.t — i18next translator
  * @returns {JSX.Element|null} the section block, or null if empty
  */
-const SectionBlock = ({ section, t }) => {
+export const SectionBlock = ({ section, t }) => {
   if (!section) return null;
   if (section.type === "intro") {
     // No icon, no lead — the intro is just the leading paragraph.

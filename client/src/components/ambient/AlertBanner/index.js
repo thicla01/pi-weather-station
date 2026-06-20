@@ -3,15 +3,19 @@ import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
 import closeIcon from "@iconify/icons-carbon/close";
 import chevronDown from "@iconify/icons-carbon/chevron-down";
+import chevronRight from "@iconify/icons-carbon/chevron-right";
 import {
   RadarStateContext,
   AlertsContext,
   AppActionsContext,
   WeatherDataContext,
+  SystemContext,
 } from "~/AppContext";
 import SourceBadge from "~/components/ambient/SourceBadge";
 import ConfidencePill from "~/components/ambient/ConfidencePill";
 import SeverityChip from "~/components/ambient/SeverityChip";
+import RailSquareButton from "~/components/ambient/RailSquareButton";
+import { ExpandIcon } from "~/components/WeatherMap/icons";
 import AlertMetaChips from "~/components/ambient/AlertMetaChips";
 import useDismissedAlerts from "~/hooks/useDismissedAlerts";
 import useEligibleGovAlerts from "~/hooks/useEligibleGovAlerts";
@@ -19,6 +23,7 @@ import {
   isCurrentlyPrecipitating,
   getRadarAlertState,
 } from "~/ui/alertLogic";
+import { priorityViewsEnabled } from "~/ui/piLayout";
 import styles from "./styles.css";
 
 /**
@@ -39,6 +44,19 @@ import styles from "./styles.css";
  *      structured detail to expand into, so the head IS the whole
  *      surface and there's no chevron.
  *
+ * **v3.2 "3 états radar" (7" Pi MID rail, `piLayoutState != null`):**
+ *   - The gov head renders a **compact** single-row variant (abbreviated
+ *     severity chip + source + ellipsized title); the multi-alert counter
+ *     becomes a **tap-to-cycle** control, replacing the `AlertMiniCards`
+ *     stack (dropped from the Pi rail). Tapping the row still toggles
+ *     `AlertDetailInline`.
+ *   - The **radar branch is suppressed** — `NowcastLine` is the always-
+ *     present radar surface on Pi, so rendering it here too would double
+ *     the same verdict. Desktop / mobile are unchanged on both points.
+ *   - Air-quality alerts are NOT rendered here — they have their own
+ *     sibling card, `ambient/AirAlertCard` (tag `AIR`; see CLAUDE.md →
+ *     "Alert banners — always identify the source").
+ *
  * Returns `null` when there is no eligible alert — same SHOW gate
  * as v3.0.
  *
@@ -53,10 +71,22 @@ const AlertBanner = () => {
     innerTrendConfidence, outerTrendConfidence,
   } = useContext(RadarStateContext);
   const { govAlertExpanded } = useContext(AlertsContext);
-  const { setGovAlertExpanded } = useContext(AppActionsContext);
+  const { setGovAlertExpanded, selectGovAlert, setPiLayoutState } = useContext(AppActionsContext);
   const { currentWeatherData } = useContext(WeatherDataContext);
+  const { piLayoutState } = useContext(SystemContext);
   const { t, i18n } = useTranslation();
   const { dismiss } = useDismissedAlerts();
+
+  // On the 7" Pi rail (piLayoutState is non-null only inside LayoutPi) the
+  // banner renders a single-row COMPACT gov card and the radar-derived
+  // branch is suppressed entirely — v3.2 gives radar its own always-present
+  // surface (NowcastLine), so an AlertBanner radar card here would duplicate
+  // the same verdict. Desktop / mobile keep the full Phase-4 head + radar
+  // banner unchanged.
+  const isPi = piLayoutState != null;
+  // v3.3 priority model (opt-in/short-7"): the compact gov card opens the
+  // full Alert view on tap instead of expanding AlertDetailInline inline.
+  const priority = isPi && priorityViewsEnabled();
 
   // Eligible (red/orange, non-dismissed) gov alerts and the current
   // one, derived by the shared hook so the counter, the primary
@@ -85,12 +115,117 @@ const AlertBanner = () => {
         toggleExpanded();
       }
     };
+    // The compact card's tap target: open the full Alert view in the v3.3
+    // priority model, else toggle the inline AlertDetailInline (v3.2). The
+    // cycle counter keeps its own (stop-propagated) tap zone either way.
+    const headAction = priority ? () => setPiLayoutState("alert") : toggleExpanded;
+    const headKeyDown = (e) => {
+      if (e.key === "Enter" || e.key === " ") { e.preventDefault(); headAction(); }
+    };
+
+    // Cycle to the next eligible gov alert. The compact Pi counter doubles
+    // as the navigation control (the AlertMiniCards list is dropped from
+    // the MID rail), so it must step through the ELIGIBLE list — not the
+    // raw govAlerts — to never land on a filtered-out alert. Same index
+    // space the mini-cards pass to selectGovAlert on desktop/mobile.
+    const cycleNext = () => selectGovAlert((safeIdx + 1) % eligibleGovAlerts.length);
 
     return (
       <div
-        className={`${styles.banner} ${styles[`tier-${currentAlert.tier}`]} ${styles.govAlert}`}
+        className={`${styles.banner} ${styles[`tier-${currentAlert.tier}`]} ${styles.govAlert} ${isPi && currentAlert.severity === "extreme" ? styles.compactExtreme : ""}`}
         data-state={govAlertExpanded ? "expanded" : "collapsed"}
       >
+        {isPi ? (
+          priority ? (
+            /* v3.3 priority glance — 2-line compact gov card. Row 1: the
+             * severity + source tags and the maximize ⤢ (RailSquareButton,
+             * opening the full AlertView — so the alert card carries the same
+             * square as the Hero / Nowcast). Row 2: the alert title on its
+             * OWN line (far less truncation than the old single row) + the
+             * "1 / N" cycle counter. The ⤢ and the counter are the two tap
+             * zones — siblings, no interactive nesting. */
+            <div className={styles.compactCard}>
+              <div className={styles.compactTop}>
+                <SeverityChip severity={currentAlert.severity} eventName={currentAlert.title_en} abbreviated />
+                <SourceBadge source={currentAlert.source} />
+                <RailSquareButton
+                  icon={ExpandIcon}
+                  onClick={headAction}
+                  ariaLabel={t("alert.view.openRow", { defaultValue: "Open alert detail" })}
+                  className={styles.compactMax}
+                />
+              </div>
+              <div className={styles.compactBottom}>
+                <span className={styles.titleCompact}>{title}</span>
+                {hasOthers && (
+                  <button
+                    type="button"
+                    className={styles.cycleCounter}
+                    onClick={cycleNext}
+                    aria-label={t("alert.cycleNextAria")}
+                  >
+                    <span className={styles.cycleCount}>
+                      {t("alert.activeAlertsCountShort", {
+                        current: safeIdx + 1,
+                        count: eligibleGovAlerts.length,
+                      })}
+                    </span>
+                    <InlineIcon icon={chevronRight} className={styles.cycleChevron} />
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+          /* COMPACT one-row gov card (7" MID rail), v3.2 non-priority. Two
+           * SIBLING tap zones — the cycle button is NOT nested inside the
+           * role="button" expand zone (interactive-content nesting is invalid
+           * + screen-reader ambiguous):
+           *   - headCompact: severity chip + source + ellipsized title;
+           *     tapping it toggles AlertDetailInline (the full description
+           *     lives behind the tap — the kiosk's minimal-glance budget).
+           *   - cycleCounter: the multi-alert "1 / N" doubling as the
+           *     next-alert control (the AlertMiniCards stack is dropped on
+           *     Pi — this is the whole navigation surface), sized to a real
+           *     touch target.
+           * No dismiss ✕ here: it would crowd the counter on the ~300px rail
+           * and steal the title's width — dismissing moves into the expanded
+           * detail footer (AlertDetailInline, Pi only). */
+          <div className={styles.compactRow}>
+            <div
+              className={styles.headCompact}
+              role="button"
+              tabIndex={0}
+              onClick={headAction}
+              onKeyDown={headKeyDown}
+              aria-expanded={priority ? undefined : govAlertExpanded}
+              aria-label={priority
+                ? t("alert.view.openRow", { defaultValue: "Open alert detail" })
+                : t(govAlertExpanded ? "alert.collapseRow" : "alert.expandRow")}
+            >
+              <SeverityChip severity={currentAlert.severity} eventName={currentAlert.title_en} abbreviated />
+              <SourceBadge source={currentAlert.source} />
+              <span className={styles.titleCompact}>{title}</span>
+            </div>
+            {hasOthers && (
+              <button
+                type="button"
+                className={styles.cycleCounter}
+                onClick={cycleNext}
+                aria-label={t("alert.cycleNextAria")}
+              >
+                <span className={styles.cycleCount}>
+                  {t("alert.activeAlertsCountShort", {
+                    current: safeIdx + 1,
+                    count: eligibleGovAlerts.length,
+                  })}
+                </span>
+                <InlineIcon icon={chevronRight} className={styles.cycleChevron} />
+              </button>
+            )}
+          </div>
+          )
+        ) : (
+        <>
         {/* Clickable head — severity chip + title + chevron, then
          * meta-chips row under. The whole head is the toggle so the
          * user doesn't have to aim at the small chevron (design's
@@ -162,24 +297,37 @@ const AlertBanner = () => {
             )}
           </div>
         </div>
+        </>
+        )}
 
-        {/* Dismiss (✕) — top-right, same behaviour as before.
-         * stopPropagation so a tap doesn't also toggle the head. */}
-        <button
-          type="button"
-          className={styles.dismissBtn}
-          onClick={(e) => { e.stopPropagation(); dismiss(currentAlert); }}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" || e.key === " ") e.stopPropagation();
-          }}
-          aria-label={t("alert.dismiss", { defaultValue: "Dismiss" })}
-          title={t("alert.dismissTooltip", { defaultValue: "Hide for 4 h (re-surfaces if it escalates)" })}
-        >
-          <InlineIcon icon={closeIcon} />
-        </button>
+        {/* Dismiss (✕) — top-right, desktop / mobile only. On the Pi compact
+         * card the ✕ would crowd the cycle counter and steal the title's
+         * width, so dismissing relocates to the expanded detail footer
+         * (AlertDetailInline). stopPropagation so a tap doesn't also toggle
+         * the head. */}
+        {!isPi && (
+          <button
+            type="button"
+            className={styles.dismissBtn}
+            onClick={(e) => { e.stopPropagation(); dismiss(currentAlert); }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter" || e.key === " ") e.stopPropagation();
+            }}
+            aria-label={t("alert.dismiss", { defaultValue: "Dismiss" })}
+            title={t("alert.dismissTooltip", { defaultValue: "Hide for 4 h (re-surfaces if it escalates)" })}
+          >
+            <InlineIcon icon={closeIcon} />
+          </button>
+        )}
       </div>
     );
   }
+
+  // v3.2: on the Pi MID rail the radar verdict belongs to NowcastLine
+  // (always present), so the AlertBanner radar branch is suppressed here —
+  // rendering it would duplicate the same verdict. Gov alerts already
+  // returned above; desktop / mobile fall through to the radar banner.
+  if (isPi) return null;
 
   // Radar-derived alert — keeps the pre-4 chips-row + title
   // visual (no severity chip, no expansion). RADAR is a derived

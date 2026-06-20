@@ -98,6 +98,10 @@ const DetailsPopover = ({ open, onClose, title, anchor, triggerRef, portal, chil
         // pollen popover colours its per-allergen tier words with
         // these; same portal-scope rationale as the moon tokens.
         "--mx-cat-good", "--mx-cat-mod", "--mx-cat-bad", "--mx-cat-vhigh",
+        // Severity-tier ink (v3.2) — the AirAlertCard popover colours its
+        // detail value with `--sev-{med,high}-ink` (via its tier-tint var);
+        // without these the portaled value falls back to plain text ink.
+        "--sev-low-ink", "--sev-med-ink", "--sev-high-ink",
       ]) {
         const v = cs.getPropertyValue(name);
         if (v) vars[name] = v.trim();

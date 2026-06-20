@@ -8,7 +8,12 @@
 
 .dock {
   background-color: var(--c-surface);
-  border-top: 1px solid var(--c-border);
+  /* v3.2 framed layout: the dock is a rounded card inset in the gutter (the
+   * LayoutPi grid gap/padding provide the inset), matching the mockup's
+   * toolbar bar — a full border + radius rather than the old top-border-only
+   * full-bleed strip. */
+  border: 1px solid var(--c-border);
+  border-radius: 14px;
   /* `backdrop-filter: blur` homogenises the dock background by blurring
    * the map / radar tiles that show through the surface's 15 % alpha.
    * Without it, bright radar pixels (yellow / blue precipitation behind

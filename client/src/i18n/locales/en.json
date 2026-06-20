@@ -178,12 +178,47 @@
       "5": "Poor"
     }
   },
+  "nowcast": {
+    "aria": "{{verdict}}. Tap to open the forecast.",
+    "openForecast": "Open the forecast",
+    "calm": {
+      "clearDay": "Clear and sunny",
+      "clearNight": "Clear night",
+      "partly": "A few clouds",
+      "cloudy": "Overcast",
+      "fog": "Fog",
+      "lightSnow": "Light snow",
+      "lightPrecip": "Light precipitation",
+      "none": "Nothing on radar"
+    }
+  },
+  "conditions": {
+    "title": "Conditions",
+    "back": "Overview",
+    "openAria": "Open the conditions detail"
+  },
+  "aiView": {
+    "title": "AI summary",
+    "back": "Overview",
+    "now": "Now",
+    "nextPeriod": "Next period",
+    "period": {
+      "evening": "This evening",
+      "overnight": "Overnight",
+      "tomorrow": "Tomorrow"
+    },
+    "radar": "Radar analysis",
+    "loading": "Generating summary…",
+    "unavailable": "AI summary unavailable."
+  },
   "metrics": {
     "wind": "Wind",
+    "gust": "Gust",
     "humidity": "Humidity",
     "uv": "UV",
     "aqi": "AQI",
     "pressure": "Pressure",
+    "visibility": "Visibility",
     "detailValue": "Value",
     "detailStation": "Station",
     "detailSource": "Source",
@@ -325,6 +360,10 @@
     "severityWatch": "Watch",
     "severityWarning": "Warning",
     "severityStatement": "Statement",
+    "severityWarningShort": "Warning",
+    "severityWatchShort": "Watch",
+    "severityAdvisoryShort": "Advisory",
+    "severityStatementShort": "Statement",
     "severityEmergency": "Emergency",
     "issuedHoursAgo": "Issued {{hours}}h ago",
     "issuedMinutesAgo": "Issued {{minutes}} min ago",
@@ -344,6 +383,14 @@
     "activeAlertsCount_one": "{{current}} / {{count}} active alert",
     "activeAlertsCount_other": "{{current}} / {{count}} active alerts",
     "activeAlertsCountShort": "{{current}} / {{count}}",
+    "view": {
+      "openRow": "Open alert detail",
+      "back": "Back to overview",
+      "until": "Until {{time}}",
+      "alsoActive": "Also active"
+    },
+    "cycleNextAria": "Show the next alert",
+    "airQualityAria": "Air quality alert — {{value}} {{scale}}, {{level}}. Tap for details.",
     "selectAlertAria": "Switch to this alert",
     "restoreDismissed_one": "Restore {{count}} hidden alert",
     "restoreDismissed_other": "Restore {{count}} hidden alerts",
@@ -428,6 +475,7 @@
     "recenterHere": "Re-center here",
     "showAiSummary": "Show AI summary section",
     "hideAiSummary": "Hide AI summary section",
+    "openAiView": "Open AI summary",
     "openUpdate": "Show update modal",
     "closeUpdate": "Close update modal",
     "updateAvailableRemote": "Update available — connect locally to install",

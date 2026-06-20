@@ -71,7 +71,7 @@ function normalizeUnitParams({ lang, tempUnit, speedUnit } = {}) {
  * without a separate hot-path sweep.
  *
  * @param {String} key cache key
- * @param {Object} value { summary, expiresAt }
+ * @param {Object} value { summary, periodKind, expiresAt }
  */
 function setSummaryCache(key, value) {
   summaryCache[key] = value;
@@ -584,7 +584,7 @@ async function getWeatherSummary(req, res) {
   const cacheKey = buildSummaryCacheKey(lat, lon, lang, period, tempUnit, speedUnit, distanceUnit);
   const cached = summaryCache[cacheKey];
   if (cached && Date.now() < cached.expiresAt) {
-    return res.status(200).json({ summary: cached.summary }).end();
+    return res.status(200).json({ summary: cached.summary, period: cached.periodKind ?? null }).end();
   }
 
   // ── In-flight coalescing on the billed path ───────────────────────────
@@ -819,7 +819,7 @@ async function getWeatherSummary(req, res) {
       periodKind, periodSummary,
       radarAvailable: radarEnabled,
     });
-    setSummaryCache(cacheKey, { summary, expiresAt: Date.now() + SUMMARY_CACHE_TTL });
+    setSummaryCache(cacheKey, { summary, periodKind, expiresAt: Date.now() + SUMMARY_CACHE_TTL });
     pushRadarSnapshot({
       lat, lon, lang, source: "fast-path",
       radarText: radarText || `(radar unavailable: ${radarUnavailableReason || "unknown"})`,
@@ -827,7 +827,7 @@ async function getWeatherSummary(req, res) {
     });
     recordServiceCall("Claude (AI summary)", 200, "calm-day fast path (no LLM call)");
     // Deliberately NOT incrementing the Anthropic counter — no API call was made.
-    return settleInflight(200, { summary });
+    return settleInflight(200, { summary, period: periodKind });
   }
 
   // If none of the three sections has any content, there's nothing for
@@ -893,11 +893,22 @@ async function getWeatherSummary(req, res) {
   const dataPayload = [currentSection, secondSection, radarSection].filter(Boolean).join("");
 
   const distanceUnitInstruction = distanceUnit === "mi" ? "miles" : "km";
+  // Haiku sometimes drifts to English when the prompt is dense with imperial/US
+  // unit tokens (°F, mph, miles) despite the opening "in {language}" — the same
+  // English-anchoring that forced the hard-coded radar label (see
+  // RADAR_PARAGRAPH_LABEL_BY_LANG). A closing reminder at highest recency
+  // (immediately before generation) holds non-English summaries in their
+  // language regardless of the unit system. Confirmed bug: fr/es + imperial
+  // returned English; metric did not. English needs no reminder (it's the drift
+  // target), so the reminder is scoped to non-English to keep that prompt lean.
+  const langReminder = lang !== "en"
+    ? `\n\nWrite the entire summary in ${language}, regardless of the measurement units used in the data above.`
+    : "";
   const prompt =
-    `Write a weather summary in ${language} with ${paragraphWord}, separated by a single blank line (\\n\\n). Each paragraph MUST stand on its own — never merge content that belongs to a different paragraph as a trailing sentence. ${instructions}${missingNote} ` +
-    `Throughout your response, ${unitInstruction(tempUnit, speedUnit)}, and ${distanceUnitInstruction} for distances. Match the unit symbols exactly as shown in the data below — do not convert. ` +
+    `Write a weather summary entirely in ${language} with ${paragraphWord}, separated by a single blank line (\\n\\n). Each paragraph MUST stand on its own — never merge content that belongs to a different paragraph as a trailing sentence. ${instructions}${missingNote} ` +
+    `Throughout your response, ${unitInstruction(tempUnit, speedUnit)}, and ${distanceUnitInstruction} for distances. Match the unit symbols exactly as shown in the data below — do not convert (the unit system does not change the language you write in). ` +
     `Be concise and conversational. Reply with plain text only — no title, no markdown, no labels before each paragraph (except the radar label described above).\n\n` +
-    `${dataPayload}`;
+    `${dataPayload}${langReminder}`;
 
   // Global denial-of-wallet ceiling: reject before spending if the process
   // has already made MAX_CLAUDE_CALLS_PER_MIN billed calls in the last
@@ -945,7 +956,7 @@ async function getWeatherSummary(req, res) {
     if (message.stop_reason && message.stop_reason !== "end_turn") {
       console.warn(`[ai-summary] Claude stopped early: stop_reason=${message.stop_reason}, lang=${lang}, summary tail="${summary.slice(-80)}"`);
     }
-    setSummaryCache(cacheKey, { summary, expiresAt: Date.now() + SUMMARY_CACHE_TTL });
+    setSummaryCache(cacheKey, { summary, periodKind, expiresAt: Date.now() + SUMMARY_CACHE_TTL });
     pushRadarSnapshot({
       lat, lon, lang, source: "claude",
       radarText: hasRadar
@@ -955,7 +966,7 @@ async function getWeatherSummary(req, res) {
     });
     recordServiceCall("Claude (AI summary)", 200, "OK");
     increment("anthropic", "summary");
-    return settleInflight(200, { summary });
+    return settleInflight(200, { summary, period: periodKind });
   } catch (err) {
     const status = err?.status || 500;
     recordServiceCall("Claude (AI summary)", status, (err?.message || "AI summary failed").slice(0, 100));

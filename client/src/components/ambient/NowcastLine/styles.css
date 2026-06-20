@@ -1,0 +1,161 @@
+/* NowcastLine — the keystone glanceable line of the lean MID column on the
+ * 7" Pi kiosk (v3.2 "3 états radar"). A single accent-tinted line that turns
+ * the radar's spatial verdict into a temporal one; tapping it enters MAX.
+ *
+ * Rendered as a <button> so keyboard / screen-reader users activate it the
+ * same way they do the FloatingMiniBanner / v2 cycle banner. */
+
+/* Doubled class (`.line.line`) — same specificity trick the
+ * FloatingMiniBanner uses to win against `reset.css`'s
+ * `.ambientRoot button { background: transparent; }` rule (0,1,1). A single
+ * `.line` is (0,1,0) and loses; the doubled class is (0,2,0) and removes
+ * the bundle-order ambiguity entirely. The JSX applies `styles.line` twice
+ * to produce `.line.line` at runtime. */
+.line.line {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px; /* >= 44px touch target */
+  margin: 0;
+  padding: 8px 12px 8px 16px;
+  /* Left accent border lives on the element border so the accent-soft fill
+   * tints behind the whole line. The colour is set per-tier below. */
+  border: 1px solid var(--c-border);
+  border-left-width: 4px;
+  border-radius: 6px;
+  background-color: var(--c-accent-soft);
+  color: var(--c-text);
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
+  /* Plain px — NowcastLine renders ONLY inside the LayoutPi `.rail`, which
+   * already applies `zoom: var(--c-font-scale)`. A `calc(* font-scale)` here
+   * double-scaled it (1.15² ≈ 1.32 at G) — the container zoom carries the
+   * S/M/L preference on its own. (Same reason the maximize square below and
+   * the .icon use plain px.) */
+  font-size: 14px;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  overflow: hidden;
+}
+
+/* Tier accent — drives the left border + the arrow/maximize/text colour via
+ * `currentColor`. Mirrors AlertBanner / FloatingMiniBanner: orange -> warn,
+ * red -> danger. Both collapse to a single red in the night-red palette by
+ * design (the tokens themselves carry that). The doubled-class base wins on
+ * source order over these single-class rules, so the tier rules re-assert
+ * the border colour at equal-or-lower specificity AFTER it — declared after
+ * the base in this file so they apply. */
+.tier-orange.tier-orange {
+  border-left-color: var(--c-warn);
+  color: var(--c-warn);
+}
+
+.tier-red.tier-red {
+  border-left-color: var(--c-danger);
+  color: var(--c-danger);
+}
+
+/* Calm tier — the radar shows nothing notable; the line stays present
+ * (maintainer ruling: NowcastLine is always there) but QUIET — a soft
+ * accent edge + surface fill instead of the alarm tint — so it doesn't
+ * compete with the hero. The sky icon + message carry the meaning. Doubled
+ * class to win the source-order tie with the `.line.line` base fill. */
+.tier-calm.tier-calm {
+  border-left-color: var(--c-accent-soft);
+  background-color: var(--c-surface-hybrid);
+  color: var(--c-accent-soft);
+}
+
+/* NO background-painting :hover — sticky-hover on the touch kiosk ("drop,
+ * don't gate"). A non-painting focus outline is fine for keyboard users and
+ * never sticks on touch. */
+.line:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: -2px;
+}
+
+/* Calm-state sky icon (sun / moon / cloud / fog / precip) — leads the calm
+ * line; follows currentColor (the calm tier's soft accent). */
+.icon {
+  flex: none;
+  display: grid;
+  place-items: center;
+  /* Plain px — the rail zoom scales it; see the .line.line font-size note. */
+  width: 18px;
+  height: 18px;
+  font-size: 18px;
+}
+
+.verdict {
+  flex: 1;
+  min-width: 0;
+  /* Wrap to a 2nd line rather than truncate — the full nowcast verdict must
+   * stay readable (maintainer request). 2-line clamp as a safety cap; the
+   * line grows to fit (min-height 44px floor, align-items: center keeps the
+   * dot + maximize square centred against the taller text). */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  line-height: 1.2;
+  /* The verdict text reads in the neutral body colour, not the tier accent
+   * (the accent is carried by the border). Override the inherited
+   * tier `color` back to --c-text for legibility on the tinted fill. */
+  color: var(--c-text);
+}
+
+/* Alarm verdicts (orange/red) run long — up to ~50 chars across EN/FR/ES
+ * (e.g. "Alerte — précipitations sévères qui s'intensifient"). A notch
+ * smaller (12px vs the calm 14px) so the FULL verdict fits the 2-line clamp
+ * without truncation (maintainer: show the whole title). Calm verdicts are
+ * short (≤ ~22 chars, one line) and keep the larger line size. Tier class
+ * sits on `.line`; `.verdict` is its child. */
+.tier-orange .verdict,
+.tier-red .verdict {
+  font-size: 12px;
+}
+
+/* Confidence dot — small passive pip, bucket-coloured. high -> calm accent
+ * (the warm-grey palette has no "success" token by design, so high confidence
+ * uses the neutral accent), mid -> warn, low -> danger. Mirrors the
+ * ConfidencePill bucket mapping. */
+.dot {
+  flex: none;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background-color: var(--c-accent);
+}
+
+.dot-high { background-color: var(--c-accent); }
+.dot-mid  { background-color: var(--c-warn); }
+.dot-low  { background-color: var(--c-danger); }
+
+/* Maximize square — the radar screen's four-corner ExpandIcon in a bordered
+ * box (mockup parity), in the tier accent (currentColor) so it reads as the
+ * MAX affordance. The whole line is the tap target, so this is a visual hint
+ * sized as a comfortable ~28 px square rather than a separate 44 px button. */
+/* Maximize square — the canonical "bordered-surface" look shared with the
+ * forecast (ChartTabs), the glance Hero and the radar-focus control: a
+ * --c-border edge on a --c-surface-hybrid box with a dim bracket icon, so
+ * every maximize square reads identically. Fixed 28px (the root font-zoom
+ * scales it physically — no separate --c-font-scale, which double-scaled it
+ * larger than its siblings). */
+.maximize {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--c-border);
+  border-radius: 6px;
+  background-color: var(--c-surface-hybrid, var(--c-surface));
+  color: var(--c-text-dim);
+}
+.maximizeIcon {
+  width: 16px;
+  height: 16px;
+}

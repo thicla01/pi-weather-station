@@ -59,6 +59,7 @@ import useEligibleGovAlerts from "~/hooks/useEligibleGovAlerts";
 import SourceBadge from "~/components/ambient/SourceBadge";
 import SeverityChip from "~/components/ambient/SeverityChip";
 import { useTimeOfDay } from "~/ui/hybrid";
+import { isPiMaxView, priorityViewsEnabled } from "~/ui/piLayout";
 import { useTranslation } from "react-i18next";
 import debounce from "debounce";
 import axios from "axios";
@@ -612,6 +613,8 @@ const WeatherMap = ({ zoom, dark }) => {
     mobileRadarMaximized,
     desktopRadarMaximized,
     piRadarMaximized,
+    piLayoutState,
+    piScrubberOpen,
   } = useContext(SystemContext);
   const {
     browserGeo,
@@ -972,7 +975,11 @@ const WeatherMap = ({ zoom, dark }) => {
       animationIntervalRef.current = null;
     }
 
-    if (mapTimestamps && animateWeatherMap) {
+    // Freeze the radar animation in the v3.2 MAX state: there the map is a
+    // decorative ~190 px thumbnail, so cycling RainViewer frames just burns
+    // the Pi GPU. This doesn't touch the user's `animateWeatherMap`
+    // preference — leaving MAX resumes it.
+    if (mapTimestamps && animateWeatherMap && !isPiMaxView(piLayoutState)) {
       animationIntervalRef.current = setInterval(() => {
         setRadarFrameIdx((prev) => {
           // Advance from the resolved current index — which collapses
@@ -996,7 +1003,7 @@ const WeatherMap = ({ zoom, dark }) => {
     // closure over `prev`, so we don't need to recreate the interval
     // on every frame tick. Including it would clear and re-create the
     // interval every second, which previously starved button clicks.
-  }, [animateWeatherMap, mapTimestamps, radarSpeed, lastPastIdx]);
+  }, [animateWeatherMap, mapTimestamps, radarSpeed, lastPastIdx, piLayoutState]);
 
   // Initial mount: anchor the playhead at the most recent past frame
   // once the timestamps load, so the first paint shows current radar
@@ -1109,8 +1116,19 @@ const WeatherMap = ({ zoom, dark }) => {
   // toggled off the strip isn't rendered and the bar must drop to the
   // bottom edge instead of floating over a hole (maintainer-reported;
   // the mock always showed the strip, so this combo wasn't specced).
+  // v3.3 priority: the scrubber is a fullscreen-radar (MIN) tool, opened via the
+  // ephemeral `piScrubberOpen` flag (the dock timeline button sets it + maximizes
+  // to MIN) — never the shared persisted `radarTimelineVisible` pref, and never on
+  // the cramped MID half-pane. Outside the priority model (v2 / desktop / mobile —
+  // piLayoutState null or flag off) it falls back to the persisted pref exactly as
+  // before. ONE boolean drives BOTH the wrapper padding AND the actual render
+  // below, so they can't desync (no half-pane flash on a MIN→MID exit).
+  const priorityActive = priorityViewsEnabled() && piLayoutState != null;
   const timelineShown = Boolean(mapTimestamps && mapTimestamps.length > 0)
-    && radarSource === "rainviewer" && radarTimelineVisible;
+    && radarSource === "rainviewer"
+    && (priorityActive
+      ? (piLayoutState === "min" && piScrubberOpen)
+      : (radarTimelineVisible && !isPiMaxView(piLayoutState)));
   const legendShown = Boolean(mapTimestamps) && radarSource === "rainviewer" && !hideRadarLegend;
 
   return (
@@ -1144,12 +1162,14 @@ const WeatherMap = ({ zoom, dark }) => {
         dragging={true}
         fadeAnimation={false}
       >
-        <ZoomControl
-          key={`zoom-${i18n.language}`}
-          position="topleft"
-          zoomInTitle={t("radar.zoomIn", { defaultValue: "Zoom in" })}
-          zoomOutTitle={t("radar.zoomOut", { defaultValue: "Zoom out" })}
-        />
+        {!isPiMaxView(piLayoutState) && (
+          <ZoomControl
+            key={`zoom-${i18n.language}`}
+            position="topleft"
+            zoomInTitle={t("radar.zoomIn", { defaultValue: "Zoom in" })}
+            zoomOutTitle={t("radar.zoomOut", { defaultValue: "Zoom out" })}
+          />
+        )}
         <MapClickHandler onClick={mapClickHandler} />
         <PanHandler panToCoords={panToCoords} setPanToCoords={setPanToCoords} railOffset={railOffset} />
         <InitialOffsetCentering railOffset={railOffset} markerPosition={markerPosition} />
@@ -1161,6 +1181,7 @@ const WeatherMap = ({ zoom, dark }) => {
           mobileRadarMaximized={mobileRadarMaximized}
           desktopRadarMaximized={desktopRadarMaximized}
           piRadarMaximized={piRadarMaximized}
+          piLayoutState={piLayoutState}
           latitude={latitude}
           longitude={longitude}
           zoom={zoom}
@@ -1413,7 +1434,8 @@ const WeatherMap = ({ zoom, dark }) => {
           it hides HeroBand + rail so the radar fills the viewport, and
           a short toast confirms the toggle. LayoutMobile has its own
           maximize button on the inset card (same icon pair). */}
-      {((desktopRadarMaximized !== null && desktopRadarMaximized !== undefined)
+      {!isPiMaxView(piLayoutState)
+        && ((desktopRadarMaximized !== null && desktopRadarMaximized !== undefined)
         || (piRadarMaximized !== null && piRadarMaximized !== undefined)) && (
         <RadarFocusControl
           active={Boolean(piRadarMaximized != null ? piRadarMaximized : desktopRadarMaximized)}
@@ -1438,10 +1460,10 @@ const WeatherMap = ({ zoom, dark }) => {
           mutual-exclusion rule from the Phase 3 design: both can't fit
           in the 7" kiosk's vertical budget, but the legend stays one
           tap away instead of vanishing. */}
-      {mapTimestamps && radarSource === "rainviewer" && !hideRadarLegend && (
+      {mapTimestamps && radarSource === "rainviewer" && !hideRadarLegend && !isPiMaxView(piLayoutState) && (
         <RadarLegend dark={dark} chipMode={radarTimelineVisible && isSmallScreen} />
       )}
-      {mapTimestamps && radarSource === "rainviewer" && radarTimelineVisible && (
+      {timelineShown && (
         <RadarTimeline
           frames={mapTimestamps}
           currentIdx={currentMapTimestampIdx}

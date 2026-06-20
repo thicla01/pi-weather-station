@@ -1,6 +1,11 @@
 import React, { useContext, useEffect, useState } from "react";
+import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
-import { UiPrefsContext, LocationContext } from "~/AppContext";
+import { InlineIcon } from "@iconify/react";
+import sunsetIcon from "@iconify/icons-wi/sunset";
+import sunriseIcon from "@iconify/icons-wi/sunrise";
+import { UiPrefsContext, LocationContext, WeatherDataContext } from "~/AppContext";
+import { isDaylight } from "~/ui/weatherCodes";
 import SeasonsTrigger, { seasonCountdownLabel } from "~/components/ambient/Seasons";
 import styles from "./styles.css";
 
@@ -26,11 +31,17 @@ const I18N_LOCALE = { en: "en-US", fr: "fr-FR", es: "es-ES" };
  * unmount — important for the experimental flag toggle, which
  * unmounts the entire AmbientLayers subtree.
  *
+ * @param {object} props
+ * @param {boolean} [props.compact] — slim Pi glance layout: the big time
+ *   beside a right-aligned 2-line meta column — abbreviated day/date/month on
+ *   top, the next sun event (sunrise/sunset) below. Drops the seasonal-
+ *   countdown line; the date stays the year-round Saisons-popover trigger.
  * @returns {JSX.Element} time slab
  */
-const TimeBlock = () => {
+const TimeBlock = ({ compact }) => {
   const { clockTime } = useContext(UiPrefsContext);
   const { mapTimezone } = useContext(LocationContext);
+  const { sunriseTime, sunsetTime } = useContext(WeatherDataContext);
   const { i18n, t } = useTranslation();
   const localeKey = i18n.language.startsWith("fr")
     ? "fr"
@@ -74,6 +85,53 @@ const TimeBlock = () => {
   // clock; null the rest of the year.
   const seasonLabel = seasonCountdownLabel(now, t);
 
+  // Slim Pi glance variant: big time beside a 2-line meta column — date on
+  // top, the next sun event below. The sun reading lives here (it left the
+  // hero with the lean redesign); the date keeps the Saisons trigger.
+  if (compact) {
+    const dateShort = new Intl.DateTimeFormat(locale, {
+      weekday: "short",
+      month: "long",
+      day: "numeric",
+      timeZone: mapTimezone,
+    }).format(now);
+    // Sun line shows the NEXT solar event: sunset while it's daytime, sunrise
+    // overnight (after sunset / before sunrise). Both times arrive together in
+    // the weather payload; overnight the sunrise time is today's — a ~1 min
+    // proxy for tomorrow's, and the clock time shown is what matters.
+    const hasSun = sunriseTime && sunsetTime;
+    const isDay = hasSun && isDaylight(sunriseTime, sunsetTime);
+    const nextSunTime = hasSun ? (isDay ? sunsetTime : sunriseTime) : null;
+    const sunStr = nextSunTime
+      ? timeFormatter.format(new Date(nextSunTime)).replace(/\s+h\s*$/i, "")
+      : null;
+    return (
+      <div className={`${styles.slab} ${styles.compact}`}>
+        <div className={styles.time}>
+          {hhmm}
+          {hour12 && dayPeriod ? <span className={styles.amPm}>{dayPeriod}</span> : null}
+        </div>
+        {/* Right-side meta column: day/date/month on top, the next sun event
+         * below (maintainer request). The date stays the Saisons-popover
+         * trigger. */}
+        <div className={styles.meta}>
+          <div className={styles.dateCompact}>
+            <SeasonsTrigger now={now}>{dateShort}</SeasonsTrigger>
+          </div>
+          {sunStr ? (
+            <div
+              className={styles.sun}
+              aria-label={`${t(isDay ? "astronomy.sunset" : "astronomy.sunrise")} ${sunStr}`}
+            >
+              <InlineIcon icon={isDay ? sunsetIcon : sunriseIcon} aria-hidden="true" />
+              <span>{sunStr}</span>
+            </div>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className={styles.slab}>
       {/* The date is the year-round trigger for the Saisons popover. */}
@@ -89,6 +147,14 @@ const TimeBlock = () => {
       ) : null}
     </div>
   );
+};
+
+TimeBlock.propTypes = {
+  compact: PropTypes.bool,
+};
+
+TimeBlock.defaultProps = {
+  compact: false,
 };
 
 export default TimeBlock;

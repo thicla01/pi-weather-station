@@ -178,12 +178,47 @@
       "5": "Muy mala"
     }
   },
+  "nowcast": {
+    "aria": "{{verdict}}. Toque para abrir el pronóstico.",
+    "openForecast": "Abrir el pronóstico",
+    "calm": {
+      "clearDay": "Cielo despejado",
+      "clearNight": "Noche despejada",
+      "partly": "Algunas nubes",
+      "cloudy": "Cielo cubierto",
+      "fog": "Niebla",
+      "lightSnow": "Nieve ligera",
+      "lightPrecip": "Precipitación ligera",
+      "none": "Nada en el radar"
+    }
+  },
+  "conditions": {
+    "title": "Condiciones",
+    "back": "Resumen",
+    "openAria": "Abrir el detalle de condiciones"
+  },
+  "aiView": {
+    "title": "Resumen IA",
+    "back": "Resumen",
+    "now": "Ahora",
+    "nextPeriod": "Próximo período",
+    "period": {
+      "evening": "Esta noche",
+      "overnight": "Durante la noche",
+      "tomorrow": "Mañana"
+    },
+    "radar": "Análisis de radar",
+    "loading": "Generando el resumen…",
+    "unavailable": "Resumen IA no disponible."
+  },
   "metrics": {
     "wind": "Viento",
+    "gust": "Ráfagas",
     "humidity": "Humedad",
     "uv": "UV",
     "aqi": "ICA",
     "pressure": "Presión",
+    "visibility": "Visibilidad",
     "detailValue": "Valor",
     "detailStation": "Estación",
     "detailSource": "Fuente",
@@ -325,6 +360,10 @@
     "severityWatch": "Vigilancia",
     "severityWarning": "Advertencia",
     "severityStatement": "Boletín",
+    "severityWarningShort": "Advert.",
+    "severityWatchShort": "Vigil.",
+    "severityAdvisoryShort": "Aviso",
+    "severityStatementShort": "Boletín",
     "severityEmergency": "Emergencia",
     "issuedHoursAgo": "Emitido hace {{hours}} h",
     "issuedMinutesAgo": "Emitido hace {{minutes}} min",
@@ -344,6 +383,14 @@
     "activeAlertsCount_one": "{{current}} / {{count}} alerta activa",
     "activeAlertsCount_other": "{{current}} / {{count}} alertas activas",
     "activeAlertsCountShort": "{{current}} / {{count}}",
+    "view": {
+      "openRow": "Abrir el detalle de la alerta",
+      "back": "Volver al resumen",
+      "until": "Hasta {{time}}",
+      "alsoActive": "También activas"
+    },
+    "cycleNextAria": "Mostrar la siguiente alerta",
+    "airQualityAria": "Alerta de calidad del aire — {{value}} {{scale}}, {{level}}. Tocar para detalles.",
     "selectAlertAria": "Cambiar a esta alerta",
     "restoreDismissed_one": "Restaurar {{count}} alerta oculta",
     "restoreDismissed_other": "Restaurar {{count}} alertas ocultas",
@@ -428,6 +475,7 @@
     "recenterHere": "Recentrar aquí",
     "showAiSummary": "Mostrar la sección de IA",
     "hideAiSummary": "Ocultar la sección de IA",
+    "openAiView": "Abrir el resumen IA",
     "openUpdate": "Mostrar la ventana de actualización",
     "closeUpdate": "Cerrar la ventana de actualización",
     "updateAvailableRemote": "Actualización disponible — conéctese en local para instalar",

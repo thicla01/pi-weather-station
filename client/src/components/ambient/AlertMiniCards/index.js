@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
 import chevronRight from "@iconify/icons-carbon/chevron-right";
 import undoIcon from "@iconify/icons-carbon/undo";
-import { AppActionsContext } from "~/AppContext";
+import { AppActionsContext, SystemContext } from "~/AppContext";
 import SeverityChip from "~/components/ambient/SeverityChip";
 import useDismissedAlerts from "~/hooks/useDismissedAlerts";
 import useEligibleGovAlerts from "~/hooks/useEligibleGovAlerts";
@@ -49,14 +49,25 @@ const SEVERITY_RANK = {
  * to recover dismissals — the UX recovery path that 4a feedback
  * surfaced as missing.
  *
+ * **v3.2 Pi MID rail:** the mini-cards LIST is suppressed (the compact
+ * AlertBanner counter cycles through the other alerts instead), but the
+ * restore pill is KEPT — it's the only way to un-hide a dismissed alert
+ * on the 7" rail (the banner ✕ relocated to the detail footer's "Masquer",
+ * and without this pill a dismissed alert was unrecoverable until the 4 h
+ * auto-resurface — field-reported 2026-06-18).
+ *
  * @returns {JSX.Element|null} mini-cards list + optional restore
  *   pill, or null when there's nothing to render
  */
 const AlertMiniCards = () => {
   const { selectGovAlert } = useContext(AppActionsContext);
+  const { piLayoutState } = useContext(SystemContext);
   const { t, i18n } = useTranslation();
   const { restoreAll, dismissedCount } = useDismissedAlerts();
   const lang = (i18n.language || "en").slice(0, 2);
+  // On Pi the cycle counter owns multi-alert navigation, so the mini-card
+  // list is dropped — only the restore pill below survives here.
+  const isPi = piLayoutState != null;
 
   // Eligible (red/orange, non-dismissed) gov alerts and the current
   // primary, from the shared hook — same derivation AlertBanner uses,
@@ -89,7 +100,7 @@ const AlertMiniCards = () => {
       });
   }, [eligibleGovAlerts, primaryAlert]);
 
-  const hasMiniCards = ranked.length > 0;
+  const hasMiniCards = !isPi && ranked.length > 0;
   const hasDismissals = dismissedCount > 0;
   if (!hasMiniCards && !hasDismissals) return null;
 

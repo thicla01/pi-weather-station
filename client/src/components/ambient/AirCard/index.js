@@ -52,9 +52,15 @@ const TIER_CLASS = {
  * for pollen, the per-allergen tier word and a `—` placeholder for
  * null allergens (no invented "none" tier).
  *
- * @returns {JSX.Element} air card slab
+ * @param {object} props
+ * @param {boolean} [props.suppressAqRow] — v3.2 Pi MID: when the air-quality
+ *   reading has escalated to the top-of-rail `AirAlertCard` (health-risk
+ *   band), drop this card's AQ row so the AQHI reading isn't shown twice.
+ *   The pollen row (when present) still renders; if neither row remains the
+ *   whole card collapses to null.
+ * @returns {JSX.Element|null} air card slab
  */
-const AirCard = () => {
+const AirCard = ({ suppressAqRow = false }) => {
   const { aqhiInfo, pollenInfo } = useContext(WeatherDataContext);
   const { t, i18n } = useTranslation();
   const [openKey, setOpenKey] = useState(null);
@@ -82,11 +88,17 @@ const AirCard = () => {
   // upstream returned no allergen data for the region — the two
   // degrade states are deliberately identical (B3 ruling).
   const showPollen = !!(pollenInfo && pollenInfo.available);
+  // v3.2: when the AQ reading escalated to the top-of-rail AirAlertCard,
+  // suppress the AQ row here. If pollen isn't showing either, the card
+  // has nothing left to render — collapse it so no empty slab remains.
+  const showAqRow = !suppressAqRow;
+  if (!showAqRow && !showPollen) return null;
 
   const toggle = (key) => setOpenKey((cur) => (cur === key ? null : key));
 
   return (
     <div className={styles.card}>
+      {showAqRow ? (
       <Row
         rowRef={aqRowRef}
         value={aqi != null ? aqi : "—"}
@@ -155,6 +167,7 @@ const AirCard = () => {
           ) : null}
         </DetailsPopover>
       </Row>
+      ) : null}
       {showPollen ? (
         <Row
           rowRef={pollenRowRef}
@@ -279,6 +292,14 @@ Row.defaultProps = {
   ariaExpanded: undefined,
   rowRef: null,
   children: null,
+};
+
+AirCard.propTypes = {
+  suppressAqRow: PropTypes.bool,
+};
+
+AirCard.defaultProps = {
+  suppressAqRow: false,
 };
 
 export default AirCard;

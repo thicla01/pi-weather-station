@@ -1,0 +1,217 @@
+/* AlertView — v3.3 full-rail gov-alert priority view. Header (severity
+ * gradation) + "Aussi actives" selector, both fixed, over a scrolling
+ * structured body (reusing AlertDetailInline's SectionBlock styling) + QR.
+ * The host (`.alertHost` in LayoutPi) sizes it; this fills that height. */
+
+.view {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  min-height: 0;
+  background-color: var(--c-surface);
+  border: 1px solid var(--c-border);
+  border-radius: 12px;
+  overflow: hidden;
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
+  color: var(--c-text);
+}
+
+.header {
+  flex: none;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--c-border);
+  border-left: 4px solid var(--c-danger);
+}
+
+/* Tier strip — the left edge follows the alert's tier so a moderate
+ * (orange) alert doesn't read as red. tier-red keeps the default; extreme
+ * overrides the whole header below. */
+.header.tier-orange { border-left-color: var(--c-warn); }
+.header.tier-yellow { border-left-color: var(--c-advisory); }
+
+/* Extreme severity (Tornado, Hurricane…) — solid red band, white text. The
+ * gradation's loud end: a life-threatening alert must not whisper. */
+.header.extreme {
+  background-color: var(--c-danger);
+  border-left-color: var(--c-danger);
+  color: #fff;
+}
+
+.headRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.bigIcon {
+  font-size: 24px;
+  color: #fff;
+  flex: none;
+}
+
+.title {
+  flex: 1;
+  min-width: 0;
+  font-size: 15px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.extreme .title { color: #fff; font-size: 17px; }
+
+.srcWhite {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  color: #fff;
+  border: 1px solid rgba(255, 255, 255, 0.55);
+  border-radius: 5px;
+  padding: 2px 6px;
+  flex: none;
+}
+
+/* Minimize square — RailSquareButton owns the bordered-surface box; here we
+ * only re-skin it for the EXTREME red band, where the default
+ * --c-surface-hybrid fill would read as a hole. White-outlined to match the
+ * white header text + .srcWhite badge. `.header.extreme .minimize` (0,3,0)
+ * beats RailSquareButton's `.square.square` (0,2,0). */
+.header.extreme .minimize {
+  border-color: rgba(255, 255, 255, 0.55);
+  background-color: rgba(255, 255, 255, 0.14);
+  color: #fff;
+}
+
+.meta {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-top: 5px;
+  font-size: 10.5px;
+  color: var(--c-text-dim);
+}
+
+.extreme .meta { color: rgba(255, 255, 255, 0.82); }
+
+/* "Aussi actives" selector — the other eligible alerts as severity-dotted
+ * chips; tap swaps which is primary. Scrolls horizontally with 3+. */
+.selector {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  border-bottom: 1px solid var(--c-border);
+  overflow-x: auto;
+}
+
+.selLabel {
+  flex: none;
+  font-size: 9.5px;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--c-text-dim);
+}
+
+.chips {
+  display: flex;
+  gap: 6px;
+}
+
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  flex: none;
+  /* min-height keeps the multi-alert nav chips a comfortable touch target
+   * (the selector is the most mis-tappable row); content stays centred. */
+  min-height: 32px;
+  font: inherit;
+  font-size: 11px;
+  color: var(--c-text);
+  background: transparent;
+  border: 1px solid var(--c-border);
+  border-radius: 999px;
+  padding: 4px 11px;
+  white-space: nowrap;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.chip:active { background: var(--c-accent-soft); }
+
+.chip:focus-visible {
+  outline: 2px dashed var(--c-text);
+  outline-offset: 1px;
+}
+
+.dot {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  flex: none;
+  background: var(--c-text-dim);
+}
+
+.dotRed    { background: var(--c-danger); }
+.dotOrange { background: var(--c-warn); }
+.dotYellow { background: var(--c-advisory); }
+
+.body {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  padding: 10px 12px;
+}
+
+.noDetail {
+  font-size: 12.5px;
+  color: var(--c-text-dim);
+  font-style: italic;
+}
+
+.footer {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  border-top: 1px solid var(--c-border);
+  margin-top: 10px;
+  padding-top: 10px;
+}
+
+.qrRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex: 1;
+  min-width: 0;
+}
+
+.qrCaption {
+  font-size: 10.5px;
+  color: var(--c-text-dim);
+}
+
+.dismiss {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  font: inherit;
+  font-size: 11px;
+  color: var(--c-text-dim);
+  background: transparent;
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  padding: 7px 11px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.dismiss:active { background: var(--c-accent-soft); color: var(--c-text); }
+
+.dismiss:focus-visible {
+  outline: 2px dashed var(--c-text);
+  outline-offset: 1px;
+}

@@ -135,6 +135,15 @@
    * follows the same dim → bright transition on hover. */
 }
 
+/* On the 7" Pi rail the restore pill is the ONLY way to un-hide a
+ * dismissed alert (the mini-card list is dropped there), so give it a
+ * comfortable touch target — the desktop size is mouse-calibrated. */
+:global(.ambientRoot[data-layout="pi"]) .restoreBtn {
+  min-height: 36px;
+  font-size: 11px;
+  padding: 8px 14px;
+}
+
 /* Narrow viewports — tighten the cards so the rail's content fits
  * on the 7" Pi and on phones. The chevron stays visible (it's the
  * affordance cue) but the title gets slightly smaller and the
