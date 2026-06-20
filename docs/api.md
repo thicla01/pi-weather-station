@@ -223,7 +223,7 @@ Summaries are cached 15 minutes server-side, keyed by `lat:lon:lang:period:tempU
 | `speedUnit` | string | | `kmh` (default), `ms`, or `mph`. Drives wind-speed unit. |
 | `distanceUnit` | string | | `km` (default) or `mi`. Drives the radar-analysis distance unit, the sampled distances, and the dashed circle radii on the map. Older clients that omit this param fall back to inferring from `speedUnit` (`mph` → mi, otherwise km). |
 
-- **Response:** `{ "summary": "..." }` — paragraphs separated by blank lines
+- **Response:** `{ "summary": "...", "period": "evening" }` — `summary` is the paragraphs separated by blank lines; `period` is the forecast paragraph's period kind (`"evening"` / `"overnight"` / `"tomorrow"`, or `null` when no forecast paragraph was produced), derived server-side from the local hour + data availability so the client can label the "next period" section with its real name (e.g. "Ce soir", "Demain") instead of a generic title
 - **Errors:** HTTP 503 if Anthropic key not configured; HTTP 429 for remote callers when the global (10/min) or per-peer (4/min) billed-call ceiling is currently saturated (local kiosk exempt); HTTP 400 on out-of-range coordinates
 
 ### `GET /api/radar-risk`
