@@ -17,7 +17,9 @@
  * `:focus-visible`'s (0,2,0) won), then it vanished on next tap. */
 .banner.banner {
   position: absolute;
-  top: 12px;
+  /* Top-align with the Leaflet zoom control's top edge (~16 px) so this chip
+   * and the HeroOverlayMin slab share one top line — keep the two in sync. */
+  top: 16px;
   right: 12px;
   z-index: 400;
   display: flex;

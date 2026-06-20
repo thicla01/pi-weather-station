@@ -217,6 +217,38 @@
   padding: 7px 12px;
 }
 
+/* v3.3 priority glance — 2-line compact gov card. Row 1: severity + source
+ * tags and the maximize ⤢ (pushed right); row 2: the alert title on its own
+ * full-width line + the cycle counter. Gives the title room the single row
+ * never had, and the card finally carries the ⤢ square like its siblings. */
+.compactCard {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 6px 12px;
+}
+.compactTop {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+.compactMax {
+  margin-left: auto;
+}
+.compactBottom {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+/* Counter on row 2 must NOT stretch the row — it inherits align-self: stretch
+ * + min-height 34px from the shared .cycleCounter (sized for the v3.2 single
+ * row), which padded ~18px of dead space above/below the title. Centre it and
+ * shrink to a compact-but-tappable height so row 2 hugs the title. */
+.compactBottom .cycleCounter {
+  align-self: center;
+  min-height: 24px;
+}
+
 .headCompact {
   flex: 1 1 auto;
   min-width: 0;

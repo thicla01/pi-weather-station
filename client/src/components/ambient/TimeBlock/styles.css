@@ -12,6 +12,10 @@
   padding: 12px 14px;
   color: var(--c-text);
   font-family: "Geist", system-ui, -apple-system, sans-serif;
+  /* Hybrid-mode severity strip — the clock was the only glance card missing
+   * it. Transparent when calm; picks up warn/danger during a serious alert,
+   * matching the Hero / AirCard so the severity "wall" is unbroken. */
+  box-shadow: inset 4px 0 0 var(--c-strip-color, transparent);
 }
 
 .date {
@@ -140,5 +144,8 @@
 .sun svg {
   width: 16px;
   height: 16px;
-  color: var(--c-accent-soft);
+  /* Full accent, not accent-soft — the soft tint was near-invisible against
+   * the slab in every palette (maintainer-reported). Matches the metric-tile
+   * icon colour. */
+  color: var(--c-accent);
 }

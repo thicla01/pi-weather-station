@@ -79,7 +79,9 @@
 .rowIcon {
   font-size: 15px;
   flex: none;
-  color: var(--c-accent-soft);
+  /* Full accent, not accent-soft — the soft tint was near-invisible in every
+   * palette (maintainer-reported). Matches the metric-tile icon colour. */
+  color: var(--c-accent);
 }
 
 .rowVal {

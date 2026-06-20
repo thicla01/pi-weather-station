@@ -14,6 +14,8 @@ import {
 import SourceBadge from "~/components/ambient/SourceBadge";
 import ConfidencePill from "~/components/ambient/ConfidencePill";
 import SeverityChip from "~/components/ambient/SeverityChip";
+import RailSquareButton from "~/components/ambient/RailSquareButton";
+import { ExpandIcon } from "~/components/WeatherMap/icons";
 import AlertMetaChips from "~/components/ambient/AlertMetaChips";
 import useDismissedAlerts from "~/hooks/useDismissedAlerts";
 import useEligibleGovAlerts from "~/hooks/useEligibleGovAlerts";
@@ -134,10 +136,50 @@ const AlertBanner = () => {
         data-state={govAlertExpanded ? "expanded" : "collapsed"}
       >
         {isPi ? (
-          /* COMPACT one-row gov card (7" MID rail). Two SIBLING tap zones —
-           * the cycle button is NOT nested inside the role="button" expand
-           * zone (interactive-content nesting is invalid + screen-reader
-           * ambiguous):
+          priority ? (
+            /* v3.3 priority glance — 2-line compact gov card. Row 1: the
+             * severity + source tags and the maximize ⤢ (RailSquareButton,
+             * opening the full AlertView — so the alert card carries the same
+             * square as the Hero / Nowcast). Row 2: the alert title on its
+             * OWN line (far less truncation than the old single row) + the
+             * "1 / N" cycle counter. The ⤢ and the counter are the two tap
+             * zones — siblings, no interactive nesting. */
+            <div className={styles.compactCard}>
+              <div className={styles.compactTop}>
+                <SeverityChip severity={currentAlert.severity} eventName={currentAlert.title_en} abbreviated />
+                <SourceBadge source={currentAlert.source} />
+                <RailSquareButton
+                  icon={ExpandIcon}
+                  onClick={headAction}
+                  ariaLabel={t("alert.view.openRow", { defaultValue: "Open alert detail" })}
+                  className={styles.compactMax}
+                />
+              </div>
+              <div className={styles.compactBottom}>
+                <span className={styles.titleCompact}>{title}</span>
+                {hasOthers && (
+                  <button
+                    type="button"
+                    className={styles.cycleCounter}
+                    onClick={cycleNext}
+                    aria-label={t("alert.cycleNextAria")}
+                  >
+                    <span className={styles.cycleCount}>
+                      {t("alert.activeAlertsCountShort", {
+                        current: safeIdx + 1,
+                        count: eligibleGovAlerts.length,
+                      })}
+                    </span>
+                    <InlineIcon icon={chevronRight} className={styles.cycleChevron} />
+                  </button>
+                )}
+              </div>
+            </div>
+          ) : (
+          /* COMPACT one-row gov card (7" MID rail), v3.2 non-priority. Two
+           * SIBLING tap zones — the cycle button is NOT nested inside the
+           * role="button" expand zone (interactive-content nesting is invalid
+           * + screen-reader ambiguous):
            *   - headCompact: severity chip + source + ellipsized title;
            *     tapping it toggles AlertDetailInline (the full description
            *     lives behind the tap — the kiosk's minimal-glance budget).
@@ -181,6 +223,7 @@ const AlertBanner = () => {
               </button>
             )}
           </div>
+          )
         ) : (
         <>
         {/* Clickable head — severity chip + title + chevron, then

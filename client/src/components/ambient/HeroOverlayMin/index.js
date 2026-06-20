@@ -1,11 +1,12 @@
-import React, { useContext } from "react";
+import React, { useContext, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
-import { WeatherDataContext, UiPrefsContext } from "~/AppContext";
+import { WeatherDataContext, UiPrefsContext, LocationContext } from "~/AppContext";
 import { convertTemp } from "~/services/conversions";
 import { parseWeatherCode, isDaylight } from "~/ui/weatherCodes";
 import FeelsLikeLine from "~/components/ambient/FeelsLikeLine";
 import LocationName from "~/components/LocationName";
+import LocationDetailsPopover from "~/components/ambient/LocationDetailsPopover";
 import styles from "./styles.css";
 
 /**
@@ -26,16 +27,16 @@ import styles from "./styles.css";
  * NO astro/moon meta-line and NO forecast — the radar is the focus
  * in MIN; the slab is a quiet anchor, not a second hero.
  *
- * Purely presentational: it reads the same already-fetched plumbing
- * `HeroCompact` does (no refetch) and never writes `piLayoutState`.
- * Reuses `LocationName`, `FeelsLikeLine`, and the shared
+ * Reads the same already-fetched plumbing `HeroCompact` does (no refetch) and
+ * never writes `piLayoutState` (its only local state is the location popover's
+ * open flag). Reuses `LocationName`, `FeelsLikeLine`, and the shared
  * `parseWeatherCode` / `isDaylight` helpers so the condition mapping,
  * delta-chip rule, and reverse-geocode logic each live in exactly
  * one place.
  *
- * Unlike `HeroCompact`, the location row is non-interactive here (no
- * tap-for-details popover): MIN is radar-first and the slab stays a
- * glanceable readout, so there is no tappable control to gate.
+ * The location row carries the same tap-for-details affordance as the rail
+ * `HeroCompact`: a dotted-underline trigger opening `LocationDetailsPopover`
+ * (which portals + viewport-clamps, so it escapes this small map-pinned card).
  *
  * Renders `null` until the first current-weather payload lands — the
  * overlay only ever appears in MIN, so there's no reflow cost to
@@ -47,7 +48,31 @@ import styles from "./styles.css";
 const HeroOverlayMin = () => {
   const { currentWeatherData, sunriseTime, sunsetTime } = useContext(WeatherDataContext);
   const { tempUnit } = useContext(UiPrefsContext);
+  const { reverseGeoResult } = useContext(LocationContext);
   const { t } = useTranslation();
+
+  // Tap-for-details on the location row — same affordance as the rail
+  // HeroCompact. LocationDetailsPopover portals + viewport-clamps, so it
+  // escapes this small map-pinned card cleanly. Interactive only once the
+  // reverse-geocode payload exists; otherwise the plain readout shows.
+  const locationRef = useRef(null);
+  const [locationOpen, setLocationOpen] = useState(false);
+  const locationClickable = !!reverseGeoResult;
+  const locationRow = locationClickable ? (
+    <button
+      ref={locationRef}
+      type="button"
+      className={styles.locationButton}
+      onClick={() => setLocationOpen((v) => !v)}
+      aria-expanded={locationOpen}
+      aria-label={t("location.details")}
+      title={t("location.details")}
+    >
+      <LocationName />
+    </button>
+  ) : (
+    <LocationName />
+  );
 
   const weatherData = currentWeatherData?.data?.timelines?.[0]?.intervals?.[0]?.values;
   if (!weatherData) return null;
@@ -71,7 +96,13 @@ const HeroOverlayMin = () => {
   return (
     <div className={styles.overlay}>
       <div className={styles.location}>
-        <LocationName />
+        {locationRow}
+        <LocationDetailsPopover
+          open={locationOpen}
+          onClose={() => setLocationOpen(false)}
+          triggerRef={locationRef}
+          anchor="left"
+        />
       </div>
       <div className={styles.focal}>
         <div className={styles.tempBlock}>
