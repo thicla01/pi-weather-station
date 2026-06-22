@@ -33,6 +33,22 @@ import styles from "./styles.css";
 // the activeBuckets Set, just serialisable.
 const ACTIVE_BUCKETS_STORAGE_KEY = "pi-weather-debug-active-buckets";
 
+// CPU-temp colour thresholds for the Server-KPI live reading, aligned to
+// the CM5 / Pi-5 active-cooler fan trip points (50 / 60 / 67.5 / 75 °C;
+// hardware-critical 110 °C). Below trip point 2 the fan is quiet → neutral;
+// across the fan-ramp band trip 2 → trip 4 (audible by trip 3 ≈ 67.5 °C) →
+// amber; at/above trip 4 the fan is maxed and the SoC heads toward throttle
+// → red. Restores (and re-grounds) the colour code the v2 Debug panel had,
+// dropped in the v3 migration. No green "good" tier on purpose — the night-
+// red palette is intentionally mono-red, so we only escalate, never paint
+// the normal range.
+const CPU_TEMP_WARN_C = 60; // ≥ → amber (fan trip point 2)
+const CPU_TEMP_CRIT_C = 75; // ≥ → red   (fan trip point 4)
+
+// Cadence of the live CPU-temp / fan poll while the Server KPI section is on
+// screen. Temperature changes slowly; 5 s matches the v2 Debug poll.
+const LIVE_SENSOR_POLL_MS = 5000;
+
 /**
  * Direction C Debug panel — port of the Claude Design canvas at
  * `docs/design-references/settings-debug/project/lib/debug-panel.jsx`
@@ -64,10 +80,12 @@ const ACTIVE_BUCKETS_STORAGE_KEY = "pi-weather-debug-active-buckets";
  * sections (logs / remoteClients / providers full / snapshots / vuln)
  * land in Phase 9b once the shell shape is approved.
  *
- * Data: same \`GET /api/debug\` endpoint v2 Debug already uses. Two
- * additional live polls (\`/api/debug/cpu-temp\` and \`/api/debug/fan\`)
- * stay v2-only for now — the static snapshot reads of cpuTemp + fan
- * in the initial response are enough to validate the design.
+ * Data: same \`GET /api/debug\` endpoint v2 Debug already uses. The
+ * Server KPI section additionally polls \`/api/debug/cpu-temp\` and
+ * \`/api/debug/fan-speed\` every 5 s for a live, colour-coded CPU-temp /
+ * fan reading (restored from v2 — the v3 migration had left only the
+ * static \`/api/debug\` snapshot wired); the rest of the panel stays on
+ * that single snapshot.
  *
  * @returns {JSX.Element|null} debug overlay, or null when closed or
  *   when running on a non-local client (server enforces this too via
@@ -671,6 +689,43 @@ const BucketServer = ({ data, lang, gridTwoWide }) => {
   const mem = kpis.memory || {};
   const netUrls = Array.isArray(net.urls) ? net.urls : [];
   const conn = data.connectivity || null;
+
+  // Live CPU temp + fan, polled every 5 s while this bucket is on screen.
+  // The /api/debug snapshot (kpis.cpuTempC / kpis.fanRpm) is captured once
+  // at panel open; these two lightweight endpoints — already used by v2
+  // Debug, left unwired in the v3 migration — keep the reading live. State
+  // + poll live here (not in the parent) so they start and stop with the
+  // bucket's own mount/unmount: zero polling when the Server KPI section
+  // isn't pinned, automatic cleanup when it's unpinned or the panel closes.
+  const [cpuTempLive, setCpuTempLive] = useState(null);
+  const [fanRpmLive, setFanRpmLive] = useState(null);
+  useEffect(() => {
+    let cancelled = false;
+    const poll = () => {
+      axios.get("/api/debug/cpu-temp")
+        .then((res) => { if (!cancelled) setCpuTempLive(res.data?.cpuTempC ?? null); })
+        .catch(() => { /* non-critical — keep the last value */ });
+      axios.get("/api/debug/fan-speed")
+        .then((res) => {
+          if (!cancelled && res.data?.available) setFanRpmLive(res.data.rpm ?? null);
+        })
+        .catch(() => { /* non-critical — keep the last value */ });
+    };
+    poll();
+    const id = setInterval(poll, LIVE_SENSOR_POLL_MS);
+    return () => { cancelled = true; clearInterval(id); };
+  }, []);
+
+  // Prefer the live reading; fall back to the snapshot until the first poll
+  // resolves. Colour escalates on the CM5 fan trip points (see CPU_TEMP_*):
+  // neutral below trip 2, amber across the ramp band, red at trip 4+.
+  const cpuTempShown = cpuTempLive != null ? cpuTempLive : kpis.cpuTempC;
+  const fanRpmShown = fanRpmLive != null ? fanRpmLive : kpis.fanRpm;
+  const cpuTempTone = cpuTempShown == null ? undefined
+    : cpuTempShown >= CPU_TEMP_CRIT_C ? styles.kvValueCrit
+    : cpuTempShown >= CPU_TEMP_WARN_C ? styles.kvValueWarn
+    : undefined;
+
   return (
     <div className={styles.bucket}>
       {/* Connectivity hero (F27) — the network state is the first
@@ -717,8 +772,13 @@ const BucketServer = ({ data, lang, gridTwoWide }) => {
         <KV k="heap used"  v={mem.heapUsedMb != null ? `${mem.heapUsedMb} MB` : "—"} />
         <KV k="heap total" v={mem.heapTotalMb != null ? `${mem.heapTotalMb} MB` : "—"} />
         <KV k="rss"        v={mem.rssMb != null ? `${mem.rssMb} MB` : "—"} />
-        <KV k="cpu temp"   v={kpis.cpuTempC != null ? `${kpis.cpuTempC.toFixed(1)} °C` : "—"} />
-        <KV k="fan rpm"    v={kpis.fanRpm != null ? kpis.fanRpm.toLocaleString() : "—"} />
+        <KV
+          k="cpu temp"
+          v={cpuTempShown != null
+            ? <span className={cpuTempTone}>{`${cpuTempShown.toFixed(1)} °C`}</span>
+            : "—"}
+        />
+        <KV k="fan rpm"    v={fanRpmShown != null ? fanRpmShown.toLocaleString() : "—"} />
         <KV k="cache hits" v={kpis.cache?.hits != null ? kpis.cache.hits.toLocaleString() : "—"} />
         <KV k="cache rate" v={kpis.cache?.rate != null ? `${kpis.cache.rate}%` : "—"} />
       </div>
