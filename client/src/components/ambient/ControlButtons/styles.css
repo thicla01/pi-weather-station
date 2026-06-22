@@ -121,7 +121,17 @@
   height: 7px;
   border-radius: 50%;
   background: #f97316;
-  animation: update-pulse 2s ease-in-out infinite;
+  /* Finite pulse, NOT `infinite`. `update-pulse` animates `transform` +
+   * `opacity` — both composited properties, so on the Pi's V3D GPU an
+   * infinite run kept the Chromium GPU process recompositing every vsync
+   * for as long as an update was pending (which, between releases, is most
+   * of the time across the fleet). That pinned the kiosk at ~20 % GPU /
+   * ~67 °C with the fan cycling on a trip point. The badge now pulses 4×
+   * (~8 s) when it first mounts — enough to catch the eye when the update
+   * is detected — then `forwards` holds the 100 % keyframe (a steady dot)
+   * so the compositor falls back to idle. A static orange dot still flags
+   * "update available". */
+  animation: update-pulse 2s ease-in-out 4 forwards;
 }
 
 @keyframes update-pulse {
