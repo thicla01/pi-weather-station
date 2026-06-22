@@ -27,9 +27,10 @@ const I18N_LOCALE = { en: "en-US", fr: "fr-FR", es: "es-ES" };
  * year-round trigger for the Saisons popover (`SeasonsTrigger`); the
  * in-window countdown rides below as a plain text line.
  *
- * Clock ticks via a 1 s `setInterval`. The interval is cleared on
- * unmount — important for the experimental flag toggle, which
- * unmounts the entire AmbientLayers subtree.
+ * Clock ticks once per minute, aligned on the minute boundary — the
+ * slab shows only HH:mm (no seconds). The timer is cleared on unmount
+ * — important for the experimental flag toggle, which unmounts the
+ * entire AmbientLayers subtree.
  *
  * @param {object} props
  * @param {boolean} [props.compact] — slim Pi glance layout: the big time
@@ -49,11 +50,40 @@ const TimeBlock = ({ compact }) => {
       ? "es"
       : "en";
   const locale = I18N_LOCALE[localeKey];
+  // Tick once per minute, aligned on the minute boundary. The slab shows
+  // only HH:mm, so the previous 1 Hz `setInterval` re-rendered the whole
+  // slab and re-ran the Intl date/time formatting 60× more often than the
+  // display could change — pure renderer waste on the always-on kiosk.
+  // This is the same fix already applied to HeroBand; TimeBlock is the
+  // Pi/mobile clock and was the live 1 Hz tick on the 7" screen.
+  //
+  // Chained setTimeout, NOT setInterval: each tick re-computes the next
+  // minute boundary, so the phase self-heals after background-tab timer
+  // throttling, a sleep/wake, or an NTP clock step. The visibilitychange
+  // resync covers a backgrounded tab (mobile layout) returning to view.
   const [now, setNow] = useState(() => new Date());
-
   useEffect(() => {
-    const tick = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(tick);
+    const MINUTE_MS = 60 * 1000;
+    let timerId = null;
+    const scheduleNext = () => {
+      timerId = setTimeout(() => {
+        setNow(new Date());
+        scheduleNext();
+      }, MINUTE_MS - (Date.now() % MINUTE_MS));
+    };
+    scheduleNext();
+    const onVisibilityChange = () => {
+      if (document.visibilityState === "visible") {
+        setNow(new Date());
+        clearTimeout(timerId);
+        scheduleNext();
+      }
+    };
+    document.addEventListener("visibilitychange", onVisibilityChange);
+    return () => {
+      clearTimeout(timerId);
+      document.removeEventListener("visibilitychange", onVisibilityChange);
+    };
   }, []);
 
   const hour12 = clockTime === "12";
