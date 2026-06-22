@@ -854,6 +854,14 @@
 .quotaPct-warn { color: var(--c-warn); }
 .quotaPct-danger { color: var(--c-danger); }
 
+/* Server-KPI CPU-temp colour escalation (thresholds + rationale: see the
+ * CPU_TEMP_* constants in index.js, aligned to the CM5 fan trip points).
+ * Neutral below trip 2 → no class; amber across the fan-ramp band; red
+ * at/above trip 4. No green "good" tier — the night-red palette is
+ * intentionally mono-red. */
+.kvValueWarn { color: var(--c-warn); }
+.kvValueCrit { color: var(--c-danger); font-weight: 600; }
+
 .quotaTrack {
   height: 4px;
   background-color: var(--c-accent-soft);
