@@ -509,8 +509,15 @@ const SectionConfig = ({ ctx, lang, remote }) => {
     customLat, customLon,
     radarSource, saveRadarSource,
     brightnessPercent, brightnessAvailable, brightnessMinPercent, setBrightnessLive,
+    displayScaleAvailable, displayScaleOverride, displayScaleAuto, displayScaleChoices, saveDisplayScale,
     saveSettingsToJson,
   } = ctx;
+
+  // What "Auto" currently resolves to, as a percent, for the Auto chip
+  // label (no detection / baseline / a downward-lying EDID ⇒ 100 %).
+  const displayScaleAutoPct = displayScaleAuto
+    ? Math.round(parseFloat(displayScaleAuto) * 100)
+    : 100;
 
   // Draft state for every server-side field that the user can edit.
   // Initial values come from AppContext (the current persisted
@@ -724,6 +731,35 @@ const SectionConfig = ({ ctx, lang, remote }) => {
         ) : (
           <div />
         )}
+        {displayScaleAvailable ? (
+          <>
+            <Seg
+              label={lbl(lang, "Display scale", "Échelle d'affichage", "Escala de pantalla")}
+              options={displayScaleChoices.map((v) => ({
+                v,
+                l: v === "auto"
+                  ? `${lbl(lang, "Auto", "Auto", "Auto")} · ${displayScaleAutoPct} %`
+                  : v === "off"
+                    ? "100 %"
+                    : `${Math.round(parseFloat(v) * 100)} %`,
+              }))}
+              value={displayScaleOverride || "auto"}
+              onChange={saveDisplayScale}
+              disabled={remote}
+            />
+            <div className={styles.scaleHint}>
+              {remote
+                ? lbl(lang,
+                  "Settable only from the kiosk.",
+                  "Réglable seulement depuis le kiosque.",
+                  "Solo ajustable desde el quiosco.")
+                : lbl(lang,
+                  "Corrects a screen that reports the wrong size. Takes effect on the next kiosk restart.",
+                  "Corrige un écran qui déclare une mauvaise taille. Prend effet au prochain redémarrage du kiosque.",
+                  "Corrige una pantalla que informa un tamaño erróneo. Surte efecto al reiniciar el quiosco.")}
+            </div>
+          </>
+        ) : null}
       </div>
 
       {!remote ? (

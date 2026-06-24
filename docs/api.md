@@ -846,6 +846,28 @@ Sets the screen brightness in percent (0–100). Floors at `minPercent` (10%) by
 
 ---
 
+### `GET /api/display-scale`
+Reports the kiosk display-scale override and what auto-detection currently resolves to. The client uses this on mount to decide whether to render the "Display scale" picker in Advanced settings (hidden when `available: false`) and to label the **Auto** choice with its detected percent. The scale corrects the auto-detected device-scale-factor for panels whose EDID misreports their physical size (so `detect-display-scale.sh` lands on the wrong factor, usually `1.0`).
+
+- **Access:** 🌐 Public — rate limited (120 req/min). Read is harmless and the client needs it before rendering even on remote (where the picker stays disabled anyway); the limiter is there because the read shells out to `detect-display-scale.sh` to learn the auto value.
+- **Response when this is a kiosk install** (`~/.config/pi-weather-station/browser.conf` present): `{ "available": true, "override": "auto"|"off"|"<number>", "autoDetected": "<number>"|null, "ppi": <number>|null, "raw": <number>|null, "choices": ["auto","off","1.25","1.5","1.75","2"], "appliesOnRestart": true }` — `autoDetected: null` means auto resolves to no scaling (effective `1.0`).
+- **Response otherwise** (no `browser.conf`, e.g. macOS launchd dev box, headless): `{ "available": false }`
+
+---
+
+### `POST /api/display-scale`
+Sets the kiosk display-scale override by managing the `DISPLAY_SCALE=` line in `browser.conf` (the value `start-server` sources and `detect-display-scale.sh` honours). **Takes effect on the next kiosk relaunch** — it is a browser launch flag (`--force-device-scale-factor` / Firefox `layout.css.devicePixelRatio`), not a runtime change. Like brightness, it tunes the Pi's physical kiosk screen, so it is localhost-only.
+
+- **Access:** 🔒 Localhost only — a remote client has no business rescaling a screen it isn't looking at.
+- **Body:** `{ "scale": "auto" | "off" | "1.25" | "1.5" | "1.75" | "2" }` — `auto` removes the line (fall back to auto-detect); `off` forces no scaling (`1.0`); numbers are clean quarters in `(1, 2]`.
+- **Response on success:** `{ "available": true, "override": "<normalized>", "applied": false, "appliesOnRestart": true }`
+- **Errors:**
+  - `400` — `{ error: "invalid-scale", choices: [...] }` (not `auto`/`off`/a clean quarter ≤ 2)
+  - `503` — `{ error: "no-browser-conf" }` (not a kiosk install)
+  - `500` — `{ error: "read-failed" }` or `write-failed`
+
+---
+
 ## Health
 
 ### `GET /api/health`

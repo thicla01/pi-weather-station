@@ -5,6 +5,7 @@ import { getCoordsFromApi } from "~/services/geolocation";
 import reverseGeocode from "~/services/reverseGeocode";
 import { useUpdateChecker } from "~/hooks/useUpdateChecker";
 import { useScreenSaver } from "~/hooks/useScreenSaver";
+import { useDisplayScale } from "~/hooks/useDisplayScale";
 import { useUiPreferences } from "~/hooks/useUiPreferences";
 import { useSenseHatMode } from "~/hooks/useSenseHatMode";
 import useIdleDetection from "~/hooks/useIdleDetection";
@@ -374,6 +375,19 @@ export function AppContextProvider({ children }) {
     sleepStage2Delay, setSleepStage2Delay,
     sleepNightMode, setSleepNightMode,
   } = useScreenSaver();
+
+  // Kiosk display-scale override (`~/hooks/useDisplayScale`). Owns the
+  // /api/display-scale fetch + the localhost-only POST. Corrects the
+  // auto-detected device-scale-factor for panels whose EDID misreports
+  // their physical size. Exposed through the slices below like brightness.
+  const {
+    displayScaleAvailable,
+    displayScaleOverride,
+    displayScaleAuto,
+    displayScalePpi,
+    displayScaleChoices,
+    saveDisplayScale,
+  } = useDisplayScale();
 
   // Runtime sleep-stage value (0/1/2). Hoisted into AppContext (rather
   // than living in App/index.js) so background-fetching components can
@@ -2146,6 +2160,7 @@ export function AppContextProvider({ children }) {
   // only the weatherApiKey/browserGeo-driven fetcher chain re-mints
   // (once, at boot), so this slice's identity is permanent afterwards.
   const actionsSlice = useMemo(() => ({
+    saveDisplayScale,
     getWeatherApiKey,
     getReverseGeoApiKey,
     getMapApiKey,
@@ -2236,6 +2251,7 @@ export function AppContextProvider({ children }) {
     triggerUpdate,
     infoPanelScrollRef,
   }), [
+    saveDisplayScale,
     getWeatherApiKey,
     getReverseGeoApiKey,
     getMapApiKey,
@@ -2331,6 +2347,11 @@ export function AppContextProvider({ children }) {
   // `updateAvailable` keeps its derived form (raw flag gated by the
   // user's skipped SHA) — consumers see the same boolean as before.
   const systemSlice = useMemo(() => ({
+    displayScaleAvailable,
+    displayScaleOverride,
+    displayScaleAuto,
+    displayScalePpi,
+    displayScaleChoices,
     weatherApiKey,
     reverseGeoApiKey,
     anthropicApiKey,
@@ -2376,6 +2397,11 @@ export function AppContextProvider({ children }) {
     piLayoutState,
     piScrubberOpen,
   }), [
+    displayScaleAvailable,
+    displayScaleOverride,
+    displayScaleAuto,
+    displayScalePpi,
+    displayScaleChoices,
     weatherApiKey,
     reverseGeoApiKey,
     anthropicApiKey,
