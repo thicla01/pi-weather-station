@@ -983,13 +983,22 @@
   align-items: start;
 }
 
-/* Full-width helper under the display-scale Seg — a grid cell that spans
- * every column (so it sits on its own line below the segmented picker).
- * Explains what the control corrects + that it applies on the next kiosk
- * relaunch. Muted/small, matching other field helper text. */
-.scaleHint {
+/* Display-scale field — its own full-width grid row holding the 6-option
+ * Seg + helper, stacked. A bare Seg here would land in a single 1/4-width
+ * grid cell and cram the six segments (and overflow the cell); spanning
+ * every column gives the picker room and a clean edge, like the radar /
+ * brightness controls already do at narrow widths. */
+.scaleField {
   grid-column: 1 / -1;
-  margin-top: -2px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+/* Helper under the display-scale Seg. Explains what Auto detects + that
+ * the change applies on the next kiosk relaunch. Muted/small, matching
+ * other field helper text. */
+.scaleHint {
   font-size: 0.72rem;
   line-height: 1.35;
   opacity: 0.62;

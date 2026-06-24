@@ -732,13 +732,13 @@ const SectionConfig = ({ ctx, lang, remote }) => {
           <div />
         )}
         {displayScaleAvailable ? (
-          <>
+          <div className={styles.scaleField}>
             <Seg
               label={lbl(lang, "Display scale", "Échelle d'affichage", "Escala de pantalla")}
               options={displayScaleChoices.map((v) => ({
                 v,
                 l: v === "auto"
-                  ? `${lbl(lang, "Auto", "Auto", "Auto")} · ${displayScaleAutoPct} %`
+                  ? lbl(lang, "Auto", "Auto", "Auto")
                   : v === "off"
                     ? "100 %"
                     : `${Math.round(parseFloat(v) * 100)} %`,
@@ -754,11 +754,11 @@ const SectionConfig = ({ ctx, lang, remote }) => {
                   "Réglable seulement depuis le kiosque.",
                   "Solo ajustable desde el quiosco.")
                 : lbl(lang,
-                  "Corrects a screen that reports the wrong size. Takes effect on the next kiosk restart.",
-                  "Corrige un écran qui déclare une mauvaise taille. Prend effet au prochain redémarrage du kiosque.",
-                  "Corrige una pantalla que informa un tamaño erróneo. Surte efecto al reiniciar el quiosco.")}
+                  `Auto detects ${displayScaleAutoPct} % on this screen. Corrects a panel that reports the wrong size; applies on the next kiosk restart.`,
+                  `Auto détecte ${displayScaleAutoPct} % sur cet écran. Corrige une dalle qui déclare une mauvaise taille ; effet au prochain redémarrage du kiosque.`,
+                  `Auto detecta ${displayScaleAutoPct} % en esta pantalla. Corrige un panel que informa un tamaño erróneo; surte efecto al reiniciar el quiosco.`)}
             </div>
-          </>
+          </div>
         ) : null}
       </div>
 
