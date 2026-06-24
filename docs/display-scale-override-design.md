@@ -151,18 +151,17 @@ So writing `DISPLAY_SCALE="1.25"` into `browser.conf` is sufficient and takes ef
 
 ---
 
-## 7. Phase 2 (deferred, not in this PR)
+## 7. Phase 2 — In-UI "Relaunch kiosk" button (✅ shipped 2026-06-24)
 
-- **In-UI "Relaunch kiosk" button** so the override applies without a manual reboot/SSH.
+**What "relaunch" means — and what it is NOT.** The server (`pi-weather-server.service`, a systemd *user* service) and the kiosk browser are **two distinct processes**. The `DISPLAY_SCALE` flag is applied by `start-server` at **browser launch**, not at server start. So `systemctl --user restart pi-weather-server` would be wrong (bounces the server, browser keeps its old flag); `sudo reboot` is heavy + needs a password this Pi lacks. The correct lever is a **user-level kiosk relaunch (no sudo)**.
 
-  **What "relaunch" means — and what it is NOT.** The server (`pi-weather-server.service`, a systemd *user* service) and the kiosk browser are **two distinct processes**. The `DISPLAY_SCALE` flag is applied by `start-server` at **browser launch**, not at server start. Therefore:
-  - `systemctl --user restart pi-weather-server` is **wrong** — it bounces the server only; the browser keeps its old `--force-device-scale-factor`. The scale would not change.
-  - `sudo reboot` works but is heavy and needs a sudo password (RPi5-PWS5 has no NOPASSWD).
-  - The correct lever is a **targeted, user-level kiosk relaunch (no sudo)** — the fiable recipe from the deployment-topology memory: `pkill -f '/.local/bin/start-server'` → `pkill -TERM/-KILL` the browser → `rm` the Chromium `Singleton{Lock,Cookie,Socket}` → `setsid nohup ~/.local/bin/start-server &`, with `XDG_RUNTIME_DIR`+`WAYLAND_DISPLAY` exported.
+**Implemented:**
+- **`POST /api/relaunch-kiosk`** (`localhostOnly`, `displayScaleCtrl.relaunchKiosk`) — spawns `deploy/relaunch-kiosk.sh` via `spawn("bash", [script], { detached: true, stdio: "ignore" }).unref()` and returns `{ok:true}` at once. Detached so it outlives the browser it kills; never touches `node`/the server.
+- **`deploy/relaunch-kiosk.sh`** (git-tracked → `git pull`-deployable; controller resolves it from the repo path, `~/.local/bin` fallback): `sleep 1` (flush the HTTP 200) → set `XDG_RUNTIME_DIR`, discover `WAYLAND_DISPLAY` from the socket glob → `pkill start-server` → kill the browser by its `--kiosk` flag (family-agnostic, TERM→KILL) → clear Chromium `Singleton{Lock,Cookie,Socket}` → `setsid nohup "$LAUNCHER" &`.
+- **Smart enable:** `GET /api/display-scale` now returns `applied` (the scale on the **running** kiosk, read from the live Chromium `--force-device-scale-factor` via `ps`; `"1"` = no flag, `null` = undeterminable e.g. Firefox/headless). The UI shows the relaunch button **only when `effective(selected) ≠ applied`** — re-selecting the value already in effect shows nothing. `applied: null` → button shown (don't hide a possibly-useful action).
+- **UI:** `RelaunchButton` in `SettingsPanel`, local-only, **two-tap confirm** (the screen blanks ~15 s on relaunch). Client `useDisplayScale.relaunchKiosk()` POSTs then refetches after ~9 s (refreshes `applied` for a surviving tunnel client; the on-Pi kiosk page is gone by then).
 
-  Wrapping that behind a `localhostOnly` endpoint is its own design: (a) the systemd-user service env likely lacks `WAYLAND_DISPLAY` → discover it by globbing the wayland socket as `detect-display-scale.sh` does; (b) the server would be killing the browser it serves → detach via `setsid`; (c) kill patterns differ Chromium vs Firefox. Explicitly out of scope here.
-
-- **Phase 1 apply path:** the UI shows a "takes effect on kiosk relaunch" note; the user reboots/power-cycles the Pi, or (maintainer) runs the user-level relaunch recipe above. No server restart involved.
+Verified on RPi5-PWS5: deployed → button appears after changing scale → two-tap → kiosk relaunches → `applied` updates → button disappears.
 
 ---
 

@@ -850,7 +850,7 @@ Sets the screen brightness in percent (0–100). Floors at `minPercent` (10%) by
 Reports the kiosk display-scale override and what auto-detection currently resolves to. The client uses this on mount to decide whether to render the "Display scale" picker in Advanced settings (hidden when `available: false`) and to label the **Auto** choice with its detected percent. The scale corrects the auto-detected device-scale-factor for panels whose EDID misreports their physical size (so `detect-display-scale.sh` lands on the wrong factor, usually `1.0`).
 
 - **Access:** 🌐 Public — rate limited (120 req/min). Read is harmless and the client needs it before rendering even on remote (where the picker stays disabled anyway); the limiter is there because the read shells out to `detect-display-scale.sh` to learn the auto value.
-- **Response when this is a kiosk install** (`~/.config/pi-weather-station/browser.conf` present): `{ "available": true, "override": "auto"|"off"|"<number>", "autoDetected": "<number>"|null, "ppi": <number>|null, "raw": <number>|null, "choices": ["auto","off","1.25","1.5","1.75","2"], "appliesOnRestart": true }` — `autoDetected: null` means auto resolves to no scaling (effective `1.0`).
+- **Response when this is a kiosk install** (`~/.config/pi-weather-station/browser.conf` present): `{ "available": true, "override": "auto"|"off"|"<number>", "autoDetected": "<number>"|null, "applied": "<number>"|"1"|null, "ppi": <number>|null, "raw": <number>|null, "choices": ["auto","off","1.25","1.5","1.75","2"], "appliesOnRestart": true }` — `autoDetected: null` means auto resolves to no scaling (effective `1.0`); `applied` is the scale on the **running** kiosk (read from the live Chromium `--force-device-scale-factor`; `"1"` = no flag, `null` = undeterminable, e.g. Firefox/headless). The client compares `applied` to the selected scale to decide whether a relaunch would change anything.
 - **Response otherwise** (no `browser.conf`, e.g. macOS launchd dev box, headless): `{ "available": false }`
 
 ---
@@ -860,11 +860,23 @@ Sets the kiosk display-scale override by managing the `DISPLAY_SCALE=` line in `
 
 - **Access:** 🔒 Localhost only — a remote client has no business rescaling a screen it isn't looking at.
 - **Body:** `{ "scale": "auto" | "off" | "1.25" | "1.5" | "1.75" | "2" }` — `auto` removes the line (fall back to auto-detect); `off` forces no scaling (`1.0`); numbers are clean quarters in `(1, 2]`.
-- **Response on success:** `{ "available": true, "override": "<normalized>", "applied": false, "appliesOnRestart": true }`
+- **Response on success:** `{ "available": true, "override": "<normalized>", "appliesOnRestart": true }`
 - **Errors:**
   - `400` — `{ error: "invalid-scale", choices: [...] }` (not `auto`/`off`/a clean quarter ≤ 2)
   - `503` — `{ error: "no-browser-conf" }` (not a kiosk install)
   - `500` — `{ error: "read-failed" }` or `write-failed`
+
+---
+
+### `POST /api/relaunch-kiosk`
+Relaunches the kiosk browser so a changed display scale takes effect (the scale is a browser **launch** flag and can't change on a live page). **NOT a server restart** — the kiosk browser is a separate process from `pi-weather-server`; `systemctl restart pi-weather-server` would not change the scale. Spawns `deploy/relaunch-kiosk.sh` **detached** (it must outlive the browser it kills) and returns immediately; the script stops the autostart launcher, kills the `--kiosk` browser (TERM→KILL), clears Chromium singleton locks, and re-launches via `~/.local/bin/start-server` under `setsid`. The screen blanks for ~15 s.
+
+- **Access:** 🔒 Localhost only — it cycles the Pi's physical kiosk.
+- **Body:** none.
+- **Response on success:** `{ "ok": true }` (returned at once; the relaunch happens ~1 s later in the detached script).
+- **Errors:**
+  - `503` — `{ error: "no-browser-conf" }` (not a kiosk install) or `{ error: "no-relaunch-script" }` (script missing)
+  - `500` — `{ error: "spawn-failed" }`
 
 ---
 

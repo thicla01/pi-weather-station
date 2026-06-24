@@ -509,7 +509,8 @@ const SectionConfig = ({ ctx, lang, remote }) => {
     customLat, customLon,
     radarSource, saveRadarSource,
     brightnessPercent, brightnessAvailable, brightnessMinPercent, setBrightnessLive,
-    displayScaleAvailable, displayScaleOverride, displayScaleAuto, displayScaleChoices, saveDisplayScale,
+    displayScaleAvailable, displayScaleOverride, displayScaleAuto, displayScaleApplied,
+    displayScaleChoices, saveDisplayScale, relaunchKiosk,
     saveSettingsToJson,
   } = ctx;
 
@@ -518,6 +519,18 @@ const SectionConfig = ({ ctx, lang, remote }) => {
   const displayScaleAutoPct = displayScaleAuto
     ? Math.round(parseFloat(displayScaleAuto) * 100)
     : 100;
+
+  // Relaunch is only useful when the selected scale differs from what's
+  // ACTUALLY applied to the running kiosk (not just from auto-detection):
+  // e.g. currently applied 1.25, detection 1.0 → picking "Auto" still needs
+  // a relaunch. `displayScaleApplied` null = undeterminable (Firefox /
+  // headless) → allow the relaunch rather than hide a useful action.
+  const effectiveSelectedScale = displayScaleOverride === "auto"
+    ? (displayScaleAuto ? parseFloat(displayScaleAuto) : 1)
+    : displayScaleOverride === "off" ? 1 : parseFloat(displayScaleOverride);
+  const appliedScaleNum = displayScaleApplied != null ? parseFloat(displayScaleApplied) : null;
+  const relaunchUseful = appliedScaleNum == null
+    || Math.abs(effectiveSelectedScale - appliedScaleNum) > 0.001;
 
   // Draft state for every server-side field that the user can edit.
   // Initial values come from AppContext (the current persisted
@@ -758,6 +771,9 @@ const SectionConfig = ({ ctx, lang, remote }) => {
                   `Auto détecte ${displayScaleAutoPct} % sur cet écran. Corrige une dalle qui déclare une mauvaise taille ; effet au prochain redémarrage du kiosque.`,
                   `Auto detecta ${displayScaleAutoPct} % en esta pantalla. Corrige un panel que informa un tamaño erróneo; surte efecto al reiniciar el quiosco.`)}
             </div>
+            {!remote && relaunchUseful ? (
+              <RelaunchButton lang={lang} onConfirm={relaunchKiosk} />
+            ) : null}
           </div>
         ) : null}
       </div>
@@ -1467,6 +1483,39 @@ const Field = ({ label, value, unit, mono, disabled, selectable, trailing }) => 
  * Settings — copy was redundant. The Debug panel keeps its own
  * inline copy affordance (DebugCopyButton on the Current Position
  * row) which is genuinely useful for diagnostics. */
+
+/* Two-tap "Relaunch kiosk" button. The display-scale change is a browser
+ * launch flag, so it only applies on relaunch — and a relaunch blanks the
+ * screen ~15 s, so the first tap arms a confirm state (auto-reverting after
+ * RELAUNCH_CONFIRM_MS) and the second tap fires. Rendered only when a
+ * relaunch would actually change the applied scale. */
+const RELAUNCH_CONFIRM_MS = 4000;
+const RelaunchButton = ({ lang, onConfirm }) => {
+  const [armed, setArmed] = useState(false);
+  const timerRef = useRef(null);
+  useEffect(() => () => clearTimeout(timerRef.current), []);
+  const handleClick = () => {
+    if (!armed) {
+      setArmed(true);
+      timerRef.current = setTimeout(() => setArmed(false), RELAUNCH_CONFIRM_MS);
+      return;
+    }
+    clearTimeout(timerRef.current);
+    setArmed(false);
+    onConfirm();
+  };
+  return (
+    <button
+      type="button"
+      className={`${styles.relaunchButton} ${armed ? styles.relaunchButtonArmed : ""}`}
+      onClick={handleClick}
+    >
+      {armed
+        ? lbl(lang, "Tap again — screen blacks ~15 s", "Encore — écran noir ~15 s", "Otra vez — pantalla negra ~15 s")
+        : lbl(lang, "Relaunch kiosk to apply", "Relancer le kiosque pour appliquer", "Reiniciar el quiosco para aplicar")}
+    </button>
+  );
+};
 
 const Seg = ({ label, options, value, onChange, disabled }) => (
   <div className={`${styles.seg} ${disabled ? styles.segDisabled : ""}`}>
