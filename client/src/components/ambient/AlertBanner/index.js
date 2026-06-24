@@ -57,6 +57,15 @@ import styles from "./styles.css";
  *     sibling card, `ambient/AirAlertCard` (tag `AIR`; see CLAUDE.md →
  *     "Alert banners — always identify the source").
  *
+ * **Test/exercise alerts (`currentAlert.isTest`):** an NWS alert with CAP
+ * status ≠ `Actual`, surfaced only via the localhost-only "Show test alerts"
+ * toggle (server-gated, see `govAlertsCtrl`). When present it's marked
+ * unambiguously in all three gov branches: a neutral outlined `TEST` badge
+ * (`SourceBadge variant="test"`, the `TEST` qualifier — see CLAUDE.md) beside
+ * the source badge, plus a "TEST ·" title prefix. The real severity tier is
+ * kept (the gate hid it, not a downgrade) so the authentic render is visible.
+ * The RADAR branch is never a test alert.
+ *
  * Returns `null` when there is no eligible alert — same SHOW gate
  * as v3.0.
  *
@@ -97,7 +106,18 @@ const AlertBanner = () => {
 
   if (currentAlert) {
     const lang = (i18n.language || "en").slice(0, 2);
-    const title = lang === "fr" ? currentAlert.title_fr : currentAlert.title_en;
+    const baseTitle = lang === "fr" ? currentAlert.title_fr : currentAlert.title_en;
+    // Test/exercise alerts (revealed via the localhost-only "Show test alerts"
+    // toggle) are marked two ways for ZERO ambiguity: a neutral TEST badge
+    // beside the source badge, AND a "TEST ·" title prefix so the word leads
+    // the title even when the narrow Pi rail ellipsizes it. The real tier is
+    // kept (it's the gate that hid the alert, not a downgrade) so the
+    // maintainer still sees how a genuine Extreme/etc. actually renders.
+    const testLabel = t("alert.testTag", { defaultValue: "TEST" });
+    const title = currentAlert.isTest ? `${testLabel} · ${baseTitle}` : baseTitle;
+    const testBadge = currentAlert.isTest
+      ? <SourceBadge source={testLabel} variant="test" />
+      : null;
     const hasOthers = eligibleGovAlerts.length > 1;
 
     // v3.1 Phase 4c: the head row is the toggle for
@@ -148,6 +168,7 @@ const AlertBanner = () => {
               <div className={styles.compactTop}>
                 <SeverityChip severity={currentAlert.severity} eventName={currentAlert.title_en} abbreviated />
                 <SourceBadge source={currentAlert.source} />
+                {testBadge}
                 <RailSquareButton
                   icon={ExpandIcon}
                   onClick={headAction}
@@ -204,6 +225,7 @@ const AlertBanner = () => {
             >
               <SeverityChip severity={currentAlert.severity} eventName={currentAlert.title_en} abbreviated />
               <SourceBadge source={currentAlert.source} />
+              {testBadge}
               <span className={styles.titleCompact}>{title}</span>
             </div>
             {hasOthers && (
@@ -261,6 +283,7 @@ const AlertBanner = () => {
               * space-between keeps the chevron flush right. */}
             <div className={styles.topRowBadges}>
               <SourceBadge source={currentAlert.source} />
+              {testBadge}
               <SeverityChip severity={currentAlert.severity} eventName={currentAlert.title_en} />
             </div>
             <InlineIcon icon={chevronDown} className={styles.chevron} />

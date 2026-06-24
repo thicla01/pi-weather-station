@@ -15,3 +15,17 @@
   border-radius: 3px;
   vertical-align: 1px;
 }
+
+/* "TEST" qualifier — appended next to the source badge when a non-Actual NWS
+ * alert is revealed via the localhost-only "Show test alerts" toggle.
+ * Deliberately OUTLINED + dimmed, never a warn/amber fill: --c-warn collapses
+ * toward red in the nightRed palette, which would re-create the alarming look
+ * this feature exists to prevent. An outlined neutral reads as
+ * "meta / informational" on all four palettes. */
+.test {
+  background-color: transparent;
+  color: var(--c-text-dim);
+  border: 1px solid var(--c-text-dim);
+  /* shave 1px off the fill padding so the bordered pill aligns with .badge */
+  padding: 1px 6px;
+}

@@ -14,7 +14,7 @@ const axios = require("axios").default;
 const { recordServiceCall } = require("../serviceStatus");
 const { increment } = require("../requestCounter");
 const { BoundedMap, sweepExpired } = require("../boundedCache");
-const { TIMEOUT_MS, pointInUSBox, normalizeSeverity, severityToTier, isWatchEvent, capWatchSeverity, dedupeConsecutiveParagraphs, KM_PER_DEG_LAT, kmPerDegLon } = require("./_shared");
+const { TIMEOUT_MS, pointInUSBox, normalizeSeverity, severityToTier, isWatchEvent, capWatchSeverity, isTestStatus, dedupeConsecutiveParagraphs, KM_PER_DEG_LAT, kmPerDegLon } = require("./_shared");
 const { getZoneGeometry, mergeAsMultiPolygon } = require("./nwsZones");
 
 const SERVICE_NAME = "NWS (severe weather alerts)";
@@ -59,6 +59,12 @@ function normalize(feature) {
   const severity = capWatchSeverity(normalizeSeverity(p.severity), isWatchEvent(p.event));
   return {
     source: "NWS",
+    // CAP status !== "Actual" → a Test / Exercise / System / Draft message on
+    // the live feed (e.g. the monthly National Tsunami Warning Center test).
+    // Default-hidden everywhere by the orchestrator; revealed only via the
+    // maintainer's localhost-only "Show test alerts" toggle. Purely additive —
+    // ECCC has no CAP status so its alerts never carry this (absent ⇒ falsy).
+    isTest: isTestStatus(p.status),
     id: feature.id || p.id || null,
     severity,
     tier: severityToTier(severity),
@@ -107,12 +113,19 @@ function normalize(feature) {
  *
  * @param {Number} lat
  * @param {Number} lon
+ * @param {Object} [opts]
+ * @param {Boolean} [opts.showTest] when true, test/exercise alerts get their
+ *   zone geometry resolved like any other alert (the maintainer is revealing
+ *   them). When false (default) a test alert's geometry is NOT fetched — it's
+ *   about to be dropped by the orchestrator, so resolving its hundreds of
+ *   zones would be a pure-waste fan-out. Cached separately per showTest so the
+ *   two variants (with / without test geometry) don't clobber each other.
  * @returns {Promise<Array<Object>|null>}
  */
-async function tryAlerts(lat, lon) {
+async function tryAlerts(lat, lon, { showTest = false } = {}) {
   if (!pointInUSBox(lat, lon)) return [];
 
-  const key = cacheKey(lat, lon);
+  const key = `${cacheKey(lat, lon)}${showTest ? "|t" : ""}`;
   const cached = cache.get(key);
   if (cached && Date.now() < cached.expiresAt) {
     return cached.alerts;
@@ -159,7 +172,7 @@ async function tryAlerts(lat, lon) {
   // Resolve zone-only alerts (no inline polygon) to polygons via their
   // affectedZones so the "Voir sur la carte" button works for them too.
   // See enrichGeometries for the full rationale + failure handling.
-  await enrichGeometries(pairs);
+  await enrichGeometries(pairs, showTest);
 
   const alerts = pairs.map((p) => p.alert);
   cache.set(key, { alerts, expiresAt: Date.now() + CACHE_TTL_MS });
@@ -167,6 +180,32 @@ async function tryAlerts(lat, lon) {
   recordServiceCall(SERVICE_NAME, 200, `${alerts.length} alert(s) at ${key} (${withGeom} with geometry)`);
   increment("nws", "alerts");
   return alerts;
+}
+
+// Cap concurrent zone-geometry fetches. A many-zone alert (the live NWS
+// National Tsunami Warning Center test spans 437 marine/coastal zones) would
+// otherwise open one socket per zone to api.weather.gov in a single burst.
+// All zones are still fetched and drawn — just this many at a time.
+const MAX_ZONE_CONCURRENCY = 10;
+
+/**
+ * Resolve `items` through `fn` in sequential batches of at most `limit`
+ * concurrent calls. Order-preserving. A tiny dependency-free concurrency pool
+ * (no p-limit) — consistent with the deliberate zero-extra-deps stance.
+ *
+ * @param {Array<*>} items
+ * @param {Number} limit max concurrent calls per batch
+ * @param {(item: *) => Promise<*>} fn
+ * @returns {Promise<Array<*>>} results in input order
+ */
+async function mapInBatches(items, limit, fn) {
+  const out = [];
+  for (let i = 0; i < items.length; i += limit) {
+    const batch = items.slice(i, i + limit);
+    // eslint-disable-next-line no-await-in-loop -- intentional: bounds concurrency to one batch at a time
+    out.push(...await Promise.all(batch.map(fn)));
+  }
+  return out;
 }
 
 /**
@@ -185,14 +224,23 @@ async function tryAlerts(lat, lon) {
  * @param {Array<{alert: Object, feature: Object}>} pairs
  * @returns {Promise<void>} mutates each pair's `alert.geometry` in place
  */
-async function enrichGeometries(pairs) {
+async function enrichGeometries(pairs, showTest = false) {
   try {
     await Promise.all(pairs.map(async ({ alert, feature }) => {
       if (alert.geometry) return;
+      // Lazy: a test/exercise alert that's about to be hidden (showTest off)
+      // gets NO geometry fetch — otherwise a single one (the 437-zone NTWC
+      // tsunami test) would open hundreds of sockets to api.weather.gov for an
+      // alert the orchestrator immediately drops. When revealed, it enriches
+      // like any other alert.
+      if (alert.isTest && !showTest) return;
       const zoneUrls = feature?.properties?.affectedZones;
       if (!Array.isArray(zoneUrls) || zoneUrls.length === 0) return;
-      const geometries = await Promise.all(
-        zoneUrls.map((url) => getZoneGeometry(url).catch(() => null)),
+      // Bounded concurrency (not all-at-once): a many-zone alert still resolves
+      // ALL its zones, just MAX_ZONE_CONCURRENCY at a time, so we never fire
+      // hundreds of simultaneous requests. Each zone is cached 24 h downstream.
+      const geometries = await mapInBatches(
+        zoneUrls, MAX_ZONE_CONCURRENCY, (url) => getZoneGeometry(url).catch(() => null),
       );
       const merged = mergeAsMultiPolygon(geometries);
       if (merged) alert.geometry = merged;
@@ -308,10 +356,14 @@ async function resolveStatesForCircle(lat, lon, radiusKm) {
  * other states + ECCC rather than blanking everything.
  *
  * @param {String} area 2-letter state / marine code
+ * @param {Object} [opts]
+ * @param {Boolean} [opts.showTest] resolve test-alert geometry too (see
+ *   tryAlerts). Cached separately per showTest.
  * @returns {Promise<Array<Object>>}
  */
-async function fetchAlertsForArea(area) {
-  const cached = areaCache.get(area);
+async function fetchAlertsForArea(area, { showTest = false } = {}) {
+  const cacheK = `${area}${showTest ? "|t" : ""}`;
+  const cached = areaCache.get(cacheK);
   if (cached && Date.now() < cached.expiresAt) return cached.alerts;
 
   let resp;
@@ -331,9 +383,9 @@ async function fetchAlertsForArea(area) {
     const n = normalize(f);
     if (n) pairs.push({ alert: n, feature: f });
   }
-  await enrichGeometries(pairs);
+  await enrichGeometries(pairs, showTest);
   const alerts = pairs.map((p) => p.alert);
-  areaCache.set(area, { alerts, expiresAt: Date.now() + CACHE_TTL_MS });
+  areaCache.set(cacheK, { alerts, expiresAt: Date.now() + CACHE_TTL_MS });
   const withGeom = alerts.filter((a) => a.geometry).length;
   recordServiceCall(SERVICE_NAME, 200, `${alerts.length} alert(s) in ${area} (${withGeom} with geometry)`);
   increment("nws", "alerts");
@@ -345,6 +397,7 @@ module.exports = {
   SERVICE_NAME,
   resolveStatesForCircle,
   fetchAlertsForArea,
-  // Internal helpers exposed for unit tests (see test/nearbyAlerts.test.js).
-  __test: { circleBboxCorners },
+  // Internal helpers exposed for unit tests (circleBboxCorners →
+  // test/nearbyAlerts.test.js; normalize + mapInBatches → test/nwsTestStatus.test.js).
+  __test: { circleBboxCorners, normalize, mapInBatches },
 };

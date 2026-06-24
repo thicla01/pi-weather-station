@@ -79,6 +79,14 @@ const SECTION_ICONS = {
   section: documentIcon,
 };
 
+// NWS test/exercise products carry literal banner lines like "THIS IS A TEST"
+// or "...THIS MESSAGE IS FOR TEST PURPOSES ONLY..." as a heading-less lead with
+// no body. The lead→body promotion in SectionBlock would otherwise echo such a
+// line twice (once as the localized heading row, once as the body). Don't
+// promote a recognised test marker. Only reachable when test alerts are
+// revealed via the localhost-only "Show test alerts" toggle.
+const TEST_MARKER_RE = /\bTEST\b|EXERCISE|SYSTEM MESSAGE/i;
+
 /**
  * Direction C variant of the collapsible government-alert detail
  * section.
@@ -356,7 +364,7 @@ export const SectionBlock = ({ section, t }) => {
   //     ("Possible impacts" / "POTENTIAL IMPACTS") would read as a
   //     duplicate.
   let body = section.detail || "";
-  if (!body && section.lead && /[a-z]/.test(section.lead)) {
+  if (!body && section.lead && /[a-z]/.test(section.lead) && !TEST_MARKER_RE.test(section.lead)) {
     body = section.lead;
   }
   // Nothing renderable (no heading, no body) → drop the section.

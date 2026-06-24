@@ -161,6 +161,30 @@ function capWatchSeverity(severity, isWatch) {
   return severity;
 }
 
+// CAP <status> values: Actual | Exercise | System | Test | Draft. Only
+// "Actual" is a real, public-facing alert; the others are test / exercise /
+// internal-system / draft messages disseminated on the SAME live feed — e.g.
+// the National Tsunami Warning Center's periodic "Test Tsunami Warning" that
+// covers the whole US + Canadian coast at CAP severity Extreme. Left unfiltered
+// these render as a real red alert (banner, map polygon, SenseHat). The gate
+// lives at the orchestrator (see govAlertsCtrl) so every consumer is covered;
+// this helper just classifies the status. Source-agnostic so any future CAP
+// source can tag the same way — ECCC's feed carries no status field, so its
+// alerts are always treated as live.
+const CAP_STATUS_ACTUAL = "Actual";
+
+/**
+ * Whether a CAP `status` denotes a non-live message (Test / Exercise / System /
+ * Draft) rather than a real "Actual" alert. A missing / empty status is treated
+ * as live (not a test).
+ *
+ * @param {?String} status CAP <status> value
+ * @returns {Boolean} true when the alert is anything but a live "Actual" alert
+ */
+function isTestStatus(status) {
+  return Boolean(status) && status !== CAP_STATUS_ACTUAL;
+}
+
 /**
  * Capitalize the first letter of a string. Some upstreams (notably
  * ECCC's `alert_name_en` / `alert_name_fr`) emit titles in all
@@ -344,6 +368,8 @@ module.exports = {
   severityToTier,
   isWatchEvent,
   capWatchSeverity,
+  isTestStatus,
+  CAP_STATUS_ACTUAL,
   capitalizeFirst,
   dedupeConsecutiveParagraphs,
   circleIntersectsPolygon,

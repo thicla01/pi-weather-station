@@ -114,6 +114,7 @@ const MARKER_VISIBLE_STORAGE_KEY = "markerIsVisible";
 const AI_USER_VISIBLE_STORAGE_KEY = "aiSummaryUserVisible";
 const MOUSE_HIDE_STORAGE_KEY = "mouseHide";
 const SHOW_ADVISORY_ALERTS_STORAGE_KEY = "showAdvisoryAlerts";
+const SHOW_TEST_ALERTS_STORAGE_KEY = "showTestAlerts";
 const AUTO_SELECT_TAB_STORAGE_KEY = "autoSelectTab";
 const SHOW_ALERT_RING_STORAGE_KEY = "showAlertRing";
 const HIDE_RADAR_LEGEND_STORAGE_KEY = "hideRadarLegend";
@@ -706,6 +707,11 @@ export function AppContextProvider({ children }) {
   // alerts. Off by default; persisted to localStorage like mouseHide.
   // Threaded into selectEligibleGovAlerts via useEligibleGovAlerts.
   const [showAdvisoryAlerts, setShowAdvisoryAlerts] = useState(false);
+  // Per-device, localhost-only opt-in to reveal NWS test/exercise alerts (CAP
+  // status !== "Actual"). Off by default; persisted to localStorage. When on,
+  // the alerts fetches append `showTest=1` — but the server only honors it for
+  // local requests, so a remote client neither sees the toggle nor the data.
+  const [showTestAlerts, setShowTestAlerts] = useState(false);
   // Per-device opt-in to auto-select the forecast chart's metric tab from
   // active hazards (gov alerts / forecast). Off by default (LLD §7);
   // persisted to localStorage like showAdvisoryAlerts. Consumed by
@@ -793,6 +799,25 @@ export function AppContextProvider({ children }) {
     }
     setShowAdvisoryAlerts(newState);
     window.localStorage.setItem(SHOW_ADVISORY_ALERTS_STORAGE_KEY, newState);
+  }, []);
+
+  /**
+   * Save the per-device "show test alerts" opt-in (localhost-only feature).
+   * Mirrors saveShowAdvisoryAlerts (JSON-encoded boolean from the Settings
+   * toggle via saveBoolFlag).
+   *
+   * @param {String} newVal JSON-encoded boolean ("true" / "false")
+   */
+  const saveShowTestAlerts = useCallback((newVal) => {
+    let newState;
+    try {
+      newState = JSON.parse(newVal);
+    } catch (e) {
+      console.log("saveShowTestAlerts", e);
+      return;
+    }
+    setShowTestAlerts(newState);
+    window.localStorage.setItem(SHOW_TEST_ALERTS_STORAGE_KEY, newState);
   }, []);
 
   /**
@@ -995,6 +1020,16 @@ export function AppContextProvider({ children }) {
       console.log("showAdvisoryAlerts", e);
     }
     setShowAdvisoryAlerts(!!showAdvisoryAlerts);
+
+    let showTestAlerts;
+    try {
+      showTestAlerts = JSON.parse(
+        window.localStorage.getItem(SHOW_TEST_ALERTS_STORAGE_KEY)
+      );
+    } catch (e) {
+      console.log("showTestAlerts", e);
+    }
+    setShowTestAlerts(!!showTestAlerts);
 
     let autoSelectTab;
     try {
@@ -1972,9 +2007,12 @@ export function AppContextProvider({ children }) {
     // the fresh alerts with the old location's — visible for up to a
     // full poll interval after a map pan.
     let cancelled = false;
+    // `showTest=1` is honored only for localhost requests (server-side
+    // req.isLocal); a remote client sending it gets it ignored.
+    const testParam = showTestAlerts ? "&showTest=1" : "";
     const fetchAlerts = () => {
       axios
-        .get(`/api/weather-alerts?lat=${mapGeo.latitude}&lon=${mapGeo.longitude}`)
+        .get(`/api/weather-alerts?lat=${mapGeo.latitude}&lon=${mapGeo.longitude}${testParam}`)
         .then((res) => {
           if (!cancelled) setGovAlerts(Array.isArray(res.data?.alerts) ? res.data.alerts : []);
         })
@@ -1983,7 +2021,7 @@ export function AppContextProvider({ children }) {
     fetchAlerts();
     const interval = setInterval(fetchAlerts, GOV_ALERTS_INTERVAL);
     return () => { cancelled = true; clearInterval(interval); };
-  }, [mapGeo]);
+  }, [mapGeo, showTestAlerts]);
 
   // Nearby-alerts radius survey (display-only overlay). Only polls while
   // the layer is toggled ON; clears immediately when it's off so the map
@@ -2001,9 +2039,11 @@ export function AppContextProvider({ children }) {
     // one that lands after the toggle just cleared the state above)
     // must not repopulate the overlay with stale polygons.
     let cancelled = false;
+    // Same localhost-only opt-in as the point alerts above.
+    const testParam = showTestAlerts ? "&showTest=1" : "";
     const fetchNearby = () => {
       axios
-        .get(`/api/nearby-alerts?lat=${mapGeo.latitude}&lon=${mapGeo.longitude}&radiusKm=${alertRadiusKm}`)
+        .get(`/api/nearby-alerts?lat=${mapGeo.latitude}&lon=${mapGeo.longitude}&radiusKm=${alertRadiusKm}${testParam}`)
         .then((res) => {
           if (cancelled) return;
           setNearbyAlerts(Array.isArray(res.data?.alerts) ? res.data.alerts : []);
@@ -2014,7 +2054,7 @@ export function AppContextProvider({ children }) {
     fetchNearby();
     const interval = setInterval(fetchNearby, NEARBY_ALERTS_INTERVAL);
     return () => { cancelled = true; clearInterval(interval); };
-  }, [showWeatherAlerts, mapGeo, alertRadiusKm]);
+  }, [showWeatherAlerts, mapGeo, alertRadiusKm, showTestAlerts]);
 
   // Periodic weather data refresh. Previously this lived in the v2
   // WeatherInfo component, but v3 layouts (LayoutLarge / LayoutMedium)
@@ -2233,6 +2273,7 @@ export function AppContextProvider({ children }) {
     updateHourlyWeatherData,
     saveMouseHide,
     saveShowAdvisoryAlerts,
+    saveShowTestAlerts,
     saveAutoSelectTab,
     saveShowAlertRing,
     saveHideRadarLegend,
@@ -2325,6 +2366,7 @@ export function AppContextProvider({ children }) {
     updateHourlyWeatherData,
     saveMouseHide,
     saveShowAdvisoryAlerts,
+    saveShowTestAlerts,
     saveAutoSelectTab,
     saveShowAlertRing,
     saveHideRadarLegend,
@@ -2505,6 +2547,7 @@ export function AppContextProvider({ children }) {
     radarSpeed,
     radarTimelineVisible,
     showAdvisoryAlerts,
+    showTestAlerts,
     autoSelectTab,
   }), [
     darkMode,
@@ -2537,6 +2580,7 @@ export function AppContextProvider({ children }) {
     radarSpeed,
     radarTimelineVisible,
     showAdvisoryAlerts,
+    showTestAlerts,
     autoSelectTab,
   ]);
 

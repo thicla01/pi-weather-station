@@ -411,13 +411,15 @@ Sources:
 The two sources run in parallel — each is cached, so the cost is negligible even at the US/Canada border where both fire. Failures are isolated: one source erroring out doesn't blank the other. The endpoint always returns 200 with an `alerts` array (possibly empty); the client never has to handle "out of coverage" specially.
 
 - **Access:** 🌐 Public — rate limited (120 req/min)
-- **Caching:** Per-source server cache 5 min. Response sets `Cache-Control: public, max-age=300` so a remote client polling at the recommended 10 min cadence sees consistent results.
+- **Caching:** Per-source server cache 5 min. Response sets `Cache-Control: public, max-age=300` so a remote client polling at the recommended 10 min cadence sees consistent results. When `showTest=1` is honored the response is `Cache-Control: private, max-age=0, no-store` instead, since the body then varies on locality and must not be shared by a cache or a same-host proxy.
+- **Test/exercise alerts:** NWS disseminates Test/Exercise/System/Draft messages on the live feed (CAP `status` ≠ `Actual`); they are tagged `isTest` and **hidden by default**. Pass `showTest=1` to include them — but it is honored **only for localhost requests** (`req.isLocal`, the socket peer; never `req.ip`/XFF). A remote client passing `showTest=1` gets it ignored. Used by the maintainer's localhost-only "Show test alerts" toggle.
 - **Query params:**
 
 | Parameter | Type | Required | Description |
 |---|---|:---:|---|
 | `lat` | float | ✅ | Latitude |
 | `lon` | float | ✅ | Longitude |
+| `showTest` | `"1"` | | Include test/exercise alerts (`isTest`). **Localhost only** — ignored for remote requests. |
 
 - **Response:**
 
@@ -444,6 +446,7 @@ The two sources run in parallel — each is cached, so the cost is negligible ev
 | Field | Type | Description |
 |---|---|---|
 | `source` | string | `NWS` \| `ECCC` — drives the badge label on the banner |
+| `isTest` | boolean | NWS only. `true` when CAP `status` ≠ `Actual` (Test/Exercise/System/Draft). Present in the payload only when `showTest=1` was honored (localhost); the client renders a neutral `TEST` badge + "TEST ·" title prefix for these. |
 | `id` | string\|null | Upstream alert identifier; useful for de-duplication if more sources are added later |
 | `severity` | string | `minor` \| `moderate` \| `severe` \| `extreme` — normalised from the source's CAP severity (or ECCC's `impact_*` field). **Watches are capped at `moderate`** (a CAP-`Severe` Flood/Tornado Watch is downgraded) so a watch never paints red like a warning; non-watch alerts pass through unchanged. |
 | `tier` | string | `yellow` \| `orange` \| `red` — pre-mapped colour tier matching the radar-derived banner so the client doesn't need to know severity vocabulary |
@@ -472,7 +475,8 @@ How it differs from `/api/weather-alerts`:
 - **Unmappable alerts** — a rare alert with no resolvable polygon can't be circle-tested or drawn, so it is omitted from `alerts` and only counted in `residualCount` (the client's "+N not mapped" note).
 
 - **Access:** 🌐 Public — rate limited (120 req/min), plus a **per-peer concurrency cap of 3 in-flight requests** (remote clients only; local kiosk exempt). One request fans out up to ~5 outbound NWS `/points` calls, so the cap bounds the instantaneous outbound amplification one remote client can drive; a remote peer exceeding it gets HTTP 429 (`reason: "nearby-alerts-busy"`).
-- **Caching:** Per-state NWS cache 5 min, ECCC feed cache 5 min, point→state cache 24 h. Response sets `Cache-Control: public, max-age=300`.
+- **Caching:** Per-state NWS cache 5 min, ECCC feed cache 5 min, point→state cache 24 h. Response sets `Cache-Control: public, max-age=300` (or `private, max-age=0, no-store` when `showTest=1` is honored).
+- **Test/exercise alerts:** same gate as `/api/weather-alerts` — `isTest` polygons are hidden by default and revealed only when `showTest=1` is passed **from localhost** (`req.isLocal`). This is what prevents a test alert's coast-wide polygon from painting on the map overlay for a remote viewer.
 - **Query params:**
 
 | Parameter | Type | Required | Description |
@@ -480,6 +484,7 @@ How it differs from `/api/weather-alerts`:
 | `lat` | float | ✅ | Latitude |
 | `lon` | float | ✅ | Longitude |
 | `radiusKm` | float | — | Survey radius. Defaults to 50; clamped to the supported 10–100 km range. |
+| `showTest` | `"1"` | | Include test/exercise alert polygons (`isTest`). **Localhost only** — ignored for remote requests. |
 
 - **Response:**
 
