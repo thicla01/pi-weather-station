@@ -47,6 +47,23 @@ function sortBySeverity(alerts) {
 }
 
 /**
+ * Default-hide test/exercise alerts (CAP status !== "Actual", tagged `isTest`
+ * by the source). This is the single gate every consumer shares — it lives at
+ * the orchestrator, NOT at an HTTP endpoint, because `getActiveAlertsAt` also
+ * feeds the Sense HAT (no `req`) and `getNearbyAlertsAt` feeds the map-overlay
+ * endpoint. Gating only `GET /api/weather-alerts` would still surface a test
+ * alert on the LED matrix and as a coast-wide map polygon. `showTest` is the
+ * maintainer's localhost-only opt-in (see the endpoint handlers).
+ *
+ * @param {Array<Object>} alerts
+ * @param {Boolean} showTest when true, test alerts pass through
+ * @returns {Array<Object>}
+ */
+function filterTestAlerts(alerts, showTest) {
+  return showTest ? alerts : alerts.filter((a) => !a?.isTest);
+}
+
+/**
  * Merge every regional source's normalised alerts at the given
  * point and return them sorted by severity. Exposed as a reusable
  * helper so other controllers (notably `sensehatCtrl` for the LED
@@ -57,14 +74,18 @@ function sortBySeverity(alerts) {
  *
  * @param {Number} lat
  * @param {Number} lon
+ * @param {Object} [opts]
+ * @param {Boolean} [opts.showTest] include test/exercise alerts (default false
+ *   → hidden). Only the localhost-gated endpoint ever passes true; the Sense
+ *   HAT caller omits it, so test alerts never reach the LED matrix.
  * @returns {Promise<Array<Object>>} Sorted alerts, possibly empty.
  */
-async function getActiveAlertsAt(lat, lon) {
+async function getActiveAlertsAt(lat, lon, { showTest = false } = {}) {
   const results = await Promise.all(
-    Object.values(sources).map((src) => src.tryAlerts(lat, lon).catch(() => null))
+    Object.values(sources).map((src) => src.tryAlerts(lat, lon, { showTest }).catch(() => null))
   );
   const merged = results.filter(Array.isArray).flat();
-  return sortBySeverity(merged);
+  return filterTestAlerts(sortBySeverity(merged), showTest);
 }
 
 /**
@@ -86,12 +107,20 @@ async function getWeatherAlerts(req, res) {
     return res.status(400).json("Invalid coordinates").end();
   }
 
-  const sorted = await getActiveAlertsAt(lat, lon);
+  // Two-factor opt-in for test/exercise alerts: locality (the unspoofable
+  // socket-peer `req.isLocal`, set in index.js — NOT req.ip) closes remote
+  // clients out by construction; the explicit `showTest=1` keeps the kiosk
+  // (itself localhost) clean until the maintainer flips its per-device toggle.
+  // A forged `?showTest=1` from a remote client is inert (isLocal false).
+  const showTest = req.isLocal && req.query.showTest === "1";
+  const sorted = await getActiveAlertsAt(lat, lon, { showTest });
 
-  // 5 min HTTP cache aligns with the per-source server cache so a
-  // remote client polling at the recommended 10 min cadence sees
-  // consistent results without hammering the upstream feeds.
-  res.set("Cache-Control", "public, max-age=300");
+  // Default: 5 min HTTP cache aligned with the per-source server cache so a
+  // remote client polling at the recommended 10 min cadence sees consistent
+  // results without hammering the upstream feeds. When test alerts are revealed
+  // the body varies on locality, so it must NOT be shared by a cache (or a
+  // future same-host proxy — see CLAUDE.md's reverse-proxy caveat).
+  res.set("Cache-Control", showTest ? "private, max-age=0, no-store" : "public, max-age=300");
   return res.status(200).json({ alerts: sorted }).end();
 }
 
@@ -111,9 +140,13 @@ async function getWeatherAlerts(req, res) {
  * @param {Number} lat
  * @param {Number} lon
  * @param {Number} radiusKm
+ * @param {Object} [opts]
+ * @param {Boolean} [opts.showTest] include test/exercise alerts (default false).
+ *   This path draws the map-overlay polygons — without this gate a test alert's
+ *   coast-wide geometry would paint even for remote viewers.
  * @returns {Promise<{alerts: Array<Object>, residualCount: Number}>}
  */
-async function getNearbyAlertsAt(lat, lon, radiusKm) {
+async function getNearbyAlertsAt(lat, lon, radiusKm, { showTest = false } = {}) {
   const collected = [];
 
   // US — fetch by the state(s) the circle's bbox corners land in.
@@ -125,7 +158,7 @@ async function getNearbyAlertsAt(lat, lon, radiusKm) {
   }
   if (states.length) {
     const perState = await Promise.all(
-      states.map((s) => sources.nws.fetchAlertsForArea(s).catch(() => [])),
+      states.map((s) => sources.nws.fetchAlertsForArea(s, { showTest }).catch(() => [])),
     );
     for (const arr of perState) if (Array.isArray(arr)) collected.push(...arr);
   }
@@ -146,7 +179,7 @@ async function getNearbyAlertsAt(lat, lon, radiusKm) {
     const k = a.id || `${a.source}|${a.eventType}|${a.areaDesc}|${a.expiresAt}`;
     if (!byId.has(k)) byId.set(k, a);
   }
-  const unique = [...byId.values()];
+  const unique = filterTestAlerts([...byId.values()], showTest);
 
   const mappable = unique.filter((a) => a.geometry);
   const residualCount = unique.length - mappable.length;
@@ -179,10 +212,16 @@ async function getNearbyAlerts(req, res) {
   if (isNaN(radiusKm)) radiusKm = NEARBY_DEFAULT_RADIUS_KM;
   radiusKm = Math.max(NEARBY_MIN_RADIUS_KM, Math.min(NEARBY_MAX_RADIUS_KM, radiusKm));
 
-  const result = await getNearbyAlertsAt(lat, lon, radiusKm);
+  // Same localhost-only opt-in as getWeatherAlerts (see that handler).
+  const showTest = req.isLocal && req.query.showTest === "1";
+  const result = await getNearbyAlertsAt(lat, lon, radiusKm, { showTest });
 
-  res.set("Cache-Control", "public, max-age=300");
+  res.set("Cache-Control", showTest ? "private, max-age=0, no-store" : "public, max-age=300");
   return res.status(200).json({ ...result, radiusKm }).end();
 }
 
-module.exports = { getWeatherAlerts, getActiveAlertsAt, getNearbyAlerts, getNearbyAlertsAt };
+module.exports = {
+  getWeatherAlerts, getActiveAlertsAt, getNearbyAlerts, getNearbyAlertsAt,
+  // Internal helpers exposed for unit tests (see test/alertTestStrip.test.js).
+  __test: { filterTestAlerts, sortBySeverity },
+};

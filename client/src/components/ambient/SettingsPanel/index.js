@@ -248,8 +248,13 @@ const SectionLocalPrefs = ({ ctx, lang }) => {
     pressureUnit, savePressureUnit,
     mouseHide, saveMouseHide,
     showAdvisoryAlerts, saveShowAdvisoryAlerts,
+    showTestAlerts, saveShowTestAlerts,
     autoSelectTab, saveAutoSelectTab,
     showAlertRing, saveShowAlertRing,
+    // Locality gate for the localhost-only "Show test alerts" row. This
+    // section renders for remote clients too, so the row is wrapped in
+    // {isLocal} to keep it (and the feature) invisible to them.
+    isLocal,
   } = ctx;
 
   // The MouseHide / HideRadarLegend save helpers take a JSON-encoded
@@ -395,6 +400,29 @@ const SectionLocalPrefs = ({ ctx, lang }) => {
           onChange={saveBoolFlag(saveShowAdvisoryAlerts)}
         />
       </div>
+
+      {/* Test-alert opt-in — LOCALHOST ONLY (gated on isLocal so a remote
+        * client never sees this row). NWS disseminates Test / Exercise
+        * messages (e.g. the monthly National Tsunami Warning Center test) on
+        * the live feed at real CAP severity; they're hidden by default
+        * EVERYWHERE (banner, map overlay, Sense HAT) and never sent to remote
+        * viewers. This R&D toggle reveals them on THIS device (per-device
+        * localStorage) with a neutral TEST badge. The server independently
+        * ignores the showTest param for non-local requests, so the gate holds
+        * even if the row were somehow shown. */}
+      {isLocal && (
+        <div className={styles.toggleRow}>
+          <Toggle
+            label={lbl(lang, "Show test alerts", "Afficher les alertes de test", "Mostrar alertas de prueba")}
+            sub={lbl(lang,
+              "Reveal NWS test/exercise alerts (non-Actual status) on this device. Maintainer / R&D — hidden by default, never sent to remote viewers.",
+              "Affiche les alertes de test/exercice NWS (statut non « Actual ») sur cet appareil. Mainteneur / R&D — masquées par défaut, jamais envoyées aux clients distants.",
+              "Muestra las alertas de prueba/ejercicio de NWS (estado no « Actual ») en este dispositivo. Mantenedor / I+D — ocultas por defecto, nunca enviadas a clientes remotos.")}
+            value={Boolean(showTestAlerts)}
+            onChange={saveBoolFlag(saveShowTestAlerts)}
+          />
+        </div>
+      )}
 
       {/* Alert-radius-ring toggle (per-device, localStorage). On by
         * default so the existing "polygons + ring" look is preserved.

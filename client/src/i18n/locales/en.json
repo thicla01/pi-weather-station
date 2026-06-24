@@ -383,6 +383,7 @@
     "activeAlertsCount_one": "{{current}} / {{count}} active alert",
     "activeAlertsCount_other": "{{current}} / {{count}} active alerts",
     "activeAlertsCountShort": "{{current}} / {{count}}",
+    "testTag": "TEST",
     "view": {
       "openRow": "Open alert detail",
       "back": "Back to overview",

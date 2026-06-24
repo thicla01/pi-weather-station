@@ -20,14 +20,19 @@ import styles from "./styles.css";
  * @param {object} props
  * @param {string} props.source — short authority key ("RADAR", "ECCC",
  *   "NWS", "MELCC", "AIRNOW", "OPENAQ", etc.). Rendered as-is.
+ * @param {string} [props.variant] — optional style variant. "test" renders a
+ *   neutral OUTLINED pill (never coloured) for the "TEST" qualifier appended
+ *   beside the source badge when a non-Actual NWS alert is revealed via the
+ *   localhost-only "Show test alerts" toggle. Omit for the standard fill.
  * @returns {JSX.Element} pill element
  */
-const SourceBadge = ({ source }) => (
-  <span className={styles.badge}>{source}</span>
+const SourceBadge = ({ source, variant = null }) => (
+  <span className={`${styles.badge}${variant ? ` ${styles[variant]}` : ""}`}>{source}</span>
 );
 
 SourceBadge.propTypes = {
   source: PropTypes.string.isRequired,
+  variant: PropTypes.string,
 };
 
 export default SourceBadge;
