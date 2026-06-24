@@ -176,6 +176,14 @@ const CURRENT_FIELDS = [
   // current entry on the fleet — one fresh fetch per Pi, no extra
   // request volume (the field travels in the same call).
   "pressureSurfaceLevel",
+  // v3.2+ — the current-conditions Gust tile (MetricsGrid 2×2) reads
+  // windGust from THIS timestep. It was never requested here, so the
+  // tile rendered a permanent "—" while the Vent chart (HOURLY_FIELDS,
+  // which does request windGust) showed gusts — a confusing mismatch.
+  // Bumps CURRENT_FIELDS_HASH, orphaning cached current entries on the
+  // fleet (one fresh fetch per Pi, no extra request volume — the field
+  // travels in the same call).
+  "windGust",
 ];
 const HOURLY_FIELDS = [
   "temperature", "precipitationProbability", "precipitationIntensity", "windSpeed",
