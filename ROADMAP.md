@@ -47,6 +47,11 @@ Ship order: Vent alone is worth a small PR; Humidité rides along; Pression just
 
 ---
 
+### 🔁 Display-scale "Relaunch kiosk" button (Phase 2 of the display-scale UI)
+Follow-up to the display-scale override feature (`docs/display-scale-override-design.md`, Phase 1 shipped). Setting the scale from Settings writes `DISPLAY_SCALE` to `browser.conf`, but it only takes effect on the next kiosk relaunch — Phase 1 just shows a "takes effect on relaunch" note and the user reboots. A `localhostOnly` "Relaunch kiosk" action would close the loop. **Not** `systemctl --user restart pi-weather-server` (that bounces the server, not the browser) and not necessarily `sudo reboot`; the right primitive is the user-level relaunch recipe (`pkill start-server` → kill the browser → clear Chromium Singleton locks → `setsid` relaunch, with `WAYLAND_DISPLAY`/`XDG_RUNTIME_DIR`). Its own mini-design: the systemd-user service env likely lacks `WAYLAND_DISPLAY` (discover it like `detect-display-scale.sh`), it must detach the relaunch (it's killing the browser it serves), and kill patterns differ Chromium vs Firefox. Deferred until a real need appears.
+
+---
+
 ## Medium term — high impact, moderate complexity
 
 These items require new logic or UI work but remain well within the scope of the project.

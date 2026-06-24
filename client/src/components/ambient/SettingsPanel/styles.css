@@ -983,6 +983,18 @@
   align-items: start;
 }
 
+/* Full-width helper under the display-scale Seg — a grid cell that spans
+ * every column (so it sits on its own line below the segmented picker).
+ * Explains what the control corrects + that it applies on the next kiosk
+ * relaunch. Muted/small, matching other field helper text. */
+.scaleHint {
+  grid-column: 1 / -1;
+  margin-top: -2px;
+  font-size: 0.72rem;
+  line-height: 1.35;
+  opacity: 0.62;
+}
+
 /* These AI-radar toggles each carry a multi-line sub-text, so a 2-col split
  * is only legible when the panel is genuinely wide. At the 7" kiosk (800 px
  * viewport) the 2-col cells left the sub-text only ~150 px → word-per-line

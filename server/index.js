@@ -46,6 +46,7 @@ const geolocationCtrl = require("./geolocationCtrl");
 const proxyCtrl = require("./proxyCtrl");
 const debugCtrl = require("./debugCtrl");
 const { getBrightness, setBrightness } = require("./brightnessCtrl");
+const { getDisplayScale, setDisplayScale } = require("./displayScaleCtrl");
 const aiSummaryCtrl = require("./aiSummaryCtrl");
 const { getSenseHatData } = require("./sensehatCtrl");
 const { postKioskLocation } = require("./kioskLocationCtrl");
@@ -1034,6 +1035,16 @@ app.post("/api/debug/radar-compression-report", debugLocalhostOnly, (req, res) =
 // spammed to block the event loop. The write stays localhost-only.
 app.get("/api/brightness", apiLimiter, getBrightness);
 app.post("/api/brightness", localhostOnly, setBrightness);
+
+// Kiosk display-scale override — read open (the client needs to know whether
+// to render the control + what Auto resolves to), write localhost-only. Like
+// brightness, this tunes the Pi's PHYSICAL kiosk screen (it manages the
+// DISPLAY_SCALE line in browser.conf, applied as the browser's
+// --force-device-scale-factor on the next kiosk relaunch), so a remote
+// client has no business changing it. Used to correct the auto-detected
+// scale when a panel's EDID misreports its physical size.
+app.get("/api/display-scale", apiLimiter, getDisplayScale);
+app.post("/api/display-scale", localhostOnly, setDisplayScale);
 
 function shutdown() {
   saveCacheToDisk();
