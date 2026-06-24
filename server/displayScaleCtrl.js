@@ -1,7 +1,7 @@
 const fs = require("fs");
 const os = require("os");
 const path = require("path");
-const { spawnSync } = require("child_process");
+const { spawnSync, spawn } = require("child_process");
 
 // The kiosk launcher config that `start-server` sources. The DISPLAY_SCALE
 // line we manage here is exported by start-server and honoured by
@@ -16,6 +16,13 @@ const BROWSER_CONF = path.join(os.homedir(), ".config", "pi-weather-station", "b
 const DETECT_SCRIPT_CANDIDATES = [
   path.join(os.homedir(), ".local", "bin", "detect-display-scale.sh"),
   path.join(__dirname, "..", "deploy", "detect-display-scale.sh"),
+];
+
+// relaunch-kiosk.sh lookup: repo copy first (it's git-tracked, so a plain
+// `git pull` ships it — no install step), installed location as a fallback.
+const RELAUNCH_SCRIPT_CANDIDATES = [
+  path.join(__dirname, "..", "deploy", "relaunch-kiosk.sh"),
+  path.join(os.homedir(), ".local", "bin", "relaunch-kiosk.sh"),
 ];
 
 // wlr-randr is ~50 ms; 3 s is generous enough to cover a slow xrandr
@@ -159,6 +166,41 @@ function detectAuto() {
 }
 
 /**
+ * Pull the device-scale-factor actually applied to the RUNNING kiosk from a
+ * `ps` listing — the ground truth of what the user currently sees, vs the
+ * `override` in browser.conf (which only takes effect on the next relaunch).
+ * Chromium carries it as `--force-device-scale-factor=X` on the `--kiosk`
+ * process; absent ⇒ "1" (no scaling). Returns null when no Chromium kiosk
+ * is found (Firefox — scale lives in a profile pref, not argv — or headless),
+ * which the client treats as "unknown ⇒ allow relaunch".
+ *
+ * @param {String} psStdout output of `ps -eo args`
+ * @returns {String|null} applied factor ("1.25"), "1" (no flag), or null
+ */
+function parseAppliedFromPs(psStdout) {
+  if (typeof psStdout !== "string") return null;
+  const line = psStdout.split("\n").find((l) => /--kiosk/.test(l) && /chrom/i.test(l));
+  if (!line) return null;
+  const m = line.match(/--force-device-scale-factor=([0-9.]+)/);
+  return m ? m[1] : "1";
+}
+
+/**
+ * Read the scale currently applied to the running kiosk. Never throws.
+ *
+ * @returns {String|null} applied factor, "1", or null if undeterminable
+ */
+function detectApplied() {
+  try {
+    const r = spawnSync("ps", ["-eo", "args"], { encoding: "utf8", timeout: 2_000 });
+    if (r.error) return null;
+    return parseAppliedFromPs(r.stdout || "");
+  } catch {
+    return null;
+  }
+}
+
+/**
  * GET /api/display-scale — current override + what Auto resolves to.
  * `available:false` on non-kiosk installs (no browser.conf — macOS launchd
  * dev box, headless) so the Settings control hides, mirroring brightness.
@@ -176,6 +218,7 @@ function getDisplayScale(req, res) {
     available: true,
     override,
     autoDetected: auto.value,   // null ⇒ effective 1.0
+    applied: detectApplied(),   // scale on the running kiosk ("1.25"/"1"/null)
     ppi: auto.ppi,
     raw: auto.raw,
     choices: SCALE_CHOICES,
@@ -223,16 +266,58 @@ function setDisplayScale(req, res) {
   return res.status(200).json({
     available: true,
     override: normalized,
-    applied: false,
     appliesOnRestart: true,
   }).end();
+}
+
+function findRelaunchScript() {
+  for (const candidate of RELAUNCH_SCRIPT_CANDIDATES) {
+    try {
+      if (fs.existsSync(candidate)) return candidate;
+    } catch {
+      // ignore and try the next candidate
+    }
+  }
+  return null;
+}
+
+/**
+ * POST /api/relaunch-kiosk — relaunch the kiosk browser so a changed
+ * DISPLAY_SCALE takes effect (a launch flag can't change on a live page).
+ * `localhostOnly` at the route. NOT a server restart: the kiosk browser is
+ * a separate process from pi-weather-server. Spawns relaunch-kiosk.sh fully
+ * detached (it kills the very browser this request came from, so it must
+ * outlive it) and returns 200 immediately.
+ *
+ * @param {Object} req Express request
+ * @param {Object} res Express response
+ */
+function relaunchKiosk(req, res) {
+  if (!fs.existsSync(BROWSER_CONF)) {
+    return res.status(503).json({ error: "no-browser-conf" }).end();
+  }
+  const script = findRelaunchScript();
+  if (!script) {
+    return res.status(503).json({ error: "no-relaunch-script" }).end();
+  }
+  try {
+    // bash <script> so the executable bit isn't required; detached + unref so
+    // it survives the server killing the kiosk and this handler returning.
+    const child = spawn("bash", [script], { detached: true, stdio: "ignore" });
+    child.unref();
+  } catch {
+    return res.status(500).json({ error: "spawn-failed" }).end();
+  }
+  return res.status(200).json({ ok: true }).end();
 }
 
 module.exports = {
   getDisplayScale,
   setDisplayScale,
+  relaunchKiosk,
   readOverride: () => parseOverrideLine(readBrowserConf() || ""),
   detectAuto,
+  detectApplied,
   SCALE_CHOICES,
   // Exported for regression testing only — internal helpers, not part of
   // the public surface.
@@ -241,5 +326,6 @@ module.exports = {
     parseDetectDiag,
     validateScale,
     rewriteBrowserConf,
+    parseAppliedFromPs,
   },
 };

@@ -46,7 +46,7 @@ const geolocationCtrl = require("./geolocationCtrl");
 const proxyCtrl = require("./proxyCtrl");
 const debugCtrl = require("./debugCtrl");
 const { getBrightness, setBrightness } = require("./brightnessCtrl");
-const { getDisplayScale, setDisplayScale } = require("./displayScaleCtrl");
+const { getDisplayScale, setDisplayScale, relaunchKiosk } = require("./displayScaleCtrl");
 const aiSummaryCtrl = require("./aiSummaryCtrl");
 const { getSenseHatData } = require("./sensehatCtrl");
 const { postKioskLocation } = require("./kioskLocationCtrl");
@@ -1045,6 +1045,10 @@ app.post("/api/brightness", localhostOnly, setBrightness);
 // scale when a panel's EDID misreports its physical size.
 app.get("/api/display-scale", apiLimiter, getDisplayScale);
 app.post("/api/display-scale", localhostOnly, setDisplayScale);
+// Relaunch the kiosk browser so a changed display scale takes effect (it's a
+// browser launch flag). localhost-only — it cycles the Pi's physical kiosk.
+// NOT a server restart: spawns relaunch-kiosk.sh detached and returns at once.
+app.post("/api/relaunch-kiosk", localhostOnly, relaunchKiosk);
 
 function shutdown() {
   saveCacheToDisk();

@@ -34,7 +34,7 @@ pi-weather-station/
 │   ├── sensehatModeCtrl.js # Sense HAT mode/availability/LED-brightness endpoints — switches pi-sensehat ↔ pi-sensehat-clock units
 │   ├── kioskLocationCtrl.js # In-memory cache of the kiosk's currently-viewed map coords (consumed by /api/sensehat)
 │   ├── brightnessCtrl.js # GET/POST /api/brightness — screen brightness via sysfs backlight (Pi) or DDC/CI (monitors)
-│   ├── displayScaleCtrl.js # GET/POST /api/display-scale — kiosk device-scale override (manages the DISPLAY_SCALE line in browser.conf; corrects a lying-EDID panel's auto-scale; applies on kiosk relaunch)
+│   ├── displayScaleCtrl.js # GET/POST /api/display-scale + POST /api/relaunch-kiosk — kiosk device-scale override (manages the DISPLAY_SCALE line in browser.conf; corrects a lying-EDID panel's auto-scale; GET reports the scale APPLIED to the running kiosk so the UI offers a relaunch only when useful; relaunch spawns deploy/relaunch-kiosk.sh detached)
 │   ├── healthCtrl.js     # GET /api/health — red/yellow/green roll-up of external-service statuses
 │   ├── debugCtrl.js      # Debug panel data endpoint (localhost-only)
 │   ├── clientTracker.js  # Tracks remote client IP addresses
@@ -73,6 +73,7 @@ pi-weather-station/
 │   └── dist/             # Compiled bundle (committed to git)
 ├── deploy/               # Multi-distro install.sh, systemd units, autostart, kiosk launcher,
 │                          # detect-display-scale.sh (per-panel kiosk auto-scale from physical PPI),
+│                          # relaunch-kiosk.sh (cycles the kiosk browser to apply a display-scale change; spawned by displayScaleCtrl),
 │                          # harden-kiosk.sh, logrotate, launchd plist, uninstall.sh
 ├── docs/                 # api.md, architecture, KPI, security, troubleshooting, ui-layout (en/fr),
 │                          # radar-classification (RainViewer pixel → tier → display colour)

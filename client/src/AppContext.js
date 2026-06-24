@@ -384,9 +384,11 @@ export function AppContextProvider({ children }) {
     displayScaleAvailable,
     displayScaleOverride,
     displayScaleAuto,
+    displayScaleApplied,
     displayScalePpi,
     displayScaleChoices,
     saveDisplayScale,
+    relaunchKiosk,
   } = useDisplayScale();
 
   // Runtime sleep-stage value (0/1/2). Hoisted into AppContext (rather
@@ -2161,6 +2163,7 @@ export function AppContextProvider({ children }) {
   // (once, at boot), so this slice's identity is permanent afterwards.
   const actionsSlice = useMemo(() => ({
     saveDisplayScale,
+    relaunchKiosk,
     getWeatherApiKey,
     getReverseGeoApiKey,
     getMapApiKey,
@@ -2252,6 +2255,7 @@ export function AppContextProvider({ children }) {
     infoPanelScrollRef,
   }), [
     saveDisplayScale,
+    relaunchKiosk,
     getWeatherApiKey,
     getReverseGeoApiKey,
     getMapApiKey,
@@ -2350,6 +2354,7 @@ export function AppContextProvider({ children }) {
     displayScaleAvailable,
     displayScaleOverride,
     displayScaleAuto,
+    displayScaleApplied,
     displayScalePpi,
     displayScaleChoices,
     weatherApiKey,
@@ -2400,6 +2405,7 @@ export function AppContextProvider({ children }) {
     displayScaleAvailable,
     displayScaleOverride,
     displayScaleAuto,
+    displayScaleApplied,
     displayScalePpi,
     displayScaleChoices,
     weatherApiKey,

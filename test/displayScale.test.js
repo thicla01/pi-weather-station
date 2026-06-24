@@ -13,7 +13,7 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 
 const { __test } = require("../server/displayScaleCtrl");
-const { parseOverrideLine, parseDetectDiag, validateScale, rewriteBrowserConf } = __test;
+const { parseOverrideLine, parseDetectDiag, validateScale, rewriteBrowserConf, parseAppliedFromPs } = __test;
 
 // ───────────────────────────────────────────────────────────────────────
 // parseOverrideLine — read DISPLAY_SCALE out of browser.conf
@@ -122,4 +122,32 @@ test("rewriteBrowserConf: idempotent for a repeated same-value write", () => {
   const once = rewriteBrowserConf(BASE, "1.25");
   const twice = rewriteBrowserConf(once, "1.25");
   assert.equal(once, twice);
+});
+
+// ───────────────────────────────────────────────────────────────────────
+// parseAppliedFromPs — what scale the running kiosk actually has
+// ───────────────────────────────────────────────────────────────────────
+
+const PS_WITH_FLAG = [
+  "/usr/lib/node ...",
+  "/usr/lib/chromium/chromium --kiosk --noerrdialogs --force-device-scale-factor=1.25 https://localhost:8443",
+  "bash /home/pi/.local/bin/start-server",
+].join("\n");
+
+const PS_NO_FLAG = [
+  "/usr/lib/chromium/chromium --kiosk --noerrdialogs https://localhost:8443",
+].join("\n");
+
+test("parseAppliedFromPs: reads the applied factor off the kiosk process", () => {
+  assert.equal(parseAppliedFromPs(PS_WITH_FLAG), "1.25");
+});
+
+test("parseAppliedFromPs: chromium kiosk with no flag ⇒ '1' (no scaling)", () => {
+  assert.equal(parseAppliedFromPs(PS_NO_FLAG), "1");
+});
+
+test("parseAppliedFromPs: no chromium kiosk found ⇒ null (undeterminable)", () => {
+  assert.equal(parseAppliedFromPs("bash /home/pi/.local/bin/start-server\nfirefox --kiosk -P x"), null);
+  assert.equal(parseAppliedFromPs(""), null);
+  assert.equal(parseAppliedFromPs(undefined), null);
 });
