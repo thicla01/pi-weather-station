@@ -493,6 +493,13 @@ export function AppContextProvider({ children }) {
   // wording when the data only weakly supports the chosen trend.
   const [innerTrendConfidence, setInnerTrendConfidence] = useState(0);
   const [outerTrendConfidence, setOuterTrendConfidence] = useState(0);
+  // Freshness signal for the radar-anchored NowcastLine calm copy: the UNIX
+  // timestamp (ms) of the newest *actual* (past) RainViewer frame, pushed up
+  // by WeatherMap when the frame list refreshes. NowcastLine compares it
+  // against a staleness threshold so "No rain within X" is never asserted on
+  // stale radar (it falls back to "Radar unavailable" instead). null = the
+  // frame list hasn't loaded yet (or carried no past frame).
+  const [radarFrameTs, setRadarFrameTs] = useState(null);
   // Per-direction vectors surfaced from /api/radar-risk for the optional
   // arrow overlay on the map. Each entry: { direction, peakDistance,
   // peakIntensity, magnitude, trend, confidence }. Stable directions are
@@ -2251,6 +2258,7 @@ export function AppContextProvider({ children }) {
     setOuterTrendConfidence,
     setInnerDirectionVectors,
     setOuterDirectionVectors,
+    setRadarFrameTs,
     toggleDirectionArrows,
     toggleWeatherAlerts,
     setAlertRadiusKmLive,
@@ -2344,6 +2352,7 @@ export function AppContextProvider({ children }) {
     setOuterTrendConfidence,
     setInnerDirectionVectors,
     setOuterDirectionVectors,
+    setRadarFrameTs,
     toggleDirectionArrows,
     toggleWeatherAlerts,
     setAlertRadiusKmLive,
@@ -2654,6 +2663,7 @@ export function AppContextProvider({ children }) {
     outerTrendConfidence,
     innerDirectionVectors,
     outerDirectionVectors,
+    radarFrameTs,
     currentMapZoom,
     zoomToLevel,
   }), [
@@ -2667,6 +2677,7 @@ export function AppContextProvider({ children }) {
     outerTrendConfidence,
     innerDirectionVectors,
     outerDirectionVectors,
+    radarFrameTs,
     currentMapZoom,
     zoomToLevel,
   ]);

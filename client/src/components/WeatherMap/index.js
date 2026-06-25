@@ -603,6 +603,7 @@ const WeatherMap = ({ zoom, dark }) => {
     setOuterTrendConfidence,
     setInnerDirectionVectors,
     setOuterDirectionVectors,
+    setRadarFrameTs,
     setDesktopRadarMaximized,
     setPiRadarMaximized,
     setHighlightedAlertId,
@@ -841,11 +842,25 @@ const WeatherMap = ({ zoom, dark }) => {
         .then((res) => {
           setMapTimestamps(res);
           setTimestampsStale(false);
+          // Surface the newest *actual* (past) RainViewer frame timestamp so
+          // NowcastLine can gate its radar-anchored calm copy on data
+          // freshness (see NowcastLine RADAR_STALE_MS). `.time` is UNIX
+          // seconds; we expose ms. Forecast (nowcast) frames are future and
+          // are NOT the freshness signal, so only `kind: "past"` counts.
+          if (Array.isArray(res) && res.length > 0) {
+            let newestPastSec = null;
+            for (const f of res) {
+              if (f.kind === "past" && typeof f.time === "number") newestPastSec = f.time;
+            }
+            setRadarFrameTs(newestPastSec != null ? newestPastSec * 1000 : null);
+          }
         })
         .catch((err) => {
           console.log("err", err);
           // Keep the last good frame list on screen but flag it stale —
-          // the timeline's source chip flips to the warn tone.
+          // the timeline's source chip flips to the warn tone. Leave the
+          // last-good radarFrameTs in place: the freshness gate will trip on
+          // its own once that timestamp ages past RADAR_STALE_MS.
           setTimestampsStale(true);
         });
     };

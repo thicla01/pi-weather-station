@@ -50,8 +50,10 @@ import styles from "./styles.css";
  * eligible gov alert is active) FloatingMiniBanner pinned over the map and
  * the dock hidden. MAX shrinks the map to a thumbnail and gives the rail's
  * `forecastHost` (ChartTabs, maximized) the screen — reached from the
- * "Prévisions" button or by tapping the NowcastLine, left via the chart's
- * restore button.
+ * forecast dock button (the "views" group), left via the chart's restore
+ * button. (The NowcastLine no longer maximizes — rail-affordance redesign
+ * 2026-06-24: it is a status-only radar line; forecast access lives in the
+ * dock.)
  *
  * The sentinel: `piLayoutState` is "mid" on mount / `null` on unmount
  * (mirroring LayoutDesktop). `null` keeps the WeatherMap RadarFocusControl
@@ -164,10 +166,11 @@ const LayoutPi = () => {
             onMaximize={priority ? () => setPiLayoutState("conditions") : undefined}
           />
           {/* NowcastLine (v3.2 keystone): ALWAYS present — an active radar
-           * echo shows the verdict, otherwise a quiet sky-adaptive calm
-           * state. Tapping it (the square maximize affordance) is the MID
-           * column's single entry into MAX, so there is no separate
-           * "Prévisions" button. */}
+           * echo shows the verdict, otherwise a quiet radar-anchored calm
+           * state ("No rain within X") with a sky-adaptive icon and a leading
+           * RADAR badge. Status-only since the rail-affordance redesign
+           * (2026-06-24): it no longer maximizes — forecast access lives in
+           * the BottomDock's "views" group (forecast button). */}
           <NowcastLine />
           <AirCard suppressAqRow={!!airAlert} />
           {/* Metrics + indoor: in the v3.3 glance these relocate to the

@@ -1,16 +1,19 @@
 /* NowcastLine — the keystone glanceable line of the lean MID column on the
  * 7" Pi kiosk (v3.2 "3 états radar"). A single accent-tinted line that turns
- * the radar's spatial verdict into a temporal one; tapping it enters MAX.
+ * the radar's spatial verdict into a temporal one.
  *
- * Rendered as a <button> so keyboard / screen-reader users activate it the
- * same way they do the FloatingMiniBanner / v2 cycle banner. */
+ * Per the rail-affordance redesign (2026-06-24) the line is STATUS-ONLY — it
+ * no longer maximizes to the forecast on tap (that moved to the forecast dock
+ * button), so it renders as a plain container, not a <button>. A leading
+ * RADAR source badge marks every render path. */
 
-/* Doubled class (`.line.line`) — same specificity trick the
- * FloatingMiniBanner uses to win against `reset.css`'s
- * `.ambientRoot button { background: transparent; }` rule (0,1,1). A single
- * `.line` is (0,1,0) and loses; the doubled class is (0,2,0) and removes
- * the bundle-order ambiguity entirely. The JSX applies `styles.line` twice
- * to produce `.line.line` at runtime. */
+/* Doubled class (`.line.line`) — a specificity trick retained from when the
+ * line was a <button> that had to win against `reset.css`'s
+ * `.ambientRoot button { background: transparent; }`. The line is a <div>
+ * now (so the button reset no longer applies), but the doubled class is kept
+ * so the per-tier border/fill rules below still resolve over the base at a
+ * predictable, bundle-order-independent specificity (0,2,0). The JSX applies
+ * `styles.line` twice to produce `.line.line` at runtime. */
 .line.line {
   position: relative;
   display: flex;
@@ -36,8 +39,6 @@
   font-size: 14px;
   font-weight: 500;
   text-align: left;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
   overflow: hidden;
 }
 
@@ -69,16 +70,21 @@
   color: var(--c-accent-soft);
 }
 
-/* NO background-painting :hover — sticky-hover on the touch kiosk ("drop,
- * don't gate"). A non-painting focus outline is fine for keyboard users and
- * never sticks on touch. */
-.line:focus-visible {
-  outline: 2px solid var(--c-accent);
-  outline-offset: -2px;
+/* Leading RADAR source badge (ambient/SourceBadge) — first child of the
+ * flex line in every render path. The badge ships as `inline-block`; pin it
+ * `flex: none` here so it never shrinks when the verdict text runs long (the
+ * verdict is the flex child that ellipsizes under pressure, not the badge). */
+.line > :first-child {
+  flex: none;
 }
 
-/* Calm-state sky icon (sun / moon / cloud / fog / precip) — leads the calm
- * line; follows currentColor (the calm tier's soft accent). */
+/* Calm-state sky icon (sun / moon / cloud / fog / precip) — sits after the
+ * RADAR badge on the calm line. It does NOT inherit the calm tier's
+ * soft-accent `currentColor` (which made the glyph too faint, the deliberate
+ * "quiet edge" cost): give it its own body colour so the calm BORDER stays
+ * soft while the icon stays legible on all four palettes (night-red was the
+ * constraint — `--c-text` reads cleanly on the red surface). The fix is the
+ * icon colour ONLY; the border/background stay quiet. */
 .icon {
   flex: none;
   display: grid;
@@ -87,6 +93,7 @@
   width: 18px;
   height: 18px;
   font-size: 18px;
+  color: var(--c-text);
 }
 
 .verdict {
@@ -95,7 +102,7 @@
   /* Wrap to a 2nd line rather than truncate — the full nowcast verdict must
    * stay readable (maintainer request). 2-line clamp as a safety cap; the
    * line grows to fit (min-height 44px floor, align-items: center keeps the
-   * dot + maximize square centred against the taller text). */
+   * badge + dot centred against the taller text). */
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -133,29 +140,3 @@
 .dot-high { background-color: var(--c-accent); }
 .dot-mid  { background-color: var(--c-warn); }
 .dot-low  { background-color: var(--c-danger); }
-
-/* Maximize square — the radar screen's four-corner ExpandIcon in a bordered
- * box (mockup parity), in the tier accent (currentColor) so it reads as the
- * MAX affordance. The whole line is the tap target, so this is a visual hint
- * sized as a comfortable ~28 px square rather than a separate 44 px button. */
-/* Maximize square — the canonical "bordered-surface" look shared with the
- * forecast (ChartTabs), the glance Hero and the radar-focus control: a
- * --c-border edge on a --c-surface-hybrid box with a dim bracket icon, so
- * every maximize square reads identically. Fixed 28px (the root font-zoom
- * scales it physically — no separate --c-font-scale, which double-scaled it
- * larger than its siblings). */
-.maximize {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 28px;
-  height: 28px;
-  border: 1px solid var(--c-border);
-  border-radius: 6px;
-  background-color: var(--c-surface-hybrid, var(--c-surface));
-  color: var(--c-text-dim);
-}
-.maximizeIcon {
-  width: 16px;
-  height: 16px;
-}

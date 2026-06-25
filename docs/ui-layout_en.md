@@ -71,9 +71,9 @@ Variant A "Compagnon nomade" from the design package. Single scrollable column t
 
 **v3.2 — three layout states.** One `piLayoutState` enum (`"min" | "mid" | "max"`) drives the screen via `data-pi-state` on the root:
 
-- **MID** (default) — the split below: radar map on the left, the lean *radar-companion* rail on the right (alerts · slim clock · hero anchored on feels-like · NowcastLine · air quality · a 2×2 of Wind / Gust / UV / Humidity · indoor · a "Prévisions" button). The forecast chart and AI prose are not in this glance.
+- **MID** (default) — the split below: radar map on the left, the lean *radar-companion* rail on the right (alerts · slim clock · hero anchored on feels-like · NowcastLine · air quality · a 2×2 of Wind / Gust / UV / Humidity · indoor). The forecast chart and AI prose are not in this glance — the forecast is reached from the dock's **Views** group (forecast button).
 - **MIN** — radar fullscreen (the old focus mode): the rail collapses and the dock hides so the radar fills the screen, with a compact place/temp **HeroOverlayMin** (and the **FloatingMiniBanner** when a gov alert is active) pinned over the map.
-- **MAX** — forecast-forward: the map shrinks to a frozen ~190 px thumbnail and the forecast chart takes the full-width rail. Reached from the "Prévisions" button or by tapping the NowcastLine; left via the chart's restore button.
+- **MAX** — forecast-forward: the map shrinks to a frozen ~190 px thumbnail and the forecast chart takes the full-width rail. Reached from the dock's **forecast button** (Views group); left via the chart's restore button. *(Rail-affordance redesign 2026-06-24: the NowcastLine no longer maximizes — it is a status-only radar line; the forecast moved to the dock so the "now" radar status and the "future" forecast are distinct affordances.)*
 
 The diagram below details the **MID** rail.
 
@@ -105,7 +105,8 @@ The diagram below details the **MID** rail.
 │                          │ AiSummaryInline           │
 │                          │ (expandable ↑)            │
 └──────────────────────────┴──────────────────────────┤
-│ BottomDock (ControlButtons — 7 icon buttons)         │
+│ BottomDock (ControlButtons — Map · Views · Display · │
+│  System groups; Views = AI summary + forecast)       │
 └──────────────────────────────────────────────────────┘
 ```
 
@@ -179,7 +180,7 @@ Width: `320 px` (default) · `360 px` at ≥ 1600 px. Zooms with the user's font
 Components (top to bottom):
 1. **AlertBanner** — government severe-weather alert pill (hidden when no active alert)
 2. **AlertDetailInline** — expanded alert text (hidden when collapsed)
-3. **AirCard** — air-quality rows: AQI (value · label · category pill · chevron, tap → detail) + opt-in pollen (worst allergen · pill; hidden when the setting is off or out of coverage). In nightRed the pills collapse to red — the word carries the tier.
+3. **AirCard** — air-quality rows: AQI (value + label as one **dotted-underlined** term, tap the row → detail popover) + opt-in pollen (worst allergen + label, same dotted underline; hidden when the setting is off or out of coverage), each with its category pill. The dotted underline replaced the old chevron (rail-affordance redesign 2026-06-24) — the house popover signal, matching the city-name / moon underlines; the whole row stays the tap surface. In nightRed the pills collapse to red — the word carries the tier.
 4. **MetricsGrid** — strict 2×2 grid: wind speed · humidity · UV index (qualifier, tappable cell + chevron) · surface pressure (hPa / inHg / kPa per the units preference)
 5. **IndoorBlock** — Homebridge indoor temperature / humidity / air quality (hidden if not configured)
 6. **ChartTabs** — 24-hour and 5-day forecast tabs with Recharts graphs

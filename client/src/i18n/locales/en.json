@@ -179,9 +179,10 @@
     }
   },
   "nowcast": {
-    "aria": "{{verdict}}. Tap to open the forecast.",
-    "openForecast": "Open the forecast",
+    "aria": "Radar status: {{verdict}}",
     "calm": {
+      "noRainWithin": "No rain within {{distance}} {{unit}}",
+      "radarUnavailable": "Radar unavailable",
       "clearDay": "Clear and sunny",
       "clearNight": "Clear night",
       "partly": "A few clouds",
@@ -477,10 +478,12 @@
     "showAiSummary": "Show AI summary section",
     "hideAiSummary": "Hide AI summary section",
     "openAiView": "Open AI summary",
+    "openForecast": "Open forecast",
     "openUpdate": "Show update modal",
     "closeUpdate": "Close update modal",
     "updateAvailableRemote": "Update available — connect locally to install",
     "groupMap": "Map",
+    "groupViews": "Views",
     "groupDisplay": "Display",
     "groupSystem": "System"
   },
