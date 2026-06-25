@@ -184,6 +184,14 @@ const CURRENT_FIELDS = [
   // fleet (one fresh fetch per Pi, no extra request volume — the field
   // travels in the same call).
   "windGust",
+  // v3.3+ — the current-conditions Visibility tile (MetricsGrid 2×2 /
+  // Conditions view) reads visibility from THIS timestep. It was never
+  // requested here, so the tile rendered a permanent "—" for every
+  // location. Same root cause and fix as windGust above. Bumps
+  // CURRENT_FIELDS_HASH, orphaning cached current entries on the fleet
+  // (one fresh fetch per Pi, no extra request volume — the field travels
+  // in the same call).
+  "visibility",
 ];
 const HOURLY_FIELDS = [
   "temperature", "precipitationProbability", "precipitationIntensity", "windSpeed",
