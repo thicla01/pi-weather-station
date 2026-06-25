@@ -179,9 +179,10 @@
     }
   },
   "nowcast": {
-    "aria": "{{verdict}}. Toque para abrir el pronóstico.",
-    "openForecast": "Abrir el pronóstico",
+    "aria": "Estado del radar: {{verdict}}",
     "calm": {
+      "noRainWithin": "Sin lluvia en {{distance}} {{unit}}",
+      "radarUnavailable": "Radar no disponible",
       "clearDay": "Cielo despejado",
       "clearNight": "Noche despejada",
       "partly": "Algunas nubes",
@@ -477,10 +478,12 @@
     "showAiSummary": "Mostrar la sección de IA",
     "hideAiSummary": "Ocultar la sección de IA",
     "openAiView": "Abrir el resumen IA",
+    "openForecast": "Abrir el pronóstico",
     "openUpdate": "Mostrar la ventana de actualización",
     "closeUpdate": "Cerrar la ventana de actualización",
     "updateAvailableRemote": "Actualización disponible — conéctese en local para instalar",
     "groupMap": "Mapa",
+    "groupViews": "Vistas",
     "groupDisplay": "Visualización",
     "groupSystem": "Sistema"
   },

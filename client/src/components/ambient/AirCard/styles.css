@@ -1,5 +1,5 @@
 /* AirCard — IQA + pollen rows above the metrics grid (§3 option B).
- * Row grammar: value · mono label · category pill · chevron. The
+ * Row grammar: value · mono label (dotted-underline) · category pill. The
  * pill colour comes entirely from one `--mx-cat-*` token (ink +
  * color-mix bg/border) so nightRed collapses all tiers to red and
  * the word alone carries the meaning. */
@@ -131,10 +131,31 @@
 /* Pill keeps its token ink even though the tier classes also set
  * `color` (for popover words) — same value, no conflict. */
 
-.chevron {
-  font-size: 16px;
-  color: var(--c-text-dim);
-  flex: none;
+/* Value + scale-label pair, grouped so the dotted-underline affordance
+ * (.valueUnderline) spans both as one tappable term. Baseline-aligned with a
+ * small intrinsic gap; the row's own gap then separates this group from the
+ * pill. Inherits the old per-child flex roles: for the AQI row the value is
+ * `.value` (flex:none) so the group is content-sized; for the pollen row the
+ * value is `.value-text` (which ellipsizes), so the group must be allowed to
+ * shrink — `min-width: 0` lets the inner ellipsis engage under pressure. */
+.value-group {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 6px;
+  min-width: 0;
+}
+
+/* Dotted-underline popover affordance — replaces the old chevron. House
+ * convention (SunMoonBlock .headLabel): a dotted bottom border on the term
+ * itself, cleared on press for tactile feedback. Lives on a span, so the
+ * `.ambientRoot button` reset doesn't touch it (no doubled-class trick). */
+.value-underline {
+  border-bottom: 1px dotted var(--c-text-dim);
+  padding-bottom: 2px;
+}
+
+.row-interactive:active .value-underline {
+  border-bottom-color: transparent;
 }
 
 /* 7" rail tightening (overflow rule: pill/label/chevron never

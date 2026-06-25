@@ -40,6 +40,12 @@ import circleDashIcon from "@iconify/icons-carbon/circle-dash";
  * for this single icon is the right trade — the visual semantics
  * matter more than the family purity. */
 import sparkleIcon from "@iconify/icons-material-symbols/auto-awesome-outline";
+/* Forecast view-open (rail-affordance redesign 2026-06-24). A vertical
+ * column-chart Carbon glyph — deliberately NOT a weather glyph and NOT a
+ * generic expand/⤢ (that would re-introduce the maximize ambiguity the
+ * redesign removed from NowcastLine). Visually distinct from `timePlotIcon`
+ * (the timeline button), so no collision in the dock set. */
+import chartColumnIcon from "@iconify/icons-carbon/chart-column";
 import renewIcon from "@iconify/icons-carbon/renew";
 
 // Inline color for the moon icon — the "blood moon" / lunar-eclipse
@@ -631,6 +637,30 @@ const ControlButtons = ({ grouped = false }) => {
         <InlineIcon icon={sparkleIcon} />
       </div>
     ) : null);
+  // Forecast view-open (rail-affordance redesign 2026-06-24). Shown on the
+  // Pi dock in BOTH v3.2 (classic 3-states) and v3.3 (priority views) — the
+  // gate is `piLayoutState != null`, which LayoutPi sets ("mid") on mount in
+  // both, NOT the v3.3-only `inPriorityDock`. This is deliberate: NowcastLine
+  // lost its maximize in both layouts, so the forecast MUST be reachable from
+  // the dock in both or the v3.2 user is stranded (LLD §2.8 / §3.4). It is a
+  // silent view-open (no toast: opening a full-rail view IS the visible
+  // result, mirroring btnBot above) that promotes the layout to MAX where
+  // ChartTabs renders the maximized forecast. This is now the ONLY forecast
+  // entry point on the Pi. The down-state is a plain `.buttonDown` class
+  // toggle when MAX is active — no animated highlight (kiosk-GPU rule #264).
+  // No legacy v2 (non-Pi) analogue, so off the Pi dock the button is `null`.
+  const inPiDock = piLayoutState != null;
+  const btnForecast = inPiDock ? (
+    <div
+      key="forecast"
+      onClick={() => setPiLayoutState("max")}
+      className={`${piLayoutState === "max" ? styles.buttonDown : ""}`}
+      title={t("controls.openForecast")}
+      aria-label={t("controls.openForecast")}
+    >
+      <InlineIcon icon={chartColumnIcon} />
+    </div>
+  ) : null;
   const btnUpdateLocal = updateAvailable && isLocal ? (
     <div
       key="updateLocal"
@@ -723,8 +753,25 @@ const ControlButtons = ({ grouped = false }) => {
           {btnLegend}
           {btnWeatherAlerts}
           {btnRings}
-          {btnBot}
         </div>
+        {/* Views group (rail-affordance redesign 2026-06-24) — "change topic
+          * to a full-rail content view", distinct from the Map group's
+          * "manipulate the map in place". Holds the IA/sparkle view-open
+          * (relocated out of the Map group) and the new forecast view-open.
+          * Both buttons are Pi-dock-only (btnForecast on `inPiDock`, btnBot's
+          * view-open on `inPriorityDock`); off the Pi they are both `null`. The
+          * wrapper `.group` div + `.groupLabel` span are ALWAYS in the JSX, so
+          * the group does NOT collapse on its own when empty — it would leave
+          * an orphan "VIEWS" label (desktop) and a stray separator hairline.
+          * Guard the whole wrapper on having at least one button so it
+          * disappears entirely off the Pi. On the Pi this is never empty. */}
+        {(btnBot || btnForecast) ? (
+          <div className={styles.group}>
+            <span className={styles.groupLabel}>{t("controls.groupViews")}</span>
+            {btnBot}
+            {btnForecast}
+          </div>
+        ) : null}
         <div className={styles.group}>
           <span className={styles.groupLabel}>{t("controls.groupDisplay")}</span>
           {btnContrast}

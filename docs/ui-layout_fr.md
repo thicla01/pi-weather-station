@@ -71,9 +71,9 @@ Variante A « Compagnon nomade » du dossier de design. Colonne unique défilant
 
 **v3.2 — trois états de mise en page.** Un seul enum `piLayoutState` (`"min" | "mid" | "max"`) pilote l'écran via `data-pi-state` sur la racine :
 
-- **MID** (défaut) — le split ci-dessous : carte radar à gauche, rail *compagnon du radar* allégé à droite (alertes · horloge slim · hero ancré sur le ressenti · NowcastLine · qualité de l'air · un 2×2 Vent / Rafales / UV / Humidité · intérieur · un bouton « Prévisions »). Le graphique de prévisions et le résumé IA ne sont pas dans ce coup d'œil.
+- **MID** (défaut) — le split ci-dessous : carte radar à gauche, rail *compagnon du radar* allégé à droite (alertes · horloge slim · hero ancré sur le ressenti · NowcastLine · qualité de l'air · un 2×2 Vent / Rafales / UV / Humidité · intérieur). Le graphique de prévisions et le résumé IA ne sont pas dans ce coup d'œil — les prévisions s'atteignent depuis le groupe **Vues** du dock (bouton prévisions).
 - **MIN** — radar plein écran (l'ancien mode focus) : le rail se replie et le dock se masque pour que le radar remplisse l'écran, avec un **HeroOverlayMin** compact (lieu / température) — et la **FloatingMiniBanner** si une alerte gouv est active — épinglés sur la carte.
-- **MAX** — prévisions prioritaires : la carte se réduit en vignette gelée ~190 px et le graphique de prévisions prend tout le rail. Atteint par le bouton « Prévisions » ou en touchant la NowcastLine ; quitté par le bouton restaurer du graphique.
+- **MAX** — prévisions prioritaires : la carte se réduit en vignette gelée ~190 px et le graphique de prévisions prend tout le rail. Atteint par le **bouton prévisions** du dock (groupe Vues) ; quitté par le bouton restaurer du graphique. *(Refonte des affordances du rail 2026-06-24 : la NowcastLine ne maximise plus — c'est une ligne d'état radar seulement ; les prévisions sont passées au dock pour que l'état radar « maintenant » et les prévisions « futur » soient des affordances distinctes.)*
 
 Le diagramme ci-dessous détaille le rail en **MID**.
 
@@ -105,7 +105,8 @@ Le diagramme ci-dessous détaille le rail en **MID**.
 │                          │ AiSummaryInline           │
 │                          │ (expansible ↑)            │
 └──────────────────────────┴──────────────────────────┤
-│ BottomDock (ControlButtons — 7 boutons icônes)       │
+│ BottomDock (ControlButtons — groupes Carte · Vues ·  │
+│  Affichage · Système ; Vues = résumé IA + prévisions)│
 └──────────────────────────────────────────────────────┘
 ```
 
@@ -179,7 +180,7 @@ Largeur : `320 px` (défaut) · `360 px` à ≥ 1600 px. Suit la préférence de
 Composants (de haut en bas) :
 1. **AlertBanner** — pastille d'alerte météo sévère gouvernementale (masquée en l'absence d'alerte active)
 2. **AlertDetailInline** — texte de l'alerte développée (masqué lorsque réduit)
-3. **AirCard** — rangées qualité de l'air : IQA (valeur · étiquette · pastille de catégorie · chevron, tap → détail) + pollen opt-in (pire allergène · pastille ; masquée si réglage off ou hors couverture). En nightRed, les pastilles s'effondrent au rouge — le mot porte le palier.
+3. **AirCard** — rangées qualité de l'air : IQA (valeur + étiquette formant un seul terme **souligné en pointillé**, tap sur la rangée → popover détail) + pollen opt-in (pire allergène + étiquette, même soulignement pointillé ; masquée si réglage off ou hors couverture), chacune avec sa pastille de catégorie. Le soulignement pointillé a remplacé l'ancien chevron (refonte des affordances du rail 2026-06-24) — c'est le signal popover de la maison, comme les soulignements nom-de-ville / lune ; toute la rangée reste la surface de tap. En nightRed, les pastilles s'effondrent au rouge — le mot porte le palier.
 4. **MetricsGrid** — grille 2×2 stricte : vitesse du vent · humidité · indice UV (qualificatif, cellule tappable + chevron) · pression de surface (hPa / inHg / kPa selon la préférence d'unités)
 5. **IndoorBlock** — température / humidité / qualité de l'air intérieurs Homebridge (masqué si non configuré)
 6. **ChartTabs** — onglets de prévisions sur 24 heures et 5 jours avec graphiques Recharts

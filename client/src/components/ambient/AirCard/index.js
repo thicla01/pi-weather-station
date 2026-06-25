@@ -1,8 +1,6 @@
 import React, { useContext, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
-import { InlineIcon } from "@iconify/react";
-import chevronRight from "@iconify/icons-carbon/chevron-right";
 import { WeatherDataContext } from "~/AppContext";
 import { formatAge } from "~/ui/formatAge";
 import DetailsPopover from "~/components/ambient/DetailsPopover";
@@ -39,7 +37,7 @@ const TIER_CLASS = {
  * Air card — the two air readings (AQI + pollen) as full-width rows
  * above the metrics grid (v3.1 Phase 2, §3 option B).
  *
- * Row grammar: `value · MONO LABEL · category pill · chevron`. The
+ * Row grammar: `value · MONO LABEL (dotted-underline) · category pill`. The
  * AQI row is always present (placeholder dash until the blended
  * air-quality pipeline responds); the pollen row only renders when
  * the opt-in setting is on AND upstream returned allergen data —
@@ -255,16 +253,22 @@ const Row = ({ value, valueIsText, label, qualifier, tier, onClick, ariaExpanded
       tabIndex={interactive ? 0 : undefined}
       aria-expanded={interactive ? ariaExpanded : undefined}
     >
-      <span className={valueIsText ? styles.valueText : styles.value}>{value}</span>
-      <span className={styles.label}>{label}</span>
+      {/* Value + scale label read as one tappable term. When the row opens a
+        * popover the pair carries the house dotted-underline affordance
+        * (replacing the old chevron) — modeled on SunMoonBlock's .headLabel.
+        * The underline lives on a span, so the `.ambientRoot button` reset
+        * doesn't touch it and no doubled-class specificity trick is needed.
+        * The pastille (category pill) stays a pure level indicator, never
+        * underlined. */}
+      <span className={`${styles.valueGroup} ${interactive ? styles.valueUnderline : ""}`}>
+        <span className={valueIsText ? styles.valueText : styles.value}>{value}</span>
+        <span className={styles.label}>{label}</span>
+      </span>
       {qualifier ? (
         <span className={`${styles.pill} ${styles[TIER_CLASS[tier]] || ""}`}>
           <span className={styles.pillDot} aria-hidden="true" />
           {qualifier}
         </span>
-      ) : null}
-      {interactive ? (
-        <InlineIcon icon={chevronRight} className={styles.chevron} aria-hidden="true" />
       ) : null}
       {children}
     </div>
