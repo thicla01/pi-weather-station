@@ -372,6 +372,78 @@ ZoomLevelHandler.propTypes = {
 };
 
 /**
+ * Anchors the +/- zoom buttons (and keyboard zoom) on the visual centre
+ * of the NON-RAIL map area instead of Leaflet's default true-viewport
+ * centre — so the location marker no longer drifts when zooming.
+ *
+ * On LayoutDesktop the rail (right) + HeroBand (top) OVERLAY the map, so
+ * `panWithRailOffset` deliberately pushes the map's true centre to the
+ * north-east of the marker to keep the marker at the visual centre of the
+ * uncovered area. Leaflet's stock `zoomIn`/`zoomOut` zoom around that true
+ * centre, which sits up-and-right of the marker — so each zoom step slid
+ * the marker toward the lower-left (zoom in) or upper-right (zoom out).
+ *
+ * Fix: override `zoomIn`/`zoomOut` on the map instance to `setZoomAround`
+ * the non-rail visual centre — the exact inverse of the panWithRailOffset
+ * placement `(W/2 - offsetX/2, H/2 + offsetY/2)`, the container point where
+ * a centred marker sits — so that point stays pinned across zoom steps.
+ * The original methods are restored on unmount.
+ *
+ * No-op when `railOffset` is zero (v2 / LayoutPi / collapsed rail / focus
+ * mode): the override falls straight through to Leaflet's centre-anchored
+ * default, so center-anchored zoom is preserved everywhere the rail does
+ * not overlay the map. Scroll-wheel / double-click / box zoom are
+ * untouched — they already anchor on the cursor via their own handlers.
+ *
+ * @param {object} props
+ * @param {{x: Number, y: Number}} props.railOffset pixels covered by rail / HeroBand
+ * @returns {null} renders nothing
+ */
+const ZoomAnchorOffset = ({ railOffset }) => {
+  const map = useMap();
+  // Latest offset without re-running the patch effect on every change —
+  // useRailOffset returns a fresh object each render.
+  const offsetRef = useRef(railOffset);
+  offsetRef.current = railOffset;
+  useEffect(() => {
+    const origZoomIn = map.zoomIn;
+    const origZoomOut = map.zoomOut;
+    const zoomAroundNonRailCentre = (delta) => {
+      const offset = offsetRef.current;
+      const offsetX = (offset && offset.x) || 0;
+      const offsetY = (offset && offset.y) || 0;
+      const size = map.getSize();
+      const anchor = L.point(size.x / 2 - offsetX / 2, size.y / 2 + offsetY / 2);
+      map.setZoomAround(map.containerPointToLatLng(anchor), map.getZoom() + delta);
+    };
+    // ZoomControl always passes an explicit delta; default to zoomDelta
+    // for any caller that omits it (mirrors Leaflet's own fallback).
+    const resolveDelta = (delta) => (delta == null ? map.options.zoomDelta : delta);
+    map.zoomIn = function patchedZoomIn(delta, options) {
+      const offset = offsetRef.current;
+      if (!offset || (!offset.x && !offset.y)) return origZoomIn.call(map, delta, options);
+      zoomAroundNonRailCentre(resolveDelta(delta));
+      return map;
+    };
+    map.zoomOut = function patchedZoomOut(delta, options) {
+      const offset = offsetRef.current;
+      if (!offset || (!offset.x && !offset.y)) return origZoomOut.call(map, delta, options);
+      zoomAroundNonRailCentre(-resolveDelta(delta));
+      return map;
+    };
+    return () => {
+      map.zoomIn = origZoomIn;
+      map.zoomOut = origZoomOut;
+    };
+  }, [map]);
+  return null;
+};
+
+ZoomAnchorOffset.propTypes = {
+  railOffset: PropTypes.shape({ x: PropTypes.number, y: PropTypes.number }),
+};
+
+/**
  * Phase 4d (2026-05-28): GeoJSON overlay for the alert zone the user
  * picked via the AlertBanner's "Voir sur la carte" button. Renders a
  * tier-coloured polygon (red / orange / yellow) and zoom-to-fits when
@@ -1191,6 +1263,7 @@ const WeatherMap = ({ zoom, dark }) => {
         <RailOffsetTracker railOffset={railOffset} markerPosition={markerPosition} />
         <MapZoomTracker onZoomChange={setCurrentMapZoom} />
         <ZoomLevelHandler zoomToLevel={zoomToLevel} setZoomToLevel={setZoomToLevel} />
+        <ZoomAnchorOffset railOffset={railOffset} />
         <MapResizer
           infoPanelCollapsed={infoPanelCollapsed}
           mobileRadarMaximized={mobileRadarMaximized}
