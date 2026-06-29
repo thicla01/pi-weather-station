@@ -11,7 +11,7 @@
   "author": "Eric Lewin",
   "license": "MIT",
   "dependencies": {
-    "@babel/core": "^7.29.7",
+    "@babel/core": "^8.0.1",
     "@babel/preset-env": "^7.29.7",
     "@babel/preset-react": "^7.29.7",
     "@iconify/icons-bx": "^1.0.3",
