@@ -17,7 +17,6 @@ import AlertMiniCards from "~/components/ambient/AlertMiniCards";
 import IndoorBlock from "~/components/ambient/IndoorBlock";
 import ChartTabs from "~/components/ambient/ChartTabs";
 import NowcastLine from "~/components/ambient/NowcastLine";
-import HeroOverlayMin from "~/components/ambient/HeroOverlayMin";
 import BottomDock from "~/components/ambient/BottomDock";
 import FloatingMiniBanner from "~/components/ambient/FloatingMiniBanner";
 import styles from "./styles.css";
@@ -46,9 +45,10 @@ import styles from "./styles.css";
  * (alerts · clock · hero/feels-like · NowcastLine · air · 2×2 metrics ·
  * indoor · a "Prévisions" button into MAX); the forecast chart and AI
  * prose are NOT in the glance (the chart lives in MAX). MIN collapses the
- * rail so the radar fills the screen, with HeroOverlayMin + (when an
- * eligible gov alert is active) FloatingMiniBanner pinned over the map and
- * the dock hidden. MAX shrinks the map to a thumbnail and gives the rail's
+ * rail so the radar fills the screen — a pure radar focus with no hero
+ * card; only (when an eligible gov alert is active) a FloatingMiniBanner is
+ * pinned over the map, and the dock is hidden. MAX shrinks the map to a
+ * thumbnail and gives the rail's
  * `forecastHost` (ChartTabs, maximized) the screen — reached from the
  * forecast dock button (the "views" group), left via the chart's restore
  * button. (The NowcastLine no longer maximizes — rail-affordance redesign
@@ -128,11 +128,14 @@ const LayoutPi = () => {
     >
       <div className={`${styles.mapArea} map-container ${darkMode ? "map-dark-mode" : ""} ${mouseHide ? "map-mouse-hide" : ""}`}>
         <WeatherMap zoom={defaultMapZoom} dark={darkMode} />
-        {/* MIN overlays: a compact place/temp hero + (when an eligible
-         * gov alert is active) FloatingMiniBanner, both pinned over the
-         * fullscreen radar. HeroOverlayMin is purely presentational;
-         * tapping the mini-banner restores MID. */}
-        {focused && <HeroOverlayMin />}
+        {/* MIN overlay: when an eligible gov alert is active, a
+         * FloatingMiniBanner pinned over the fullscreen radar so the kiosk
+         * never silently hides a severe alert; tapping it restores MID.
+         * Deliberately NO hero card here (removed 2026-07-03) — MIN is a
+         * pure radar focus reached via the focus square OR the scrubber
+         * button, and the place/temp hero lives in the rail one tap away
+         * (toggle the focus square back to MID). Do not re-add an overlay
+         * hero on top of the radar. */}
         {focused && <FloatingMiniBanner onExpand={() => setPiLayoutState("mid")} />}
       </div>
       <aside className={styles.rail} aria-hidden={focused}>
