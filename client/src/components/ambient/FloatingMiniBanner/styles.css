@@ -18,7 +18,7 @@
 .banner.banner {
   position: absolute;
   /* Top-align with the Leaflet zoom control's top edge (~16 px) so this chip
-   * and the HeroOverlayMin slab share one top line — keep the two in sync. */
+   * sits on the map's top line, clear of the +/- zoom column. */
   top: 16px;
   right: 12px;
   z-index: 400;
