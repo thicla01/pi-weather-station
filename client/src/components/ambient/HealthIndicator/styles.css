@@ -472,11 +472,26 @@
   color: var(--c-text);
 }
 
-/* On narrow docks (7" Pi at 932 px, phone landscape) the chip
- * collapses to icon-only. Drops the right padding too so the
- * disc sits centred in a square footprint. Doubled-class on the
- * selector for the same reset-war reason as the main rule. */
-@media (max-width: 980px) {
+/* On every non-desktop dock the chip collapses to icon-only. Drops
+ * the right padding too so the disc sits centred in a square
+ * footprint. Doubled-class on the selector for the same reset-war
+ * reason as the main rule.
+ *
+ * Threshold is 1279 px — the exact complement of the AmbientLayers
+ * desktop breakpoint (`min-width: 1280px`). So the full "Services ·
+ * OK" text shows ONLY on LayoutDesktop; every LayoutPi / LayoutMobile
+ * dock (800-1279 px) gets the glanceable dot. This was 980 px, tuned
+ * for the 7" official screen (~932 px), but it left the group labels
+ * AND the full-text chip both visible on the 10.1" HMIRaspi kiosk,
+ * which — rotated to landscape with DISPLAY_SCALE=1.25 — renders at
+ * 1024 px CSS (LayoutPi, just above the old gate). With the debug
+ * trio present (isLocal via RPi Connect + DEBUG=true) the dock's
+ * button row overflowed under the chip and the rightmost System
+ * button (debug) painted behind "Services · OK". Collapsing the chip
+ * across the whole Pi band frees the ~100 px the row needed. The
+ * group labels stay (maintainer's choice — they carry the dock's
+ * three-category rhythm); the chip text is the nicety that yields. */
+@media (max-width: 1279px) {
   .chipButton.chipButton {
     padding: 4px;
     gap: 0;
