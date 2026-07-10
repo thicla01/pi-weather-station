@@ -153,8 +153,8 @@ test("fetchAllNormalized reuses the warmed cache — no extra fetch, no extra ti
     eccc.__test._resetFeedCache();
     const before = ecccAlertsDay();
 
-    await eccc.tryAlerts(LAT, LON); // warms the feed cache
-    const all = await eccc.fetchAllNormalized();
+    await eccc.tryAlerts(LAT, LON); // warms the feed cache (same grid cell)
+    const all = await eccc.fetchAllNormalized(LAT, LON);
 
     assert.equal(all.length, 1);
     assert.equal(all[0].source, "ECCC");
