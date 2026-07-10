@@ -24,12 +24,13 @@
 //      always-true (radar gate wide open). The cross-file contract tests
 //      below exist to turn that silent failure into a loud one.
 //
-// Known caveat (documented, NOT asserted — current behaviour): analyzeRadar
-// occasionally ships the formatSnapshotLegacy block instead (when the
-// hierarchical output is longer). The legacy format never contains
-// "Active", so isRadarClear returns true for it even with precipitation
-// on screen. The weather-code and precip-probability gates still apply,
-// so the radar gate is defensive-only in that rare case.
+// Historical caveat, resolved 2026-07: analyzeRadar used to occasionally
+// ship a legacy-format block instead (when the hierarchical output was
+// longer), and that format never contained "Active" — silently widening
+// isRadarClear. The legacy formatter was retired along with the
+// compressionStats module (perf lot, 2026-07), so the hierarchical
+// format is now the only thing analyzeRadar emits and the token
+// contract pinned below is airtight.
 
 const { test } = require("node:test");
 const assert = require("node:assert/strict");

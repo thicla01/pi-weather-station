@@ -13,7 +13,6 @@ const axios = require("axios").default;
 const { PNG } = require("pngjs");
 const { recordServiceCall } = require("./serviceStatus");
 const { increment } = require("./requestCounter");
-const compressionStats = require("./compressionStats");
 const { BoundedMap, sweepExpired } = require("./boundedCache");
 
 // Analysis/risk cache freshness is two-tier (perf audit 2026-07-09).
@@ -25,9 +24,8 @@ const { BoundedMap, sweepExpired } = require("./boundedCache");
 // those recomputes.
 //   - Inside SOFT TTL: serve cached with zero network.
 //   - Between SOFT and HARD: fetch only the small frame index; if the
-//     frames this run would sample are unchanged (same signature), the
-//     inputs can't have changed — extend freshness and serve cached.
-//     Recompute only when the sampled frame set actually changes.
+//     newest frame is unchanged, the inputs can't have changed — extend
+//     freshness and serve cached. Recompute only on a new frame.
 //   - Past HARD TTL (or swept): full recompute. Bounds staleness if
 //     RainViewer's feed stalls while wall-clock offsets drift.
 const ANALYSIS_CACHE_TTL = 5 * 60 * 1000;      // soft: serve with zero network
@@ -438,49 +436,6 @@ async function buildSnapshot(lat, lon, framePath, points) {
 }
 
 /**
- * "Naive full-grid" baseline formatter — always lists every direction
- * with all its distance entries, with no short-circuit and no rollup.
- * This is the conceptual baseline the user describes as "always 481
- * points": the size the prompt WOULD have if we sent every sample
- * unconditionally. The format that actually shipped before d061126
- * also had an all-clear short-circuit, but using THAT as the baseline
- * would credit calm-day polls with 0 % compression even though the
- * real win of the hierarchical refactor IS to also handle the storm
- * cases. The naive baseline is consistent across scenarios and gives
- * intuitive numbers: ~99 % on a calm radar, dropping toward ~10 % on
- * radar-wide systems where there's nothing to roll up.
- *
- * Used purely as a measurement baseline; never sent to Claude. Kept in
- * lockstep with `formatSnapshot`'s entry/label vocabulary so the only
- * source of length difference is the rollup logic itself.
- *
- * @param {Array} samples Same shape as for formatSnapshot.
- * @param {String} label "now" / "-15 min" / "-45 min".
- * @param {String} unit "km" or "mi".
- * @returns {String} Naive-baseline block.
- */
-function formatSnapshotLegacy(samples, label, unit) {
-  const byDir = new Map();
-  for (const dirName of DIRECTION_ORDER) byDir.set(dirName, []);
-  for (const s of samples) {
-    if (!byDir.has(s.direction)) byDir.set(s.direction, []);
-    byDir.get(s.direction).push(s);
-  }
-  const fmtDist = (d) => `${d}${unit}`;
-  const lines = [];
-  for (const dirName of DIRECTION_ORDER) {
-    const dirSamples = byDir.get(dirName);
-    if (!dirSamples || !dirSamples.length) continue;
-    dirSamples.sort((a, b) => a.distance - b.distance);
-    const parts = dirSamples.map(
-      (s) => `${fmtDist(s.distance)} ${INTENSITY_LABELS[s.intensity]}`,
-    );
-    lines.push(`  ${dirName.padEnd(6)} : ${parts.join(", ")}`);
-  }
-  return `${label}:\n${lines.join("\n")}`;
-}
-
-/**
  * Format a snapshot as a compact human-readable block for inclusion in a
  * prompt. Hierarchical compression versus listing every sample:
  *
@@ -704,21 +659,20 @@ async function analyzeRadar(lat, lon, options = {}) {
     const label = offsetMin === 0 ? "now" : `${offsetMin} min`;
     try {
       const samples = await buildSnapshot(lat, lon, frame.path, points);
-      const compressed = formatSnapshot(samples, label, unit);
-      if (compressed) {
-        // Run the legacy formatter alongside the compressed one. Two roles:
-        //   1) Measure compression ratio (recorded in compressionStats).
-        //   2) Fallback target — when the hierarchical "compressed" output
-        //      is actually longer than the naive baseline (rare, but
-        //      observed: per-direction headers + sparse rollup overhead can
-        //      tip past savings on certain mid-cluttered radar geometries),
-        //      send the legacy block to Claude instead. We never pay for
-        //      the surcharge.
-        const legacy = formatSnapshotLegacy(samples, label, unit);
-        const block = compressed.length < legacy.length ? compressed : legacy;
-        sections.push(block);
-        compressionStats.record(legacy.length, block.length);
-      }
+      // Hierarchical format only. The naive-baseline legacy formatter
+      // (and the compressionStats module it fed) was retired 2026-07
+      // once the May 2026 compression refactor's ratios were confirmed
+      // on the maintainer's cost dashboard: building both blocks
+      // doubled the string work per frame for a measurement nobody
+      // consulted anymore. The legacy fallback-when-shorter also
+      // silently defeated aiSummaryCtrl's isRadarClear gate (its
+      // "Active" token only exists in the hierarchical format — see
+      // test/aiSummaryCalmPath.test.js), so the rare "legacy is
+      // shorter" geometries now cost a few extra prompt chars in
+      // exchange for a calm-gate that always sees the format it
+      // expects.
+      const block = formatSnapshot(samples, label, unit);
+      if (block) sections.push(block);
     } catch (err) {
       // One snapshot failed — keep going with whatever we have
       recordServiceCall("RainViewer (analyzer)", err?.response?.status || 500, `snapshot ${label} failed`);

@@ -790,13 +790,6 @@ const BucketServer = ({ data, lang, gridTwoWide }) => {
         </>
       ) : null}
 
-      {kpis.radarCompression ? (
-        <>
-          <SectionTitle title={lbl(lang, "Radar compression", "Compression radar", "Compresión radar")} gap />
-          <RadarCompressionRow stats={kpis.radarCompression} lang={lang} />
-        </>
-      ) : null}
-
       {Array.isArray(kpis.responseTimes) && kpis.responseTimes.length > 0 ? (
         <>
           <SectionTitle title={lbl(lang, "Response times", "Temps de réponse", "Tiempos de respuesta")} gap />
@@ -1684,55 +1677,6 @@ const PowerStatusRow = ({ powerStatus, lang }) => {
           {"Since reboot: "}
           {POWER_FLAGS.filter((f) => powerStatus.occurred[f]).map((f) => POWER_LABELS[f]).join(", ")}
         </span>
-      ) : null}
-    </div>
-  );
-};
-
-/**
- * Radar prompt-compression KPI row + inline "Export report" button.
- * Mirrors the v2 RadarCompressionRow (kept logic identical so the
- * Markdown report path matches). Hidden by the parent when
- * `kpis.radarCompression` is absent.
- *
- * @param {object} props
- * @param {object} props.stats — `{ count, avgPct, minPct, maxPct }` from the server.
- * @returns {JSX.Element}
- */
-const RadarCompressionRow = ({ stats, lang }) => {
-  const [exporting, setExporting] = useState(false);
-  const [exportMsg, setExportMsg] = useState(null);
-  const onExport = () => {
-    if (exporting) return;
-    setExporting(true);
-    axios.post("/api/debug/radar-compression-report")
-      .then((res) => {
-        setExportMsg(res.data?.path || lbl(lang, "Exported", "Exporté", "Exportado"));
-        setTimeout(() => setExportMsg(null), 4000);
-      })
-      .catch((err) => {
-        setExportMsg(`✗ ${err?.response?.data?.message || err.message || "error"}`);
-        setTimeout(() => setExportMsg(null), 4000);
-      })
-      .finally(() => setExporting(false));
-  };
-  const avgWord = lbl(lang, "avg", "moy", "prom");
-  const framesWord = lbl(lang, "frames", "trames", "tramas");
-  return (
-    <div className={styles.compRow}>
-      <span className={styles.compStat}>
-        {`${stats.avgPct.toFixed(0)} % ${avgWord} · ${stats.count} ${framesWord} · ${stats.minPct.toFixed(0)}–${stats.maxPct.toFixed(0)} %`}
-      </span>
-      <button
-        type="button"
-        className={styles.compExportButton}
-        onClick={onExport}
-        disabled={exporting}
-      >
-        {exporting ? "…" : lbl(lang, "Export report", "Exporter rapport", "Exportar informe")}
-      </button>
-      {exportMsg ? (
-        <span className={styles.compExportMsg}>{exportMsg}</span>
       ) : null}
     </div>
   );

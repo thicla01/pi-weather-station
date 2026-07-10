@@ -44,7 +44,6 @@ pi-weather-station/
 │   ├── rateLimitKey.js   # Rate-limit bucket key derived from the TCP socket peer — never req.ip/XFF
 │   ├── boundedCache.js   # BoundedMap + expiry-sweep primitives capping the in-memory caches (OOM guard)
 │   ├── singleFlight.js   # Single-flight guard middleware — 409s concurrent runs of a non-reentrant op (in-app updater)
-│   ├── compressionStats.js # In-memory stats on the radar-prompt compression (legacy vs hierarchical format)
 │   ├── settingsCtrl.js   # Reads/writes settings.json (server-side whitelist)
 │   ├── serviceStatus.js  # Tracks last status of each external service
 │   ├── requestCounter.js # API quota counters (persisted to request-counts.json)
