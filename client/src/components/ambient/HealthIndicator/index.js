@@ -4,11 +4,14 @@ import { useTranslation } from "react-i18next";
 import axios from "axios";
 import styles from "./styles.css";
 
-// Poll cadence — 30 s. Fast enough that a service going down or
-// recovering is reflected within half a minute, slow enough that
-// the endpoint cost is negligible (it's a pure in-memory lookup
-// on the server).
-const POLL_INTERVAL_MS = 30 * 1000;
+// Poll cadence — 2 min. The endpoint itself is a pure in-memory
+// lookup, but the poll's real cost is client-side: at 30 s this was
+// the fastest timer in the app (120 XHR/h, ~59% of the kiosk's added
+// request volume — perf audit 2026-07-09), each one waking Chromium's
+// network service + renderer on hardware where that matters (1 GB
+// Pi 3 class). A status chip reflecting an external-service outage
+// within 2 min is still well inside "at a glance" territory.
+const POLL_INTERVAL_MS = 2 * 60 * 1000;
 
 // Colour map for the dot. Matches the existing severity vocabulary
 // from `~/ui/severity` but kept inline because health uses a
