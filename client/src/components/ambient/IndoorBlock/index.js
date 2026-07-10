@@ -8,6 +8,12 @@ import { convertTemp } from "~/services/conversions";
 import styles from "./styles.css";
 
 const POLL_INTERVAL_MS = 60 * 1000;
+// When the server says the feature is disabled (no Homebridge
+// configured), re-checking once a minute is pure waste — 1,440
+// no-op XHR/day on a default install (perf audit 2026-07-09). Back
+// off to a slow probe that still notices a later enablement in
+// settings without a kiosk reload.
+const DISABLED_RECHECK_INTERVAL_MS = 10 * 60 * 1000;
 
 /**
  * Direction C variant of the indoor sensor block — temperature,
@@ -17,7 +23,8 @@ const POLL_INTERVAL_MS = 60 * 1000;
  * only divergence is presentation.
  *
  * Renders nothing in three cases, same SHOW gate as v2:
- *   - feature disabled on this Pi (server returns 404)
+ *   - feature disabled on this Pi (server returns `enabled: false` —
+ *     polling then backs off to a 10 min re-check instead of 60 s)
  *   - no valid reading received yet
  *   - reading available but `value` is null (the upstream sensor
  *     hasn't reported a temperature)
@@ -39,6 +46,7 @@ const IndoorBlock = () => {
 
   useEffect(() => {
     let cancelled = false;
+    let timerId = null;
 
     const fetchData = () => {
       axios
@@ -48,22 +56,33 @@ const IndoorBlock = () => {
           // Server returns 200 + { enabled: false } when Homebridge
           // isn't configured (was 404 before — the previous status
           // code spammed devtools as a network error on every poll).
-          if (r.status === 200 && r.data?.enabled) {
-            setData(r.data);
-          } else {
-            setData(null);
-          }
+          const enabled = r.status === 200 && r.data?.enabled;
+          setData(enabled ? r.data : null);
+          // Back off ONLY on an explicit "feature disabled" answer.
+          // A 5xx / malformed response is a server hiccup, not a
+          // configuration state — keep the 60 s cadence so recovery
+          // is as fast as it was before the backoff existed.
+          const explicitlyDisabled = r.status === 200 && r.data && r.data.enabled === false;
+          schedule(explicitlyDisabled ? DISABLED_RECHECK_INTERVAL_MS : POLL_INTERVAL_MS);
         })
         .catch(() => {
           // Network blip — keep showing the last good value.
+          schedule(POLL_INTERVAL_MS);
         });
     };
 
+    // Self-rescheduling timeout instead of setInterval so the cadence
+    // can stretch while the feature is disabled and snap back to 60 s
+    // as soon as a poll finds it enabled.
+    const schedule = (delayMs) => {
+      if (cancelled) return;
+      timerId = setTimeout(fetchData, delayMs);
+    };
+
     fetchData();
-    const id = setInterval(fetchData, POLL_INTERVAL_MS);
     return () => {
       cancelled = true;
-      clearInterval(id);
+      clearTimeout(timerId);
     };
   }, []);
 
