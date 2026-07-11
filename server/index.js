@@ -1004,28 +1004,6 @@ app.get("/api/debug", debugLocalhostOnly, getDebugInfo);
 app.get("/api/debug/cpu-temp", debugLocalhostOnly, getCpuTemp);
 app.get("/api/debug/fan-speed", debugLocalhostOnly, getFanSpeed);
 
-// Radar prompt-compression report. Generates a Markdown breakdown of
-// the in-memory stats accumulated by compressionStats and writes it
-// to `report/radar-compression-{ISO}.md`. Localhost-only (the report
-// is for the kiosk owner; remote clients shouldn't be able to fill
-// the report/ directory). Returns the relative path of the file
-// written so the client can show it in a confirmation toast.
-app.post("/api/debug/radar-compression-report", debugLocalhostOnly, (req, res) => {
-  const compressionStats = require("./compressionStats");
-  const reportDir = path.join(__dirname, "..", "report");
-  try {
-    if (!fs.existsSync(reportDir)) fs.mkdirSync(reportDir, { recursive: true });
-    const isoTs = new Date().toISOString().replace(/[:.]/g, "-");
-    const filename = `radar-compression-${isoTs}.md`;
-    const filepath = path.join(reportDir, filename);
-    fs.writeFileSync(filepath, compressionStats.generateReport());
-    return res.status(200).json({ ok: true, path: `report/${filename}` });
-  } catch (err) {
-    console.error("[radar-compression-report] write failed:", err.message);
-    return res.status(500).json({ error: true, message: err.message });
-  }
-});
-
 // Display brightness — read open to anyone (for the client to know whether
 // to render the slider), write localhost-only (the brightness physically
 // affects the device's screen, makes no sense for a remote client to dim

@@ -236,7 +236,7 @@ Returns the current "right now" radar-risk level for the inner and (optionally) 
 | 4 (heavy)                | `orange` | `#f08200` |
 | 5–6 (very heavy / extreme)| `red`    | `#e60000` |
 
-The outer ring is sampled only when `advanced.ai.extendedRadius` is `true` (server-side gate, matches the AI summary). Result is cached server-side for 5 minutes per location, so polling at the 5-minute interval the client uses costs at most one full sample per location per cycle. The underlying tile cache (12 minutes per RainViewer tile PNG) is shared with the AI summary's analyzer, so most polls only hit cache.
+The outer ring is sampled only when `advanced.ai.extendedRadius` is `true` (server-side gate, matches the AI summary). Result is cached server-side for 5 minutes per location, so polling at the 5-minute interval the client uses costs at most one full sample per location per cycle. Past the 5-minute soft TTL the server revalidates against the RainViewer frame index (a full recompute happens only when the frames the run would sample actually changed — RainViewer publishes every ~10 min). The underlying tile cache (60 minutes per decoded RainViewer tile; content is immutable per frame, the 48-entry LRU cap bounds memory) is shared with the AI summary's analyzer, so most polls only hit cache.
 
 - **Access:** 🌐 Public — rate limited (120 req/min)
 - **Query params:**
@@ -406,7 +406,7 @@ Returns the active government severe-weather alerts at the requested point, merg
 Sources:
 
 - **NWS (United States)** — `api.weather.gov/alerts/active?point=lat,lon`. Free, no API key, descriptive User-Agent required by policy. NWS does the spatial matching internally (zone- or polygon-based depending on the alert), so this endpoint normalises the response and enriches any zone-only alert (no inline polygon) with its real geometry, fetched from the alert's `affectedZones` (cached 24 h) — see `nwsZones.js`. Out-of-bounds coordinates return HTTP 400 from NWS, which is treated as "no coverage" rather than an error.
-- **ECCC (Canada)** — `api.weather.gc.ca/collections/weather-alerts/items` (the same pygeoapi instance that serves AQHI). The collection's `bbox` filter is non-functional on this instance (returns 0 features even when alerts intersect the box), so the strategy is to fetch all active Canadian alerts once (≤50 features, ~30-100 KB), cache the list server-side for 5 min, and run point-in-polygon locally per request. Bilingual EN/FR is built into every property (`alert_name_en` / `alert_name_fr`, etc.) and preserved through to the client.
+- **ECCC (Canada)** — `api.weather.gc.ca/collections/weather-alerts/items` (the same pygeoapi instance that serves AQHI), queried with the OGC `bbox=` spatial filter around the request point. The bbox snaps to a 1° grid cell sized to cover the 100 km max nearby radius, so the banner point-query and the nearby-alerts radius-query share one cached upstream fetch per cell (5 min TTL, `BoundedMap` of 8 cells); point-in-polygon still runs locally on what comes back. (Historical note: the module long fetched the entire national feed on the belief the bbox filter was non-functional — re-validated 2026-07-09, it works; the old symptom is reproduced exactly by passing the box in `lat,lon` order, and the national feed had meanwhile grown to ~840 features / ~10 MB per refresh.) Bilingual EN/FR is built into every property (`alert_name_en` / `alert_name_fr`, etc.) and preserved through to the client.
 
 The two sources run in parallel — each is cached, so the cost is negligible even at the US/Canada border where both fire. Failures are isolated: one source erroring out doesn't blank the other. The endpoint always returns 200 with an `alerts` array (possibly empty); the client never has to handle "out of coverage" specially.
 
@@ -816,15 +816,6 @@ Lightweight endpoint polled by the debug panel every 5 s while open, alongside `
 - **Response:** `{ "available": false }` when no fan sensor is exposed, otherwise `{ "available": true, "rpm": <number | null> }` (a value of `0` is valid — CPU cool, fan stopped — and is distinct from `null`, which means the file existed at detection time but became unreadable since).
 
 ---
-
-### `POST /api/debug/radar-compression-report`
-Generates a Markdown report of the radar prompt-compression statistics accumulated in memory by `server/compressionStats.js` (character-count reduction of the hierarchical radar prompt format vs the pre-compression legacy format: count/avg/min/max/median, a reduction histogram, and the least-compressed recent frames). The stats are in-memory only — they reset on server restart, same lifecycle as the response-time KPIs.
-
-- **Access:** 🔒 Localhost only — the report is for the kiosk owner; remote clients shouldn't be able to fill the `report/` directory
-- **Body:** none
-- **Side effects:** writes `report/radar-compression-<ISO timestamp>.md` in the repo root (creates the `report/` directory if missing)
-- **Response:** `{ "ok": true, "path": "report/radar-compression-<ISO timestamp>.md" }` — the relative path, shown by the debug panel in a confirmation toast
-- **Errors:** HTTP 500 `{ "error": true, "message": "..." }` when the file write fails
 
 ---
 

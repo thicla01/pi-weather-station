@@ -163,11 +163,12 @@ async function getNearbyAlertsAt(lat, lon, radiusKm, { showTest = false } = {}) 
     for (const arr of perState) if (Array.isArray(arr)) collected.push(...arr);
   }
 
-  // Canada — the whole (cached) national feed; the circle filter below
-  // culls anything actually too far, so this naturally covers a US point
+  // Canada — the (cached) feed for the circle's grid cell, whose bbox
+  // covers the maximum nearby radius; the circle filter below culls
+  // anything actually too far, so this naturally covers a US point
   // near the border without any extra coverage logic.
   try {
-    const ca = await sources.eccc.fetchAllNormalized();
+    const ca = await sources.eccc.fetchAllNormalized(lat, lon);
     if (Array.isArray(ca)) collected.push(...ca);
   } catch {
     /* best-effort — one source failing must not blank the other */

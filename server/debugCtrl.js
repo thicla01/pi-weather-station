@@ -619,7 +619,6 @@ async function getDebugInfo(req, res) {
     powerStatus: getPowerStatus(),
     cpuTempC: getCpuTempC(),
     fanRpm: getFanRpm(),
-    radarCompression: require("./compressionStats").getStats(),
   };
 
   // Resolve hostnames for remote clients (cached, best-effort)

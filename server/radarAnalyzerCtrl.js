@@ -13,11 +13,30 @@ const axios = require("axios").default;
 const { PNG } = require("pngjs");
 const { recordServiceCall } = require("./serviceStatus");
 const { increment } = require("./requestCounter");
-const compressionStats = require("./compressionStats");
 const { BoundedMap, sweepExpired } = require("./boundedCache");
 
-const ANALYSIS_CACHE_TTL = 5 * 60 * 1000;   // analysis text cached 5 min per location
-const TILE_CACHE_TTL = 12 * 60 * 1000;      // tile PNGs cached 12 min (RainViewer refreshes every 10 min)
+// Analysis/risk cache freshness is two-tier (perf audit 2026-07-09).
+// The old single 5-min TTL equalled both the kiosk's risk poll period
+// and sat under the AI summary's 15-min cycle, so nearly every consumer
+// arrived just past expiry and paid a full recompute (tile fetches +
+// synchronous PNG decodes) even though RainViewer only publishes a new
+// frame every ~10 min — the underlying data hadn't changed for half of
+// those recomputes.
+//   - Inside SOFT TTL: serve cached with zero network.
+//   - Between SOFT and HARD: fetch only the small frame index; if the
+//     newest frame is unchanged, the inputs can't have changed — extend
+//     freshness and serve cached. Recompute only on a new frame.
+//   - Past HARD TTL (or swept): full recompute. Bounds staleness if
+//     RainViewer's feed stalls while wall-clock offsets drift.
+const ANALYSIS_CACHE_TTL = 5 * 60 * 1000;      // soft: serve with zero network
+const ANALYSIS_HARD_TTL_MS = 30 * 60 * 1000;   // hard: sweep/eviction + stall bound
+// Tile content is immutable for a given frame path (the key embeds it),
+// so this TTL is pure eviction policy, not a freshness contract — the
+// 48-entry LRU cap is what bounds memory. 60 min keeps the -15/-45 min
+// frames' tiles decoded across the AI summary's 15-min cycles instead
+// of re-downloading + re-decoding them (synchronous pngjs inflate that
+// blocks the event loop) every cycle, as the old 12-min TTL forced.
+const TILE_CACHE_TTL = 60 * 60 * 1000;
 const FETCH_TIMEOUT_MS = 8 * 1000;
 // Retry delays between fetchRadarFrames attempts. Two retries (3 total
 // attempts) with exponential backoff. Targets transient packet loss /
@@ -286,6 +305,29 @@ async function fetchRadarFrames() {
 }
 
 /**
+ * Cache-revalidation token: the exact frames an analysis run at
+ * `nowMs` would select for the TARGET_OFFSETS_MIN offsets. While this
+ * signature is unchanged, every input to an analysis is unchanged —
+ * frame selection AND the immutable per-frame tiles. Keying on the
+ * selected set (not just the newest frame) also covers wall-clock
+ * drift: even if RainViewer publishes nothing new, the -15/-45 min
+ * targets march forward and can flip findFrameNear to a different
+ * past frame — that flips the signature and forces a recompute.
+ *
+ * @param {Array<{time: Number, path: String}>} frames
+ * @param {Number} nowMs Wall-clock reference for the offset targets
+ * @returns {String} joined frame paths, "" when frames is empty
+ */
+function frameSignature(frames, nowMs) {
+  return TARGET_OFFSETS_MIN
+    .map((offsetMin) => {
+      const f = findFrameNear(frames, nowMs + offsetMin * 60 * 1000);
+      return f ? f.path : "";
+    })
+    .join("|");
+}
+
+/**
  * Find the past frame closest to a target timestamp.
  *
  * @param {Array} frames
@@ -391,49 +433,6 @@ async function buildSnapshot(lat, lon, framePath, points) {
     }
   }
   return samples;
-}
-
-/**
- * "Naive full-grid" baseline formatter — always lists every direction
- * with all its distance entries, with no short-circuit and no rollup.
- * This is the conceptual baseline the user describes as "always 481
- * points": the size the prompt WOULD have if we sent every sample
- * unconditionally. The format that actually shipped before d061126
- * also had an all-clear short-circuit, but using THAT as the baseline
- * would credit calm-day polls with 0 % compression even though the
- * real win of the hierarchical refactor IS to also handle the storm
- * cases. The naive baseline is consistent across scenarios and gives
- * intuitive numbers: ~99 % on a calm radar, dropping toward ~10 % on
- * radar-wide systems where there's nothing to roll up.
- *
- * Used purely as a measurement baseline; never sent to Claude. Kept in
- * lockstep with `formatSnapshot`'s entry/label vocabulary so the only
- * source of length difference is the rollup logic itself.
- *
- * @param {Array} samples Same shape as for formatSnapshot.
- * @param {String} label "now" / "-15 min" / "-45 min".
- * @param {String} unit "km" or "mi".
- * @returns {String} Naive-baseline block.
- */
-function formatSnapshotLegacy(samples, label, unit) {
-  const byDir = new Map();
-  for (const dirName of DIRECTION_ORDER) byDir.set(dirName, []);
-  for (const s of samples) {
-    if (!byDir.has(s.direction)) byDir.set(s.direction, []);
-    byDir.get(s.direction).push(s);
-  }
-  const fmtDist = (d) => `${d}${unit}`;
-  const lines = [];
-  for (const dirName of DIRECTION_ORDER) {
-    const dirSamples = byDir.get(dirName);
-    if (!dirSamples || !dirSamples.length) continue;
-    dirSamples.sort((a, b) => a.distance - b.distance);
-    const parts = dirSamples.map(
-      (s) => `${fmtDist(s.distance)} ${INTENSITY_LABELS[s.intensity]}`,
-    );
-    lines.push(`  ${dirName.padEnd(6)} : ${parts.join(", ")}`);
-  }
-  return `${label}:\n${lines.join("\n")}`;
 }
 
 /**
@@ -627,7 +626,7 @@ async function analyzeRadar(lat, lon, options = {}) {
   const FORMAT_VERSION = "v2"; // hierarchical rollup (May 2026)
   const cacheKey = `${lat.toFixed(3)}:${lon.toFixed(3)}:${radiusTag}:${unit}:${FORMAT_VERSION}`;
   const cached = analysisCache.get(cacheKey);
-  if (cached && Date.now() < cached.expiresAt) return cached.text;
+  if (cached && Date.now() < cached.freshUntil) return cached.text;
 
   let frames;
   try {
@@ -641,7 +640,17 @@ async function analyzeRadar(lat, lon, options = {}) {
     return null;
   }
 
+  // Soft-expired but the frames this run would select are the very
+  // ones the cached text was computed from → the inputs are
+  // byte-identical; extend freshness instead of recomputing (tile
+  // fetches + PNG decodes). freshUntil is capped at the hard expiry
+  // so repeated revalidations can never outlive it.
   const now = Date.now();
+  const frameSig = frameSignature(frames, now);
+  if (cached && now < cached.expiresAt && cached.frameSig === frameSig) {
+    cached.freshUntil = Math.min(now + ANALYSIS_CACHE_TTL, cached.expiresAt);
+    return cached.text;
+  }
   const sections = [];
   for (const offsetMin of TARGET_OFFSETS_MIN) {
     const targetMs = now + offsetMin * 60 * 1000;
@@ -650,21 +659,20 @@ async function analyzeRadar(lat, lon, options = {}) {
     const label = offsetMin === 0 ? "now" : `${offsetMin} min`;
     try {
       const samples = await buildSnapshot(lat, lon, frame.path, points);
-      const compressed = formatSnapshot(samples, label, unit);
-      if (compressed) {
-        // Run the legacy formatter alongside the compressed one. Two roles:
-        //   1) Measure compression ratio (recorded in compressionStats).
-        //   2) Fallback target — when the hierarchical "compressed" output
-        //      is actually longer than the naive baseline (rare, but
-        //      observed: per-direction headers + sparse rollup overhead can
-        //      tip past savings on certain mid-cluttered radar geometries),
-        //      send the legacy block to Claude instead. We never pay for
-        //      the surcharge.
-        const legacy = formatSnapshotLegacy(samples, label, unit);
-        const block = compressed.length < legacy.length ? compressed : legacy;
-        sections.push(block);
-        compressionStats.record(legacy.length, block.length);
-      }
+      // Hierarchical format only. The naive-baseline legacy formatter
+      // (and the compressionStats module it fed) was retired 2026-07
+      // once the May 2026 compression refactor's ratios were confirmed
+      // on the maintainer's cost dashboard: building both blocks
+      // doubled the string work per frame for a measurement nobody
+      // consulted anymore. The legacy fallback-when-shorter also
+      // silently defeated aiSummaryCtrl's isRadarClear gate (its
+      // "Active" token only exists in the hierarchical format — see
+      // test/aiSummaryCalmPath.test.js), so the rare "legacy is
+      // shorter" geometries now cost a few extra prompt chars in
+      // exchange for a calm-gate that always sees the format it
+      // expects.
+      const block = formatSnapshot(samples, label, unit);
+      if (block) sections.push(block);
     } catch (err) {
       // One snapshot failed — keep going with whatever we have
       recordServiceCall("RainViewer (analyzer)", err?.response?.status || 500, `snapshot ${label} failed`);
@@ -674,7 +682,12 @@ async function analyzeRadar(lat, lon, options = {}) {
   if (!sections.length) return null;
 
   const text = sections.join("\n\n");
-  analysisCache.set(cacheKey, { text, expiresAt: Date.now() + ANALYSIS_CACHE_TTL });
+  analysisCache.set(cacheKey, {
+    text,
+    frameSig,
+    freshUntil: Date.now() + ANALYSIS_CACHE_TTL,
+    expiresAt: Date.now() + ANALYSIS_HARD_TTL_MS,
+  });
   recordServiceCall("RainViewer (analyzer)", 200, "OK");
   increment("rainviewer", "analyzer");
   return text;
@@ -1058,7 +1071,7 @@ async function getRiskLevels(lat, lon, options = {}) {
   // analyzer cache key so the two stay aligned.
   const cacheKey = `${lat.toFixed(3)}:${lon.toFixed(3)}:${unit}:${options.extendedRadius ? "x" : "s"}`;
   const cached = riskCache.get(cacheKey);
-  if (cached && Date.now() < cached.expiresAt) return cached.result;
+  if (cached && Date.now() < cached.freshUntil) return cached.result;
 
   let frames;
   try {
@@ -1070,6 +1083,17 @@ async function getRiskLevels(lat, lon, options = {}) {
   if (!frames.length) {
     recordServiceCall("RainViewer (risk)", 200, "no frames available");
     return null;
+  }
+
+  // Same frame-signature revalidation as analyzeRadar: soft-expired
+  // but this run would select the exact frames the cached result was
+  // computed from → extend freshness (capped at the hard expiry),
+  // skip the recompute.
+  const nowRisk = Date.now();
+  const frameSigRisk = frameSignature(frames, nowRisk);
+  if (cached && nowRisk < cached.expiresAt && cached.frameSig === frameSigRisk) {
+    cached.freshUntil = Math.min(nowRisk + ANALYSIS_CACHE_TTL, cached.expiresAt);
+    return cached.result;
   }
 
   // Build sample geometry once — same direction × distance grid is sampled
@@ -1096,8 +1120,9 @@ async function getRiskLevels(lat, lon, options = {}) {
   // -45 min). Building all three snapshots in parallel keeps the latency
   // close to a single-frame fetch since most tile reads will hit the
   // shared tile cache (the analyzer for the AI summary already populated
-  // them on its 5-minute schedule).
-  const now = Date.now();
+  // them on its 5-minute schedule). Reuses the revalidation timestamp so
+  // the frames sampled are exactly the ones the stored signature names.
+  const now = nowRisk;
   const frameJobs = TARGET_OFFSETS_MIN.map((offsetMin) => {
     const targetMs = now + offsetMin * 60 * 1000;
     const frame = findFrameNear(frames, targetMs);
@@ -1237,7 +1262,12 @@ async function getRiskLevels(lat, lon, options = {}) {
     : "outer=n/a";
   console.log(`[risk] ${cacheKey}: inner=${innerLevel}${innerBumpMark}(max=${innerMax},tier=${innerTierIntensity},trend=${innerTrend}@${innerTrendConfidence}%,dirs=${innerDist}) ${outerLog}`);
 
-  riskCache.set(cacheKey, { result, expiresAt: Date.now() + ANALYSIS_CACHE_TTL });
+  riskCache.set(cacheKey, {
+    result,
+    frameSig: frameSigRisk,
+    freshUntil: Date.now() + ANALYSIS_CACHE_TTL,
+    expiresAt: Date.now() + ANALYSIS_HARD_TTL_MS,
+  });
   recordServiceCall("RainViewer (risk)", 200, "OK");
   increment("rainviewer", "risk");
   return result;

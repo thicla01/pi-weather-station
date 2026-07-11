@@ -140,8 +140,15 @@ told explicitly which piece is missing so it doesn't hallucinate values.
    surrounding empty zones in one phrase each. This compression dropped
    the radar block from ~5000 to ~2600 chars (62% reduction) and is what
    keeps the Anthropic call cheap.
-8. Caches the formatted snapshot for 5 minutes (`ANALYSIS_CACHE_TTL`)
-   keyed by `lat:lon:radiusTag:unit:FORMAT_VERSION`.
+8. Caches the formatted snapshot keyed by
+   `lat:lon:radiusTag:unit:FORMAT_VERSION`. Freshness is two-tier
+   (2026-07): inside the 5-minute soft TTL (`ANALYSIS_CACHE_TTL`) the
+   text is served with zero network; past it the analyzer fetches only
+   the small RainViewer frame index and, if the frames this run would
+   sample are unchanged (same frame signature), extends freshness
+   instead of recomputing — so a full re-analysis (tile downloads +
+   PNG decodes) happens only when RainViewer actually published a new
+   frame, bounded by a 30-minute hard TTL if the upstream feed stalls.
 
 ### 4. Unit conversions
 

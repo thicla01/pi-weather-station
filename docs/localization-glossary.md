@@ -409,7 +409,6 @@ Strings whose three locales are 100% identical (pure abbreviations like `mph`, `
 | ☐ | Power status | État alimentation | Estado de alimentación | `inline lbl() (DebugPanel)` |
 | ☐ | Provider statuspages | Statut fournisseurs | Estado de proveedores | `inline lbl() (DebugPanel)` |
 | ☐ | Radar AI snapshots | Captures radar IA | Capturas radar IA | `inline lbl() (DebugPanel)` |
-| ☐ | Radar compression | Compression radar | Compresión radar | `inline lbl() (DebugPanel)` |
 | ☐ | Recent logs | Journaux récents | Registros recientes | `inline lbl() (DebugPanel)` |
 | ☐ | Recent service calls | Appels de service récents | Llamadas de servicio recientes | `inline lbl() (DebugPanel)` |
 | ☐ | Remote clients | Clients distants | Clientes remotos | `inline lbl() (DebugPanel)` |
@@ -511,7 +510,6 @@ Strings whose three locales are 100% identical (pure abbreviations like `mph`, `
 | ☐ | PROVIDER STATUS | ÉTAT DES FOURNISSEURS | ESTADO DE PROVEEDORES | `debug.providerStatus` |
 | ☐ | QUOTA | QUOTA | CUOTA | `debug.quota` |
 | ☐ | QUOTAS | QUOTAS | CUOTAS | `debug.quotas` |
-| ☐ | RADAR COMPRESSION | COMPRESSION RADAR | COMPRESIÓN RADAR | `debug.radarCompression` |
 | ☐ | RADAR SNAPSHOTS (LAST 10) | INSTANTANÉS RADAR (10 DERNIERS) | INSTANTÁNEAS DE RADAR (ÚLTIMAS 10) | `debug.radarSnapshots` |
 | ☐ | Radar text passed to Claude | Texte radar transmis à Claude | Texto del radar enviado a Claude | `debug.radarSnapshotInput` |
 | ☐ | REMOTE CLIENTS | CLIENTS DISTANTS | CLIENTES REMOTOS | `debug.remoteClients` |
@@ -537,10 +535,6 @@ Strings whose three locales are 100% identical (pure abbreviations like `mph`, `
 | ☐ | Copied! | Copié ! | ¡Copiado! | `debug.radarSnapshotCopied` |
 | ☐ | Export JSON | Exporter JSON | Exportar JSON | `debug.radarSnapshotExport` |
 | ☐ | Download all snapshots as a JSON file | Télécharger tous les instantanés au format JSON | Descargar todas las instantáneas como archivo JSON | `debug.radarSnapshotExportTitle` |
-| ☐ | Export report | Exporter rapport | Exportar informe | `debug.radarCompressionExport` |
-| ☐ | Report exported | Rapport exporté | Informe exportado | `debug.radarCompressionExported` |
-| ☐ | avg | moy | prom | `debug.radarCompressionAvg` |
-| ☐ | frames | trames | frames | `debug.radarCompressionFrames` |
 | ☐ | Freq. capped | Fréq. limitée | Frec. limitada | `debug.freqCapped` |
 | ☐ | Throttled | Ralenti | Limitado | `debug.throttledStatus` |
 | ☐ | Temp. limit | Limite temp. | Límite temp. | `debug.tempLimit` |

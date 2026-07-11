@@ -363,6 +363,7 @@ module.exports = {
   TIMEOUT_MS,
   pointInUSBox,
   pointInCABox,
+  CA_BBOX,
   pointInPolygon,
   normalizeSeverity,
   severityToTier,
