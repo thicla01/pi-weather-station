@@ -27,8 +27,8 @@ const convertTemp = (c, units) => {
   if (!c && c !== 0) {
     return null;
   }
-  if (units && units.toLowerCase() === "c") return parseInt(c);
-  if (units && units.toLowerCase() === "f") return parseInt(cToF(c));
+  if (units && units.toLowerCase() === "c") return Math.round(c);
+  if (units && units.toLowerCase() === "f") return Math.round(cToF(c));
   if (units && units.toLowerCase() === "k") return Math.round(c + 273.15);
   return null;
 };

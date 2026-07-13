@@ -130,7 +130,7 @@ All weather endpoints proxy Tomorrow.io and share a server-side cache.
 | `lat` | float | ✅ | Latitude (-90 to 90) |
 | `lon` | float | ✅ | Longitude (-180 to 180) |
 
-- **Response:** Tomorrow.io timeline JSON, cached and forwarded as-is
+- **Response:** Tomorrow.io timeline JSON, cached and forwarded as-is — **except `GET /api/weather/current`**, whose `temperature` and `temperatureApparent` are replaced with a trailing 3-fetch moving average (per location, deduped by `intervalStart`) to damp the noisy `timesteps=current` feed before caching. All other fields (`weatherCode`, wind, humidity…) are forwarded raw. See the "current-temperature smoothing" note in `CHANGELOG.md`.
 
 ---
 

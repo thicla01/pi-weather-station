@@ -22,10 +22,14 @@ export const convertTemp = (c, units) => {
     return null;
   }
 
+  // Round, don't truncate: 26.8 °C should read 27, not 26. parseInt() floored
+  // toward zero, biasing every displayed °C/°F down by up to a full degree
+  // (Kelvin already rounded). Matters more now that the served temperature is
+  // a smoothed average rather than a raw integer-ish reading.
   if (units && units.toLowerCase() === "c") {
-    return parseInt(c);
+    return Math.round(c);
   } else if (units && units.toLowerCase() === "f") {
-    return parseInt(cToF(c));
+    return Math.round(cToF(c));
   } else if (units && units.toLowerCase() === "k") {
     return Math.round(c + 273.15);
   } else {
