@@ -5,7 +5,7 @@ const axios = require("axios").default;
 const { getSettingsData } = require("./settingsCtrl");
 const { recordServiceCall } = require("./serviceStatus");
 const { increment } = require("./requestCounter");
-const { pruneObjectCache } = require("./boundedCache");
+const { pruneObjectCache, BoundedMap } = require("./boundedCache");
 
 /**
  * Field-set signature for a Tomorrow.io request. Used inside the cache
@@ -256,6 +256,22 @@ const MAX_STALE_MS = 24 * 60 * 60 * 1000;
 // existing 5-min interval (see pruneWeatherCache below).
 const WEATHER_CACHE_MAX = 512;
 
+// ── Current-temperature smoothing ────────────────────────────────────────
+// Tomorrow.io's `timesteps=current` product re-assimilates on every call and,
+// at a fixed location, can jump ±2-3 °C between 15-min fetches (confirmed
+// 2026-07-12 against a 5-day per-Pi capture: the raw feed showed non-physical
+// evening rebounds of +2.4 °C in 15 min). The kiosk Hero renders the
+// truncated integer, so that noise reads as the big number flickering
+// 29→25→29 — and, because each Pi caches on its own 15-min phase, as
+// neighbouring Pis disagreeing by 2-3 °C. We damp it with a short trailing
+// moving average of the raw readings: over that 5-day sample it cut the count
+// of ≥2 °C displayed jumps from 108 to 1, at the cost of ~15 min of lag.
+// Applied server-side so every consumer (all Pis + the Sense HAT) benefits.
+const CURRENT_SMOOTH_WINDOW = 3;       // recent fetches averaged (~45 min)
+const CURRENT_SMOOTH_MAX_COORDS = 64;  // OOM guard: distinct locations tracked
+// coordKey → [{ intervalStart, temperature, temperatureApparent }, …] (≤ window)
+const currentTempHistory = new BoundedMap(CURRENT_SMOOTH_MAX_COORDS);
+
 const weatherCache = {};
 let cacheHits = 0;
 let cacheMisses = 0;
@@ -410,6 +426,76 @@ function getCacheStats() {
 function setInCache(key, data, ttl) {
   weatherCache[key] = { data, expiresAt: Date.now() + ttl };
   console.log(`[cache] SET  ${key} (ttl ${ttl / 1000}s)`);
+}
+
+/**
+ * Mean of the finite numbers in `nums`, rounded to 2 decimals. Returns null
+ * when no finite value is present (so callers can fall back to the raw field).
+ *
+ * @param {number[]} nums
+ * @returns {number|null}
+ */
+function roundedMean(nums) {
+  const finite = nums.filter((n) => Number.isFinite(n));
+  if (finite.length === 0) return null;
+  const sum = finite.reduce((acc, n) => acc + n, 0);
+  return Math.round((sum / finite.length) * 100) / 100;
+}
+
+/**
+ * Record a fresh raw `current` reading for a location and return the trailing
+ * moving average over the last CURRENT_SMOOTH_WINDOW readings. Deduplicated by
+ * `intervalStart` (a payload re-served for the same instant never double-
+ * counts), trimmed to the window, with the coord map bounded to guard OOM.
+ *
+ * @param {string} coordKey            stable per-location key
+ * @param {string} intervalStart       the reading's own timestamp (dedup key)
+ * @param {number} temperature         raw °C from Tomorrow.io
+ * @param {number} temperatureApparent raw feels-like °C
+ * @returns {{temperature: (number|null), temperatureApparent: (number|null)}}
+ *   trailing-average values (null when no finite input exists)
+ */
+function pushAndSmoothCurrent(coordKey, intervalStart, temperature, temperatureApparent) {
+  const hist = currentTempHistory.get(coordKey) || [];
+  const reading = { intervalStart, temperature, temperatureApparent };
+  if (hist.length > 0 && hist[hist.length - 1].intervalStart === intervalStart) {
+    hist[hist.length - 1] = reading;   // same instant re-served — replace, don't stack
+  } else {
+    hist.push(reading);
+  }
+  while (hist.length > CURRENT_SMOOTH_WINDOW) hist.shift();
+  currentTempHistory.set(coordKey, hist);
+  return {
+    temperature: roundedMean(hist.map((r) => r.temperature)),
+    temperatureApparent: roundedMean(hist.map((r) => r.temperatureApparent)),
+  };
+}
+
+/**
+ * In-place: replace the raw `current` temperature and apparent temperature in
+ * a Tomorrow.io payload with their trailing-average values (recording the raw
+ * reading first). No-op if the payload shape is unexpected or `temperature`
+ * is absent — the raw body is then served untouched. Other fields
+ * (weatherCode, wind, humidity…) are deliberately left raw.
+ *
+ * @param {object} payload Tomorrow.io response body (axios `result.data`)
+ * @param {number} lat
+ * @param {number} lon
+ */
+function smoothCurrentPayload(payload, lat, lon) {
+  const interval = payload?.data?.timelines?.[0]?.intervals?.[0];
+  const values = interval?.values;
+  if (!values || typeof values.temperature !== "number") return;
+  const coordKey = `${lat.toFixed(4)},${lon.toFixed(4)}`;
+  const smoothed = pushAndSmoothCurrent(
+    coordKey, interval.startTime, values.temperature, values.temperatureApparent
+  );
+  if (smoothed.temperature !== null) {
+    values.temperature = smoothed.temperature;
+  }
+  if (smoothed.temperatureApparent !== null && typeof values.temperatureApparent === "number") {
+    values.temperatureApparent = smoothed.temperatureApparent;
+  }
 }
 
 /**
@@ -572,6 +658,9 @@ async function weatherCurrent(req, res) {
     const result = await weatherGet(
       `https://api.tomorrow.io/v4/timelines?location=${lat}%2C${lon}&fields=${fields}&timesteps=current&apikey=${settings.weatherApiKey}`
     );
+    // Damp the noisy raw feed before caching, so the cached + served payload
+    // (and every downstream consumer) carries the smoothed temperature.
+    smoothCurrentPayload(result.data, lat, lon);
     setInCache(cacheKey, result.data, WEATHER_CACHE_TTL.current);
     increment("tomorrow.io", "current");
     recordServiceCall("Tomorrow.io (current)", 200, "OK");
@@ -815,5 +904,9 @@ module.exports = {
   spaceTomorrowCall,
   // Pure helpers exposed for unit tests — keeps the public surface clean
   // while letting test/proxyRetry.test.js exercise the retry + spacing.
-  __test: { isTransientError, retryTransient, createSpacer },
+  __test: {
+    isTransientError, retryTransient, createSpacer,
+    roundedMean, pushAndSmoothCurrent, smoothCurrentPayload,
+    currentTempHistory, CURRENT_SMOOTH_WINDOW,
+  },
 };
