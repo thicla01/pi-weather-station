@@ -23,17 +23,19 @@ A major milestone just landed (full details in [CHANGELOG.md](./CHANGELOG.md) an
 
 ## Interface
 
-Since **v2.18**, the default interface is **v3 "Ambient Layers"** — a full rebuild of the dashboard, settings, and debug panels with a refreshed visual language and responsive layouts for the 7" Pi, desktop, and phone. The legacy v2 interface remains available as a temporary fallback while the v3 rollout settles; its code path will be removed in a future release.
+**v3 "Ambient Layers" is the interface** — a full rebuild of the dashboard, settings, and debug panels with a refreshed visual language. It became the default in **v2.18** (May 2026), and in **July 2026** the legacy v2 layout and the toggle that selected it were removed, after the field-test window closed with no v3-only regression reported.
 
-To switch interfaces on your own station:
+There is nothing to switch. v3 picks its layout from the viewport on its own and reflows live as the window changes:
 
-1. Open **Settings → Advanced → Interface**
-2. Toggle **Ambient interface v3** off to fall back to the legacy v2 layout, or back on to return to v3 (the default)
-3. The page reloads into the selected UI
+| Viewport | Layout |
+|---|---|
+| ≤ 799 px wide | Phone — single scrollable column, mini radar with a maximize button, pull-to-refresh |
+| 800-1279 px wide | Pi kiosk (7" / 10") — 2-column grid, radar plus an information rail |
+| ≥ 1280 px wide | Desktop — full-bleed map with floating panels |
 
-Both interfaces share the same backend, the same settings.json, and the same data sources; you're switching the front-end only.
+Full layout reference: [`docs/ui-layout_en.md`](docs/ui-layout_en.md) (French: [`docs/ui-layout_fr.md`](docs/ui-layout_fr.md)). If you are reading older screenshots or release notes and want the v2 layout for reference, it is archived in [`docs/archive/ui-layout_v2_en.md`](docs/archive/ui-layout_v2_en.md).
 
-Hit a bug, a regression, or an awkward layout in v3? Disable the toggle to fall back to v2 and please open an issue at <https://github.com/thicla01/pi-weather-station/issues> so it can be fixed before the v2 code path is removed.
+Hit a bug, a regression, or an awkward layout? Please open an issue at <https://github.com/thicla01/pi-weather-station/issues>.
 
 ## Screenshots
 
@@ -52,15 +54,17 @@ The station includes:
 - **Light / dark map styles**, user-selectable from settings.
 - **Hardware screen-brightness control** on supported displays.
 - **Opt-in sleep mode / screensaver** with a melatonin-friendly red night palette.
-- **Small-screen panel toggle** for compact 5–7" displays.
+- **Focus-radar toggle** — a small button under the map's zoom controls hides the hero and the information rail so the radar fills the viewport; tap again to bring them back. Available on the Pi kiosk and desktop layouts (the phone layout has its own maximize button on the mini radar).
 - **Localhost-only debug panel** with KPIs, service status, quota counters, radar snapshots, and logs.
+
+> **Note:** this gallery predates the v3 "Ambient Layers" interface — the captures show the older v2 layout. The features they illustrate all still exist; the arrangement and the controls have changed. See [`docs/ui-layout_en.md`](docs/ui-layout_en.md) for the current layout.
 
 | | |
 |---|---|
-| ![Full layout — InfoPanel open](docs/screenshots/full-layout.png) | ![Radar full-width — InfoPanel collapsed](docs/screenshots/radar-fullscreen.png) |
-| **Full layout (7" Pi)** — InfoPanel header shows the Homebridge-backed indoor temperature/humidity/air quality next to the clock; the dashed circle on the map is the 50 km radar-analysis zone fed to the AI summary. | **Radar full-width** — On screens ≤ 520 px tall, the floating chevron collapses the InfoPanel so the radar takes the full viewport. |
-| ![AI summary expanded](docs/screenshots/ai-summary.png) | ![Debug panel](docs/screenshots/debug-panel.png) |
-| **AI summary expanded** — Tapping the chevron hides the charts and slides the summary up; the third paragraph (`Radar analysis:`) describes precipitation movement around the user, sampled from RainViewer tiles server-side. | **Debug panel** — Localhost-only, enabled with `DEBUG=true`. Server config, KPIs (uptime, heap, cache hit rate), per-endpoint response times, provider status, quota counters, security events, and logs. |
+| ![Full layout, information panel visible](docs/screenshots/full-layout.png) | ![Radar full-width, panels hidden](docs/screenshots/radar-fullscreen.png) |
+| **Full layout (7" Pi)** — The information panel shows the Homebridge-backed indoor temperature/humidity/air quality next to the clock; the dashed circle on the map is the 50 km radar-analysis zone fed to the AI summary. | **Radar full-width** — The panels can be hidden so the radar takes the whole viewport. In v3 this is the focus-radar button under the map's zoom controls. |
+| ![AI summary given the full panel height](docs/screenshots/ai-summary.png) | ![Debug panel](docs/screenshots/debug-panel.png) |
+| **AI summary, full height** — The summary can take over the panel so a long narrative is readable in one go; the third paragraph (`Radar analysis:`) describes precipitation movement around the user, sampled from RainViewer tiles server-side. | **Debug panel** — Localhost-only, enabled with `DEBUG=true`. Server config, KPIs (uptime, heap, cache hit rate), per-endpoint response times, provider status, quota counters, security events, and logs. |
 | ![Severe weather alert + extended-radius radar — 10" Pi](docs/screenshots/severe-alert.png) | ![Sleep mode — night-red variant](docs/screenshots/sleep-mode.png) |
 | **Severe-weather alert + extended radar (10" Pi)** — Government alert banner pulled from ECCC (or NWS in the US) shown above the current conditions, here a frost advisory for Quebec. The map's two dashed circles mark the 50 km / 100 km radar-analysis zones (extended radius is on); UV index and air-quality (AQHI) badges sit under the wind/precipitation row, colour-coded by tier. | **Sleep mode (night-red variant)** — Opt-in screensaver fading in after configurable inactivity. Three colour palettes: day cream, night cream, and the night-red shown here — long-wavelength red has minimal impact on melatonin, friendlier for a kiosk visible from a bedroom or hallway. After a further delay, stage 2 fades to a black screen with a single moving dot to prevent LCD burn-in. |
 
@@ -87,7 +91,7 @@ See the **original v1** in action in [this video](https://www.youtube.com/watch?
 
 For day-to-day updates, the in-app updater handles `git pull`, `npm ci`, and the service restart automatically. The flow:
 
-1. When a new release is available on GitHub, the **update icon** in the bottom control bar of the InfoPanel shows a small red notification badge.
+1. When a new release is available on GitHub, the **update icon** in the bottom dock (the control-button row at the bottom of the screen) shows a small red notification badge.
 2. Tapping the icon opens a modal listing the new commits since the installed version, with an **Update** button at the bottom.
 3. The Update button triggers the upgrade and restarts the service. The kiosk reloads to the new version automatically.
 
@@ -497,9 +501,9 @@ No other environment variables are used by the server. API keys and user prefere
 # Settings
 
 - Your API keys are saved locally (in plain text) to `settings.json`.
-- The server will attempt to get your default location via [ipapi.co](https://ipapi.co/) (requires internet access), but if it cannot or you wish to choose a different default location, enter the latitude and longitude under `Custom Latitude` and `Custom Longitude` in settings, which can be accessed by tapping the gear button in the lower right hand corner.
+- The server will attempt to get your default location via [ipapi.co](https://ipapi.co/) (requires internet access), but if it cannot or you wish to choose a different default location, enter the latitude and longitude under `Custom Latitude` and `Custom Longitude` in settings, which can be accessed by tapping the gear button in the bottom dock (the control-button row along the bottom of the screen).
 - To hide the mouse cursor when using a touch screen, set `Hide Mouse` to `On`.
-- To adjust text size in the info panel, use the **Font Size** toggle (S / M / L). The setting is saved in `localStorage` and takes effect immediately.
+- To adjust text size in the information rail, use the **Font Size** toggle (S / M / L). The setting is saved in `localStorage` and takes effect immediately.
 - To enable AI weather summaries, enter your [Anthropic API key](https://console.anthropic.com/) in the `Anthropic API Key` field. This feature is optional — the app works fully without it. Summaries are generated by Claude Haiku, cached 15 minutes server-side, and adapt to the time of day (morning, evening, or night forecast in the second paragraph). Supported languages: English, French, Spanish. For the full local-vs-Anthropic data flow, caching layers, and model-upgrade procedure, see [docs/ai-summary.md](docs/ai-summary.md).
 
 # Contributors

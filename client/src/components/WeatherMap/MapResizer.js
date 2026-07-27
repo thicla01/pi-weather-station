@@ -22,10 +22,8 @@ const MOBILE_INVALIDATE_FINAL_MS = 350;
  *    final size for pan math). Without the late call, Leaflet's
  *    internal `_size` cache keeps a mid-transition value and
  *    subsequent pans (e.g. the Reset Map button) land the marker
- *    off-centre. `infoPanelCollapsed` is still passed in for v2
- *    InfoPanel compatibility (legacy `experimentalUiC=false` path)
- *    but the Pi rail collapse path on v3 is now driven by
- *    `piRadarMaximized` instead. v3.2 adds the MID↔MAX morph (the map
+ *    off-centre. The Pi rail collapse path is driven by
+ *    `piRadarMaximized`. v3.2 adds the MID↔MAX morph (the map
  *    shrinks to a ~190 px thumbnail and back): `piRadarMaximized` does
  *    NOT change across that (both MID and MAX read as "not focused"),
  *    so `piLayoutState` is also in the dep set to fire the invalidate
@@ -51,7 +49,6 @@ const MOBILE_INVALIDATE_FINAL_MS = 350;
  * ended up NE-offset on user-reported screens > 7".
  *
  * @param {object} props
- * @param {boolean} props.infoPanelCollapsed v2 InfoPanel collapse state (legacy)
  * @param {boolean} props.mobileRadarMaximized null on non-mobile layouts
  * @param {boolean} props.desktopRadarMaximized Desktop focus-mode state
  * @param {boolean} props.piRadarMaximized LayoutPi focus-mode state (MIN ⇔ true; derived shim)
@@ -61,7 +58,7 @@ const MOBILE_INVALIDATE_FINAL_MS = 350;
  * @param {number} props.zoom Current map zoom level
  * @returns {null} renders nothing
  */
-const MapResizer = ({ infoPanelCollapsed, mobileRadarMaximized, desktopRadarMaximized, piRadarMaximized, piLayoutState, latitude, longitude, zoom }) => {
+const MapResizer = ({ mobileRadarMaximized, desktopRadarMaximized, piRadarMaximized, piLayoutState, latitude, longitude, zoom }) => {
   const map = useMap();
   useEffect(() => {
     const live = setTimeout(() => map.invalidateSize(), COLLAPSE_INVALIDATE_LIVE_MS);
@@ -71,7 +68,7 @@ const MapResizer = ({ infoPanelCollapsed, mobileRadarMaximized, desktopRadarMaxi
       clearTimeout(final);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps -- desktopRadarMaximized + piRadarMaximized + piLayoutState purposely re-trigger the same handler
-  }, [infoPanelCollapsed, desktopRadarMaximized, piRadarMaximized, piLayoutState, map]);
+  }, [desktopRadarMaximized, piRadarMaximized, piLayoutState, map]);
 
   useEffect(() => {
     if (mobileRadarMaximized == null) return undefined;
@@ -96,7 +93,6 @@ const MapResizer = ({ infoPanelCollapsed, mobileRadarMaximized, desktopRadarMaxi
 };
 
 MapResizer.propTypes = {
-  infoPanelCollapsed: PropTypes.bool,
   mobileRadarMaximized: PropTypes.bool,
   desktopRadarMaximized: PropTypes.bool,
   piRadarMaximized: PropTypes.bool,

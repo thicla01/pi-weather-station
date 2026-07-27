@@ -1,8 +1,8 @@
 /**
- * Human-readable labels for the per-service quota counters, shared by
- * the CSV export below and the v2 Debug page's quota section.
+ * Human-readable labels for the per-service quota counters, used by
+ * the CSV export below.
  */
-export const SERVICE_LABELS = {
+const SERVICE_LABELS = {
   "tomorrow.io":        "Tomorrow.io",
   "mapbox":             "Mapbox",
   "locationiq":         "LocationIQ",
@@ -11,13 +11,12 @@ export const SERVICE_LABELS = {
 };
 
 /**
- * Compact "3d 4h 12m 5s" uptime formatter, shared by the CSV export and
- * the v2 Debug page's KPI row.
+ * Compact "3d 4h 12m 5s" uptime formatter, used by the CSV export.
  *
  * @param {number} seconds uptime in seconds
  * @returns {string} human-compact duration
  */
-export function formatUptime(seconds) {
+function formatUptime(seconds) {
   const d = Math.floor(seconds / 86400);
   const h = Math.floor((seconds % 86400) / 3600);
   const m = Math.floor((seconds % 3600) / 60);
@@ -32,19 +31,18 @@ export function formatUptime(seconds) {
 /**
  * Build and download the debug-panel CSV export.
  *
- * Shared by BOTH debug surfaces — the legacy v2 `Debug` page and the v3
- * ambient `DebugPanel` — so the CSV format has a single owner. Extracted
- * out of `components/Debug` (2026-06, v3→v2 boundary cleanup) so the v3
- * panel no longer imports from the legacy tree queued for removal.
+ * Owned here rather than in the panel component so the CSV format has a
+ * single owner. Extracted out of the since-deleted `components/Debug`
+ * in 2026-06.
  *
  * Self-contained: serialises the `/api/debug` payload section by section
  * into `weather-station-debug-<timestamp>.csv` and triggers a browser
- * download. `clientMetrics` and `fps` are v2-only extras — the v3 caller
- * passes null for both and the corresponding rows are simply omitted.
+ * download. `clientMetrics` and `fps` are optional extras — the current
+ * caller passes null for both and the corresponding rows are omitted.
  *
  * @param {object} data the `/api/debug` response payload
- * @param {object|null} clientMetrics optional client-side metrics (v2 Debug page)
- * @param {number|null} fps optional FPS reading (v2 Debug page)
+ * @param {object|null} clientMetrics optional client-side metrics
+ * @param {number|null} fps optional FPS reading
  * @returns {void}
  */
 export function exportDebugCsv(data, clientMetrics, fps) {

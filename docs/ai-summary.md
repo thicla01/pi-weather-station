@@ -1,9 +1,9 @@
 # AI Summary — how it works
 
-The InfoPanel's `AI SUMMARY` block is a 1-3 paragraph natural-language
-description of the user's current weather, the next forecast period, and
-what the radar around them is doing. It's powered by Claude (Anthropic API,
-Haiku 4.5 today) and refreshed every 15 minutes.
+The `AI SUMMARY` slab (`client/src/components/ambient/AiSummaryInline/`) is a
+1-3 paragraph natural-language description of the user's current weather, the
+next forecast period, and what the radar around them is doing. It's powered by
+Claude (Anthropic API, Haiku 4.5 today) and refreshed every 15 minutes.
 
 This document explains exactly which pieces of work happen on the Pi and
 which happen on Anthropic's servers, how data flows between them, and how
@@ -62,7 +62,7 @@ precipitation is approaching, *both* fire — one as a coloured banner
 above the current conditions, the other as a textual description in
 the AI summary. They draw the same conclusion from the same data, but
 the banner does it via deterministic rules in
-`server/radarAnalyzerCtrl.js` and `client/src/components/AlertBanner/`,
+`server/radarAnalyzerCtrl.js` and `client/src/components/ambient/AlertBanner/`,
 while the AI summary phrases it in natural language via Claude. The
 banner works perfectly even when the AI summary is disabled (no
 Anthropic key) — the user just doesn't get the natural-language
@@ -370,8 +370,9 @@ data, cold summary" returns in 400-1200 ms (Claude only).
 | `server/aiSummaryCtrl.js` | Prompt assembly, Claude call, summary cache |
 | `server/radarAnalyzerCtrl.js` | RainViewer fetch, PNG decode, sampling, formatting |
 | `server/proxyCtrl.js` | Shared weather cache (Tomorrow.io payloads) |
-| `client/src/components/AiSummary/index.js` | Polling + display |
-| `client/src/components/Settings/AdvancedSettings/index.js` | Settings UI for `advanced.ai.*` |
+| `client/src/components/ambient/AiSummaryInline/index.js` | Display — the summary slab used by the desktop and mobile layouts (carries its own fetch + 15-min refresh) |
+| `client/src/components/hooks/useAiSummary.js` | Fetch + refresh contract, extracted as a hook (15-min interval, `REFRESH_INTERVAL`). Consumed by `ambient/AiView`, the full-rail AI view on the 7" Pi layout |
+| `client/src/components/ambient/SettingsPanel/index.js` | Settings UI for `advanced.ai.*` |
 | `docs/api.md` | Endpoint reference (request params, error codes) |
 
 ---

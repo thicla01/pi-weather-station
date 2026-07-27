@@ -1,8 +1,28 @@
 # UI Direction C — Implementation Plan
 
-**Status:** Draft, awaiting maintainer review
-**Target version:** v3.0.0
-**Last updated:** 2026-05-12 (Claude Opus 4.7)
+**Status:** ✅ **Programme closed — 2026-07.** The last outstanding item (Phase 10's
+`experimentalUiC` flag removal + the legacy-code purge) landed with the deletion of the
+v2 component tree. The v3 "Ambient Layers" tree is now the only interface.
+**Target version:** v3.0.0 — *see "How it actually shipped" below; it never shipped under
+that number.*
+**Last updated:** 2026-07-26 (closure note) — plan body last edited 2026-05-12 (Claude Opus 4.7)
+
+> **Read this before the checkboxes below.** This file is kept in place as the historical
+> record of the Direction C programme. **The unchecked boxes are NOT open work** — they are
+> the plan as written in May 2026, preserved verbatim. Items that were dropped, reshaped, or
+> absorbed into other PRs were never ticked, and the programme closed anyway. Do not mine
+> this file for a backlog; the live backlog is `ROADMAP.md`.
+
+### How it actually shipped (two divergences from the plan)
+
+1. **Not v3.0.0.** The version line ran **2.18 → 2.19 → 3.1.0** (June 2026). The major bump
+   was renumbered to `3.1.0` to match the completed **v3.1 design programme** rather than the
+   `v3.0.0` this plan assumed, so the number on the tag lines up with the design phase that
+   actually shipped. Phase 10's `package.json` / tag / release steps therefore read `3.1.0`,
+   not `3.0.0`.
+2. **Not four PRs.** Phases 7-10 were planned as PRs #9-#12. In practice they landed across
+   roughly a dozen PRs spread over June-July 2026, with the settings and debug refreshes,
+   the v3.1 phases, the v3.2 radar states and the display-scale work interleaved.
 
 ---
 
@@ -295,9 +315,12 @@ Goal: integrate v2 user-facing features and polish before release.
   (calm/rain/severe, day/dusk/night/nightRed, hybrid on/off) for the
   README update. *(captured live during dev sessions; formal README
   integration belongs to Phase 10.)*
-- [ ] **Remove the experimentalUiC flag** — *moved to Phase 10
+- [x] **Remove the experimentalUiC flag** — *moved to Phase 10
   (release)* so the flag is still live through the Settings + Debug
-  refresh phases.
+  refresh phases. **Done 2026-07**, together with the v2-tree deletion
+  (see the Phase 10 entries below) — the flag outlived the release
+  itself, deliberately kept as a per-device rollback through the v3
+  field-test window before being purged.
 - [ ] **Cleanup** — delete unused tokens, prune dead code paths from
   the Direction C codebase as it stabilises. *(deferred to Phase 10
   cleanup pass — too early to know what's truly unused while panels
@@ -421,12 +444,28 @@ Legacy v2 panel removed.
 
 Goal: ship the major version bump.
 
-- [ ] **Final flag removal** — strip `experimentalUiC` from `settings.json`
-  schema, AppContext, and the conditional in `App.js`. Direction C becomes
-  unconditional.
-- [ ] **Legacy code purge** — delete the legacy `CurrentLayout`,
-  `Settings/index.js`, `AdvancedSettings/index.js`, and `Debug/index.js`
-  files that were preserved through the cycle.
+- [x] **Final flag removal** — *done 2026-07.* `experimentalUiC` is gone from
+  `AppContext`, from the `experimental: { uiC }` branch of the Advanced save chain,
+  from the v3 `SettingsPanel`'s "Preview" section, and from the conditionals in
+  `App/index.js`. Direction C is unconditional.
+  **Correction to this line:** there was never a `settings.json` *schema* entry to
+  strip. `advanced` is an **opaque whitelisted blob** in `server/settingsCtrl.js` —
+  the server whitelists the top-level `advanced` key and never inspects its
+  sub-objects, so it never read the flag. A leftover `advanced.experimental.uiC` in
+  an existing `settings.json` is simply ignored, and is dropped the first time any
+  Advanced setting is saved (the client rebuilds the whole blob from React state).
+  No migration, no server change.
+- [x] **Legacy code purge** — *done 2026-07, and **wider** than this line assumed.*
+  Not just the four files named here: the **entire 14-directory v2 tree** came out of
+  `client/src/components/` — `AiSummary/`, `AlertBanner/`, `Clock/`, `CurrentWeather/`,
+  `Debug/`, `GovAlertDetail/`, `IndoorTemperature/`, `InfoPanel/`, `RangeSlider/`,
+  `Settings/` (including `AdvancedSettings/`), `Spinner/`, `SunRiseSet/`,
+  `UvAqiBadges/`, `WeatherInfo/` — plus `hooks/useDragScroll.js` and the two
+  `ambient/weatherCharts/` chart components reachable only from it, and the
+  second-order dead code they were keeping alive. See the `[Unreleased]` entry in
+  `CHANGELOG.md` for the full inventory.
+  *(The plan's `CurrentLayout` never existed under that name — the v2 layout was the
+  `experimentalUiC ? … : …` branch inside `App/index.js`, removed with the flag.)*
 - [ ] Update `package.json`: `version: "2.13.x"` → `"3.0.0"`.
 - [ ] Rewrite README's "About the version numbers" section to reflect v3 (no longer mentions v2.13).
 - [ ] Replace screenshots in README with v3 captures (multiple themes, scenarios).

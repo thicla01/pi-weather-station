@@ -27,8 +27,8 @@ export const AppContext = createContext();
  * (the get* / save* / toggle* / cycle* / select* / update* / check* /
  * load* / trigger* / refresh* helpers, the raw setState setters, the
  * debounced set*Live setters, setMapPosition / resetMapPosition,
- * saveSettingsToJson, and the setDarkMode alias of setDarkModeManual)
- * plus the shared `infoPanelScrollRef`. Update cadence: effectively
+ * saveSettingsToJson, and the setDarkMode alias of setDarkModeManual).
+ * Update cadence: effectively
  * never — all members are identity-stable (step 2a), so the slice
  * identity survives every data refresh. The only re-mints left are
  * boot-time settles: `weatherApiKey` arriving re-mints the
@@ -41,9 +41,9 @@ export const AppActionsContext = createContext(null);
 /**
  * System slice — field domain: server/platform facts (API key values,
  * isLocal, remoteSecurityEnabled, debugEnabled, serverPlatform,
- * isSystemd, experimentalUiC), brightness + sleep + Sense HAT hardware
+ * isSystemd), brightness + sleep + Sense HAT hardware
  * state, in-app updater state, and global panel/layout flags (settings
- * + debug menus, infoPanelCollapsed, the radar-maximized sentinels).
+ * + debug menus, the radar-maximized sentinels).
  * Update cadence: a burst at boot while settings, /api/is-local and
  * /api/update-check resolve, then rare — user panel toggles, the
  * periodic update check, brightness slider drags, sleep-stage flips.
@@ -260,19 +260,6 @@ export function AppContextProvider({ children }) {
   // templated summary. Default on; opt-out via Advanced settings → AI
   // weather summary → "Calm-day fast path".
   const [calmDayFastPath, setCalmDayFastPath] = useState(true);
-  // Experimental sub-tree (advanced.experimental.* in settings.json).
-  // Hosts feature flags. `experimentalUiC` originally toggled the new
-  // "Ambient Layers" v3 interface as an opt-in preview; v2.18 flipped
-  // the default to true so every install gets v3 by default. The flag
-  // stays for now as an escape hatch: a user who hits a v3-only bug can
-  // flip it off in Advanced settings and fall back to the v2 stack
-  // until a fix ships. v3-default + v2-fallback is a transition arc
-  // — once the v3 stack absorbs a few weeks of field testing without
-  // user-visible regressions, both the flag and the entire
-  // `components/Settings/`, `components/Debug/`, and other v2 trees
-  // will be removed in a single dedicated PR. Tracked in ROADMAP under
-  // "experimentalUiC migration".
-  const [experimentalUiC, setExperimentalUiC] = useState(true);
   // Mobile-only radar maximize state. LayoutMobile's `.mapCard` is
   // 220 px tall by default; tapping the maximize chevron in the
   // card's top-right corner promotes it to fill the scroll container
@@ -308,8 +295,8 @@ export function AppContextProvider({ children }) {
   const [desktopRadarMaximized, setDesktopRadarMaximized] = useState(null);
   // Same sentinel pattern again, this time for LayoutPi. Added as
   // part of the v3.1 chevron → RadarFocusControl consolidation
-  // (2026-05-28): the legacy chevron-driven `infoPanelCollapsed`
-  // mode on LayoutPi was replaced by the same focus-mode toggle
+  // (2026-05-28): the legacy chevron-driven panel-collapse mode
+  // on LayoutPi was replaced by the same focus-mode toggle
   // LayoutDesktop already used, so the three layouts now share one
   // mental model — "tap to focus the radar, tap again to restore."
   // The WeatherMap RadarFocusControl renders whenever *either*
@@ -325,7 +312,7 @@ export function AppContextProvider({ children }) {
   // v3.3 priority: ephemeral (NOT persisted) "radar scrubber open in MIN" flag.
   // Decouples the priority MIN scrubber from the shared, persisted
   // `radarTimelineVisible` pref so a layout transition never mutates a
-  // v2/desktop/mobile setting (the regression LayoutMobile already guards). Set
+  // desktop/mobile setting (the regression LayoutMobile already guards). Set
   // by the dock timeline button on entering MIN; cleared on leaving MIN.
   const [piScrubberOpen, setPiScrubberOpen] = useState(false);
   // Back-compat shim for the still-boolean Leaflet-side consumers (WeatherMap
@@ -345,10 +332,6 @@ export function AppContextProvider({ children }) {
   }, []);
   // Display sub-tree (advanced.display.* in settings.json).
   // lightModeStyle / darkModeStyle drive the Mapbox style for each theme.
-  // For light mode, the panel background tint also follows via the
-  // --light-panel-bg-rgb CSS variable. Dark mode keeps a fixed panel
-  // colour regardless of style — both dark Mapbox variants harmonize
-  // with the same dark grey panel.
   const [lightModeStyle, setLightModeStyle] = useState("streets-v12");
   const [darkModeStyle, setDarkModeStyle] = useState("dark-v10");
   // Radar layer opacity per theme — defaults are the historical hard-coded
@@ -590,26 +573,16 @@ export function AppContextProvider({ children }) {
   // land.
   const govAlertsRef = useRef(govAlerts);
   useEffect(() => { govAlertsRef.current = govAlerts; }, [govAlerts]);
-  // Cycle index shared between AlertBanner (taps cycle the banner content)
-  // and GovAlertDetail (the description section that mirrors the banner's
-  // currently-displayed alert). Lives in context so the two components
-  // stay in sync without prop-drilling or a duplicate state machine. The
-  // cycleGovAlert callback wraps the modulo and the bounds check so
-  // callers don't need to know the list length.
+  // Cycle index shared between the alert banner (taps cycle the banner
+  // content) and the detail slab that mirrors the banner's currently-
+  // displayed alert. Lives in context so the two surfaces stay in sync
+  // without prop-drilling or a duplicate state machine.
   const [govAlertIdx, setGovAlertIdx] = useState(0);
-  const cycleGovAlert = useCallback(() => {
-    const alerts = govAlertsRef.current;
-    const len = Array.isArray(alerts) ? alerts.length : 0;
-    setGovAlertIdx((prev) => (len > 0 ? (prev + 1) % len : 0));
-  }, []);
   // v3.1 Phase 4c: explicit jump-to-alert by absolute index, used
   // when the user taps a mini-card in the "other active alerts"
-  // list under the primary card. `cycleGovAlert` still exists for
-  // any caller that wants the forward-cycle semantics (none in v3
-  // post-4c, but kept for v2 InfoPanel compatibility). Bounds-
-  // checked: out-of-range arguments collapse to 0 so a stale
-  // mini-card click after the list shrinks can't put us into a
-  // bad index.
+  // list under the primary card. Bounds-checked: out-of-range
+  // arguments collapse to 0 so a stale mini-card click after the
+  // list shrinks can't put us into a bad index.
   const selectGovAlert = useCallback((idx) => {
     const alerts = govAlertsRef.current;
     const len = Array.isArray(alerts) ? alerts.length : 0;
@@ -732,7 +705,6 @@ export function AppContextProvider({ children }) {
   // server-side radar analyzer always uses RainViewer regardless — this
   // setting only affects the visible tile layer.
   const [radarSource, setRadarSource] = useState("rainviewer");
-  const [infoPanelCollapsed, setInfoPanelCollapsed] = useState(false);
   const [sunriseTime, setSunriseTime] = useState(null);
   const [sunsetTime, setSunsetTime] = useState(null);
   // Full sunrise-sunset.org payloads for today AND tomorrow, used by
@@ -747,19 +719,17 @@ export function AppContextProvider({ children }) {
   const [remoteSecurityEnabled, setRemoteSecurityEnabled] = useState(false);
   const [debugEnabled, setDebugEnabled] = useState(false);
   const [debugMenuOpen, setDebugMenuOpen] = useState(false);
-  const infoPanelScrollRef = useRef(null); // set by InfoPanel on the scroll container
 
   // In-app update flow — state, the periodic /api/update-check poll, and
   // the three actions (refreshUpdateCheck, triggerUpdate, saveSkippedSha)
-  // live in `~/hooks/useUpdateChecker`. The setters are still surfaced
-  // through this context for back-compat with Debug/index.js, which
-  // seeds updateInfo from /api/debug rather than calling
-  // refreshUpdateCheck directly.
+  // live in `~/hooks/useUpdateChecker`. Only the values are surfaced
+  // through this context; the seed-from-/api/debug setters went with the
+  // v2 Debug page (the ambient DebugPanel calls refreshUpdateCheck).
   const {
-    updateAvailable, setUpdateAvailable,
-    latestVersion, setLatestVersion,
-    latestSha, setLatestSha,
-    updateCommits, setUpdateCommits,
+    updateAvailable,
+    latestVersion,
+    latestSha,
+    updateCommits,
     changedDeployFiles,
     needsManualUpgrade,
     skippedSha,
@@ -1149,15 +1119,6 @@ export function AppContextProvider({ children }) {
             if (advancedPollen && advancedPollen.enabled !== undefined) {
               setPollenEnabled(Boolean(advancedPollen.enabled));
             }
-            // Experimental sub-tree — opt-in feature flags. The first
-            // one is experimentalUiC (Direction C UI preview, Phase 0+
-            // of the v3.0.0 rollout). Defaults to false; ignored unless
-            // present in the payload. See
-            // `docs/ui-direction-c-implementation-plan.md`.
-            const advancedExperimental = res.advanced && res.advanced.experimental;
-            if (advancedExperimental) {
-              setExperimentalUiC(Boolean(advancedExperimental.uiC));
-            }
             const advancedDisplay = res.advanced && res.advanced.display;
             if (advancedDisplay) {
               if (advancedDisplay.lightModeStyle) {
@@ -1348,16 +1309,15 @@ export function AppContextProvider({ children }) {
   }, []);
 
   // Load the weather + reverse-geo API keys on AppContext mount.
-  // Historically this was triggered by the v2 `WeatherInfo` component
-  // mounting (see `components/WeatherInfo/index.js`). v2.18 made v3
-  // the default, and v3 layouts (LayoutPi / LayoutDesktop / LayoutMobile)
-  // don't mount WeatherInfo at all — so the two keys stayed null
-  // forever and the useEffect at the weather-poll site never fired,
-  // leaving `currentWeatherData` null + `LocationName` falling back to
-  // raw lat/lon. Same mount-trigger bug pattern the air-quality fetch
-  // already had to solve (see the `aqhiInfo` polling effect below).
-  // The map API key isn't loaded here because WeatherMap still mounts
-  // in both v2 and v3 and triggers its own getMapApiKey().
+  // MUST stay at context level, not in a component: historically the
+  // fetch was triggered by a component mounting, and when v2.18 made v3
+  // the default the two keys stayed null forever because no v3 layout
+  // mounted that component — the weather-poll effect never fired and
+  // `LocationName` fell back to raw lat/lon (fixed in v2.18.1). Same
+  // mount-trigger bug pattern the air-quality fetch already had to
+  // solve (see the `aqhiInfo` polling effect below). The map API key
+  // isn't loaded here because WeatherMap triggers its own
+  // getMapApiKey().
   useEffect(() => {
     if (!weatherApiKey) {
       getWeatherApiKey().catch((err) => {
@@ -1660,7 +1620,7 @@ export function AppContextProvider({ children }) {
     });
   }, []);
 
-  // Single object-ref mirroring the 17 advanced.* atoms that feed the
+  // Single object-ref mirroring the 16 advanced.* atoms that feed the
   // PATCH payload below (LayoutMobile pullArmedRef convention, batched).
   // Pre-step-2a, buildAdvancedSubtree listed all 17 atoms as deps, so
   // any advanced.* change minted a new builder identity AND new
@@ -1669,7 +1629,7 @@ export function AppContextProvider({ children }) {
   // every consumer on every slider tick. The builder now reads through
   // this ref at call time instead, so the whole chain is
   // identity-stable. The mirror effect is cheap: it runs only when one
-  // of the 17 atoms actually changes. Seeded with the first-render
+  // of the 16 atoms actually changes. Seeded with the first-render
   // values (useRef ignores the initializer afterwards) so the ref is
   // never null even before the first effect commit.
   const advancedStateRef = useRef({
@@ -1687,7 +1647,6 @@ export function AppContextProvider({ children }) {
     sleepStage2Enabled,
     sleepStage2Delay,
     sleepNightMode,
-    experimentalUiC,
     pollenEnabled,
     alertRadiusKm,
   });
@@ -1707,7 +1666,6 @@ export function AppContextProvider({ children }) {
       sleepStage2Enabled,
       sleepStage2Delay,
       sleepNightMode,
-      experimentalUiC,
       pollenEnabled,
       alertRadiusKm,
     };
@@ -1726,7 +1684,6 @@ export function AppContextProvider({ children }) {
     sleepStage2Enabled,
     sleepStage2Delay,
     sleepNightMode,
-    experimentalUiC,
     pollenEnabled,
     alertRadiusKm,
   ]);
@@ -1742,7 +1699,7 @@ export function AppContextProvider({ children }) {
    * tree inline, and three of them silently dropped sections
    * (saveAdvancedDisplayFlag missed `darkModeStyle` inside its display
    * branch; saveAdvancedDisplayFlag, saveAdvancedSleepFlag, and
-   * saveAdvancedExperimentalFlag all missed `pollen` entirely — toggling
+   * the since-removed saveAdvancedExperimentalFlag all missed `pollen` entirely — toggling
    * any of those flags would wipe `pollen.enabled` on the server side,
    * silently disabling the pollen badge for that install). Centralising
    * the assembly here fixes those by construction.
@@ -1788,10 +1745,6 @@ export function AppContextProvider({ children }) {
         stage2Delay: s.sleepStage2Delay,
         nightMode: s.sleepNightMode,
         ...(overrides.sleep || {}),
-      },
-      experimental: {
-        uiC: s.experimentalUiC,
-        ...(overrides.experimental || {}),
       },
       pollen: {
         enabled: s.pollenEnabled,
@@ -1928,28 +1881,6 @@ export function AppContextProvider({ children }) {
     setSleepNightMode,
   ]);
 
-  /**
-   * Persist a single advanced.experimental.* flag. Same instant-save
-   * pattern as the other saveAdvanced*Flag helpers — toggles flip
-   * immediately and write the full advanced tree so unrelated branches
-   * aren't clobbered.
-   *
-   * Phase 0 of the v3.0.0 rollout (see
-   * `docs/ui-direction-c-implementation-plan.md`). Today the only key
-   * is `uiC`; future experimental flags land alongside.
-   *
-   * @param {String} key one of "uiC"
-   * @param {Boolean} value new value
-   * @returns {Promise} Resolves when saved
-   */
-  const saveAdvancedExperimentalFlag = useCallback((key, value) => {
-    return axios
-      .patch("/setting", { key: "advanced", val: buildAdvancedSubtree({ experimental: { [key]: value } }) })
-      .then(() => {
-        if (key === "uiC") setExperimentalUiC(value);
-      });
-  }, [buildAdvancedSubtree]);
-
   // Debounced setters for the radar opacity sliders. State updates
   // immediately on each tick (live preview on the map); the network
   // PATCH /setting is delayed so we don't spam the server while dragging.
@@ -1986,18 +1917,6 @@ export function AppContextProvider({ children }) {
         .catch(() => undefined);
     }, 500);
   }, [buildAdvancedSubtree]);
-
-  // Reflect lightModeStyle into a CSS custom property so the panel,
-  // panel-toggle and radar legend backgrounds tint to match the Mapbox
-  // style. The native Mapbox styles (light-v10 / light-v11) are very pale,
-  // so a near-white panel reads better; streets-v12 has a warmer beige
-  // base, so a cream panel harmonizes with it.
-  useEffect(() => {
-    const rgb = lightModeStyle === "streets-v12"
-      ? "238, 236, 232"  // cream
-      : "247, 247, 247"; // near-white for light-v10 / light-v11
-    document.documentElement.style.setProperty("--light-panel-bg-rgb", rgb);
-  }, [lightModeStyle]);
 
   // Government weather alerts polling. Fires once when mapGeo lands
   // and every GOV_ALERTS_INTERVAL afterwards (10 min — alerts don't
@@ -2063,14 +1982,12 @@ export function AppContextProvider({ children }) {
     return () => { cancelled = true; clearInterval(interval); };
   }, [showWeatherAlerts, mapGeo, alertRadiusKm, showTestAlerts]);
 
-  // Periodic weather data refresh. Previously this lived in the v2
-  // WeatherInfo component, but v3 layouts (LayoutLarge / LayoutMedium)
-  // don't mount WeatherInfo — so without this effect, the initial fetch
-  // triggered by setMapPosition was the only weather pull, and data went
-  // stale after the first session-hours (observed: still showing morning
-  // values 5 h later). Lifting the polling into AppContext means every
-  // layout — v2 and v3 alike — gets fresh current/hourly/daily data
-  // without depending on which UI is rendered. The initial setMapPosition
+  // Periodic weather data refresh. This used to live in a component, so
+  // when no mounted layout owned it the initial fetch triggered by
+  // setMapPosition was the only weather pull and data went stale after
+  // the first session-hours (observed: still showing morning values 5 h
+  // later). Polling from AppContext means every layout gets fresh
+  // current/hourly/daily data without depending on which UI is rendered. The initial setMapPosition
   // call still fires its one-shot fetches; the immediate call below is
   // redundant on first mount but covers the case where weatherApiKey
   // becomes available *after* mapGeo (and matches v2 behaviour).
@@ -2230,7 +2147,6 @@ export function AppContextProvider({ children }) {
     saveSenseHatMode,
     setSenseHatClockBrightnessLive,
     setSenseHatRadarBrightnessLive,
-    saveAdvancedExperimentalFlag,
     setMobileRadarMaximized,
     setDesktopRadarMaximized,
     setPiRadarMaximized,
@@ -2264,7 +2180,6 @@ export function AppContextProvider({ children }) {
     setAlertRadiusKmLive,
     setAqhiInfo,
     savePollenEnabled,
-    cycleGovAlert,
     selectGovAlert,
     setGovAlertExpanded,
     setHighlightedAlertId,
@@ -2286,22 +2201,16 @@ export function AppContextProvider({ children }) {
     saveShowAlertRing,
     saveHideRadarLegend,
     saveRadarSource,
-    setInfoPanelCollapsed,
     saveFontSize,
     updateSunriseSunset,
     checkIsLocal,
     setDebugMenuOpen,
     toggleDebugMenuOpen,
-    setUpdateAvailable,
-    setLatestVersion,
-    setLatestSha,
-    setUpdateCommits,
     refreshUpdateCheck,
     saveSkippedSha,
     setUpdateModalOpen,
     setUpdateState,
     triggerUpdate,
-    infoPanelScrollRef,
   }), [
     saveDisplayScale,
     relaunchKiosk,
@@ -2324,7 +2233,6 @@ export function AppContextProvider({ children }) {
     saveSenseHatMode,
     setSenseHatClockBrightnessLive,
     setSenseHatRadarBrightnessLive,
-    saveAdvancedExperimentalFlag,
     setMobileRadarMaximized,
     setDesktopRadarMaximized,
     setPiRadarMaximized,
@@ -2358,7 +2266,6 @@ export function AppContextProvider({ children }) {
     setAlertRadiusKmLive,
     setAqhiInfo,
     savePollenEnabled,
-    cycleGovAlert,
     selectGovAlert,
     setGovAlertExpanded,
     setHighlightedAlertId,
@@ -2380,22 +2287,16 @@ export function AppContextProvider({ children }) {
     saveShowAlertRing,
     saveHideRadarLegend,
     saveRadarSource,
-    setInfoPanelCollapsed,
     saveFontSize,
     updateSunriseSunset,
     checkIsLocal,
     setDebugMenuOpen,
     toggleDebugMenuOpen,
-    setUpdateAvailable,
-    setLatestVersion,
-    setLatestSha,
-    setUpdateCommits,
     refreshUpdateCheck,
     saveSkippedSha,
     setUpdateModalOpen,
     setUpdateState,
     triggerUpdate,
-    infoPanelScrollRef,
   ]);
 
   // System: platform facts, hardware state, updater state, panel flags.
@@ -2419,7 +2320,6 @@ export function AppContextProvider({ children }) {
     debugEnabled,
     serverPlatform,
     isSystemd,
-    experimentalUiC,
     brightnessAvailable,
     brightnessPercent,
     brightnessMinPercent,
@@ -2446,7 +2346,6 @@ export function AppContextProvider({ children }) {
     updateErrorMessage,
     settingsMenuOpen,
     debugMenuOpen,
-    infoPanelCollapsed,
     mobileRadarMaximized,
     desktopRadarMaximized,
     piRadarMaximized,
@@ -2470,7 +2369,6 @@ export function AppContextProvider({ children }) {
     debugEnabled,
     serverPlatform,
     isSystemd,
-    experimentalUiC,
     brightnessAvailable,
     brightnessPercent,
     brightnessMinPercent,
@@ -2497,7 +2395,6 @@ export function AppContextProvider({ children }) {
     updateErrorMessage,
     settingsMenuOpen,
     debugMenuOpen,
-    infoPanelCollapsed,
     mobileRadarMaximized,
     desktopRadarMaximized,
     piRadarMaximized,

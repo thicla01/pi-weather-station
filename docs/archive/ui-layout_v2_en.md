@@ -1,8 +1,8 @@
 # Pi Weather Station — UI Layout Reference (v2 — archived)
 
-> **Archived.** This document describes the **v2 layout** (split grid, InfoPanel on the right with ControlButtons at the bottom of the rail), which remains accessible by disabling the **Preview** toggle in Settings. The current default v3 Direction C layout is documented in [`docs/ui-layout_en.md`](../ui-layout_en.md).
+> **Archived.** This document describes the **v2 layout** (split grid, InfoPanel on the right with ControlButtons at the bottom of the rail). The v2 code path was removed in July 2026 and can no longer be selected; this file is kept only so older screenshots, issue reports and CHANGELOG entries stay readable. The current layout is documented in [`docs/ui-layout_en.md`](../ui-layout_en.md).
 
-This document describes the screen layout, panel names, and section names used in the Pi Weather Station v2 interface. Use it as a reference when reporting issues or requesting changes against the v2 layout.
+This document describes the screen layout, panel names, and section names used in the Pi Weather Station v2 interface. Use it as a decoder ring when reading screenshots, issue reports, or changelog entries that predate the v3-only switch — not as a reference for the current UI.
 
 ---
 

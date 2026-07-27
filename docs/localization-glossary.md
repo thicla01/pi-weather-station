@@ -1,9 +1,47 @@
 # Localization glossary
 
-Last generated: 2026-05-15. Replace `☐` with `☑` (or `✓`) when a translation row has been validated by a native speaker.
+Last generated: 2026-05-15, **partially amended by hand in 2026-07** when the legacy v2 UI tree
+was removed and the v3 "Ambient Layers" tree became the only interface. That amendment deleted the
+rows describing the Settings "Preview" section and the `settings.advanced.preview*` /
+`ambientPreview*` keys that disappeared with the `experimentalUiC` flag, and flagged the sections
+whose keys died with the v2 tree — but **the file was not regenerated.** The same removal pruned
+the locale files from 661 to 480 lines: the entire `settings` namespace is gone (the v3
+SettingsPanel carries its strings inline instead) and only `debug.title` / `debug.loading` /
+`debug.refresh` survive of the `debug` namespace. Sections below
+still labelled as v2 / legacy i18n keys therefore document keys that no longer exist — they are
+kept as translation history and are stale pending a regeneration pass.
+
+**The rot is wider than the flagged sections.** Most sections below carry at least a few rows whose
+`key.subkey` no longer resolves. Audited 2026-07 by resolving every backticked key in this file
+against `en.json`; sections with dead rows, and how many:
+
+| Section | Dead rows |
+|---|---|
+| Settings — Local preferences (header) | 1 (`settings.title`) |
+| Settings — Local preferences (legacy v2 i18n keys) | 24 — whole section |
+| Settings — Advanced (v2 i18n keys) | 36 — whole section |
+| Errors / loading states | 2 (`errors.weatherDataFailed`, `errors.weatherApiKeyInvalid`) |
+| Charts | 2 (`charts.tab24h`, `charts.tab5d`) |
+| Update modal | 1 (`update.upToDate`) |
+| Metrics / Badges | 3 (`badges.aqi`, `badges.aqhi`, `badges.aqiSourceEpa`) |
+| Alert banner | 1 (`alert.cycleAria`) |
+| Gov't alert detail | 1 (`govAlertDetail.title`) |
+| Radar — legend + timeline | 8 — *pre-dates the v2 removal; already stale in May 2026* |
+| Controls / Dock buttons | 2 (`controls.collapsePanel`, `controls.expandPanel`) — retired in v3.1 with the rail chevron, *also pre-dates the v2 removal* |
+| Debug panel — chrome | 3 (`debug.exportCsv`, `debug.checkUpdate`, `debug.checking`) |
+| Debug panel — legacy v2 i18n keys | 85 — whole section |
+| Universal strings | 20 |
+
+The keys pruned in the July 2026 pass were each verified **unreferenced in `client/src/`** before
+deletion — no live string lost its translation. (The two sections marked *pre-dates the v2 removal*
+went stale earlier, in the v3.1 work, and were simply never reflected here.) The rows survive as
+translation history only: treat a row's key column as unverified until the file is regenerated,
+while the wording columns stay useful as the FR/ES precedent for a re-worded string.
+
+Replace `☐` with `☑` (or `✓`) when a translation row has been validated by a native speaker.
 
 Source coverage:
-- `client/src/i18n/locales/{en,fr,es}.json` — the structured i18n tree (~270 keys)
+- `client/src/i18n/locales/{en,fr,es}.json` — the structured i18n tree (~405 keys as of 2026-07)
 - Inline `lang === "fr" ? ... : lang === "es" ? ... : ...` in v3 SettingsPanel (`client/src/components/ambient/SettingsPanel/index.js`)
 - `lbl(lang, en, fr, es)` calls in v3 DebugPanel (`client/src/components/ambient/DebugPanel/index.js`)
 
@@ -33,6 +71,11 @@ Strings whose three locales are 100% identical (pure abbreviations like `mph`, `
 | ☐ | Speed | Vent | Speed | `inline (SettingsPanel)` |
 
 ## Settings — Local preferences (legacy v2 i18n keys, may overlap)
+
+> **Dead keys (2026-07).** The whole `settings` namespace was deleted from the locale files with the
+> v2 tree, so every row below documents a key that no longer exists. The v3 SettingsPanel carries
+> these strings inline (`lbl(lang, en, fr, es)` / ternaries — the codified exception in `CLAUDE.md`);
+> the live wording is in the two sections above. Rows kept as translation history.
 
 | Validé | EN | FR | ES | Clé / Contexte |
 |--------|----|----|-----|----------------|
@@ -118,17 +161,11 @@ Strings whose three locales are 100% identical (pure abbreviations like `mph`, `
 | ☐ | Debug panel | Panneau Débogage | Debug panel | `inline (SettingsPanel)` |
 | ☐ | (set via DEBUG=true on the service) | (défini par DEBUG=true au service) | (set via DEBUG=true on the service) | `inline (SettingsPanel toggle sub)` |
 
-## Settings — Preview (v3 panel)
-
-| Validé | EN | FR | ES | Clé / Contexte |
-|--------|----|----|-----|----------------|
-| ☐ | Preview | Aperçu | Preview | `inline (SettingsPanel SectionPreview title)` |
-| ☐ | Switch between the production v2 interface and the v3 preview. | Bascule entre l'interface en production (v2) et l'aperçu v3. | Switch between the production v2 interface and the v3 preview. | `inline (SettingsPanel SectionPreview subtitle)` |
-| ☐ | active | actif | active | `inline (SettingsPanel preview pill)` |
-| ☐ | Ambient interface (v3 preview) | Interface ambient (aperçu v3) | Ambient interface (v3 preview) | `inline (SettingsPanel preview toggle)` |
-| ☐ | Disable to switch back to the classic v2 interface. Report bugs at GitHub Issues. | Désactivez pour revenir à l'interface classique v2. Signalez les bugs sur GitHub Issues. | Disable to switch back to the classic v2 interface. Report bugs at GitHub Issues. | `inline (SettingsPanel preview toggle sub)` |
-
 ## Settings — Advanced (v2 i18n keys, may overlap)
+
+> **Dead keys (2026-07).** Every `settings.advanced.*` key below was deleted with the v2 tree — none
+> of them exist in the locale files any more. The live equivalents are the inline strings listed in
+> "Settings — Advanced (v3 panel)" above. Rows kept as translation history.
 
 | Validé | EN | FR | ES | Clé / Contexte |
 |--------|----|----|-----|----------------|
@@ -168,9 +205,6 @@ Strings whose three locales are 100% identical (pure abbreviations like `mph`, `
 | ☐ | Red text at night | Texte rouge la nuit | Texto rojo de noche | `settings.advanced.sleepNightMode` |
 | ☐ | When dark mode is active, use red-tinted text instead of cream. Long-wavelength red light has minimal impact on melatonin — friendlier in a bedroom or hallway visible at night. | Quand le mode sombre est actif, utilise un texte rouge au lieu du beige. La lumière rouge à grande longueur d'onde a un impact minimal sur la mélatonine — plus indulgent dans une chambre ou un couloir visible la nuit. | Cuando el modo oscuro está activo, usa texto rojo en lugar de crema. La luz roja de longitud de onda larga tiene impacto mínimo en la melatonina — más amable en un dormitorio o pasillo visible de noche. | `settings.advanced.sleepNightModeHint` |
 | ☐ | {{count}} min | {{count}} min | {{count}} min | `settings.advanced.sleepMinutes` |
-| ☐ | Preview | Aperçu | Vista previa | `settings.advanced.previewGroup` |
-| ☐ | Ambient interface (v3 preview) | Interface ambient (aperçu v3) | Interfaz ambient (vista previa v3) | `settings.advanced.ambientPreview` |
-| ☐ | Try the upcoming v3 "Ambient Layers" interface — a full rebuild of the dashboard, settings, and debug panels with refreshed visuals and phone-friendly layouts coming. Off by default; the v2 interface remains production. Report any issue at github.com/thicla01/pi-weather-station/issues so we can stabilise v3 before it becomes the default. | Essayez la nouvelle interface v3 « Ambient Layers » — refonte complète du tableau de bord, des réglages et du panneau de débogage avec un nouveau visuel et un support téléphone à venir. Désactivé par défaut ; l'interface v2 reste la version en production. Signalez tout problème sur github.com/thicla01/pi-weather-station/issues afin que la v3 se stabilise avant de devenir la version par défaut. | Prueba la próxima interfaz v3 «Ambient Layers» — reconstrucción completa del panel principal, ajustes y depuración con un nuevo aspecto y soporte para teléfono próximamente. Desactivada por defecto; la interfaz v2 sigue siendo la versión en producción. Informa cualquier problema en github.com/thicla01/pi-weather-station/issues para que v3 se estabilice antes de convertirse en la versión predeterminada. | `settings.advanced.ambientPreviewHint` |
 
 ## Weather codes
 
@@ -454,7 +488,14 @@ Strings whose three locales are 100% identical (pure abbreviations like `mph`, `
 |--------|----|----|-----|----------------|
 | ☐ | Vulnerability scanning + automatic security PRs now live on GitHub via Dependabot — see the alerts dashboard for the live source of truth. | L'analyse des vulnérabilités et les PR de sécurité automatiques vivent maintenant sur GitHub via Dependabot — voir le tableau d'alertes pour la source en temps réel. | El análisis de vulnerabilidades y los PR de seguridad automáticos viven ahora en GitHub vía Dependabot — consulta el panel de alertas para la fuente en tiempo real. | `inline lbl() (DebugPanel)` |
 
-## Debug panel — legacy v2 i18n keys (still wired through `t()`)
+## Debug panel — legacy v2 i18n keys (no longer wired)
+
+> **Dead keys (2026-07).** These were still routed through `t()` while the v2 Debug component
+> existed; that component is gone and every `debug.*` key below was deleted from the locale files.
+> Only `debug.title` / `debug.loading` / `debug.refresh` survive — see "Debug panel — chrome"
+> above, whose remaining three rows (`debug.exportCsv`, `debug.checkUpdate`, `debug.checking`) are
+> dead too. `ambient/DebugPanel` renders everything else with inline `lbl()` calls. Rows kept as
+> translation history.
 
 | Validé | EN | FR | ES | Clé / Contexte |
 |--------|----|----|-----|----------------|

@@ -64,8 +64,7 @@ import styles from "./styles.css";
  * used to toggle `infoPanelCollapsed` was removed in favour of the
  * shared RadarFocusControl. The chevron's tactile sticky-hover (audit
  * finding B2) disappeared mechanically because the component no longer
- * exists. `infoPanelCollapsed` still lives in AppContext for v2
- * InfoPanel back-compat but no longer carries any v3 LayoutPi role.
+ * exists.
  *
  * When focus mode is on AND there's an eligible government alert,
  * `FloatingMiniBanner` overlays on the map's top-right so the kiosk

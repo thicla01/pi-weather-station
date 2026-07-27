@@ -2,8 +2,9 @@
 
 Pulls a single indoor temperature reading (and humidity / air quality, when
 the sensor exposes them) from a Homebridge instance via the
-`homebridge-config-ui-x` REST API, and displays it in a minimal block to the
-left of the clock in the info panel.
+`homebridge-config-ui-x` REST API, and displays it in a minimal slab in the
+information rail (`client/src/components/ambient/IndoorBlock/`, mounted by
+`LayoutPi`, `LayoutDesktop` and `LayoutMobile`).
 
 The feature is opt-in: it polls nothing and renders nothing unless an
 `indoorTemperature` block is configured in `settings.json`. The interactive

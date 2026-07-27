@@ -1,14 +1,10 @@
-import React, { useEffect, useContext, useState, useRef } from "react";
+import React, { useEffect, useContext, useRef } from "react";
 import axios from "axios";
 import styles from "./styles.css";
 import { AppActionsContext, UiPrefsContext, SystemContext } from "~/AppContext";
 
-import WeatherMap from "~/components/WeatherMap";
-import InfoPanel from "~/components/InfoPanel";
 import AmbientLayers from "~/components/AmbientLayers";
-import Settings from "~/components/Settings";
 import AmbientSettingsPanel from "~/components/ambient/SettingsPanel";
-import Debug from "~/components/Debug";
 import AmbientDebugPanel from "~/components/ambient/DebugPanel";
 import UpdateModal from "~/components/UpdateModal";
 import ScreenSaver from "~/components/ScreenSaver";
@@ -19,15 +15,6 @@ import {
 } from "~/services/brightnessRestore";
 
 import "!style-loader!css-loader!./overrides.css";
-
-// Breakpoint for offering an InfoPanel-collapse toggle. Covers both the
-// 7" Pi kiosk (~480 px height) and the 10" Pi touchscreen (1280×800,
-// height = 800 px) — both benefit from a way to free up the radar map
-// view on demand. Most desktop monitors (1080+ px) stay above this and
-// won't see the toggle. Decoupled from the `(max-height: 520px)` query
-// used in WeatherInfo / WeatherMap, which controls a denser layout (chart
-// tabs, compact timeline) and shouldn't trigger at 800 px.
-const PANEL_TOGGLE_MQ = "(max-height: 820px)";
 
 /**
  * Main component
@@ -40,14 +27,8 @@ const App = () => {
     getCustomLatLon,
     loadStoredData,
     checkIsLocal,
-    setInfoPanelCollapsed,
   } = useContext(AppActionsContext);
-  const {
-    darkMode,
-    mouseHide,
-    fontSize,
-    defaultMapZoom,
-  } = useContext(UiPrefsContext);
+  const { mouseHide } = useContext(UiPrefsContext);
   // App is the provider's stable child, so it re-renders ONLY through
   // its context subscriptions. Subscribing to the cold slices (and not
   // the legacy union, which re-mints on every slice change) is what
@@ -55,13 +36,11 @@ const App = () => {
   // updates no longer re-render App — and therefore no longer re-render
   // the whole tree below it (context-split step 2c).
   const {
-    infoPanelCollapsed,
     sleepStage1Brightness,
     sleepStage: stage,
     brightnessAvailable,
     brightnessPercent,
     brightnessMinPercent,
-    experimentalUiC,
   } = useContext(SystemContext);
 
   // `stage` (0/1/2) now comes from AppContext — the underlying
@@ -164,39 +143,6 @@ const App = () => {
     // call every time the user nudged the brightness slider.
   }, [stage, brightnessAvailable, sleepStage1Brightness, brightnessMinPercent]); // eslint-disable-line react-hooks/exhaustive-deps -- brightnessPercent intentionally omitted, see comment above
 
-  const [canCollapsePanel, setCanCollapsePanel] = useState(
-    () => window.matchMedia(PANEL_TOGGLE_MQ).matches
-  );
-
-  const fontSizeZoom = { s: 0.85, m: 1.0, l: 1.15 }[fontSize] || 1.0;
-  // Panel width scales with the font-size zoom so the contents always see
-  // ~300 CSS pixels of internal layout space regardless of size. Without
-  // this, fontSize=L kept the column at a fixed 300 screen px while
-  // zooming the contents up 15 %, which made the right column of stats
-  // (precip / cloud / wind / humidity) overflow and the panel's right
-  // edge clip the trailing "%" on every value.
-  const PANEL_BASE_WIDTH = 300;
-  const panelWidthPx = Math.round(PANEL_BASE_WIDTH * fontSizeZoom);
-  const gridTemplateColumns = canCollapsePanel && infoPanelCollapsed
-    ? "1fr 0"
-    : `auto ${panelWidthPx}px`;
-
-  useEffect(() => {
-    const mq = window.matchMedia(PANEL_TOGGLE_MQ);
-    const handler = (e) => {
-      setCanCollapsePanel(e.matches);
-      // If the viewport grew past the breakpoint while the panel was
-      // collapsed (e.g. user attached an external monitor mid-session),
-      // restore the panel — otherwise it stays hidden with no toggle to
-      // bring it back.
-      if (!e.matches) {
-        setInfoPanelCollapsed(false);
-      }
-    };
-    mq.addEventListener("change", handler);
-    return () => mq.removeEventListener("change", handler);
-  }, [setInfoPanelCollapsed]);
-
   useEffect(() => {
     getCustomLatLon();
     getBrowserGeo();
@@ -205,72 +151,19 @@ const App = () => {
   }, []); // eslint-disable-line react-hooks/exhaustive-deps -- initialization, runs once on mount
 
   return (
-    <div
-      className={`${darkMode ? styles.dark : styles.light} ${
-        mouseHide ? styles.hideMouse : ""
-      }`}
-      /* --info-col-width set at the root so it propagates to BOTH the
-       * v2 grid container (which uses it directly via the CSS variable
-       * for its grid template) AND the sibling .settingsContainer
-       * holding v2 Settings + Debug overlays (which calc() their own
-       * width as 100vw - var(--info-col-width) - 20px). Before this
-       * the variable lived on .container, didn't propagate to
-       * siblings, and the overlays fell back to a 300 px assumption.
-       * That worked at fontSize=M (300px InfoPanel column) but caused
-       * a 25 px overlap at fontSize=L (345 px column), visible as the
-       * Settings panel poking under the right rail. The visual issue
-       * predates Direction C — fontSize=L just made it visible. */
-      style={{ "--info-col-width": `${panelWidthPx}px` }}
-    >
-      {/* Phase 0 of the v3.0.0 UI refresh — when the experimental flag
-          is on, render the new Ambient Layers entry point (today a
-          placeholder; Phase 1+ will fill it in). Settings, Debug, and
-          UpdateModal stay mounted in both layouts so the flag is
-          toggleable from inside the experimental UI too. The legacy
-          WeatherMap + InfoPanel grid is preserved unchanged in the
-          else branch so the v2 experience survives across the cycle.
-          See `docs/ui-direction-c-implementation-plan.md`. */}
+    <div className={mouseHide ? styles.hideMouse : ""}>
+      {/* Settings + Debug overlays are siblings of AmbientLayers (not
+          children) so they can cover the whole surface; both compute
+          their own palette tokens because CSS custom properties don't
+          propagate to siblings. */}
       <div className={styles.settingsContainer}>
-        {/* v3 Direction C ships redesigned Settings + Debug overlays
-            (Phase 8 / Phase 9). When `experimentalUiC` is on we render
-            the new panels instead of the v2 ones; v2 stays bit-for-bit
-            unchanged for users on the production layout. */}
-        {experimentalUiC ? <AmbientSettingsPanel /> : <Settings />}
-        {experimentalUiC ? <AmbientDebugPanel /> : <Debug />}
+        <AmbientSettingsPanel />
+        <AmbientDebugPanel />
       </div>
       <UpdateModal />
-      {experimentalUiC ? (
-        <AmbientLayers />
-      ) : (
-      <div
-        className={styles.container}
-        style={{ gridTemplateColumns, "--info-col-width": `${panelWidthPx}px` }}
-      >
-        <div
-          className={`${styles.weatherMap} map-container ${
-            mouseHide ? "map-mouse-hide" : ""
-          } ${darkMode ? "map-dark-mode" : ""}`}
-        >
-          <WeatherMap zoom={defaultMapZoom} dark={darkMode} />
-          {canCollapsePanel && (
-            <button
-              className={`${styles.panelToggle} ${darkMode ? styles.panelToggleDark : styles.panelToggleLight}`}
-              onClick={() => setInfoPanelCollapsed(!infoPanelCollapsed)}
-            >
-              {infoPanelCollapsed ? "‹" : "›"}
-            </button>
-          )}
-        </div>
-        <div
-          className={styles.infoContainer}
-          style={{ zoom: fontSizeZoom, height: `calc(100dvh / ${fontSizeZoom})` }}
-        >
-          <InfoPanel />
-        </div>
-      </div>
-      )}
-      {/* Sleep-mode overlay — rendered outside the main grid so it
-          covers everything (settings, debug, info panel) when active.
+      <AmbientLayers />
+      {/* Sleep-mode overlay — rendered outside the ambient tree so it
+          covers everything (settings, debug, layout) when active.
           Stage 0 = unmounted entirely. */}
       <ScreenSaver stage={stage} />
     </div>

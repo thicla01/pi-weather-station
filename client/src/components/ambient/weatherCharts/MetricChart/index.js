@@ -70,9 +70,7 @@ function getIntervals(weatherData) {
  * superimposes the precip pair — subdued bars + dashed probability —
  * on the temp/wind tabs for users who relied on the old paired charts.
  *
- * Used by the v3 ChartTabs only; the v2 tree keeps the legacy paired
- * HourlyChart/DailyChart until its scheduled removal. The in-canvas
- * title is gone — the panel header (`PRÉVISIONS` + period pills) owns
+ * Used by ChartTabs. The in-canvas title is gone — the panel header (`PRÉVISIONS` + period pills) owns
  * naming now, per the design.
  *
  * @param {object} props

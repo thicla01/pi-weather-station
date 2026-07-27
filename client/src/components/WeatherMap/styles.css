@@ -24,8 +24,7 @@
    *
    * Defaults below are the `day` column; the dusk/night/nightRed
    * overrides live in the `.ambientRoot[data-palette]` blocks after
-   * this rule. The v2 legacy tree (no .ambientRoot ancestor) gets the
-   * day values, which is acceptable until its scheduled removal.
+   * this rule.
    * ============================================================ */
   --rc-tile-1: #00d0d0;
   --rc-tile-2: #00c800;
@@ -111,14 +110,13 @@
   font-weight: 500;
 }
 
-/* Variant classes kept for two consumers: the v2 legacy tree (no
- * ambient CSS vars — fallbacks below) and LayoutMobile's mini-card
- * hide rules, which match on the unhashed `radar-legend-dark` /
- * `radar-legend-light` substrings (see LayoutMobile/styles.css).
- * The dark variant re-declares surface/border with DARK fallbacks:
- * in ambient layouts the var() always wins (same value either way),
- * but in the v2 tree dark mode the base rule's light fallback would
- * otherwise pair near-white text with a cream card. */
+/* Variant classes kept for LayoutMobile's mini-card hide rules, which
+ * match on the unhashed `radar-legend-dark` / `radar-legend-light`
+ * substrings (see LayoutMobile/styles.css). DO NOT delete these
+ * alongside the v2 tree: RadarLegend still applies one of them on
+ * every layout. The dark variant's re-declared surface/border
+ * fallbacks are now belt-and-braces — inside .ambientRoot the var()
+ * always wins, with the same value either way. */
 .radar-legend-dark {
   color: var(--c-text, #f6f6f4);
   background: var(--c-surface, rgba(30, 30, 32, 0.92));
@@ -588,7 +586,7 @@
  * On LayoutDesktop the right rail overlays the map, so the bar's
  * right inset adds the rail's visible width (same variable the
  * legend/scrubber used pre-redesign; falls back to 0 on LayoutPi
- * and the v2 tree). */
+ * and LayoutMobile). */
 .radar-timeline {
   position: absolute;
   bottom: 16px;
@@ -607,8 +605,7 @@
 }
 
 /* Palette-variant classes — colour comes from the ambient tokens with
- * v2-tree fallbacks, same convention (and same dark-fallback rationale)
- * as the legend above. */
+ * literal fallbacks, same convention as the legend above. */
 .radar-timeline-dark {
   color: var(--c-text, #f6f6f4);
   background: var(--c-surface, rgba(22, 22, 24, 0.92));

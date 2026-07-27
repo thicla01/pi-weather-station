@@ -1506,13 +1506,9 @@ const BucketAbout = ({ data, lang, gridTwoWide, fetchDebug }) => {
         <KV k={lbl(lang, "branch", "branche", "rama")}     v={v.branch || "?"} />
         <KV k="repo"    v="github.com/thicla01/pi-weather-station" />
         <KV k={lbl(lang, "license", "licence", "licencia")}    v="MIT" />
-        {/* UI flavour — handy for bug reports during the v2/v3
-         * coexistence window. By definition this bucket renders only
-         * when the v3 panel is mounted, so "v3-ambient" is correct
-         * here; the v2 Debug overlay exists but doesn't have an
-         * About section like this. v3 is the default interface since
-         * v2.18, so there is no "preview" qualifier (and the value is a
-         * fixed technical marker, not a localised word). */}
+        {/* UI flavour — handy for bug reports. A fixed technical
+         * marker, not a localised word; v3 has been the only
+         * interface since the v2 tree was removed. */}
         <KV k="ui"      v="v3-ambient" />
       </div>
 

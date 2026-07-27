@@ -229,7 +229,10 @@ AmbientLayers              CSS-variable root — sets palette tokens (day/dusk/n
 │   │   ├── PanHandler            Programmatic re-centering with rail-offset math
 │   │   ├── RailOffsetTracker     Pans marker when rail width changes
 │   │   ├── MapClickHandler       Click-to-recenter with 200 ms debounce
-│   │   ├── RadarFocusControl     Leaflet bar — hides hero+rail on Desktop (v2.16.6)
+│   │   ├── RadarFocusControl     Overlay button under the zoom stack — hides
+│   │   │                          hero+rail on LayoutPi and LayoutDesktop
+│   │   │                          (standalone button since v3.1 Phase 3, was a
+│   │   │                           Leaflet bar control before)
 │   │   ├── RiskRing              Dashed analysis rings (one or two stacked circles
 │   │   │                          based on risk tier + theme; see geometry.js)
 │   │   ├── RadarTimeline         Bottom-of-map scrubber + playhead + speed cycler
@@ -269,11 +272,24 @@ AmbientLayers              CSS-variable root — sets palette tokens (day/dusk/n
 └── ScreenSaver                   Sleep-mode stage 1 (clock) + stage 2 (anti-burn-in dot)
 ```
 
-The legacy v2 components (`App` / `InfoPanel` / `CurrentWeather` / `Clock` / `WeatherInfo` / `UvAqiBadges`) remain in the tree as the source of unchanged primitives (e.g. `LocationName`, `Clock`, `UpdateModal`) and stayed accessible via the `experimentalUiC=false` flag before v3 became the default.
+The legacy v2 component tree (`InfoPanel` / `CurrentWeather` / `Clock` / `WeatherInfo` / `UvAqiBadges` / `Settings` / `Debug` / …) was **deleted in 2026-07**, together with the `experimentalUiC` flag that used to select it. The tree above is therefore the whole client — there is no second UI path. Six directories sit under `client/src/components/` outside `ambient/`, and v3 consumes all of them:
+
+| Directory | Role in v3 |
+|---|---|
+| `App/` | Root layout — mounts `AmbientLayers`, `UpdateModal`, `ScreenSaver` |
+| `AmbientLayers/` | Palette / breakpoint dispatcher, picks the layout variant |
+| `WeatherMap/` | Leaflet radar map + its overlays and `geometry.js` helpers |
+| `LocationName/` | Reverse-geocoded place name, imported by `HeroBand` / `HeroCompact` |
+| `UpdateModal/` | In-app updater UX |
+| `ScreenSaver/` | Sleep-mode stages 1 and 2 |
+
+Plus two hook directories: `components/hooks/` (`useAiSummary`) and `~/hooks/` (`useUpdateChecker`, `useScreenSaver`, `useUiPreferences`, `useIdleDetection`, `useDismissedAlerts`, `useAutoTabSelector`, `useDisplayScale`, `useEligibleGovAlerts`, `useSenseHatMode`).
+
+> ⚠️ Naming trap for anyone reading pre-July commits: `ambient/AlertBanner` is a **different, live** component from the deleted `components/AlertBanner`. Same for `ambient/AiSummaryInline`, `ambient/IndoorBlock`, `ambient/SettingsPanel` and `ambient/DebugPanel` — those are the v3 surfaces and were never removed.
 
 ### State management
 
-All shared state lives in `AppContext.js` (React Context + `useState`). Components read from context and call setter functions exposed by the context value. As of v2.18, three coherent clusters have been extracted into dedicated hooks under `~/hooks/` — AppContext composes them via `useUpdateChecker()` / `useScreenSaver()` / `useUiPreferences()` and re-exports their returns through the context, so consumers don't see any difference at the call site.
+All shared state lives in `AppContext.js` (React Context + `useState`). Components read from context and call setter functions exposed by the context value. As of v2.18, three coherent clusters have been extracted into dedicated hooks under `~/hooks/` — AppContext composes them via `useUpdateChecker()` / `useScreenSaver()` / `useUiPreferences()` and re-exports their returns through the context, so consumers don't see any difference at the call site. The value is additionally published through seven sliced contexts — `AppActionsContext`, `SystemContext`, `LocationContext`, `UiPrefsContext`, `WeatherDataContext`, `AlertsContext`, `RadarStateContext` — so a component subscribes only to the slice it reads (most of the v3 `ambient/` tree uses these; the original catch-all `AppContext` export remains and is still what 13 components import when they need several slices at once).
 
 ```
 AppContext
@@ -307,8 +323,8 @@ AppContext
   │                                 hideRadarLegend, radarSource
   │
   ├── UI state (inline)             settingsMenuOpen, debugMenuOpen,
-  │                                 infoPanelCollapsed, panToCoords,
-  │                                 mobileRadarMaximized,
+  │                                 panToCoords, mobileRadarMaximized,
+  │                                 piRadarMaximized,
   │                                 desktopRadarMaximized, ...
   │
   ├── Weather poll effect           gated on `weatherApiKey && mapGeo`,
@@ -316,12 +332,13 @@ AppContext
   │                                 the periodic 10 min / 1 h / 24 h
   │                                 intervals
   │
-  └── advanced.* PATCH chain        buildAdvancedSubtree(overrides) +
-                                    5 saveAdvanced*Flag helpers
+  └── advanced.* PATCH chain        buildAdvancedSubtree(overrides) + the five
+                                    save helpers that call it — ai / pollen /
+                                    display / sleep / alerts.radius
                                     (centralised in v2.18.1)
 ```
 
-> ⚠️ `AppContext.js` is still ~1670 lines after Phase 3 — further hook extractions (useLocation, useWeatherData) are tracked in `ROADMAP.md` as past the diminishing-returns line. The current arrangement is a workable middle ground: the three highest-value clusters live in their own hooks, the rest stays inline.
+> ⚠️ `AppContext.js` is ~2630 lines — further hook extractions (useLocation, useWeatherData) are tracked in `ROADMAP.md` as past the diminishing-returns line. The current arrangement is a workable middle ground: the three highest-value clusters live in their own hooks, the rest stays inline. (The v2-tree deletion in 2026-07 removed the `experimental` branch of the PATCH chain along with `saveAdvancedExperimentalFlag()`; it did not shrink the file materially, because the state the v3 tree needs was never the v2 tree's.)
 
 ### Responsive adaptations
 
@@ -337,7 +354,21 @@ Detected via `window.matchMedia` listeners that flip layouts and feature toggles
 
 ### Font size zoom model
 
-`zoom: fontSizeZoom` (S=0.85, M=1.0, L=1.15) is applied to scrollable subtrees only (`.rail` in LayoutPi/LayoutDesktop, `heroSlot` in LayoutDesktop). Applying it to the `AmbientLayers` root broke positioning of `position: absolute` children because `100dvh` references inside the layout no longer matched the zoomed root. Scoping to scrollables keeps the map at native resolution while the user's text-density preference still has visible effect.
+`zoom: var(--c-font-scale)` (S=0.85, M=1.0, L=1.15) is applied to the scrollable rail only — `.rail` in `LayoutPi` and `LayoutDesktop`. Two boundaries were established by trial:
+
+- **Not the `AmbientLayers` root.** It broke positioning of `position: absolute` children, because `100dvh` references inside the layout no longer matched the zoomed root.
+- **Not `LayoutDesktop`'s `heroSlot`.** Phase 7 polish briefly zoomed it too, but `zoom` expands a box visually without updating the layout engine's geometry: at scale 1.15 the slot painted ~968 px wide while its declared width stayed 842, the (also zoomed) rail marched left, and the clock got clipped by a ~150 px overlap. The hero is large enough at native size, so it stays unzoomed; `heroSlot`'s `right` offset instead multiplies `--c-rail-width` by `--c-font-scale` so the gap to the rail holds at every preference.
+
+Scoping to the rail keeps the map at native resolution while the user's text-density preference still has visible effect.
+
+**Two strategies, one variable.** `--c-font-scale` is consumed two different ways, and mixing them is the recurring trap:
+
+| Where | How | Rule for new code |
+|---|---|---|
+| Inside the rail (`.rail` subtree) | The rail's `zoom` scales the whole subtree | Size in plain `px`. An extra `calc(… * var(--c-font-scale))` here **double-scales** (1.32× at L). |
+| Outside the rail — `HeroBand`, `FeelsLikeLine`, `AstroMetaLine`, `FloatingMiniBanner`, the on-map labels in `WeatherMap` | `font-size: calc(<base>px * var(--c-font-scale, 1))` per element | Opt in explicitly, per property. Nothing scales for free out here. |
+
+`LayoutDesktop`'s `heroSlot` sits in the second group and additionally multiplies `--c-rail-width` by `--c-font-scale` in its `right` offset, so it always ends before the (zoomed) rail's visual left edge.
 
 ---
 
@@ -362,23 +393,43 @@ boot
   → AppContext: getCustomLatLon() ← settings.json via GET /settings
   → AppContext: getBrowserGeo() ← navigator.geolocation (or IP fallback via /geolocation)
   → AppContext: checkIsLocal() ← GET /api/is-local
-  → WeatherInfo mounts → GET /api/weather/current, /hourly, /daily
-  → AiSummary mounts → GET /api/weather-summary (if Anthropic key present)
-  → IndoorTemperature mounts → GET /api/indoor-temperature
+  → AppContext mount effect: getWeatherApiKey() + getReverseGeoApiKey() ← GET /settings
+      (context-level on purpose — see the note below)
+  → AppContext weather-poll effect (gated on `weatherApiKey && mapGeo`)
+      → GET /api/weather/current, /hourly, /daily + sunrise/sunset
+      → arms the staggered 10 min / 1 h / 24 h pollers
+  → AppContext reverse-geo effect (gated on `mapGeo && reverseGeoApiKey`)
+      → GET /api/reverse-geocode → `reverseGeoResult` (rendered by LocationName)
+  → ambient/AiSummaryInline mounts (LayoutMobile / LayoutDesktop)
+      → GET /api/weather-summary (if Anthropic key present)
+      On LayoutPi the summary is not inline: ambient/AiView mounts on demand
+      when the user opens the IA view, and fetches via components/hooks/useAiSummary
+  → ambient/IndoorBlock mounts → GET /api/indoor-temperature
   → UpdateModal opens automatically when GET /api/update-check returns updateAvailable=true
 ```
+
+> The API-key fetch and the weather poll both live in `AppContext`, not in a
+> component. They used to be component-triggered, which broke when v3 became the
+> default: no v3 layout mounted the v2 component that owned them, so the keys
+> stayed `null` and weather data went stale after the first fetch. Owning them at
+> context level means every layout gets the same data regardless of which
+> surfaces are rendered.
 
 ### Location change (map click)
 
 ```
 User clicks map
-  → Leaflet fires click event → mapGeo updated in AppContext
-  → WeatherInfo useEffect fires (mapGeo dependency)
-  → createWeatherUpdateInterval() clears old intervals, starts new ones
-  → GET /api/weather/current?lat=…&lon=… (server checks cache → miss → Tomorrow.io)
-  → GET /api/weather/hourly, /daily (same)
-  → AiSummary useEffect fires (mapGeo dependency) → GET /api/weather-summary
-  → LocationName fires → GET /api/reverse-geocode?lat=…&lon=…
+  → WeatherMap's MapClickHandler (200 ms debounce) → AppContext.setMapPosition()
+  → setMapPosition fires the one-shot fetches immediately and updates mapGeo:
+      GET /api/weather/current?lat=…&lon=… (server checks cache → miss → Tomorrow.io)
+      GET /api/weather/hourly, /daily (same)
+  → AppContext weather-poll effect re-runs (mapGeo dependency):
+      clears the old timers, re-arms the staggered 10 min / 1 h / 24 h pollers
+      for the new coordinates
+  → AppContext reverse-geo effect re-runs (mapGeo dependency)
+      → GET /api/reverse-geocode?lat=…&lon=… → LocationName re-renders
+  → ambient/AiSummaryInline (or useAiSummary in AiView) re-fetches on the
+      mapGeo dependency → GET /api/weather-summary
   → WeatherMap re-renders the 50 km circle around the new mapGeo
 ```
 
@@ -532,17 +583,19 @@ cd ~/pi-weather-station && git pull && bash deploy/install.sh
 
 **Rationale:** Appropriate for the project's size at the time. A single context is simple to reason about and avoids prop drilling across the component tree.
 
-**Consequences:** `AppContext.js` has grown large and is now a known technical debt item. As the project grows, splitting into focused contexts (`SettingsContext`, `WeatherContext`, `UIContext`, `UpdateContext`) should be considered. See `ROADMAP.md`.
+**Consequences:** `AppContext.js` grew large and became a known technical debt item. **Superseded in part:** the provider was since split into focused contexts so consumers subscribe to one slice instead of the whole value — `AppContext.js` now exports `AppActionsContext`, `SystemContext`, `LocationContext`, `UiPrefsContext`, `WeatherDataContext`, `AlertsContext` and `RadarStateContext` alongside the original catch-all `AppContext`. The *file* is still one module (~2630 lines) — what was split is the context surface, not the source file. Remaining extraction ideas (`useLocation`, `useWeatherData`) are tracked in `ROADMAP.md` as past the diminishing-returns line.
 
 ---
 
 ### ADR-04 — CSS `zoom` for font size scaling
 
-**Decision:** Font size scaling (S/M/L) is implemented via the CSS `zoom` property on the InfoPanel container, not via `font-size` or CSS custom properties on individual elements.
+**Decision:** Font size scaling (S/M/L) is implemented via the CSS `zoom` property on a scrollable container subtree, not via `font-size` or CSS custom properties on individual elements.
 
 **Rationale:** `zoom` scales the entire subtree uniformly — all text, spacing, icons, and chart containers — without requiring changes to individual components. A `font-size` approach would require explicit `em`-based sizing throughout every component.
 
-**Consequences:** Two compensations are required: `height: calc(100dvh / zoom)` to prevent grey areas or hidden controls, and a counter-zoom (`zoom: 1/parentZoom`) on chart wrappers so Chart.js measures the container in its natural coordinate space.
+**Consequences (as originally shipped on the v2 `InfoPanel`):** two compensations were required — `height: calc(100dvh / zoom)` to prevent grey areas or hidden controls, and a counter-zoom (`zoom: 1/parentZoom`) on chart wrappers so Chart.js measured the container in its natural coordinate space. *Both are gone as of 2026-07:* they were properties of the v2 panel, which was a full-height flex column with `zoom` on its outermost box. The v3 rail is absolutely positioned with explicit `top`/`bottom`, so its height is constrained independently of `zoom` and neither compensation is needed — `grep`ping for `100dvh / zoom` or a counter-zoom in `client/src/` now returns nothing.
+
+**Container, then and now:** the original context was the v2 `InfoPanel` container *(historical — that component was deleted in 2026-07)*. Since v3 the decision is unchanged but the container moved: `zoom` is applied to the scrollable rail only — `.rail` in `LayoutPi` / `LayoutDesktop`. Applying it to the `AmbientLayers` root broke `position: absolute` children (`100dvh` references no longer matched the zoomed root), and applying it to `LayoutDesktop`'s `heroSlot` clipped the clock (zoom grows the painted box without updating layout geometry). See "Font size zoom model" in section 4 for both rejected placements.
 
 ---
 

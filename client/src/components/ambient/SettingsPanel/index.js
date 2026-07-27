@@ -10,7 +10,6 @@ import closeSharp from "@iconify/icons-ion/close-sharp";
 import settingsAdjustIcon from "@iconify/icons-carbon/settings-adjust";
 import passwordIcon from "@iconify/icons-carbon/password";
 import constructIcon from "@iconify/icons-ion/construct-outline";
-import eyeIcon from "@iconify/icons-ion/eye-outline";
 import i18n from "~/i18n";
 import { AppContext } from "~/AppContext";
 import { getPalette } from "~/ui/tokens";
@@ -40,14 +39,13 @@ const lbl = (lang, en, fr, es) => (lang === "fr" ? fr : lang === "es" ? es : en)
 // Rail sections — single-selection navigation, reusing the DebugPanel
 // rail grammar (icon-above-short-label chips, compact ≤520px). Order
 // is the local→server gradient: device-local prefs first, server
-// config next, advanced + preview last. The panel always opens on the
+// config next, advanced last. The panel always opens on the
 // first entry (`local`) — a settings panel reads better when it's
 // predictable, so unlike DebugPanel we do NOT persist the last tab.
 const SECTIONS = [
   { id: "local", icon: settingsAdjustIcon, label: (lang) => lbl(lang, "Local", "Préf.", "Local") },
   { id: "api", icon: passwordIcon, label: () => "API" },
   { id: "avance", icon: constructIcon, label: (lang) => lbl(lang, "Advanced", "Avancé", "Avanzado") },
-  { id: "apercu", icon: eyeIcon, label: (lang) => lbl(lang, "Preview", "Aperçu", "Vista") },
 ];
 
 /**
@@ -77,7 +75,7 @@ function unitSystemPreset(t, s, l, d, p) {
  * `docs/design-references/settings-debug/project/lib/settings-panel.jsx`
  * variant B (tight list) for the API keys block.
  *
- * Structure (4 sections, decreasing local-vs-server gradient):
+ * Structure (3 sections, decreasing local-vs-server gradient):
  *
  *   1. Préférences locales         — language, font size, dark mode,
  *                                    clock, units (×5), hide flags
@@ -86,13 +84,10 @@ function unitSystemPreset(t, s, l, d, p) {
  *                                    (variant B), coords, radar source,
  *                                    brightness, Homebridge
  *   3. Avancé                       — collapsible; display / AI / sleep
- *   4. Expérimental                 — collapsible; feature flags
  *
- * Renders inside a fixed-position overlay (z-index 5000), same
- * positioning convention as v2 Settings, but with Direction C
- * tokens for the surface and typography. The host kiosk's
- * `experimentalUiC` flag drives whether v2 Settings or this panel
- * appears when the user taps the gear icon.
+ * Renders inside a fixed-position overlay (z-index 5000), with
+ * Direction C tokens for the surface and typography. This is the
+ * only settings surface — it opens when the user taps the gear icon.
  *
  * @returns {JSX.Element|null} settings overlay, or null when closed
  */
@@ -207,7 +202,6 @@ const SettingsPanel = () => {
             {activeSection === "local" && <SectionLocalPrefs ctx={ctx} lang={lang} />}
             {activeSection === "api" && <SectionConfig ctx={ctx} lang={lang} remote={remote} />}
             {activeSection === "avance" && <SectionAdvanced ctx={ctx} lang={lang} remote={remote} />}
-            {activeSection === "apercu" && <SectionPreview ctx={ctx} lang={lang} remote={remote} />}
           </div>
           <PaneFooter lang={lang} section={activeSection} />
         </main>
@@ -1229,62 +1223,6 @@ const SectionAdvanced = ({ ctx, lang, remote }) => {
 };
 
 // ───────────────────────────────────────────────────────────────────
-// Section 4 · Preview
-// ───────────────────────────────────────────────────────────────────
-
-/**
- * v3 preview toggle. Internally still uses the `experimentalUiC` key
- * for settings.json compatibility — only the label changed in v2.14
- * when the v3 UI was promoted from a debug-gated experiment to a
- * publicly-opt-in preview.
- *
- * @param {object} props
- * @param {object} props.ctx
- * @param {string} props.lang
- * @param {boolean} props.remote
- * @returns {JSX.Element}
- */
-const SectionPreview = ({ ctx, lang, remote }) => {
-  const { experimentalUiC, saveAdvancedExperimentalFlag } = ctx;
-  const activeCount = experimentalUiC ? 1 : 0;
-
-  return (
-    <div className={styles.section} style={{ opacity: remote ? 0.65 : 1 }}>
-      <SectionHeader
-        index="4"
-        title={lbl(lang, "Preview", "Aperçu", "Vista previa")}
-        subtitle={lbl(lang,
-          "Switch between the production v2 interface and the v3 preview.",
-          "Bascule entre l'interface en production (v2) et l'aperçu v3.",
-          "Cambia entre la interfaz v2 (producción) y la vista previa v3.")}
-        right={(
-          <Pill kind="optional">
-            {activeCount} {lbl(lang, "active", "actif", "activa")}
-          </Pill>
-        )}
-      />
-      <div className={styles.advBody}>
-        <div className={styles.flagRow}>
-          <Toggle
-            label={lbl(lang,
-              "Ambient interface (v3 preview)",
-              "Interface ambient (aperçu v3)",
-              "Interfaz ambient (vista previa v3)")}
-            value={Boolean(experimentalUiC)}
-            onChange={(v) => saveAdvancedExperimentalFlag("uiC", v)}
-            disabled={remote}
-            sub={lbl(lang,
-              "Disable to switch back to the classic v2 interface. Report bugs at GitHub Issues.",
-              "Désactivez pour revenir à l'interface classique v2. Signalez les bugs sur GitHub Issues.",
-              "Desactiva para volver a la interfaz clásica v2. Informa errores en GitHub Issues.")}
-          />
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// ───────────────────────────────────────────────────────────────────
 // Helpers — Pill / StatusDot / Toggle / Field / Seg / SectionHeader
 // ───────────────────────────────────────────────────────────────────
 
@@ -1590,7 +1528,6 @@ const SectionHeader = ({ index, title, subtitle, right }) => (
 //   api    → settings.json, BATCHED behind the Save button inside
 //            SectionConfig (keys + coords commit together)
 //   avance → settings.json, each flag POSTs immediately on change
-//   apercu → settings.json immediate, but only visible after reload
 // The note is informational only — it never carries a save button, so
 // it can't imply a commit model the section doesn't actually use
 // (correction #3 from the Phase 6 design review: the only batched
@@ -1609,10 +1546,6 @@ const PaneFooter = ({ lang, section }) => {
       "Each setting saved to settings.json on change",
       "Chaque réglage enregistré dans settings.json au changement",
       "Cada ajuste se guarda en settings.json al cambiar"),
-    apercu: lbl(lang,
-      "Switch takes effect on page reload",
-      "La bascule prend effet au rechargement",
-      "El cambio surte efecto al recargar"),
   }[section];
   if (!note) return null;
   return <div className={styles.paneFooter}>{note}</div>;
