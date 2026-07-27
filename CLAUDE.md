@@ -195,6 +195,7 @@ These rules apply to every change, regardless of size. They exist to keep the co
 - `CHANGELOG.md` is the single source of truth for version history — do not add per-version highlight sections to `readme.md`. The readme points to `CHANGELOG.md` and the GitHub Releases page; that's enough.
 - `ROADMAP.md` technical debt section must be updated when a debt item is resolved or a new one is identified
 - `docs/ui-layout_fr.md` and `docs/ui-layout_en.md` must be kept in sync when the screen layout changes
+- **`docs/localization-glossary.md` is GENERATED — never hand-edit it.** Run `node tools/gen-localization-glossary.js` after touching a locale file or an inline `lbl()` string; `--check` exits 1 when it's stale. It derives every row from `client/src/i18n/locales/*.json` plus the `lbl()` calls in `ambient/SettingsPanel` + `ambient/DebugPanel`, and reports EN↔FR↔ES coverage gaps. The one thing it can't reconstruct is the `Validé` column (native-speaker review state), so it parses the existing file and carries `☑` marks forward — which is what makes re-running it safe. It was hand-maintained until 2026-07 and went stale twice; that's why the generator exists
 
 ### Incident reports for long-to-resolve bugs
 - **Write an incident report when a bug debugging session meets at least one of**: ≥ 45 min of back-and-forth, ≥ 3 wrong hypotheses before the fix, a cause that wasn't findable via direct code search (CSS spec war, platform-specific behaviour, layered caching, etc.), or a recurrence risk if someone makes the same class of change again.
