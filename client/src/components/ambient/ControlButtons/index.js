@@ -1,5 +1,4 @@
 import React, { useContext, useState, useRef, useEffect, useLayoutEffect } from "react";
-import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
 import {
   AppActionsContext,
@@ -71,30 +70,21 @@ const TOAST_TIMEOUT = 2500;
 /**
  * Buttons group component.
  *
- * Two rendering modes:
+ * Rendered by the v3 `BottomDock`: the buttons are split into
+ * labelled categories — Map (radar view controls), Views (full-rail
+ * content views), Display (palette / mode), System (app-level
+ * actions) — with hairline separators between groups. Matches the
+ * Phase 1 toolbar of the v3.1 synthesis design. Group labels are
+ * CSS-hidden on the 7" Pi kiosk and on mobile to save horizontal
+ * room.
  *
- *   - **flat** (default, used by the legacy v2 `InfoPanel`): renders
- *     every button as a sibling in a `space-evenly` flex row. Keeps
- *     the v2 visual untouched while the v2 tree is on death row.
- *   - **grouped** (`grouped={true}`, used by v3 `BottomDock`): splits
- *     the same buttons into three labelled categories — Map (radar
- *     view controls), Display (palette / mode), System (app-level
- *     actions) — with hairline separators between groups. Matches
- *     the Phase 1 toolbar of the v3.1 synthesis design. Group labels
- *     are CSS-hidden on the 7" Pi kiosk and on mobile to save
- *     horizontal room.
+ * Every button is wrapped in its own `<div onClick>` so the toast
+ * positioning logic (which measures the tapped button's bounding
+ * rect via `e.currentTarget`) works uniformly.
  *
- * Whichever the mode, the same per-button `<div onClick>` wrappers
- * are reused so the toast positioning logic (which measures the
- * tapped button's bounding rect via `e.currentTarget`) works
- * identically.
- *
- * @param {object} props - Component props
- * @param {boolean} [props.grouped] - When true, render the three
- *   category groups instead of the flat row. Default false.
  * @returns {JSX.Element} Control buttons
  */
-const ControlButtons = ({ grouped = false }) => {
+const ControlButtons = () => {
   const { t } = useTranslation();
   const {
     setDarkMode,
@@ -290,10 +280,10 @@ const ControlButtons = ({ grouped = false }) => {
     }, TOAST_TIMEOUT);
   };
 
-  // Each button JSX is built once and assigned to a named key. The
-  // same nodes are reused in both flat (v2 InfoPanel) and grouped
-  // (v3 BottomDock) layouts so toast positioning (anchored on
-  // `e.currentTarget.getBoundingClientRect()`) behaves identically.
+  // Each button JSX is built once and assigned to a named key, so
+  // toast positioning (anchored on
+  // `e.currentTarget.getBoundingClientRect()`) behaves identically
+  // for every button.
   // Conditional buttons collapse to `null` when their gate is off,
   // and React skips rendering them without disturbing siblings.
   const btnRecenter = (
@@ -648,7 +638,7 @@ const ControlButtons = ({ grouped = false }) => {
   // ChartTabs renders the maximized forecast. This is now the ONLY forecast
   // entry point on the Pi. The down-state is a plain `.buttonDown` class
   // toggle when MAX is active — no animated highlight (kiosk-GPU rule #264).
-  // No legacy v2 (non-Pi) analogue, so off the Pi dock the button is `null`.
+  // No non-Pi analogue, so off the Pi dock the button is `null`.
   const inPiDock = piLayoutState != null;
   const btnForecast = inPiDock ? (
     <div
@@ -733,91 +723,61 @@ const ControlButtons = ({ grouped = false }) => {
     </div>
   ) : null;
 
-  const containerClass = `${styles.container} ${grouped ? styles.grouped : ""} ${
+  const containerClass = `${styles.container} ${styles.grouped} ${
     darkMode ? styles.dark : styles.light
   } ${!mouseHide ? styles.showMouse : ""}`;
 
-  if (grouped) {
-    // Grouped layout (v3 BottomDock). Three labelled groups with
-    // hairline separators in CSS; group labels CSS-hide on the 7"
-    // Pi kiosk and on mobile (see styles.css). Map = view-affecting
-    // toggles; Display = palette / mode; System = app-level actions.
-    return (
-      <div ref={containerRef} className={containerClass}>
-        <div className={styles.group}>
-          <span className={styles.groupLabel}>{t("controls.groupMap")}</span>
-          {btnRecenter}
-          {btnMarker}
-          {btnTimeline}
-          {btnArrows}
-          {btnLegend}
-          {btnWeatherAlerts}
-          {btnRings}
-        </div>
-        {/* Views group (rail-affordance redesign 2026-06-24) — "change topic
-          * to a full-rail content view", distinct from the Map group's
-          * "manipulate the map in place". Holds the IA/sparkle view-open
-          * (relocated out of the Map group) and the new forecast view-open.
-          * Both buttons are Pi-dock-only (btnForecast on `inPiDock`, btnBot's
-          * view-open on `inPriorityDock`); off the Pi they are both `null`. The
-          * wrapper `.group` div + `.groupLabel` span are ALWAYS in the JSX, so
-          * the group does NOT collapse on its own when empty — it would leave
-          * an orphan "VIEWS" label (desktop) and a stray separator hairline.
-          * Guard the whole wrapper on having at least one button so it
-          * disappears entirely off the Pi. On the Pi this is never empty. */}
-        {(btnBot || btnForecast) ? (
-          <div className={styles.group}>
-            <span className={styles.groupLabel}>{t("controls.groupViews")}</span>
-            {btnBot}
-            {btnForecast}
-          </div>
-        ) : null}
-        <div className={styles.group}>
-          <span className={styles.groupLabel}>{t("controls.groupDisplay")}</span>
-          {btnContrast}
-          {btnAuto}
-          {btnNightRed}
-        </div>
-        <div className={styles.group}>
-          <span className={styles.groupLabel}>{t("controls.groupSystem")}</span>
-          {btnRefresh}
-          {btnSettings}
-          {btnDebug}
-          {btnUpdateLocal}
-          {btnUpdateRemote}
-        </div>
-        {toastNode}
-      </div>
-    );
-  }
-
-  // Flat layout (v2 InfoPanel). Preserves the historical order so
-  // the v2 visual is untouched until v2 is removed.
+  // Labelled groups with hairline separators in CSS; group labels
+  // CSS-hide on the 7" Pi kiosk and on mobile (see styles.css).
+  // Map = view-affecting toggles; Display = palette / mode;
+  // System = app-level actions.
   return (
     <div ref={containerRef} className={containerClass}>
-      {btnRecenter}
-      {btnMarker}
-      {btnTimeline}
-      {btnArrows}
-      {btnLegend}
-      {btnWeatherAlerts}
-      {btnContrast}
-      {btnAuto}
-      {btnNightRed}
-      {btnRefresh}
-      {btnSettings}
-      {btnDebug}
-      {btnRings}
-      {btnBot}
-      {btnUpdateLocal}
+      <div className={styles.group}>
+        <span className={styles.groupLabel}>{t("controls.groupMap")}</span>
+        {btnRecenter}
+        {btnMarker}
+        {btnTimeline}
+        {btnArrows}
+        {btnLegend}
+        {btnWeatherAlerts}
+        {btnRings}
+      </div>
+      {/* Views group (rail-affordance redesign 2026-06-24) — "change topic
+        * to a full-rail content view", distinct from the Map group's
+        * "manipulate the map in place". Holds the IA/sparkle view-open
+        * (relocated out of the Map group) and the new forecast view-open.
+        * Both buttons are Pi-dock-only (btnForecast on `inPiDock`, btnBot's
+        * view-open on `inPriorityDock`); off the Pi they are both `null`. The
+        * wrapper `.group` div + `.groupLabel` span are ALWAYS in the JSX, so
+        * the group does NOT collapse on its own when empty — it would leave
+        * an orphan "VIEWS" label (desktop) and a stray separator hairline.
+        * Guard the whole wrapper on having at least one button so it
+        * disappears entirely off the Pi. On the Pi this is never empty. */}
+      {(btnBot || btnForecast) ? (
+        <div className={styles.group}>
+          <span className={styles.groupLabel}>{t("controls.groupViews")}</span>
+          {btnBot}
+          {btnForecast}
+        </div>
+      ) : null}
+      <div className={styles.group}>
+        <span className={styles.groupLabel}>{t("controls.groupDisplay")}</span>
+        {btnContrast}
+        {btnAuto}
+        {btnNightRed}
+      </div>
+      <div className={styles.group}>
+        <span className={styles.groupLabel}>{t("controls.groupSystem")}</span>
+        {btnRefresh}
+        {btnSettings}
+        {btnDebug}
+        {btnUpdateLocal}
+        {btnUpdateRemote}
+      </div>
       {toastNode}
-      {btnUpdateRemote}
     </div>
   );
-};
-
-ControlButtons.propTypes = {
-  grouped: PropTypes.bool,
 };
 
 export default ControlButtons;

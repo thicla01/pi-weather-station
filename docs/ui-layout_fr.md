@@ -1,8 +1,8 @@
 # Pi Weather Station — Référence de disposition de l'interface (v3 / Direction C)
 
-Ce document décrit la disposition de l'écran, les noms des composants et les noms des sections de l'interface **v3 Direction C**. L'interface v3 est activée via le bouton **Aperçu** dans les Paramètres (section 4). Utilisez ce document pour signaler des problèmes ou demander des modifications.
+Ce document décrit la disposition de l'écran, les noms des composants et les noms des sections de l'interface **v3 Direction C** — la seule interface depuis juillet 2026. Utilisez ce document pour signaler des problèmes ou demander des modifications.
 
-> **Note v2** — la disposition d'avant la v3 (grille fractionnée, InfoPanel à droite avec ControlButtons en bas du rail) est toujours accessible en désactivant le bouton Aperçu. Ce document couvre uniquement la v3 ; voir [`archive/ui-layout_v2_fr.md`](archive/ui-layout_v2_fr.md) pour la référence v2.
+> **Note v2** — la disposition d'avant la v3 (grille fractionnée, InfoPanel à droite avec ControlButtons en bas du rail) a été retirée du code en juillet 2026 et ne peut plus être sélectionnée. Sa référence est conservée dans [`archive/ui-layout_v2_fr.md`](archive/ui-layout_v2_fr.md) afin que les anciennes captures d'écran et les anciens rapports de problème restent lisibles.
 
 ---
 
@@ -237,7 +237,7 @@ Toutes les superpositions s'affichent en `position: fixed; inset: 0; z-index 500
 
 | Superposition | Déclencheur | Accès distant |
 |---------------|-------------|---------------|
-| **SettingsPanel** | Bouton ⚙ Paramètres | Sections 2–4 (écritures serveur) bloquées depuis les clients distants ; vue en lecture seule affichée |
+| **SettingsPanel** | Bouton ⚙ Paramètres | Sections 2–3 — API et Avancé, c.-à-d. les écritures serveur — bloquées depuis les clients distants ; vue en lecture seule affichée. La section 1 (Préférences locales, `localStorage`) reste modifiable à distance. |
 | **DebugPanel** | Bouton 🐛 Debug | Localhost + `DEBUG=true` uniquement |
 | **UpdateModal** | Bouton ⬆ Mise à jour | Localhost uniquement (`/api/update` est `localhostOnly`) |
 

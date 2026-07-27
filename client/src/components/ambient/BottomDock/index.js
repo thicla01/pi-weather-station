@@ -22,7 +22,7 @@ import styles from "./styles.css";
  */
 const BottomDock = () => (
   <div className={styles.dock}>
-    <ControlButtons grouped />
+    <ControlButtons />
     <HealthIndicator chip />
   </div>
 );

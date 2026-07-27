@@ -415,7 +415,7 @@ export function buildRingLayers(risk, dark, aiOff = false, nightRed = false) {
  * to the LEFT of viewport-centre, which is exactly the centre of the
  * non-rail area.
  *
- * When `offset` is zero (v2 layout, rail collapsed, full-screen radar
+ * When `offset` is zero (no rail overlaying the map, full-screen radar
  * mode) the function falls back to a plain panTo / setView and the
  * marker sits at the true viewport centre.
  *

@@ -1,14 +1,12 @@
 /* Lightweight CSS reset, scoped to the Ambient Layers root.
  *
- * Intentionally NOT a global reset — the v2 layout has its own legacy
- * styling that we don't want to disturb during the rollout. Everything
- * in this file is scoped under `.ambientRoot` so it only applies when
- * the experimental UI is mounted. Phase 10 (release) drops the scope
- * and promotes this to a real app-wide reset once v2 is retired.
+ * Still scoped under `.ambientRoot` rather than promoted to a global
+ * reset: every mount is inside that root today, so the scope costs
+ * nothing and dropping it is a separate, independently-testable change.
  *
  * Targets just the things that bite us on Pi-class hardware:
  *   - box-sizing globally (the single biggest source of off-by-one
- *     layout bugs in the v2 code)
+ *     layout bugs)
  *   - margin zero on heading + paragraph + figure so slab spacing comes
  *     from layout containers, never inherited browser defaults
  *   - button reset (kiosk doesn't want the OS chrome on touch targets)
@@ -57,8 +55,7 @@
  * custom anchor controls — ship with hardcoded #fff backgrounds and
  * #000 text that read as visual outsiders in dark / nightRed mode.
  * Override with the active palette tokens so they auto-tint with the
- * rest of the UI. Scoped to .ambientRoot so v2 layouts (which still
- * mount WeatherMap) keep their original Leaflet appearance. */
+ * rest of the UI. */
 /* Leaflet's stylesheet ships with `!important` rules on the zoom
  * control anchor's `background-color: #fff` and `color: #000`, plus
  * a `text-shadow` that pushes the +/- glyphs to high-contrast even
@@ -216,8 +213,7 @@
  * defaults here (not in WeatherMap/styles.css) because that file is a
  * CSS Module: its class names would be hashed and the literal class
  * name `weather-station-target` Leaflet writes into the DOM wouldn't
- * match. Using `--c-accent` (with a fallback orange for v2 layouts
- * that don't set the variable) means the marker auto-tints with the
+ * match. Using `--c-accent` means the marker auto-tints with the
  * active palette — soft amber on day, deeper amber on dusk, copper
  * on night, deep red on nightRed — so it never sits as a foreign
  * blue dot on the radar tiles. The 22 × 22 footprint pairs visually

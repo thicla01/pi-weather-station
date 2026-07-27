@@ -1,8 +1,7 @@
 /**
- * Pure logic for the radar-derived alert banner — extracted from
- * `components/AlertBanner/index.js` so both the v2 banner and the
- * Direction C `ambient/AlertBanner` can render off the same state
- * machine. No React, no JSX, no DOM — safe to test under `node:test`.
+ * Pure logic for the radar-derived alert banner, kept out of
+ * `ambient/AlertBanner` so the state machine can be exercised
+ * directly. No React, no JSX, no DOM — safe to test under `node:test`.
  *
  * The exports here cover three concerns:
  *

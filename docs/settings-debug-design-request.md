@@ -5,6 +5,14 @@
 **Date:** 2026-05-12
 **Project:** pi-weather-station (kiosk weather display, Raspberry Pi + macOS/Linux)
 **Relates to:** Direction C UI refresh (see `docs/ui-direction-c-implementation-plan.md`)
+**Status:** ✅ **Delivered and closed.** The refresh shipped as `client/src/components/ambient/SettingsPanel/` and `client/src/components/ambient/DebugPanel/`. This file is kept as the historical brief.
+
+> **Read this first.** Everything below is written in the present tense of **May 2026**. Where it
+> says "the current panel", it means the **v2** Settings / Debug components — which were deleted in
+> July 2026 along with the rest of the legacy v2 tree. The file paths in "Reference materials" no
+> longer exist on disk; the live panels are `ambient/SettingsPanel/index.js` and
+> `ambient/DebugPanel/index.js`. Likewise `experimentalUiC`, described below as an upcoming flag,
+> shipped in v2.18 and was removed in July 2026. Use `docs/ui-layout_en.md` for the current UI.
 
 ---
 
@@ -386,10 +394,12 @@ For each panel, please propose **2-3 distinct directions** so we can compare:
 - The main UI design package (`ZBuzz5lra42fwls8dhaJFg`) for the visual
   language, palette tokens, and component conventions. Re-use any of its
   primitives (`SourceBadge`, `ConfidencePill`, etc.) where useful.
-- Current Settings panel: `client/src/components/Settings/index.js` and
-  `client/src/components/Settings/AdvancedSettings/index.js`.
-- Current Debug panel: `client/src/components/Debug/index.js` (~1650 lines —
-  the section components are at the top, the panel composition in the middle).
+- Settings panel as it stood when this brief was written: `client/src/components/Settings/index.js`
+  and `client/src/components/Settings/AdvancedSettings/index.js`. *(Deleted 2026-07 — the delivered
+  replacement is `client/src/components/ambient/SettingsPanel/index.js`.)*
+- Debug panel as it stood when this brief was written: `client/src/components/Debug/index.js`
+  (~1650 lines — the section components at the top, the panel composition in the middle).
+  *(Deleted 2026-07 — the delivered replacement is `client/src/components/ambient/DebugPanel/index.js`.)*
 - Screenshots of the current panels (attached) — both at 7" and HD sizes.
 
 Thanks!

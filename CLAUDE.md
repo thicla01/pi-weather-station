@@ -53,15 +53,14 @@ pi-weather-station/
 │   │   ├── AppContext.js             # Global state (composes useUpdateChecker, useScreenSaver, useUiPreferences hooks; inline state for the rest — weather data, geo, advanced.* save chain, UI state)
 │   │   ├── components/
 │   │   │   ├── App/                  # Root layout (CSS grid)
-│   │   │   ├── ambient/              # v3 "Ambient Layers" tree (default since v2.18) — LayoutDesktop/Mobile/Pi, HeroBand, HeroCompact, MetricsGrid, ChartTabs, BottomDock, alert banner + detail slab, ambient SettingsPanel/DebugPanel, MoonDetailsPopover, etc. (32 components — incl. ControlButtons + weatherCharts, relocated here from the legacy tree in 2026-06 because the v3 dock and ChartTabs consume them)
+│   │   │   ├── ambient/              # v3 "Ambient Layers" tree — default since v2.18, and the ONLY UI since the v2 tree was deleted (2026-07). LayoutDesktop/Mobile/Pi, HeroBand, HeroCompact, MetricsGrid, ChartTabs, BottomDock, alert banner + detail slab, SettingsPanel/DebugPanel, MoonDetailsPopover, etc. (43 directories — incl. ControlButtons + weatherCharts, moved here in 2026-06 from what was then the v2 tree because the dock and ChartTabs consume them)
 │   │   │   ├── AmbientLayers/        # Palette dispatcher (day/dusk/night/nightRed), viewport breakpoints, iOS PWA bg paint
 │   │   │   ├── WeatherMap/           # Leaflet radar — index.js + RadarTimeline + RadarLegend + RiskRing + MapResizer + RadarFocusControl + geometry.js (pure helpers + style tables)
 │   │   │   ├── UpdateModal/          # In-app updater UX (commits, warnings, errors)
 │   │   │   ├── ScreenSaver/          # Sleep mode (stage 1 minimal clock, stage 2 anti-burn-in dot)
-│   │   │   ├── LocationName/         # Reverse-geocoded place name (shared by v2 + v3)
-│   │   │   ├── Settings/, Debug/, InfoPanel/, CurrentWeather/, AiSummary/, Clock/, SunRiseSet/, WeatherInfo/, IndoorTemperature/, AlertBanner/, GovAlertDetail/, UvAqiBadges/, RangeSlider/, Spinner/  # Legacy v2 tree — still mounts when `experimentalUiC=false`, queued for WHOLESALE REMOVAL once the v2.18 field-test trigger fires (no v3-only regression for 4 weeks). This list IS the removal scope (audited 2026-06: the former v3→v2 imports were relocated — ControlButtons + weatherCharts now live under ambient/, exportDebugCsv under ui/ — so deleting these directories breaks nothing v3-side ONCE the v2 branch of `App/index.js` is unwired first: its static imports of InfoPanel/Settings/Debug and the `experimentalUiC=false` JSX branch must go in the same PR, along with the `experimentalUiC` flag itself)
+│   │   │   ├── LocationName/         # Reverse-geocoded place name (imported by ambient/HeroBand + ambient/HeroCompact)
+│   │   │   (The legacy v2 tree — Settings/, Debug/, InfoPanel/, CurrentWeather/, AiSummary/, Clock/, SunRiseSet/, WeatherInfo/, IndoorTemperature/, AlertBanner/, GovAlertDetail/, UvAqiBadges/, RangeSlider/, Spinner/ — was DELETED 2026-07 together with the `experimentalUiC` flag; v3 is the only UI. Those names still appear throughout CHANGELOG history and in docs/archive/ui-layout_v2_*.md — nothing on disk. NOTE: `ambient/AlertBanner` is a DIFFERENT, live component from the removed `components/AlertBanner`; same for `ambient/AiSummaryInline`, `ambient/IndoorBlock`, `ambient/SettingsPanel`, `ambient/DebugPanel`.)
 │   │   ├── hooks/
-│   │   │   ├── useDragScroll.js      # Drag-to-scroll via pointer events (callback ref pattern)
 │   │   │   ├── useUpdateChecker.js   # In-app update flow (state + periodic poll + actions)
 │   │   │   ├── useScreenSaver.js     # Brightness + sleep-mode state (debounced slider + initial /api/brightness fetch)
 │   │   │   ├── useUiPreferences.js   # Units / clock / fontSize (localStorage + first-launch locale seed)
@@ -117,9 +116,9 @@ The compiled `dist/` files are committed to git so Pis can `git pull` without re
 - `indoorTemperature` block (top-level since v2.6.0): `{ enabled, host, port, username, password, sensorName }` — fully stripped from remote `GET /settings` responses (host/credentials are not even masked)
 
 ### Small screen adaptations (≤ 520 px height)
-- **Chart tabs** — Hourly and daily charts are shown as tabs ("24 hours" / "5 days") rather than stacked, to save vertical space
-- **Collapsible info panel** — A floating toggle button on the right edge of the radar map collapses/expands the info panel; Leaflet calls `map.invalidateSize()` after each toggle via the `MapResizer` component
-- Both features activate via `window.matchMedia("(max-height: 520px)")` with a `change` listener for live detection
+- **Chart tabs** — the v3 `ChartTabs` component always presents the hourly and daily forecasts as tabs ("24 hours" / "5 days"); there is no stacked variant to fall back to
+- **Radar focus** — the Leaflet `RadarFocusControl` (top-left, under the zoom stack) hides the hero + rail so the radar fills the column, on both `LayoutPi` and `LayoutDesktop`; `MapResizer` calls `map.invalidateSize()` after each toggle. It replaced the v2 right-edge chevron in v3.1 (one mental model instead of two intersecting toggles)
+- `window.matchMedia("(max-height: 520px)")` still gates the radar-legend auto-hide in `WeatherMap/index.js` and the compact modes of the ambient `SettingsPanel` / `DebugPanel`. **Separate threshold, on purpose:** `ui/piLayout.js` gates the Pi 3-state rail on `(max-height: 540px)` — don't unify the two queries casually
 
 ### Debug panel
 - Accessible from localhost only (both server-side middleware and client-side button)
@@ -161,7 +160,7 @@ These rules apply to every change, regardless of size. They exist to keep the co
 
 ### Constants and magic values
 - Named constants for all intervals, thresholds, and repeated literals — define them at the top of the file (e.g. `const REFRESH_INTERVAL = 15 * 60 * 1000`)
-- No hardcoded pixel values shared between components — use CSS custom properties (e.g. `--info-col-width`) so a single change propagates everywhere
+- No hardcoded pixel values shared between components — use CSS custom properties (e.g. `--c-font-scale`, set once on the `AmbientLayers` root and read by ~15 stylesheets, or `--ctrl-btn-bg`, which `BottomDock` overrides to re-skin the shared `ControlButtons`) so a single change propagates everywhere
 
 ### Alert banners — always identify the source
 - **Every alert banner must carry a leading source badge** so the user can tell at a glance whether the alert is authoritative (government feed) or derived locally. Existing tags:
@@ -171,7 +170,7 @@ These rules apply to every change, regardless of size. They exist to keep the co
   - `AIR` — air-quality health-risk alert (v3.2). Rendered by `ambient/AirAlertCard` (NOT `AlertBanner`), shown on the Pi MID rail when the normalized AQ `category` reaches `high`/`veryHigh` (`getAirAlertState` in `ui/alertLogic.js`). Pairs the `AIR` category tag with the index's source badge (`AQHI`/`IQA`/`AQI`); below the health-risk band the reading stays in the inline `AirCard` only. Tier colour mirrors the radar/gov strip (orange = high, red = veryHigh).
   - `FCST` — Tomorrow.io forecast threshold. Not a banner: it tags the auto-select forecast-tab **reason chip** in `ChartTabs` (the chip reuses the same `SourceBadge` visual), shown when the chart's metric tab was auto-selected from a forecast threshold rather than a gov alert (`NWS`/`ECCC`) or radar (`RADAR`). See `docs/auto-forecast-tab-selection-design.md`.
   - `TEST` — **a qualifier, not a source.** Appended *next to* the source badge (rendered via `SourceBadge variant="test"`) when an NWS alert with CAP status ≠ `Actual` (Test/Exercise/System/Draft) is revealed via the localhost-only "Show test alerts" toggle. Deliberately a **neutral outlined** pill (never coloured — `--c-warn` collapses to red in the nightRed palette, which would re-create the false-emergency look this feature prevents), paired with a "TEST ·" title prefix for zero ambiguity. NWS-only (ECCC carries no CAP status). These alerts are **hidden by default everywhere** (banner, map overlay, Sense HAT) and never served to remote clients — see the Security section.
-- When introducing a new banner-producing source, **assign it a short uppercase tag (3-5 chars)** following the same visual convention. Honest about origin (`AQI`, `SENSE`, `CLAUDE`, etc.); avoid vague labels like `LOCAL` or `AUTO`. Document the new tag in this file and in the JSDoc of `AlertBanner/index.js`.
+- When introducing a new banner-producing source, **assign it a short uppercase tag (3-5 chars)** following the same visual convention. Honest about origin (`AQI`, `SENSE`, `CLAUDE`, etc.); avoid vague labels like `LOCAL` or `AUTO`. Document the new tag in this file and in the JSDoc of `ambient/AlertBanner/index.js`.
 - All banner badges share the `styles.sourceBadge` CSS class — reuse it, don't fork.
 
 ### Gov-alert detail section — reading-first UX

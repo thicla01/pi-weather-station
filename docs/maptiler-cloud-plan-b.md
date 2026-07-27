@@ -54,8 +54,10 @@ requests) would be the next step. For our actual situation, free is fine.
 - `hybrid-v4` — satellite + labels (similar to Mapbox `satellite-streets-v12`)
 
 **What we'd lose** if we swapped Mapbox for MapTiler:
-- The exact `streets-v12` palette/typography we tuned the InfoPanel cream
-  background against (`rgb(238, 236, 232)`). MapTiler's `streets-v4` is
+- The exact `streets-v12` palette/typography we tuned the panel cream
+  background against (`rgb(238, 236, 232)` — the former v2 InfoPanel cream,
+  kept here as the light-surface tuning reference; the v3 ambient tree that
+  replaced it ships its own day palette). MapTiler's `streets-v4` is
   similar in family but a different colour cast.
 - The `light-v10` / `light-v11` / `dark-v10` / `dark-v11` granularity —
   MapTiler's catalogue is flatter (no separate light/dark variants of

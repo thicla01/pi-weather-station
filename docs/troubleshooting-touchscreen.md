@@ -43,8 +43,8 @@ Reload with `labwc --reconfigure` (or reboot).
 Once Multitouch is enabled:
 
 - Small buttons respond accurately to light taps.
-- Swipe-to-scroll works in the info panel (forecast charts, AI Summary).
-- The AI Summary panel correctly slides up over the location name when opened.
+- Swipe-to-scroll works in the information rail (metrics, forecast charts, AI summary).
+- The AI summary slab expands and collapses correctly when its maximize button is tapped.
 - Pinch-to-zoom in and out works correctly on the radar map.
 
 ---

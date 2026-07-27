@@ -1,8 +1,8 @@
 # Pi Weather Station — UI Layout Reference (v3 / Direction C)
 
-This document describes the screen layout, component names, and section names for the **v3 Direction C** interface. The v3 UI is activated via the **Preview** toggle in Settings (section 4). Use this document when reporting issues or requesting changes.
+This document describes the screen layout, component names, and section names for the **v3 Direction C** interface — the only interface since July 2026. Use this document when reporting issues or requesting changes.
 
-> **v2 note** — the pre-v3 layout (split grid, InfoPanel on the right with ControlButtons at the bottom of the rail) is still accessible by disabling the Preview toggle. This document covers v3 only; see [`archive/ui-layout_v2_en.md`](archive/ui-layout_v2_en.md) for the v2 reference.
+> **v2 note** — the pre-v3 layout (split grid, InfoPanel on the right with ControlButtons at the bottom of the rail) was removed from the codebase in July 2026 and can no longer be selected. Its reference is kept at [`archive/ui-layout_v2_en.md`](archive/ui-layout_v2_en.md) so older screenshots and issue reports stay readable.
 
 ---
 
@@ -237,7 +237,7 @@ All overlays render as `position: fixed; inset: 0; z-index 5000+` and mirror the
 
 | Overlay | Trigger | Remote access |
 |---------|---------|---------------|
-| **SettingsPanel** | ⚙ Settings button | Sections 2–4 (server writes) blocked from remote clients; read-only view shown |
+| **SettingsPanel** | ⚙ Settings button | Sections 2–3 — API and Advanced, i.e. the server writes — blocked from remote clients; read-only view shown. Section 1 (Local preferences, `localStorage`) stays editable remotely. |
 | **DebugPanel** | 🐛 Debug button | Localhost + `DEBUG=true` only |
 | **UpdateModal** | ⬆ Update button | Localhost only (`/api/update` is `localhostOnly`) |
 

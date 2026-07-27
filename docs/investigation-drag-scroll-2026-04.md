@@ -1,5 +1,13 @@
 # Investigation — Défilement tactile (avril 2026)
 
+> **Rapport historique (avril 2026), conservé tel quel.** Il décrit l'interface v2 : `useDragScroll`
+> (`client/src/hooks/useDragScroll.js`), l'`InfoPanel` et les panneaux `Settings` / `Debug` de
+> l'époque ont tous été **supprimés en juillet 2026** avec l'arbre v2. Les chemins de fichiers cités
+> ci-dessous n'existent donc plus. Ce qui reste valable : les leçons de méthode (bundle webpack
+> silencieusement invalide, `ref` nul sous `CSSTransition unmountOnExit`, `preventDefault()` dans un
+> `touchmove` non passif sur iOS Safari). Les surfaces v3 (`ambient/`) reposent sur le défilement
+> natif via `overflow-y: auto` + `touch-action`, sans hook de glissé.
+
 Rapport des problèmes rencontrés lors du remplacement de l'écran tactile par une nouvelle version du même modèle (contrôleur FT5x06). Le nouvel écran produit des événements `pointerType=mouse` au lieu de `pointerType=touch`, ce qui a rendu inopérants les mécanismes basés sur `touch-action` CSS et mis en évidence des bugs latents dans `useDragScroll`.
 
 ---

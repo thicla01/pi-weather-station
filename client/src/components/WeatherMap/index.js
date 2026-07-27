@@ -186,13 +186,13 @@ MapClickHandler.propTypes = {
 
 /**
  * Read the visible rail's pixel width once on mount + whenever the
- * collapsed/experimental flags toggle. Queries the DOM directly
+ * radar focus-mode flags toggle. Queries the DOM directly
  * because the value lives in CSS variables on `.ambientRoot` and on
  * the rail's actual rendered bounding rect (the `--c-rail-width`
  * value differs between LayoutDesktop and LayoutPi, and is bumped
  * to 360 px on wide displays via a media query). Returns 0 when
- * there's no rail to worry about (v2 layout, rail collapsed, no
- * ambientRoot present).
+ * there's no rail overlaying the map (radar focus mode, a layout
+ * where the rail sits in its own grid column, no ambientRoot).
  *
  * The 1-frame timeout is load-bearing for the initial measurement:
  * WeatherMap mounts inside the rail-bearing layout, so the rail's
@@ -203,7 +203,7 @@ MapClickHandler.propTypes = {
  * @returns {Number} rail width in pixels (0 if no offset needed)
  */
 function useRailOffset() {
-  const { experimentalUiC, infoPanelCollapsed, desktopRadarMaximized, piRadarMaximized } = useContext(SystemContext);
+  const { desktopRadarMaximized, piRadarMaximized } = useContext(SystemContext);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   useEffect(() => {
     // Focus mode hides HeroBand + rail via display:none. Bail with
@@ -212,7 +212,7 @@ function useRailOffset() {
     // toggling focus re-runs this effect (without it the offset
     // stayed at the last-measured value and the marker stayed
     // shifted as if the rail were still visible).
-    if (!experimentalUiC || infoPanelCollapsed || desktopRadarMaximized || piRadarMaximized) {
+    if (desktopRadarMaximized || piRadarMaximized) {
       setOffset({ x: 0, y: 0 });
       return undefined;
     }
@@ -246,7 +246,7 @@ function useRailOffset() {
       cancelAnimationFrame(handle);
       window.removeEventListener("resize", measure);
     };
-  }, [experimentalUiC, infoPanelCollapsed, desktopRadarMaximized, piRadarMaximized]);
+  }, [desktopRadarMaximized, piRadarMaximized]);
   return offset;
 }
 
@@ -389,7 +389,7 @@ ZoomLevelHandler.propTypes = {
  * a centred marker sits — so that point stays pinned across zoom steps.
  * The original methods are restored on unmount.
  *
- * No-op when `railOffset` is zero (v2 / LayoutPi / collapsed rail / focus
+ * No-op when `railOffset` is zero (LayoutPi / LayoutMobile / focus
  * mode): the override falls straight through to Leaflet's centre-anchored
  * default, so center-anchored zoom is preserved everywhere the rail does
  * not overlay the map. Scroll-wheel / double-click / box zoom are
@@ -646,8 +646,8 @@ const WeatherMap = ({ zoom, dark }) => {
   // `nightRed` is the long-wavelength sleep-stage-1 mode. Used here
   // to red-tint the dashed radar circles so they match the rest of
   // the UI when the night-red palette is active. WeatherMap is mounted
-  // by both v2 and v3 layouts, so reading from useTimeOfDay keeps the
-  // logic palette-aware without coupling to either layout.
+  // by all three ambient layouts, so reading from useTimeOfDay keeps
+  // the logic palette-aware without coupling to any one layout.
   const nightRed = useTimeOfDay() === "nightRed";
   // `i18n` feeds the ZoomControl remount key: react-leaflet only
   // forwards `position` updates to an existing control, so the +/-
@@ -656,8 +656,8 @@ const WeatherMap = ({ zoom, dark }) => {
   // Pixel width of the v3 right rail when visible. Drives the
   // off-centre projection trick that keeps the marker at the visual
   // centre of the non-rail area; see panWithRailOffset for the math.
-  // Returns 0 in v2 layouts, when the rail is collapsed, or in
-  // (future) full-screen radar mode.
+  // Returns 0 when the rail doesn't overlay the map (LayoutPi /
+  // LayoutMobile) or in full-screen radar focus mode.
   const railOffset = useRailOffset();
   const {
     setMapPosition,
@@ -682,7 +682,6 @@ const WeatherMap = ({ zoom, dark }) => {
   } = useContext(AppActionsContext);
   const {
     mapApiKey,
-    infoPanelCollapsed,
     mobileRadarMaximized,
     desktopRadarMaximized,
     piRadarMaximized,
@@ -858,8 +857,10 @@ const WeatherMap = ({ zoom, dark }) => {
   // (1000 vs 500) so it visually masks the rightmost portion of the
   // scrubber. Both elements are pinned to `bottom: 24px`, so there's
   // no clean way to keep them side by side at this width. Same media
-  // query (max-height: 520px) used in App / WeatherInfo / styles.css
-  // for other small-screen behaviour.
+  // query (max-height: 520px) used by the ambient SettingsPanel /
+  // DebugPanel for their compact modes. NOTE: `ui/piLayout.js` gates
+  // the Pi 3-state rail on (max-height: 540px) — a deliberately
+  // separate threshold; don't unify the two.
   const SMALL_SCREEN_MQ = "(max-height: 520px)";
   const [isSmallScreen, setIsSmallScreen] = useState(
     () => typeof window !== "undefined" && window.matchMedia(SMALL_SCREEN_MQ).matches
@@ -1206,7 +1207,7 @@ const WeatherMap = ({ zoom, dark }) => {
   // v3.3 priority: the scrubber is a fullscreen-radar (MIN) tool, opened via the
   // ephemeral `piScrubberOpen` flag (the dock timeline button sets it + maximizes
   // to MIN) — never the shared persisted `radarTimelineVisible` pref, and never on
-  // the cramped MID half-pane. Outside the priority model (v2 / desktop / mobile —
+  // the cramped MID half-pane. Outside the priority model (desktop / mobile —
   // piLayoutState null or flag off) it falls back to the persisted pref exactly as
   // before. ONE boolean drives BOTH the wrapper padding AND the actual render
   // below, so they can't desync (no half-pane flash on a MIN→MID exit).
@@ -1265,7 +1266,6 @@ const WeatherMap = ({ zoom, dark }) => {
         <ZoomLevelHandler zoomToLevel={zoomToLevel} setZoomToLevel={setZoomToLevel} />
         <ZoomAnchorOffset railOffset={railOffset} />
         <MapResizer
-          infoPanelCollapsed={infoPanelCollapsed}
           mobileRadarMaximized={mobileRadarMaximized}
           desktopRadarMaximized={desktopRadarMaximized}
           piRadarMaximized={piRadarMaximized}

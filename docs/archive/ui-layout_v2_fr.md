@@ -1,8 +1,8 @@
 # Pi Weather Station — Référence de disposition (v2 — archivé)
 
-> **Archivé.** Ce document décrit la **disposition v2** (grille fractionnée, InfoPanel à droite avec ControlButtons au bas du rail), toujours accessible en désactivant le bouton **Aperçu** dans les Paramètres. La disposition v3 Direction C actuellement par défaut est documentée dans [`docs/ui-layout_fr.md`](../ui-layout_fr.md).
+> **Archivé.** Ce document décrit la **disposition v2** (grille fractionnée, InfoPanel à droite avec ControlButtons au bas du rail). Le chemin de code v2 a été retiré en juillet 2026 et ne peut plus être sélectionné ; ce fichier est conservé uniquement pour que les anciennes captures d'écran, les anciens rapports de problème et les entrées du CHANGELOG restent lisibles. La disposition actuelle est documentée dans [`docs/ui-layout_fr.md`](../ui-layout_fr.md).
 
-Ce document décrit la disposition de l'écran, les noms des panneaux et des sections utilisés dans l'interface v2 de Pi Weather Station. Utilisez-le comme référence pour signaler des problèmes ou demander des modifications relatives à la disposition v2.
+Ce document décrit la disposition de l'écran, les noms des panneaux et des sections utilisés dans l'interface v2 de Pi Weather Station. Utilisez-le comme clé de lecture pour les captures d'écran, les rapports de problème ou les entrées de changelog antérieurs au passage au tout-v3 — pas comme référence de l'interface actuelle.
 
 ---
 
