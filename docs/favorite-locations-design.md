@@ -213,8 +213,54 @@ non-portal popovers horizontally). Anchor `triggerRef` to the dock button.
   non-touch gate of §5.1.1 passes. Explicit buttons, **no swipe
   gesture** — swipe-to-delete collides with map/rail dragging and with the drag-scroll behaviour
   that already produced one investigation (`docs/investigation-drag-scroll-2026-04.md`).
+  Deletion mechanics in §5.2.1.
+- **Row taps are inert while Edit mode is on.** Navigating away mid-edit would close the popover
+  under the user's finger. Edit mode is a modal state of the list: rows stop being navigation
+  targets and become edit targets. The `Edit` toggle flips its label to `Done` while armed.
 - On a **remote** client, Edit mode is hidden entirely (§7.4) and rows remain tappable — remote
   users can navigate the list, just not mutate it.
+
+### 5.2.1 Deletion — two-tap arm, no undo
+
+Removal is `PATCH /setting` with the whole `favorites` array **minus** the entry. Never
+`DELETE /setting`, which drops the entire key.
+
+A single tap must not delete. The house pattern for a destructive-ish touch action already exists —
+`RelaunchButton` in `SettingsPanel`
+([`SettingsPanel/index.js:1458-1483`](../client/src/components/ambient/SettingsPanel/index.js)):
+first tap **arms** and re-labels the control, second tap fires, and the armed state auto-reverts
+after `RELAUNCH_CONFIRM_MS = 4000`. Reuse it verbatim, with its own constant:
+
+```js
+const REMOVE_CONFIRM_MS = 4000;   // mirrors RELAUNCH_CONFIRM_MS
+```
+
+- **Tap 1** — the `✕` becomes a labelled confirm (`favorites.removeConfirm` = "Remove?"), tinted
+  with `--c-danger`. Only one row can be armed at a time; arming a second disarms the first.
+- **Tap 2 on the same row** — deletes.
+- **4 s of inaction, or any other tap** — disarms silently.
+- Leaving Edit mode disarms. The `useEffect` that owns the timer must clear it on unmount
+  (standing project rule on side-effect cleanup) — the `RelaunchButton` cleanup line is the model.
+
+**No undo toast.** It is the obvious alternative and it is the wrong one here: the toast would have
+to render from inside a `portal`-mode popover, and this project has a documented incident where any
+ancestor `filter` / `backdrop-filter` / `transform` confines a `position: fixed` toast to its
+stacking context (`incident_dock_toast_stacking_context`) — `DetailsPopover` uses
+`backdrop-filter`. The two-tap arm gives the same protection with zero new surface, and re-pinning a
+deleted favorite costs two taps anyway since it is almost always the place currently displayed.
+
+**Touch-target budget.** The usable popover width on the Pi rail is ~280 px. In Edit mode the row is
+`flex`: label with `min-width: 0` + `text-overflow: ellipsis` (the classic flex-truncation trap —
+without `min-width: 0` the label refuses to shrink and pushes the buttons off), then right-aligned
+`flex: none` action buttons at 44 × 44 each.
+
+- **On the 7"** only two buttons render (`⌂` `✕`) — rename is gated off — so 88 px of actions leave
+  ~190 px of label. Comfortable.
+- **On desktop / SSH tunnel**, where `✎` appears, the popover is up to 320 px: 132 px of actions,
+  ~180 px of label. Also fine.
+
+The three-button crunch therefore never happens on the smallest screen. Worth stating because it is
+the reason the rename gate and the layout budget agree by construction rather than by luck.
 
 ### 5.3 Styling notes
 
@@ -490,7 +536,9 @@ read as one control with two states.
 |---|---|
 | Selecting a favorite | `setMapPosition()` + optional zoom + close popover. All downstream data (alerts, AQ, pollen, radar risk, AI summary) follows `mapGeo` automatically |
 | **Sense HAT follows** | The kiosk pushes the viewed coords to `POST /api/kiosk-location`, which `GET /api/sensehat` consumes — so switching city also changes what the LED matrix displays. Expected, but it belongs in the CHANGELOG line |
-| Default entry deleted | Allowed. `startingLat`/`startingLon` are *not* cleared — the default coordinates survive as a bare coordinate pair, exactly as if they had been typed in Settings. Only the labelled shortcut disappears |
+| Default entry deleted | Allowed, and it still takes the two taps of §5.2.1. `startingLat`/`startingLon` are *not* cleared — the default coordinates survive as a bare coordinate pair, exactly as if they had been typed in Settings. Only the labelled shortcut disappears, so **Recenter keeps working unchanged** |
+| Last favorite deleted | The array becomes `[]`. `PATCH /setting` accepts an empty array (it rejects `null`/`undefined`, not `[]`), and the popover falls back to the empty-state explainer of §5.2 |
+| Delete armed, then the list changes underneath | Arming is keyed on the entry `id`; if that id is gone on the second tap (concurrent edit from another client), the delete is a no-op rather than an off-by-one deletion of the row that shifted into place |
 | Two favorites at the same rounded spot | Prevented at pin time: if `sameSpot()` matches an existing entry, the popover shows "Pinned" instead of the pin button |
 | Remote client | Reads the list, taps to navigate. Edit mode hidden; server rejects writes regardless |
 | Zero favorites | Button visible, popover shows the explainer (§5.2) |
@@ -519,6 +567,7 @@ New namespace `favorites.*` plus two `controls.*` and two `toasts.*` keys:
 | `favorites.setDefault` | Set as default | Définir par défaut | Definir por defecto |
 | `favorites.isDefault` | Default | Par défaut | Por defecto |
 | `favorites.remove` | Remove | Retirer | Quitar |
+| `favorites.removeConfirm` | Remove? | Retirer ? | ¿Quitar? |
 | `favorites.rename` | Rename | Renommer | Renombrar |
 | `favorites.renameHint` | Enter to save, Esc to cancel | Entrée pour enregistrer, Échap pour annuler | Intro para guardar, Esc para cancelar |
 | `favorites.edit` | Edit | Modifier | Modificar |
@@ -613,6 +662,9 @@ Run `npm test` before pushing.
 5b. Edit mode on the 7" shows `⌂` and `✕` but **no** `✎ Rename` — and the same build over the SSH
    tunnel from the desktop *does* show it. (This is the §5.1.1 gate; both halves must be checked,
    since a gate that is always-off looks identical to a gate that works.)
+5c. One tap on `✕` does **not** delete: it arms and re-labels. Wait 4 s → disarms. Tap twice → the
+   favorite is gone and stays gone after a reload (i.e. the PATCH landed, not just local state).
+   Also confirm a row tap does nothing while Edit mode is on.
 6. Every touch target is comfortable at arm's length — no mis-taps on the pin action landing on the
    popover close button.
 7. Switch back and forth between two favorites within 15 min and confirm cache hits in
