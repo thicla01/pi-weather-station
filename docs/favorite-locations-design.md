@@ -1,6 +1,7 @@
 # Favorite Locations — Low-Level Design
 
-**Status:** Design — implementation-ready except for the open questions in §12.
+**Status:** Design — implementation-ready except for the open questions in §12 (**Q5 resolved
+2026-07-27**: rename ships in v1, gated on non-touch — see §5.1.1).
 **Date:** 2026-07-27
 **Scope:** v3 ambient tree (all layouts: Pi 7", desktop, mobile) + `settings.json` schema + one new
 value-level sanitizer on the server. No new external service, no new API key.
@@ -138,11 +139,50 @@ The label is pre-filled from the reverse geocode already in context: `locality` 
 village / hamlet / municipality, the same fallback chain the popover uses) plus `region` when it
 fits — e.g. `Saint-Donat, QC`. Truncate to `MAX_LABEL_LEN = 40`.
 
-**Renaming is out of v1 UI scope** (a text input on a keyboard-less kiosk is a poor trade). The
-label is editable by hand in `settings.json` over SSH, and §13 lists renaming as a phase-2 item.
-
 `noData` case: if there is no reverse-geocode payload, fall back to the formatted coordinates as
 the label so pinning still works over a lake or a field.
+
+### 5.1.1 Rename — gated on non-touch (Q5 resolved 2026-07-27)
+
+The auto-label is not always enough: two favorites in the same city produce two identical rows
+(`Montréal, Québec` twice — §6.1 only blocks a duplicate at the *same rounded point*), a point with
+no address falls back to a raw coordinate pair, and a personal name ("Chalet") beats an
+administrative one.
+
+But a free-text field in front of a keyboard-less 7" touchscreen is the wrong interaction. This
+project has **no on-screen keyboard**, and the settings-panel design notes already rejected a
+search field partly on that ground.
+
+**Resolution: renaming exists, gated on a non-touch device.** In the Places popover's Edit mode,
+each row gains a rename affordance **only when**:
+
+```js
+const canRename = isLocal && typeof navigator !== "undefined" && navigator.maxTouchPoints === 0;
+```
+
+- `maxTouchPoints === 0` is the project's established touch discriminator — the same one
+  `useAutoTabSelector` uses to decide whether a reader is present
+  ([`useAutoTabSelector.js:172`](../client/src/hooks/useAutoTabSelector.js), rationale in
+  [`auto-forecast-tab-selection-design.md` §6.1](auto-forecast-tab-selection-design.md)). It
+  cleanly separates the 7" DSI touchscreen (> 0) from an HDMI monitor or a desktop browser on the
+  SSH tunnel (0).
+- `isLocal` is required anyway — the write is `localhostOnly`.
+- On the kiosk itself the affordance is simply absent; the auto-label stands. Nothing looks broken,
+  nothing leads to a keyboard that isn't there.
+
+Interaction: tap rename → the row's label becomes an `<input>` seeded with the current value,
+`maxLength={MAX_LABEL_LEN}`; Enter or blur commits, Esc cancels. An empty or whitespace-only commit
+**reverts to the previous label** rather than saving an unnamed entry (the server sanitizer drops
+label-less entries outright, so an empty save would silently delete the favorite — §7.2).
+
+The example labels used throughout this document (`Chalet — Saint-Donat, QC`,
+`Écurie — Saint-Esprit, QC`) are therefore reachable: auto-labelled at pin time on the Pi, renamed
+later from a desktop or over the SSH tunnel.
+
+A zero-typing alternative — a row of preset prefix chips (`Maison` · `Chalet` · `Bureau` ·
+`Écurie`) tappable at pin time — was considered and **deferred to the ROADMAP**; it would work on
+the kiosk itself, but it adds a fixed vocabulary to maintain in three locales for a marginal gain
+over rename-from-desktop. It composes on top of this design rather than replacing it.
 
 ### 5.2 Places popover — layout
 
@@ -169,7 +209,8 @@ non-portal popovers horizontally). Anchor `triggerRef` to the dock button.
 - **Empty state** (zero favorites): keep the button visible and render a one-line explainer —
   "Open a place on the map, tap its name, then *Pin this place*." A hidden button is an
   undiscoverable feature.
-- **Edit mode** reveals `⌂ Set as default` and `✕ Remove` per row. Explicit buttons, **no swipe
+- **Edit mode** reveals `⌂ Set as default` and `✕ Remove` per row — plus `✎ Rename` when the
+  non-touch gate of §5.1.1 passes. Explicit buttons, **no swipe
   gesture** — swipe-to-delete collides with map/rail dragging and with the drag-scroll behaviour
   that already produced one investigation (`docs/investigation-drag-scroll-2026-04.md`).
 - On a **remote** client, Edit mode is hidden entirely (§7.4) and rows remain tappable — remote
@@ -207,8 +248,8 @@ non-portal popovers horizontally). Anchor `triggerRef` to the dock button.
 
 | Field | Type | Rule |
 |---|---|---|
-| `id` | string | Opaque, client-generated, ≤ 64 chars. Used as the React key and the delete handle |
-| `label` | string | 1..40 chars after trim |
+| `id` | string | Opaque, client-generated, ≤ 64 chars. Used as the React key and the delete handle. **Stable across a rename** — the rename edits `label` only |
+| `label` | string | 1..40 chars after trim. Auto-filled at pin time, user-editable from a non-touch client (§5.1.1) |
 | `lat` | number | −90..90, **rounded to 4 decimals** |
 | `lon` | number | −180..180, **rounded to 4 decimals** |
 | `zoom` | number \| absent | Integer 1..18 (the app's zoom ceiling was raised to 18 in the 2026-06 audit). Optional — see Q1 |
@@ -351,7 +392,9 @@ backed by `settings.json` instead of `localStorage`.
  *   isPinned: (coords: {latitude: number, longitude: number}) => boolean,
  *   pin: (entry: {label: string, lat: number, lon: number, zoom?: number}) => Promise<void>,
  *   remove: (id: string) => Promise<void>,
+ *   rename: (id: string, label: string) => Promise<void>,
  *   setDefault: (id: string) => Promise<void>,
+ *   canRename: boolean,
  *   maxFavorites: number
  * }}
  */
@@ -367,6 +410,11 @@ backed by `settings.json` instead of `localStorage`.
   1. `PATCH startingLat` / `startingLon`
   2. `setCustomLat` / `setCustomLon` in context, so Settings reflects it immediately
   3. `setBrowserGeo({ latitude, longitude })`
+- `rename(id, label)` trims, truncates to `MAX_LABEL_LEN`, and **no-ops on an empty result** rather
+  than writing a label-less entry the server sanitizer would then drop (§5.1.1).
+- `canRename` is the `isLocal && navigator.maxTouchPoints === 0` gate of §5.1.1, computed once in
+  the hook so no consumer re-derives it (and so a future "unattended display" override has one
+  place to land).
 
 ### 8.2 The `browserGeo` trap — read this before implementing
 
@@ -413,7 +461,7 @@ the post-audit direction of not letting that file expand.
 | `hooks/useFavoriteLocations.js` | **New.** §8.1 |
 | `ambient/LocationDetailsPopover/index.js` | Append the pin action + its three states (§5.1). New props: none — it reads the hook via context |
 | `ambient/LocationDetailsPopover/styles.css` | Hairline separator + action row (44 px hit area) |
-| `ambient/PlacesPopover/` | **New** component + CSS: the list, the "Current position" row, empty state, Edit mode |
+| `ambient/PlacesPopover/` | **New** component + CSS: the list, the "Current position" row, empty state, Edit mode, inline rename input (non-touch only) |
 | `ambient/ControlButtons/index.js` | New `btnPlaces` after `btnRecenter` ([`:289`](../client/src/components/ambient/ControlButtons/index.js)); render it in the Map group ([`:737`](../client/src/components/ambient/ControlButtons/index.js)); mount `PlacesPopover` with `triggerRef` + `portal`; `notify()` toast on select |
 | `AppContext.js` | Call the hook; extend `locationSlice`; implement `setDefault` (incl. `setBrowserGeo`); rider fix in `saveSettingsToJson` |
 | `i18n/locales/{en,fr,es}.json` | New `favorites.*` + `controls.openPlaces` + toasts (§10) |
@@ -471,6 +519,8 @@ New namespace `favorites.*` plus two `controls.*` and two `toasts.*` keys:
 | `favorites.setDefault` | Set as default | Définir par défaut | Definir por defecto |
 | `favorites.isDefault` | Default | Par défaut | Por defecto |
 | `favorites.remove` | Remove | Retirer | Quitar |
+| `favorites.rename` | Rename | Renommer | Renombrar |
+| `favorites.renameHint` | Enter to save, Esc to cancel | Entrée pour enregistrer, Échap pour annuler | Intro para guardar, Esc para cancelar |
 | `favorites.edit` | Edit | Modifier | Modificar |
 | `favorites.done` | Done | Terminé | Hecho |
 | `favorites.empty` | Open a place on the map, tap its name, then "Pin this place". | Ouvrez un lieu sur la carte, touchez son nom, puis « Épingler ce lieu ». | Abra un lugar en el mapa, toque su nombre y luego «Anclar este lugar». |
@@ -522,7 +572,7 @@ Run `npm test` before pushing.
 | **Q2** | Is `favorites` **visible to remote clients** in `GET /settings`? | **Yes** — consistent with `startingLat`/`startingLon` today, and needed for the SSH-tunnel workflow. If the 6-coordinates-instead-of-1 exposure bothers you, add it to `REMOTE_HIDDEN_KEYS`; the cost is that the remote Places list renders empty |
 | **Q3** | Dock icon | `carbon/bookmark` (verify it resolves, §8.5) |
 | **Q4** | Show the dock button when the list is **empty**? | **Yes**, with the explainer. Hiding it makes the feature undiscoverable |
-| **Q5** | Is **rename** needed in v1? | **No** — text entry on a keyboard-less kiosk is a poor trade; the auto-label from the reverse geocode is good, and SSH editing covers the rest. Revisit if the auto-labels turn out ambiguous in practice |
+| **Q5** | Is **rename** needed in v1? | ✅ **RESOLVED 2026-07-27 — yes, gated on non-touch** (`isLocal && navigator.maxTouchPoints === 0`). Full design in §5.1.1. The zero-typing preset-chip variant goes to the ROADMAP instead of v1 |
 
 ---
 
@@ -532,7 +582,10 @@ Run `npm test` before pushing.
   `reverseGeoApiKey` already configured, so it is cheap to add server-side — but typing on a 7"
   touchscreen with no keyboard is the wrong interaction, and it adds a proxy endpoint, a rate-limit
   bucket and a quota line. It would mainly serve desktop / SSH-tunnel users. Not a prerequisite.
-- **Rename in the UI** (Q5).
+- **Preset prefix chips at pin time** (`Maison` · `Chalet` · `Bureau` · `Écurie` · `—`) — the
+  zero-typing labelling variant, the only one that works **on the kiosk itself**. Deferred in favour
+  of the non-touch rename of §5.1.1 because it adds a fixed vocabulary to maintain in three locales.
+  Tracked in `ROADMAP.md`; it composes on top of v1 rather than replacing anything.
 - **Reordering** the list. With a 6-entry cap, insertion order is fine.
 - **Per-favorite unit or palette overrides.** No signal that anyone wants this.
 - **Fleet-wide shared favorites.** Each Pi is a different site; per-Pi lists are correct.
@@ -544,7 +597,7 @@ Run `npm test` before pushing.
 | Lot | Contents | Effort |
 |---|---|---|
 | **1** | `favorites` in `ALLOWED_KEYS` + `sanitizeFavorites` + tests · `useFavoriteLocations` · pin action in `LocationDetailsPopover` · `btnPlaces` + `PlacesPopover` · select → `setMapPosition` | ~½ day |
-| **2** | `⌂ Set as default` + `⌂` badge + localhost gate · **the `setBrowserGeo` fix** (§8.2) incl. the `saveSettingsToJson` rider | ~2 h |
+| **2** | `⌂ Set as default` + `⌂` badge + localhost gate · **the `setBrowserGeo` fix** (§8.2) incl. the `saveSettingsToJson` rider · inline rename behind the non-touch gate (§5.1.1) | ~3 h |
 | **3** | i18n EN/FR/ES + glossary regeneration · `docs/api.md` · `docs/security-hardening.md` line · `docs/ui-layout_{en,fr}.md` · `CHANGELOG.md` | ~2 h |
 
 **Build gate:** `cd client && npm run prod` with zero errors, plus `npm test` green.
@@ -557,6 +610,9 @@ Run `npm test` before pushing.
 4. Set-as-default, then **Recenter** returns to the new default **without a reload** (this is the
    §8.2 regression test — it will fail if the `setBrowserGeo` call is missed).
 5. Pin is disabled at 6 entries with the "list full" copy.
+5b. Edit mode on the 7" shows `⌂` and `✕` but **no** `✎ Rename` — and the same build over the SSH
+   tunnel from the desktop *does* show it. (This is the §5.1.1 gate; both halves must be checked,
+   since a gate that is always-off looks identical to a gate that works.)
 6. Every touch target is comfortable at arm's length — no mis-taps on the pin action landing on the
    popover close button.
 7. Switch back and forth between two favorites within 15 min and confirm cache hits in
