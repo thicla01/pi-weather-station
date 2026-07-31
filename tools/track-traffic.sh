@@ -21,6 +21,17 @@ set -euo pipefail
 REPO="${REPO:-thicla01/pi-weather-station}"
 OUT="${OUT:-$HOME/.local/share/pi-weather-station/traffic-history.csv}"
 
+# Non-interactive schedulers (launchd, cron) run outside the login session and
+# cannot read gh's token from the macOS keychain, so `gh api` would 401 and the
+# archive would silently stop updating. Feed the token via GH_TOKEN from a 0600
+# file instead, which works regardless of keychain access. Interactive runs that
+# already have GH_TOKEN set, or no token file, fall through to gh's own auth.
+TOKEN_FILE="${GH_TOKEN_FILE:-$HOME/.config/pi-weather-station/gh-token}"
+if [ -z "${GH_TOKEN:-}" ] && [ -f "$TOKEN_FILE" ]; then
+  GH_TOKEN="$(cat "$TOKEN_FILE")"
+  export GH_TOKEN
+fi
+
 for bin in gh jq; do
   command -v "$bin" >/dev/null 2>&1 || { echo "error: '$bin' not found in PATH" >&2; exit 1; }
 done
