@@ -33,3 +33,15 @@ server/leaf-ext.conf
 settings.json.bak
 settings.json.tmp
 settings.json.*.tmp
+
+# GitHub traffic archiver (tools/track-traffic.sh) — local-only artefacts.
+# The SCRIPT itself stays tracked on purpose (maintainer tool, like the rest of
+# tools/); what must never land in the repo is its state. Defensive by design:
+# the defaults all live outside the working tree (~/.config, ~/.local/share),
+# but GH_TOKEN_FILE and OUT are overridable, so a redirected run must not be
+# able to stage a PAT. The launchd plist is machine-specific (absolute paths).
+gh-token
+gh-token.*
+traffic-history.csv
+track-traffic.log
+com.pi-weather-station.traffic.plist
