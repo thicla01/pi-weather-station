@@ -389,6 +389,15 @@ A service worker caching the last known weather data and the compiled bundle wou
 
 These are known weaknesses in the current codebase that do not affect functionality today but will slow down development or increase the risk of regressions if left unaddressed as the project grows.
 
+### ⚛️ React 18 → 19 migration — blocked on `react-leaflet` v5 (deferred 2026-08-10)
+The client is pinned to `react@^18.3.1` / `react-dom@^18.3.1`, and Dependabot will keep proposing React 19. **Do not take those PRs one package at a time.** PR #312 (`react-dom` 18.3.1 → 19.2.8) was closed for this reason: it bumped `react-dom` alone and left `react` at 18, so `npm ci` fails outright with `ERESOLVE — Conflicting peer dependency: react@19.2.8`. That breaks CI *and* any fleet deploy, since the in-app updater runs the same `npm ci`.
+
+The real blocker sits one level down: **`react-leaflet@4.2.1` declares `react ^18.0.0` as a peer, and `react-leaflet@5.0.0` requires `react ^19.0.0`** — there is no version of react-leaflet compatible with both. So React 19 is a coordinated three-package move (`react` + `react-dom` + `react-leaflet`), and the react-leaflet major lands squarely on `WeatherMap/` — the radar map, which is core to the product and carries the `RadarTimeline` / `RadarLegend` / `RiskRing` / `MapResizer` / `RadarFocusControl` sub-tree plus the imperative `map.invalidateSize()` calls. That is a migration session with a field-test on the Pi fleet, not a dependency bump.
+
+Also on the React-19 checklist when the time comes: `react-transition-group@4.4.5` (used by the drag-scroll / CSSTransition paths — see the April 2026 incident), `@iconify/react`, `react-chartjs-2`, `qrcode.react`, `react-i18next`. Their peer ranges are permissive today, but each needs a real render check under 19's stricter StrictMode double-invoke and the removal of legacy string refs / `ReactDOM.render`.
+
+**Until this is scheduled**, expect a recurring red Dependabot PR for React majors. Options if the noise becomes annoying: close them as they appear (current approach), or add a `dependabot.yml` `ignore` rule on `react` / `react-dom` `version-update:semver-major` with a comment pointing here.
+
 ### ✅ ~~JSDoc and PropTypes coverage on React components~~ — **resolved May 2026**
 Audited via a regex pass over `client/src/`. All 54 top-level PascalCase symbols (components, exported helpers) carry a JSDoc block. PropTypes is declared on every component that takes props; the three components flagged as "missing PropTypes" by the audit (`HourlyChart`, `DailyChart`, `WeatherInfo`) take no props at all — they read everything from context — so PropTypes would have nothing to validate. ESLint rules `jsdoc/require-param` / `jsdoc/require-returns-description` continue to surface any future regression at build time.
 
