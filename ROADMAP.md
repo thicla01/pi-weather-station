@@ -398,6 +398,8 @@ Also on the React-19 checklist when the time comes: `react-transition-group@4.4.
 
 **Until this is scheduled**, expect a recurring red Dependabot PR for React majors. Options if the noise becomes annoying: close them as they appear (current approach), or add a `dependabot.yml` `ignore` rule on `react` / `react-dom` `version-update:semver-major` with a comment pointing here.
 
+📄 **A full handoff brief exists: [`docs/react19-migration-handoff.md`](docs/react19-migration-handoff.md)** — verified dependency matrix, the exact `defaultProps` call sites (16, in 12 files), the `CSSTransition`/`nodeRef` breaker in `UpdateModal`, the three react-leaflet-v4 assumptions encoded in `WeatherMap/`, the Pi field-test checklist, and an explicit list of what was *not* verified. Written to be handed to a fresh session cold. Worth noting up front: **react-leaflet is the gate, not the work** — its peer range is what forbids React 19, but the only documented v5 removal (`LeafletProvider`) is something we never used, so the real effort sits on the React 19 side.
+
 ### ✅ ~~JSDoc and PropTypes coverage on React components~~ — **resolved May 2026**
 Audited via a regex pass over `client/src/`. All 54 top-level PascalCase symbols (components, exported helpers) carry a JSDoc block. PropTypes is declared on every component that takes props; the three components flagged as "missing PropTypes" by the audit (`HourlyChart`, `DailyChart`, `WeatherInfo`) take no props at all — they read everything from context — so PropTypes would have nothing to validate. ESLint rules `jsdoc/require-param` / `jsdoc/require-returns-description` continue to surface any future regression at build time.
 
