@@ -11,7 +11,7 @@
   "license": "MIT",
   "dependencies": {
     "@anthropic-ai/sdk": "^0.115.0",
-    "axios": "^1.18.1",
+    "axios": "^1.19.0",
     "body-parser": "^2.2.2",
     "express": "^5.2.1",
     "express-rate-limit": "^8.6.1",
