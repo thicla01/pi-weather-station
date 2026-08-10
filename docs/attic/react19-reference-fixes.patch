@@ -1,0 +1,418 @@
+diff --git a/client/package.json b/client/package.json
+index fd1926f..6318c9d 100644
+--- a/client/package.json
++++ b/client/package.json
+@@ -32,11 +32,11 @@
+     "leaflet": "^1.9.4",
+     "prop-types": "^15.7.2",
+     "qrcode.react": "^4.2.0",
+-    "react": "^18.3.1",
++    "react": "^19.2.8",
+     "react-chartjs-2": "^5.3.1",
+-    "react-dom": "^18.3.1",
++    "react-dom": "^19.2.8",
+     "react-i18next": "^17.0.11",
+-    "react-leaflet": "^4.2.1",
++    "react-leaflet": "^5.0.0",
+     "react-transition-group": "^4.4.1",
+     "tz-lookup": "^6.1.25"
+   },
+diff --git a/client/src/components/UpdateModal/index.js b/client/src/components/UpdateModal/index.js
+index c1164fe..2423559 100644
+--- a/client/src/components/UpdateModal/index.js
++++ b/client/src/components/UpdateModal/index.js
+@@ -1,4 +1,4 @@
+-import React, { useContext, useState, useCallback } from "react";
++import React, { useContext, useState, useCallback, useRef } from "react";
+ import { useTranslation } from "react-i18next";
+ import { CSSTransition } from "react-transition-group";
+ import { AppContext } from "~/AppContext";
+@@ -33,6 +33,10 @@ const UpdateModal = () => {
+ 
+   const { t } = useTranslation();
+   const [copied, setCopied] = useState(false);
++  // React 19 removed `ReactDOM.findDOMNode`, which react-transition-group
++  // falls back to when `nodeRef` is absent. Pass an explicit ref to the
++  // transitioning element instead.
++  const containerRef = useRef(null);
+ 
+   const isBusy = updateState === "updating" || updateState === "restarting";
+   const isReset = updateState === "failed"  || updateState === "stopped";
+@@ -106,8 +110,9 @@ const UpdateModal = () => {
+       unmountOnExit
+       timeout={300}
+       classNames="animate"
++      nodeRef={containerRef}
+     >
+-      <div className={`${styles.container} ${themeClass} ${cursorClass}`}>
++      <div ref={containerRef} className={`${styles.container} ${themeClass} ${cursorClass}`}>
+         {/* Header */}
+         <div className={styles.header}>
+           <span className={styles.title}>{t("update.whatsNew")}</span>
+diff --git a/client/src/components/WeatherMap/index.js b/client/src/components/WeatherMap/index.js
+index 732a6f9..66a320d 100644
+--- a/client/src/components/WeatherMap/index.js
++++ b/client/src/components/WeatherMap/index.js
+@@ -125,6 +125,15 @@ const ALERT_RING_NUDGE_M = 3000;        // push 3 km outward, just past the rada
+ // tier last so it paints on top. See issue #252.
+ const TIER_PAINT_ORDER = { yellow: 0, orange: 1, red: 2 };
+ 
++// Shared frozen empty list used as the destructuring default for the alert
++// array props below. React 19 removed `defaultProps`, whose default object was
++// evaluated ONCE at module scope — so an omitted array prop kept the SAME
++// reference on every render. A naive `= []` destructuring default allocates a
++// FRESH array per render, which would bust the `useMemo` in
++// `AlertGeometryOverlay` and re-run react-leaflet's referential prop diffing
++// (see the memo comment further down). Hoisting keeps the old identity.
++const EMPTY_ALERTS = Object.freeze([]);
++
+ /**
+  * Build the custom DivIcon used for the user's location marker. v2.14.64
+  * replaces Leaflet's default blue teardrop pin — that bright blue
+@@ -467,7 +476,7 @@ ZoomAnchorOffset.propTypes = {
+  *   casing beneath the coloured stroke; dark/nightRed skip it)
+  * @returns {JSX.Element|null}
+  */
+-const AlertGeometryOverlay = ({ highlightedAlertId, govAlerts, nightRed, dark }) => {
++const AlertGeometryOverlay = ({ highlightedAlertId = null, govAlerts = EMPTY_ALERTS, nightRed, dark = false }) => {
+   const map = useMap();
+   // Find the matching alert. Memo because govAlerts changes on every
+   // poll cycle but we only care about the active highlight.
+@@ -525,12 +534,6 @@ AlertGeometryOverlay.propTypes = {
+   dark: PropTypes.bool,
+ };
+ 
+-AlertGeometryOverlay.defaultProps = {
+-  highlightedAlertId: null,
+-  govAlerts: [],
+-  dark: false,
+-};
+-
+ /**
+  * Display-only overlay painting every active alert within the user's
+  * radius (the "Nearby alerts" survey) as a tier-coloured GeoJSON
+@@ -547,7 +550,7 @@ AlertGeometryOverlay.defaultProps = {
+  * @param {boolean} props.dark dark-mode flag (light mode adds the dark casing; dark/nightRed skip it)
+  * @returns {JSX.Element|null} the polygon layers, or null when the list is empty
+  */
+-const NearbyAlertsOverlay = ({ alerts, nightRed, dark }) => {
++const NearbyAlertsOverlay = ({ alerts = EMPTY_ALERTS, nightRed, dark = false }) => {
+   if (!Array.isArray(alerts) || alerts.length === 0) return null;
+   // Sort ascending by severity tier so the most severe polygon is inserted
+   // last and Leaflet paints it on top of any lower-tier polygon it overlaps
+@@ -581,11 +584,6 @@ NearbyAlertsOverlay.propTypes = {
+   dark: PropTypes.bool,
+ };
+ 
+-NearbyAlertsOverlay.defaultProps = {
+-  alerts: [],
+-  dark: false,
+-};
+-
+ /**
+  * Content of the nearby-alerts tap popup (Phase 3b). Shows the subject of
+  * each alert the tap landed in — source badge + severity chip + title —
+@@ -600,7 +598,7 @@ NearbyAlertsOverlay.defaultProps = {
+  * @param {() => void} props.onRecenter called when "Re-center here" is tapped
+  * @returns {JSX.Element} popup content
+  */
+-const SurveyAlertContent = ({ alerts, onRecenter }) => {
++const SurveyAlertContent = ({ alerts = EMPTY_ALERTS, onRecenter }) => {
+   const { t, i18n } = useTranslation();
+   const lang = (i18n.language || "en").slice(0, 2);
+   return (
+@@ -629,10 +627,6 @@ SurveyAlertContent.propTypes = {
+   onRecenter: PropTypes.func.isRequired,
+ };
+ 
+-SurveyAlertContent.defaultProps = {
+-  alerts: [],
+-};
+-
+ /**
+  * Weather map
+  *
+diff --git a/client/src/components/ambient/AirCard/index.js b/client/src/components/ambient/AirCard/index.js
+index c1606cb..95febd0 100644
+--- a/client/src/components/ambient/AirCard/index.js
++++ b/client/src/components/ambient/AirCard/index.js
+@@ -233,7 +233,7 @@ const AirCard = ({ suppressAqRow = false }) => {
+  * @param {React.ReactNode} [props.children] — the row's DetailsPopover
+  * @returns {JSX.Element} air row
+  */
+-const Row = ({ value, valueIsText, label, qualifier, tier, onClick, ariaExpanded, rowRef, children }) => {
++const Row = ({ value, valueIsText = false, label, qualifier = null, tier = null, onClick = undefined, ariaExpanded = undefined, rowRef = null, children = null }) => {
+   const interactive = typeof onClick === "function";
+   const onKeyDown = interactive
+     ? (e) => {
+@@ -288,22 +288,8 @@ Row.propTypes = {
+   children: PropTypes.node,
+ };
+ 
+-Row.defaultProps = {
+-  valueIsText: false,
+-  qualifier: null,
+-  tier: null,
+-  onClick: undefined,
+-  ariaExpanded: undefined,
+-  rowRef: null,
+-  children: null,
+-};
+-
+ AirCard.propTypes = {
+   suppressAqRow: PropTypes.bool,
+ };
+ 
+-AirCard.defaultProps = {
+-  suppressAqRow: false,
+-};
+-
+ export default AirCard;
+diff --git a/client/src/components/ambient/AstroMetaLine/index.js b/client/src/components/ambient/AstroMetaLine/index.js
+index 0ce56fe..3c0719b 100644
+--- a/client/src/components/ambient/AstroMetaLine/index.js
++++ b/client/src/components/ambient/AstroMetaLine/index.js
+@@ -39,7 +39,7 @@ const TICK_MS = 60 * 1000;
+  *   a mid-word ellipsis).
+  * @returns {JSX.Element} the meta-line
+  */
+-const AstroMetaLine = ({ shortPhaseName }) => {
++const AstroMetaLine = ({ shortPhaseName = false }) => {
+   const { sunriseTime, sunsetTime } = useContext(WeatherDataContext);
+   const { clockTime } = useContext(UiPrefsContext);
+   const { mapTimezone } = useContext(LocationContext);
+@@ -137,8 +137,4 @@ AstroMetaLine.propTypes = {
+   shortPhaseName: PropTypes.bool,
+ };
+ 
+-AstroMetaLine.defaultProps = {
+-  shortPhaseName: false,
+-};
+-
+ export default AstroMetaLine;
+diff --git a/client/src/components/ambient/DetailsPopover/index.js b/client/src/components/ambient/DetailsPopover/index.js
+index 25471d0..f3940a7 100644
+--- a/client/src/components/ambient/DetailsPopover/index.js
++++ b/client/src/components/ambient/DetailsPopover/index.js
+@@ -46,7 +46,7 @@ import styles from "./styles.css";
+  * @param {React.ReactNode} props.children Body content slot
+  * @returns {JSX.Element|null}
+  */
+-const DetailsPopover = ({ open, onClose, title, anchor, triggerRef, portal, children }) => {
++const DetailsPopover = ({ open, onClose, title, anchor = "right", triggerRef = null, portal = false, children = null }) => {
+   const popoverRef = useRef(null);
+   const [portalPos, setPortalPos] = useState(null);
+ 
+@@ -260,11 +260,4 @@ DetailsPopover.propTypes = {
+   children: PropTypes.node,
+ };
+ 
+-DetailsPopover.defaultProps = {
+-  anchor: "right",
+-  triggerRef: null,
+-  portal: false,
+-  children: null,
+-};
+-
+ export default DetailsPopover;
+diff --git a/client/src/components/ambient/HeroCompact/index.js b/client/src/components/ambient/HeroCompact/index.js
+index 2512069..673c374 100644
+--- a/client/src/components/ambient/HeroCompact/index.js
++++ b/client/src/components/ambient/HeroCompact/index.js
+@@ -49,7 +49,7 @@ import styles from "./styles.css";
+  *   card height (absolute corner).
+  * @returns {JSX.Element} hero slab
+  */
+-const HeroCompact = ({ shortPhaseName, hideAstro, hideFeelsLike, onMaximize }) => {
++const HeroCompact = ({ shortPhaseName = false, hideAstro = false, hideFeelsLike = false, onMaximize = undefined }) => {
+   const { currentWeatherData, sunriseTime, sunsetTime } = useContext(WeatherDataContext);
+   const { tempUnit } = useContext(UiPrefsContext);
+   const { reverseGeoResult } = useContext(LocationContext);
+@@ -177,11 +177,4 @@ HeroCompact.propTypes = {
+   onMaximize: PropTypes.func,
+ };
+ 
+-HeroCompact.defaultProps = {
+-  shortPhaseName: false,
+-  hideAstro: false,
+-  hideFeelsLike: false,
+-  onMaximize: undefined,
+-};
+-
+ export default HeroCompact;
+diff --git a/client/src/components/ambient/LocationDetailsPopover/index.js b/client/src/components/ambient/LocationDetailsPopover/index.js
+index d14f910..b221d63 100644
+--- a/client/src/components/ambient/LocationDetailsPopover/index.js
++++ b/client/src/components/ambient/LocationDetailsPopover/index.js
+@@ -28,7 +28,7 @@ import styles from "./styles.css";
+  * @param {"left"|"right"} [props.anchor]
+  * @returns {JSX.Element} popover shell with reverse-geocode details
+  */
+-const LocationDetailsPopover = ({ open, onClose, triggerRef, anchor }) => {
++const LocationDetailsPopover = ({ open, onClose, triggerRef = null, anchor = "left" }) => {
+   const { reverseGeoResult, mapGeo } = useContext(AppContext);
+   const { t } = useTranslation();
+ 
+@@ -144,9 +144,4 @@ LocationDetailsPopover.propTypes = {
+   anchor: PropTypes.oneOf(["left", "right"]),
+ };
+ 
+-LocationDetailsPopover.defaultProps = {
+-  triggerRef: null,
+-  anchor: "left",
+-};
+-
+ export default LocationDetailsPopover;
+diff --git a/client/src/components/ambient/MetricsGrid/index.js b/client/src/components/ambient/MetricsGrid/index.js
+index a4c9ecb..3dab661 100644
+--- a/client/src/components/ambient/MetricsGrid/index.js
++++ b/client/src/components/ambient/MetricsGrid/index.js
+@@ -175,7 +175,7 @@ const MetricsGrid = ({ extended = false, columns = 2 }) => {
+  * @param {React.ReactNode} [props.children] — the cell's DetailsPopover
+  * @returns {JSX.Element} grid cell
+  */
+-const Cell = ({ icon, value, unit, label, qualifier, qualifierTier, onClick, ariaExpanded, cellRef, children }) => {
++const Cell = ({ icon, value, unit = "", label, qualifier = null, qualifierTier = null, onClick = undefined, ariaExpanded = undefined, cellRef = null, children = null }) => {
+   const interactive = typeof onClick === "function";
+   // Use a `<div role="button">` (not a real `<button>`) so we don't
+   // inherit the user-agent's button defaults (background, color,
+@@ -248,16 +248,6 @@ Cell.propTypes = {
+   children: PropTypes.node,
+ };
+ 
+-Cell.defaultProps = {
+-  unit: "",
+-  qualifier: null,
+-  qualifierTier: null,
+-  onClick: undefined,
+-  ariaExpanded: undefined,
+-  cellRef: null,
+-  children: null,
+-};
+-
+ MetricsGrid.propTypes = {
+   // v3.3 Conditions view: add the Pressure + Visibility tiles (the glance
+   // keeps the strict 2×2). Default false — the v3.2 stacked rail is unchanged.
+@@ -268,9 +258,4 @@ MetricsGrid.propTypes = {
+   columns: PropTypes.oneOf([2, 3]),
+ };
+ 
+-MetricsGrid.defaultProps = {
+-  extended: false,
+-  columns: 2,
+-};
+-
+ export default MetricsGrid;
+diff --git a/client/src/components/ambient/MoonDetailsPopover/index.js b/client/src/components/ambient/MoonDetailsPopover/index.js
+index d76248c..eaba276 100644
+--- a/client/src/components/ambient/MoonDetailsPopover/index.js
++++ b/client/src/components/ambient/MoonDetailsPopover/index.js
+@@ -36,7 +36,7 @@ const I18N_LOCALE = { en: "en-US", fr: "fr-FR", es: "es-ES" };
+  * @param {"left"|"right"} [props.anchor]
+  * @returns {JSX.Element}
+  */
+-const MoonDetailsPopover = ({ open, onClose, now, triggerRef, anchor }) => {
++const MoonDetailsPopover = ({ open, onClose, now, triggerRef = null, anchor = "right" }) => {
+   const { dailyWeatherData, mapTimezone, clockTime } = useContext(AppContext);
+   const { i18n, t } = useTranslation();
+   const localeKey = i18n.language.startsWith("fr")
+@@ -128,9 +128,4 @@ MoonDetailsPopover.propTypes = {
+   anchor: PropTypes.oneOf(["left", "right"]),
+ };
+ 
+-MoonDetailsPopover.defaultProps = {
+-  triggerRef: null,
+-  anchor: "right",
+-};
+-
+ export default MoonDetailsPopover;
+diff --git a/client/src/components/ambient/QrCode/index.js b/client/src/components/ambient/QrCode/index.js
+index 4c9c947..723a848 100644
+--- a/client/src/components/ambient/QrCode/index.js
++++ b/client/src/components/ambient/QrCode/index.js
+@@ -27,7 +27,7 @@ import styles from "./styles.css";
+  * @param {string} [props.title] — accessible title for screen readers
+  * @returns {JSX.Element} QR SVG wrapped in a flex container
+  */
+-const QrCode = ({ value, size, title }) => {
++const QrCode = ({ value, size = 96, title = undefined }) => {
+   const { darkMode } = useContext(AppContext);
+   const tod = useTimeOfDay();
+   const palette = getPalette(tod);
+@@ -60,9 +60,4 @@ QrCode.propTypes = {
+   title: PropTypes.string,
+ };
+ 
+-QrCode.defaultProps = {
+-  size: 96,
+-  title: undefined,
+-};
+-
+ export default QrCode;
+diff --git a/client/src/components/ambient/RailSquareButton/index.js b/client/src/components/ambient/RailSquareButton/index.js
+index 9775a94..1c0b1f3 100644
+--- a/client/src/components/ambient/RailSquareButton/index.js
++++ b/client/src/components/ambient/RailSquareButton/index.js
+@@ -23,7 +23,7 @@ import styles from "./styles.css";
+  * @param {string} [props.className] — optional positioning class.
+  * @returns {JSX.Element} the square button
+  */
+-const RailSquareButton = ({ icon, onClick, ariaLabel, className }) => {
++const RailSquareButton = ({ icon, onClick, ariaLabel, className = "" }) => {
+   const Icon = icon;
+   return (
+     <button
+@@ -45,8 +45,4 @@ RailSquareButton.propTypes = {
+   className: PropTypes.string,
+ };
+ 
+-RailSquareButton.defaultProps = {
+-  className: "",
+-};
+-
+ export default RailSquareButton;
+diff --git a/client/src/components/ambient/SunDetailsPopover/index.js b/client/src/components/ambient/SunDetailsPopover/index.js
+index 644efb7..cd7024b 100644
+--- a/client/src/components/ambient/SunDetailsPopover/index.js
++++ b/client/src/components/ambient/SunDetailsPopover/index.js
+@@ -67,7 +67,7 @@ const formatDayLength = (secs) => {
+  * @param {"left"|"right"} [props.anchor]
+  * @returns {JSX.Element} popover anchored to the sun chip
+  */
+-const SunDetailsPopover = ({ open, onClose, triggerRef, anchor }) => {
++const SunDetailsPopover = ({ open, onClose, triggerRef = null, anchor = "right" }) => {
+   const { sunriseSunsetToday, sunriseSunsetTomorrow, mapTimezone, clockTime } = useContext(AppContext);
+   const { i18n, t } = useTranslation();
+   const localeKey = i18n.language.startsWith("fr")
+@@ -144,9 +144,4 @@ SunDetailsPopover.propTypes = {
+   anchor: PropTypes.oneOf(["left", "right"]),
+ };
+ 
+-SunDetailsPopover.defaultProps = {
+-  triggerRef: null,
+-  anchor: "right",
+-};
+-
+ export default SunDetailsPopover;
+diff --git a/client/src/components/ambient/TimeBlock/index.js b/client/src/components/ambient/TimeBlock/index.js
+index 02d0c88..63a8fe6 100644
+--- a/client/src/components/ambient/TimeBlock/index.js
++++ b/client/src/components/ambient/TimeBlock/index.js
+@@ -39,7 +39,7 @@ const I18N_LOCALE = { en: "en-US", fr: "fr-FR", es: "es-ES" };
+  *   countdown line; the date stays the year-round Saisons-popover trigger.
+  * @returns {JSX.Element} time slab
+  */
+-const TimeBlock = ({ compact }) => {
++const TimeBlock = ({ compact = false }) => {
+   const { clockTime } = useContext(UiPrefsContext);
+   const { mapTimezone } = useContext(LocationContext);
+   const { sunriseTime, sunsetTime } = useContext(WeatherDataContext);
+@@ -183,8 +183,4 @@ TimeBlock.propTypes = {
+   compact: PropTypes.bool,
+ };
+ 
+-TimeBlock.defaultProps = {
+-  compact: false,
+-};
+-
+ export default TimeBlock;
