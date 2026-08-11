@@ -257,6 +257,24 @@
     "source": "Source: LocationIQ",
     "noAddress": "No address found at this point."
   },
+  "favorites": {
+    "title": "Places",
+    "pin": "Pin this place",
+    "pinned": "Pinned",
+    "full": "List full — remove one first",
+    "currentPosition": "Current position",
+    "setDefault": "Set as default",
+    "isDefault": "Default",
+    "remove": "Remove",
+    "removeConfirm": "Remove?",
+    "rename": "Rename",
+    "renameHint": "Enter to save, Esc to cancel",
+    "edit": "Edit",
+    "done": "Done",
+    "empty": "Open a place on the map, tap its name, then “Pin this place”.",
+    "remoteReadOnly": "Editing requires local access.",
+    "saveFailed": "Could not save — check the connection"
+  },
   "alert": {
     "dismiss": "Dismiss",
     "dismissTooltip": "Hide for 4 h (resurfaces if it escalates)",
@@ -401,7 +419,9 @@
     "groupMap": "Map",
     "groupViews": "Views",
     "groupDisplay": "Display",
-    "groupSystem": "System"
+    "groupSystem": "System",
+    "openPlaces": "Open places",
+    "closePlaces": "Close places"
   },
   "mobile": {
     "settingsHint": "Open the app on the Pi locally for advanced settings."
@@ -435,7 +455,8 @@
     "aiSummaryShown": "AI summary shown",
     "aiSummaryHidden": "AI summary hidden",
     "refreshing": "Refreshing…",
-    "updateRemoteNotice": "Update available — ask the kiosk admin"
+    "updateRemoteNotice": "Update available — ask the kiosk admin",
+    "favoriteDefaultSet": "Default location updated"
   },
   "health": {
     "title": "Service health",

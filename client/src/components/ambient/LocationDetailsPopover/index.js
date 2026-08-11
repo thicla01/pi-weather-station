@@ -1,4 +1,4 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
 import DetailsPopover from "~/components/ambient/DetailsPopover";
@@ -21,6 +21,13 @@ import styles from "./styles.css";
  * next to the country name so users can disambiguate when the
  * locality name is non-unique (Springfield…).
  *
+ * It is also where a place gets PINNED to the favorites list (the
+ * footer action). That belongs here rather than on the dock: the
+ * popover is already scoped to "this location", so "remember this
+ * one" is the same topic. Choosing a DIFFERENT place is a topic
+ * change and lives on the dock's Places button instead — the
+ * affordance rule from docs/rail-affordance-redesign-design.md.
+ *
  * @param {object} props
  * @param {boolean} props.open
  * @param {Function} props.onClose
@@ -29,8 +36,12 @@ import styles from "./styles.css";
  * @returns {JSX.Element} popover shell with reverse-geocode details
  */
 const LocationDetailsPopover = ({ open, onClose, triggerRef = null, anchor = "left" }) => {
-  const { reverseGeoResult, mapGeo } = useContext(AppContext);
+  const {
+    reverseGeoResult, mapGeo, isLocal,
+    canPinFavorite, isFavoritePinned, pinFavorite,
+  } = useContext(AppContext);
   const { t } = useTranslation();
+  const [pinFailed, setPinFailed] = useState(false);
 
   const address = (reverseGeoResult && reverseGeoResult.address) || {};
   // LocationIQ keys vary by locality scale — a small place may expose
@@ -64,6 +75,48 @@ const LocationDetailsPopover = ({ open, onClose, triggerRef = null, anchor = "le
 
   const noData = !reverseGeoResult || !reverseGeoResult.address;
 
+  // Auto-label for a new favorite: the administrative name the user already
+  // reads in the truncated hero label. Falls back to the coordinates so a
+  // point over a lake or an unmapped field can still be pinned — the server
+  // sanitizer drops label-less entries, so "no address" must not mean "no
+  // label". Renaming afterwards is a non-touch-only affordance (the kiosk has
+  // no keyboard); see the Places popover.
+  const autoLabel = [locality, region].filter(Boolean).join(", ")
+    || coordsStr
+    || null;
+
+  const pinnedAlready = isFavoritePinned ? isFavoritePinned(mapGeo) : false;
+  // Pinning writes settings.json, which is localhost-gated — a remote client
+  // gets 403. Hide the action rather than offer a button that cannot work.
+  const pinVisible = isLocal && !!mapGeo && !!autoLabel && typeof pinFavorite === "function";
+
+  const handlePin = () => {
+    setPinFailed(false);
+    pinFavorite({ label: autoLabel, lat: mapGeo.latitude, lon: mapGeo.longitude })
+      .then((ok) => setPinFailed(!ok));
+  };
+
+  const pinFooter = pinVisible ? (
+    <div className={styles.pinRow}>
+      {pinnedAlready ? (
+        <span className={styles.pinnedTag}>{t("favorites.pinned")}</span>
+      ) : (
+        <button
+          type="button"
+          className={styles.pinButton}
+          onClick={handlePin}
+          disabled={!canPinFavorite}
+        >
+          {t("favorites.pin")}
+        </button>
+      )}
+      {!pinnedAlready && !canPinFavorite ? (
+        <span className={styles.pinNote}>{t("favorites.full")}</span>
+      ) : null}
+      {pinFailed ? <span className={styles.pinError}>{t("favorites.saveFailed")}</span> : null}
+    </div>
+  ) : null;
+
   return (
     <DetailsPopover
       open={open}
@@ -82,6 +135,7 @@ const LocationDetailsPopover = ({ open, onClose, triggerRef = null, anchor = "le
             </div>
           ) : null}
           <div className={styles.note}>{t("location.noAddress")}</div>
+          {pinFooter}
         </div>
       ) : (
         <>
@@ -131,6 +185,7 @@ const LocationDetailsPopover = ({ open, onClose, triggerRef = null, anchor = "le
             </div>
           ) : null}
           <div className={styles.source}>{t("location.source")}</div>
+          {pinFooter}
         </>
       )}
     </DetailsPopover>

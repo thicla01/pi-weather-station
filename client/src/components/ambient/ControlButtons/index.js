@@ -7,6 +7,7 @@ import {
   AlertsContext,
 } from "~/AppContext";
 import { priorityViewsEnabled } from "~/ui/piLayout";
+import PlacesPopover from "~/components/ambient/PlacesPopover";
 import styles from "./styles.css";
 import { InlineIcon } from "@iconify/react";
 
@@ -29,6 +30,12 @@ import settingsIcon from "@iconify/icons-carbon/settings";
 import bugIcon from "@iconify/icons-carbon/debug";
 import upgradeIcon from "@iconify/icons-carbon/upgrade";
 import circleDashIcon from "@iconify/icons-carbon/circle-dash";
+/* Places (favorites) opener. `bookmark` rather than the semantically
+ * closer `location-star`: that one draws a map pin, and `location` /
+ * `location-filled` are already the marker-visibility toggle one button
+ * away in this same group — two pin glyphs side by side would read as one
+ * control with two states. */
+import bookmarkIcon from "@iconify/icons-carbon/bookmark";
 /* Per the v3.1 synthesis design (Claude Design), the AI summary
  * toggle uses the universal 4-point-sparkle "auto-awesome" glyph
  * — the de-facto AI icon across modern UIs (Gemini, Copilot, ChatGPT).
@@ -138,6 +145,12 @@ const ControlButtons = () => {
   // the radar-timeline button (maximizes to MIN so the scrubber gets the full
   // radar width instead of the cramped MID half-pane).
   const inPriorityDock = priorityViewsEnabled() && piLayoutState != null;
+
+  // Places popover — local open state, anchored to its dock button. Kept
+  // here rather than in AppContext: no other component needs to know
+  // whether this popover is open (the "local state first" rule).
+  const placesRef = useRef(null);
+  const [placesOpen, setPlacesOpen] = useState(false);
 
   // When LayoutMobile is active and the radar card is in mini mode,
   // the timeline scrubber and the precipitation legend are CSS-hidden
@@ -294,6 +307,24 @@ const ControlButtons = () => {
       aria-label={t("controls.resetMapPosition")}
     >
       <InlineIcon icon={centerCircleIcon} />
+    </div>
+  );
+  // Favorite locations. Sits next to Recenter because it is the same
+  // family — "where are we looking?" — rather than in the Views group,
+  // which is Pi-only and means "open a full-rail content view".
+  // Deliberately NOT flagged `data-dock-priority="secondary"`: it must stay
+  // reachable on a narrow portrait phone, exactly like its Recenter sibling.
+  const btnPlaces = (
+    <div
+      key="places"
+      ref={placesRef}
+      onClick={() => setPlacesOpen((prev) => !prev)}
+      title={t(placesOpen ? "controls.closePlaces" : "controls.openPlaces")}
+      aria-label={t(placesOpen ? "controls.closePlaces" : "controls.openPlaces")}
+      aria-haspopup="dialog"
+      aria-expanded={placesOpen}
+    >
+      <InlineIcon icon={bookmarkIcon} />
     </div>
   );
   // Location marker visibility toggle. State-based icon: filled
@@ -736,6 +767,7 @@ const ControlButtons = () => {
       <div className={styles.group}>
         <span className={styles.groupLabel}>{t("controls.groupMap")}</span>
         {btnRecenter}
+        {btnPlaces}
         {btnMarker}
         {btnTimeline}
         {btnArrows}
@@ -776,6 +808,12 @@ const ControlButtons = () => {
         {btnUpdateRemote}
       </div>
       {toastNode}
+      <PlacesPopover
+        open={placesOpen}
+        onClose={() => setPlacesOpen(false)}
+        triggerRef={placesRef}
+        onNotify={notify}
+      />
     </div>
   );
 };

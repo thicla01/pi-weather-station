@@ -215,6 +215,21 @@ bill against their API key**.
   open an SSH tunnel for actual changes. The UI lock is cosmetic — the
   server-side `localhostOnly` is the real enforcement.
 
+#### What `GET /settings` still exposes to a remote client
+
+Masking hides secrets, not coordinates. `startingLat` / `startingLon` have
+always reached remote clients verbatim, and as of the favorite-locations
+feature so does `favorites` — up to six labelled `{lat, lon}` pairs naming
+places the operator cares about. This is a deliberate call (the SSH-tunnel
+and LAN workflows both need to read the list), but it widens the location
+exposure from one point to several, and the labels are user-authored text.
+
+If that is not acceptable for a given deployment, add `favorites` to
+`REMOTE_HIDDEN_KEYS` in `server/settingsCtrl.js`: the subtree then disappears
+from remote responses entirely, at the cost of the Places list rendering
+empty for remote viewers. Editing is unaffected either way — every write path
+is `localhostOnly`.
+
 ### Recommendations beyond the defaults
 
 - Set per-period quotas in the Anthropic dashboard so a misbehaving deploy

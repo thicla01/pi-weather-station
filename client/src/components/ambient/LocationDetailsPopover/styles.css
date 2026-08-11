@@ -61,3 +61,69 @@
   color: var(--c-text-dim);
   font-style: italic;
 }
+
+/* Pin-this-place footer. Separated from the data rows (and from the
+ * "Source: LocationIQ" line) by its own hairline so the popover reads
+ * as "here is the place / here is what you can do with it".
+ *
+ * The 44px min-height is the touch floor — this control sits on the
+ * 7" kiosk right next to the popover's close button, and the two must
+ * never be a coin-flip for a fingertip. */
+.pinRow {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--c-border);
+}
+
+/* Doubled class so this beats the `.ambientRoot button { border: 0 }`
+ * reset (0,1,1) — the same specificity dance RailSquareButton needed.
+ * A single `.pinButton` (0,1,0) loses and the control renders frameless.
+ *
+ * Background uses the house `--c-surface-hybrid, --c-surface` pair, and
+ * here the fallback is the branch that actually fires: this popover
+ * renders through a React portal, and DetailsPopover copies only an
+ * explicit whitelist of palette tokens into the portal node —
+ * `--c-surface-hybrid` is not on it, `--c-surface` is. Do NOT "fix" this
+ * by dropping the fallback (the button would lose its background in the
+ * portal) — either keep the pair or add the token to that whitelist. */
+.pinButton.pinButton {
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  background: var(--c-surface-hybrid, var(--c-surface));
+  color: var(--c-text);
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  /* Chromium paints a lingering grey wash on tap that survives the
+   * touch on this fleet's kiosks — see incident_dock_button_sticky_overlay. */
+  -webkit-tap-highlight-color: transparent;
+}
+
+.pinButton.pinButton:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.pinnedTag {
+  min-height: 44px;
+  display: flex;
+  align-items: center;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--c-text-dim);
+}
+
+.pinNote,
+.pinError {
+  font-size: 11px;
+  color: var(--c-text-dim);
+}
+
+.pinError {
+  color: var(--c-danger);
+}

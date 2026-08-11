@@ -9,6 +9,7 @@ import { useDisplayScale } from "~/hooks/useDisplayScale";
 import { useUiPreferences } from "~/hooks/useUiPreferences";
 import { useSenseHatMode } from "~/hooks/useSenseHatMode";
 import useIdleDetection from "~/hooks/useIdleDetection";
+import useFavoriteLocations from "~/hooks/useFavoriteLocations";
 import axios from "axios";
 import tzlookup from "tz-lookup";
 
@@ -743,6 +744,22 @@ export function AppContextProvider({ children }) {
     saveSkippedSha,
   } = useUpdateChecker();
 
+  // Favorite locations — the bounded, settings.json-backed list of places the
+  // user can jump back to. The hook owns the list and its CRUD; `setDefault`
+  // lives below in this file because promoting a favorite also has to touch
+  // the geo state (customLat/customLon and, crucially, browserGeo).
+  const {
+    favorites,
+    canPin: canPinFavorite,
+    canRename: canRenameFavorite,
+    maxFavorites,
+    isPinned: isFavoritePinned,
+    hydrate: hydrateFavorites,
+    pin: pinFavorite,
+    remove: removeFavorite,
+    rename: renameFavorite,
+  } = useFavoriteLocations({ isLocal });
+
   /**
    * Save mouse hide state
    *
@@ -1088,6 +1105,10 @@ export function AppContextProvider({ children }) {
             if (startingLon) {
               setCustomLon(startingLon);
             }
+            // Favorites ride along on this existing settings read rather than
+            // getting their own fetch or their own mount effect — see
+            // docs/favorite-locations-design.md §8.6.
+            hydrateFavorites(res.favorites);
             if (res.anthropicApiKey) {
               setAnthropicApiKey(res.anthropicApiKey);
             }
@@ -1188,6 +1209,7 @@ export function AppContextProvider({ children }) {
         });
     });
   }, [
+    hydrateFavorites,
     setSleepEnabled,
     setSleepStage1Delay,
     setSleepStage1Brightness,
@@ -1613,12 +1635,65 @@ export function AppContextProvider({ children }) {
           setOpenAqApiKey(openAqKey);
           setCustomLat(lat);
           setCustomLon(lon);
+          // Keep `browserGeo` in step with the newly saved default.
+          // `browserGeo` is otherwise written ONLY at boot (getBrowserGeo),
+          // and `resetMapPosition` — the dock's Recenter button — pans to it.
+          // Without this, changing the default here left Recenter pointing at
+          // the previous location until the next page reload. Latent since
+          // the field was added; the one-tap "set as default" action below
+          // makes it trivially reproducible, so both paths are fixed.
+          const nextLat = parseFloat(lat);
+          const nextLon = parseFloat(lon);
+          if (Number.isFinite(nextLat) && Number.isFinite(nextLon)) {
+            setBrowserGeo({ latitude: nextLat, longitude: nextLon });
+          }
         })
         .catch((err) => {
           reject(err);
         });
     });
   }, []);
+
+  /**
+   * Promote a favorite to the app's default location.
+   *
+   * Writes `startingLat` / `startingLon` (the same pair the Settings panel
+   * edits), then keeps three pieces of client state in step so the change is
+   * live without a reload:
+   *   1. `customLat` / `customLon` — what the Settings panel displays
+   *   2. `browserGeo` — where the dock's Recenter button pans to
+   *   3. the map itself is deliberately NOT moved; promoting a place the user
+   *      may not currently be viewing should not yank the map under them
+   *
+   * Lives here rather than in `useFavoriteLocations` because it touches geo
+   * state the hook has no business owning.
+   *
+   * @param {string} id the favorite's id
+   * @returns {Promise<boolean>} true when the write landed
+   */
+  const setFavoriteAsDefault = useCallback((id) => {
+    const target = favorites.find((f) => f.id === id);
+    if (!target) return Promise.resolve(false);
+    const lat = String(target.lat);
+    const lon = String(target.lon);
+    return axios
+      .patch("/setting", { key: "startingLat", val: lat })
+      .then(() => axios.patch("/setting", { key: "startingLon", val: lon }))
+      .then(() => {
+        setCustomLat(lat);
+        setCustomLon(lon);
+        setBrowserGeo({ latitude: target.lat, longitude: target.lon });
+        return true;
+      })
+      .catch((err) => {
+        // 403 = remote client hit `localhostOnly`; the UI hides this action
+        // for remote clients, so it only happens if that gate is bypassed.
+        if (!(err && err.response && err.response.status === 403)) {
+          console.warn("setFavoriteAsDefault PATCH failed:", err && err.message);
+        }
+        return false;
+      });
+  }, [favorites]);
 
   // Single object-ref mirroring the 16 advanced.* atoms that feed the
   // PATCH payload below (LayoutMobile pullArmedRef convention, batched).
@@ -2411,6 +2486,18 @@ export function AppContextProvider({ children }) {
     mapTimezone,
     reverseGeoResult,
     panToCoords,
+    // Favorite locations. `favorites` is a frozen module-scope constant while
+    // empty (see useFavoriteLocations), so the "no favorites" case does not
+    // re-mint this memo on every render.
+    favorites,
+    canPinFavorite,
+    canRenameFavorite,
+    maxFavorites,
+    isFavoritePinned,
+    pinFavorite,
+    removeFavorite,
+    renameFavorite,
+    setFavoriteAsDefault,
   }), [
     mapGeo,
     browserGeo,
@@ -2419,6 +2506,15 @@ export function AppContextProvider({ children }) {
     mapTimezone,
     reverseGeoResult,
     panToCoords,
+    favorites,
+    canPinFavorite,
+    canRenameFavorite,
+    maxFavorites,
+    isFavoritePinned,
+    pinFavorite,
+    removeFavorite,
+    renameFavorite,
+    setFavoriteAsDefault,
   ]);
 
   // UI preferences: per-device display choices, user-interaction driven.
