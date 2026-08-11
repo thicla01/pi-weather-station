@@ -277,7 +277,7 @@ reported here as a gap table, so an empty check means the three files are aligne
 | ☐ | Expand the radar first to use this control | Agrandissez d'abord le radar pour utiliser ce contrôle | Amplíe primero el radar para usar este control | `controls.radarOverlaysNeedMaximize` |
 | ☐ | Re-center here | Recentrer ici | Recentrar aquí | `controls.recenterHere` |
 | ☐ | Refresh app | Rafraîchir l'application | Actualizar la aplicación | `controls.refreshApp` |
-| ☐ | Recenter map on current location | Recentrer la carte sur la position actuelle | Centrar el mapa en la ubicación actual | `controls.resetMapPosition` |
+| ☐ | Recenter the map on the home position | Recentrer la carte sur la position de départ | Recentrar el mapa en la posición inicial | `controls.resetMapPosition` |
 | ☐ | Restore panels | Restaurer les panneaux | Restaurar paneles | `controls.restorePanels` |
 | ☐ | Show AI summary section | Afficher la section IA | Mostrar la sección de IA | `controls.showAiSummary` |
 | ☐ | Show location marker | Afficher le marqueur de position | Mostrar el marcador de ubicación | `controls.showMarker` |
@@ -311,11 +311,11 @@ reported here as a gap table, so an empty check means the three files are aligne
 
 | Validé | EN | FR | ES | Clé |
 |--------|----|----|-----|-----|
-| ☐ | Current position | Position actuelle | Posición actual | `favorites.currentPosition` |
 | ☐ | Done | Terminé | Hecho | `favorites.done` |
 | ☐ | Edit | Modifier | Modificar | `favorites.edit` |
 | ☐ | Open a place on the map, tap its name, then “Pin this place”. | Ouvrez un lieu sur la carte, touchez son nom, puis « Épingler ce lieu ». | Abra un lugar en el mapa, toque su nombre y luego «Anclar este lugar». | `favorites.empty` |
 | ☐ | List full — remove one first | Liste pleine — retirez-en un | Lista llena — quite uno | `favorites.full` |
+| ☐ | Home position | Position de départ | Posición inicial | `favorites.homeFallback` |
 | ☐ | Default | Par défaut | Por defecto | `favorites.isDefault` |
 | ☐ | Pin this place | Épingler ce lieu | Anclar este lugar | `favorites.pin` |
 | ☐ | Pinned | Épinglé | Anclado | `favorites.pinned` |

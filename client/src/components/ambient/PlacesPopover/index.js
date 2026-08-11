@@ -36,7 +36,7 @@ const REMOVE_CONFIRM_MS = 4000;
  */
 const PlacesPopover = ({ open, onClose, triggerRef = null, onNotify = null }) => {
   const {
-    favorites, mapGeo, customLat, customLon, isLocal,
+    favorites, mapGeo, browserGeo, isLocal, homeLabel,
     canRenameFavorite, removeFavorite, renameFavorite, setFavoriteAsDefault,
     setMapPosition, resetMapPosition, saveDefaultMapZoom,
   } = useContext(AppContext);
@@ -66,9 +66,35 @@ const PlacesPopover = ({ open, onClose, triggerRef = null, onNotify = null }) =>
   const isCurrent = (f) => !!mapGeo
     && round4(f.lat) === round4(mapGeo.latitude)
     && round4(f.lon) === round4(mapGeo.longitude);
-  const isDefault = (f) => customLat != null && customLon != null
-    && round4(f.lat) === round4(parseFloat(customLat))
-    && round4(f.lon) === round4(parseFloat(customLon));
+  // The default location gets a row of its own at the top, but it is NOT a
+  // stored favorite: it is not written to settings.json and does not count
+  // against the 6-entry cap. Without it the `⌂` badge would only ever appear
+  // if the user happened to pin their own default — half the design would
+  // never render — and "go back to where the app starts" would be reachable
+  // only from the dock.
+  //
+  // Suppressed when a real favorite already sits on those coordinates: that
+  // row carries the `⌂` badge itself, and two rows for one place is exactly
+  // the redundant-affordance problem the rail redesign spent a session
+  // removing.
+  //
+  // `browserGeo` is the single source of truth for "home", not
+  // `customLat`/`customLon`. The two agree whenever a default is saved (the
+  // AppContext actions keep them in step), but `browserGeo` also covers the
+  // case where no default was ever saved and the app fell back to IP
+  // geolocation. Keying the `⌂` badge on the saved pair instead would give
+  // the badge and the home row two different meanings in the same popover:
+  // a favorite sitting exactly on an IP-derived home would render unbadged
+  // right after the home row it duplicates.
+  const homeCoords = browserGeo && browserGeo.latitude != null ? browserGeo : null;
+  const isDefault = (f) => !!homeCoords
+    && round4(f.lat) === round4(homeCoords.latitude)
+    && round4(f.lon) === round4(homeCoords.longitude);
+  const homeIsPinned = !!homeCoords && favorites.some(isDefault);
+  const showHomeRow = !!homeCoords && !homeIsPinned;
+  const homeIsCurrent = !!homeCoords && !!mapGeo
+    && round4(homeCoords.latitude) === round4(mapGeo.latitude)
+    && round4(homeCoords.longitude) === round4(mapGeo.longitude);
 
   const handleSelect = (f) => {
     if (editing) return;
@@ -191,22 +217,31 @@ const PlacesPopover = ({ open, onClose, triggerRef = null, onNotify = null }) =>
       triggerRef={triggerRef}
       portal
     >
+      <div className={styles.list}>
+        {showHomeRow ? (
+          <div className={`${styles.row} ${styles.rowHome} ${homeIsCurrent ? styles.rowCurrent : ""}`}>
+            <button
+              type="button"
+              className={styles.rowLabel}
+              onClick={() => { resetMapPosition(); onClose(); }}
+              disabled={editing}
+              title={homeLabel || t("favorites.homeFallback")}
+            >
+              <span className={styles.homeBadge} aria-hidden="true">⌂</span>
+              <span className={styles.labelText}>
+                {homeLabel || t("favorites.homeFallback")}
+              </span>
+            </button>
+          </div>
+        ) : null}
+        {favorites.map(renderRow)}
+      </div>
+
       {favorites.length === 0 ? (
         <div className={styles.empty}>{t("favorites.empty")}</div>
-      ) : (
-        <div className={styles.list}>{favorites.map(renderRow)}</div>
-      )}
+      ) : null}
 
       <div className={styles.footer}>
-        <button
-          type="button"
-          className={styles.currentPosition}
-          onClick={() => { resetMapPosition(); onClose(); }}
-          disabled={editing}
-        >
-          {t("favorites.currentPosition")}
-        </button>
-
         {isLocal && favorites.length > 0 ? (
           <button
             type="button"

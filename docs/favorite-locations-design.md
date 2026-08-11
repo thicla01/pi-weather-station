@@ -193,16 +193,62 @@ non-portal popovers horizontally). Anchor `triggerRef` to the dock button.
 
 ```
 ┌─ Places ───────────────────────── ✕ ┐
-│ ⌂  Home — Sainte-Julie, QC          │   ← default entry, ⌂ badge
+│ ⌂  Montréal, Québec                 │   ← HOME ROW — not a stored favorite
+│ ─────────────────────────────────── │
 │ ●  Chalet — Saint-Donat, QC         │   ← ● = currently displayed
 │    Écurie — Saint-Esprit, QC        │
 │    Québec, QC                       │
-│ ─────────────────────────────────── │
-│ Current position                    │   ← always present, = resetMapPosition()
 │                                     │
-│ Edit                                │   ← toggles per-row ⌂ / ✕ actions
+│                              Edit   │   ← toggles per-row ⌂ / ✎ / ✕ actions
 └─────────────────────────────────────┘
 ```
+
+**The home row** (added 2026-08-10, after the first field question: *"my initial
+position was Montréal — should it be in the list?"*). The default location gets
+the first row, badged `⌂`, but it is **not** a stored favorite: it is never
+written to `favorites` and does not count against the 6-entry cap.
+
+Why a pseudo-row rather than auto-seeding the stored list:
+
+- Auto-seeding would spend 1 of 6 slots on a place already reachable from the
+  dock, write to `settings.json` without the user asking, permanently remove
+  the empty state (and with it the only text explaining how to pin anything),
+  and create a row that silently moves itself whenever the default changes.
+- It would also be labelled badly: at boot the reverse geocode has not resolved
+  yet, so the stored entry would carry raw coordinates forever.
+
+Without *some* representation, though, the `⌂` badge would only ever render if
+the user happened to pin their own default — half the design would be dead
+code. The pseudo-row resolves both.
+
+**Label, for free.** On a cold boot `mapGeo` *is* `browserGeo`, so the first
+reverse-geocode result already describes home. `AppContext` captures it once
+(`homeLabel`) inside the existing `.then` — no extra LocationIQ call, no new
+mount effect. It is re-set from the favorite's own label when one is promoted
+via `setDefault`, and cleared when coordinates are typed by hand in Settings
+(the captured name would then describe the *previous* default — better a
+generic `favorites.homeFallback` than confidently naming the wrong city).
+
+**One definition of "home".** `browserGeo` is the single source of truth, for
+both the row and the `⌂` badge on stored rows — not `customLat`/`customLon`.
+The two agree whenever a default is saved, but `browserGeo` also covers the
+never-configured case where the app fell back to IP geolocation. Keying the
+badge on the saved pair instead gave the badge and the row two different
+meanings in the same popover: a favorite sitting exactly on an IP-derived home
+rendered unbadged, directly under the home row it duplicated.
+
+**Duplicate suppression.** When a stored favorite sits on the home coordinates
+(same 4-decimal comparison as §6.1), the pseudo-row is not rendered at all —
+that favorite already carries the `⌂` badge, and two rows for one place is the
+redundant-affordance problem the rail redesign spent a session removing.
+
+**Terminology fix shipped alongside.** `resetMapPosition` pans to `browserGeo`
+— the *default* position — but its dock tooltip read "Recenter the map on the
+**current** position", which is precisely what it does not do (the current
+position is wherever the user panned to). Corrected to "home position" in all
+three locales; `docs/ui-layout_*.md` had it right all along. The popover's
+former "Current position" footer button inherited the same wrong wording and is
+now replaced by the home row.
 
 - **Tap a row** → `setMapPosition({ latitude, longitude })`, apply `zoom` if stored, close the
   popover. One tap, no confirmation — it is fully reversible.

@@ -10,6 +10,7 @@ import { useUiPreferences } from "~/hooks/useUiPreferences";
 import { useSenseHatMode } from "~/hooks/useSenseHatMode";
 import useIdleDetection from "~/hooks/useIdleDetection";
 import useFavoriteLocations from "~/hooks/useFavoriteLocations";
+import { placeLabelFromAddress } from "~/ui/placeLabel";
 import axios from "axios";
 import tzlookup from "tz-lookup";
 
@@ -204,6 +205,22 @@ export function AppContextProvider({ children }) {
   // the old city for a beat rather than going blank — matches the
   // pre-hoist LocationName behaviour.
   const [reverseGeoResult, setReverseGeoResult] = useState(undefined);
+
+  // Human name of the DEFAULT location (`browserGeo`), shown on the Places
+  // popover's home row. Captured rather than fetched: on a cold boot `mapGeo`
+  // IS `browserGeo`, so the first reverse-geocode result already describes
+  // home — reading it here costs zero extra LocationIQ calls. Once the user
+  // pans away, `reverseGeoResult` describes somewhere else, which is exactly
+  // why this has to be captured once instead of derived on demand.
+  //
+  // `browserGeo` is read through a ref rather than listed as an effect
+  // dependency: adding it would re-run the reverse-geocode fetch every time
+  // the default changes, which is a paid call for no new information.
+  const [homeLabel, setHomeLabel] = useState(null);
+  const browserGeoRef = useRef(browserGeo);
+  useEffect(() => { browserGeoRef.current = browserGeo; }, [browserGeo]);
+  const homeLabelCapturedRef = useRef(false);
+
   useEffect(() => {
     if (!mapGeo || !reverseGeoApiKey) {
       setReverseGeoResult(null);
@@ -211,7 +228,22 @@ export function AppContextProvider({ children }) {
     }
     let cancelled = false;
     reverseGeocode({ lat: mapGeo.latitude, lon: mapGeo.longitude })
-      .then((res) => { if (!cancelled) setReverseGeoResult(res || null); })
+      .then((res) => {
+        if (cancelled) return;
+        setReverseGeoResult(res || null);
+        // Capture the home name on the first result that describes home.
+        const home = browserGeoRef.current;
+        const atHome = home
+          && Math.round(mapGeo.latitude * 1e4) === Math.round(home.latitude * 1e4)
+          && Math.round(mapGeo.longitude * 1e4) === Math.round(home.longitude * 1e4);
+        if (!homeLabelCapturedRef.current && atHome && res && res.address) {
+          const label = placeLabelFromAddress(res.address);
+          if (label) {
+            homeLabelCapturedRef.current = true;
+            setHomeLabel(label);
+          }
+        }
+      })
       .catch(() => { if (!cancelled) setReverseGeoResult(null); });
     return () => { cancelled = true; };
   }, [mapGeo, reverseGeoApiKey]);
@@ -1646,6 +1678,11 @@ export function AppContextProvider({ children }) {
           const nextLon = parseFloat(lon);
           if (Number.isFinite(nextLat) && Number.isFinite(nextLon)) {
             setBrowserGeo({ latitude: nextLat, longitude: nextLon });
+            // Coordinates typed by hand: whatever name we captured describes
+            // the OLD default. Drop it and let the home row fall back to its
+            // generic label rather than confidently naming the wrong city.
+            homeLabelCapturedRef.current = false;
+            setHomeLabel(null);
           }
         })
         .catch((err) => {
@@ -1683,6 +1720,12 @@ export function AppContextProvider({ children }) {
         setCustomLat(lat);
         setCustomLon(lon);
         setBrowserGeo({ latitude: target.lat, longitude: target.lon });
+        // The home row's name follows the new default. We already know what
+        // this place is called — it is the favorite the user just promoted —
+        // so no reverse-geocode is needed, and the boot-time capture is
+        // marked done so it can't later overwrite this with a stale name.
+        homeLabelCapturedRef.current = true;
+        setHomeLabel(target.label);
         return true;
       })
       .catch((err) => {
@@ -2486,6 +2529,7 @@ export function AppContextProvider({ children }) {
     mapTimezone,
     reverseGeoResult,
     panToCoords,
+    homeLabel,
     // Favorite locations. `favorites` is a frozen module-scope constant while
     // empty (see useFavoriteLocations), so the "no favorites" case does not
     // re-mint this memo on every render.
@@ -2506,6 +2550,7 @@ export function AppContextProvider({ children }) {
     mapTimezone,
     reverseGeoResult,
     panToCoords,
+    homeLabel,
     favorites,
     canPinFavorite,
     canRenameFavorite,

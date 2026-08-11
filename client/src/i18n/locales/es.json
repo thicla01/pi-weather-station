@@ -262,7 +262,7 @@
     "pin": "Anclar este lugar",
     "pinned": "Anclado",
     "full": "Lista llena — quite uno",
-    "currentPosition": "Posición actual",
+    "homeFallback": "Posición inicial",
     "setDefault": "Definir por defecto",
     "isDefault": "Por defecto",
     "remove": "Quitar",
@@ -381,7 +381,7 @@
     "legendPrecip": "Precipitación"
   },
   "controls": {
-    "resetMapPosition": "Centrar el mapa en la ubicación actual",
+    "resetMapPosition": "Recentrar el mapa en la posición inicial",
     "showMarker": "Mostrar el marcador de ubicación",
     "hideMarker": "Ocultar el marcador de ubicación",
     "showTimeline": "Mostrar la línea de tiempo del radar",

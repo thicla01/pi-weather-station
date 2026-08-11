@@ -3,6 +3,9 @@ import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
 import DetailsPopover from "~/components/ambient/DetailsPopover";
 import { AppContext } from "~/AppContext";
+import {
+  pickLocality, pickDistrict, pickCounty, pickRegion, placeLabelFromAddress,
+} from "~/ui/placeLabel";
 import styles from "./styles.css";
 
 /**
@@ -46,19 +49,14 @@ const LocationDetailsPopover = ({ open, onClose, triggerRef = null, anchor = "le
   const address = (reverseGeoResult && reverseGeoResult.address) || {};
   // LocationIQ keys vary by locality scale — a small place may expose
   // `village` / `hamlet` instead of `city`, urban points may carry
-  // `suburb`. Pick the most specific available for each row.
-  const locality = address.city
-    || address.town
-    || address.village
-    || address.hamlet
-    || address.municipality
-    || null;
-  const district = address.suburb
-    || address.neighbourhood
-    || address.quarter
-    || null;
-  const county = address.county || address.state_district || null;
-  const region = address.state || address.region || null;
+  // `suburb`. The fallback chains live in `~/ui/placeLabel` so this
+  // component, the favorite auto-label below, and AppContext's capture of
+  // the default location's name all answer "what is this place called" the
+  // same way.
+  const locality = pickLocality(address);
+  const district = pickDistrict(address);
+  const county = pickCounty(address);
+  const region = pickRegion(address);
   const country = address.country || null;
   const countryCode = address.country_code
     ? address.country_code.toUpperCase()
@@ -81,9 +79,7 @@ const LocationDetailsPopover = ({ open, onClose, triggerRef = null, anchor = "le
   // sanitizer drops label-less entries, so "no address" must not mean "no
   // label". Renaming afterwards is a non-touch-only affordance (the kiosk has
   // no keyboard); see the Places popover.
-  const autoLabel = [locality, region].filter(Boolean).join(", ")
-    || coordsStr
-    || null;
+  const autoLabel = placeLabelFromAddress(address) || coordsStr || null;
 
   const pinnedAlready = isFavoritePinned ? isFavoritePinned(mapGeo) : false;
   // Pinning writes settings.json, which is localhost-gated — a remote client
