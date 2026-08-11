@@ -449,29 +449,17 @@ The largest single file in the codebase. Phase 3 cut it roughly in half across f
 ### ✅ ~~Two React anti-patterns surfaced by the React Compiler~~ — **resolved in v2.17.0**
 Both pre-existing fragility issues fixed in the Phase 1 tech-debt pass: `Math.floor(Date.now() / 1000)` no longer called during render in `WeatherMap/RadarTimeline` (lifted into a `useState` ticked by a 30 s interval), and `WeatherInfo`'s self-recursive `useCallback` replaced with a `useEffect`-bound `setInterval` keyed on `cycleKey`. See the v2.17.0 CHANGELOG entry for the full reasoning.
 
-### 🛠️ React Compiler readiness — `set-state-in-effect` cluster (gated on React 19 migration)
-The `eslint-plugin-react-hooks@7.x` test in May 2026 surfaced **13 instances** of the new `set-state-in-effect` rule:
+### 🛠️ React 19 performance follow-ups — Compiler adoption + `set-state-in-effect` cluster (**unblocked 2026-08-10**)
+The React 19 migration (PR 314, `7dd40c2`) was deliberately performance-neutral: bundle +48.8 KB raw / +15 KB gzip (react-dom 19 is slightly larger — a one-time parse cost at kiosk launch), rendering paths unchanged (no StrictMode, no Suspense/transitions in use; `@react-leaflet/core` v3 diffs by reference exactly like v2, so the WeatherMap memo strategy carries over untouched). What the migration *bought* is that the two performance chantiers below are no longer gated:
 
-- `WeatherMap/index.js` (8 sites — radar frame index initialisation, scrubber state resets, sample-cache invalidation)
-- `App/index.js` (1 site)
-- `WeatherInfo/index.js` (1 site — chart auto-cycle)
-- `ambient/weatherCharts/HourlyChart/index.js` (1 site — chart data derivation from props)
-- `ambient/weatherCharts/DailyChart/index.js` (1 site — same pattern as HourlyChart)
+**1. `set-state-in-effect` cluster + `eslint-plugin-react-hooks@7.x`.** The v7 lint (requires React 19 — that was the gate) surfaced **13 instances** in May 2026, but the inventory is stale: `WeatherInfo/` and `ambient/weatherCharts/{HourlyChart,DailyChart}/` were deleted with the v2 tree in 2026-07, so re-grep before planning — the survivors are concentrated in `WeatherMap/index.js` (radar frame index init, scrubber state resets, sample-cache invalidation) and `App/index.js`. Recipe unchanged: bump the lint to v7 first, then walk the sites with the rule enforcing the new shape (compute-during-render / `useMemo` / `useReducer`). Regression risk concentrated on the radar scrubber. ~Half-day.
 
-Most are the legitimate "compute derived state from props on change" pattern, which the React docs (and the new rule) recommend replacing with either:
-- direct computation during render (when the cost is low), or
-- `useMemo` / `useReducer` for expensive derivations, or
-- a state-lifting refactor when the dependency truly belongs to the parent.
+**2. React Compiler adoption — the real potential win on Pi hardware.** The Babel plugin auto-memoises components and values; it requires React 19, so it is now available to this codebase. It would deliver the long-parked "React.memo + Profiler" audit item wholesale: fewer re-renders across the ambient tree on every clock tick and context poll — exactly the class of idle work that matters on a 1 GB Pi 3. Conditions before shipping: (a) do the `set-state-in-effect` cluster first (the compiler assumes rule-compliant components — the two v2.17.0 anti-pattern fixes came from its own beta lint); (b) **bench before/after on the Pi 3B bench (`192.168.6.62`)** — CPU + Chromium render-process activity during the 1-4 Hz radar animation, same A/B method as the 2026-07 perf lot — a compiler adoption without a measured delta on target hardware is cargo cult; (c) separate PR, nothing bundled.
 
-**Now bundled with the React 19 migration below.** May 2026 finding from the Phase 3 tech-debt session: tackling these 13 sites without `eslint-plugin-react-hooks@7.x` actively enforcing the rule means refactoring blind on every site, with no automated check that the new shape is correct. We can't pin to v7 today because v7 requires React 19. So the cluster waits for the bundled migration: bump react + react-hooks lint together, then walk the 13 sites with the linter as the safety net. Estimate: half-day session once the migration is on deck, with regression risk concentrated on the radar scrubber.
+Optional third lever, only if a real jank is observed on-device: `useTransition` / `useDeferredValue` on the radar-timeline scrub path to deprioritise heavy re-renders while the user drags. Not worth speculative work.
 
-### ⏳ React 18 → 19 + react-leaflet 4 → 5 (must be bundled)
-Discovered 2026-05-22 during the Phase 2 tech-debt remediation. The `react-leaflet@5` upgrade looks like an isolated dep bump but has React 19 as a hard peer requirement (`peerDependencies: { react: '^19.0.0' }`); attempting it under React 18 errors out at `npm install` and would risk runtime failures on internal React 19 API usage even with `--legacy-peer-deps`. The other v5 breaking change — removal of `LeafletProvider` — is a non-issue here (we don't import it).
-
-Net: these are **one bundled migration**, not two independent ones. Plan when it becomes worth tackling:
-1. Wait for the ecosystem (Mapbox GL React, react-i18next, react-router if ever added) to stabilise on React 19. ~Q3 2026.
-2. Verify `eslint-plugin-react-hooks@7.x` is on a React 19-compatible release path (currently v7.1.1 is, but the `set-state-in-effect` cluster above is also gating).
-3. Single PR: bump react + react-dom + react-leaflet together. CI catches obvious build / lint regressions; the radar scrubber and the `nowSec` interval fix from v2.17.0 are the highest-risk surfaces and need a manual smoke on a real Pi kiosk before merging.
+### ✅ ~~React 18 → 19 + react-leaflet 4 → 5 (must be bundled)~~ — **shipped 2026-08-10 (PR 314, squash `7dd40c2`)**
+Executed exactly as scoped here: one bundled PR (react + react-dom 19.2.8 + react-leaflet 5.0.0 — the peer gate made them inseparable, as predicted), manual smoke in a dev-mode browser run before merge, canary on RPi5-PWS5 through the real `POST /api/update` path, then fleet 10/10 + kiosk relaunches the same evening. `LeafletProvider` was indeed a non-issue. The two runtime-silent work items (UpdateModal `CSSTransition` `nodeRef`; the 16 function-component `defaultProps` sites) and the full verification record live in [`docs/react19-migration-handoff.md`](docs/react19-migration-handoff.md); `test/react19Guards.test.js` guards both regressions. See also the resolved entry in the Technical debt section above.
 
 Until then, react-leaflet stays on 4.2.1 — fully maintained, no security issues, no functional gap for our use case.
 
