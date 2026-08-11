@@ -1,4 +1,4 @@
-import React, { useContext, useState, useCallback } from "react";
+import React, { useContext, useState, useCallback, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { CSSTransition } from "react-transition-group";
 import { AppContext } from "~/AppContext";
@@ -33,6 +33,10 @@ const UpdateModal = () => {
 
   const { t } = useTranslation();
   const [copied, setCopied] = useState(false);
+  // CSSTransition must receive nodeRef: without it react-transition-group
+  // falls back to ReactDOM.findDOMNode, which React 19 removed — the throw
+  // would unmount the whole root (no error boundary above App).
+  const modalRef = useRef(null);
 
   const isBusy = updateState === "updating" || updateState === "restarting";
   const isReset = updateState === "failed"  || updateState === "stopped";
@@ -106,8 +110,9 @@ const UpdateModal = () => {
       unmountOnExit
       timeout={300}
       classNames="animate"
+      nodeRef={modalRef}
     >
-      <div className={`${styles.container} ${themeClass} ${cursorClass}`}>
+      <div ref={modalRef} className={`${styles.container} ${themeClass} ${cursorClass}`}>
         {/* Header */}
         <div className={styles.header}>
           <span className={styles.title}>{t("update.whatsNew")}</span>

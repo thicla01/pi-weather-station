@@ -233,7 +233,7 @@ const AirCard = ({ suppressAqRow = false }) => {
  * @param {React.ReactNode} [props.children] — the row's DetailsPopover
  * @returns {JSX.Element} air row
  */
-const Row = ({ value, valueIsText, label, qualifier, tier, onClick, ariaExpanded, rowRef, children }) => {
+const Row = ({ value, valueIsText = false, label, qualifier = null, tier = null, onClick, ariaExpanded, rowRef = null, children = null }) => {
   const interactive = typeof onClick === "function";
   const onKeyDown = interactive
     ? (e) => {
@@ -288,22 +288,8 @@ Row.propTypes = {
   children: PropTypes.node,
 };
 
-Row.defaultProps = {
-  valueIsText: false,
-  qualifier: null,
-  tier: null,
-  onClick: undefined,
-  ariaExpanded: undefined,
-  rowRef: null,
-  children: null,
-};
-
 AirCard.propTypes = {
   suppressAqRow: PropTypes.bool,
-};
-
-AirCard.defaultProps = {
-  suppressAqRow: false,
 };
 
 export default AirCard;

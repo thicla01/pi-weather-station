@@ -67,7 +67,7 @@ const formatDayLength = (secs) => {
  * @param {"left"|"right"} [props.anchor]
  * @returns {JSX.Element} popover anchored to the sun chip
  */
-const SunDetailsPopover = ({ open, onClose, triggerRef, anchor }) => {
+const SunDetailsPopover = ({ open, onClose, triggerRef = null, anchor = "right" }) => {
   const { sunriseSunsetToday, sunriseSunsetTomorrow, mapTimezone, clockTime } = useContext(AppContext);
   const { i18n, t } = useTranslation();
   const localeKey = i18n.language.startsWith("fr")
@@ -142,11 +142,6 @@ SunDetailsPopover.propTypes = {
   onClose: PropTypes.func.isRequired,
   triggerRef: PropTypes.object,
   anchor: PropTypes.oneOf(["left", "right"]),
-};
-
-SunDetailsPopover.defaultProps = {
-  triggerRef: null,
-  anchor: "right",
 };
 
 export default SunDetailsPopover;

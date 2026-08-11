@@ -175,7 +175,7 @@ const MetricsGrid = ({ extended = false, columns = 2 }) => {
  * @param {React.ReactNode} [props.children] — the cell's DetailsPopover
  * @returns {JSX.Element} grid cell
  */
-const Cell = ({ icon, value, unit, label, qualifier, qualifierTier, onClick, ariaExpanded, cellRef, children }) => {
+const Cell = ({ icon, value, unit = "", label, qualifier = null, qualifierTier = null, onClick, ariaExpanded, cellRef = null, children = null }) => {
   const interactive = typeof onClick === "function";
   // Use a `<div role="button">` (not a real `<button>`) so we don't
   // inherit the user-agent's button defaults (background, color,
@@ -248,16 +248,6 @@ Cell.propTypes = {
   children: PropTypes.node,
 };
 
-Cell.defaultProps = {
-  unit: "",
-  qualifier: null,
-  qualifierTier: null,
-  onClick: undefined,
-  ariaExpanded: undefined,
-  cellRef: null,
-  children: null,
-};
-
 MetricsGrid.propTypes = {
   // v3.3 Conditions view: add the Pressure + Visibility tiles (the glance
   // keeps the strict 2×2). Default false — the v3.2 stacked rail is unchanged.
@@ -266,11 +256,6 @@ MetricsGrid.propTypes = {
   // Conditions view, where the 6 extended tiles read as two themed rows
   // (Wind/Gust/UV · Humidity/Pressure/Visibility).
   columns: PropTypes.oneOf([2, 3]),
-};
-
-MetricsGrid.defaultProps = {
-  extended: false,
-  columns: 2,
 };
 
 export default MetricsGrid;

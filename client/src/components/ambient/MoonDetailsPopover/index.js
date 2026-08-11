@@ -36,7 +36,7 @@ const I18N_LOCALE = { en: "en-US", fr: "fr-FR", es: "es-ES" };
  * @param {"left"|"right"} [props.anchor]
  * @returns {JSX.Element}
  */
-const MoonDetailsPopover = ({ open, onClose, now, triggerRef, anchor }) => {
+const MoonDetailsPopover = ({ open, onClose, now, triggerRef = null, anchor = "right" }) => {
   const { dailyWeatherData, mapTimezone, clockTime } = useContext(AppContext);
   const { i18n, t } = useTranslation();
   const localeKey = i18n.language.startsWith("fr")
@@ -126,11 +126,6 @@ MoonDetailsPopover.propTypes = {
   // eslint-disable-next-line react/forbid-prop-types -- React ref shape is opaque
   triggerRef: PropTypes.object,
   anchor: PropTypes.oneOf(["left", "right"]),
-};
-
-MoonDetailsPopover.defaultProps = {
-  triggerRef: null,
-  anchor: "right",
 };
 
 export default MoonDetailsPopover;

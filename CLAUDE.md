@@ -143,6 +143,7 @@ These rules apply to every change, regardless of size. They exist to keep the co
 ### Before committing
 - Run `cd client && npm run prod` — the build must pass with **zero errors** (warnings on bundle size are acceptable)
 - Every new or modified React component must have a complete **JSDoc block** (`@param`, `@returns`) and declared **PropTypes**
+  - **PropTypes are documentation + a lint-enforced contract, not runtime validation** (React 19, decision 2026-08): React no longer runs `propTypes` checks on function components, so no console warning will ever fire. They stay mandatory because `react/prop-types` is a build **error** and the declarations document each component's API.
 - Every new UI string must have a translation key in all three locale files (`en.json`, `fr.json`, `es.json`)
   - **Codified exception (maintainer decision, 2026-06):** the inline-trilingual helper `lbl(lang, en, fr, es)` is permitted **in `SettingsPanel` and `DebugPanel` only** — dense, maintainer-facing configuration surfaces where keeping the three strings next to their usage beats locale-file indirection (~188 call sites). The boundary is strict: `lbl()` must NOT spread to kiosk-visible surfaces (layouts, hero, metrics, charts) and NEVER to alert content (banners, chips, detail sections) — those always go through the locale files. If a fourth language is ever added, this exception is the first thing to revisit (the `lbl()` strings would all need a migration pass).
 - New or modified Express endpoints must be reflected in **`docs/api.md`**
@@ -153,6 +154,7 @@ These rules apply to every change, regardless of size. They exist to keep the co
 - **Local state first** — only promote state to `AppContext` if two or more unrelated components need it; `AppContext.js` is already large and should not grow without deliberate justification
 - **No inline styles for static values** — use CSS Modules; inline styles are reserved for values that are computed at runtime (e.g. `zoom`, `gridTemplateColumns`, CSS custom properties)
 - **Always clean up side effects** — every `setInterval`, `setTimeout`, or event listener registered in a `useEffect` must have a corresponding cleanup in the return function
+- **Never `X.defaultProps = {…}`** — React 19's automatic JSX runtime ignores it silently (the prop arrives `undefined`, zero warning in any build). Use destructuring defaults in the signature; for array/object defaults hoist a frozen module-scope constant so the reference stays stable across renders (see `NO_ALERTS` in `WeatherMap/index.js` — a bare `= []` allocates per render and busts memo chains). `test/react19Guards.test.js` fails the suite on any reappearance.
 
 ### ESLint suppressions
 - **Avoid `// eslint-disable-line` and `// eslint-disable-next-line`** — if a suppression is truly necessary, add an inline comment on the same line explaining *why* the rule is being bypassed

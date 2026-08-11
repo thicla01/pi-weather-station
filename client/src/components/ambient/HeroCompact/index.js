@@ -49,7 +49,7 @@ import styles from "./styles.css";
  *   card height (absolute corner).
  * @returns {JSX.Element} hero slab
  */
-const HeroCompact = ({ shortPhaseName, hideAstro, hideFeelsLike, onMaximize }) => {
+const HeroCompact = ({ shortPhaseName = false, hideAstro = false, hideFeelsLike = false, onMaximize }) => {
   const { currentWeatherData, sunriseTime, sunsetTime } = useContext(WeatherDataContext);
   const { tempUnit } = useContext(UiPrefsContext);
   const { reverseGeoResult } = useContext(LocationContext);
@@ -175,13 +175,6 @@ HeroCompact.propTypes = {
   hideAstro: PropTypes.bool,
   hideFeelsLike: PropTypes.bool,
   onMaximize: PropTypes.func,
-};
-
-HeroCompact.defaultProps = {
-  shortPhaseName: false,
-  hideAstro: false,
-  hideFeelsLike: false,
-  onMaximize: undefined,
 };
 
 export default HeroCompact;
