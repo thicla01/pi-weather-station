@@ -201,6 +201,7 @@ Spans the full viewport width at the bottom of all three layouts (Mobile / Pi / 
 | Icon | Action | Visibility condition |
 |------|--------|---------------------|
 | ↖ Location arrow | Reset map to home position | Always |
+| 🔖 Bookmark | Open "Places" — the favorite-locations list (max 6): tapping a row moves the map there; Edit mode exposes set-as-default (⌂), rename (non-touch clients only) and remove (two-tap confirm) | Always |
 | 📍 / 📍off | Toggle location marker | Always |
 | 〜 Timeline | Show / hide radar timeline scrubber | RainViewer source only |
 | ↗ Direction arrows | Show / hide precipitation direction arrows | Radar analysis enabled |

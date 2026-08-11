@@ -1,0 +1,174 @@
+/* PlacesPopover — the favorites picker.
+ *
+ * Layout budget (docs/favorite-locations-design.md §5.2.1): the usable
+ * popover width on the 7" rail is ~280px. In edit mode the row is
+ * `label | actions`, with the label allowed to shrink (min-width: 0 —
+ * without it a flex item refuses to go below its content width and
+ * pushes the action buttons off the row) and the actions fixed at 44px.
+ * On the 7" only two actions render (⌂ ✕) because rename is gated off
+ * on touch devices, so 88px of actions leave ~190px of label. */
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 8px;
+}
+
+/* The row currently shown on the map. A left accent bar rather than a
+ * background wash: the wash would fight the `armed` state's danger tint
+ * two columns over, and in the nightRed palette every tint collapses
+ * toward the same hue. */
+.rowCurrent {
+  box-shadow: inset 2px 0 0 0 var(--c-accent);
+}
+
+.rowLabel {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-height: 44px;
+  padding: 0 8px;
+  background: transparent;
+  color: var(--c-text);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* In edit mode the row is not a jump target — the label button is
+ * disabled, and it should read as inert rather than as a dimmed action. */
+.rowEditing .rowLabel {
+  cursor: default;
+  opacity: 1;
+}
+
+.labelText {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.homeBadge {
+  flex: none;
+  color: var(--c-text-dim);
+  font-size: 13px;
+}
+
+.rowActions {
+  flex: none;
+  display: flex;
+  gap: 2px;
+}
+
+/* Doubled class beats the `.ambientRoot button { border: 0 }` reset
+ * (0,1,1); a single `.action` (0,1,0) would render frameless. */
+.action.action {
+  min-width: 44px;
+  min-height: 44px;
+  padding: 0 6px;
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  background: var(--c-surface-hybrid, var(--c-surface));
+  color: var(--c-text-dim);
+  font-size: 13px;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Armed delete: the first tap turns ✕ into a labelled confirm, so the
+ * control says what the second tap will do instead of relying on the
+ * user remembering they already tapped. Widened because it now holds a
+ * word rather than a glyph. */
+.actionArmed.actionArmed {
+  min-width: 0;
+  padding: 0 10px;
+  border-color: var(--c-danger);
+  color: var(--c-danger);
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.renameInput {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 8px;
+  border: 1px solid var(--c-accent);
+  border-radius: 8px;
+  background: var(--c-bg);
+  color: var(--c-text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.empty {
+  font-size: 12px;
+  line-height: 1.45;
+  color: var(--c-text-dim);
+}
+
+.footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid var(--c-border);
+}
+
+.currentPosition.currentPosition {
+  flex: 1;
+  min-width: 0;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  background: var(--c-surface-hybrid, var(--c-surface));
+  color: var(--c-text);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.currentPosition.currentPosition:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.editToggle.editToggle {
+  flex: none;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--c-border);
+  border-radius: 8px;
+  background: transparent;
+  color: var(--c-text-dim);
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+}
+
+.note,
+.error {
+  flex-basis: 100%;
+  font-size: 11px;
+  color: var(--c-text-dim);
+}
+
+.error {
+  color: var(--c-danger);
+}

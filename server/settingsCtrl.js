@@ -45,6 +45,10 @@ const ALLOWED_KEYS = new Set([
   // advanced.ai.{extendedRadius, showSamplingPoints}. Default behavior when
   // absent matches the v2.6 baseline.
   "advanced",
+  // Favorite locations — bounded array of {id, label, lat, lon, zoom?}.
+  // NOT opaque like the two above: its shape is validated by
+  // sanitizeFavorites below (see VALUE_SANITIZERS).
+  "favorites",
 ]);
 
 const API_KEY_FIELDS = new Set([
@@ -58,8 +62,118 @@ const REMOTE_HIDDEN_KEYS = new Set([
   "indoorTemperature",
 ]);
 
+// Favorite-locations bounds. MAX_FAVORITES is enforced here as well as in the
+// client hook: the client cap is the UX affordance ("list full"), this one is
+// the guarantee — a buggy or hand-rolled client can never grow the list past
+// it. MAX_LABEL_LEN keeps a pathological label from bloating settings.json.
+const MAX_FAVORITES = 6;
+const MAX_LABEL_LEN = 40;
+
 /**
- * Returns a sanitized copy of obj containing only allowed setting keys.
+ * Round a coordinate to 4 decimals.
+ *
+ * Not cosmetic: the weather proxy caches upstream responses under
+ * `type:fieldsHash:lat(4dp):lon(4dp)` (proxyCtrl.getCacheKey). A favorite
+ * whose coordinates are frozen at this precision therefore re-uses its cache
+ * entry every time the user returns to it, instead of minting a new key and
+ * costing three fresh Tomorrow.io calls per visit. Applied client-side at pin
+ * time and re-applied here so a hand-edited settings.json cannot defeat it.
+ *
+ * @param {number} n coordinate value
+ * @returns {number} the value rounded to 4 decimal places
+ */
+function round4(n) {
+  return Math.round(n * 1e4) / 1e4;
+}
+
+/**
+ * Numeric coercion that refuses the values `Number()` silently turns into 0.
+ *
+ * `Number(null)`, `Number("")`, `Number(false)` and `Number([])` are all 0 —
+ * a finite, in-range coordinate. Without this guard a favorite carrying
+ * `lon: null` would be accepted and quietly pinned to the Gulf of Guinea
+ * instead of being rejected. Numeric STRINGS are still accepted on purpose:
+ * settings.json legitimately stores coordinates as strings (sensehatCtrl
+ * parseFloat()s `startingLat` for exactly that reason).
+ *
+ * @param {*} v untrusted value
+ * @returns {number|null} the number, or null when the input is not a
+ *   number or a non-empty numeric string
+ */
+function toNumber(v) {
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  if (typeof v === "string" && v.trim() !== "") {
+    const n = Number(v);
+    return Number.isFinite(n) ? n : null;
+  }
+  return null;
+}
+
+/**
+ * Coerce an untrusted value into a valid `favorites` array.
+ *
+ * Drops malformed entries rather than rejecting the whole payload: a single
+ * bad row from a future client version (or a hand-edited file) should cost
+ * that row, not the user's entire list. Entries are validated field by field
+ * and rebuilt from scratch, so no unexpected property can ride along into
+ * settings.json.
+ *
+ * Note this runs on the READ path too (sanitizeSettings is what maskForRemote
+ * projects through), which means a corrupted file degrades to a shorter list
+ * instead of reaching the client verbatim.
+ *
+ * @param {*} val untrusted value, expected to be an array of favorite entries
+ * @returns {Array<{id: string, label: string, lat: number, lon: number, zoom?: number}>}
+ */
+function sanitizeFavorites(val) {
+  if (!Array.isArray(val)) return [];
+  const out = [];
+  for (const f of val) {
+    if (!f || typeof f !== "object" || Array.isArray(f)) continue;
+    const lat = toNumber(f.lat);
+    const lon = toNumber(f.lon);
+    if (lat === null || lat < -90 || lat > 90) continue;
+    if (lon === null || lon < -180 || lon > 180) continue;
+    const label = typeof f.label === "string" ? f.label.trim().slice(0, MAX_LABEL_LEN) : "";
+    if (!label) continue;
+    const id = typeof f.id === "string" && f.id ? f.id.slice(0, 64) : `fav_${out.length}`;
+    const entry = { id, label, lat: round4(lat), lon: round4(lon) };
+    const zoom = toNumber(f.zoom);
+    if (zoom !== null && Number.isInteger(zoom) && zoom >= 1 && zoom <= 18) entry.zoom = zoom;
+    out.push(entry);
+    if (out.length >= MAX_FAVORITES) break;
+  }
+  return out;
+}
+
+// Per-key value coercion, applied by sanitizeSettings after the key whitelist.
+// The whitelist alone only answers "may this key exist?"; for keys whose shape
+// the server actually depends on, this answers "is the value well-formed?".
+// Keys absent from this table keep their value verbatim (the opaque
+// sub-objects, `advanced` and `indoorTemperature`, deliberately stay that way).
+const VALUE_SANITIZERS = {
+  favorites: sanitizeFavorites,
+};
+
+/**
+ * Apply the per-key value sanitizer, if this key has one.
+ *
+ * Every write path must funnel through this: `sanitizeSettings` covers the
+ * ones that project a whole object (POST / PUT), and `setSetting` calls it
+ * directly because a PATCH writes a single value straight through.
+ *
+ * @param {string} key top-level settings key
+ * @param {*} val the incoming value
+ * @returns {*} the coerced value, or the input unchanged when no sanitizer
+ *   is registered for that key
+ */
+function sanitizeValue(key, val) {
+  return VALUE_SANITIZERS[key] ? VALUE_SANITIZERS[key](val) : val;
+}
+
+/**
+ * Returns a sanitized copy of obj containing only allowed setting keys, with
+ * per-key value coercion applied (see VALUE_SANITIZERS).
  *
  * @param {Object} obj
  * @returns {Object}
@@ -67,7 +181,9 @@ const REMOTE_HIDDEN_KEYS = new Set([
 function sanitizeSettings(obj) {
   if (!obj || typeof obj !== "object" || Array.isArray(obj)) return {};
   return Object.fromEntries(
-    Object.entries(obj).filter(([k]) => ALLOWED_KEYS.has(k))
+    Object.entries(obj)
+      .filter(([k]) => ALLOWED_KEYS.has(k))
+      .map(([k, v]) => [k, sanitizeValue(k, v)])
   );
 }
 
@@ -249,7 +365,14 @@ function setSetting(req, res) {
   const readSuccess = (currentSettings) => {
     const newSettings = {
       ...currentSettings,
-      [key]: preserveServerOwnedAdvanced(currentSettings, key, val),
+      // Value coercion has to happen HERE, not only inside sanitizeSettings:
+      // this handler writes `val` straight through and never calls it (unlike
+      // createSettingsFile / replaceSettings, which both project their whole
+      // body through sanitizeSettings). Without this line a PATCH is the one
+      // path that can plant an arbitrarily-shaped value under a whitelisted
+      // key — caught by an end-to-end curl, invisible to a unit test of the
+      // pure helper.
+      [key]: sanitizeValue(key, preserveServerOwnedAdvanced(currentSettings, key, val)),
     };
     writeContents(newSettings);
   };
@@ -577,6 +700,11 @@ module.exports = {
   // the public surface. See test/settingsCtrl.test.js.
   __test: {
     sanitizeSettings,
+    sanitizeFavorites,
+    sanitizeValue,
+    round4,
+    MAX_FAVORITES,
+    MAX_LABEL_LEN,
     maskForRemote,
     preserveServerOwnedAdvanced,
     ensureSecurePermissions,

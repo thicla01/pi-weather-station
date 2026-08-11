@@ -257,6 +257,24 @@
     "source": "Fuente: LocationIQ",
     "noAddress": "No se encontró una dirección en este punto."
   },
+  "favorites": {
+    "title": "Lugares",
+    "pin": "Anclar este lugar",
+    "pinned": "Anclado",
+    "full": "Lista llena — quite uno",
+    "currentPosition": "Posición actual",
+    "setDefault": "Definir por defecto",
+    "isDefault": "Por defecto",
+    "remove": "Quitar",
+    "removeConfirm": "¿Quitar?",
+    "rename": "Renombrar",
+    "renameHint": "Intro para guardar, Esc para cancelar",
+    "edit": "Modificar",
+    "done": "Hecho",
+    "empty": "Abra un lugar en el mapa, toque su nombre y luego «Anclar este lugar».",
+    "remoteReadOnly": "La edición requiere acceso local.",
+    "saveFailed": "No se pudo guardar — revise la conexión"
+  },
   "alert": {
     "dismiss": "Ocultar",
     "dismissTooltip": "Ocultar 4 h (reaparece si se agrava)",
@@ -401,7 +419,9 @@
     "groupMap": "Mapa",
     "groupViews": "Vistas",
     "groupDisplay": "Visualización",
-    "groupSystem": "Sistema"
+    "groupSystem": "Sistema",
+    "openPlaces": "Abrir lugares",
+    "closePlaces": "Cerrar lugares"
   },
   "mobile": {
     "settingsHint": "Para los ajustes avanzados, abre la app desde el Pi en local."
@@ -435,7 +455,8 @@
     "aiSummaryShown": "Sección IA mostrada",
     "aiSummaryHidden": "Sección IA ocultada",
     "refreshing": "Actualizando…",
-    "updateRemoteNotice": "Actualización disponible — avisa al admin del kiosco"
+    "updateRemoteNotice": "Actualización disponible — avisa al admin del kiosco",
+    "favoriteDefaultSet": "Ubicación por defecto actualizada"
   },
   "health": {
     "title": "Estado de los servicios",

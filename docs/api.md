@@ -86,13 +86,47 @@ Updates a single key in `settings.json`.
 - **Body:** `{ "key": "<name>", "value": "<value>" }`
 - **Errors:** HTTP 400 if the key is not in the whitelist
 
+#### `favorites`
+
+Favorite locations — a bounded list of places the kiosk can jump back to.
+Unlike `advanced` and `indoorTemperature`, this key is **not opaque**: its
+value is shape-validated server-side on both the write and the read path.
+
+```json
+{ "key": "favorites", "val": [
+  { "id": "fav_1753651200000", "label": "Chalet — Saint-Donat", "lat": 46.3172, "lon": -74.2205, "zoom": 9 }
+] }
+```
+
+| Field | Rule |
+|---|---|
+| `id` | string, ≤ 64 chars. Synthesised (`fav_<n>`) when missing |
+| `label` | string, trimmed, 1..40 chars. An entry without one is **dropped** |
+| `lat` / `lon` | −90..90 / −180..180, stored **rounded to 4 decimals** |
+| `zoom` | optional integer 1..18; omitted when absent or out of range |
+
+Numeric strings are accepted for `lat` / `lon` / `zoom` (settings.json stores
+coordinates as strings elsewhere), but `null`, `""`, booleans and arrays are
+rejected rather than coerced — `Number(null)` is `0`, a valid-looking
+coordinate.
+
+Malformed entries are **dropped individually**, not rejected wholesale, and
+the list is truncated to the first **6** valid entries. Sending `[]` clears
+the list. The rounding is a contract with the weather cache, not cosmetics:
+see `docs/favorite-locations-design.md` §6.1.
+
+`GET /settings` returns `favorites` to remote clients unmasked, matching the
+existing exposure of `startingLat` / `startingLon`.
+
 ---
 
 ### `DELETE /setting`
 Removes a single key from `settings.json`.
 
 - **Access:** 🔒 Localhost only
-- **Body:** `{ "key": "<name>" }`
+- **Query:** `?key=<name>` — the handler reads `req.query`, **not** a request
+  body (this doc said "body" until 2026-08; a JSON body returns HTTP 400)
+- **Errors:** HTTP 400 without `key`, HTTP 404 when the key is not present
 
 ---
 

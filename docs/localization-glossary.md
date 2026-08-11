@@ -4,7 +4,7 @@
      Regenerate with: node tools/gen-localization-glossary.js
      Validation marks (☑) in the first column ARE preserved across runs. -->
 
-**Generated** by `tools/gen-localization-glossary.js` on 2026-07-26. Re-run it after
+**Generated** by `tools/gen-localization-glossary.js` on 2026-08-10. Re-run it after
 touching a locale file or an inline `lbl()` string — every row below is derived, so a
 hand edit will be overwritten. The one exception is the **Validé** column: it is human
 review state and the generator carries existing `☑` marks forward, matching on the key
@@ -16,7 +16,7 @@ Replace `☐` with `☑` when a native speaker has confirmed the FR and ES wordi
 
 | Source | Rows | Notes |
 |---|---|---|
-| `client/src/i18n/locales/{en,fr,es}.json` | 387 translated + 19 identical | Every kiosk-visible surface. 406 leaf keys total. |
+| `client/src/i18n/locales/{en,fr,es}.json` | 406 translated + 19 identical | Every kiosk-visible surface. 425 leaf keys total. |
 | `client/src/components/ambient/SettingsPanel/index.js` | 108 (+5 non-literal, not listed) | Settings overlay — the user-facing configuration surface. |
 | `client/src/components/ambient/DebugPanel/index.js` | 80 | Debug overlay — localhost-only, reached from a desktop browser or an SSH tunnel. |
 
@@ -245,6 +245,7 @@ reported here as a gap table, so an empty check means the three files are aligne
 | Validé | EN | FR | ES | Clé |
 |--------|----|----|-----|-----|
 | ☐ | Close debug panel | Fermer le panneau de débogage | Cerrar el panel de depuración | `controls.closeDebug` |
+| ☐ | Close places | Fermer les lieux | Cerrar lugares | `controls.closePlaces` |
 | ☐ | Close settings | Fermer les paramètres | Cerrar los ajustes | `controls.closeSettings` |
 | ☐ | Close update modal | Fermer la fenêtre de mise à jour | Cerrar la ventana de actualización | `controls.closeUpdate` |
 | ☐ | Switch to dark mode | Passer en mode sombre | Cambiar a modo oscuro | `controls.darkMode` |
@@ -270,6 +271,7 @@ reported here as a gap table, so an empty check means the three files are aligne
 | ☐ | Open AI summary | Ouvrir le résumé IA | Abrir el resumen IA | `controls.openAiView` |
 | ☐ | Open debug panel | Ouvrir le panneau de débogage | Abrir el panel de depuración | `controls.openDebug` |
 | ☐ | Open forecast | Ouvrir les prévisions | Abrir el pronóstico | `controls.openForecast` |
+| ☐ | Open places | Ouvrir les lieux | Abrir lugares | `controls.openPlaces` |
 | ☐ | Open settings | Ouvrir les paramètres | Abrir los ajustes | `controls.openSettings` |
 | ☐ | Show update modal | Afficher la fenêtre de mise à jour | Mostrar la ventana de actualización | `controls.openUpdate` |
 | ☐ | Expand the radar first to use this control | Agrandissez d'abord le radar pour utiliser ce contrôle | Amplíe primero el radar para usar este control | `controls.radarOverlaysNeedMaximize` |
@@ -304,6 +306,27 @@ reported here as a gap table, so an empty check means the three files are aligne
 |--------|----|----|-----|-----|
 | ☐ | Cannot get 5 day weather forecast | Impossible d'obtenir les prévisions sur 5 jours | No se pueden obtener los pronósticos de 5 días | `errors.dailyForecastFailed` |
 | ☐ | Cannot get 24 hour weather forecast | Impossible d'obtenir les prévisions sur 24 heures | No se pueden obtener los pronósticos de 24 horas | `errors.hourlyForecastFailed` |
+
+## favorites (`favorites.*`)
+
+| Validé | EN | FR | ES | Clé |
+|--------|----|----|-----|-----|
+| ☐ | Current position | Position actuelle | Posición actual | `favorites.currentPosition` |
+| ☐ | Done | Terminé | Hecho | `favorites.done` |
+| ☐ | Edit | Modifier | Modificar | `favorites.edit` |
+| ☐ | Open a place on the map, tap its name, then “Pin this place”. | Ouvrez un lieu sur la carte, touchez son nom, puis « Épingler ce lieu ». | Abra un lugar en el mapa, toque su nombre y luego «Anclar este lugar». | `favorites.empty` |
+| ☐ | List full — remove one first | Liste pleine — retirez-en un | Lista llena — quite uno | `favorites.full` |
+| ☐ | Default | Par défaut | Por defecto | `favorites.isDefault` |
+| ☐ | Pin this place | Épingler ce lieu | Anclar este lugar | `favorites.pin` |
+| ☐ | Pinned | Épinglé | Anclado | `favorites.pinned` |
+| ☐ | Editing requires local access. | La modification exige un accès local. | La edición requiere acceso local. | `favorites.remoteReadOnly` |
+| ☐ | Remove | Retirer | Quitar | `favorites.remove` |
+| ☐ | Remove? | Retirer ? | ¿Quitar? | `favorites.removeConfirm` |
+| ☐ | Rename | Renommer | Renombrar | `favorites.rename` |
+| ☐ | Enter to save, Esc to cancel | Entrée pour enregistrer, Échap pour annuler | Intro para guardar, Esc para cancelar | `favorites.renameHint` |
+| ☐ | Could not save — check the connection | Enregistrement impossible — vérifiez la connexion | No se pudo guardar — revise la conexión | `favorites.saveFailed` |
+| ☐ | Set as default | Définir par défaut | Definir por defecto | `favorites.setDefault` |
+| ☐ | Places | Lieux | Lugares | `favorites.title` |
 
 ## Gov't alert detail (`govAlertDetail.*`)
 
@@ -455,6 +478,7 @@ reported here as a gap table, so an empty check means the three files are aligne
 | ☐ | Enable radar rings first | Activez d'abord les cercles radar | Active primero los círculos radar | `toasts.directionArrowsNeedRings` |
 | ☐ | Direction arrows off | Flèches de direction désactivées | Flechas de dirección desactivadas | `toasts.directionArrowsOff` |
 | ☐ | Direction arrows on | Flèches de direction activées | Flechas de dirección activadas | `toasts.directionArrowsOn` |
+| ☐ | Default location updated | Emplacement par défaut mis à jour | Ubicación por defecto actualizada | `toasts.favoriteDefaultSet` |
 | ☐ | Radar legend hidden | Légende radar masquée | Leyenda radar ocultada | `toasts.legendHidden` |
 | ☐ | Radar legend shown | Légende radar affichée | Leyenda radar mostrada | `toasts.legendShown` |
 | ☐ | Light mode on | Mode clair activé | Modo claro activado | `toasts.lightModeOn` |

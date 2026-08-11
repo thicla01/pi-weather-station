@@ -201,6 +201,7 @@ S'étend sur toute la largeur du viewport en bas des trois dispositions (Mobile 
 | Icône | Action | Condition d'affichage |
 |-------|--------|-----------------------|
 | ↖ Flèche localisation | Recentrer la carte sur la position d'accueil | Toujours |
+| 🔖 Signet | Ouvrir « Lieux » — la liste des villes favorites (max. 6) : appuyer sur une entrée y déplace la carte ; le mode Modifier permet de définir le lieu par défaut (⌂), de renommer (postes non tactiles seulement) et de retirer (double appui) | Toujours |
 | 📍 / 📍off | Afficher/masquer le marqueur de position | Toujours |
 | 〜 Chronologie | Afficher/masquer le curseur de chronologie radar | Source RainViewer uniquement |
 | ↗ Flèches direction | Afficher/masquer les flèches de direction des précipitations | Analyse radar activée |
