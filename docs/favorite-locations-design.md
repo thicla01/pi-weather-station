@@ -2,7 +2,9 @@
 
 **Status:** Design — implementation-ready except for the open questions in §12 (**Q5 resolved
 2026-07-27**: rename ships in v1, gated on non-touch — see §5.1.1).
-**Date:** 2026-07-27
+**Date:** 2026-07-27 · **re-validated against HEAD `011afc8` on 2026-08-10** after the React 19 /
+react-leaflet 5 migration (PR 314) and the Dependabot batch. All 21 file:line citations still
+resolve; no design decision was invalidated. New binding constraints in **§8.6**.
 **Scope:** v3 ambient tree (all layouts: Pi 7", desktop, mobile) + `settings.json` schema + one new
 value-level sanitizer on the server. No new external service, no new API key.
 
@@ -528,6 +530,58 @@ that is a favorite") but it draws a map pin, and `location` / `location-filled` 
 marker-visibility toggle two buttons away in the same group — two pin glyphs side by side would
 read as one control with two states.
 
+### 8.6 React 19 constraints (added 2026-08-10)
+
+The client moved to React 19 + react-leaflet 5 after this design was written (PR 314, `7dd40c2`).
+Nothing here was invalidated — `DetailsPopover`'s API is unchanged (`open` / `onClose` / `title` /
+`anchor` / `triggerRef` / `portal` / `children`, same defaults, merely relocated into the
+signature), `PanHandler` still drives the pan
+([`WeatherMap/index.js:262`](../client/src/components/WeatherMap/index.js)), and the migration notes
+record that `@react-leaflet/core` v3 diffs by reference exactly like v2. But four rules now bind
+this feature's implementation.
+
+**1. No `defaultProps` — and the empty list needs a frozen constant.** `X.defaultProps = {…}` is
+silently ignored by the automatic JSX runtime; `test/react19Guards.test.js` fails the suite on any
+reappearance. Use destructuring defaults. The non-obvious half applies directly here: **`favorites`
+is an array**, and a bare `= []` allocates a fresh reference on every render. That is the exact
+`NO_ALERTS` lesson from `WeatherMap`, and here it would be worse than a busted child memo —
+`favorites` is a dependency of `locationSlice`'s `useMemo` (§8.3), so a fresh array per render
+would mint a new context value on **every** `AppContext` render and re-render every location
+consumer in the tree, on a 1 GB Pi 3, forever.
+
+```js
+// client/src/hooks/useFavoriteLocations.js
+const NO_FAVORITES = Object.freeze([]);   // mirrors NO_ALERTS in WeatherMap/index.js
+```
+
+The hook must return `NO_FAVORITES` — not `[]` — for the empty case, including the pre-settings-load
+window and every defensive parse failure.
+
+**2. PropTypes no longer validate at runtime.** They stay mandatory (`react/prop-types` is a build
+error, and they document the API), but React 19 runs no `propTypes` check on function components,
+so no console warning will ever fire for a malformed favorite. **The server-side
+`sanitizeFavorites` of §7.2 is therefore the only real validation in the system.** Anyone tempted
+to thin it out on the grounds that "the client already shapes the data" should read this paragraph
+first.
+
+**3. If `PlacesPopover` ever animates, it must not reach for `react-transition-group` casually.**
+Under React 19 a consumer without `nodeRef` falls back to the removed `findDOMNode`; the throw
+unmounts the whole root — blank kiosk, no error boundary above `App`. `UpdateModal` is currently
+the *only* consumer in the tree and it was fixed during the migration. Prefer a plain CSS
+transition here and keep it that way; if react-transition-group is genuinely needed, `nodeRef` is
+mandatory and the guard test enforces it.
+
+**4. Write the hook React-Compiler-ready.** Compiler adoption is now an active ROADMAP item, and
+its stated precondition is that components be rule-compliant — the existing `set-state-in-effect`
+cluster is the debt being paid down. Do not add to it: seed `favorites` from the settings response
+on the **existing** load path (the same `.then` that already calls `setCustomLat` /
+`setCustomLon`), rather than adding a fresh `useEffect(() => setFavorites(…), [])`. Same result,
+one fewer site for the compiler-readiness pass to revisit.
+
+> Deliberately **not** using React 19's `useOptimistic` for the optimistic-write pattern of §8.1.
+> It is built around form Actions and transitions, neither of which this codebase uses; plain state
+> plus an explicit rollback is smaller, and it keeps the failure path (§8.1's toast) obvious.
+
 ---
 
 ## 9. Interactions and edge cases
@@ -607,9 +661,13 @@ node tools/gen-localization-glossary.js
    `indoorTemperature`)
 
 Client-side there is still no test harness (tech-debt D2), so the client behaviour is covered by
-the field test in §14.
+the field test in §14 — **with two exceptions that are already mechanically enforced**:
+`test/react19Guards.test.js` walks all of `client/src` and will fail the suite if the new
+components introduce a `defaultProps` assignment or a `react-transition-group` consumer without
+`nodeRef` (§8.6). Both are silent at build time, so the test is the only signal.
 
-Run `npm test` before pushing.
+Baseline to beat: **567/567 green at HEAD `011afc8`** (verified 2026-08-10). Run `npm test` before
+pushing.
 
 ---
 
