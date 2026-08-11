@@ -39,7 +39,7 @@ const I18N_LOCALE = { en: "en-US", fr: "fr-FR", es: "es-ES" };
  *   countdown line; the date stays the year-round Saisons-popover trigger.
  * @returns {JSX.Element} time slab
  */
-const TimeBlock = ({ compact }) => {
+const TimeBlock = ({ compact = false }) => {
   const { clockTime } = useContext(UiPrefsContext);
   const { mapTimezone } = useContext(LocationContext);
   const { sunriseTime, sunsetTime } = useContext(WeatherDataContext);
@@ -181,10 +181,6 @@ const TimeBlock = ({ compact }) => {
 
 TimeBlock.propTypes = {
   compact: PropTypes.bool,
-};
-
-TimeBlock.defaultProps = {
-  compact: false,
 };
 
 export default TimeBlock;

@@ -45,8 +45,4 @@ RailSquareButton.propTypes = {
   className: PropTypes.string,
 };
 
-RailSquareButton.defaultProps = {
-  className: "",
-};
-
 export default RailSquareButton;

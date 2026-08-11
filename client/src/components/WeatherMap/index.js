@@ -89,6 +89,15 @@ import {
 } from "./geometry";
 
 
+/* Shared empty-list default for the alert overlay components below.
+ * Module-scope so an omitted prop keeps ONE stable reference across
+ * renders — a bare `= []` signature default would allocate a fresh
+ * array per render and bust AlertGeometryOverlay's `[govAlerts, …]`
+ * memo chain (the same reference-stability contract as the layer-prop
+ * memos in the main component). Frozen so nothing can mutate the
+ * shared default. */
+const NO_ALERTS = Object.freeze([]);
+
 /* Zoom threshold above which the analysis-zone dashed circles AND
  * the sampling-point dots stop rendering. At z=13 the inner 50 km
  * circle has a pixel radius of ~3700 px (≈ 2.7× the iPad viewport
@@ -467,7 +476,7 @@ ZoomAnchorOffset.propTypes = {
  *   casing beneath the coloured stroke; dark/nightRed skip it)
  * @returns {JSX.Element|null}
  */
-const AlertGeometryOverlay = ({ highlightedAlertId, govAlerts, nightRed, dark }) => {
+const AlertGeometryOverlay = ({ highlightedAlertId = null, govAlerts = NO_ALERTS, nightRed, dark = false }) => {
   const map = useMap();
   // Find the matching alert. Memo because govAlerts changes on every
   // poll cycle but we only care about the active highlight.
@@ -525,12 +534,6 @@ AlertGeometryOverlay.propTypes = {
   dark: PropTypes.bool,
 };
 
-AlertGeometryOverlay.defaultProps = {
-  highlightedAlertId: null,
-  govAlerts: [],
-  dark: false,
-};
-
 /**
  * Display-only overlay painting every active alert within the user's
  * radius (the "Nearby alerts" survey) as a tier-coloured GeoJSON
@@ -547,7 +550,7 @@ AlertGeometryOverlay.defaultProps = {
  * @param {boolean} props.dark dark-mode flag (light mode adds the dark casing; dark/nightRed skip it)
  * @returns {JSX.Element|null} the polygon layers, or null when the list is empty
  */
-const NearbyAlertsOverlay = ({ alerts, nightRed, dark }) => {
+const NearbyAlertsOverlay = ({ alerts = NO_ALERTS, nightRed, dark = false }) => {
   if (!Array.isArray(alerts) || alerts.length === 0) return null;
   // Sort ascending by severity tier so the most severe polygon is inserted
   // last and Leaflet paints it on top of any lower-tier polygon it overlaps
@@ -581,11 +584,6 @@ NearbyAlertsOverlay.propTypes = {
   dark: PropTypes.bool,
 };
 
-NearbyAlertsOverlay.defaultProps = {
-  alerts: [],
-  dark: false,
-};
-
 /**
  * Content of the nearby-alerts tap popup (Phase 3b). Shows the subject of
  * each alert the tap landed in — source badge + severity chip + title —
@@ -600,7 +598,7 @@ NearbyAlertsOverlay.defaultProps = {
  * @param {() => void} props.onRecenter called when "Re-center here" is tapped
  * @returns {JSX.Element} popup content
  */
-const SurveyAlertContent = ({ alerts, onRecenter }) => {
+const SurveyAlertContent = ({ alerts = NO_ALERTS, onRecenter }) => {
   const { t, i18n } = useTranslation();
   const lang = (i18n.language || "en").slice(0, 2);
   return (
@@ -627,10 +625,6 @@ const SurveyAlertContent = ({ alerts, onRecenter }) => {
 SurveyAlertContent.propTypes = {
   alerts: PropTypes.array,
   onRecenter: PropTypes.func.isRequired,
-};
-
-SurveyAlertContent.defaultProps = {
-  alerts: [],
 };
 
 /**

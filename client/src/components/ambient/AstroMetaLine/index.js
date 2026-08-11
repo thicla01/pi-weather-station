@@ -39,7 +39,7 @@ const TICK_MS = 60 * 1000;
  *   a mid-word ellipsis).
  * @returns {JSX.Element} the meta-line
  */
-const AstroMetaLine = ({ shortPhaseName }) => {
+const AstroMetaLine = ({ shortPhaseName = false }) => {
   const { sunriseTime, sunsetTime } = useContext(WeatherDataContext);
   const { clockTime } = useContext(UiPrefsContext);
   const { mapTimezone } = useContext(LocationContext);
@@ -135,10 +135,6 @@ const AstroMetaLine = ({ shortPhaseName }) => {
 
 AstroMetaLine.propTypes = {
   shortPhaseName: PropTypes.bool,
-};
-
-AstroMetaLine.defaultProps = {
-  shortPhaseName: false,
 };
 
 export default AstroMetaLine;

@@ -46,7 +46,7 @@ import styles from "./styles.css";
  * @param {React.ReactNode} props.children Body content slot
  * @returns {JSX.Element|null}
  */
-const DetailsPopover = ({ open, onClose, title, anchor, triggerRef, portal, children }) => {
+const DetailsPopover = ({ open, onClose, title, anchor = "right", triggerRef = null, portal = false, children = null }) => {
   const popoverRef = useRef(null);
   const [portalPos, setPortalPos] = useState(null);
 
@@ -258,13 +258,6 @@ DetailsPopover.propTypes = {
   triggerRef: PropTypes.object,
   portal: PropTypes.bool,
   children: PropTypes.node,
-};
-
-DetailsPopover.defaultProps = {
-  anchor: "right",
-  triggerRef: null,
-  portal: false,
-  children: null,
 };
 
 export default DetailsPopover;

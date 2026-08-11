@@ -28,7 +28,7 @@ import styles from "./styles.css";
  * @param {"left"|"right"} [props.anchor]
  * @returns {JSX.Element} popover shell with reverse-geocode details
  */
-const LocationDetailsPopover = ({ open, onClose, triggerRef, anchor }) => {
+const LocationDetailsPopover = ({ open, onClose, triggerRef = null, anchor = "left" }) => {
   const { reverseGeoResult, mapGeo } = useContext(AppContext);
   const { t } = useTranslation();
 
@@ -142,11 +142,6 @@ LocationDetailsPopover.propTypes = {
   onClose: PropTypes.func.isRequired,
   triggerRef: PropTypes.object,
   anchor: PropTypes.oneOf(["left", "right"]),
-};
-
-LocationDetailsPopover.defaultProps = {
-  triggerRef: null,
-  anchor: "left",
 };
 
 export default LocationDetailsPopover;

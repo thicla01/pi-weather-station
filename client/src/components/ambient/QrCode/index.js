@@ -27,7 +27,7 @@ import styles from "./styles.css";
  * @param {string} [props.title] — accessible title for screen readers
  * @returns {JSX.Element} QR SVG wrapped in a flex container
  */
-const QrCode = ({ value, size, title }) => {
+const QrCode = ({ value, size = 96, title }) => {
   const { darkMode } = useContext(AppContext);
   const tod = useTimeOfDay();
   const palette = getPalette(tod);
@@ -58,11 +58,6 @@ QrCode.propTypes = {
   value: PropTypes.string.isRequired,
   size: PropTypes.number,
   title: PropTypes.string,
-};
-
-QrCode.defaultProps = {
-  size: 96,
-  title: undefined,
 };
 
 export default QrCode;
