@@ -29,6 +29,16 @@
   box-shadow: inset 2px 0 0 0 var(--c-accent);
 }
 
+/* The default-location row. It is not one of the user's pins — it is not
+ * stored and cannot be edited — so a hairline separates it from the list
+ * below rather than letting it read as "favorite number one". Suppressed
+ * entirely when a real favorite already sits on the same coordinates. */
+.rowHome {
+  margin-bottom: 4px;
+  padding-bottom: 4px;
+  border-bottom: 1px solid var(--c-border);
+}
+
 .rowLabel {
   flex: 1;
   min-width: 0;
@@ -118,34 +128,18 @@
   color: var(--c-text-dim);
 }
 
-.footer {
+/* Holds the Edit toggle (right-aligned, secondary) plus any full-width
+ * note or error. Collapses to nothing when neither is rendered — the
+ * border-top would otherwise draw a stray hairline under the list. */
+.footer:not(:empty) {
   display: flex;
   flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 8px;
   margin-top: 8px;
   padding-top: 8px;
   border-top: 1px solid var(--c-border);
-}
-
-.currentPosition.currentPosition {
-  flex: 1;
-  min-width: 0;
-  min-height: 44px;
-  padding: 0 10px;
-  border: 1px solid var(--c-border);
-  border-radius: 8px;
-  background: var(--c-surface-hybrid, var(--c-surface));
-  color: var(--c-text);
-  font-size: 12px;
-  font-weight: 600;
-  cursor: pointer;
-  -webkit-tap-highlight-color: transparent;
-}
-
-.currentPosition.currentPosition:disabled {
-  opacity: 0.5;
-  cursor: default;
 }
 
 .editToggle.editToggle {

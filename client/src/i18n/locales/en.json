@@ -262,7 +262,7 @@
     "pin": "Pin this place",
     "pinned": "Pinned",
     "full": "List full — remove one first",
-    "currentPosition": "Current position",
+    "homeFallback": "Home position",
     "setDefault": "Set as default",
     "isDefault": "Default",
     "remove": "Remove",
@@ -381,7 +381,7 @@
     "legendPrecip": "Precipitation"
   },
   "controls": {
-    "resetMapPosition": "Recenter map on current location",
+    "resetMapPosition": "Recenter the map on the home position",
     "showMarker": "Show location marker",
     "hideMarker": "Hide location marker",
     "showTimeline": "Show radar timeline",

@@ -262,7 +262,7 @@
     "pin": "Épingler ce lieu",
     "pinned": "Épinglé",
     "full": "Liste pleine — retirez-en un",
-    "currentPosition": "Position actuelle",
+    "homeFallback": "Position de départ",
     "setDefault": "Définir par défaut",
     "isDefault": "Par défaut",
     "remove": "Retirer",
@@ -381,7 +381,7 @@
     "legendPrecip": "Précipitations"
   },
   "controls": {
-    "resetMapPosition": "Recentrer la carte sur la position actuelle",
+    "resetMapPosition": "Recentrer la carte sur la position de départ",
     "showMarker": "Afficher le marqueur de position",
     "hideMarker": "Masquer le marqueur de position",
     "showTimeline": "Afficher la chronologie radar",
