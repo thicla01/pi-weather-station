@@ -139,13 +139,24 @@ export default function useAutoTabSelector(activeMetric, cardActivityRef) {
     setCommanded({ metric: null, source: null });
   }, []);
 
-  // Turning the feature off clears any standing command. Turning it back on
-  // resets the dwell floor + known-severe seed so a re-enable behaves like a
-  // fresh mount (no stale dwell silently suppressing the first switch).
-  useEffect(() => {
+  // Turning the feature off clears any standing command — applied DURING
+  // RENDER via the documented adjust-on-change pattern (prev-compare), so
+  // no setState runs synchronously inside an effect
+  // (react-hooks/set-state-in-effect). The re-enable half stays in the
+  // effect below: it writes refs, and ref writes are only legal outside
+  // render (react-hooks/refs).
+  const [prevAutoSelectTab, setPrevAutoSelectTab] = useState(autoSelectTab);
+  if (autoSelectTab !== prevAutoSelectTab) {
+    setPrevAutoSelectTab(autoSelectTab);
     if (!autoSelectTab) {
       setCommanded({ metric: null, source: null });
-    } else {
+    }
+  }
+  // Turning the feature back on resets the dwell floor + known-severe seed
+  // so a re-enable behaves like a fresh mount (no stale dwell silently
+  // suppressing the first switch).
+  useEffect(() => {
+    if (autoSelectTab) {
       lastAutoSwitchAtRef.current = null;
       knownSevereRef.current = null;
     }

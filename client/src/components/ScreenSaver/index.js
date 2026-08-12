@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useMemo, useRef, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
 import { format } from "date-fns";
@@ -133,7 +133,10 @@ const ScreenSaver = ({ stage }) => {
   // repeat the previous cell. We re-shuffle on viewport resize so the
   // 8 % inset always lands inside the new bounds.
   const [dotPos, setDotPos] = useState({ left: 0, top: 0 });
-  const lastCellRef = useMemo(() => ({ current: -1 }), []);
+  // A real ref, not a memoised `{current}` object: mutating a useMemo
+  // result violates react-hooks/immutability, and useRef is the sanctioned
+  // mutable container for exactly this render-independent bookkeeping.
+  const lastCellRef = useRef(-1);
   useEffect(() => {
     function placeDot() {
       const w = window.innerWidth;

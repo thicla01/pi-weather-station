@@ -161,18 +161,20 @@ const ChartTabs = () => {
   // `period`. A user gesture stamps a manual hold the hook honours; the
   // cardActivityRef feeds the touch active-reader inhibit (LLD §13).
   const { commandedMetric, autoSwitchSource, stampManualHold } = useAutoTabSelector(metric, cardActivityRef);
-  const appliedCmdRef = useRef(null);
-  useEffect(() => {
-    if (!commandedMetric) {
-      appliedCmdRef.current = null;
-      return;
+  // A newly-commanded metric is applied DURING RENDER via the documented
+  // adjust-on-change pattern (both metric states are local to this
+  // component), replacing the former effect (react-hooks/set-state-in-
+  // effect). `appliedCmd` tracks the last command seen so a given command
+  // is applied exactly once and a cleared command (null) re-arms the
+  // tracker — same semantics the old appliedCmdRef encoded.
+  const [appliedCmd, setAppliedCmd] = useState(null);
+  if (commandedMetric !== appliedCmd) {
+    setAppliedCmd(commandedMetric);
+    if (commandedMetric) {
+      const idx = METRICS.indexOf(commandedMetric);
+      if (idx !== -1 && idx !== metricIndex) setMetricIndex(idx); // metric only — never period
     }
-    if (appliedCmdRef.current === commandedMetric) return; // already applied this command
-    const idx = METRICS.indexOf(commandedMetric);
-    if (idx === -1) return;
-    appliedCmdRef.current = commandedMetric;
-    if (idx !== metricIndex) setMetricIndex(idx); // metric only — never period
-  }, [commandedMetric, metricIndex, setMetricIndex]);
+  }
 
   // Tap-on-chart cycles to the next metric (wraps) — kept from the
   // dot-cycle era because users already know the gesture. A cycle is a

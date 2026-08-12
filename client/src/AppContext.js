@@ -171,15 +171,19 @@ export function AppContextProvider({ children }) {
   // Kong reads "21:00" (HKT) rather than "09:00" (EDT) for the same
   // moment. Falls back to undefined → Intl uses host TZ → Clock
   // behaves like before.
-  const [mapTimezone, setMapTimezone] = useState(undefined);
-  useEffect(() => {
-    if (!mapGeo) return;
+  // Pure derivation (tz-lookup is a synchronous table lookup), so a memo
+  // replaces the old state+effect pair — one render fewer per move, and no
+  // setState inside an effect (react-hooks/set-state-in-effect). `mapGeo`
+  // never returns to null once set, so memoising directly is
+  // behaviour-identical to the old keep-last-value effect.
+  const mapTimezone = useMemo(() => {
+    if (!mapGeo) return undefined;
     try {
-      setMapTimezone(tzlookup(mapGeo.latitude, mapGeo.longitude));
+      return tzlookup(mapGeo.latitude, mapGeo.longitude);
     } catch {
       // tz-lookup throws on out-of-range coords (e.g. ocean buoy with
       // no nearby polygon) — fall back to host timezone silently.
-      setMapTimezone(undefined);
+      return undefined;
     }
   }, [mapGeo]);
 
@@ -204,7 +208,14 @@ export function AppContextProvider({ children }) {
   // result in place until the new fetch settles, so the panel shows
   // the old city for a beat rather than going blank — matches the
   // pre-hoist LocationName behaviour.
-  const [reverseGeoResult, setReverseGeoResult] = useState(undefined);
+  // Raw fetch result; consumers read the DERIVED `reverseGeoResult` below,
+  // which collapses to the settled-empty state (null) whenever the fetch
+  // cannot run at all — the derivation replaces the old synchronous
+  // setReverseGeoResult(null) inside the effect (react-hooks/
+  // set-state-in-effect). Across a mapGeo change the raw value keeps the
+  // previous payload until the new fetch settles, preserving the
+  // "old city for a beat" behaviour documented above.
+  const [reverseGeoRaw, setReverseGeoRaw] = useState(undefined);
 
   // Human name of the DEFAULT location (`browserGeo`), shown on the Places
   // popover's home row. Captured rather than fetched: on a cold boot `mapGeo`
@@ -221,16 +232,30 @@ export function AppContextProvider({ children }) {
   useEffect(() => { browserGeoRef.current = browserGeo; }, [browserGeo]);
   const homeLabelCapturedRef = useRef(false);
 
+  // Gate-off teardown: destroy the raw payload like the pre-v7 code did
+  // (prev-compare adjust-on-change, own state) so a later gate re-open can
+  // never re-expose a payload fetched for coordinates the map has since
+  // left (gate off → pan → gate on would otherwise show the OLD city's
+  // name at the new location until the fresh fetch settles). While the
+  // gate is off the derivation below already reads null; the `undefined`
+  // written here means a re-opened gate shows the in-flight placeholder
+  // until its fetch settles.
+  const reverseGeoGate = Boolean(mapGeo && reverseGeoApiKey);
+  const [prevReverseGeoGate, setPrevReverseGeoGate] = useState(reverseGeoGate);
+  if (reverseGeoGate !== prevReverseGeoGate) {
+    setPrevReverseGeoGate(reverseGeoGate);
+    if (!reverseGeoGate) setReverseGeoRaw(undefined);
+  }
   useEffect(() => {
     if (!mapGeo || !reverseGeoApiKey) {
-      setReverseGeoResult(null);
+      // No fetch possible — the derived value below already reads null.
       return undefined;
     }
     let cancelled = false;
     reverseGeocode({ lat: mapGeo.latitude, lon: mapGeo.longitude })
       .then((res) => {
         if (cancelled) return;
-        setReverseGeoResult(res || null);
+        setReverseGeoRaw(res || null);
         // Capture the home name on the first result that describes home.
         const home = browserGeoRef.current;
         const atHome = home
@@ -244,9 +269,10 @@ export function AppContextProvider({ children }) {
           }
         }
       })
-      .catch(() => { if (!cancelled) setReverseGeoResult(null); });
+      .catch(() => { if (!cancelled) setReverseGeoRaw(null); });
     return () => { cancelled = true; };
   }, [mapGeo, reverseGeoApiKey]);
+  const reverseGeoResult = (!mapGeo || !reverseGeoApiKey) ? null : reverseGeoRaw;
 
   // Push the current map view to the server's kiosk-location cache so
   // background daemons that don't know about React state — currently
@@ -625,11 +651,14 @@ export function AppContextProvider({ children }) {
   }, []);
   // Reset cycle when the alert list shrinks (an alert expired, a new
   // payload landed with fewer entries). Otherwise the index could point
-  // past the end and render the wrong description.
-  useEffect(() => {
-    const len = Array.isArray(govAlerts) ? govAlerts.length : 0;
-    if (len > 0 && govAlertIdx >= len) setGovAlertIdx(0);
-  }, [govAlerts, govAlertIdx]);
+  // past the end and render the wrong description. Clamped DURING RENDER
+  // (the documented adjust-on-change pattern — this is React's own
+  // clamp-the-selection example) instead of in an effect, so the wrong
+  // description never even paints once.
+  {
+    const govAlertLen = Array.isArray(govAlerts) ? govAlerts.length : 0;
+    if (govAlertLen > 0 && govAlertIdx >= govAlertLen) setGovAlertIdx(0);
+  }
   // v3.1 Phase 4: the alert head (AlertBanner) is now the user-facing
   // toggle for the detail body (AlertDetailInline). Hoisting the
   // `expanded` state to context lets both components read/write a
@@ -654,15 +683,20 @@ export function AppContextProvider({ children }) {
   // Collapse the detail whenever the active alert changes (cycle bumps
   // the index or a new payload lands). Avoids the case where the user
   // expanded alert A's description, the list reshuffles, and they're
-  // suddenly reading alert B's body without realising it.
-  useEffect(() => {
+  // suddenly reading alert B's body without realising it. Applied DURING
+  // RENDER via the prev-compare adjust-on-change pattern (all three are
+  // this provider's own state), replacing the former effect
+  // (react-hooks/set-state-in-effect).
+  const [prevGovAlertIdx, setPrevGovAlertIdx] = useState(govAlertIdx);
+  if (govAlertIdx !== prevGovAlertIdx) {
+    setPrevGovAlertIdx(govAlertIdx);
     setGovAlertExpanded(false);
     // Same logic for the map overlay (Phase 4d): if the active alert
     // changes (cycle / new payload), clear the geometry overlay so
     // the new alert's "Voir sur la carte" is a fresh affordance
     // rather than the previous alert's polygon ghost.
     setHighlightedAlertId(null);
-  }, [govAlertIdx]);
+  }
   const [animateWeatherMap, setAnimateWeatherMap] = useState(false);
   // Radar animation playback speed multiplier — 1× / 2× / 4× cycling.
   // Drives the per-frame interval in WeatherMap (MAP_CYCLE_RATE / radarSpeed).
@@ -2072,10 +2106,22 @@ export function AppContextProvider({ children }) {
   // doesn't keep stale polygons. Re-fetches when the radius changes. 5 min
   // cadence — the server caches the upstream feeds and the survey isn't
   // time-critical. Failures silently keep the previous list.
-  useEffect(() => {
-    if (!showWeatherAlerts || !mapGeo) {
+  // Gate-off clear applied DURING RENDER (prev-compare adjust-on-change
+  // pattern, own state) instead of synchronously inside the effect
+  // (react-hooks/set-state-in-effect) — the map drops stale polygons in
+  // the same render the toggle lands.
+  const nearbyGate = Boolean(showWeatherAlerts && mapGeo);
+  const [prevNearbyGate, setPrevNearbyGate] = useState(nearbyGate);
+  if (nearbyGate !== prevNearbyGate) {
+    setPrevNearbyGate(nearbyGate);
+    if (!nearbyGate) {
       setNearbyAlerts([]);
       setNearbyResidualCount(0);
+    }
+  }
+  useEffect(() => {
+    if (!showWeatherAlerts || !mapGeo) {
+      // Cleared during render above — nothing to poll.
       return undefined;
     }
     const NEARBY_ALERTS_INTERVAL = 5 * 60 * 1000;
@@ -2183,9 +2229,17 @@ export function AppContextProvider({ children }) {
   // Pollen — same cadence + skip pattern as the AQ poll above.
   // Gated on the opt-in `advanced.pollen.enabled` flag so installs
   // that don't care about pollen never burn the upstream quota.
+  // Gate-off clear during render (same prev-compare pattern as the
+  // nearby-alerts gate above).
+  const pollenGate = Boolean(mapGeo && pollenEnabled);
+  const [prevPollenGate, setPrevPollenGate] = useState(pollenGate);
+  if (pollenGate !== prevPollenGate) {
+    setPrevPollenGate(pollenGate);
+    if (!pollenGate) setPollenInfo(null);
+  }
   useEffect(() => {
     if (!mapGeo || !pollenEnabled) {
-      setPollenInfo(null);
+      // Cleared during render above — nothing to poll.
       return undefined;
     }
     const POLLEN_REFRESH_MS = 60 * 60 * 1000;

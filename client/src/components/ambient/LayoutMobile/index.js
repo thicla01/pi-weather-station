@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useRef, useState } from "react";
+import React, { useContext, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { ExpandIcon, RestoreIcon } from "~/components/WeatherMap/icons";
 import { UiPrefsContext, SystemContext, AppActionsContext } from "~/AppContext";
@@ -254,6 +254,20 @@ const LayoutMobile = () => {
     return () => setMobileRadarMaximized(null);
   }, [setMobileRadarMaximized]);
 
+  // Re-sync the pull indicator's transform after EVERY render while it is
+  // mounted (no dependency array — deliberate). React no longer renders
+  // the transform (reading pullDistanceRef during render violates
+  // react-hooks/refs), so a mid-pull re-render (armed flip, context poll)
+  // would otherwise leave whatever inline transform the DOM last had; this
+  // re-applies the value applyPull just wrote, never a stale one.
+  // useLayoutEffect (not useEffect) so the write lands before paint —
+  // pixel-sync matters during a live touch gesture.
+  useLayoutEffect(() => {
+    if (ptrIndicatorRef.current) {
+      ptrIndicatorRef.current.style.transform = `translateY(${pullDistanceRef.current}px)`;
+    }
+  });
+
   return (
     <div className={styles.layout}>
       {/* Pull-to-refresh indicator. Floats above the scroll content
@@ -263,12 +277,11 @@ const LayoutMobile = () => {
         <div
           ref={ptrIndicatorRef}
           className={styles.ptrIndicator}
-          /* Reads the LIVE ref at render time — deliberate: React
-           * re-applies this prop on every re-render while mounted
-           * (armed flips, context polls), and reading the ref means it
-           * always re-writes the value applyPull just set, never a
-           * stale one. See the applyPull comment in the touch effect. */
-          style={{ transform: `translateY(${pullDistanceRef.current}px)` }}
+          /* transform is managed imperatively: applyPull writes it
+           * during the gesture, and the no-deps useLayoutEffect below
+           * re-syncs it after every re-render. (It used to be a style
+           * prop reading pullDistanceRef at render time, but reading a
+           * ref during render violates react-hooks/refs.) */
           role="status"
           aria-live="polite"
         >

@@ -578,19 +578,26 @@ const SectionConfig = ({ ctx, lang, remote }) => {
   // Re-sync the draft whenever AppContext sends us fresh persisted
   // values (e.g. after a save round-trips successfully). Only sync
   // when the draft is clean for that field — never clobber the user's
-  // in-flight edits.
-  useEffect(() => {
-    setDraft((prev) => ({
-      mapApiKey: prev.mapApiKey === "" ? (mapApiKey || "") : prev.mapApiKey,
-      weatherApiKey: prev.weatherApiKey === "" ? (weatherApiKey || "") : prev.weatherApiKey,
-      reverseGeoApiKey: prev.reverseGeoApiKey === "" ? (reverseGeoApiKey || "") : prev.reverseGeoApiKey,
-      anthropicApiKey: prev.anthropicApiKey === "" ? (anthropicApiKey || "") : prev.anthropicApiKey,
-      airNowApiKey: prev.airNowApiKey === "" ? (airNowApiKey || "") : prev.airNowApiKey,
-      openAqApiKey: prev.openAqApiKey === "" ? (openAqApiKey || "") : prev.openAqApiKey,
-      customLat: prev.customLat === "" ? (customLat != null ? String(customLat) : "") : prev.customLat,
-      customLon: prev.customLon === "" ? (customLon != null ? String(customLon) : "") : prev.customLon,
-    }));
-  }, [mapApiKey, weatherApiKey, reverseGeoApiKey, anthropicApiKey, airNowApiKey, openAqApiKey, customLat, customLon]);
+  // in-flight edits. Applied DURING RENDER via the documented
+  // adjust-on-change pattern (draft is local state), replacing the
+  // former effect (react-hooks/set-state-in-effect).
+  const persisted = {
+    mapApiKey: mapApiKey || "",
+    weatherApiKey: weatherApiKey || "",
+    reverseGeoApiKey: reverseGeoApiKey || "",
+    anthropicApiKey: anthropicApiKey || "",
+    airNowApiKey: airNowApiKey || "",
+    openAqApiKey: openAqApiKey || "",
+    customLat: customLat != null ? String(customLat) : "",
+    customLon: customLon != null ? String(customLon) : "",
+  };
+  const [prevPersisted, setPrevPersisted] = useState(persisted);
+  if (Object.keys(persisted).some((k) => persisted[k] !== prevPersisted[k])) {
+    setPrevPersisted(persisted);
+    setDraft((prev) => Object.fromEntries(
+      Object.keys(persisted).map((k) => [k, prev[k] === "" ? persisted[k] : prev[k]])
+    ));
+  }
 
   // `isDirty` used to gate the Save button's disabled attribute, but
   // it caused the "Save click does nothing" UX bug — the button looked
