@@ -37,14 +37,31 @@ export default function useIdleDetection({
   // Last activity timestamp lives in a ref so listeners can update it
   // without triggering a re-render on every mouse twitch (we only care
   // about the threshold crossings, evaluated by the interval below).
-  const lastActivityRef = useRef(Date.now());
+  // Initialised to 0 and stamped inside the effect: `useRef(Date.now())`
+  // would call an impure function during render (react-hooks/purity).
+  const lastActivityRef = useRef(0);
+
+  // Disabled → stage is forced back to 0 during render (the documented
+  // adjust-on-change pattern) instead of synchronously inside the effect
+  // (react-hooks/set-state-in-effect). Converges in one extra render.
+  if (!enabled && stage !== 0) {
+    setStage(0);
+  }
 
   useEffect(() => {
     if (!enabled) {
-      // Stay at stage 0 and skip all the listeners / interval. Cleaner
-      // than running them and short-circuiting in the interval body.
-      setStage(0);
+      // Stay at stage 0 (enforced during render above) and skip all the
+      // listeners / interval. Cleaner than running them and
+      // short-circuiting in the interval body.
       return undefined;
+    }
+    // Stamp the baseline only on the FIRST arm (ref still 0) — re-runs on
+    // settings changes keep the real last-activity timestamp, exactly like
+    // the old mount-time `useRef(Date.now())` init. Re-stamping on every
+    // re-run would wake a sleeping kiosk whenever sleep settings are saved
+    // REMOTELY (SSH tunnel), where no on-kiosk interaction happened.
+    if (lastActivityRef.current === 0) {
+      lastActivityRef.current = Date.now();
     }
 
     const markActive = () => {

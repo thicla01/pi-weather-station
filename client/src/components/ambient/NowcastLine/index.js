@@ -1,4 +1,4 @@
-import React, { useContext, useMemo } from "react";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
 import daySunny from "@iconify/icons-wi/day-sunny";
@@ -31,6 +31,9 @@ import styles from "./styles.css";
 // .radarFrameTs), not our own fetch-success, so a successful poll that
 // returned a stale newest-frame is still treated as stale.
 const RADAR_STALE_MS = 15 * 60 * 1000;
+// Cadence of the staleness clock below. One minute is plenty against a
+// 15-minute staleness horizon.
+const STALE_CHECK_INTERVAL_MS = 60 * 1000;
 
 // `currentlyPrecipitating` is passed false on purpose. It only affects the
 // bumped-tier wording (alert.*Intensifying vs alert.*Approaching) inside
@@ -139,6 +142,19 @@ const NowcastLine = () => {
   const outerConf = radar && radar.outerTrendConfidence;
   const radarFrameTs = radar && radar.radarFrameTs;
 
+  // Radar-freshness clock — a 60 s state tick instead of `Date.now()` in
+  // the render body (react-hooks/purity). The tick matters beyond lint
+  // compliance: the stale flip needs a time source that fires even when the
+  // radar context itself has gone quiet — which is precisely the failure
+  // being detected — whereas a render-time `Date.now()` only re-evaluated
+  // when something *else* re-rendered the line. Same pattern as
+  // RadarTimeline's `nowSec` (v2.17).
+  const [nowTs, setNowTs] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNowTs(Date.now()), STALE_CHECK_INTERVAL_MS);
+    return () => clearInterval(id);
+  }, []);
+
   // Memoize on the eight risk/trend fields ONLY (never on currentMapZoom,
   // which also lives in RadarStateContext) so a map pan/zoom can't churn the
   // verdict — same field set the auto-tab selector memoizes on.
@@ -191,7 +207,7 @@ const NowcastLine = () => {
   // Radar-freshness gate: when the newest actual frame is stale (or never
   // loaded), the radar can't honestly say "no rain within X" — fall back to
   // "Radar unavailable". The light-precip sub-states keep their own text.
-  const radarStale = radarFrameTs == null || (Date.now() - radarFrameTs > RADAR_STALE_MS);
+  const radarStale = radarFrameTs == null || (nowTs - radarFrameTs > RADAR_STALE_MS);
 
   let calmText;
   if (calm.i18nKey) {

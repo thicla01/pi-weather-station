@@ -205,10 +205,8 @@ const DebugPanel = () => {
   // (server middleware), so we don't even bother fetching for remote
   // clients — the panel itself won't open per the v2 ControlButtons
   // gate, but defence-in-depth.
-  const fetchDebug = useCallback(() => {
+  const requestDebug = useCallback(() => {
     if (!isLocal) return;
-    setLoading(true);
-    setError(null);
     axios.get("/api/debug")
       .then((res) => {
         setData(res.data);
@@ -219,10 +217,29 @@ const DebugPanel = () => {
       })
       .finally(() => setLoading(false));
   }, [isLocal]);
+  // Button path (ACTUALISER) — synchronous resets are unrestricted in
+  // event handlers, so this keeps the original one-call shape.
+  const fetchDebug = useCallback(() => {
+    setLoading(true);
+    setError(null);
+    requestDebug();
+  }, [requestDebug]);
 
+  // Panel-open transition: reset the loading/error surface DURING RENDER
+  // (documented adjust-on-change pattern) rather than synchronously inside
+  // the effect (react-hooks/set-state-in-effect); the effect below only
+  // fires the request itself.
+  const [prevMenuOpen, setPrevMenuOpen] = useState(debugMenuOpen);
+  if (debugMenuOpen !== prevMenuOpen) {
+    setPrevMenuOpen(debugMenuOpen);
+    if (debugMenuOpen) {
+      setLoading(true);
+      setError(null);
+    }
+  }
   useEffect(() => {
-    if (debugMenuOpen) fetchDebug();
-  }, [debugMenuOpen, fetchDebug]);
+    if (debugMenuOpen) requestDebug();
+  }, [debugMenuOpen, requestDebug]);
 
   // The panel renders nothing when closed, when the user isn't on a
   // local client, or when DEBUG=true isn't set on the service. The v2
@@ -969,9 +986,12 @@ const LogsBlock = ({ logs, lang }) => {
  */
 const useClientMetrics = () => {
   const [fps, setFps] = useState(null);
-  const [metrics, setMetrics] = useState({ pageLoad: null, heap: null, apiCalls: [], screen: null });
-  const rafRef = useRef(null);
-  useEffect(() => {
+  // The static snapshot (page load, heap, endpoint roll-up, screen) is
+  // computed once in the lazy initializer — Performance-API reads only —
+  // instead of being setState'd synchronously from the mount effect
+  // (react-hooks/set-state-in-effect). The effect below only runs the
+  // live-FPS rig, whose setFps calls are all asynchronous callbacks.
+  const [metrics] = useState(() => {
     const [navEntry] = performance.getEntriesByType("navigation");
     const pageLoad = navEntry ? Math.round(navEntry.loadEventEnd) : null;
     const heap = performance.memory
@@ -1007,8 +1027,10 @@ const useClientMetrics = () => {
       height: window.screen.height,
       dpr: window.devicePixelRatio || 1,
     };
-    setMetrics({ pageLoad, heap, apiCalls, screen });
-
+    return { pageLoad, heap, apiCalls, screen };
+  });
+  const rafRef = useRef(null);
+  useEffect(() => {
     const timestamps = [];
     const WINDOW_MS = 2000;
     let timeoutId = null;

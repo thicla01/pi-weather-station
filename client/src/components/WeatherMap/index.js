@@ -98,6 +98,12 @@ import {
  * shared default. */
 const NO_ALERTS = Object.freeze([]);
 
+/* Zero rail offset — frozen module constant for the same referential-
+ * stability reason as NO_ALERTS above (useRailOffset derives it whenever
+ * radar focus mode hides the rail, so the zero case must keep one stable
+ * reference across renders). */
+const ZERO_RAIL_OFFSET = Object.freeze({ x: 0, y: 0 });
+
 /* Zoom threshold above which the analysis-zone dashed circles AND
  * the sampling-point dots stop rendering. At z=13 the inner 50 km
  * circle has a pixel radius of ~3700 px (≈ 2.7× the iPad viewport
@@ -213,16 +219,14 @@ MapClickHandler.propTypes = {
  */
 function useRailOffset() {
   const { desktopRadarMaximized, piRadarMaximized } = useContext(SystemContext);
-  const [offset, setOffset] = useState({ x: 0, y: 0 });
+  const focusActive = desktopRadarMaximized || piRadarMaximized;
+  const [measured, setMeasured] = useState(ZERO_RAIL_OFFSET);
   useEffect(() => {
-    // Focus mode hides HeroBand + rail via display:none. Bail with
-    // a zero offset so the marker pans to the geometric centre of
-    // the now-empty viewport. The flag is also in the dep array so
-    // toggling focus re-runs this effect (without it the offset
-    // stayed at the last-measured value and the marker stayed
-    // shifted as if the rail were still visible).
-    if (desktopRadarMaximized || piRadarMaximized) {
-      setOffset({ x: 0, y: 0 });
+    // Focus mode hides HeroBand + rail via display:none — the hook's
+    // return value DERIVES to zero below (no state write here:
+    // react-hooks/set-state-in-effect), so there is nothing to measure.
+    // The flag is in the dep array so leaving focus re-measures.
+    if (focusActive) {
       return undefined;
     }
     let cancelled = false;
@@ -243,7 +247,7 @@ function useRailOffset() {
       const railOverlaysMap = !!hero;
       const x = (rail && railOverlaysMap) ? Math.round(rail.getBoundingClientRect().width) : 0;
       const y = hero ? Math.round(hero.getBoundingClientRect().height) : 0;
-      setOffset({ x, y });
+      setMeasured({ x, y });
     };
     const handle = requestAnimationFrame(measure);
     // Re-measure on viewport size changes — LayoutDesktop bumps rail
@@ -255,8 +259,12 @@ function useRailOffset() {
       cancelAnimationFrame(handle);
       window.removeEventListener("resize", measure);
     };
-  }, [desktopRadarMaximized, piRadarMaximized]);
-  return offset;
+  }, [focusActive]);
+  // Focus mode → a stable zero offset by derivation (frozen module
+  // constant). On exit, the last pre-focus measurement is re-exposed for
+  // the ~1 frame until the re-measure lands — the rail geometry is
+  // unchanged across a focus round-trip in practice.
+  return focusActive ? ZERO_RAIL_OFFSET : measured;
 }
 
 const PanHandler = ({ panToCoords, setPanToCoords, railOffset }) => {
@@ -411,9 +419,19 @@ ZoomLevelHandler.propTypes = {
 const ZoomAnchorOffset = ({ railOffset }) => {
   const map = useMap();
   // Latest offset without re-running the patch effect on every change —
-  // useRailOffset returns a fresh object each render.
+  // useRailOffset can return a fresh object per measurement. Mirrored via
+  // an effect (same idiom as AppContext's govAlertsRef): writing the ref
+  // during render violates react-hooks/refs.
   const offsetRef = useRef(railOffset);
-  offsetRef.current = railOffset;
+  useEffect(() => {
+    offsetRef.current = railOffset;
+  }, [railOffset]);
+  // The whole point of this component is to monkey-patch two methods on
+  // the imperative Leaflet map instance — an external system handle, not
+  // React-managed state — and restore the originals in the cleanup. The
+  // react-hooks/immutability rule cannot know that, so it is suppressed
+  // for this effect only.
+  // eslint-disable-next-line react-hooks/immutability -- deliberate Leaflet monkey-patch, restored on cleanup
   useEffect(() => {
     const origZoomIn = map.zoomIn;
     const origZoomOut = map.zoomOut;
@@ -428,6 +446,7 @@ const ZoomAnchorOffset = ({ railOffset }) => {
     // ZoomControl always passes an explicit delta; default to zoomDelta
     // for any caller that omits it (mirrors Leaflet's own fallback).
     const resolveDelta = (delta) => (delta == null ? map.options.zoomDelta : delta);
+    // eslint-disable-next-line react-hooks/immutability -- deliberate monkey-patch of the imperative Leaflet map instance (external handle, not React state); originals restored in the cleanup below
     map.zoomIn = function patchedZoomIn(delta, options) {
       const offset = offsetRef.current;
       if (!offset || (!offset.x && !offset.y)) return origZoomIn.call(map, delta, options);
@@ -832,7 +851,6 @@ const WeatherMap = ({ zoom, dark }) => {
   // so a stale frame window is never a silent failure (Phase 3 design:
   // "no silent failure" on the freshness chip).
   const [timestampsStale, setTimestampsStale] = useState(false);
-  const [mapTimestamp, setMapTimestamp] = useState(null);
   // Current playback position in the timeline. -1 = "use the most recent
   // past frame" (initial mount). Kept as local state — earlier we tried
   // hoisting it to AppContext for theoretical centralisation, but every
@@ -957,18 +975,38 @@ const WeatherMap = ({ zoom, dark }) => {
     mapTimestamps.forEach((f, i) => { if (f.kind === "past") idx = i; });
     return idx >= 0 ? idx : mapTimestamps.length - 1;
   }, [mapTimestamps]);
+  // "Is the playhead a live user control right now?" — the boolean that
+  // gates the pin-to-now derivation below AND the transition snap further
+  // down. In the v3.3 priority model the scrubber's ephemeral
+  // `piScrubberOpen` flag replaces the persisted pref as the visibility
+  // control (the dock button never touches the pref), so pinning on the
+  // raw pref alone would freeze the priority-MIN scrubber whenever the
+  // pref happens to be persisted false.
+  const priorityActive = priorityViewsEnabled() && piLayoutState != null;
+  const timelineEngaged = priorityActive
+    ? (piLayoutState === "min" && piScrubberOpen)
+    : radarTimelineVisible;
+
   const currentMapTimestampIdx = useMemo(() => {
     if (!mapTimestamps || mapTimestamps.length === 0) return 0;
+    // Timeline not engaged ⇒ resolve to the newest past frame, whatever
+    // radarFrameIdx holds. This is what keeps a hidden radar tracking
+    // "now" across the 10-min frame refreshes (the pre-v7 snap effect
+    // re-ran on every refresh via its mapTimestamps/lastPastIdx deps and
+    // re-pinned the state; this derivation does the same job with no
+    // state write), and it also neutralises a stray animation tick that
+    // lands between the hide and the interval cleanup — the display
+    // ignores the drifted index.
+    if (!timelineEngaged) return lastPastIdx;
     if (radarFrameIdx < 0 || radarFrameIdx >= mapTimestamps.length) return lastPastIdx;
     return radarFrameIdx;
-  }, [radarFrameIdx, mapTimestamps, lastPastIdx]);
+  }, [radarFrameIdx, mapTimestamps, lastPastIdx, timelineEngaged]);
 
-  // Keep the displayed timestamp in sync with the current index
-  useEffect(() => {
-    if (mapTimestamps) {
-      setMapTimestamp(mapTimestamps[currentMapTimestampIdx]);
-    }
-  }, [currentMapTimestampIdx, mapTimestamps]);
+  // The displayed frame is a pure derivation of the resolved index —
+  // formerly `mapTimestamp` state kept in sync by an effect
+  // (react-hooks/set-state-in-effect); its only consumer is the radar
+  // tile URL below.
+  const mapTimestamp = mapTimestamps ? mapTimestamps[currentMapTimestampIdx] : null;
 
   // Poll /api/radar-risk every 5 min (and on mapGeo / config changes) to
   // colour the dashed circles by intensity. Gated by the same conditions
@@ -983,18 +1021,25 @@ const WeatherMap = ({ zoom, dark }) => {
   const riskFetchEnabled = radarAnalysisEnabled && Boolean(mapGeo);
   useEffect(() => {
     if (!riskFetchEnabled) {
-      setInnerRisk(null);
-      setOuterRisk(null);
-      setInnerTrend("stable");
-      setOuterTrend("stable");
-      setInnerBumped(false);
-      setOuterBumped(false);
-      setInnerTrendConfidence(0);
-      setOuterTrendConfidence(0);
-      setInnerDirectionVectors([]);
-      setOuterDirectionVectors([]);
-      setRiskSamples(new Map());
-      return undefined;
+      // Clear the rings/samples ONE TICK later: these setters are context
+      // actions (AppContext state), so neither a synchronous effect-body
+      // write (react-hooks/set-state-in-effect) nor a render-phase write
+      // (cross-component) is allowed. The cleanup cancels a pending clear
+      // if the flag flips back before it fires.
+      const clearId = setTimeout(() => {
+        setInnerRisk(null);
+        setOuterRisk(null);
+        setInnerTrend("stable");
+        setOuterTrend("stable");
+        setInnerBumped(false);
+        setOuterBumped(false);
+        setInnerTrendConfidence(0);
+        setOuterTrendConfidence(0);
+        setInnerDirectionVectors([]);
+        setOuterDirectionVectors([]);
+        setRiskSamples(new Map());
+      }, 0);
+      return () => clearTimeout(clearId);
     }
     // Cancellation flag (same pattern as AppContext's AQI / pollen
     // effects): a slow response keyed to the previous position must not
@@ -1091,23 +1136,30 @@ const WeatherMap = ({ zoom, dark }) => {
   // once the timestamps load, so the first paint shows current radar
   // (not the 90-min-old first historical frame). One-shot — once the
   // user scrubs or starts animation, radarFrameIdx is no longer < 0.
-  useEffect(() => {
-    if (mapTimestamps && radarFrameIdx < 0) {
-      setRadarFrameIdx(lastPastIdx);
-    }
-  }, [mapTimestamps, lastPastIdx, radarFrameIdx]);
+  // Applied DURING RENDER (adjust-on-change; radarFrameIdx is local
+  // state, and the set converges immediately) rather than in an effect
+  // (react-hooks/set-state-in-effect).
+  if (mapTimestamps && radarFrameIdx < 0) {
+    setRadarFrameIdx(lastPastIdx);
+  }
 
-  // When the timeline overlay is hidden, snap the playhead back to the
-  // most recent past frame so the user is never left looking at a stale
-  // historical frame or a forecast frame they had been scrubbing
-  // through. The toggleRadarTimelineVisible callback in AppContext also
-  // pauses any running animation, so the combination is "hide the bar
-  // and show me current radar."
-  useEffect(() => {
-    if (!radarTimelineVisible && mapTimestamps) {
+  // When the timeline is not engaged the user must "see current radar"
+  // (the toggleRadarTimelineVisible callback in AppContext also pauses
+  // any running animation) — that guarantee lives in the
+  // currentMapTimestampIdx derivation above, which pins the DISPLAYED
+  // frame to the newest past frame for as long as the timeline is not
+  // engaged, following every 10-min frame refresh. This block only
+  // normalises the CONCRETE playhead state on each engagement
+  // transition (prev-compare adjust-on-change, local state) so the
+  // timeline (re)opens at "now" and any index drift a stray animation
+  // tick left behind is cleaned up.
+  const [prevTimelineEngaged, setPrevTimelineEngaged] = useState(timelineEngaged);
+  if (timelineEngaged !== prevTimelineEngaged) {
+    setPrevTimelineEngaged(timelineEngaged);
+    if (mapTimestamps) {
       setRadarFrameIdx(lastPastIdx);
     }
-  }, [radarTimelineVisible, mapTimestamps, lastPastIdx]);
+  }
 
   // ── Referentially-stable props for the react-leaflet layers ─────────
   // react-leaflet v4 compares props by reference: a fresh array/object
@@ -1205,7 +1257,9 @@ const WeatherMap = ({ zoom, dark }) => {
   // piLayoutState null or flag off) it falls back to the persisted pref exactly as
   // before. ONE boolean drives BOTH the wrapper padding AND the actual render
   // below, so they can't desync (no half-pane flash on a MIN→MID exit).
-  const priorityActive = priorityViewsEnabled() && piLayoutState != null;
+  // `priorityActive` + the engagement branch are hoisted above the
+  // currentMapTimestampIdx memo (they also gate the pin-to-now
+  // derivation); `timelineShown` adds the render-only conditions.
   const timelineShown = Boolean(mapTimestamps && mapTimestamps.length > 0)
     && radarSource === "rainviewer"
     && (priorityActive
