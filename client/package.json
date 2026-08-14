@@ -44,6 +44,7 @@
     "@eslint-community/eslint-plugin-eslint-comments": "^4.7.2",
     "@eslint/js": "^9.39.4",
     "autoprefixer": "^10.5.4",
+    "babel-plugin-react-compiler": "^1.0.0",
     "css-loader": "^7.1.4",
     "eslint": "^9.39.5",
     "eslint-plugin-jsdoc": "^63.3.3",
