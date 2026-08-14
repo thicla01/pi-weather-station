@@ -12,14 +12,14 @@ A full-stack weather display application originally designed for the Raspberry P
 
 The kiosk browser is chosen interactively by `install.sh` (Chromium, Chrome, Brave, Edge, or Firefox) and persisted in `~/.config/pi-weather-station/browser.conf`. Snap-confined Firefox is supported via a named profile (`-P pi-weather-station`).
 
-## 📣 Highlights — June 2026
+## 📣 Highlights — August 2026
 
 A major milestone just landed (full details in [CHANGELOG.md](./CHANGELOG.md) and on the [Releases](https://github.com/thicla01/pi-weather-station/releases) page):
 
-- **Release 3.1.0 — the v3.1 interface pass is complete.** All seven surfaces were redesigned against dedicated design references: toolbar, radar controls, alert stack, forecast panel, settings, debug panel, and finally the main card (hero with sun/moon meta-line, dedicated air-quality card, pressure tile with an hPa / inHg / kPa preference).
-- **Security audit + penetration re-test.** Server-side gates hardened: localhost checks and rate limiting now keyed on the kernel-level socket peer (header-spoof-proof), resource ceilings on the paid endpoints, owner-only settings file.
-- **Full code-quality audit.** 91 findings triaged and resolved, the server test suite grew from 285 to 453 tests, and the React state layer was re-architected into frequency-grouped context slices for Pi-class hardware.
-- **Built with Claude.** The design references come from Claude Design; the implementation, the adversarial multi-agent reviews, and both audits were carried out with [Claude Code](https://claude.com/claude-code) running Anthropic's **Fable 5** (earlier phases: Opus 4.8).
+- **Release 3.2.0 — the React 19 era.** A three-step migration arc, each step unlocking the next: **React 18 → 19 with react-leaflet 5**, the **react-hooks v7 rules cluster** (25 sites refactored into documented React patterns), and finally the **React Compiler** — the client is now built with build-time auto-memoisation, measured A/B on a 1 GB Pi 3B against an active storm cell: **−37 % animation CPU, +7.5 % FPS, −1.9 °C**.
+- **Favorite locations.** Pin up to 6 places, jump back to them from the Places popover in the dock, and promote one as the kiosk's default; the popover's home row names the default location.
+- **Accuracy + efficiency.** Current temperature is now a server-side smoothed reading (Tomorrow.io's raw feed swings ±2-3 °C between fetches; displayed ≥2 °C jumps cut from 108 to 1 on a 5-day replay), and the idle-waste performance lot cut background traffic by −64 % requests/hour with node RSS down from 158 to 92 MB on 1 GB hardware.
+- **Built with Claude.** The design references come from Claude Design; the implementation, the adversarial multi-agent reviews, the A/B benches, and the audits were carried out with [Claude Code](https://claude.com/claude-code) running Anthropic's **Fable 5** (earlier phases: Opus 4.8).
 
 ## Interface
 
@@ -55,6 +55,8 @@ The station includes:
 - **Hardware screen-brightness control** on supported displays.
 - **Opt-in sleep mode / screensaver** with a melatonin-friendly red night palette.
 - **Focus-radar toggle** — a small button under the map's zoom controls hides the hero and the information rail so the radar fills the viewport; tap again to bring them back. Available on the Pi kiosk and desktop layouts (the phone layout has its own maximize button on the mini radar).
+- **Radar timeline** — scrub or play through the past + nowcast RainViewer frames (1× / 2× / 4× speed) with a touch-friendly transport bar; hiding the bar always snaps the radar back to "now".
+- **Favorite locations** — pin up to 6 places, jump back to them from the Places popover in the dock, and promote one as the kiosk's default location.
 - **Localhost-only debug panel** with KPIs, service status, quota counters, radar snapshots, and logs.
 
 > **Note:** this gallery predates the v3 "Ambient Layers" interface — the captures show the older v2 layout. The features they illustrate all still exist; the arrangement and the controls have changed. See [`docs/ui-layout_en.md`](docs/ui-layout_en.md) for the current layout.
@@ -132,7 +134,7 @@ for tagged releases.
 
 # Setup
 
-> **Node.js requirement:** Node.js 18 or later is required. `install.sh` installs Node.js 22 on all supported platforms — via [nvm](https://github.com/nvm-sh/nvm) on Bullseye 32-bit (`armv7l`, where NodeSource has no packages), and via NodeSource on Bullseye 64-bit (`aarch64`), Bookworm (Debian 12), and Trixie (Debian 13).
+> **Node.js requirement:** Node.js 18 or later is required to **run** the server. `install.sh` installs Node.js 22 on all supported platforms — via [nvm](https://github.com/nvm-sh/nvm) on Bullseye 32-bit (`armv7l`, where NodeSource has no packages), and via NodeSource on Bullseye 64-bit (`aarch64`), Bookworm (Debian 12), and Trixie (Debian 13). **Building** the client (`npm run prod` — only needed with `--rebuild-client` or for development, since the bundle ships pre-built in `client/dist/`) requires Node `^22.18 || >=24.11` (Babel 8 toolchain).
 
 > **API keys:** If you use the automated install (Option 1), the script will offer to configure your API keys automatically. For a manual setup, copy the example settings file and edit it:
 
