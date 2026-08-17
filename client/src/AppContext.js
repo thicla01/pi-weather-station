@@ -817,14 +817,13 @@ export function AppContextProvider({ children }) {
   const {
     favorites,
     canPin: canPinFavorite,
-    canRename: canRenameFavorite,
     maxFavorites,
     isPinned: isFavoritePinned,
     hydrate: hydrateFavorites,
     pin: pinFavorite,
     remove: removeFavorite,
     rename: renameFavorite,
-  } = useFavoriteLocations({ isLocal });
+  } = useFavoriteLocations();
 
   /**
    * Save mouse hide state
@@ -2669,7 +2668,6 @@ export function AppContextProvider({ children }) {
     // re-mint this memo on every render.
     favorites,
     canPinFavorite,
-    canRenameFavorite,
     maxFavorites,
     isFavoritePinned,
     pinFavorite,
@@ -2688,7 +2686,6 @@ export function AppContextProvider({ children }) {
     homeLabel,
     favorites,
     canPinFavorite,
-    canRenameFavorite,
     maxFavorites,
     isFavoritePinned,
     pinFavorite,

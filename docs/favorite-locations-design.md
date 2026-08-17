@@ -9,11 +9,15 @@ First field cycle — [issue 319](https://github.com/thicla01/pi-weather-station
 [PR 324](https://github.com/thicla01/pi-weather-station/pull/324) (pinnable home row, home-first
 ordering, viewport-fit popover height) and
 [PR 328](https://github.com/thicla01/pi-weather-station/pull/328) (the height regression 324
-introduced on bottom-anchored triggers). Dated amendments in §4, §5.1 and §5.2; as-shipped
-deviations in §10; the field-test outcome in §14.
-**Still open:** the rename-gate rework — deliberately diagnostic-first, waiting on the Debug
-panel's input-environment readings from the real kiosk (Chromium *and* Firefox, with and without
-an RPi Connect session) before an expression is chosen.
+introduced on bottom-anchored triggers),
+[PR 330](https://github.com/thicla01/pi-weather-station/pull/330) (Q1 reversed — selecting a
+favorite no longer touches the zoom) and
+[PR 331](https://github.com/thicla01/pi-weather-station/pull/331) (return to automatic
+geolocation: live apply + the home row's `↺`). The non-touch rename gate was removed
+2026-08-17 — see the §5.1.1 amendment. Dated amendments in §4, §5.1.1, §5.2 and §9;
+as-shipped deviations in §10; the field-test outcome in §14.
+**Nothing is open.** The Debug panel's input-environment probe (PR 320) stays as a
+diagnostic; it is no longer gating a decision.
 **Date:** 2026-07-27 · **re-validated against HEAD `011afc8` on 2026-08-10** after the React 19 /
 react-leaflet 5 migration (PR 314) and the Dependabot batch. All 21 file:line citations still
 resolved; no design decision was invalidated. New binding constraints in **§8.6**.
@@ -175,7 +179,44 @@ fits — e.g. `Saint-Donat, QC`. Truncate to `MAX_LABEL_LEN = 40`.
 `noData` case: if there is no reverse-geocode payload, fall back to the formatted coordinates as
 the label so pinning still works over a lake or a field.
 
-### 5.1.1 Rename — gated on non-touch (Q5 resolved 2026-07-27)
+### 5.1.1 Rename — ~~gated on non-touch~~ ungated (Q5 resolved 2026-07-27, **gate removed 2026-08-17**)
+
+> **Amendment 2026-08-17 — the device gate is gone; rename is offered on every local client.**
+>
+> The gate below (`navigator.maxTouchPoints === 0`) answers *"is a toucher present"*, not
+> *"can the user type"*, and **the web platform cannot answer the second question at all** —
+> `navigator.keyboard` reports layout, not presence. So every candidate replacement was
+> another proxy that would eventually be wrong on hardware nobody has bought yet. Two
+> intermediate proposals were considered and dropped: `(any-hover: hover) and (any-pointer:
+> fine)` — which fixes a touch laptop with a trackpad but **not** a touchscreen with a
+> keyboard and no mouse, since a keyboard adds no pointer; and a `keyboardSeen` flag flipped
+> by the first real `keydown` — sound, but it makes the affordance appear only after an
+> invisible precondition.
+>
+> **What the field actually showed.** The gate's real-world failure was `.6.55`: an HDMI
+> monitor that is also a touch panel (`ILITEK ILITEK-TP` on USB) with a wired keyboard
+> attached — `maxTouchPoints > 0`, rename hidden, keyboard right there. And the case that
+> *motivated* the whole review (issue 319) turned out never to have been about the gate at
+> all: the home pseudo-row had no rename affordance on **any** device until PR 324. The gate
+> was protecting against a cost that measurement did not support.
+>
+> **Why removing it is safe.** The failure mode on a keyboard-less kiosk is benign, and was
+> verified rather than assumed: the input is seeded with the current label, so a blur with no
+> typing gives `next === f.label` and `commitRename` returns without writing. Nothing is
+> saved, nothing is lost, the row returns to normal. Reaching the field takes a deliberate tap
+> into Edit mode, so it is never hit by accident — which retires the original objection, aimed
+> at a stray-tap risk that Edit mode had already eliminated.
+>
+> **What replaces it.** `favorites.renameHint` ("Enter to save, Esc to cancel") moves from a
+> `title` tooltip to a **visible line under the field**. Tooltips never fire on a touchscreen,
+> so the client that most needed the keyboard contract was the only one that could not see it.
+> Naming the keys *is* the "a keyboard is involved" message, without asserting anything about
+> the hardware that the browser cannot actually determine.
+>
+> Discoverability was the deciding argument: a gate that hides a feature from the people
+> looking for it costs more than the unusable text field it avoids.
+
+*Original design, kept for the record:*
 
 The auto-label is not always enough: two favorites in the same city produce two identical rows
 (`Montréal, Québec` twice — §6.1 only blocks a duplicate at the *same rounded point*), a point with
@@ -567,9 +608,9 @@ backed by `settings.json` instead of `localStorage`.
   3. `setBrowserGeo({ latitude, longitude })`
 - `rename(id, label)` trims, truncates to `MAX_LABEL_LEN`, and **no-ops on an empty result** rather
   than writing a label-less entry the server sanitizer would then drop (§5.1.1).
-- `canRename` is the `isLocal && navigator.maxTouchPoints === 0` gate of §5.1.1, computed once in
-  the hook so no consumer re-derives it (and so a future "unattended display" override has one
-  place to land).
+- ~~`canRename`~~ **removed 2026-08-17** along with the hook's `isLocal` option, which existed
+  only to feed it. Rename is offered on every local client; the consumer gates Edit mode on
+  `isLocal` where it renders, and the server enforces the real boundary. See §5.1.1.
 
 ### 8.2 The `browserGeo` trap — read this before implementing
 
@@ -802,7 +843,7 @@ pushing.
 | **Q2** | Is `favorites` **visible to remote clients** in `GET /settings`? | ✅ **Yes, unmasked** — consistent with `startingLat`/`startingLon`, and needed for the SSH-tunnel workflow. Pinned by a dedicated test so a refactor cannot silently flip it; the exposure is recorded in [`docs/security-hardening.md`](security-hardening.md) |
 | **Q3** | Dock icon | ✅ `carbon/bookmark`, as recommended — it resolves, and it avoids the two-map-pin confusion with the marker toggle two buttons away (§8.5) |
 | **Q4** | Show the dock button when the list is **empty**? | ✅ **Yes, with the explainer.** Since PR 316 the popover is never truly empty either — the `⌂` home row renders whenever coordinates exist |
-| **Q5** | Is **rename** needed in v1? | ✅ **Yes, gated on non-touch** (resolved 2026-07-27; shipped in PR 315). Design in §5.1.1. **The gate itself is now under review** — `maxTouchPoints === 0` answers "is a toucher present", not "can the user type", so it also hides rename from touch-capable laptops that do have keyboards. Replacement expression pending the input-environment measurements (see the Status header) |
+| **Q5** | Is **rename** needed in v1? | ✅ **Yes** (resolved 2026-07-27; shipped in PR 315) — but the non-touch gate it came with was **removed 2026-08-17**. `maxTouchPoints === 0` answers "is a toucher present", not "can the user type", and the browser cannot answer the latter; every replacement was another proxy. Rename is now offered on any local client, with its Enter/Esc contract stated inline. Full reasoning, including the two rejected replacements and why the failure mode is benign, in the §5.1.1 amendment |
 
 ---
 

@@ -22,10 +22,13 @@ const REMOVE_CONFIRM_MS = 4000;
  *     somewhere else mid-edit would close the popover under the user's
  *     finger, so the two modes cannot overlap.
  *
- * Edit affordances are gated twice over: `isLocal` (the writes are
- * localhost-only server-side, so a remote client would just collect 403s) and,
- * for rename specifically, a non-touch device — this project ships no
- * on-screen keyboard, so a text input on the 7" kiosk would lead nowhere.
+ * Edit affordances are gated on `isLocal` only — the writes are
+ * localhost-only server-side, so a remote client would just collect 403s.
+ * Rename carried a second gate (a non-touch device) until 2026-08-17; it is
+ * gone, because "is a toucher present" is not "can the user type" and the
+ * browser cannot answer the latter. The input states its Enter/Esc contract
+ * inline instead, and on a keyboard-less kiosk it simply cannot be filled —
+ * blurring commits nothing, since the draft still equals the current label.
  *
  * @param {object} props
  * @param {boolean} props.open whether the popover is visible
@@ -39,7 +42,7 @@ const PlacesPopover = ({ open, onClose, triggerRef = null, onNotify = null }) =>
     favorites, mapGeo, browserGeo, isLocal, homeLabel,
     customLat, customLon,
     canPinFavorite, pinFavorite,
-    canRenameFavorite, removeFavorite, renameFavorite, setFavoriteAsDefault,
+    removeFavorite, renameFavorite, setFavoriteAsDefault,
     setMapPosition, resetMapPosition, resetDefaultLocation,
   } = useContext(AppContext);
   const { t } = useTranslation();
@@ -216,21 +219,33 @@ const PlacesPopover = ({ open, onClose, triggerRef = null, onNotify = null }) =>
     return (
       <div key={f.id} className={rowClass}>
         {renaming ? (
-          <input
-            className={styles.renameInput}
-            type="text"
-            value={draftLabel}
-            maxLength={40}
-            autoFocus
-            aria-label={t("favorites.rename")}
-            title={t("favorites.renameHint")}
-            onChange={(e) => setDraftLabel(e.target.value)}
-            onBlur={() => commitRename(f)}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") commitRename(f);
-              if (e.key === "Escape") { setRenamingId(null); setDraftLabel(""); }
-            }}
-          />
+          // The Enter/Esc contract is rendered as a visible line, not just a
+          // `title`: tooltips never appear on a touchscreen, so the one client
+          // that most needs to know a keyboard is involved was the only one
+          // that could not see it. It doubles as the honest signal on a
+          // keyboard-less kiosk — naming the keys IS the "you need a keyboard"
+          // message, without asserting anything about the hardware, which the
+          // browser cannot actually determine.
+          <div className={styles.renameCell}>
+            <input
+              className={styles.renameInput}
+              type="text"
+              value={draftLabel}
+              maxLength={40}
+              autoFocus
+              aria-label={t("favorites.rename")}
+              aria-describedby={`${f.id}-rename-hint`}
+              onChange={(e) => setDraftLabel(e.target.value)}
+              onBlur={() => commitRename(f)}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") commitRename(f);
+                if (e.key === "Escape") { setRenamingId(null); setDraftLabel(""); }
+              }}
+            />
+            <span className={styles.renameHint} id={`${f.id}-rename-hint`}>
+              {t("favorites.renameHint")}
+            </span>
+          </div>
         ) : (
           <button
             type="button"
@@ -255,17 +270,15 @@ const PlacesPopover = ({ open, onClose, triggerRef = null, onNotify = null }) =>
             >
               ⌂
             </button>
-            {canRenameFavorite ? (
-              <button
-                type="button"
-                className={styles.action}
-                onClick={() => { setRenamingId(f.id); setDraftLabel(f.label); }}
-                title={t("favorites.rename")}
-                aria-label={t("favorites.rename")}
-              >
-                ✎
-              </button>
-            ) : null}
+            <button
+              type="button"
+              className={styles.action}
+              onClick={() => { setRenamingId(f.id); setDraftLabel(f.label); }}
+              title={t("favorites.rename")}
+              aria-label={t("favorites.rename")}
+            >
+              ✎
+            </button>
             <button
               type="button"
               className={`${styles.action} ${armedId === f.id ? styles.actionArmed : ""}`}
