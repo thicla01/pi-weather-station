@@ -5,11 +5,16 @@ import axios from "axios";
 // which is the actual guarantee — this one is the UX affordance that disables
 // the pin action before the user hits a silent server-side truncation.
 //
-// Six is not arbitrary: it is the largest list that renders without scrolling
-// in the Places popover on the 7" rail at font size L (the tightest layout
-// budget on the fleet), and visiting all six inside one weather-cache window
-// stays under the 25 req/h Tomorrow.io ceiling that two Pis share.
-// Rationale in docs/favorite-locations-design.md §4.
+// Six is not arbitrary. Display: the worst case is 7 rows — the ⌂ home
+// pseudo-row plus 6 favorites (~433 px of content) — which is what the
+// Places popover's viewport-fit height accommodates on the fleet's 480
+// px-tall panels; an 8th row cannot fit 44 px touch targets on that screen
+// under any cap (measured 2026-08-16; the popover portals outside the
+// rail's font-size zoom, so font L does not change this budget). Quota:
+// visiting all six cold inside one weather-cache window ≈ 18 Tomorrow.io
+// calls against the ~17/h of burst headroom left on the 25 req/h key two
+// Pis share — at the line; a seventh crosses it. Rationale + measurements
+// in docs/favorite-locations-design.md §4 (amended 2026-08-16).
 const MAX_FAVORITES = 6;
 const MAX_LABEL_LEN = 40;
 

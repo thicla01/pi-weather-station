@@ -39,6 +39,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   with multi-device values listed ("fine+coarse"). Measures the kiosk's real input stack —
   including whether an RPi Connect session or an attached mouse exposes a fine pointer —
   before any UI gate (first candidate: the favorites rename gate) is keyed on these values.
+- **The Places home row is pinnable — which makes the default location renamable.** In Edit
+  mode the `⌂` home row now carries a ★ action (localhost-only, disabled with the
+  "list full" hint at the cap): one tap converts the default position into a stored
+  favorite — the pseudo-row suppresses itself, the `⌂` badge migrates, and the stored row
+  gains the existing rename/remove affordances. This answers the first field report
+  (issue 319: an unrenamable "Texas" default). The stored home favorite is always
+  **displayed first** (storage order unchanged), and the Edit toggle now renders when the
+  home row is the only content — previously, with zero favorites, Edit was unreachable and
+  so was any path to renaming the default. The rename input also gained its designed
+  Enter/Esc tooltip (`favorites.renameHint`, now wired), and the dead `favorites.isDefault`
+  key was removed from all three locales.
+
+### Fixed (Places popover height, 2026-08)
+- **7 rows no longer clip: the Places popover fits itself to the viewport.** The popover
+  portals outside the rail (so font-size zoom never applied to it) and inherited the
+  `DetailsPopover` shell's fixed 420 px portal cap — under which the worst case shipped in
+  3.2.0 (home row + 6 favorites, ~433 px) clipped the Edit/Done footer by 13 px on every
+  screen; reproduced and confirmed on the 7" kiosk, 2026-08-16. New scoped `fitViewport`
+  opt-out on the shell (this popover only — content bounded by the 6-favorite cap):
+  viewport-derived ceiling, 440 px of content on a 480 px-tall panel, explicit content-box
+  chrome budget. Every state up to 7 rows now renders without scrolling; the cap stays at
+  6 favorites because an 8th row geometrically cannot fit 44 px touch targets on the
+  fleet's 480 px screens (measured; LLD §4 amendment).
 
 ## [3.2.0] - 2026-08-14
 

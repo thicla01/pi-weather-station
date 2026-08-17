@@ -5,6 +5,12 @@ import { InlineIcon } from "@iconify/react";
 import closeIcon from "@iconify/icons-carbon/close";
 import styles from "./styles.css";
 
+// Vertical chrome of `.popover` in portal mode: 10 + 12 px padding plus
+// 1 + 1 px border, all OUTSIDE max-height because the portal escapes
+// .ambientRoot's border-box reset (content-box applies). Budgeted
+// explicitly by the fitViewport height formula.
+const POPOVER_CHROME_PX = 24;
+
 /**
  * DetailsPopover — generic popover shell used by the UV / AQ /
  * future Pollen badges (and re-usable by the AlertBanner if its
@@ -43,10 +49,19 @@ import styles from "./styles.css";
  *   LayoutPi rail clips the moon-chip popover horizontally without
  *   this). Position is computed from `triggerRef.getBoundingClientRect()`
  *   and recomputed on `resize` + `scroll` while open.
+ * @param {boolean} [props.fitViewport] Portal mode only. Drop the
+ *   fixed 420 px content cap and let the popover grow to whatever
+ *   the viewport allows (outer box, chrome included, stays above
+ *   the 8 px bottom margin). For popovers whose content is BOUNDED
+ *   but taller than 420 px — the Places list peaks at 7 rows
+ *   (~433 px), which the default cap clipped by 13 px on the 7"
+ *   kiosk (field-confirmed 2026-08-16). Do not pass this for
+ *   unbounded content: on a tall desktop viewport such a popover
+ *   would stretch full-height.
  * @param {React.ReactNode} props.children Body content slot
  * @returns {JSX.Element|null}
  */
-const DetailsPopover = ({ open, onClose, title, anchor = "right", triggerRef = null, portal = false, children = null }) => {
+const DetailsPopover = ({ open, onClose, title, anchor = "right", triggerRef = null, portal = false, fitViewport = false, children = null }) => {
   const popoverRef = useRef(null);
   const [portalPos, setPortalPos] = useState(null);
 
@@ -211,8 +226,19 @@ const DetailsPopover = ({ open, onClose, title, anchor = "right", triggerRef = n
       // of the rail). In portal mode we know the exact viewport-
       // relative top, so cap height to whatever's actually available
       // below that — minus an 8 px bottom margin. Capped at 420 px so
-      // long popovers don't stretch full-viewport on a desktop.
-      maxHeight: Math.min(420, (typeof window !== "undefined" ? window.innerHeight : 600) - portalPos.top - 8),
+      // long popovers don't stretch full-viewport on a desktop —
+      // unless `fitViewport` opts out (bounded-but-tall content).
+      //
+      // Box-model note: the portal escapes .ambientRoot's border-box
+      // reset, so .popover is content-box — its 22 px of vertical
+      // padding + 2 px of border sit ON TOP of maxHeight. The
+      // fitViewport branch budgets that chrome explicitly so the
+      // OUTER box respects the bottom margin; the default 420 branch
+      // keeps its historical formula (the discrepancy is unreachable
+      // under the cap for every current consumer).
+      maxHeight: fitViewport
+        ? Math.max(120, (typeof window !== "undefined" ? window.innerHeight : 600) - portalPos.top - 8 - POPOVER_CHROME_PX)
+        : Math.min(420, (typeof window !== "undefined" ? window.innerHeight : 600) - portalPos.top - 8),
       // Merge in palette CSS variables so the popover inherits the
       // active palette even though it's portaled outside the
       // AmbientLayers var-injection scope. Spread last so position
@@ -257,6 +283,7 @@ DetailsPopover.propTypes = {
   // eslint-disable-next-line react/forbid-prop-types -- React ref shape is opaque
   triggerRef: PropTypes.object,
   portal: PropTypes.bool,
+  fitViewport: PropTypes.bool,
   children: PropTypes.node,
 };
 
