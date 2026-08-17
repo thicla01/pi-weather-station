@@ -1662,6 +1662,79 @@ export function AppContextProvider({ children }) {
   }, []);
 
   /**
+   * Re-derives "home" from the server's IP geolocation and drops the captured
+   * home name, without touching `settings.json`.
+   *
+   * Shared by the two paths that switch the default location back to
+   * automatic: clearing the Latitude/Longitude fields in Settings, and the
+   * Places home row's reset action. Both must leave the client in the state a
+   * fresh boot with no override would produce — otherwise `browserGeo` keeps
+   * pointing at the override that was just removed and Recenter goes to the
+   * wrong place until a reload.
+   *
+   * `GET /geolocation` serves a 30-day disk cache holding the *ipapi-derived*
+   * coordinates — never the manual override — so this is the right source and
+   * usually costs no network round-trip.
+   *
+   * The map is deliberately NOT moved, matching `setFavoriteAsDefault`:
+   * changing where "home" is should not yank the map out from under whatever
+   * the user is looking at. Recenter takes them there when they want it.
+   *
+   * On detection failure `browserGeo` is left as-is — Recenter keeps working
+   * and the next reload retries.
+   *
+   * @returns {Promise<boolean>} true when new coordinates were applied
+   */
+  const applyAutomaticLocation = useCallback(() => {
+    homeLabelCapturedRef.current = false;
+    setHomeLabel(null);
+    return getCoordsFromApi()
+      .then((geo) => {
+        if (!geo) return false;
+        const { latitude, longitude } = geo;
+        if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return false;
+        setBrowserGeo({ latitude, longitude });
+        return true;
+      })
+      .catch(() => false);
+  }, []);
+
+  /**
+   * Clears the default-location override so the app falls back to IP
+   * geolocation, and applies that immediately.
+   *
+   * This is the escape hatch from the Places home row: the default can become
+   * an orphan (its labelled favorite deleted, or coordinates typed long ago
+   * and forgotten) with no way back to automatic except a trip to Settings.
+   * Deleting a favorite deliberately does NOT clear the default — that would
+   * silently discard a chosen setting — so the way out has to be explicit and
+   * reachable where "home" is displayed.
+   *
+   * Writes the same empty `startingLat` / `startingLon` pair the Settings
+   * panel's "Auto" buttons write, so there is one storage contract, not two.
+   *
+   * @returns {Promise<boolean>} true when the write landed
+   */
+  const resetDefaultLocation = useCallback(() => {
+    return axios
+      .patch("/setting", { key: "startingLat", val: "" })
+      .then(() => axios.patch("/setting", { key: "startingLon", val: "" }))
+      .then(() => {
+        setCustomLat("");
+        setCustomLon("");
+        return applyAutomaticLocation().then(() => true);
+      })
+      .catch((err) => {
+        // 403 = remote client hit `localhostOnly`; the affordance is gated on
+        // isLocal, so this only fires on a race or a hand-crafted request.
+        if (!(err && err.response && err.response.status === 403)) {
+          console.warn("reset default location failed:", err && err.message);
+        }
+        return false;
+      });
+  }, [applyAutomaticLocation]);
+
+  /**
    * Saves settings to `settings.json`. Each key maps to a server-side
    * setting whose name is intentionally different (`mapsKey` →
    * `mapApiKey`, etc.) — the rename happens here so the rest of the
@@ -1710,12 +1783,12 @@ export function AppContextProvider({ children }) {
           // makes it trivially reproducible, so both paths are fixed.
           const nextLat = parseFloat(lat);
           const nextLon = parseFloat(lon);
-          // Either way the captured home name now describes the OLD default.
-          // Drop it and let the home row fall back to its generic label
-          // rather than confidently naming the wrong city.
-          homeLabelCapturedRef.current = false;
-          setHomeLabel(null);
           if (Number.isFinite(nextLat) && Number.isFinite(nextLon)) {
+            // Either way the captured home name now describes the OLD
+            // default. Drop it and let the home row fall back to its generic
+            // label rather than confidently naming the wrong city.
+            homeLabelCapturedRef.current = false;
+            setHomeLabel(null);
             setBrowserGeo({ latitude: nextLat, longitude: nextLon });
           } else {
             // Cleared to "Auto" — an empty field parses to NaN, which used to
@@ -1723,33 +1796,14 @@ export function AppContextProvider({ children }) {
             // override the user just removed. Symptom: Recenter and the
             // Places home row kept going to the old place until a reload,
             // which is why resetting to automatic appeared to need a reboot.
-            // Re-derive from the server's IP geolocation instead, so "Auto"
-            // means automatic immediately.
-            //
-            // The map is deliberately NOT moved — same rule as
-            // `setFavoriteAsDefault` below: changing where "home" is should
-            // not yank the map out from under whatever the user is looking
-            // at. Recenter takes them there when they want it.
-            getCoordsFromApi()
-              .then((geo) => {
-                if (!geo) return;
-                const { latitude, longitude } = geo;
-                if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
-                  setBrowserGeo({ latitude, longitude });
-                }
-              })
-              .catch(() => {
-                // Detection unavailable (offline, ipapi down with no cache).
-                // Leaving `browserGeo` as-is is the safe failure: Recenter
-                // keeps working, and the next reload retries detection.
-              });
+            applyAutomaticLocation();
           }
         })
         .catch((err) => {
           reject(err);
         });
     });
-  }, []);
+  }, [applyAutomaticLocation]);
 
   /**
    * Promote a favorite to the app's default location.
@@ -2622,6 +2676,7 @@ export function AppContextProvider({ children }) {
     removeFavorite,
     renameFavorite,
     setFavoriteAsDefault,
+    resetDefaultLocation,
   }), [
     mapGeo,
     browserGeo,
@@ -2640,6 +2695,7 @@ export function AppContextProvider({ children }) {
     removeFavorite,
     renameFavorite,
     setFavoriteAsDefault,
+    resetDefaultLocation,
   ]);
 
   // UI preferences: per-device display choices, user-interaction driven.

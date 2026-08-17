@@ -7,6 +7,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- **The Places home row carries a `↺` "reset to automatic" action** (Edit mode, localhost
+  only, shown *only* when a manual override is actually stored — otherwise the default is
+  already IP-derived and there is nothing to undo). One tap clears `startingLat` /
+  `startingLon` and re-derives the position from IP geolocation immediately: no Settings
+  trip, no reload, no reboot. It writes the same empty pair the Settings panel's "Auto"
+  buttons write, so there is one storage contract rather than two.
+  **Why it was needed:** deleting a favorite deliberately does *not* clear the default
+  (silently discarding a chosen setting is worse than leaving it), so with every favorite
+  removed the kiosk kept booting at a place nothing on screen explained, and recovering
+  meant knowing to go to Settings → Latitude/Longitude → Auto → save → reload.
+  **Why an affordance and not a prompt after deletion:** a prompt pushes *one* outcome when
+  two are equally legitimate — reset to automatic, or promote a different favorite (the `⌂`
+  action already on every row). Putting the reset where "home" is displayed leaves the user
+  choosing between affordances rather than answering a leading question.
+
+### Fixed
+- **Resetting the default location to "Auto" now applies without a reload.** Clearing the
+  Latitude/Longitude override wrote the empty values to `settings.json` but left the running
+  client pointing at the coordinates just removed — Recenter and the Places home row kept
+  going to the old place until the page reloaded, which is why returning to automatic
+  geolocation appeared to require restarting the Pi (it never did; a browser reload always
+  sufficed, and now not even that). Cause was a missed branch: the block that keeps
+  `browserGeo` in step with a newly saved default is guarded by
+  `Number.isFinite(parseFloat(lat))`, and an empty field parses to `NaN`, so the "cleared the
+  override" case — equally a change of default — skipped it entirely. Both branches are now
+  symmetric, sharing one helper with the new home-row reset above.
+
 ### Changed
 - **Selecting a favorite no longer changes the map zoom** — and the per-favorite `zoom`
   field is removed from the schema. Reversal of the LLD's Q1 after one evening of real use,

@@ -37,9 +37,10 @@ const REMOVE_CONFIRM_MS = 4000;
 const PlacesPopover = ({ open, onClose, triggerRef = null, onNotify = null }) => {
   const {
     favorites, mapGeo, browserGeo, isLocal, homeLabel,
+    customLat, customLon,
     canPinFavorite, pinFavorite,
     canRenameFavorite, removeFavorite, renameFavorite, setFavoriteAsDefault,
-    setMapPosition, resetMapPosition,
+    setMapPosition, resetMapPosition, resetDefaultLocation,
   } = useContext(AppContext);
   const { t } = useTranslation();
 
@@ -120,6 +121,28 @@ const PlacesPopover = ({ open, onClose, triggerRef = null, onNotify = null }) =>
   // home when this pin happens. Label falls back to the rounded
   // coordinates when the boot reverse-geocode never resolved — the server
   // drops label-less entries, so pinning must not depend on homeLabel.
+  // A manual override exists only when both coordinates are stored; an empty
+  // pair means the default is already IP-derived and there is nothing to
+  // reset. Without this gate the ↺ would offer to undo a state the user is
+  // already in.
+  const hasManualDefault = !!customLat && !!customLon;
+
+  // Escape hatch back to automatic geolocation. It lives on the home row
+  // because that is where "home" is displayed, and because the default can
+  // become an orphan: deleting the favorite that carried the ⌂ badge
+  // deliberately does NOT clear the stored coordinates (silently discarding a
+  // chosen setting would be worse), so the pseudo-row reappears pointing at a
+  // place with nothing left to explain it.
+  //
+  // Deliberately NOT a post-deletion prompt: that would push one outcome,
+  // while two are equally legitimate — reset to automatic, or promote another
+  // favorite with the ⌂ action already on every row. Showing both where the
+  // user looks for "home" lets them choose instead of being steered.
+  const handleResetHome = () => {
+    setFailed(false);
+    resetDefaultLocation().then((ok) => setFailed(!ok));
+  };
+
   const handlePinHome = () => {
     if (!homeCoords) return;
     setFailed(false);
@@ -300,6 +323,17 @@ const PlacesPopover = ({ open, onClose, triggerRef = null, onNotify = null }) =>
                 >
                   ★
                 </button>
+                {hasManualDefault ? (
+                  <button
+                    type="button"
+                    className={styles.action}
+                    onClick={handleResetHome}
+                    title={t("favorites.resetHome")}
+                    aria-label={t("favorites.resetHome")}
+                  >
+                    ↺
+                  </button>
+                ) : null}
               </div>
             ) : null}
           </div>

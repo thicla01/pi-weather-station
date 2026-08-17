@@ -287,6 +287,22 @@ redundant-affordance problem the rail redesign spent a session removing.
 > `favorites.length` alone, a zero-favorite user (issue 319's exact state) could never reach
 > the pin affordance.
 
+> **Amendment 2026-08-17 — the home row also carries a `↺` reset to automatic.** Shown in Edit
+> mode only when a manual override is actually stored (both `startingLat` and `startingLon`
+> present — otherwise the default is already IP-derived and there is nothing to undo). It
+> writes the same empty pair the Settings panel's "Auto" buttons write, so there is one
+> storage contract rather than two, and re-derives `browserGeo` from `GET /geolocation`
+> immediately — no reload, no reboot.
+>
+> **Why here, and why not a prompt.** Deleting a favorite deliberately does not clear the
+> default (§9) — silently discarding a chosen setting is worse than leaving it — so the
+> default can end up an orphan with no labelled favorite behind it. The obvious fix was a
+> follow-up prompt after deleting the `⌂`-badged favorite, and the maintainer rejected it for
+> the right reason: it pushes **one** outcome when **two** are equally legitimate — reset to
+> automatic, or promote a different favorite (the `⌂` action already on every row). Putting
+> the reset where "home" is displayed leaves the user choosing between affordances instead of
+> answering a leading question, and costs no new state machine.
+
 **Terminology fix shipped alongside.** `resetMapPosition` pans to `browserGeo`
 — the *default* position — but its dock tooltip read "Recenter the map on the
 **current** position", which is precisely what it does not do (the current
@@ -681,7 +697,7 @@ one fewer site for the compiler-readiness pass to revisit.
 |---|---|
 | Selecting a favorite | `setMapPosition()` + optional zoom + close popover. All downstream data (alerts, AQ, pollen, radar risk, AI summary) follows `mapGeo` automatically |
 | **Sense HAT follows** | The kiosk pushes the viewed coords to `POST /api/kiosk-location`, which `GET /api/sensehat` consumes — so switching city also changes what the LED matrix displays. Expected, but it belongs in the CHANGELOG line |
-| Default entry deleted | Allowed, and it still takes the two taps of §5.2.1. `startingLat`/`startingLon` are *not* cleared — the default coordinates survive as a bare coordinate pair, exactly as if they had been typed in Settings. Only the labelled shortcut disappears, so **Recenter keeps working unchanged** |
+| Default entry deleted | Allowed, and it still takes the two taps of §5.2.1. `startingLat`/`startingLon` are *not* cleared — the default coordinates survive as a bare coordinate pair, exactly as if they had been typed in Settings. Only the labelled shortcut disappears, so **Recenter keeps working unchanged**. The `⌂` pseudo-row reappears in its place (nothing is pinned on those coordinates any more), so the default stays visible. **Amendment 2026-08-17 — the way out is now on that row:** see §5.2's reset action. Field report: with every favorite deleted, the kiosk kept booting at a place nothing explained, and recovering meant knowing to go to Settings → Latitude/Longitude → Auto → save → reload |
 | Last favorite deleted | The array becomes `[]`. `PATCH /setting` accepts an empty array (it rejects `null`/`undefined`, not `[]`), and the popover falls back to the empty-state explainer of §5.2 |
 | Delete armed, then the list changes underneath | Arming is keyed on the entry `id`; if that id is gone on the second tap (concurrent edit from another client), the delete is a no-op rather than an off-by-one deletion of the row that shifted into place |
 | Two favorites at the same rounded spot | Prevented at pin time: if `sameSpot()` matches an existing entry, the popover shows "Pinned" instead of the pin button |
