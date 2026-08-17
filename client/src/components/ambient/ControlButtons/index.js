@@ -808,12 +808,21 @@ const ControlButtons = () => {
         {btnUpdateRemote}
       </div>
       {toastNode}
-      <PlacesPopover
-        open={placesOpen}
-        onClose={() => setPlacesOpen(false)}
-        triggerRef={placesRef}
-        onNotify={notify}
-      />
+      {/* Mounted only while open, ON PURPOSE: unmount is what drops the
+        * popover's transient state (edit mode, armed remove, half-open
+        * rename draft) on EVERY close path — ✕, backdrop, Esc, or this
+        * dock button toggling. An always-mounted popover resurfaces that
+        * state on reopen: an armed Remove confirm the user never asked
+        * for, or an Edit mode where every row reads as dead to a kiosk
+        * user. PlacesPopover's unmount cleanup relies on this contract. */}
+      {placesOpen ? (
+        <PlacesPopover
+          open
+          onClose={() => setPlacesOpen(false)}
+          triggerRef={placesRef}
+          onNotify={notify}
+        />
+      ) : null}
     </div>
   );
 };

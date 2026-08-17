@@ -89,7 +89,12 @@
   padding: 0 6px;
   border: 1px solid var(--c-border);
   border-radius: 8px;
-  background: var(--c-surface-hybrid, var(--c-surface));
+  /* Plain --c-surface on purpose: this popover always renders through the
+   * DetailsPopover portal, whose CSS-variable whitelist does not carry
+   * --c-surface-hybrid — a hybrid first choice here could never resolve
+   * and only suggested a look that has never rendered (the portal
+   * whitelist trap documented on DetailsPopover). */
+  background: var(--c-surface);
   color: var(--c-text-dim);
   font-size: 13px;
   cursor: pointer;

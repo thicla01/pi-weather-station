@@ -557,8 +557,8 @@ const APPROX_HEIGHT = {
   server: 360,
   // Client bumped from 240 — now includes Current position section
   // (lat/lon/zoom/aqhi grid + copy button) above the remote/security
-  // lists, so the bucket grew by ~120 px.
-  client: 360,
+  // lists (~120 px), plus the Input environment section (~110 px).
+  client: 470,
   services: 580,
   storage: 440,
   about: 260,
@@ -1059,9 +1059,37 @@ const useClientMetrics = () => {
   return { ...metrics, fps };
 };
 
+/* Input-environment probe — one snapshot of the pointer/hover media
+ * queries plus `navigator.maxTouchPoints`, taken when the Client bucket
+ * mounts (the panel unmounts on close, so close/reopen re-probes — do
+ * that after plugging a mouse or starting an RPi Connect session). It
+ * exists to characterise the kiosk's REAL input stack before any UI gate
+ * is keyed on these values: the favorites rename gate wants "can the
+ * user type", and whether `any-pointer: fine` is a usable proxy on a
+ * keyboard-less kiosk (which may expose a compositor or RPi Connect
+ * virtual pointer) is exactly what this section answers. The `any-*`
+ * rows list every matching value, so a touchscreen with a mouse plugged
+ * in reads "fine+coarse". */
+const probeInputEnvironment = () => {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") return null;
+  const mq = (q) => window.matchMedia(q).matches;
+  const multi = (name) => ["fine", "coarse"].filter((v) => mq(`(${name}: ${v})`)).join("+") || "none";
+  return {
+    maxTouchPoints: typeof navigator !== "undefined" ? navigator.maxTouchPoints : null,
+    pointer: mq("(pointer: fine)") ? "fine" : mq("(pointer: coarse)") ? "coarse" : "none",
+    hover: mq("(hover: hover)") ? "hover" : "none",
+    anyPointer: multi("any-pointer"),
+    anyHover: mq("(any-hover: hover)") ? "hover" : "none",
+  };
+};
+
 const BucketClient = ({ data, lang, gridTwoWide }) => {
   const clients = Array.isArray(data.remoteClients) ? data.remoteClients : [];
   const events = Array.isArray(data.securityEvents) ? data.securityEvents : [];
+  // Lazy initializer: probed once per mount, deliberately not live — the
+  // values only change when input hardware (or a virtual pointer) comes
+  // and goes, and "close, replug, reopen" is the diagnostic gesture.
+  const [inputEnv] = useState(probeInputEnvironment);
   // Current map position + zoom + AQHI come straight from AppContext
   // (they're live client state, not part of the /api/debug snapshot).
   // The Settings panel shows the *default* coords (`customLat`/`customLon`);
@@ -1094,6 +1122,15 @@ const BucketClient = ({ data, lang, gridTwoWide }) => {
           k="screen"
           v={screen ? `${screen.width}×${screen.height}${screen.dpr !== 1 ? ` @${screen.dpr}×` : ""}` : "—"}
         />
+      </div>
+
+      <SectionTitle title={lbl(lang, "Input environment", "Environnement d'entrée", "Entorno de entrada")} gap />
+      <div className={`${styles.gridTwo} ${gridTwoWide ? styles.gridTwoWide : ""}`}>
+        <KV k="touch points" v={inputEnv && inputEnv.maxTouchPoints != null ? inputEnv.maxTouchPoints : "—"} />
+        <KV k="pointer" v={inputEnv ? inputEnv.pointer : "—"} />
+        <KV k="hover" v={inputEnv ? inputEnv.hover : "—"} />
+        <KV k="any-pointer" v={inputEnv ? inputEnv.anyPointer : "—"} />
+        <KV k="any-hover" v={inputEnv ? inputEnv.anyHover : "—"} />
       </div>
 
       <SectionTitle title={lbl(lang, "Current position", "Position actuelle", "Posición actual")} gap />

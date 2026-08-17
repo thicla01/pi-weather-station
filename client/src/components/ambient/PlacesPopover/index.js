@@ -38,7 +38,7 @@ const PlacesPopover = ({ open, onClose, triggerRef = null, onNotify = null }) =>
   const {
     favorites, mapGeo, browserGeo, isLocal, homeLabel,
     canRenameFavorite, removeFavorite, renameFavorite, setFavoriteAsDefault,
-    setMapPosition, resetMapPosition, saveDefaultMapZoom,
+    setMapPosition, resetMapPosition, setZoomToLevel,
   } = useContext(AppContext);
   const { t } = useTranslation();
 
@@ -49,8 +49,12 @@ const PlacesPopover = ({ open, onClose, triggerRef = null, onNotify = null }) =>
   const [failed, setFailed] = useState(false);
   const armTimerRef = useRef(null);
 
-  // Clear the pending disarm timer on unmount — the popover is conditionally
-  // rendered, so it unmounts on every close, armed or not.
+  // Clear the pending disarm timer on unmount. ControlButtons mounts this
+  // component only while it is open, so unmounting IS the close path and
+  // every piece of transient state (edit mode, armed remove, rename draft,
+  // error text) resets by construction. If that render site ever moves to
+  // an always-mounted popover, this cleanup stops covering close and the
+  // transient state must instead be reset on the open→closed transition.
   useEffect(() => () => clearTimeout(armTimerRef.current), []);
 
   // Leaving edit mode (or closing) must not leave a row armed or a rename
@@ -99,7 +103,11 @@ const PlacesPopover = ({ open, onClose, triggerRef = null, onNotify = null }) =>
   const handleSelect = (f) => {
     if (editing) return;
     setMapPosition({ latitude: f.lat, longitude: f.lon });
-    if (f.zoom && typeof saveDefaultMapZoom === "function") saveDefaultMapZoom(f.zoom);
+    // Transient zoom only: ZoomLevelHandler applies the signal to the map
+    // and clears it. NOT saveDefaultMapZoom — that setter also persists the
+    // value to localStorage as the kiosk's *starting* zoom, so jumping to a
+    // favorite would silently rewrite the user's saved preference.
+    if (f.zoom) setZoomToLevel(f.zoom);
     onClose();
   };
 

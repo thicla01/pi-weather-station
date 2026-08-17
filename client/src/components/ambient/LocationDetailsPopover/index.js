@@ -40,7 +40,7 @@ import styles from "./styles.css";
  */
 const LocationDetailsPopover = ({ open, onClose, triggerRef = null, anchor = "left" }) => {
   const {
-    reverseGeoResult, mapGeo, isLocal,
+    reverseGeoResult, mapGeo, isLocal, currentMapZoom,
     canPinFavorite, isFavoritePinned, pinFavorite,
   } = useContext(AppContext);
   const { t } = useTranslation();
@@ -88,8 +88,14 @@ const LocationDetailsPopover = ({ open, onClose, triggerRef = null, anchor = "le
 
   const handlePin = () => {
     setPinFailed(false);
-    pinFavorite({ label: autoLabel, lat: mapGeo.latitude, lon: mapGeo.longitude })
-      .then((ok) => setPinFailed(!ok));
+    const entry = { label: autoLabel, lat: mapGeo.latitude, lon: mapGeo.longitude };
+    // Freeze the zoom the user is looking at into the favorite, so jumping
+    // back later restores the framing they pinned (LLD §12 Q1). Rounded
+    // because Leaflet can report fractional zooms mid-gesture and the hook
+    // only stores integers 1..18 — a fractional value would be silently
+    // dropped rather than rounded.
+    if (Number.isFinite(currentMapZoom)) entry.zoom = Math.round(currentMapZoom);
+    pinFavorite(entry).then((ok) => setPinFailed(!ok));
   };
 
   const pinFooter = pinVisible ? (
