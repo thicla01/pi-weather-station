@@ -201,7 +201,7 @@ Spans the full viewport width at the bottom of all three layouts (Mobile / Pi / 
 | Icon | Action | Visibility condition |
 |------|--------|---------------------|
 | ↖ Location arrow | Recenter on the home position (`browserGeo`) — the tooltip said "current position" until 2026-08, which is exactly what it does not do | Always |
-| 🔖 Bookmark | Open "Places" — a `⌂` home row (the default position; not stored, not counted against the cap, hidden when a favorite already sits on those coordinates) above the favorite-locations list (max 6): tapping a row moves the map there, restoring the zoom captured when the place was pinned; Edit mode exposes set-as-default (⌂), rename (non-touch clients only) and remove (two-tap confirm) | Always |
+| 🔖 Bookmark | Open "Places" — a `⌂` home row (the default position; not stored, not counted against the cap, hidden when a favorite already sits on those coordinates) above the favorite-locations list (max 6; home always listed first): tapping a row moves the map there, restoring the zoom captured when the place was pinned; Edit mode exposes set-as-default (⌂), rename (non-touch clients only), remove (two-tap confirm) and, on the home row, a ★ pin action that converts the default into a stored — hence renamable — favorite | Always |
 | 📍 / 📍off | Toggle location marker | Always |
 | 〜 Timeline | Show / hide radar timeline scrubber | RainViewer source only |
 | ↗ Direction arrows | Show / hide precipitation direction arrows | Radar analysis enabled |
