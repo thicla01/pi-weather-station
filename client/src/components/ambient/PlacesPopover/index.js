@@ -37,6 +37,7 @@ const REMOVE_CONFIRM_MS = 4000;
 const PlacesPopover = ({ open, onClose, triggerRef = null, onNotify = null }) => {
   const {
     favorites, mapGeo, browserGeo, isLocal, homeLabel,
+    canPinFavorite, pinFavorite,
     canRenameFavorite, removeFavorite, renameFavorite, setFavoriteAsDefault,
     setMapPosition, resetMapPosition, setZoomToLevel,
   } = useContext(AppContext);
@@ -100,6 +101,36 @@ const PlacesPopover = ({ open, onClose, triggerRef = null, onNotify = null }) =>
     && round4(homeCoords.latitude) === round4(mapGeo.latitude)
     && round4(homeCoords.longitude) === round4(mapGeo.longitude);
 
+  // Home is ALWAYS the first row — as the pseudo-row when unpinned, as the
+  // ⌂-badged stored favorite when pinned. Display-only reordering: storage
+  // keeps insertion order (ids and PATCH bodies are untouched), but pinning
+  // home must not visually teleport "my home" from the top of the list to
+  // the bottom just because it changed representation.
+  const homeFav = homeCoords ? favorites.find(isDefault) : null;
+  const orderedFavorites = homeFav
+    ? [homeFav, ...favorites.filter((f) => f !== homeFav)]
+    : favorites;
+
+  // Pinning the home row converts it into a stored favorite: the
+  // suppression above then hides the pseudo-row and the stored row carries
+  // the ⌂ badge — and, being stored, it becomes renamable and removable
+  // through the existing edit flow. This is the one-tap answer to "rename
+  // my default location" (issue 319), with no parallel persistence for a
+  // home label. No zoom is captured: the map isn't necessarily framing
+  // home when this pin happens. Label falls back to the rounded
+  // coordinates when the boot reverse-geocode never resolved — the server
+  // drops label-less entries, so pinning must not depend on homeLabel.
+  const handlePinHome = () => {
+    if (!homeCoords) return;
+    setFailed(false);
+    const fallback = `${round4(homeCoords.latitude)}, ${round4(homeCoords.longitude)}`;
+    pinFavorite({
+      label: homeLabel || fallback,
+      lat: homeCoords.latitude,
+      lon: homeCoords.longitude,
+    }).then((ok) => setFailed(!ok));
+  };
+
   const handleSelect = (f) => {
     if (editing) return;
     setMapPosition({ latitude: f.lat, longitude: f.lon });
@@ -159,6 +190,7 @@ const PlacesPopover = ({ open, onClose, triggerRef = null, onNotify = null }) =>
             maxLength={40}
             autoFocus
             aria-label={t("favorites.rename")}
+            title={t("favorites.renameHint")}
             onChange={(e) => setDraftLabel(e.target.value)}
             onBlur={() => commitRename(f)}
             onKeyDown={(e) => {
@@ -224,6 +256,12 @@ const PlacesPopover = ({ open, onClose, triggerRef = null, onNotify = null }) =>
       anchor="right"
       triggerRef={triggerRef}
       portal
+      // The worst-case list is 7 rows (home pseudo-row + 6 favorites),
+      // ~433 px of content: the shell's default 420 px portal cap clipped
+      // the footer by 13 px (field-confirmed on the 7", 2026-08-16). The
+      // content is bounded by MAX_FAVORITES, so opting out of the cap is
+      // safe on every viewport.
+      fitViewport
     >
       <div className={styles.list}>
         {showHomeRow ? (
@@ -240,9 +278,23 @@ const PlacesPopover = ({ open, onClose, triggerRef = null, onNotify = null }) =>
                 {homeLabel || t("favorites.homeFallback")}
               </span>
             </button>
+            {editing && isLocal ? (
+              <div className={styles.rowActions}>
+                <button
+                  type="button"
+                  className={styles.action}
+                  onClick={handlePinHome}
+                  disabled={!canPinFavorite}
+                  title={canPinFavorite ? t("favorites.pin") : t("favorites.full")}
+                  aria-label={t("favorites.pin")}
+                >
+                  ★
+                </button>
+              </div>
+            ) : null}
           </div>
         ) : null}
-        {favorites.map(renderRow)}
+        {orderedFavorites.map(renderRow)}
       </div>
 
       {favorites.length === 0 ? (
@@ -250,7 +302,11 @@ const PlacesPopover = ({ open, onClose, triggerRef = null, onNotify = null }) =>
       ) : null}
 
       <div className={styles.footer}>
-        {isLocal && favorites.length > 0 ? (
+        {/* Edit mode must be reachable with ZERO stored favorites: the home
+          * row is then the only content, and its pin affordance — the path
+          * to a renamable default (issue 319) — lives in Edit mode. Keying
+          * this only on favorites.length made that state a dead end. */}
+        {isLocal && (favorites.length > 0 || showHomeRow) ? (
           <button
             type="button"
             className={styles.editToggle}

@@ -101,6 +101,19 @@ produced v3.3). A popover with a header, a "Current position" row, 44 px touch t
 footer fits **6 entries without scrolling**. At 8 the list scrolls inside a popover on a short
 screen — the worst affordance on a touchscreen kiosk.
 
+> **Amendment 2026-08-16 — the display constraint, re-measured.** Two premises above turned out
+> wrong once measured against the shipped code: (1) the popover **portals to `document.body`**,
+> outside the rail subtrees that carry the font-size `zoom`, and nothing consumes the copied
+> `--c-font-scale` — so font L never binds this surface; (2) the binding ceiling was the
+> `DetailsPopover` portal cap (`min(420, …)`), under which the home row added by PR 316 made the
+> real worst case (⌂ + 6 = 7 rows, ~433 px) **clip its footer by 13 px** — reproduced and
+> confirmed on the 7" kiosk on 2026-08-16. Resolution: the Places popover now opts out of the
+> fixed cap (`fitViewport`, viewport-derived: 440 px of content on a 480 px-tall panel), which
+> fits every state up to 7 rows. **`MAX_FAVORITES` stays 6** and the display model is "7 rows
+> max": 8 rows of 44 px touch targets need ~503 px of outer box against 464 px available on the
+> fleet's 480 px screens — no cap value can fit that, so the cap is what guarantees the
+> no-scroll property. (Maintainer decision 2026-08-16: home row + 6 favorites, never an 8th row.)
+
 **Quota.** Tomorrow.io is 25 req/h per key, with 2 Pis sharing a key since the C2 decision
 (2026-06-15) — call it ~10 req/h of real headroom per Pi. Each *cold* location costs 3 Tomorrow.io
 calls plus reverse-geocode, sunrise/sunset, two alert queries, air quality and pollen. Visiting all
@@ -247,6 +260,20 @@ rendered unbadged, directly under the home row it duplicated.
 (same 4-decimal comparison as §6.1), the pseudo-row is not rendered at all —
 that favorite already carries the `⌂` badge, and two rows for one place is the
 redundant-affordance problem the rail redesign spent a session removing.
+
+> **Amendment 2026-08-16 — the home row is pinnable, and home is always first.** The first
+> field report (issue 319) exposed that the pseudo-row had **no edit affordances at all**: its
+> auto-label ("Texas") could not be renamed, and the workaround (pin the same coordinates from
+> the location popover) was undiscoverable. In Edit mode the home row now carries a **★ pin
+> action** (localhost-gated like every write; disabled with the `favorites.full` hint at the
+> cap): pinning converts home into a stored favorite, the suppression above hides the
+> pseudo-row, the `⌂` badge migrates, and the stored row is renamable/removable through the
+> existing flow — one tap, no parallel persistence for a home label. Two supporting changes:
+> the stored favorite on home coordinates is **displayed first** (display-only ordering;
+> storage keeps insertion order) so pinning home doesn't teleport it to the bottom of the
+> list, and the **Edit toggle now renders when the home row is the only content** — keyed on
+> `favorites.length` alone, a zero-favorite user (issue 319's exact state) could never reach
+> the pin affordance.
 
 **Terminology fix shipped alongside.** `resetMapPosition` pans to `browserGeo`
 — the *default* position — but its dock tooltip read "Recenter the map on the
