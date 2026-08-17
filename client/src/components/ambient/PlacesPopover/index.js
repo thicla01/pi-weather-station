@@ -39,7 +39,7 @@ const PlacesPopover = ({ open, onClose, triggerRef = null, onNotify = null }) =>
     favorites, mapGeo, browserGeo, isLocal, homeLabel,
     canPinFavorite, pinFavorite,
     canRenameFavorite, removeFavorite, renameFavorite, setFavoriteAsDefault,
-    setMapPosition, resetMapPosition, setZoomToLevel,
+    setMapPosition, resetMapPosition,
   } = useContext(AppContext);
   const { t } = useTranslation();
 
@@ -131,14 +131,24 @@ const PlacesPopover = ({ open, onClose, triggerRef = null, onNotify = null }) =>
     }).then((ok) => setFailed(!ok));
   };
 
+  // Selecting a favorite pans and NEVER changes the zoom (LLD §12 Q1,
+  // reversed 2026-08-17). Two reasons, and either alone is sufficient:
+  //   1. The user's zoom is theirs. They zoom to a working scale, then jump
+  //      between places at that scale; snapping back to whatever zoom the
+  //      place happened to be pinned at fights them every time.
+  //   2. Setting zoom right after a pan visibly drifts the marker on the
+  //      layouts where the rail overlays the map. `panWithRailOffset` puts
+  //      the map's TRUE centre north-east of the marker by a fixed PIXEL
+  //      amount so the marker lands at the visual centre of the uncovered
+  //      area — but `map.setZoom` holds that true centre while the
+  //      pixels-per-degree scale changes underneath it, so the marker slides
+  //      by an amount that depends on the zoom you started from. (The +/-
+  //      buttons escape this: `ZoomAnchorOffset` patches `zoomIn`/`zoomOut`
+  //      to `setZoomAround` the non-rail centre. It does not patch
+  //      `setZoom`.)
   const handleSelect = (f) => {
     if (editing) return;
     setMapPosition({ latitude: f.lat, longitude: f.lon });
-    // Transient zoom only: ZoomLevelHandler applies the signal to the map
-    // and clears it. NOT saveDefaultMapZoom — that setter also persists the
-    // value to localStorage as the kiosk's *starting* zoom, so jumping to a
-    // favorite would silently rewrite the user's saved preference.
-    if (f.zoom) setZoomToLevel(f.zoom);
     onClose();
   };
 

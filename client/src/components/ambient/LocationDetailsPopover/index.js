@@ -40,7 +40,7 @@ import styles from "./styles.css";
  */
 const LocationDetailsPopover = ({ open, onClose, triggerRef = null, anchor = "left" }) => {
   const {
-    reverseGeoResult, mapGeo, isLocal, currentMapZoom,
+    reverseGeoResult, mapGeo, isLocal,
     canPinFavorite, isFavoritePinned, pinFavorite,
   } = useContext(AppContext);
   const { t } = useTranslation();
@@ -86,16 +86,15 @@ const LocationDetailsPopover = ({ open, onClose, triggerRef = null, anchor = "le
   // gets 403. Hide the action rather than offer a button that cannot work.
   const pinVisible = isLocal && !!mapGeo && !!autoLabel && typeof pinFavorite === "function";
 
+  // Deliberately NO zoom capture (LLD §12 Q1, reversed 2026-08-17). The zoom
+  // at pin time is an artefact of the pinning gesture — the user zooms IN to
+  // place the pin precisely — not a statement about how they want to view the
+  // place later. Restoring it on every jump fought the user instead of
+  // helping them.
   const handlePin = () => {
     setPinFailed(false);
-    const entry = { label: autoLabel, lat: mapGeo.latitude, lon: mapGeo.longitude };
-    // Freeze the zoom the user is looking at into the favorite, so jumping
-    // back later restores the framing they pinned (LLD §12 Q1). Rounded
-    // because Leaflet can report fractional zooms mid-gesture and the hook
-    // only stores integers 1..18 — a fractional value would be silently
-    // dropped rather than rounded.
-    if (Number.isFinite(currentMapZoom)) entry.zoom = Math.round(currentMapZoom);
-    pinFavorite(entry).then((ok) => setPinFailed(!ok));
+    pinFavorite({ label: autoLabel, lat: mapGeo.latitude, lon: mapGeo.longitude })
+      .then((ok) => setPinFailed(!ok));
   };
 
   const pinFooter = pinVisible ? (
