@@ -7,6 +7,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+- **Selecting a favorite no longer changes the map zoom** — and the per-favorite `zoom`
+  field is removed from the schema. Reversal of the LLD's Q1 after one evening of real use,
+  for two independent reasons. **Usability:** the zoom at pin time is an artefact of the
+  *pinning* gesture — you zoom **in** to place the pin precisely — not a statement about how
+  you want to view the place later; restoring it fought the user, who picks a working scale
+  and jumps between places at that scale. **Correctness:** applying a zoom right after a pan
+  visibly drifted the marker on the layouts where the rail overlays the map.
+  `panWithRailOffset` deliberately puts the map's true centre north-east of the marker by a
+  fixed *pixel* amount, so the marker lands at the visual centre of the uncovered area — but
+  `map.setZoom` holds that true centre while pixels-per-degree changes underneath it, so the
+  marker slid by an amount depending on the zoom you started from, and "recenter" was the
+  only way back. (`ZoomAnchorOffset` patches `zoomIn`/`zoomOut` to `setZoomAround` the
+  non-rail centre; it does not patch `setZoom`, so this path bypassed the correction.)
+  Favorites stored with a zoom during the 3.2.x window shed the field on the next write —
+  the sanitizer rebuilds entries rather than filtering them, so no migration is needed.
+
 ### Fixed (Places popover height, follow-up)
 - **The Places popover no longer collapses to a sliver when opened from the dock.** The
   `fitViewport` height shipped in the same release derived its budget from the popover's

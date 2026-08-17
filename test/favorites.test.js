@@ -155,19 +155,20 @@ test("sanitizeFavorites: the cap counts VALID entries, not raw input rows", () =
   assert.equal(sanitizeFavorites(input).length, MAX_FAVORITES);
 });
 
-// === zoom ===
+// === zoom is NOT part of the schema ===
 
-test("sanitizeFavorites: keeps a valid integer zoom, omits everything else", () => {
-  assert.equal(sanitizeFavorites([valid({ zoom: 9 })])[0].zoom, 9);
-  assert.equal(sanitizeFavorites([valid({ zoom: 1 })])[0].zoom, 1);
-  assert.equal(sanitizeFavorites([valid({ zoom: 18 })])[0].zoom, 18);
-  // Numeric strings are accepted here for the same reason they are accepted
-  // for lat/lon: settings.json legitimately round-trips numbers as strings.
-  assert.equal(sanitizeFavorites([valid({ zoom: "9" })])[0].zoom, 9);
-  for (const bad of [0, 19, 9.5, "9.5", "", NaN, null, undefined, true, []]) {
+test("sanitizeFavorites: a stored zoom is dropped, whatever its value", () => {
+  // The schema carried an optional `zoom` in 3.2.x, until selecting a
+  // favorite was changed to leave the user's zoom alone (restoring the
+  // pin-time zoom fought the user, and setting zoom right after a pan
+  // drifted the marker on rail-overlay layouts). Entries pinned during that
+  // window still carry the field on disk; the rebuild drops it on the next
+  // write, so no migration is needed. This test is the guard against
+  // re-introducing it by accident.
+  for (const z of [9, 1, 18, "9", 0, 19, 9.5, null, true]) {
     assert.ok(
-      !("zoom" in sanitizeFavorites([valid({ zoom: bad })])[0]),
-      `expected zoom ${JSON.stringify(bad)} to be omitted`
+      !("zoom" in sanitizeFavorites([valid({ zoom: z })])[0]),
+      `expected zoom ${JSON.stringify(z)} to be dropped`
     );
   }
 });

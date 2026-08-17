@@ -45,7 +45,7 @@ const ALLOWED_KEYS = new Set([
   // advanced.ai.{extendedRadius, showSamplingPoints}. Default behavior when
   // absent matches the v2.6 baseline.
   "advanced",
-  // Favorite locations — bounded array of {id, label, lat, lon, zoom?}.
+  // Favorite locations — bounded array of {id, label, lat, lon}.
   // NOT opaque like the two above: its shape is validated by
   // sanitizeFavorites below (see VALUE_SANITIZERS).
   "favorites",
@@ -122,8 +122,14 @@ function toNumber(v) {
  * projects through), which means a corrupted file degrades to a shorter list
  * instead of reaching the client verbatim.
  *
+ * Entries are REBUILT rather than filtered, so any extra property a client
+ * (or a hand-edit) attached is dropped — including the `zoom` field this
+ * schema briefly carried in 3.2.x, before selecting a favorite was changed to
+ * leave the user's zoom alone. Stored zooms therefore clean themselves up on
+ * the next write, with no migration.
+ *
  * @param {*} val untrusted value, expected to be an array of favorite entries
- * @returns {Array<{id: string, label: string, lat: number, lon: number, zoom?: number}>}
+ * @returns {Array<{id: string, label: string, lat: number, lon: number}>}
  */
 function sanitizeFavorites(val) {
   if (!Array.isArray(val)) return [];
@@ -137,10 +143,7 @@ function sanitizeFavorites(val) {
     const label = typeof f.label === "string" ? f.label.trim().slice(0, MAX_LABEL_LEN) : "";
     if (!label) continue;
     const id = typeof f.id === "string" && f.id ? f.id.slice(0, 64) : `fav_${out.length}`;
-    const entry = { id, label, lat: round4(lat), lon: round4(lon) };
-    const zoom = toNumber(f.zoom);
-    if (zoom !== null && Number.isInteger(zoom) && zoom >= 1 && zoom <= 18) entry.zoom = zoom;
-    out.push(entry);
+    out.push({ id, label, lat: round4(lat), lon: round4(lon) });
     if (out.length >= MAX_FAVORITES) break;
   }
   return out;

@@ -391,7 +391,7 @@ the reason the rename gate and the layout budget agree by construction rather th
 | `label` | string | 1..40 chars after trim. Auto-filled at pin time, user-editable from a non-touch client (§5.1.1) |
 | `lat` | number | −90..90, **rounded to 4 decimals** |
 | `lon` | number | −180..180, **rounded to 4 decimals** |
-| `zoom` | number \| absent | Integer 1..18 (the app's zoom ceiling was raised to 18 in the 2026-06 audit). Optional — see Q1 |
+| ~~`zoom`~~ | — | **Removed 2026-08-17** (Q1 reversed). Selecting a favorite leaves the map zoom alone; the sanitizer rebuilds entries, so a stored zoom is dropped on the next write |
 
 ### 6.1 Freezing the coordinates is load-bearing, not cosmetic
 
@@ -782,7 +782,7 @@ pushing.
 
 | # | Question | Resolution |
 |---|---|---|
-| **Q1** | Store the **map zoom** per favorite? A cottage wants a tight zoom, a region a wide one. | ✅ **Yes, optional field.** Shipped half in PR 315 (sanitizer + apply-on-select) and completed in PR 320: the pin action now actually captures `currentMapZoom`, and select applies it *transiently* rather than through `saveDefaultMapZoom`, which would have rewritten the kiosk's persisted starting zoom on every jump |
+| **Q1** | Store the **map zoom** per favorite? A cottage wants a tight zoom, a region a wide one. | ❌ **No — reversed 2026-08-17 after one evening of real use.** Shipped half in PR 315, completed in PR 320, removed the same week. Two independent reasons, either sufficient: the zoom at pin time is an artefact of the *pinning* gesture (you zoom **in** to place the pin precisely), not a viewing preference — restoring it fought the user, who works at one scale and jumps between places at that scale. And applying a zoom right after a pan visibly **drifted the marker**: `panWithRailOffset` puts the map's true centre north-east of the marker by a fixed *pixel* amount so the marker lands at the visual centre of the rail-uncovered area, but `map.setZoom` holds that true centre while pixels-per-degree changes underneath it — so the marker slid by an amount depending on the zoom you started from (`ZoomAnchorOffset` patches `zoomIn`/`zoomOut`, not `setZoom`). Selecting a favorite now pans and leaves zoom alone. The field is gone from the schema; entries stored with one shed it on the next write |
 | **Q2** | Is `favorites` **visible to remote clients** in `GET /settings`? | ✅ **Yes, unmasked** — consistent with `startingLat`/`startingLon`, and needed for the SSH-tunnel workflow. Pinned by a dedicated test so a refactor cannot silently flip it; the exposure is recorded in [`docs/security-hardening.md`](security-hardening.md) |
 | **Q3** | Dock icon | ✅ `carbon/bookmark`, as recommended — it resolves, and it avoids the two-map-pin confusion with the marker toggle two buttons away (§8.5) |
 | **Q4** | Show the dock button when the list is **empty**? | ✅ **Yes, with the explainer.** Since PR 316 the popover is never truly empty either — the `⌂` home row renders whenever coordinates exist |

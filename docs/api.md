@@ -94,7 +94,7 @@ value is shape-validated server-side on both the write and the read path.
 
 ```json
 { "key": "favorites", "val": [
-  { "id": "fav_1753651200000", "label": "Chalet — Saint-Donat", "lat": 46.3172, "lon": -74.2205, "zoom": 9 }
+  { "id": "fav_1753651200000", "label": "Chalet — Saint-Donat", "lat": 46.3172, "lon": -74.2205 }
 ] }
 ```
 
@@ -103,9 +103,13 @@ value is shape-validated server-side on both the write and the read path.
 | `id` | string, ≤ 64 chars. Synthesised (`fav_<n>`) when missing |
 | `label` | string, trimmed, 1..40 chars. An entry without one is **dropped** |
 | `lat` / `lon` | −90..90 / −180..180, stored **rounded to 4 decimals** |
-| `zoom` | optional integer 1..18; omitted when absent or out of range |
 
-Numeric strings are accepted for `lat` / `lon` / `zoom` (settings.json stores
+Entries are **rebuilt**, not filtered, so any other property is dropped —
+including the `zoom` field the schema briefly carried in 3.2.x (selecting a
+favorite now leaves the map zoom alone). Entries stored with a zoom during
+that window shed it on the next write; no migration is needed.
+
+Numeric strings are accepted for `lat` / `lon` (settings.json stores
 coordinates as strings elsewhere), but `null`, `""`, booleans and arrays are
 rejected rather than coerced — `Number(null)` is `0`, a valid-looking
 coordinate.
