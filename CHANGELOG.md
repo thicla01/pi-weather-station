@@ -7,6 +7,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed (Places popover height, follow-up)
+- **The Places popover no longer collapses to a sliver when opened from the dock.** The
+  `fitViewport` height shipped in the same release derived its budget from the popover's
+  own `top` — but the dock sits at the bottom edge, so `innerHeight - top` is negative
+  there: the height collapsed to its 120 px floor, the vertical clamp lifted the popover by
+  exactly that (small) height, and the recomputed budget landed on the same floor again —
+  a stable fixed point at the minimum size, with the list clipped. (The pre-`fitViewport`
+  formula escaped this only by accident: it produced a *negative* `max-height`, invalid CSS
+  and therefore ignored, so the content still measured at its natural height.) The budget is
+  now independent of `top` — the whole viewport minus both margins minus the content-box
+  chrome — which is correct precisely because the clamp is free to float the popover away
+  from its trigger. Verified in-browser at both sizes: at 1280×800 the full list renders
+  8 px above the bottom edge; at 800×480 the 7-row worst case (home row + 6 favorites) fits
+  in 457 px under `maxHeight: 440`, no scrolling, footer fully visible.
+
 ### Fixed (favorites field feedback, 2026-08)
 - **Rural auto-labels fall back to the county.** A point with no mapped settlement (no
   city/town/village in the reverse geocode) used to auto-label with the bare region — the
