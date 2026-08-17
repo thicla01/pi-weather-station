@@ -70,22 +70,22 @@ const sameSpot = (a, b) => round4(a.lat) === round4(b.lat) && round4(a.lon) === 
  * one fewer `set-state-in-effect` site for the React Compiler readiness pass
  * to revisit. See docs/favorite-locations-design.md §8.6.
  *
- * @param {object} [options]
- * @param {boolean} [options.isLocal] whether the client is on localhost;
- *   gates the edit affordances (the server enforces the real boundary)
+ * Takes no options: the caller gates the edit affordances on `isLocal` where
+ * they are rendered, and the server enforces the real boundary — the hook's
+ * own `isLocal` parameter existed only for the removed rename gate.
+ *
  * @returns {{
- *   favorites: Array<{id: string, label: string, lat: number, lon: number, zoom?: number}>,
+ *   favorites: Array<{id: string, label: string, lat: number, lon: number}>,
  *   canPin: boolean,
- *   canRename: boolean,
  *   maxFavorites: number,
  *   isPinned: (coords: {latitude: number, longitude: number}) => boolean,
  *   hydrate: (list: unknown) => void,
- *   pin: (entry: {label: string, lat: number, lon: number, zoom?: number}) => Promise<boolean>,
+ *   pin: (entry: {label: string, lat: number, lon: number}) => Promise<boolean>,
  *   remove: (id: string) => Promise<boolean>,
  *   rename: (id: string, label: string) => Promise<boolean>
  * }} the list plus its actions
  */
-export default function useFavoriteLocations({ isLocal = true } = {}) {
+export default function useFavoriteLocations() {
   const [favorites, setFavorites] = useState(NO_FAVORITES);
 
   // Mirror ref so the mutations can read the current list without listing it
@@ -160,9 +160,6 @@ export default function useFavoriteLocations({ isLocal = true } = {}) {
       lat: round4(lat),
       lon: round4(lon),
     };
-    if (Number.isInteger(entry.zoom) && entry.zoom >= 1 && entry.zoom <= 18) {
-      next.zoom = entry.zoom;
-    }
     return persist([...current, next]);
   }, [persist]);
 
@@ -193,25 +190,26 @@ export default function useFavoriteLocations({ isLocal = true } = {}) {
     return favorites.some((f) => sameSpot(f, point));
   }, [favorites]);
 
-  // Rename needs a keyboard, and the kiosk has none — there is no on-screen
-  // keyboard in this project. `maxTouchPoints === 0` separates an HDMI monitor
-  // or a desktop browser on the SSH tunnel (0) from the 7" DSI touchscreen
-  // (> 0); it is the same discriminator useAutoTabSelector uses to decide
-  // whether a reader is present. `isLocal` is required anyway because the
-  // write is localhost-gated.
-  const canRename = isLocal
-    && typeof navigator !== "undefined"
-    && navigator.maxTouchPoints === 0;
-
+  // No device gate on rename (removed 2026-08-17). It used to be
+  // `navigator.maxTouchPoints === 0`, which answers "is a toucher present",
+  // not "can the user type" — so it hid rename from any touch-capable client
+  // that does have a keyboard, and the web platform offers no reliable way to
+  // detect an attached one (`navigator.keyboard` reports layout, not
+  // presence). Rather than swap one unreliable proxy for another, the
+  // affordance is always offered and the Enter/Esc contract is stated under
+  // the input; on a keyboard-less kiosk the field simply cannot be filled and
+  // blurring it commits nothing, because the draft still equals the current
+  // label. Reaching it takes a deliberate tap into Edit mode, so it is never
+  // hit by accident. Full rationale in
+  // docs/favorite-locations-design.md §5.1.1 (amended).
   return useMemo(() => ({
     favorites,
     canPin: favorites.length < MAX_FAVORITES,
-    canRename,
     maxFavorites: MAX_FAVORITES,
     isPinned,
     hydrate,
     pin,
     remove,
     rename,
-  }), [favorites, canRename, isPinned, hydrate, pin, remove, rename]);
+  }), [favorites, isPinned, hydrate, pin, remove, rename]);
 }

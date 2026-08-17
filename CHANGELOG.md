@@ -7,6 +7,29 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Changed
+- **Renaming a favorite is no longer gated on a non-touch device** — it is offered on every
+  local client, and the input now states its Enter/Esc contract on a visible line instead of
+  a `title` tooltip. The old gate (`navigator.maxTouchPoints === 0`) answered *"is a toucher
+  present"*, not *"can the user type"*, and **the web platform cannot answer the second
+  question** (`navigator.keyboard` reports layout, not presence) — so every candidate
+  replacement was another proxy that would eventually be wrong on hardware nobody has bought
+  yet. Two were considered and dropped: `(any-hover: hover) and (any-pointer: fine)`, which
+  fixes a touch laptop with a trackpad but *not* a touchscreen with a keyboard and no mouse
+  (a keyboard adds no pointer); and a `keyboardSeen` flag set by the first real `keydown`,
+  sound but revealing the affordance only after an invisible precondition.
+  **What the field showed:** the gate's real failure was a kiosk whose HDMI monitor is also
+  a touch panel (`ILITEK ILITEK-TP` on USB) with a wired keyboard attached — rename hidden,
+  keyboard right there. Meanwhile the report that started the review was never about the
+  gate: the home row had no rename affordance on *any* device until the pin action shipped.
+  **Why it is safe:** on a keyboard-less kiosk the field cannot be filled, and blurring it
+  commits nothing — the draft still equals the current label, so the write no-ops (verified,
+  not assumed). Reaching it takes a deliberate tap into Edit mode, which retires the original
+  objection: it guarded against a stray-tap risk Edit mode had already eliminated. Tooltips
+  never fire on a touchscreen, so moving the Enter/Esc hint inline finally shows the keyboard
+  contract to the client that most needs it. The hook's `canRename` and its `isLocal` option
+  are gone, along with a leftover `zoom` branch in `pin()` that the schema no longer carries.
+
 ### Added
 - **The Places home row carries a `↺` "reset to automatic" action** (Edit mode, localhost
   only, shown *only* when a manual override is actually stored — otherwise the default is
