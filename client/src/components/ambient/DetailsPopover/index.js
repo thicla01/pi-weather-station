@@ -11,6 +11,11 @@ import styles from "./styles.css";
 // explicitly by the fitViewport height formula.
 const POPOVER_CHROME_PX = 24;
 
+// Minimum gap kept between the popover and every viewport edge. Shared by
+// the horizontal re-anchor, the vertical clamp and the fitViewport height
+// budget — they have to agree, or the clamp fights the height.
+const MARGIN = 8;
+
 /**
  * DetailsPopover — generic popover shell used by the UV / AQ /
  * future Pollen badges (and re-usable by the AlertBanner if its
@@ -179,7 +184,6 @@ const DetailsPopover = ({ open, onClose, title, anchor = "right", triggerRef = n
     const el = popoverRef.current;
     if (!el) return;
     const rect = el.getBoundingClientRect();
-    const MARGIN = 8;
     let next = portalPos;
     if (rect.left < MARGIN) {
       // Off-screen left — re-anchor to the viewport's left edge.
@@ -233,12 +237,26 @@ const DetailsPopover = ({ open, onClose, title, anchor = "right", triggerRef = n
       // reset, so .popover is content-box — its 22 px of vertical
       // padding + 2 px of border sit ON TOP of maxHeight. The
       // fitViewport branch budgets that chrome explicitly so the
-      // OUTER box respects the bottom margin; the default 420 branch
-      // keeps its historical formula (the discrepancy is unreachable
-      // under the cap for every current consumer).
+      // OUTER box respects the margins; the default 420 branch keeps
+      // its historical formula (the discrepancy is unreachable under
+      // the cap for every current consumer).
+      //
+      // fitViewport deliberately does NOT subtract portalPos.top: the
+      // popover is free to float away from its trigger (the vertical
+      // clamp below relocates it), so the real budget is the whole
+      // viewport minus both margins. Deriving it from `top` deadlocks
+      // a bottom-anchored trigger — the dock sits at the bottom edge,
+      // so `innerHeight - top` is negative, the height collapses to
+      // its floor, the clamp lifts the popover by exactly that
+      // (small) height, and the recomputed budget lands on the same
+      // floor again: a stable fixed point at the minimum size, with
+      // the list clipped. (The pre-fitViewport formula escaped this
+      // only by accident — it produced a negative max-height, which
+      // is invalid CSS and therefore ignored, letting the content
+      // measure at its natural height.)
       maxHeight: fitViewport
-        ? Math.max(120, (typeof window !== "undefined" ? window.innerHeight : 600) - portalPos.top - 8 - POPOVER_CHROME_PX)
-        : Math.min(420, (typeof window !== "undefined" ? window.innerHeight : 600) - portalPos.top - 8),
+        ? Math.max(120, (typeof window !== "undefined" ? window.innerHeight : 600) - 2 * MARGIN - POPOVER_CHROME_PX)
+        : Math.min(420, (typeof window !== "undefined" ? window.innerHeight : 600) - portalPos.top - MARGIN),
       // Merge in palette CSS variables so the popover inherits the
       // active palette even though it's portaled outside the
       // AmbientLayers var-injection scope. Spread last so position
