@@ -41,7 +41,7 @@ const PlacesPopover = ({ open, onClose, triggerRef = null, onNotify = null }) =>
   const {
     favorites, mapGeo, browserGeo, isLocal, homeLabel,
     customLat, customLon,
-    canPinFavorite, pinFavorite,
+    canPinHomeFavorite, pinFavorite,
     removeFavorite, renameFavorite, setFavoriteAsDefault,
     setMapPosition, resetMapPosition, resetDefaultLocation,
   } = useContext(AppContext);
@@ -326,12 +326,16 @@ const PlacesPopover = ({ open, onClose, triggerRef = null, onNotify = null }) =>
             </button>
             {editing && isLocal ? (
               <div className={styles.rowActions}>
+                {/* Gated on canPinHomeFavorite, not canPinFavorite: pinning
+                  * home replaces the pseudo-row it suppresses, so it adds no
+                  * row and stays available even when the list is full for
+                  * ordinary places. */}
                 <button
                   type="button"
                   className={styles.action}
                   onClick={handlePinHome}
-                  disabled={!canPinFavorite}
-                  title={canPinFavorite ? t("favorites.pin") : t("favorites.full")}
+                  disabled={!canPinHomeFavorite}
+                  title={canPinHomeFavorite ? t("favorites.pin") : t("favorites.full")}
                   aria-label={t("favorites.pin")}
                 >
                   ★

@@ -8,6 +8,22 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Changed
+- **Pinning the kiosk's own default location no longer costs a favorite slot** — the list
+  holds **7 places when one of them is the default, 6 otherwise**. The cap was always really
+  a *row* budget: the Places popover fits 7 rows, and the `⌂` home pseudo-row occupies one
+  exactly when no favorite sits on the home coordinates. So `rows = favorites.length + (home
+  pinned ? 0 : 1) ≤ 7`, and pinning home is **row-neutral** — the stored row replaces the
+  pseudo-row it suppresses. The flat cap of 6 charged a slot for a place the popover had been
+  showing for free, which is what a user hit after pinning their IP-derived home. Measured on
+  a 480 px panel: 7 favorites with home pinned is **424 px** of content against the 440 px
+  budget — 9 px *shorter* than the ⌂ + 6 case already shipping. Quota agrees, and this is why
+  a flat 6→7 stays rejected: the conditional seventh can only ever be the home location, where
+  the kiosk boots and where Recenter returns, so its weather is effectively always cached.
+  One honest cost: holding 7 favorites and then moving the default to a place that is none of
+  them brings the pseudo-row back above 7 rows, and the popover scrolls ~39 px — gracefully,
+  nothing clips. The server bound rises to 7 as a pure resource ceiling; it cannot evaluate
+  "is home pinned" (that depends on `browserGeo`, which blends `settings.json` with the
+  IP-geolocation cache) and does not try.
 - **Renaming a favorite is no longer gated on a non-touch device** — it is offered on every
   local client, and the input now states its Enter/Esc contract on a visible line instead of
   a `title` tooltip. The old gate (`navigator.maxTouchPoints === 0`) answered *"is a toucher

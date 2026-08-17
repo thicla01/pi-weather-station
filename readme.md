@@ -17,7 +17,7 @@ The kiosk browser is chosen interactively by `install.sh` (Chromium, Chrome, Bra
 A major milestone just landed (full details in [CHANGELOG.md](./CHANGELOG.md) and on the [Releases](https://github.com/thicla01/pi-weather-station/releases) page):
 
 - **Release 3.2.0 — the React 19 era.** A three-step migration arc, each step unlocking the next: **React 18 → 19 with react-leaflet 5**, the **react-hooks v7 rules cluster** (25 sites refactored into documented React patterns), and finally the **React Compiler** — the client is now built with build-time auto-memoisation, measured A/B on a 1 GB Pi 3B against an active storm cell: **−37 % animation CPU, +7.5 % FPS, −1.9 °C**.
-- **Favorite locations.** Pin up to 6 places, jump back to them from the Places popover in the dock, and promote one as the kiosk's default; the popover's home row names the default location.
+- **Favorite locations.** Pin up to 6 places — 7 when one of them is the kiosk's own default — jump back to them from the Places popover in the dock, and promote one as the default; the popover's home row names the default location.
 - **Accuracy + efficiency.** Current temperature is now a server-side smoothed reading (Tomorrow.io's raw feed swings ±2-3 °C between fetches; displayed ≥2 °C jumps cut from 108 to 1 on a 5-day replay), and the idle-waste performance lot cut background traffic by −64 % requests/hour with node RSS down from 158 to 92 MB on 1 GB hardware.
 - **Built with Claude.** The design references come from Claude Design; the implementation, the adversarial multi-agent reviews, the A/B benches, and the audits were carried out with [Claude Code](https://claude.com/claude-code) running Anthropic's **Fable 5** (earlier phases: Opus 4.8).
 
@@ -56,7 +56,7 @@ The station includes:
 - **Opt-in sleep mode / screensaver** with a melatonin-friendly red night palette.
 - **Focus-radar toggle** — a small button under the map's zoom controls hides the hero and the information rail so the radar fills the viewport; tap again to bring them back. Available on the Pi kiosk and desktop layouts (the phone layout has its own maximize button on the mini radar).
 - **Radar timeline** — scrub or play through the past + nowcast RainViewer frames (1× / 2× / 4× speed) with a touch-friendly transport bar; hiding the bar always snaps the radar back to "now".
-- **Favorite locations** — pin up to 6 places, jump back to them from the Places popover in the dock, and promote one as the kiosk's default location.
+- **Favorite locations** — pin up to 6 places (7 when one is the kiosk's own default), jump back to them from the Places popover in the dock, and promote one as the default location.
 - **Localhost-only debug panel** with KPIs, service status, quota counters, radar snapshots, and logs.
 
 The current **v3 "Ambient Layers"** interface — desktop layout, light mode, captured during a live flood event:

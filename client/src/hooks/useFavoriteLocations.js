@@ -1,21 +1,27 @@
-import { useCallback, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import axios from "axios";
 
-// Hard ceiling on the list. Mirrors MAX_FAVORITES in server/settingsCtrl.js,
-// which is the actual guarantee — this one is the UX affordance that disables
-// the pin action before the user hits a silent server-side truncation.
+// The real constraint is a ROW budget, not a favorite count: the Places
+// popover fits 7 rows and no more. An 8th row of 44 px touch targets cannot
+// fit the fleet's 480 px-tall panels under any cap value (measured
+// 2026-08-16; the popover portals outside the rail's font-size zoom, so font
+// L does not change this budget). Rows are:
 //
-// Six is not arbitrary. Display: the worst case is 7 rows — the ⌂ home
-// pseudo-row plus 6 favorites (~433 px of content) — which is what the
-// Places popover's viewport-fit height accommodates on the fleet's 480
-// px-tall panels; an 8th row cannot fit 44 px touch targets on that screen
-// under any cap (measured 2026-08-16; the popover portals outside the
-// rail's font-size zoom, so font L does not change this budget). Quota:
-// visiting all six cold inside one weather-cache window ≈ 18 Tomorrow.io
-// calls against the ~17/h of burst headroom left on the 25 req/h key two
-// Pis share — at the line; a seventh crosses it. Rationale + measurements
-// in docs/favorite-locations-design.md §4 (amended 2026-08-16).
-const MAX_FAVORITES = 6;
+//     rows = favorites.length + (home pinned ? 0 : 1)
+//
+// — the `⌂` pseudo-row occupies a slot exactly when no favorite sits on the
+// home coordinates. So the list may hold 7 favorites when one of them IS
+// home, and 6 otherwise, and both cases render 7 rows. Pinning home is
+// therefore always row-neutral: it converts the pseudo-row into a stored row.
+//
+// This replaced a flat cap of 6 on 2026-08-17, after the flat version charged
+// a slot for pinning home — spending one of six on a place that had been
+// displayed for free. Quota agrees: the extra entry can only ever be the home
+// location, which is where the kiosk boots and where Recenter returns, so its
+// weather is effectively always cached and the marginal upstream cost is nil.
+// Measurements and the row arithmetic in
+// docs/favorite-locations-design.md §4 (amended).
+const MAX_ROWS = 7;
 const MAX_LABEL_LEN = 40;
 
 // Shared empty list. Module-scope and frozen so the "no favorites" case keeps
@@ -70,13 +76,19 @@ const sameSpot = (a, b) => round4(a.lat) === round4(b.lat) && round4(a.lon) === 
  * one fewer `set-state-in-effect` site for the React Compiler readiness pass
  * to revisit. See docs/favorite-locations-design.md §8.6.
  *
- * Takes no options: the caller gates the edit affordances on `isLocal` where
- * they are rendered, and the server enforces the real boundary — the hook's
- * own `isLocal` parameter existed only for the removed rename gate.
+ * Edit affordances are gated on `isLocal` by the caller, where they render;
+ * the server enforces the real boundary. The one thing the hook does need
+ * from outside is the home coordinates, because the cap is a row budget and
+ * the `⌂` pseudo-row only occupies a row when no favorite sits on home.
  *
+ * @param {object} [options]
+ * @param {{latitude: number, longitude: number}|null} [options.home] the
+ *   default location (`browserGeo`). Omitted or null → the pseudo-row is
+ *   assumed present, i.e. the stricter 6-favorite cap applies.
  * @returns {{
  *   favorites: Array<{id: string, label: string, lat: number, lon: number}>,
  *   canPin: boolean,
+ *   canPinHome: boolean,
  *   maxFavorites: number,
  *   isPinned: (coords: {latitude: number, longitude: number}) => boolean,
  *   hydrate: (list: unknown) => void,
@@ -85,7 +97,7 @@ const sameSpot = (a, b) => round4(a.lat) === round4(b.lat) && round4(a.lon) === 
  *   rename: (id: string, label: string) => Promise<boolean>
  * }} the list plus its actions
  */
-export default function useFavoriteLocations() {
+export default function useFavoriteLocations({ home = null } = {}) {
   const [favorites, setFavorites] = useState(NO_FAVORITES);
 
   // Mirror ref so the mutations can read the current list without listing it
@@ -98,6 +110,33 @@ export default function useFavoriteLocations() {
     setFavorites(value);
     return value;
   }, []);
+
+  // Same mirroring for the home coordinates, so `pin` can enforce the row
+  // budget without listing `home` as a dependency (which would mint a new
+  // `pin` identity on every geolocation update). Written in an effect, never
+  // during render — react-hooks/refs.
+  const homeRef = useRef(home);
+  useEffect(() => {
+    homeRef.current = home;
+  }, [home]);
+
+  /**
+   * How many favorites may be stored right now.
+   *
+   * The `⌂` pseudo-row costs a row exactly when no favorite sits on the home
+   * coordinates, so the list may hold one more entry when home IS pinned —
+   * both cases render `MAX_ROWS` rows. See the MAX_ROWS comment above.
+   *
+   * @param {Array} list current favorites
+   * @param {{latitude: number, longitude: number}|null} homeCoords
+   * @returns {number} the effective cap
+   */
+  const capFor = (list, homeCoords) => {
+    const homePinned = !!homeCoords
+      && homeCoords.latitude != null
+      && list.some((f) => sameSpot(f, { lat: homeCoords.latitude, lon: homeCoords.longitude }));
+    return homePinned ? MAX_ROWS : MAX_ROWS - 1;
+  };
 
   /**
    * Hydrate from a `GET /settings` payload. Defensive: anything that is not
@@ -117,7 +156,9 @@ export default function useFavoriteLocations() {
       && typeof f.label === "string" && f.label
       && Number.isFinite(Number(f.lat)) && Number.isFinite(Number(f.lon))
     ));
-    commit(clean.slice(0, MAX_FAVORITES));
+    // Trim to the hard row budget; the finer home-aware cap is a UX gate,
+    // not a storage guarantee, and hydration must never widen the list.
+    commit(clean.slice(0, MAX_ROWS));
   }, [commit]);
 
   /**
@@ -145,7 +186,6 @@ export default function useFavoriteLocations() {
 
   const pin = useCallback((entry) => {
     const { current } = favoritesRef;
-    if (current.length >= MAX_FAVORITES) return Promise.resolve(false);
     const lat = Number(entry && entry.lat);
     const lon = Number(entry && entry.lon);
     if (!Number.isFinite(lat) || !Number.isFinite(lon)) return Promise.resolve(false);
@@ -160,7 +200,13 @@ export default function useFavoriteLocations() {
       lat: round4(lat),
       lon: round4(lon),
     };
-    return persist([...current, next]);
+    // Budget the RESULTING list, not the current one. Pinning home raises the
+    // cap by suppressing the pseudo-row, so a pre-add check reads the old,
+    // stricter cap and silently refuses the very action that would relax it —
+    // which is exactly what it did before this was caught in the browser.
+    const candidate = [...current, next];
+    if (candidate.length > capFor(candidate, homeRef.current)) return Promise.resolve(false);
+    return persist(candidate);
   }, [persist]);
 
   const remove = useCallback((id) => {
@@ -202,14 +248,22 @@ export default function useFavoriteLocations() {
   // label. Reaching it takes a deliberate tap into Edit mode, so it is never
   // hit by accident. Full rationale in
   // docs/favorite-locations-design.md §5.1.1 (amended).
+  const maxFavorites = capFor(favorites, home);
+
   return useMemo(() => ({
     favorites,
-    canPin: favorites.length < MAX_FAVORITES,
-    maxFavorites: MAX_FAVORITES,
+    canPin: favorites.length < maxFavorites,
+    // Pinning home is row-neutral — the stored row replaces the pseudo-row it
+    // suppresses — so it is allowed right up to the row budget, even when
+    // `canPin` has already closed for ordinary places. This is the case that
+    // motivated the change: at 6 favorites plus the pseudo-row you are already
+    // showing 7 rows, and pinning home still shows 7.
+    canPinHome: favorites.length < MAX_ROWS,
+    maxFavorites,
     isPinned,
     hydrate,
     pin,
     remove,
     rename,
-  }), [favorites, isPinned, hydrate, pin, remove, rename]);
+  }), [favorites, maxFavorites, isPinned, hydrate, pin, remove, rename]);
 }
