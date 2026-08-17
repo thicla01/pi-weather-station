@@ -353,8 +353,8 @@ Today, a fresh install dumps the user into the main UI with empty API key fields
 
 > **Design-first.** Onboarding flows are 90% UX copy + visual hierarchy + animation timing — exactly what [Claude Design](https://claude.ai/design) is built for. Mock the full flow there before any React work; the implementation is a small state machine wrapping a few existing input components. Save to `docs/design-references/onboarding.html`.
 
-### 📍 Location favorites
-A small list of saved locations (home, chalet, work) that the user can switch between with a single tap. The map and all weather data would reload for the selected location. Useful for households that monitor multiple places regularly.
+### ✅ ~~Location favorites~~ — **shipped Aug 2026 (v3.2.0)**
+A small list of saved locations (home, chalet, work) switchable with a single tap — shipped as the favorites feature: [PR 315](https://github.com/thicla01/pi-weather-station/pull/315) (pin/list/edit, `settings.json`-backed, server-sanitized, 6-entry cap) + [PR 316](https://github.com/thicla01/pi-weather-station/pull/316) (`⌂` home row), design in `docs/favorite-locations-design.md`. First field cycle (issue 319): [PR 320](https://github.com/thicla01/pi-weather-station/pull/320) (county auto-labels, zoom capture, popover-state fixes) + [PR 321](https://github.com/thicla01/pi-weather-station/pull/321) (pinnable home row, viewport-fit popover). Remaining follow-ups live in the short-term section (preset label chips) and the rename-gate rework (diagnostic-first, via the Debug panel's input-environment probe).
 
 ### ✅ Automated tests (Jest + React Testing Library)
 There are currently no automated tests. Adding unit tests for the unit conversion functions (`services/conversions.js`) and integration tests for the key server endpoints would provide a safety net against regressions as the project grows. A GitHub Actions workflow running ESLint and the test suite on every push would complete the CI foundation.

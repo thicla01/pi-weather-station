@@ -1,10 +1,17 @@
 # Favorite Locations — Low-Level Design
 
-**Status:** Design — implementation-ready except for the open questions in §12 (**Q5 resolved
-2026-07-27**: rename ships in v1, gated on non-touch — see §5.1.1).
-**Date:** 2026-07-27 · **re-validated against HEAD `011afc8` on 2026-08-10** after the React 19 /
-react-leaflet 5 migration (PR 314) and the Dependabot batch. All 21 file:line citations still
-resolve; no design decision was invalidated. New binding constraints in **§8.6**.
+**Status:** SHIPPED — lots 1-3 in [PR 315](https://github.com/thicla01/pi-weather-station/pull/315)
+(2026-08-10) and the home row in [PR 316](https://github.com/thicla01/pi-weather-station/pull/316)
+(2026-08-11), released in v3.2.0. First field cycle (issue 319 + the 2026-08-16 field session)
+delivered in [PR 320](https://github.com/thicla01/pi-weather-station/pull/320) (county auto-labels,
+zoom capture, popover-state reset, input-environment probe) and
+[PR 321](https://github.com/thicla01/pi-weather-station/pull/321) (pinnable home row, home-first
+ordering, viewport-fit popover height). Dated amendments in §4, §5.1, §5.2; deviations from the
+original spec recorded in §10 and §14. Still open: the rename-gate rework (diagnostic-first —
+awaiting the Debug panel's input-environment readings from the kiosk).
+**Date:** 2026-07-27 · **re-validated against HEAD `011afc8` → shipped**; original re-validation
+note: all 21 file:line citations resolved on 2026-08-10 after the React 19 / react-leaflet 5
+migration (PR 314); binding React 19 constraints in **§8.6**.
 **Scope:** v3 ambient tree (all layouts: Pi 7", desktop, mobile) + `settings.json` schema + one new
 value-level sanitizer on the server. No new external service, no new API key.
 
@@ -688,6 +695,23 @@ All strings are **kiosk-visible**, so they go in the locale files. The `lbl()` i
 helper is **not** permitted here — its codified exception covers `SettingsPanel` and `DebugPanel`
 only.
 
+> **As-shipped deviations (recorded 2026-08-16).** The table below is the original spec; four
+> rows shipped differently, deliberately:
+>
+> - `toasts.favoriteAdded` — **never created.** Pin feedback is the button flipping to
+>   "Pinned" in place, which is in-context; a toast fired from inside the `DetailsPopover`
+>   shell would sit in the documented `backdrop-filter` stacking-context trap
+>   (`incident_dock_toast_stacking_context`) — the same reasoning §5.2.1 applies to the
+>   remove-undo toast.
+> - `toasts.favoriteSaveFailed` — **replaced by the inline `favorites.saveFailed` error**
+>   rendered inside the popovers (same trap; and the error belongs next to the action that
+>   failed).
+> - `favorites.currentPosition` — **removed in PR 316**: the "Current position" footer button
+>   became the `⌂` home row (`favorites.homeFallback` is its fallback label).
+> - `favorites.isDefault` — **removed 2026-08-16** (dead key: the `⌂` badge is aria-hidden
+>   inside a button that already carries the label). `favorites.renameHint` is wired as the
+>   rename input's Enter/Esc tooltip since PR 321.
+
 New namespace `favorites.*` plus two `controls.*` and two `toasts.*` keys:
 
 | Key | EN | FR | ES |
@@ -750,14 +774,14 @@ pushing.
 
 ---
 
-## 12. Open questions for the maintainer
+## 12. Open questions for the maintainer — all resolved
 
-| # | Question | Recommendation |
+| # | Question | Resolution |
 |---|---|---|
-| **Q1** | Store the **map zoom** per favorite? A cottage wants a tight zoom, a region a wide one. | **Yes**, optional field. Cost is ~5 lines; without it every jump lands on whatever zoom you happened to be at |
-| **Q2** | Is `favorites` **visible to remote clients** in `GET /settings`? | **Yes** — consistent with `startingLat`/`startingLon` today, and needed for the SSH-tunnel workflow. If the 6-coordinates-instead-of-1 exposure bothers you, add it to `REMOTE_HIDDEN_KEYS`; the cost is that the remote Places list renders empty |
-| **Q3** | Dock icon | `carbon/bookmark` (verify it resolves, §8.5) |
-| **Q4** | Show the dock button when the list is **empty**? | **Yes**, with the explainer. Hiding it makes the feature undiscoverable |
+| **Q1** | Store the **map zoom** per favorite? | ✅ **Yes, optional field** — shipped half in PR 315 (sanitizer + apply-on-select), completed in PR 320 (the pin action now actually captures `currentMapZoom`, and select applies it transiently instead of via `saveDefaultMapZoom`, which would have persisted it as the starting zoom) |
+| **Q2** | Is `favorites` **visible to remote clients** in `GET /settings`? | ✅ **Yes, unmasked** — consistent with `startingLat`/`startingLon`; pinned by a dedicated test so a refactor can't silently flip it; recorded in `docs/security-hardening.md` |
+| **Q3** | Dock icon | ✅ `carbon/bookmark`, as recommended |
+| **Q4** | Show the dock button when the list is **empty**? | ✅ **Yes, with the explainer** — and since PR 316 the popover is never truly empty (the `⌂` home row renders whenever coordinates exist) |
 | **Q5** | Is **rename** needed in v1? | ✅ **RESOLVED 2026-07-27 — yes, gated on non-touch** (`isLocal && navigator.maxTouchPoints === 0`). Full design in §5.1.1. The zero-typing preset-chip variant goes to the ROADMAP instead of v1 |
 
 ---
@@ -787,6 +811,19 @@ pushing.
 | **3** | i18n EN/FR/ES + glossary regeneration · `docs/api.md` · `docs/security-hardening.md` line · `docs/ui-layout_{en,fr}.md` · `CHANGELOG.md` | ~2 h |
 
 **Build gate:** `cd client && npm run prod` with zero errors, plus `npm test` green.
+
+> **Field-test record (2026-08-16).** The gate below was NOT run before the fleet — v3.2.0
+> shipped with browser-only verification (both PR messages say so), and the criteria were
+> executed *organically* in a maintainer field session on 2026-08-16, on the real kiosk plus
+> the SSH tunnel. Results: **1, 3, 4, 5, 5b (both halves — no ✎ on the touchscreen, ✎ present
+> on the Mac via tunnel), 5c, 6 and 7 all pass** (criterion 7 via `server.log`: identical
+> 4-decimal cache keys across visits, `daily` HIT on return, TTLs 900/1798/21597 s — the §6.1
+> contract end-to-end). **Criterion 2 FAILED, instructively:** the popover portals outside the
+> rail's font-size zoom (font L never applied — the criterion's premise was wrong) and the real
+> ceiling was the shell's 420 px portal cap, under which the home row added by PR 316 made ⌂+6
+> clip its footer by 13 px. Fixed by the viewport-fit height in PR 321; see the §4 amendment.
+> Lesson for the next feature: a field-test gate that ships without being run decays into
+> documentation — schedule it as a work item, not a hope.
 
 **Field test on the real 7" before the fleet** — acceptance criteria:
 
