@@ -1710,13 +1710,39 @@ export function AppContextProvider({ children }) {
           // makes it trivially reproducible, so both paths are fixed.
           const nextLat = parseFloat(lat);
           const nextLon = parseFloat(lon);
+          // Either way the captured home name now describes the OLD default.
+          // Drop it and let the home row fall back to its generic label
+          // rather than confidently naming the wrong city.
+          homeLabelCapturedRef.current = false;
+          setHomeLabel(null);
           if (Number.isFinite(nextLat) && Number.isFinite(nextLon)) {
             setBrowserGeo({ latitude: nextLat, longitude: nextLon });
-            // Coordinates typed by hand: whatever name we captured describes
-            // the OLD default. Drop it and let the home row fall back to its
-            // generic label rather than confidently naming the wrong city.
-            homeLabelCapturedRef.current = false;
-            setHomeLabel(null);
+          } else {
+            // Cleared to "Auto" — an empty field parses to NaN, which used to
+            // skip this whole block and leave `browserGeo` pointing at the
+            // override the user just removed. Symptom: Recenter and the
+            // Places home row kept going to the old place until a reload,
+            // which is why resetting to automatic appeared to need a reboot.
+            // Re-derive from the server's IP geolocation instead, so "Auto"
+            // means automatic immediately.
+            //
+            // The map is deliberately NOT moved — same rule as
+            // `setFavoriteAsDefault` below: changing where "home" is should
+            // not yank the map out from under whatever the user is looking
+            // at. Recenter takes them there when they want it.
+            getCoordsFromApi()
+              .then((geo) => {
+                if (!geo) return;
+                const { latitude, longitude } = geo;
+                if (Number.isFinite(latitude) && Number.isFinite(longitude)) {
+                  setBrowserGeo({ latitude, longitude });
+                }
+              })
+              .catch(() => {
+                // Detection unavailable (offline, ipapi down with no cache).
+                // Leaving `browserGeo` as-is is the safe failure: Recenter
+                // keeps working, and the next reload retries detection.
+              });
           }
         })
         .catch((err) => {
