@@ -115,7 +115,7 @@ rejected rather than coerced — `Number(null)` is `0`, a valid-looking
 coordinate.
 
 Malformed entries are **dropped individually**, not rejected wholesale, and
-the list is truncated to the first **6** valid entries. Sending `[]` clears
+the list is truncated to the first **7** valid entries — the server's bound is the resource ceiling; the client applies the finer display rule (6 ordinary places, 7 when one of them is the kiosk's default, so the Places popover never renders an 8th row). Sending `[]` clears
 the list. The rounding is a contract with the weather cache, not cosmetics:
 see `docs/favorite-locations-design.md` §6.1.
 

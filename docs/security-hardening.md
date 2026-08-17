@@ -219,7 +219,7 @@ bill against their API key**.
 
 Masking hides secrets, not coordinates. `startingLat` / `startingLon` have
 always reached remote clients verbatim, and as of the favorite-locations
-feature so does `favorites` — up to six labelled `{lat, lon}` pairs naming
+feature so does `favorites` — up to seven labelled `{lat, lon}` pairs naming
 places the operator cares about. This is a deliberate call (the SSH-tunnel
 and LAN workflows both need to read the list), but it widens the location
 exposure from one point to several, and the labels are user-authored text.

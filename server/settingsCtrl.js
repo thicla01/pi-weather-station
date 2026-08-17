@@ -66,7 +66,17 @@ const REMOTE_HIDDEN_KEYS = new Set([
 // client hook: the client cap is the UX affordance ("list full"), this one is
 // the guarantee — a buggy or hand-rolled client can never grow the list past
 // it. MAX_LABEL_LEN keeps a pathological label from bloating settings.json.
-const MAX_FAVORITES = 6;
+//
+// Seven, not six, since 2026-08-17: the client's rule is a ROW budget of 7 in
+// the Places popover, and the `⌂` home pseudo-row only occupies a row when no
+// favorite sits on the home coordinates — so a list holding its own home may
+// legitimately carry 7 entries. The server cannot evaluate that condition
+// (it depends on browserGeo, which blends settings.json with the IP
+// geolocation cache) and has no business trying: bounding the resource is its
+// job, the display rule is the client's. A hand-crafted PATCH could therefore
+// store 7 arbitrary places; the only consequence is a Places popover that
+// scrolls, which it does gracefully.
+const MAX_FAVORITES = 7;
 const MAX_LABEL_LEN = 40;
 
 /**

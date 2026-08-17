@@ -145,6 +145,15 @@ test("sanitizeFavorites: truncates at MAX_FAVORITES, preserving order", () => {
   assert.deepEqual(out.map((f) => f.id), many.slice(0, MAX_FAVORITES).map((f) => f.id));
 });
 
+test("MAX_FAVORITES is the 7-row budget, not the 6-place UX cap", () => {
+  // The server bounds the resource; the client applies the finer rule (6
+  // ordinary places, 7 when one of them is the home location, so the Places
+  // popover never renders an 8th row). Pinning that down here because the two
+  // numbers are deliberately different and a future "align them" cleanup
+  // would silently re-charge users a slot for pinning their own home.
+  assert.equal(MAX_FAVORITES, 7);
+});
+
 test("sanitizeFavorites: the cap counts VALID entries, not raw input rows", () => {
   // A run of junk at the head must not consume the budget — otherwise a
   // corrupted file could silently hide the user's real favorites.

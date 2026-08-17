@@ -130,6 +130,49 @@ screen — the worst affordance on a touchscreen kiosk.
 > fleet's 480 px screens — no cap value can fit that, so the cap is what guarantees the
 > no-scroll property. (Maintainer decision 2026-08-16: home row + 6 favorites, never an 8th row.)
 
+> **Amendment 2026-08-17 — the cap is a ROW budget, so the home entry does not count.** The
+> flat cap of 6 charged a slot for pinning the home location — spending one of six on a place
+> the popover had been showing for free as the `⌂` pseudo-row, which is what a user hit in the
+> field after pinning their IP-derived home. The rule is now stated the way the constraint
+> actually works:
+>
+> ```
+> rows = favorites.length + (home pinned ? 0 : 1)   ≤ 7
+> ```
+>
+> so the list holds **7 favorites when one of them is home, 6 otherwise** — both render 7
+> rows, and pinning home is *row-neutral*: the stored row replaces the pseudo-row it
+> suppresses. Measured on a 480 px panel: 7 favorites with home pinned is **424 px** of
+> content against the 440 px viewport-fit budget (verified in-browser: `maxHeight 440`, outer
+> 448, 17 px of bottom margin, no scrolling) — actually **9 px shorter** than the ⌂ + 6 case
+> that already shipped.
+>
+> **Quota agrees, and this is why the general 6→7 stayed rejected.** A flat seventh slot would
+> cost ~21 Tomorrow.io calls on a fully-cold tour against ~17/h of burst headroom. The
+> conditional seventh can only ever be the home location — where the kiosk boots and where
+> Recenter returns — so its weather is effectively always cached and the marginal upstream
+> cost is nil.
+>
+> **The one cost, stated plainly.** An 8-row state becomes reachable again if, while holding 7
+> favorites, the user moves the default to a place that is none of them (hand-typed
+> coordinates, or `↺` when the pinned home was a manual override). The `⌂` pseudo-row then
+> reappears above 7 rows and the popover scrolls ~39 px — gracefully, since PR 328; nothing
+> clips. Moving the default to another *favorite*, or `↺` when the pinned home already is the
+> IP-derived one, stays safe.
+>
+> **Where each bound lives.** `MAX_ROWS = 7` in the client hook expresses the display rule and
+> yields two affordance flags — `canPin` (ordinary places, 6 unless home is pinned) and
+> `canPinHome` (always allowed up to 7, since it adds no row). `MAX_FAVORITES = 7` on the
+> server is the resource ceiling only: it cannot evaluate "is home pinned" (that depends on
+> `browserGeo`, which blends `settings.json` with the IP-geolocation cache) and has no
+> business trying. A hand-crafted `PATCH` can therefore store 7 arbitrary places; the only
+> consequence is a popover that scrolls.
+>
+> **Implementation trap, found in the browser rather than in review.** `pin()` must budget the
+> **resulting** list, not the current one. Checking before the insert reads the old, stricter
+> cap and silently refuses the very action that would relax it — the ★ button appeared
+> enabled and did nothing.
+
 **Quota.** Tomorrow.io is 25 req/h per key, with 2 Pis sharing a key since the C2 decision
 (2026-06-15) — call it ~10 req/h of real headroom per Pi. Each *cold* location costs 3 Tomorrow.io
 calls plus reverse-geocode, sunrise/sunset, two alert queries, air quality and pollen. Visiting all
@@ -552,7 +595,7 @@ path: a hand-edited or corrupted `favorites` array can never reach a client verb
 remote clients — the same exposure `startingLat`/`startingLon` already have. This is a deliberate
 call, not an oversight: it keeps the Places list readable over the SSH tunnel and over a LAN
 client, which is the documented remote workflow. It does widen the exposure from one coordinate
-pair to up to six. See **Q2** in §12 if you want the stricter variant.
+pair to up to seven. See **Q2** in §12 if you want the stricter variant.
 
 Whatever is decided, [`docs/security-hardening.md`](security-hardening.md) gets one line stating it,
 alongside the existing note on what `maskForRemote` does and does not hide.
