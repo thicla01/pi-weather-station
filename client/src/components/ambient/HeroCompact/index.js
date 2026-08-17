@@ -98,14 +98,17 @@ const HeroCompact = ({ shortPhaseName = false, hideAstro = false, hideFeelsLike 
   ) : (
     <LocationName />
   );
-  const locationPopover = (
+  // Mounted only while open so its transient pin-failure state drops on
+  // close instead of resurfacing on the next open — same contract as
+  // PlacesPopover in ControlButtons.
+  const locationPopover = locationOpen ? (
     <LocationDetailsPopover
-      open={locationOpen}
+      open
       onClose={() => setLocationOpen(false)}
       triggerRef={locationRef}
       anchor="left"
     />
-  );
+  ) : null;
 
   const weatherData = currentWeatherData?.data?.timelines?.[0]?.intervals?.[0]?.values;
   if (!weatherData) {

@@ -7,6 +7,39 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed (favorites field feedback, 2026-08)
+- **Rural auto-labels fall back to the county.** A point with no mapped settlement (no
+  city/town/village in the reverse geocode) used to auto-label with the bare region — the
+  "Texas" default pin reported in issue 319. `placeLabelFromAddress` now substitutes the
+  county (`county`/`state_district`) for a missing locality, yielding "Henderson County,
+  Texas"-style labels; it never joins a county to an existing locality. Applies to the pin
+  auto-label, the Places home row (self-heals on the next reload — the home label is
+  re-captured every boot) and any future consumer of the shared helper. Stored favorites
+  keep the label they were pinned with, by design — rename to update them.
+- **A favorite's zoom is now actually captured at pin time — and applied without side
+  effects.** The optional per-favorite `zoom` field (LLD §12 Q1) was plumbed end-to-end in
+  3.2.0 but never set: the pin action didn't pass it, so no favorite could ever acquire one.
+  Pinning now freezes the current map zoom into the entry, and selecting a favorite applies
+  a stored zoom **transiently** (`setZoomToLevel`) instead of via `saveDefaultMapZoom`,
+  which would also have silently rewritten the kiosk's persisted starting-zoom preference
+  on every jump — a latent clobber that activating the capture would have armed.
+- **The Places popover drops its transient state on close.** It was mounted permanently, so
+  edit mode, an armed two-tap Remove, a half-open rename draft and the save-error text all
+  survived close/reopen — reopening could show an armed "Remove?" the user never asked for,
+  or an Edit mode where every row reads as inert on the kiosk (the in-code comment claiming
+  unmount-on-close described a render site that didn't exist). The popover (and the
+  location-details popover, whose pin-failure text had the same leak) is now mounted only
+  while open, so every close path resets it by construction. Also removed a dead
+  `--c-surface-hybrid` fallback that could never resolve inside the portal's CSS-variable
+  whitelist.
+
+### Added (favorites field feedback, 2026-08)
+- **Debug panel: "Input environment" section** (Client bucket) — one snapshot per open of
+  `maxTouchPoints` and the `pointer` / `hover` / `any-pointer` / `any-hover` media queries,
+  with multi-device values listed ("fine+coarse"). Measures the kiosk's real input stack —
+  including whether an RPi Connect session or an attached mouse exposes a fine pointer —
+  before any UI gate (first candidate: the favorites rename gate) is keyed on these values.
+
 ## [3.2.0] - 2026-08-14
 
 ### Performance (React Compiler, 2026-08)

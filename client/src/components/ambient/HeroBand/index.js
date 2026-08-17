@@ -188,12 +188,17 @@ const HeroBand = () => {
           ) : (
             <LocationName />
           )}
-          <LocationDetailsPopover
-            open={locationOpen}
-            onClose={() => setLocationOpen(false)}
-            triggerRef={locationRef}
-            anchor="left"
-          />
+          {/* Mounted only while open so its transient pin-failure state
+            * drops on close instead of resurfacing on the next open —
+            * same contract as PlacesPopover in ControlButtons. */}
+          {locationOpen ? (
+            <LocationDetailsPopover
+              open
+              onClose={() => setLocationOpen(false)}
+              triggerRef={locationRef}
+              anchor="left"
+            />
+          ) : null}
         </div>
         {/* Tier 2 — focal: dominant temp + condition + feels-like */}
         {temperature != null ? (

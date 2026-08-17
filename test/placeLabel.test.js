@@ -51,7 +51,10 @@ const pickRegion = (address) => {
 const MAX_LABEL_LEN = 40;
 
 const placeLabelFromAddress = (address) => {
-  const parts = [pickLocality(address), pickRegion(address)].filter(Boolean);
+  const parts = [
+    pickLocality(address) || pickCounty(address),
+    pickRegion(address),
+  ].filter(Boolean);
   if (parts.length === 0) return null;
   return parts.join(", ").slice(0, MAX_LABEL_LEN);
 };
@@ -111,4 +114,51 @@ test("placeLabelFromAddress: truncates at the server's MAX_LABEL_LEN", () => {
   const label = placeLabelFromAddress({ city: "x".repeat(60), state: "y".repeat(60) });
   assert.equal(label.length, MAX_LABEL_LEN);
   assert.equal(MAX_LABEL_LEN, require("../server/settingsCtrl").__test.MAX_LABEL_LEN);
+});
+
+// === county fallback (GitHub issue 319 — the "Texas" default pin) ===
+
+test("placeLabelFromAddress: county substitutes for a missing locality", () => {
+  // A rural point exposes no city/town/village — before the fallback the
+  // label degraded to the bare region, which is exactly the "Texas" report.
+  assert.equal(
+    placeLabelFromAddress({ county: "Henderson County", state: "Texas" }),
+    "Henderson County, Texas"
+  );
+});
+
+test("placeLabelFromAddress: county never displaces or joins an existing locality", () => {
+  // Guards against a naive three-part join — "Montréal, Agglomération de
+  // Montréal, Québec" must not happen.
+  assert.equal(
+    placeLabelFromAddress({
+      city: "Montréal",
+      county: "Agglomération de Montréal",
+      state: "Québec",
+    }),
+    "Montréal, Québec"
+  );
+});
+
+test("placeLabelFromAddress: county alone is a valid label", () => {
+  assert.equal(placeLabelFromAddress({ county: "Loving County" }), "Loving County");
+});
+
+test("placeLabelFromAddress: state_district feeds the county slot", () => {
+  // pickCounty's own fallback chain (county || state_district) must carry
+  // through the composed label, not just the detail row.
+  assert.equal(
+    placeLabelFromAddress({ state_district: "Lanaudière", state: "Québec" }),
+    "Lanaudière, Québec"
+  );
+});
+
+test("placeLabelFromAddress: a verbose county name still truncates at MAX_LABEL_LEN", () => {
+  // LocationIQ county values can be long ("Regional County Municipality
+  // of …") — the composed label must stay within the server's bound.
+  const label = placeLabelFromAddress({
+    county: "Municipalité régionale de comté de La Haute-Côte-Nord",
+    state: "Québec",
+  });
+  assert.equal(label.length, MAX_LABEL_LEN);
 });

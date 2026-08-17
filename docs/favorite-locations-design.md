@@ -141,6 +141,12 @@ The label is pre-filled from the reverse geocode already in context: `locality` 
 village / hamlet / municipality, the same fallback chain the popover uses) plus `region` when it
 fits — e.g. `Saint-Donat, QC`. Truncate to `MAX_LABEL_LEN = 40`.
 
+> **Amendment 2026-08-16:** the first half of the auto-label now falls back to the **county**
+> (`county` / `state_district`) when no locality is mapped. A rural point otherwise degraded to
+> the bare region — which is how a Texas ranch got auto-labelled "Texas" (GitHub issue 319,
+> the feature's first field report). The county only substitutes for a missing locality; it
+> never joins one. Implemented in `client/src/ui/placeLabel.js`.
+
 `noData` case: if there is no reverse-geocode payload, fall back to the formatted coordinates as
 the label so pinning still works over a lake or a field.
 
