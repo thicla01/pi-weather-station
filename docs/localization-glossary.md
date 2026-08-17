@@ -4,7 +4,7 @@
      Regenerate with: node tools/gen-localization-glossary.js
      Validation marks (☑) in the first column ARE preserved across runs. -->
 
-**Generated** by `tools/gen-localization-glossary.js` on 2026-08-16. Re-run it after
+**Generated** by `tools/gen-localization-glossary.js` on 2026-08-17. Re-run it after
 touching a locale file or an inline `lbl()` string — every row below is derived, so a
 hand edit will be overwritten. The one exception is the **Validé** column: it is human
 review state and the generator carries existing `☑` marks forward, matching on the key
@@ -16,7 +16,7 @@ Replace `☐` with `☑` when a native speaker has confirmed the FR and ES wordi
 
 | Source | Rows | Notes |
 |---|---|---|
-| `client/src/i18n/locales/{en,fr,es}.json` | 405 translated + 19 identical | Every kiosk-visible surface. 424 leaf keys total. |
+| `client/src/i18n/locales/{en,fr,es}.json` | 406 translated + 19 identical | Every kiosk-visible surface. 425 leaf keys total. |
 | `client/src/components/ambient/SettingsPanel/index.js` | 108 (+5 non-literal, not listed) | Settings overlay — the user-facing configuration surface. |
 | `client/src/components/ambient/DebugPanel/index.js` | 81 | Debug overlay — localhost-only, reached from a desktop browser or an SSH tunnel. |
 
@@ -323,6 +323,7 @@ reported here as a gap table, so an empty check means the three files are aligne
 | ☐ | Remove? | Retirer ? | ¿Quitar? | `favorites.removeConfirm` |
 | ☐ | Rename | Renommer | Renombrar | `favorites.rename` |
 | ☐ | Enter to save, Esc to cancel | Entrée pour enregistrer, Échap pour annuler | Intro para guardar, Esc para cancelar | `favorites.renameHint` |
+| ☐ | Reset to automatic | Revenir à Auto | Volver a automático | `favorites.resetHome` |
 | ☐ | Could not save — check the connection | Enregistrement impossible — vérifiez la connexion | No se pudo guardar — revise la conexión | `favorites.saveFailed` |
 | ☐ | Set as default | Définir par défaut | Definir por defecto | `favorites.setDefault` |
 | ☐ | Places | Lieux | Lugares | `favorites.title` |
