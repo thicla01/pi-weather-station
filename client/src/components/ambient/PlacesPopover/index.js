@@ -157,7 +157,7 @@ const PlacesPopover = ({ open, onClose, triggerRef = null, onNotify = null }) =>
     }).then((ok) => setFailed(!ok));
   };
 
-  // Selecting a favorite pans and NEVER changes the zoom (LLD §12 Q1,
+  // Selecting a favorite pans and NEVER changes the zoom (LLD §10 D-05,
   // reversed 2026-08-17). Two reasons, and either alone is sufficient:
   //   1. The user's zoom is theirs. They zoom to a working scale, then jump
   //      between places at that scale; snapping back to whatever zoom the

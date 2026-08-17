@@ -1173,7 +1173,7 @@ export function AppContextProvider({ children }) {
             }
             // Favorites ride along on this existing settings read rather than
             // getting their own fetch or their own mount effect — see
-            // docs/favorite-locations-design.md §8.6.
+            // docs/favorite-locations-design.md §6.4 React 19 constraints.
             hydrateFavorites(res.favorites);
             if (res.anthropicApiKey) {
               setAnthropicApiKey(res.anthropicApiKey);

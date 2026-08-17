@@ -1,5 +1,5 @@
 // Regression tests for the favorite-locations value sanitizer
-// (design: docs/favorite-locations-design.md §7.2).
+// (design: docs/favorite-locations-design.md §5 Server — the sanitizer).
 //
 // Why this needs dedicated coverage, beyond the usual "validate your input":
 //

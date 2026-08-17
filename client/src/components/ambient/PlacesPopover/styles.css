@@ -1,6 +1,6 @@
 /* PlacesPopover — the favorites picker.
  *
- * Layout budget (docs/favorite-locations-design.md §5.2.1): the usable
+ * Layout budget (docs/favorite-locations-design.md §8 Layout and geometry): the usable
  * popover width on the 7" rail is ~280px. In edit mode the row is
  * `label | actions`, with the label allowed to shrink (min-width: 0 —
  * without it a flex item refuses to go below its content width and

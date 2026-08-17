@@ -77,8 +77,8 @@ const LocationDetailsPopover = ({ open, onClose, triggerRef = null, anchor = "le
   // reads in the truncated hero label. Falls back to the coordinates so a
   // point over a lake or an unmapped field can still be pinned — the server
   // sanitizer drops label-less entries, so "no address" must not mean "no
-  // label". Renaming afterwards is a non-touch-only affordance (the kiosk has
-  // no keyboard); see the Places popover.
+  // label". Renaming afterwards is available on any local client; see the
+  // Places popover and LLD §7.3 Rename — ungated.
   const autoLabel = placeLabelFromAddress(address) || coordsStr || null;
 
   const pinnedAlready = isFavoritePinned ? isFavoritePinned(mapGeo) : false;
@@ -86,7 +86,7 @@ const LocationDetailsPopover = ({ open, onClose, triggerRef = null, anchor = "le
   // gets 403. Hide the action rather than offer a button that cannot work.
   const pinVisible = isLocal && !!mapGeo && !!autoLabel && typeof pinFavorite === "function";
 
-  // Deliberately NO zoom capture (LLD §12 Q1, reversed 2026-08-17). The zoom
+  // Deliberately NO zoom capture (LLD §10 D-05, reversed 2026-08-17). The zoom
   // at pin time is an artefact of the pinning gesture — the user zooms IN to
   // place the pin precisely — not a statement about how they want to view the
   // place later. Restoring it on every jump fought the user instead of

@@ -20,7 +20,7 @@ import axios from "axios";
 // location, which is where the kiosk boots and where Recenter returns, so its
 // weather is effectively always cached and the marginal upstream cost is nil.
 // Measurements and the row arithmetic in
-// docs/favorite-locations-design.md §4 (amended).
+// docs/favorite-locations-design.md §3 Capacity — the 7-row budget.
 const MAX_ROWS = 7;
 const MAX_LABEL_LEN = 40;
 
@@ -38,7 +38,7 @@ const NO_FAVORITES = Object.freeze([]);
  * favorite's coordinates are frozen at the precision of the weather proxy's
  * cache key (`type:fieldsHash:lat(4dp):lon(4dp)`) — returning to a favorite
  * then re-uses its cached weather instead of costing three fresh Tomorrow.io
- * calls. See docs/favorite-locations-design.md §6.1.
+ * calls. See docs/favorite-locations-design.md §4.2 Freezing the coordinates.
  *
  * @param {number} n coordinate value
  * @returns {number} the value rounded to 4 decimal places
@@ -74,7 +74,7 @@ const sameSpot = (a, b) => round4(a.lat) === round4(b.lat) && round4(a.lon) === 
  * Seeding is deliberately NOT done here with an effect. The caller hydrates
  * from the boot `GET /settings` response it already fetches (see `hydrate`) —
  * one fewer `set-state-in-effect` site for the React Compiler readiness pass
- * to revisit. See docs/favorite-locations-design.md §8.6.
+ * to revisit. See docs/favorite-locations-design.md §6.4 React 19 constraints.
  *
  * Edit affordances are gated on `isLocal` by the caller, where they render;
  * the server enforces the real boundary. The one thing the hook does need
@@ -247,7 +247,7 @@ export default function useFavoriteLocations({ home = null } = {}) {
   // blurring it commits nothing, because the draft still equals the current
   // label. Reaching it takes a deliberate tap into Edit mode, so it is never
   // hit by accident. Full rationale in
-  // docs/favorite-locations-design.md §5.1.1 (amended).
+  // docs/favorite-locations-design.md §7.3 Rename — ungated.
   const maxFavorites = capFor(favorites, home);
 
   return useMemo(() => ({
