@@ -13,9 +13,14 @@ introduced on bottom-anchored triggers),
 [PR 330](https://github.com/thicla01/pi-weather-station/pull/330) (Q1 reversed — selecting a
 favorite no longer touches the zoom) and
 [PR 331](https://github.com/thicla01/pi-weather-station/pull/331) (return to automatic
-geolocation: live apply + the home row's `↺`). The non-touch rename gate was removed
-2026-08-17 — see the §5.1.1 amendment. Dated amendments in §4, §5.1.1, §5.2 and §9;
-as-shipped deviations in §10; the field-test outcome in §14.
+geolocation: live apply + the home row's `↺`),
+[PR 332](https://github.com/thicla01/pi-weather-station/pull/332) (the non-touch rename gate
+removed — rename is offered on every local client) and
+[PR 333](https://github.com/thicla01/pi-weather-station/pull/333) (the cap restated as a 7-row
+budget, so the kiosk's own default no longer costs a slot). Dated amendments in §4, §5.1.1,
+§5.2, §5.2.1 and §9; as-shipped deviations in §10; the field-test outcome in §14.
+**Read the amendments, not just the prose they follow** — several original paragraphs were
+measured wrong and are kept only for the record.
 **Nothing is open.** The Debug panel's input-environment probe (PR 320) stays as a
 diagnostic; it is no longer gating a decision.
 **Date:** 2026-07-27 · **re-validated against HEAD `011afc8` on 2026-08-10** after the React 19 /
@@ -107,7 +112,7 @@ Places must stay reachable — Recenter, its sibling, is not flagged either.
 
 ---
 
-## 4. Capacity — `MAX_FAVORITES = 6`
+## 4. Capacity — a 7-row budget (~~`MAX_FAVORITES = 6`~~, superseded 2026-08-17)
 
 Three independent constraints converge on the same number:
 
@@ -455,6 +460,27 @@ without `min-width: 0` the label refuses to shrink and pushes the buttons off), 
 The three-button crunch therefore never happens on the smallest screen. Worth stating because it is
 the reason the rename gate and the layout budget agree by construction rather than by luck.
 
+> **Amendment 2026-08-17 — measured, and both halves above were wrong.** The rename gate is gone
+> (§5.1.1), so **all three buttons now render on the 7" too** — the "crunch never happens"
+> conclusion is void. It turned out not to matter, because the width estimate was also
+> pessimistic. Measured in-browser at an 800 × 480 viewport, the fleet's panel size:
+>
+> | | Estimated above | Measured |
+> |---|---|---|
+> | Popover width | ~280 px | **346 px** (320 px content + chrome) |
+> | Actions (3 × 44) | — | **132 px** |
+> | Label column | ~180 px on desktop only | **180 px, on the 7" as well** |
+>
+> So the three-button row on the smallest screen gets the same 180 px the desktop case was
+> judged "fine" with. Ellipsis confirmed working at that width: `Sainte-Brigide-dIberville,
+> Quebec` reports `scrollWidth 204` against `clientWidth 160` inside the label span and
+> truncates, while `Montreal, Quebec` (109 px) does not.
+>
+> The `min-width: 0` note above remains the load-bearing part — without it the label refuses to
+> shrink and pushes the buttons off the row. The **home row** now carries up to two of its own
+> actions (`★`, and `↺` when a manual override is stored), which is one fewer than a favorite
+> row, so it is not the binding case.
+
 ### 5.3 Styling notes
 
 - Reuse `RailSquareButton` if any square affordance is added to the rail (project guard-rail). The
@@ -488,7 +514,7 @@ the reason the rename gate and the layout budget agree by construction rather th
 | Field | Type | Rule |
 |---|---|---|
 | `id` | string | Opaque, client-generated, ≤ 64 chars. Used as the React key and the delete handle. **Stable across a rename** — the rename edits `label` only |
-| `label` | string | 1..40 chars after trim. Auto-filled at pin time, user-editable from a non-touch client (§5.1.1) |
+| `label` | string | 1..40 chars after trim. Auto-filled at pin time, user-editable from any local client (§5.1.1 — the non-touch condition was removed 2026-08-17) |
 | `lat` | number | −90..90, **rounded to 4 decimals** |
 | `lon` | number | −180..180, **rounded to 4 decimals** |
 | ~~`zoom`~~ | — | **Removed 2026-08-17** (Q1 reversed). Selecting a favorite leaves the map zoom alone; the sanitizer rebuilds entries, so a stored zoom is dropped on the next write |
@@ -548,7 +574,8 @@ the guarantee lives in one place and covers PATCH, PUT and POST at once:
 
 ```js
 // server/settingsCtrl.js
-const MAX_FAVORITES = 6;          // server-side ceiling, mirrors the client constant
+const MAX_FAVORITES = 7;          // server-side ceiling — a resource bound, NOT the
+                                  // client's display rule (§4 amendment)
 const MAX_LABEL_LEN = 40;
 
 // Same rounding the client applies at pin time — see §6.1. Enforced here too
@@ -633,7 +660,7 @@ backed by `settings.json` instead of `localStorage`.
  *   remove: (id: string) => Promise<void>,
  *   rename: (id: string, label: string) => Promise<void>,
  *   setDefault: (id: string) => Promise<void>,
- *   canRename: boolean,
+ *   canRename: boolean,        // removed 2026-08-17 (§5.1.1)
  *   maxFavorites: number
  * }}
  */
@@ -700,7 +727,7 @@ the post-audit direction of not letting that file expand.
 | `hooks/useFavoriteLocations.js` | **New.** §8.1 |
 | `ambient/LocationDetailsPopover/index.js` | Append the pin action + its three states (§5.1). New props: none — it reads the hook via context |
 | `ambient/LocationDetailsPopover/styles.css` | Hairline separator + action row (44 px hit area) |
-| `ambient/PlacesPopover/` | **New** component + CSS: the list, the "Current position" row, empty state, Edit mode, inline rename input (non-touch only) |
+| `ambient/PlacesPopover/` | **New** component + CSS: the list, the "Current position" row (→ the `⌂` home row from PR 316), empty state, Edit mode, inline rename input (~~non-touch only~~ — ungated 2026-08-17) |
 | `ambient/ControlButtons/index.js` | New `btnPlaces` after `btnRecenter` ([`:289`](../client/src/components/ambient/ControlButtons/index.js)); render it in the Map group ([`:737`](../client/src/components/ambient/ControlButtons/index.js)); mount `PlacesPopover` with `triggerRef` + `portal`; `notify()` toast on select |
 | `AppContext.js` | Call the hook; extend `locationSlice`; implement `setDefault` (incl. `setBrowserGeo`); rider fix in `saveSettingsToJson` |
 | `i18n/locales/{en,fr,es}.json` | New `favorites.*` + `controls.openPlaces` + toasts (§10) |
