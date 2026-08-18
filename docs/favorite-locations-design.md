@@ -887,9 +887,25 @@ exists.
 - **Per-favorite unit or palette overrides.** No signal anyone wants this.
 - **Fleet-wide shared favorites.** Each Pi is a different site; per-Pi lists are correct.
 
-**Sibling docs that must stay in sync:** `docs/api.md` (the entry shape, the truncation rule, the
-coercion note, drop-individually), `docs/security-hardening.md` (the unmasked exposure and the
-opt-out), `docs/ui-layout_en.md` and `_fr.md` (with each other), `CHANGELOG.md`, `ROADMAP.md`.
+### 13.1 Documents that must stay in sync
+
+Nothing in the build checks any of these. A behaviour change that makes one of them wrong
+produces no error anywhere, which is why they are listed rather than trusted to memory.
+
+| Document | What it asserts about this feature | Risk if it drifts |
+|---|---|---|
+| `docs/api.md` | The entry shape, the truncation rule, the numeric-string/`null` coercion note, drop-individually | An integrator writes a client against a schema that no longer holds |
+| `docs/security-hardening.md` | `favorites` reaches remote clients unmasked, plus the `REMOTE_HIDDEN_KEYS` opt-out | A security review reads a stale exposure statement |
+| `docs/ui-layout_en.md` + `_fr.md` | The dock row: the cap, the home row, every Edit-mode action. **Must match each other**, not just the code | Two languages disagree, and the French half is the one the maintainer reads |
+| **`docs/places-guide_{en,fr,es}.md`** | **The user-facing manual — three languages.** Gesture by gesture: pinning, the home row, the cap of 6-or-7, renaming needing a keyboard, the reset to automatic | **The highest silent-drift risk here.** Nobody who changes this code reads the manual, and a wrong manual costs a support round-trip with a user rather than a build failure |
+| `CHANGELOG.md` | Version history. **Never edited retroactively** — see the header redirect table | — |
+| `ROADMAP.md` | The preset-chips phase-2 item and its premise | The premise silently outlives the constraint it rests on (it already did once: it cited a 6-entry font-size-L budget that measurement disproved) |
+
+**A concrete trigger, not a good intention.** Any change to §7 (interaction) or §3 (the cap) is a
+change to something the user manual states in plain language. Re-read
+`docs/places-guide_en.md` before merging such a change, and carry any correction into the FR and
+ES files in the same commit — a manual that is right in one language and wrong in two is worse
+than one that is uniformly stale, because the disagreement is invisible until a user reports it.
 
 ---
 
