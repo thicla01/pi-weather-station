@@ -468,8 +468,9 @@ const indicatorLabel = (lang, raw) => {
  * Thresholds are tied to a "raw link latency" mental model — what
  * classic `ping` represents — not to a TLS-inclusive HTTPS HEAD
  * which routinely sits in the 200-400 ms range even on a healthy
- * link. The HTTPS value is rendered next to TCP without colour
- * coding for that reason.
+ * link. The HTTPS value sits next to TCP but is coloured on its own,
+ * wider 400/800 ms scale via `httpsLatencyTier` — do not read these
+ * thresholds as applying to it.
  *
  *  - ≤ 200 ms  → green (LAN / fibre / healthy VPN)
  *  - ≤ 500 ms  → yellow (marginal Wi-Fi, congested 4G, stressed VPN)
@@ -478,8 +479,11 @@ const indicatorLabel = (lang, raw) => {
  *
  * @param {?number} ms — TCP latency in milliseconds, or null when
  *   the probe failed
- * @returns {"green"|"yellow"|"red"|null} tier slug, or null when
- *   no measurement is available
+ * @returns {"Green"|"Yellow"|"Red"|null} capitalised tier slug — it is
+ *   interpolated straight into the `netLatency${tier}` CSS Module class
+ *   name, so the capital is load-bearing (see the comment in the body).
+ *   Null when `ms` is null or non-finite, i.e. no measurement is
+ *   available.
  */
 const tcpLatencyTier = (ms) => {
   if (ms == null || !Number.isFinite(ms)) return null;
@@ -507,8 +511,16 @@ const tcpLatencyTier = (ms) => {
  *  - >  800 ms → red (HTTPS calls feel sluggish, /api/update at
  *                     risk of timing out under load)
  *
- * @param {?number} ms
- * @returns {"Green"|"Yellow"|"Red"|null}
+ * @param {?number} ms — HTTPS HEAD round-trip in milliseconds, TLS
+ *   handshake included; null when the probe did not run or failed.
+ * @returns {"Green"|"Yellow"|"Red"|null} capitalised tier slug, fed
+ *   straight into the `netLatency${tier}` CSS Module class name, so the
+ *   capital is load-bearing, exactly as in `tcpLatencyTier`. Returns
+ *   null when `ms` is null or non-finite. Those two cases diverge at the
+ *   call site: a null measurement means `NetStatusHero` omits the HTTPS
+ *   row entirely (it renders inside a `latencyMs != null` guard), so the
+ *   `netLatencyUnknown` fallback is reachable only for a non-null but
+ *   non-finite value — a NaN or Infinity coming back from the server.
  */
 const httpsLatencyTier = (ms) => {
   if (ms == null || !Number.isFinite(ms)) return null;
@@ -571,9 +583,16 @@ const APPROX_HEIGHT = {
  * of arrays, one per column, with the bucket objects in placement
  * order.
  *
- * @param {Set<string>} activeBuckets
- * @param {number} columnCount
- * @returns {Array<Array<{id:string,icon:string,label:string}>>}
+ * @param {Set<string>} activeBuckets — ids of the buckets the user has
+ *   pinned; ids absent from `BUCKETS` are ignored.
+ * @param {number} columnCount — how many columns to fill (1 or 2 in
+ *   practice).
+ * @returns {Array<Array<{id: string, icon: object}>>} exactly
+ *   `columnCount` arrays — never fewer, so the caller can map over them
+ *   unconditionally — each holding the `BUCKETS` entries assigned to
+ *   that column, tallest-first per the greedy placement. All columns
+ *   come back empty when `activeBuckets` is empty. `icon` is the
+ *   Iconify object, not a string.
  */
 function distributeBuckets(activeBuckets, columnCount) {
   const cols = Array.from({ length: columnCount }, () => []);
@@ -600,15 +619,26 @@ function distributeBuckets(activeBuckets, columnCount) {
 /**
  * Renders the pinned buckets distributed across N columns using the
  * masonry placement helper. Each column is its own flex container so
- * the visual order matches what the user pressed — the canonical
- * BUCKETS order is preserved within each column, but tall buckets
- * are moved out of the way to balance heights.
+ * the visual order matches what the user pressed. Note `distributeBuckets`
+ * sorts globally by descending approximate height before placing, so
+ * within a column buckets come out tallest-first, NOT in canonical
+ * BUCKETS order — the sort is what balances the columns.
  *
  * @param {object} props
- * @param {Set<string>} props.activeBuckets
+ * @param {Set<string>} props.activeBuckets — ids of the pinned buckets
  * @param {object} props.data — /api/debug payload
  * @param {number} props.columnCount — 1 on narrow, 2 on desktop
- * @returns {JSX.Element}
+ * @param {boolean} props.gridTwoWide — true only in the single-column
+ *   layout on a viewport ≥ 1080 px wide; widens the key/value grids
+ *   inside each bucket so the extra horizontal room is used.
+ * @param {"en"|"fr"|"es"} props.lang — 2-letter UI language driving the
+ *   inline `lbl()` strings (anything else falls back to English).
+ * @param {() => void} props.fetchDebug — re-runs `GET /api/debug` and
+ *   refreshes the snapshot; passed down to the About bucket, which
+ *   calls it after an update check so the new SHA lands in `data`.
+ * @returns {JSX.Element} the column wrapper holding one `<section>` per
+ *   pinned bucket; still renders `columnCount` empty columns when
+ *   nothing is pinned.
  */
 const MasonryStack = ({ activeBuckets, data, columnCount, gridTwoWide, lang, fetchDebug }) => {
   const columns = distributeBuckets(activeBuckets, columnCount);
@@ -641,7 +671,15 @@ const MasonryStack = ({ activeBuckets, data, columnCount, gridTwoWide, lang, fet
  * @param {object} props
  * @param {string} props.bucket — active bucket id
  * @param {object} props.data — payload from /api/debug
- * @returns {JSX.Element}
+ * @param {"en"|"fr"|"es"} props.lang — 2-letter UI language (anything
+ *   else falls back to English)
+ * @param {boolean} props.gridTwoWide — widen the key/value grids
+ *   (single-column layout on a viewport ≥ 1080 px)
+ * @param {() => void} props.fetchDebug — re-runs `GET /api/debug`; only
+ *   the About bucket consumes it
+ * @returns {JSX.Element} the error boundary wrapping the bucket's
+ *   component. An unknown `bucket` id is not an error: the boundary
+ *   renders with `null` children, so the section shows up empty.
  */
 const BucketContent = ({ bucket, data, lang, gridTwoWide, fetchDebug }) => (
   <BucketErrorBoundary bucket={bucket}>
@@ -856,9 +894,15 @@ const BucketServer = ({ data, lang, gridTwoWide }) => {
  * offline. The state words carry the meaning in night-red.
  *
  * @param {object} props
- * @param {object} props.conn — `data.connectivity` payload
- * @param {string} props.lang — 2-letter UI language
- * @returns {JSX.Element}
+ * @param {object} props.conn — `data.connectivity` payload: `online`
+ *   (boolean), `tcpLatencyMs` / `latencyMs` in milliseconds (either may
+ *   be null when that probe failed), `host` (probe target).
+ * @param {"en"|"fr"|"es"} props.lang — 2-letter UI language
+ * @returns {JSX.Element} the hero row. The LED and the state sentence
+ *   always render; the latency figures and the two scale bars are
+ *   dropped when `conn.online` is false, and each of the TCP / HTTPS
+ *   rows is dropped individually when its own millisecond value is
+ *   null.
  */
 const NetStatusHero = ({ conn, lang }) => {
   const tcpTier = tcpLatencyTier(conn.tcpLatencyMs);
@@ -953,8 +997,13 @@ const NetStatusHero = ({ conn, lang }) => {
  * the user can scan for noise vs interesting events.
  *
  * @param {object} props
- * @param {Array<string>} props.logs
- * @returns {JSX.Element}
+ * @param {Array<string>} props.logs — tail of the server log, one raw
+ *   line per entry, oldest first; may be undefined or non-array when
+ *   the snapshot didn't carry logs.
+ * @param {"en"|"fr"|"es"} props.lang — 2-letter UI language
+ * @returns {JSX.Element} one `<div>` per line, tinted by the `[cache]`
+ *   / `[security]` marker found in the text; a localised "No logs to
+ *   show." note when `logs` is missing, not an array, or empty.
  */
 const LogsBlock = ({ logs, lang }) => {
   if (!Array.isArray(logs) || logs.length === 0) {
@@ -982,7 +1031,21 @@ const LogsBlock = ({ logs, lang }) => {
  * Returns null fields when the API isn't available so the consumer can
  * render "—" without nested optional chains.
  *
- * @returns {{ pageLoad: number|null, heap: object|null, apiCalls: Array, screen: object, fps: number|null }}
+ * @returns {{pageLoad: number|null, heap: {used: number, total: number}|null,
+ *   apiCalls: Array<{endpoint: string, count: number, avgMs: number, minMs: number, maxMs: number}>,
+ *   screen: {width: number, height: number, dpr: number}, fps: number|null}}
+ *   `pageLoad` is `loadEventEnd` in milliseconds since navigation start,
+ *   null when the browser exposes no navigation entry. `heap` is the
+ *   used/total JS heap in **megabytes** (not bytes), null everywhere
+ *   `performance.memory` is missing, i.e. outside Chromium. `apiCalls`
+ *   has one entry per `/api/…` path — tile requests collapsed to
+ *   `/:z/:x/:y`, query strings stripped — with all durations in
+ *   milliseconds, sorted by descending call count and empty when nothing
+ *   was fetched. `screen` is the physical screen size in CSS pixels plus
+ *   `devicePixelRatio` (1 when unavailable). `fps` is the frame rate
+ *   averaged over a sliding 2 s window and refreshed once a second; it
+ *   stays null for roughly the first 1.5 s after mount, before the
+ *   requestAnimationFrame rig has collected two timestamps.
  */
 const useClientMetrics = () => {
   const [fps, setFps] = useState(null);
@@ -1306,10 +1369,19 @@ const SERVICE_LABELS = {
  * 2/500 today").
  *
  * @param {object} props
- * @param {string} props.service service key
- * @param {object} props.quotas — `{ hour, day, month }` caps (any may be null)
- * @param {Array}  props.endpoints — `[[name, { hour, day, month }], ...]`
- * @returns {JSX.Element}
+ * @param {string} props.service — service key (`"tomorrow.io"`,
+ *   `"mapbox"`, …); uppercased for the heading, falling back to the raw
+ *   key when it isn't in `SERVICE_LABELS`.
+ * @param {object} props.quotas — `{ hour, day, month }` caps as absolute
+ *   call counts; any of the three may be null, meaning "no published
+ *   ceiling" — the hour and month columns are then hidden entirely.
+ * @param {Array<[string, {hour: number, day: number, month: number}]>} props.endpoints
+ *   — `[[name, counters], ...]` pairs; the counters object may be
+ *   missing or malformed, in which case the row reads 0.
+ * @returns {JSX.Element} a fragment with the service heading and the
+ *   table. The "today" column is always present (several free services
+ *   publish no cap but the daily count still matters); the TOTAL row
+ *   sums every endpoint and is the only row that shows `used / cap`.
  */
 const QuotaTable = ({ service, quotas, endpoints }) => {
   const label = (SERVICE_LABELS[service] || service).toUpperCase();
@@ -1408,8 +1480,16 @@ const BucketStorage = ({ data, lang, gridTwoWide }) => {
  * full snapshot bundle for offline review.
  *
  * @param {object} props
- * @param {Array} props.snapshots
- * @returns {JSX.Element}
+ * @param {Array<{ts: number, lat: number, lon: number, lang: string, source: string, radarText: string, summary: string}>} props.snapshots
+ *   — recent snapshots, newest first as served by `/api/debug`; `ts` is
+ *   an epoch timestamp in milliseconds and `lat`/`lon` are decimal
+ *   degrees. May be undefined or non-array when none were recorded yet.
+ * @param {"en"|"fr"|"es"} props.lang — 2-letter UI language for this
+ *   panel's own strings (each snapshot carries its own `lang`, which is
+ *   the language the summary was generated in and is shown verbatim).
+ * @returns {JSX.Element} a fragment with the JSON-export button and one
+ *   collapsible `<details>` per snapshot; a localised "No radar
+ *   snapshots yet." note when the list is missing or empty.
  */
 const RadarSnapshotsBlock = ({ snapshots, lang }) => {
   const [copiedIndex, setCopiedIndex] = useState(null);
@@ -1710,8 +1790,15 @@ const POWER_LABELS = {
  * chips per active flag, "since reboot" line for occurred-but-cleared.
  *
  * @param {object} props
- * @param {object} props.powerStatus — `{ available, current, occurred }`
- * @returns {JSX.Element}
+ * @param {object} props.powerStatus — `{ available, current, occurred }`,
+ *   where `current` and `occurred` are `{underVoltage, freqCapped,
+ *   throttled, tempLimit}` boolean maps ("now" vs "at any point since
+ *   boot"); either map may be absent, which reads as all-false.
+ * @param {"en"|"fr"|"es"} props.lang — 2-letter UI language
+ * @returns {JSX.Element} a single green `POWER OK` tag when no flag is
+ *   currently set, otherwise one chip per active flag — red for the
+ *   critical pair (under-voltage, throttled), amber for the rest —
+ *   followed by a "Since reboot" line naming every flag in `occurred`.
  */
 const PowerStatusRow = ({ powerStatus, lang }) => {
   const anyCurrent = POWER_FLAGS.some((f) => powerStatus.current?.[f]);
@@ -1745,8 +1832,12 @@ const PowerStatusRow = ({ powerStatus, lang }) => {
  * shows up).
  *
  * @param {object} props
- * @param {string} props.value — text to copy
- * @returns {JSX.Element}
+ * @param {string} props.value — text to copy; also rendered in the
+ *   button label and its tooltip.
+ * @returns {JSX.Element} a pill button that writes `value` to the
+ *   clipboard and swaps its label to "Copied!" for 1.5 s. It renders
+ *   the same but does nothing when `navigator.clipboard` is missing
+ *   (non-secure context); a rejected write leaves the label unchanged.
  */
 const DebugCopyButton = ({ value }) => {
   const [copied, setCopied] = useState(false);

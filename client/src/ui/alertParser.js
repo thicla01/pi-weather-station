@@ -225,6 +225,12 @@ function scrubNwsIntro(intro) {
  *   setext (dash-underlined) header; their sections are flagged
  *   `group: true` so the renderer can subordinate the bullets below.
  * @returns {Array<{type: string, lead: string, detail: string, group: boolean}>}
+ *   One entry per block, in source order. `type` is the canonical slug from
+ *   `classifyHeading`, or `"intro"` for the leading un-keyworded text (emitted
+ *   only if it survives `scrubNwsIntro`, and with no `group` key), or `"section"`
+ *   when no lead could be extracted. `lead` is the heading text, `""` on intro and
+ *   lead-less blocks; `detail` is the remaining body. `group` is `true` when the
+ *   lead was listed in `groupHeaders`. Empty array when every part is blank.
  */
 function parseAsteriskedBlocks(parts, lang, groupHeaders = new Set()) {
   const sections = [];
@@ -327,9 +333,15 @@ function parseAsteriskedBlocks(parts, lang, groupHeaders = new Set()) {
  * Parse ECCC-style heading blocks. Scans for heading lines and
  * splits the text into intro + heading-led sections.
  *
- * @param {string} text
- * @param {string} lang
- * @returns {Array<{type: string, lead: string, detail: string}>}
+ * @param {string} text Alert body, newline-separated.
+ * @param {string} lang Locale code passed through to `classifyHeading`
+ *   ("en" | "fr" | "es").
+ * @returns {Array<{type: string, lead: string, detail: string}>} The intro
+ *   section first (`type: "intro"`, empty `lead`) when there is text before the
+ *   first `Heading:` line, then one entry per heading with `type` from
+ *   `classifyHeading`, `lead` the heading text without its colon, and `detail`
+ *   the lines up to the next heading. Text containing no heading line yields a
+ *   single `intro` entry; empty/whitespace-only text yields an empty array.
  */
 function parseHeadingBlocks(text, lang) {
   const sections = [];

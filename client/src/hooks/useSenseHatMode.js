@@ -43,7 +43,28 @@ const BRIGHTNESS_SAVE_DEBOUNCE_MS = 1500;
  * `senseHatAvailable`, `senseHatMode`, `saveSenseHatMode(mode)`,
  * `senseHatClockBrightness`, `setSenseHatClockBrightnessLive(percent)`.
  *
- * @returns {object}
+ * @returns {{
+ *   senseHatAvailable: boolean,
+ *   senseHatMode: "weather"|"clock"|"radar"|"auto",
+ *   saveSenseHatMode: (mode: string) => Promise<void>,
+ *   senseHatClockBrightness: number,
+ *   setSenseHatClockBrightnessLive: (percent: number) => void,
+ *   senseHatRadarBrightness: number,
+ *   setSenseHatRadarBrightnessLive: (percent: number) => void
+ * }}
+ *   `senseHatAvailable` is `false` until `/api/sensehat-available` answers
+ *   affirmatively (so the toggle stays hidden on the Pis with no HAT, and on any
+ *   probe failure). `senseHatMode` starts at `"weather"` and only changes to a
+ *   value in `VALID_MODES`. `saveSenseHatMode` updates local state optimistically,
+ *   POSTs, and rolls back on failure; it never rejects, and no-ops on an
+ *   unrecognised mode. Note the resolved value is NOT uniform: `.catch`
+ *   passes the fulfillment through, so a successful POST resolves with the
+ *   AxiosResponse, while the rejected and unrecognised-mode paths resolve
+ *   with `undefined`. Callers should await it for sequencing only, never
+ *   read the value. The two brightness values are
+ *   percentages, 0-100 (clock defaults to 50, radar to 60); their `…Live` setters
+ *   apply immediately in the UI and coalesce the POST until the slider has been
+ *   still for `BRIGHTNESS_SAVE_DEBOUNCE_MS` (1.5 s).
  */
 export function useSenseHatMode() {
   const [available, setAvailable] = useState(false);

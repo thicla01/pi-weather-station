@@ -175,7 +175,9 @@ const MAPBOX_ATTRIBUTION = '© <a href="https://www.mapbox.com/feedback/">Mapbox
  * Handles map click events from inside the MapContainer context
  *
  * @param {object} props
- * @param {Function} props.onClick click handler
+ * @param {(event: import("leaflet").LeafletMouseEvent) => void} props.onClick
+ *   fired on every click/tap on the map; receives the Leaflet mouse event
+ *   whose `latlng` carries the tapped WGS84 coordinates in decimal degrees
  * @returns {null} renders nothing
  */
 const MapClickHandler = ({ onClick }) => {
@@ -187,15 +189,6 @@ MapClickHandler.propTypes = {
   onClick: PropTypes.func.isRequired,
 };
 
-
-/**
- * Pans the map when panToCoords changes
- *
- * @param {object} props
- * @param {object} props.panToCoords target coordinates
- * @param {Function} props.setPanToCoords resets panToCoords to null
- * @returns {null} renders nothing
- */
 
 /**
  * Read the visible rail's pixel width once on mount + whenever the
@@ -265,6 +258,23 @@ function useRailOffset() {
   return focusActive ? ZERO_RAIL_OFFSET : measured;
 }
 
+/**
+ * Pans the map to `panToCoords` whenever that prop turns non-null, applying
+ * the rail / HeroBand pixel offset so the target ends up at the visual centre
+ * of the UNCOVERED map area rather than at the true viewport centre. The pan
+ * is animated (`panWithRailOffset` default). Immediately calls
+ * `setPanToCoords(null)` afterwards, so the prop behaves as a one-shot command
+ * rather than as state and the same coordinates can be re-requested later.
+ *
+ * @param {object} props
+ * @param {?{latitude: Number, longitude: Number}} props.panToCoords target
+ *   coordinates in decimal degrees (WGS84); null when no pan is pending
+ * @param {(coords: ?{latitude: Number, longitude: Number}) => void} props.setPanToCoords
+ *   AppContext setter, called with null once the pan has been issued
+ * @param {{x: Number, y: Number}} props.railOffset CSS pixels of the map hidden
+ *   by the rail (x) and by the HeroBand (y); `{x: 0, y: 0}` when nothing overlays it
+ * @returns {null} renders nothing
+ */
 const PanHandler = ({ panToCoords, setPanToCoords, railOffset }) => {
   const map = useMap();
   useEffect(() => {
@@ -288,6 +298,15 @@ PanHandler.propTypes = {
  * the marker in the wrong visual position. Pulls the current marker
  * latLng from context and re-applies the offset trick. Skipped when
  * `markerPosition` isn't yet set (initial load before mapGeo lands).
+ *
+ * @param {object} props
+ * @param {{x: Number, y: Number}} props.railOffset CSS pixels of the map hidden
+ *   by the rail (x) and by the HeroBand (y); compared by value, not identity,
+ *   because `useRailOffset` returns a fresh object on every measurement
+ * @param {?Array<Number>} props.markerPosition current marker position as
+ *   `[lat, lon]` in decimal degrees, or null before `mapGeo` has resolved —
+ *   in which case no re-centring happens
+ * @returns {null} renders nothing
  */
 const RailOffsetTracker = ({ railOffset, markerPosition }) => {
   const map = useMap();
@@ -316,6 +335,14 @@ RailOffsetTracker.propTypes = {
  * prop is read once and never re-applied, so without this effect the
  * marker would stay at viewport-centre (behind the rail) until the
  * user clicks somewhere. Runs once when both map and marker are ready.
+ *
+ * @param {object} props
+ * @param {{x: Number, y: Number}} props.railOffset CSS pixels of the map hidden
+ *   by the rail (x) and by the HeroBand (y); a zero offset on both axes means
+ *   there is nothing to correct and the one-shot pan is skipped entirely
+ * @param {?Array<Number>} props.markerPosition marker position as `[lat, lon]`
+ *   in decimal degrees; null until `mapGeo` resolves, which defers the pan
+ * @returns {null} renders nothing
  */
 const InitialOffsetCentering = ({ railOffset, markerPosition }) => {
   const map = useMap();
@@ -342,7 +369,9 @@ InitialOffsetCentering.propTypes = {
  * Leaflet instance.
  *
  * @param {object} props
- * @param {Function} props.onZoomChange called with the new zoom on every change
+ * @param {(zoom: Number) => void} props.onZoomChange receives the Leaflet zoom
+ *   level (this MapContainer is capped at `maxZoom` 18) on every `zoomend`
+ *   event, plus once on mount
  * @returns {null} renders nothing
  */
 const MapZoomTracker = ({ onZoomChange }) => {
@@ -366,8 +395,11 @@ MapZoomTracker.propTypes = {
  * the slider would only take effect on next page load — confusing UX.
  *
  * @param {object} props
- * @param {Number|null} props.zoomToLevel target zoom level, or null when idle
- * @param {Function} props.setZoomToLevel resets zoomToLevel to null
+ * @param {?Number} props.zoomToLevel target Leaflet zoom level (this
+ *   MapContainer is capped at `maxZoom` 18), or null when idle — `undefined`
+ *   is treated as idle too
+ * @param {(level: ?Number) => void} props.setZoomToLevel AppContext setter,
+ *   called with null right after the zoom has been applied
  * @returns {null} renders nothing
  */
 const ZoomLevelHandler = ({ zoomToLevel, setZoomToLevel }) => {
@@ -491,7 +523,10 @@ ZoomAnchorOffset.propTypes = {
  *   chrome collapses to the red family, Phase 3 rule A1)
  * @param {boolean} props.dark — dark-mode flag (light mode adds the dark
  *   casing beneath the coloured stroke; dark/nightRed skip it)
- * @returns {JSX.Element|null}
+ * @returns {JSX.Element|null} a fragment of stacked `<GeoJSON>` layers (dark
+ *   casing under the tier-coloured stroke in light mode), or null when no id is
+ *   highlighted or no matching alert carries geometry. There is no third case:
+ *   `buildAlertPolygonLayers` always returns a non-empty array for any tier
  */
 const AlertGeometryOverlay = ({ highlightedAlertId = null, govAlerts = NO_ALERTS, nightRed, dark = false }) => {
   const map = useMap();

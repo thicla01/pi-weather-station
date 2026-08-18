@@ -20,6 +20,11 @@ const SEVERITY_RANK = { minor: 1, moderate: 2, severe: 3, extreme: 4 };
  * treat it as empty rather than crash the hook.
  *
  * @returns {Record<string, {ts: number, severity: string, expiresAt: string|null}>}
+ *   The parsed map keyed by alert id — `ts` is the dismissal time in epoch ms,
+ *   `severity` the CAP tier at dismissal time, `expiresAt` the upstream expiry as
+ *   an ISO string (or `null` when the source gave none). Returns `{}` outside a
+ *   browser, when the key is absent, when the JSON is malformed, or when the
+ *   stored value isn't an object.
  */
 function readStore() {
   if (typeof window === "undefined") return {};
@@ -67,8 +72,13 @@ function writeStore(store) {
  *
  * Pure function on a snapshot, returns the cleaned map.
  *
- * @param {Record<string, object>} store
- * @returns {Record<string, object>}
+ * @param {Record<string, {ts: number, severity: string, expiresAt: string|null}>} store
+ *   Snapshot of the dismissal map to filter; not mutated.
+ * @returns {Record<string, {ts: number, severity: string, expiresAt: string|null}>}
+ *   A new map holding only the entries still worth honouring — those with a
+ *   numeric `ts` newer than `AUTO_RESURFACE_MS` (4 h) and either no `expiresAt`
+ *   or one that parses to a future instant. Entries that are falsy or lack a
+ *   numeric `ts` are dropped too, so a corrupted blob purges itself.
  */
 function purgeStale(store) {
   const now = Date.now();
@@ -104,8 +114,14 @@ function purgeStale(store) {
  * @returns {{
  *   isDismissed: (alert: object) => boolean,
  *   dismiss: (alert: object) => void,
- *   restoreAll: () => void
+ *   restoreAll: () => void,
+ *   dismissedCount: number
  * }}
+ *   `isDismissed(alert)` tells the caller whether to hide that alert right now;
+ *   `dismiss(alert)` records the dismissal (localStorage + broadcast to the other
+ *   hook instances in this tab); `restoreAll()` clears every dismissal at once;
+ *   `dismissedCount` is how many non-stale dismissals are currently held, and
+ *   drives the "Restore N hidden alerts" pill (rendered only when ≥ 1).
  */
 export default function useDismissedAlerts() {
   const [store, setStore] = useState(() => purgeStale(readStore()));

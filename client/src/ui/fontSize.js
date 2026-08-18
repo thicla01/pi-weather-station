@@ -37,8 +37,12 @@ export const PANEL_FONT_ZOOM_BOOST = 1.15;
 /**
  * Panel-specific resolver: applies the boost on top of the main step.
  *
- * @param {string} key
- * @returns {number}
+ * @param {string} key Font-size step — `s` / `m` / `l`; anything else (or
+ *   `null`/`undefined`) is treated as `m`.
+ * @returns {number} CSS `zoom` multiplier for the Settings / Debug panels:
+ *   ≈0.977 for `s`, exactly 1.15 for `m`, ≈1.322 for `l` (the main-UI step
+ *   times the 1.15 panel boost — only `m` is exact, the other two carry
+ *   binary floating-point residue), and 1.15 for an unknown key.
  */
 export function resolvePanelFontSizeZoom(key) {
   return resolveFontSizeZoom(key) * PANEL_FONT_ZOOM_BOOST;

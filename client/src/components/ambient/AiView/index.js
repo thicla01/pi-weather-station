@@ -34,7 +34,8 @@ const KNOWN_PERIODS = ["evening", "overnight", "tomorrow"];
  * rather than the generic "Current/Next period".
  *
  * @param {string} summary raw multi-paragraph summary text
- * @param {Function} t i18next translation function
+ * @param {(key: string, opts?: object) => string} t i18next translate — called with a key and
+ *   an optional `{ defaultValue }` bag; returns the localized string
  * @param {?string} period server-derived forecast period kind
  * @returns {{key: string, title: string, text: string}[]} ordered sections
  */

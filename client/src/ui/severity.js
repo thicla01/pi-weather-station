@@ -13,8 +13,12 @@
 /**
  * UV index → tier + colour. WMO categorisation.
  *
- * @param {number|null|undefined} value
+ * @param {number|null|undefined} value UV index — unitless WMO scale, 0 upward
+ *   (11+ is the top "extreme" band).
  * @returns {{color: string, label: "low"|"moderate"|"high"|"veryHigh"|"extreme"}|null}
+ *   The bright badge colour as a hex string (for dots/fills — use `uvTextColor`
+ *   for text) plus the tier label, or `null` when `value` is `null`/`undefined`
+ *   so the caller can skip rendering the indicator entirely.
  */
 export function uvTier(value) {
   if (value == null) return null;
@@ -45,8 +49,10 @@ export const CATEGORY_TEXT_COLORS = {
  * UV index → text colour. Wrapper that pulls the darker text
  * variant matching the tier returned by `uvTier`.
  *
- * @param {number|null|undefined} value
- * @returns {string|null}
+ * @param {number|null|undefined} value UV index — same unitless WMO scale as `uvTier`.
+ * @returns {string|null} Hex colour from `CATEGORY_TEXT_COLORS` for the matching
+ *   tier (darkened so it clears 4.5:1 on the cream day palette), or `null` when
+ *   `value` is `null`/`undefined`.
  */
 export function uvTextColor(value) {
   const tier = uvTier(value);

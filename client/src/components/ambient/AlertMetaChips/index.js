@@ -20,7 +20,9 @@ import styles from "./styles.css";
  * an em-dash placeholder.
  *
  * @param {string|null} sentAt - ISO timestamp from the alert payload
- * @param {Function} t - i18next translator
+ * @param {(key: string, opts?: object) => string} t - i18next translate; called with
+ *   an `alert.issued*` key and the matching count bag (`{ minutes }` / `{ hours }` /
+ *   `{ days }`) for interpolation
  * @returns {string|null} localized "Issued ... ago" string or null
  */
 function formatIssued(sentAt, t) {
@@ -44,7 +46,8 @@ function formatIssued(sentAt, t) {
  *
  * @param {string|null} expiresAt - ISO timestamp
  * @param {string} lang - 'en' | 'fr' | 'es'
- * @param {Function} t - i18next translator (for the "tomorrow" word)
+ * @param {(key: string) => string} t - i18next translate; used for the single key
+ *   `alert.tomorrowShort`, the word prefixed to next-day times
  * @returns {string|null} short localized "Expires" body, or null
  */
 function formatExpires(expiresAt, lang, t) {

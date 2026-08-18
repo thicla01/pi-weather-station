@@ -77,7 +77,10 @@ function getIntervals(weatherData) {
  * @param {string} props.cadence "hourly" (24 h) or "daily" (5 days)
  * @param {string} props.metric "temp" | "wind" | "precip"
  * @param {boolean} props.precipOverlay Superimpose subdued precip bars + probability on temp/wind
- * @param {Function} [props.onCycle] Chart-area tap handler (cycles the metric, the v2 muscle-memory gesture)
+ * @param {() => void} [props.onCycle] Chart-area tap handler, fired on click of
+ *   the chart container. Bound directly to `onClick`, so React passes a
+ *   SyntheticMouseEvent; the type is zero-arity because callers ignore it (advances to the next metric tab — the v2
+ *   muscle-memory gesture). Omitted means the chart area is inert.
  * @returns {JSX.Element|null} the chart (plus the wind-direction row), an error label, or null while loading
  */
 const MetricChart = ({ cadence, metric, precipOverlay, onCycle }) => {

@@ -19,7 +19,9 @@ const I18N_LOCALE = { en: "en-US", fr: "fr-FR", es: "es-ES" };
  * length next to em-dash times is misleading.
  *
  * @param {Number|null|undefined} secs day_length in seconds
- * @returns {String} localised "Xh YYmin" or em-dash on missing/extreme values
+ * @returns {String} the duration as `"<h> h <mm> min"` (hours not
+ *   padded, minutes zero-padded to two digits, minutes rounded), or the
+ *   em-dash "—" when `secs` is not a number, is ≤ 0, or is ≥ 86400.
  */
 const formatDayLength = (secs) => {
   if (typeof secs !== "number" || secs <= 0 || secs >= 86400) return "—";
@@ -61,11 +63,24 @@ const formatDayLength = (secs) => {
  * server-side; see `proxyCtrl.sunriseSunset`).
  *
  * @param {object} props
- * @param {boolean} props.open
- * @param {Function} props.onClose
- * @param {object} [props.triggerRef] anchor for outside-click exclusion
- * @param {"left"|"right"} [props.anchor]
- * @returns {JSX.Element} popover anchored to the sun chip
+ * @param {boolean} props.open Whether the popover is displayed;
+ *   forwarded verbatim to `DetailsPopover`.
+ * @param {() => void} props.onClose Invoked with no arguments when the
+ *   user dismisses the popover (outside pointerdown, Esc, close
+ *   button). The parent owns `open` and must set it false here.
+ * @param {object} [props.triggerRef] React ref to the sunrise / sunset
+ *   chip that opens this popover. Used by `DetailsPopover` to position
+ *   the portaled box and to exclude the chip from outside-click
+ *   dismissal.
+ * @param {"left"|"right"} [props.anchor] Edge of the trigger the
+ *   popover aligns to; `"right"` (default) makes it extend leftward.
+ * @returns {JSX.Element} The portaled `DetailsPopover` shell holding the
+ *   Today section (first light, last light, day length) and the
+ *   Tomorrow section (first light, sunrise, sunset, last light, day
+ *   length). Times are formatted in `mapTimezone`, 12- or 24-hour per
+ *   the `clockTime` preference, and every missing field renders as an
+ *   em-dash. Always an element — the shell itself renders `null` while
+ *   `open` is false.
  */
 const SunDetailsPopover = ({ open, onClose, triggerRef = null, anchor = "right" }) => {
   const { sunriseSunsetToday, sunriseSunsetTomorrow, mapTimezone, clockTime } = useContext(AppContext);

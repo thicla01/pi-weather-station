@@ -33,7 +33,9 @@ import styles from "./styles.css";
  * on purpose — restoring the layout gives the user the full UI.
  *
  * @param {object} props
- * @param {Function} props.onExpand — called when the banner is tapped;
+ * @param {() => void} props.onExpand — called when the banner is tapped. Bound
+ *   directly to `onClick`, so React passes a SyntheticMouseEvent; the type is
+ *   zero-arity because callers ignore it.
  *   parent exits the full-screen map state (un-collapses the rail /
  *   restores the mobile radar card)
  * @param {string} [props.placement] — `"topRight"` (default, rail

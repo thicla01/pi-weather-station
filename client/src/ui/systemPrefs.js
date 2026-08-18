@@ -31,6 +31,11 @@
  * - `clockTime`    — "12" / "24"
  *
  * @returns {{tempUnit: string, speedUnit: string, lengthUnit: string, distanceUnit: string, pressureUnit: string, clockTime: string}}
+ *   The six first-launch defaults, all as the short codes the rest of the app
+ *   stores in localStorage. US → `f`/`mph`/`in`/`mi`/`inhg`, UK → `c`/`mph`/`mm`/`mi`/`hpa`,
+ *   metric → `c`/`kmh`/`mm`/`km`/`hpa`; `clockTime` is `"12"` or `"24"` from the
+ *   locale's resolved `hour12`. Never `null` — if `navigator.language` or `Intl`
+ *   throws, the US row with `clockTime: "12"` is returned.
  */
 export function detectSystemDefaults() {
   // Tri-state system: "us" / "uk" / "metric". The UK is a genuine
@@ -102,7 +107,10 @@ export function detectSystemDefaults() {
  *
  * Returns false in non-browser contexts (SSR, tests).
  *
- * @returns {boolean}
+ * @returns {boolean} `true` when the `(prefers-reduced-motion: reduce)` media
+ *   query matches. `false` when it doesn't, when `window`/`matchMedia` is absent
+ *   (SSR, tests), or when `matchMedia` throws — i.e. animations stay on unless
+ *   the OS explicitly asks for them off.
  */
 export function prefersReducedMotion() {
   if (typeof window === "undefined" || typeof window.matchMedia !== "function") {

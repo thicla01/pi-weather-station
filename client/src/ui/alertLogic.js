@@ -152,6 +152,12 @@ export function isCurrentlyPrecipitating(weatherCode) {
  * @param {number} outerTrendConfidence — 0-100
  * @param {boolean} currentlyPrecipitating — Tomorrow.io says it's raining now
  * @returns {{tier: string, i18nKey: string, confidence: number, confidenceBucket: string} | null}
+ *   The banner state for the more severe of the two rings: `tier` is `"orange"`
+ *   (severity 2) or `"red"` (severity 3), `i18nKey` the `alert.*` translation key
+ *   carrying the position/movement wording, `confidence` that ring's trend
+ *   confidence clamped and rounded to 0-100, and `confidenceBucket` its
+ *   `"low"`/`"mid"`/`"high"` band. Returns `null` when neither ring reaches
+ *   severity 2 — i.e. no radar banner should be shown at all.
  */
 export function getRadarAlertState(
   innerRisk, outerRisk,

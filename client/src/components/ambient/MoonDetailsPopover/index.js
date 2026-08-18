@@ -29,12 +29,26 @@ const I18N_LOCALE = { en: "en-US", fr: "fr-FR", es: "es-ES" };
  * present since they're purely time-driven.
  *
  * @param {object} props
- * @param {boolean} props.open
- * @param {Function} props.onClose
- * @param {Date} props.now
- * @param {object} [props.triggerRef]
- * @param {"left"|"right"} [props.anchor]
- * @returns {JSX.Element}
+ * @param {boolean} props.open Whether the popover is displayed;
+ *   forwarded verbatim to `DetailsPopover`.
+ * @param {() => void} props.onClose Invoked with no arguments when the
+ *   user dismisses the popover (outside pointerdown, Esc, close
+ *   button). The parent owns `open` and must set it false here.
+ * @param {Date} props.now Reference instant. Selects today's 1-day
+ *   interval from the Tomorrow.io daily timeline (latest interval whose
+ *   `startTime` is ≤ `now`) and seeds the phase / next-full / next-new
+ *   computations in `~/ui/astronomy`.
+ * @param {object} [props.triggerRef] React ref to the moon chip that
+ *   opens this popover. Used by `DetailsPopover` to position the
+ *   portaled box and to exclude the chip from outside-click dismissal.
+ * @param {"left"|"right"} [props.anchor] Edge of the trigger the
+ *   popover aligns to; `"right"` (default) makes it extend leftward.
+ * @returns {JSX.Element} The portaled `DetailsPopover` shell holding the
+ *   phase row (glyph + translated name + illumination as a whole
+ *   percentage), moonrise / moonset formatted in `mapTimezone` (em-dash
+ *   when Tomorrow.io has no daily data or returned `null`), and the
+ *   next full / new moon dates. Always an element — the shell itself
+ *   renders `null` while `open` is false.
  */
 const MoonDetailsPopover = ({ open, onClose, now, triggerRef = null, anchor = "right" }) => {
   const { dailyWeatherData, mapTimezone, clockTime } = useContext(AppContext);

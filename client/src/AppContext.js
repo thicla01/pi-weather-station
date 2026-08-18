@@ -2066,7 +2066,10 @@ export function AppContextProvider({ children }) {
    *
    * @param {String} key one of "enabled", "stage1Delay", "stage1Brightness",
    *   "stage2Enabled", "stage2Delay", "nightMode"
-   * @param {*} value new value (boolean for toggles, number for delays/brightness)
+   * @param {boolean|number} value new value — boolean for "enabled",
+   *   "stage2Enabled" and "nightMode"; minutes for "stage1Delay" (idle before
+   *   stage 1) and "stage2Delay" (additional minutes after stage 1); percent
+   *   (0-100) for "stage1Brightness"
    * @returns {Promise} Resolves when saved
    */
   const saveAdvancedSleepFlag = useCallback((key, value) => {

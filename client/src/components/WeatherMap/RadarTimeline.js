@@ -63,7 +63,9 @@ function formatTickLabel(offsetMin) {
  * @param {object} props
  * @param {Array} props.frames Combined past+nowcast frame list from RainViewer
  * @param {number} props.currentIdx Resolved index into `frames`
- * @param {Function} props.onScrub Called with the new index when user scrubs
+ * @param {(idx: number) => void} props.onScrub Called with a 0-based integer
+ *   index into `frames` (already clamped to 0..frames.length-1) whenever the
+ *   user scrubs the track, steps ±1 frame, or taps the return-to-now pill
  * @param {string} props.timezone IANA timezone for the time-of-day label
  * @param {boolean} props.dark Dark-palette variant
  * @param {boolean} props.compact Short-screen variant (7" kiosk) — shortens the source chip

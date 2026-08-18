@@ -32,7 +32,9 @@ import styles from "./styles.css";
  * @param {string} en  — English string (default fallback)
  * @param {string} fr  — French string
  * @param {string} es  — Spanish string
- * @returns {string}
+ * @returns {string} the `fr` string when `lang` is "fr", the `es` string
+ *   when it is "es", and the `en` string for every other value (including
+ *   an unknown or empty locale) — `en` is the fallback, never null.
  */
 const lbl = (lang, en, fr, es) => (lang === "fr" ? fr : lang === "es" ? es : en);
 
@@ -62,7 +64,11 @@ const SECTIONS = [
  * @param {string} l lengthUnit ("mm" / "in")
  * @param {string} d distanceUnit ("km" / "mi")
  * @param {string} p pressureUnit ("hpa" / "inhg" / "kpa")
- * @returns {"metric"|"imperial"|"custom"}
+ * @returns {"metric"|"imperial"|"custom"} "metric" only when all five
+ *   selections are the metric set (c / kmh / mm / km / hpa), "imperial"
+ *   only when all five are the imperial set (f / mph / in / mi / inhg),
+ *   and "custom" for every mix in between (e.g. °C with mph, or metric
+ *   units with the kPa barometer) — so neither preset button reads active.
  */
 function unitSystemPreset(t, s, l, d, p) {
   if (t === "c" && s === "kmh" && l === "mm" && d === "km" && p === "hpa") return "metric";
@@ -220,10 +226,14 @@ const SettingsPanel = () => {
  * `remote === true`.
  *
  * @param {object} props
- * @param {object} props.ctx — AppContext value
- * @param {Function} props.t — react-i18next translator
+ * @param {object} props.ctx — AppContext value; supplies each preference
+ *   and its matching `saveXxx` helper (font size, clock, the five unit
+ *   selectors, the hide/show flags) plus `isLocal`, which gates the
+ *   localhost-only "Show test alerts" row
  * @param {string} props.lang — short locale ("fr" | "en" | "es")
- * @returns {JSX.Element}
+ * @returns {JSX.Element} the preferences section; always rendered (the
+ *   rows write to localStorage, so no remote-write gate applies), minus
+ *   the "Show test alerts" row when the client is not localhost
  */
 const SectionLocalPrefs = ({ ctx, lang }) => {
   // Phase 8b wires the writes — every preference is now persisted via
@@ -518,11 +528,14 @@ function i18nChangeLanguage(lang) {
  * per the Claude Design canvas RECOMMENDED label.
  *
  * @param {object} props
- * @param {object} props.ctx — AppContext value
- * @param {Function} props.t — translator
- * @param {string} props.lang — short locale
+ * @param {object} props.ctx — AppContext value; supplies the six API keys,
+ *   the custom lat/lon, radar source, brightness and display-scale state,
+ *   and `saveSettingsToJson` for the batched commit
+ * @param {string} props.lang — short locale ("fr" | "en" | "es")
  * @param {boolean} props.remote — true when accessed from non-localhost
- * @returns {JSX.Element}
+ * @returns {JSX.Element} the configuration section; when `remote` is true
+ *   the editable inputs are replaced by read-only Fields / status pills
+ *   and the remote notice is shown instead of the Save action
  */
 const SectionConfig = ({ ctx, lang, remote }) => {
   const {
@@ -841,10 +854,17 @@ const SectionConfig = ({ ctx, lang, remote }) => {
  * navigation.
  *
  * @param {object} props
- * @param {object} props.ctx
- * @param {string} props.lang
- * @param {boolean} props.remote
- * @returns {JSX.Element}
+ * @param {object} props.ctx — AppContext value; supplies the map styles and
+ *   radar opacities, the nearby-alert radius, the AI / radar-analysis flags,
+ *   the sleep-mode settings and the Sense HAT mode + LED brightnesses
+ * @param {string} props.lang — short locale ("fr" | "en" | "es")
+ * @param {boolean} props.remote — true when accessed from non-localhost;
+ *   disables every control in the section (these all write server-side)
+ * @returns {JSX.Element} the Advanced section; the Sense HAT block is
+ *   omitted when no HAT is detected, and the SCREEN-brightness controls
+ *   fall back to read-only Fields when no backlight backend is available.
+ *   The Sense HAT LED-brightness sliders are not gated on that flag —
+ *   they drive the matrix, not the panel backlight.
  */
 const SectionAdvanced = ({ ctx, lang, remote }) => {
   const {
@@ -1275,9 +1295,11 @@ const SLEEP_STAGE2_DELAY_OPTIONS = [5, 10, 20, 30, 60, 120, 180];
  * values that are exact multiples of an hour collapse to "n h" so the
  * dropdown doesn't read as "120 min" / "180 min".
  *
- * @param {number} minutes
+ * @param {number} minutes whole minutes (never seconds)
  * @param {string} lang `en` / `fr` / `es`
- * @returns {string}
+ * @returns {string} "n h" for exact multiples of 60 minutes (60 → "1 h"),
+ *   otherwise "n min" — a form that happens to be identical in the three
+ *   locales, so the string is the same whatever `lang` is.
  */
 const formatDelayLabel = (minutes, lang) => {
   if (minutes >= 60 && minutes % 60 === 0) {
@@ -1365,13 +1387,19 @@ const VeilleTimeline = ({ stage1Delay, stage2Delay, stage2Enabled, stage1Brightn
  * click that opened the menu doesn't immediately close it.
  *
  * @param {object} props
- * @param {string} props.label
- * @param {number|null} props.value current selection in minutes
+ * @param {string} props.label field label shown above the trigger
+ * @param {number} props.value current selection in minutes. Pass a
+ *   number: there is no null guard on this path — `formatDelayLabel`
+ *   would render the literal string "null min" (the "—" fallback belongs
+ *   to the sibling RangeSlider, not here)
  * @param {Array<number>} props.options minute values, ascending
- * @param {Function} props.onChange called with the new minute value
- * @param {boolean} [props.disabled]
- * @param {string} props.lang
- * @returns {JSX.Element}
+ * @param {(minutes: number) => void} props.onChange called with the chosen
+ *   option's value in minutes when the user picks a row (the menu closes
+ *   itself right after); never called on dismissal
+ * @param {boolean} [props.disabled] when true the trigger can't be opened
+ * @param {string} props.lang short locale, forwarded to the label formatter
+ * @returns {JSX.Element} the labelled dropdown; the option list is only
+ *   mounted while the menu is open
  */
 const DelaySelect = ({ label, value, options, onChange, disabled, lang }) => {
   const [open, setOpen] = useState(false);
@@ -1662,13 +1690,25 @@ const ApiKeysList = ({ providers, remote, draft, onChange, lang }) => (
  * when not editable.
  *
  * @param {object} props
- * @param {string} props.label
- * @param {string} props.value
- * @param {string} [props.unit]
- * @param {boolean} [props.mono]
- * @param {Function} props.onChange — called with raw string value
- * @param {JSX.Element} [props.trailing]
- * @returns {JSX.Element}
+ * @param {string} props.label field label
+ * @param {string} [props.pill] short badge rendered next to the label
+ *   (e.g. "Override" / "Manuel") — omitted when absent
+ * @param {string} props.value current input text; this is a controlled
+ *   input, so the caller owns the string (empty string, not null, for
+ *   "no value")
+ * @param {string} [props.unit] unit suffix shown inside the box (e.g. "°")
+ * @param {boolean} [props.mono] render the value in the monospace face
+ * @param {string} [props.placeholder] placeholder shown while empty
+ * @param {(value: string) => void} props.onChange — called with the raw,
+ *   unparsed input string on every keystroke (no coercion, no validation)
+ * @param {() => void} [props.onClear] — clear action; when omitted the
+ *   clear button is not rendered. Callers wire it to reset the field to ""
+ *   (which means "fall back to automatic geolocation" for lat/lon)
+ * @param {string} [props.clearLabel] label on the clear button, defaults
+ *   to "Auto"
+ * @param {string} [props.helper] helper line under the box — omitted when
+ *   absent
+ * @returns {JSX.Element} the editable field row
  */
 const EditableField = ({ label, pill, value, unit, mono, placeholder, onChange, onClear, clearLabel, helper }) => (
   <div className={styles.field}>
@@ -1705,15 +1745,23 @@ const EditableField = ({ label, pill, value, unit, mono, placeholder, onChange, 
  * with simple needs (brightness) don't have to pass anything.
  *
  * @param {object} props
- * @param {string} props.label
- * @param {number|null} props.value
- * @param {number} props.min
- * @param {number} [props.max]
- * @param {number} [props.step]
- * @param {Function} [props.format] — value → display string
- * @param {Function} props.onChange — called with the raw new value
- * @param {boolean} [props.disabled]
- * @returns {JSX.Element}
+ * @param {string} props.label field label
+ * @param {number|null} props.value current value, in the caller's own unit
+ *   (percent 0-100 for brightness, fraction 0.05-1 for radar opacity, km
+ *   for the alert radius); null renders the readout as "—" and parks the
+ *   thumb at `min`
+ * @param {number} props.min slider minimum, same unit as `value`
+ * @param {number} [props.max] slider maximum, same unit as `value`
+ *   (default 100)
+ * @param {number} [props.step] slider increment, same unit (default 1)
+ * @param {(value: number) => string} [props.format] — formats the readout;
+ *   defaults to `Math.round(v)` followed by "%", which is only correct for
+ *   0-100 values, so 0-1 and km callers must pass their own
+ * @param {(value: number) => void} props.onChange — called on every input
+ *   event with the slider value already coerced to a Number (never the
+ *   string the DOM emits); not called when `disabled`
+ * @param {boolean} [props.disabled] dims the row and blocks the input
+ * @returns {JSX.Element} the labelled slider row
  */
 const RangeSlider = ({ label, value, min, max = 100, step = 1, format, onChange, disabled }) => {
   const fmt = format || ((v) => `${Math.round(v)}%`);

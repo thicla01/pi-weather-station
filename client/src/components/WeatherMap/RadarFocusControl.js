@@ -24,7 +24,9 @@ const TOAST_TIMEOUT_MS = 2000;
  *
  * @param {object} props
  * @param {boolean} props.active Whether focus mode is currently on
- * @param {Function} props.onToggle Click handler — flips `active`
+ * @param {() => void} props.onToggle Called with no arguments on each tap;
+ *   the parent owns `active` and flips it (the toast is rendered here, so the
+ *   handler need not return anything)
  * @param {string} props.titleOn Tooltip + toast when active (e.g. "Restore panels")
  * @param {string} props.titleOff Tooltip + toast when inactive (e.g. "Focus radar")
  * @returns {JSX.Element} Focus toggle button + transient toast

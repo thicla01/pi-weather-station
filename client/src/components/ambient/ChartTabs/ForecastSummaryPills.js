@@ -96,7 +96,7 @@ const ForecastSummaryPills = ({ cadence, metric }) => {
         const key = compassKey(e.values?.windDirection);
         if (key) counts[key] = (counts[key] || 0) + 1;
       });
-      const dominant = Object.keys(counts).sort((a, b) => counts[b] - counts[a])[0];
+      const [dominant] = Object.keys(counts).sort((a, b) => counts[b] - counts[a]);
       const unit = speedUnitLabel(speedUnit);
       const out = [
         { v: `${Math.round(convertSpeed(avg, speedUnit))} ${unit}`, label: t("charts.pillAvg") },

@@ -33,7 +33,14 @@ const MARGIN = 8;
  *
  * @param {object} props
  * @param {boolean} props.open Whether the popover is visible
- * @param {Function} props.onClose Called on dismiss
+ * @param {() => void} props.onClose Invoked on every dismissal path —
+ *   pointerdown outside both the popover and the trigger, the Esc key,
+ *   and the close button. The first two call it with no arguments; the
+ *   close button is bound straight to `onClick`, so React hands it a
+ *   SyntheticMouseEvent. Callers ignore the argument, hence the
+ *   zero-arity type. The component never
+ *   hides itself: the parent owns `open` and is expected to set it
+ *   false from this callback.
  * @param {string} props.title Header label (e.g. "UV index")
  * @param {"left"|"right"} [props.anchor] Which edge of the parent
  *   the popover aligns to. `"right"` (default) extends the popover
@@ -64,7 +71,12 @@ const MARGIN = 8;
  *   unbounded content: on a tall desktop viewport such a popover
  *   would stretch full-height.
  * @param {React.ReactNode} props.children Body content slot
- * @returns {JSX.Element|null}
+ * @returns {JSX.Element|null} `null` while `open` is false, and also in
+ *   portal mode until the trigger's rect has been measured (the first
+ *   frame, so the box never paints at 0,0). Otherwise the
+ *   `role="dialog"` popover element: rendered in place when `portal`
+ *   is false, or through `createPortal` into `document.body` when it
+ *   is true.
  */
 const DetailsPopover = ({ open, onClose, title, anchor = "right", triggerRef = null, portal = false, fitViewport = false, children = null }) => {
   const popoverRef = useRef(null);

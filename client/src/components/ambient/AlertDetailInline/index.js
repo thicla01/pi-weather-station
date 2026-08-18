@@ -326,7 +326,11 @@ RichText.propTypes = {
  *
  * @param {object} props
  * @param {{ type: string, lead: string, detail: string, group: boolean }} props.section
- * @param {Function} props.t — i18next translator
+ * @param {(key: string, opts?: object) => string} props.t — i18next translate; called
+ *   with the `alert.section*` key and a `{ defaultValue }` fallback holding the
+ *   upstream heading verbatim, so an unmapped section type still renders its
+ *   heading. Not necessarily English: `parseAlertText` classifies headings
+ *   locale-aware, so an ECCC French alert puts French text in that fallback
  * @returns {JSX.Element|null} the section block, or null if empty
  */
 export const SectionBlock = ({ section, t }) => {

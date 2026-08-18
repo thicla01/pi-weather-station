@@ -32,11 +32,27 @@ import styles from "./styles.css";
  * affordance rule from docs/rail-affordance-redesign-design.md.
  *
  * @param {object} props
- * @param {boolean} props.open
- * @param {Function} props.onClose
- * @param {object} [props.triggerRef]
- * @param {"left"|"right"} [props.anchor]
- * @returns {JSX.Element} popover shell with reverse-geocode details
+ * @param {boolean} props.open Whether the popover is displayed;
+ *   forwarded verbatim to `DetailsPopover`.
+ * @param {() => void} props.onClose Invoked with no arguments when the
+ *   user dismisses the popover (outside pointerdown, Esc, close
+ *   button). The parent owns `open` and must set it false here.
+ * @param {object} [props.triggerRef] React ref to the location chip
+ *   that opens this popover. Used by `DetailsPopover` to position the
+ *   portaled box and to exclude the chip from outside-click dismissal.
+ * @param {"left"|"right"} [props.anchor] Edge of the trigger the
+ *   popover aligns to; `"left"` (default here) makes it extend
+ *   rightward.
+ * @returns {JSX.Element} The portaled `DetailsPopover` shell. Its body
+ *   is the address hierarchy from `AppContext.reverseGeoResult`
+ *   (locality / district / county / region / country + ISO 3166-1
+ *   alpha-2 / postcode), each row omitted when that field is absent,
+ *   plus the marker coordinates as decimal degrees at 5 dp. When the
+ *   reverse geocode is missing or has no `address`, only the
+ *   coordinates and a "no address" note render. The pin-to-favorites
+ *   footer is appended in both branches, and only on a local client
+ *   with coords and a usable label. Always an element — the shell
+ *   itself renders `null` while `open` is false.
  */
 const LocationDetailsPopover = ({ open, onClose, triggerRef = null, anchor = "left" }) => {
   const {

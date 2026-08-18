@@ -148,7 +148,9 @@ export const ARROW_COLOR = {
  * or `latitude === undefined` is "not yet loaded" and must skip the
  * setView. A plain `!!latitude` check would conflate the two.
  *
- * @param {*} i
+ * @param {number|null|undefined} i Coordinate (degrees) as supplied by
+ *   AppContext — a number once geolocation/settings have resolved, `null`
+ *   or `undefined` before that
  * @returns {Boolean} true if `i` is truthy OR exactly the number 0
  */
 export function hasVal(i) {
@@ -160,8 +162,12 @@ export function hasVal(i) {
  * Returns null for clear (intensity 0) so the caller can keep the
  * neutral default colour for that case.
  *
- * @param {Number|null} intensity
- * @returns {"red"|"orange"|"yellow"|null}
+ * @param {Number|null} intensity Radar intensity level as classified by
+ *   the server (0 = clear, up to 6 = most intense)
+ * @returns {"red"|"orange"|"yellow"|null} Tier key into the ring/dot colour
+ *   tables: "red" at intensity >= 5, "orange" at >= 4, "yellow" for anything
+ *   above 0; null when intensity is 0, negative, null or undefined (clear —
+ *   the caller keeps its neutral default colour)
  */
 export function tierForIntensity(intensity) {
   if (intensity == null || intensity <= 0) return null;

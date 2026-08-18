@@ -86,8 +86,12 @@ export function moonIllumination(date = new Date()) {
  * (newMoon → waxingCrescent → firstQuarter → waxingGibbous →
  * fullMoon → waningGibbous → lastQuarter → waningCrescent → ...).
  *
- * @param {Date} [date]
- * @returns {{i18nKey: string, fraction: number, illumination: number}}
+ * @param {Date} [date] instant to evaluate; defaults to now
+ * @returns {{i18nKey: string, fraction: number, illumination: number}} `i18nKey`
+ *   is one of the 8 `MOON_PHASE_KEYS` (translate as
+ *   `astronomy.moonPhase.<key>`), `fraction` the exact synodic position
+ *   in [0, 1) and `illumination` the lit disc share 0..1. Always
+ *   populated — every Date falls in a bucket, nothing is nullable here.
  */
 export function moonPhase(date = new Date()) {
   const fraction = moonPhaseFraction(date);
@@ -172,9 +176,12 @@ export function moonLitPath(fraction, cx, cy, r) {
  * over the next decade or so — plenty for a "next full moon: 2026-05-31"
  * display.
  *
- * @param {Date} now
+ * @param {Date} now instant to search forward from
  * @param {number} target  0 for new moon, 0.5 for full moon
- * @returns {Date}
+ * @returns {Date} the first instant strictly after `now` at which the
+ *   synodic fraction equals `target`. When `now` already sits exactly on
+ *   the target the result is one full synodic month (29.530589 days)
+ *   later, never `now` itself.
  */
 function nextPhaseDate(now, target) {
   const current = moonPhaseFraction(now);
@@ -187,12 +194,34 @@ function nextPhaseDate(now, target) {
   return new Date(now.getTime() + fraction * SYNODIC_MONTH_MS);
 }
 
-/** Next new moon after `date`. @param {Date} [date=new Date()] @returns {Date} */
+/**
+ * Next new moon strictly after `date` (synodic fraction back to 0).
+ *
+ * @param {Date} [date] instant to search forward from; defaults to now
+ * @returns {Date} the new-moon instant, at most 29.530589 days after
+ *   `date`. Never returns `date` itself. **Mean phase only** — this is a
+ *   linear synodic model with no periodic corrections, so it is off by
+ *   several hours (RMS ~8.5 h, worst case ~17.5 h against the Meeus ch.49
+ *   series). That is enough to land on the wrong UTC calendar day roughly
+ *   once in three lunations, so treat the date as indicative and do not
+ *   use it where the exact day matters.
+ */
 export function nextNewMoon(date = new Date()) {
   return nextPhaseDate(date, 0);
 }
 
-/** Next full moon after `date`. @param {Date} [date=new Date()] @returns {Date} */
+/**
+ * Next full moon strictly after `date` (synodic fraction reaching 0.5).
+ *
+ * @param {Date} [date] instant to search forward from; defaults to now
+ * @returns {Date} the full-moon instant, at most 29.530589 days after
+ *   `date`. Never returns `date` itself. **Mean phase only** — this is a
+ *   linear synodic model with no periodic corrections, so it is off by
+ *   several hours (RMS ~8.5 h, worst case ~17.5 h against the Meeus ch.49
+ *   series). That is enough to land on the wrong UTC calendar day roughly
+ *   once in three lunations, so treat the date as indicative and do not
+ *   use it where the exact day matters.
+ */
 export function nextFullMoon(date = new Date()) {
   return nextPhaseDate(date, 0.5);
 }
@@ -219,7 +248,12 @@ function julianToDate(jd) {
  *
  * @param {number} year e.g. 2026
  * @param {"marchEquinox"|"juneSolstice"|"septemberEquinox"|"decemberSolstice"} event
- * @returns {Date}
+ * @returns {Date} the event's absolute instant (the Meeus mean Julian
+ *   date converted to a Unix timestamp, so it reads as UTC). Only the
+ *   mean-element polynomial is applied — no periodic corrections — which
+ *   is far finer than the day resolution the UI shows. Throws a
+ *   TypeError when `event` is not one of the four keys, because the
+ *   missing table row cannot be destructured.
  */
 export function solarEventDate(year, event) {
   const [a, b, c, d, e] = MEEUS_TABLES[event];
@@ -240,12 +274,16 @@ export function solarEventDate(year, event) {
  * the year so it doesn't compete with the always-on sunrise/sunset
  * row for attention.
  *
- * @param {Date} [now]
- * @param {number} [windowDays]
- * @returns {{event: string, date: Date, daysAway: number}|null}
+ * @param {Date} [now] instant to measure from; defaults to now
+ * @param {number} [windowDays] whole-day cutoff, 14 by default
+ * @returns {{event: string, date: Date, daysAway: number}|null} the
+ *   soonest event — its `EVENT_KEYS` name, its UTC instant, and
+ *   `daysAway` as whole days rounded UP (an event later today reads 1) —
+ *   or `null` when that event is more than `windowDays` days out, which
+ *   is the case for most of the year.
  */
 export function upcomingSolarEvent(now = new Date(), windowDays = 14) {
-  const next = sortedFutureEvents(now)[0];
+  const [next] = sortedFutureEvents(now);
   if (!next || next.daysAway > windowDays) return null;
   return next;
 }
@@ -255,8 +293,13 @@ export function upcomingSolarEvent(now = new Date(), windowDays = 14) {
  * with its whole-days countdown. Spans this year + next so at least
  * the next four (one of each type) are always present.
  *
- * @param {Date} [now]
- * @returns {Array<{event: string, date: Date, daysAway: number}>}
+ * @param {Date} now instant to measure from
+ * @returns {Array<{event: string, date: Date, daysAway: number}>} the
+ *   still-future subset of the 8 candidates (4 event types × this year
+ *   and next), soonest first; `daysAway` is the ms gap divided by a day
+ *   and rounded UP, so an event later today reads 1. Length is 4 to 8 —
+ *   next year's four are always ahead of a `now` inside the current
+ *   year, so the list is never empty for a realistic input.
  */
 function sortedFutureEvents(now) {
   const year = now.getUTCFullYear();
@@ -284,9 +327,13 @@ function sortedFutureEvents(now) {
  * `upcomingSolarEvent` there is no window gate: the list is shown on
  * demand (the user taps the date, which is the year-round trigger).
  *
- * @param {Date} [now]
- * @param {number} [count]
- * @returns {Array<{event: string, date: Date, daysAway: number}>}
+ * @param {Date} [now] instant to measure from; defaults to now
+ * @param {number} [count] how many to return, 4 by default
+ * @returns {Array<{event: string, date: Date, daysAway: number}>} up to
+ *   `count` events, soonest first, each with its `EVENT_KEYS` name, its
+ *   UTC instant and `daysAway` in whole days rounded UP. Only 8
+ *   candidates exist (this year + next), so a larger `count` is capped
+ *   at what remains; the list is never empty for a realistic `now`.
  */
 export function nextSolarEvents(now = new Date(), count = 4) {
   return sortedFutureEvents(now).slice(0, count);

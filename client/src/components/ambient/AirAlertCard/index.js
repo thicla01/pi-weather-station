@@ -33,7 +33,8 @@ const AQ_SOURCE_LABEL_KEY = {
  * SourceBadge text so the user sees which authority's index it is.
  *
  * @param {?string} scale — "iqa" | "aqhi" | "epa" | other
- * @param {Function} t — i18next translator (fallback label)
+ * @param {(key: string) => string} t — i18next translate; used only for the
+ *   fallback `metrics.aqi` label when the scale is unknown
  * @returns {string} the badge text
  */
 function scaleLabel(scale, t) {
