@@ -122,7 +122,6 @@ const SeasonsTrigger = ({ now, children }) => {
 };
 
 SeasonsTrigger.propTypes = {
-  // eslint-disable-next-line react/forbid-prop-types -- Date instance, opaque shape
   now: PropTypes.object.isRequired,
   children: PropTypes.node.isRequired,
 };

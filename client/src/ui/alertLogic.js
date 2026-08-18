@@ -50,7 +50,7 @@ export const ELIGIBLE_GOV_TIERS_WITH_ADVISORY = ["red", "orange", "yellow"];
  * appearing as a card (the Nicolet report, 2026-05-29).
  *
  * @param {Array<{tier?: string}>} alerts
- * @param {boolean} [showAdvisory=false] — when true, also keep the
+ * @param {boolean} [showAdvisory] — when true, also keep the
  *   yellow (advisory) tier; otherwise red/orange only
  * @returns {Array} the subset whose tier is in the active set
  */

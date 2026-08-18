@@ -75,7 +75,7 @@ const AiSummaryInline = () => {
     // this component into their own rail variants.
     let el = slabRef.current.parentElement;
     while (el && el !== document.body) {
-      const overflowY = window.getComputedStyle(el).overflowY;
+      const {overflowY} = window.getComputedStyle(el);
       if (overflowY === "auto" || overflowY === "scroll") {
         el.scrollTop = 0;
         break;

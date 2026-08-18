@@ -167,8 +167,6 @@ function buildLocationMarkerIcon() {
 const LOCATION_MARKER_ICON = buildLocationMarkerIcon();
 
 
-
-
 // Mapbox basemaps served via the server proxy (keeps the API key off the client).
 const MAPBOX_ATTRIBUTION = '© <a href="https://www.mapbox.com/feedback/">Mapbox</a>';
 
@@ -547,7 +545,6 @@ const AlertGeometryOverlay = ({ highlightedAlertId = null, govAlerts = NO_ALERTS
 
 AlertGeometryOverlay.propTypes = {
   highlightedAlertId: PropTypes.string,
-  // eslint-disable-next-line react/forbid-prop-types -- alert objects are payload-shaped, not statically typed
   govAlerts: PropTypes.array,
   nightRed: PropTypes.bool,
   dark: PropTypes.bool,
@@ -1090,7 +1087,7 @@ const WeatherMap = ({ zoom, dark }) => {
       clearInterval(riskIntervalRef.current);
       riskIntervalRef.current = null;
     };
-  }, [riskFetchEnabled, mapGeo, distanceUnit, RISK_REFRESH_INTERVAL, setInnerRisk, setOuterRisk, setInnerTrend, setOuterTrend, setInnerBumped, setOuterBumped]);
+  }, [riskFetchEnabled, mapGeo, distanceUnit, RISK_REFRESH_INTERVAL, setInnerRisk, setOuterRisk, setInnerTrend, setOuterTrend, setInnerBumped, setOuterBumped, setInnerTrendConfidence, setOuterTrendConfidence, setInnerDirectionVectors, setOuterDirectionVectors]);
 
   // Radar animation: start/stop interval based on animateWeatherMap toggle.
   // Per-frame interval is MAP_CYCLE_RATE / radarSpeed so 1× / 2× / 4× cycling

@@ -46,7 +46,7 @@ const RESTORE_SETTLE_MS = 400;
  * Pure so the retry policy (success threshold + attempt cap) is unit-
  * testable without touching the network or timers.
  *
- * @param {Object} p parameters
+ * @param {object} p parameters
  * @param {Number} p.target brightness percent we asked the hardware for
  * @param {Number|null} p.observed brightness percent read back, or null if
  *   the read failed / the device exposes no controllable backlight

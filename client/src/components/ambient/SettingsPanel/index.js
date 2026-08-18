@@ -1708,8 +1708,8 @@ const EditableField = ({ label, pill, value, unit, mono, placeholder, onChange, 
  * @param {string} props.label
  * @param {number|null} props.value
  * @param {number} props.min
- * @param {number} [props.max=100]
- * @param {number} [props.step=1]
+ * @param {number} [props.max]
+ * @param {number} [props.step]
  * @param {Function} [props.format] — value → display string
  * @param {Function} props.onChange — called with the raw new value
  * @param {boolean} [props.disabled]

@@ -123,7 +123,6 @@ MoonDetailsPopover.propTypes = {
   open: PropTypes.bool.isRequired,
   onClose: PropTypes.func.isRequired,
   now: PropTypes.instanceOf(Date).isRequired,
-  // eslint-disable-next-line react/forbid-prop-types -- React ref shape is opaque
   triggerRef: PropTypes.object,
   anchor: PropTypes.oneOf(["left", "right"]),
 };

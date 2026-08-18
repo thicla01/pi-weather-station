@@ -283,7 +283,6 @@ Row.propTypes = {
   tier: PropTypes.string,
   onClick: PropTypes.func,
   ariaExpanded: PropTypes.bool,
-  // eslint-disable-next-line react/forbid-prop-types -- React ref shape is opaque
   rowRef: PropTypes.object,
   children: PropTypes.node,
 };

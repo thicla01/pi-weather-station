@@ -213,7 +213,6 @@ const AmbientLayers = () => {
   // match at the same time, but reading mobile first keeps the
   // ternary unambiguous (and lets `isMobile` short-circuit the Pi
   // path for the 0-799 range).
-  // eslint-disable-next-line no-nested-ternary -- the three-layout dispatch reads more cleanly inline than via a temporary
   const ActiveLayout = isMobile ? LayoutMobile : isDesktop ? LayoutDesktop : LayoutPi;
   const layoutAttr = isMobile ? "mobile" : isDesktop ? "desktop" : "pi";
 

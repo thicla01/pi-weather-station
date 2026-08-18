@@ -156,7 +156,7 @@ function topEligibleGovAlert(govAlerts) {
  * @param {?Object} current Tomorrow.io current interval (or its `.values`)
  * @param {?Array<Object>} hourly Tomorrow.io hourly intervals
  * @param {Number} now epoch ms (the window anchor)
- * @returns {Object} native-unit forecast summary
+ * @returns {object} native-unit forecast summary
  */
 function summarizeForecast(current, hourly, now) {
   const cutoff = now + FORECAST_WINDOW_MS;
@@ -234,7 +234,7 @@ function forecastTab(fc, currentTab) {
  * visible switch needed).
  *
  * @param {String} tab the target tab
- * @param {Object} reason { badge, …trigger detail }
+ * @param {object} reason { badge, …trigger detail }
  * @param {?String} currentTab the tab currently shown
  * @returns {?{tab: String, sourceBadge: String, reason: Object}} decision or null
  */
@@ -250,8 +250,8 @@ function commit(tab, reason, currentTab) {
  * stage, manual hold, dwell, quiet hours). Returns the tab to switch to,
  * or null to leave the user's tab untouched (the null-on-calm contract).
  *
- * @param {Object} signals { govAlerts, radarAlertState, forecast, env }
- * @param {Object} state { currentTab, manualHoldAt, lastAutoSwitchAt, knownSevereAlertKeys }
+ * @param {object} signals { govAlerts, radarAlertState, forecast, env }
+ * @param {object} state { currentTab, manualHoldAt, lastAutoSwitchAt, knownSevereAlertKeys }
  * @param {Number} now epoch ms
  * @returns {?{tab: String, sourceBadge: String, reason: Object}} decision or null
  */
@@ -302,7 +302,7 @@ function selectAutoTab(signals, state, now) {
  * still justified by a live hazard, and clears when this returns null
  * (genuine calm) so a stale chip can't outlive the weather that caused it.
  *
- * @param {Object} signals { govAlerts, radarAlertState, forecast }
+ * @param {object} signals { govAlerts, radarAlertState, forecast }
  * @param {?String} currentTab the active tab (for forecast hysteresis)
  * @returns {?{tab: String, sourceBadge: String}} the live verdict, or null
  */
@@ -329,7 +329,7 @@ function hazardTab(signals, currentTab) {
  *      maxSev ≥ 2) → Precip.
  *   5. Forecast threshold (Wind → Precip → Temp, hysteresis-gated).
  *
- * @param {Object} signals { govAlerts, radarAlertState, forecast }
+ * @param {object} signals { govAlerts, radarAlertState, forecast }
  * @param {?String} currentTab the active tab (for forecast hysteresis)
  * @returns {?{tab: String, sourceBadge: String, reason: Object}} or null
  */

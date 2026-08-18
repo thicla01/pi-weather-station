@@ -243,7 +243,6 @@ Cell.propTypes = {
   qualifierTier: PropTypes.string,
   onClick: PropTypes.func,
   ariaExpanded: PropTypes.bool,
-  // eslint-disable-next-line react/forbid-prop-types -- React ref shape is opaque
   cellRef: PropTypes.object,
   children: PropTypes.node,
 };

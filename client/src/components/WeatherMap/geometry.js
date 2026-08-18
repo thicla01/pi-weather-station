@@ -427,7 +427,7 @@ export function buildRingLayers(risk, dark, aiOff = false, nightRed = false) {
  * @param {Array<Number>} latLng — `[lat, lon]`
  * @param {{x: Number, y: Number}} offset — pixels covered by rail / HeroBand
  * @param {object} [opts]
- * @param {boolean} [opts.animate=true] — true for panTo, false for
+ * @param {boolean} [opts.animate] — true for panTo, false for
  *   setView without animation (used on initial mount where animation
  *   looks janky)
  */

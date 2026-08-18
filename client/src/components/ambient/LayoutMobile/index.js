@@ -195,7 +195,6 @@ const LayoutMobile = () => {
       el.removeEventListener("touchend", onEnd);
       el.removeEventListener("touchcancel", onEnd);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- state values are read via mirror refs (above) so the effect can subscribe once on mount instead of re-installing listeners mid-gesture
   }, []);
 
   // When entering maximize mode, scroll the scroll container to the
@@ -210,7 +209,7 @@ const LayoutMobile = () => {
     if (!mobileRadarMaximized || !mapCardRef.current) return;
     let el = mapCardRef.current.parentElement;
     while (el && el !== document.body) {
-      const overflowY = window.getComputedStyle(el).overflowY;
+      const {overflowY} = window.getComputedStyle(el);
       if (overflowY === "auto" || overflowY === "scroll") {
         el.scrollTop = 0;
         break;

@@ -9,7 +9,7 @@
  *     matches the rest of the UI when night-mode is on
  *
  * @param {Boolean} darkMode whether dark mode is active
- * @param {Boolean} [nightRed=false] whether the long-wavelength
+ * @param {Boolean} [nightRed] whether the long-wavelength
  *   night palette is active (only meaningful when darkMode is true)
  * @returns {String} CSS colour usable by Chart.js options
  */
@@ -31,7 +31,7 @@ export const fontColor = (darkMode, nightRed = false) => {
  *     the other red-tinted UI rather than introducing a neutral
  *
  * @param {Boolean} darkMode whether dark mode is active
- * @param {Boolean} [nightRed=false] whether the long-wavelength
+ * @param {Boolean} [nightRed] whether the long-wavelength
  *   night palette is active (only meaningful when darkMode is true)
  * @returns {String} CSS colour usable by Chart.js options
  */
@@ -50,7 +50,7 @@ export const gridColor = (darkMode, nightRed = false) => {
  * the series discrimination.
  *
  * @param {Boolean} darkMode whether dark mode is active
- * @param {Boolean} [nightRed=false] whether the night-vision palette is active
+ * @param {Boolean} [nightRed] whether the night-vision palette is active
  * @returns {{line: String, gusts: String, precip: String, prob: String}} series colours
  */
 export const metricColors = (darkMode, nightRed = false) => {

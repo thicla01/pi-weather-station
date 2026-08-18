@@ -67,7 +67,6 @@ const MapResizer = ({ mobileRadarMaximized, desktopRadarMaximized, piRadarMaximi
       clearTimeout(live);
       clearTimeout(final);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- desktopRadarMaximized + piRadarMaximized + piLayoutState purposely re-trigger the same handler
   }, [desktopRadarMaximized, piRadarMaximized, piLayoutState, map]);
 
   useEffect(() => {

@@ -298,7 +298,6 @@ DetailsPopover.propTypes = {
   onClose: PropTypes.func.isRequired,
   title: PropTypes.string.isRequired,
   anchor: PropTypes.oneOf(["left", "right"]),
-  // eslint-disable-next-line react/forbid-prop-types -- React ref shape is opaque
   triggerRef: PropTypes.object,
   portal: PropTypes.bool,
   fitViewport: PropTypes.bool,

@@ -52,7 +52,7 @@ const MOON_PHASE_KEYS = [
  *   - 0.50 → full moon
  *   - 0.75 → last quarter (left half lit, waning)
  *
- * @param {Date} [date=new Date()]
+ * @param {Date} [date]
  * @returns {number} fraction 0 ≤ f < 1
  */
 export function moonPhaseFraction(date = new Date()) {
@@ -69,7 +69,7 @@ export function moonPhaseFraction(date = new Date()) {
  * astronomy formula `(1 - cos(2π × phase)) / 2` where phase is the
  * synodic position.
  *
- * @param {Date} [date=new Date()]
+ * @param {Date} [date]
  * @returns {number} illumination 0..1
  */
 export function moonIllumination(date = new Date()) {
@@ -86,7 +86,7 @@ export function moonIllumination(date = new Date()) {
  * (newMoon → waxingCrescent → firstQuarter → waxingGibbous →
  * fullMoon → waningGibbous → lastQuarter → waningCrescent → ...).
  *
- * @param {Date} [date=new Date()]
+ * @param {Date} [date]
  * @returns {{i18nKey: string, fraction: number, illumination: number}}
  */
 export function moonPhase(date = new Date()) {
@@ -240,8 +240,8 @@ export function solarEventDate(year, event) {
  * the year so it doesn't compete with the always-on sunrise/sunset
  * row for attention.
  *
- * @param {Date} [now=new Date()]
- * @param {number} [windowDays=14]
+ * @param {Date} [now]
+ * @param {number} [windowDays]
  * @returns {{event: string, date: Date, daysAway: number}|null}
  */
 export function upcomingSolarEvent(now = new Date(), windowDays = 14) {
@@ -255,7 +255,7 @@ export function upcomingSolarEvent(now = new Date(), windowDays = 14) {
  * with its whole-days countdown. Spans this year + next so at least
  * the next four (one of each type) are always present.
  *
- * @param {Date} [now=new Date()]
+ * @param {Date} [now]
  * @returns {Array<{event: string, date: Date, daysAway: number}>}
  */
 function sortedFutureEvents(now) {
@@ -284,8 +284,8 @@ function sortedFutureEvents(now) {
  * `upcomingSolarEvent` there is no window gate: the list is shown on
  * demand (the user taps the date, which is the year-round trigger).
  *
- * @param {Date} [now=new Date()]
- * @param {number} [count=4]
+ * @param {Date} [now]
+ * @param {number} [count]
  * @returns {Array<{event: string, date: Date, daysAway: number}>}
  */
 export function nextSolarEvents(now = new Date(), count = 4) {
