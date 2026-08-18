@@ -43,7 +43,6 @@ module.exports = [
     plugins: {
       react,
       "react-hooks": reactHooks,
-      jsdoc,
     },
     settings: {
       react: { version: "detect" },
