@@ -39,11 +39,27 @@ Hit a bug, a regression, or an awkward layout? Please open an issue at <https://
 
 ## Screenshots
 
-The original Pi Weather Station (v1.x), as designed by [@elewin](https://github.com/elewin):
+Every v3 capture below is the **same location at the same hour** — Mont Belvieu, Texas, under an NWS Tropical Storm Warning with a convective line crossing the 30 mi analysis ring. The layouts can therefore be compared against each other rather than against different weather. Units are imperial and the clock is 12 h, both user preferences.
 
-![Original layout, v1.x](https://user-images.githubusercontent.com/15202038/91359998-4625bb80-e7bb-11ea-937e-c87eede41f35.JPG)
+### The three layouts
 
-The station includes:
+![v3 desktop layout — day palette, Tropical Storm Warning on the upper Texas coast](docs/screenshots/v3-desktop-day.webp)
+
+**Desktop (≥ 1280 px)** — Full-bleed radar with floating panels: the hero card (place, temperature, condition, feels-like, sunrise/sunset + moon meta-line), the clock card, and on the right the alert stack — an NWS **Tropical Storm Warning** with its source badge, issuing office, issue/expiry chips and a `1 / 4` cycle indicator, with two Tropical Cyclone Local Statements and a Flood Watch folded beneath it — followed by the AQI card, the wind / gust / UV / humidity tiles, the forecast card, and the Claude summary with its radar-movement paragraph. The dashed rings mark the 30 / 60 mi radar-analysis zones — the imperial twin of the metric 50 / 100 km, following the distance-unit preference.
+
+| Pi kiosk, 7" official screen (800×480) | Pi kiosk, 10" screen (1024×600) |
+|---|---|
+| [![Pi 7-inch kiosk layout](docs/screenshots/v3-pi7-day.webp)](docs/screenshots/v3-pi7-day.webp) | [![Pi 10-inch kiosk layout](docs/screenshots/v3-pi10-day.webp)](docs/screenshots/v3-pi10-day.webp) |
+| The lean radar-companion rail — alert, clock, hero, the locally-derived `RADAR` banner, air quality. The forecast and the AI prose are one dock tap away rather than in this glance. | The same layout with the vertical room for the full metrics grid: wind, gust, UV, humidity. |
+
+| Phone (< 800 px) | Night-vision red palette |
+|---|---|
+| [![Phone layout](docs/screenshots/v3-phone-radar.webp)](docs/screenshots/v3-phone-radar.webp) | [![nightRed palette on the Pi kiosk](docs/screenshots/v3-pi7-nightred.webp)](docs/screenshots/v3-pi7-nightred.webp) |
+| A single scrollable column, scrolled here to the mini radar card and its maximize button, with the precipitation forecast below. | `nightRed` — the melatonin-friendly palette for a bedroom or hallway kiosk. Radar intensity keeps its own colours so the map stays readable. |
+
+The dark **dusk** palette (the default when dark mode is on outside the night window) is [`v3-desktop-dusk.webp`](docs/screenshots/v3-desktop-dusk.webp).
+
+### What the station shows
 
 - **Indoor sensors block** — temperature / humidity / air quality from Homebridge, displayed next to the clock.
 - **AI-generated weather summary** powered by Claude, with a radar-movement paragraph describing nearby precipitation.
@@ -59,13 +75,31 @@ The station includes:
 - **Favorite locations** — pin up to 6 places (7 when one is the kiosk's own default), jump back to them from the Places popover in the dock, and promote one as the default location.
 - **Localhost-only debug panel** with KPIs, service status, quota counters, radar snapshots, and logs.
 
-The current **v3 "Ambient Layers"** interface — desktop layout, light mode, captured during a live flood event:
+### Feature close-ups
 
-![v3 desktop layout — light mode, active NWS alerts over Indiana](docs/screenshots/desktop-version.png)
+| | |
+|---|---|
+| [![Gov-alert detail expanded](docs/screenshots/v3-alert-detail.webp)](docs/screenshots/v3-alert-detail.webp) | [![QR code at the foot of an alert](docs/screenshots/v3-alert-qr.webp)](docs/screenshots/v3-alert-qr.webp) |
+| **Gov-alert detail** — the collapsible block under the banner, with affected areas and the upstream text split into its WIND / STORM SURGE sections. | **QR, never a link** — the kiosk has no browser chrome to get back from, so the upstream page is offered as a QR code to scan with a phone. |
+| [![Nearby-alert polygons on the map](docs/screenshots/v3-alerts-overlay.webp)](docs/screenshots/v3-alerts-overlay.webp) | [![Radar timeline scrubber](docs/screenshots/v3-radar-timeline.webp)](docs/screenshots/v3-radar-timeline.webp) |
+| **Nearby-alert overlay** — every active polygon around you, tinted by severity, with a count in the legend and a badge on the dock button. | **Radar timeline** — scrub or play the past frames and the nowcast, with a labelled "Now" marker at the boundary and a hatched future zone. |
+| [![Forecast maximized on the Pi rail](docs/screenshots/v3-forecast-max.webp)](docs/screenshots/v3-forecast-max.webp) | [![Places popover with seven rows](docs/screenshots/v3-places.webp)](docs/screenshots/v3-places.webp) |
+| **Forecast, maximized** — the map shrinks to a thumbnail and the chart takes the full rail; here the precipitation tab, hourly bars plus the probability curve. | **Favorite locations** — the home row on top, then the pinned places; this is the full budget of seven rows. |
+| [![Places edit mode](docs/screenshots/v3-places-edit.webp)](docs/screenshots/v3-places-edit.webp) | [![Settings panel](docs/screenshots/v3-settings.webp)](docs/screenshots/v3-settings.webp) |
+| **Places, edit mode** — per row: set as default, rename, remove. | **Settings** — local preferences applied live and stored per device; API keys and advanced options sit behind the rail. |
 
-**Desktop (≥ 1280 px)** — Full-bleed radar with floating panels: the hero card (place, temperature, condition, feels-like, sunrise/sunset + moon meta-line), the clock card, and on the right the alert stack — an NWS **Flood Warning** with its source badge, issuing office, issue/expiry chips and a `1 / 2` cycle indicator, with the companion **Flood Watch** folded beneath it — followed by the AQI card, the wind / gust / UV / humidity tiles, and the forecast card on its precipitation tab (24 h total, hourly bars + probability curve). The dashed rings mark the 30 / 60 mi radar-analysis zones — the imperial twin of the metric 50 / 100 km, following the distance-unit preference.
+The localhost-only debug panel, on its services bucket — provider status pages, recent calls with their status codes, and the per-endpoint quota counters:
 
-> More v3 captures (Pi kiosk and phone layouts, dark and night-red palettes) are on the way. The retired v2-era gallery lives on in the git history, and the v2 layout reference remains archived in [`docs/archive/ui-layout_v2_en.md`](docs/archive/ui-layout_v2_en.md).
+![Debug panel, services bucket](docs/screenshots/v3-debug-services.webp)
+
+### Where this started
+
+The original Pi Weather Station (v1.x), as designed by [@elewin](https://github.com/elewin):
+
+![Original layout, v1.x](https://user-images.githubusercontent.com/15202038/91359998-4625bb80-e7bb-11ea-937e-c87eede41f35.JPG)
+
+> The v2-era gallery lives on in the git history, and the v2 layout reference remains archived in [`docs/archive/ui-layout_v2_en.md`](docs/archive/ui-layout_v2_en.md).
+
 
 The weather station will require you to have API keys from [Mapbox](https://www.mapbox.com/) and [Tomorrow.io](https://www.tomorrow.io/). Optionally, you can use an API key from [LocationIQ](https://locationiq.com/) to perform reverse geocoding, an [Anthropic](https://console.anthropic.com/) API key for AI-generated weather summaries powered by Claude, an [EPA AirNow](https://docs.airnowapi.org/account/request/) API key for US air-quality coverage, and an [OpenAQ](https://explore.openaq.org/register) API key as a global air-quality fallback. All four optional keys can be left empty — the air-quality block falls back to MELCC RSQA / RSQAQ / ECCC AQHI for Quebec and Canada-wide coverage, and the AI summary simply hides itself when no Anthropic key is configured. All API keys are kept server-side: they never appear in client-side request URLs, and remote clients only receive a masked response (boolean) from `GET /settings` — the actual key values are only accessible from the host itself.
 
@@ -82,7 +116,7 @@ Government air-quality and severe-weather data is pulled from public endpoints t
 
 These public sources are used as automatic fallbacks: the air-quality block prefers a configured AirNow / OpenAQ key when available and falls back to the government feeds based on the user's location; alert banners pull from NWS or ECCC depending on whether the user's point falls inside a US or Canadian alert polygon.
 
-See the **original v1** in action in [this video](https://www.youtube.com/watch?v=dvM6cyqYSw8) by [@elewin](https://github.com/elewin), the author of the original project this fork is based on. The video predates the v2 layout shown in the screenshots above (no AI summary, no alert banner, no QR-coded alert detail, etc.) but gives a feel for the kiosk concept and the touchscreen interaction model that this fork built on.
+See the **original v1** in action in [this video](https://www.youtube.com/watch?v=dvM6cyqYSw8) by [@elewin](https://github.com/elewin), the author of the original project this fork is based on. The video predates everything shown above (no AI summary, no alert banner, no QR-coded alert detail, etc.) but gives a feel for the kiosk concept and the touchscreen interaction model that this fork built on.
 
 > Be mindful of the plan limits for your API keys and understand the terms of each provider, as scrolling around the map and selecting different locations will incur API calls for every location. Additionally, the weather station will periodically make additional API calls to get weather updates throughout the day. All weather (Tomorrow.io), map tile (Mapbox), reverse geocoding (LocationIQ), AI summary (Anthropic), and air-quality (AirNow / OpenAQ) calls are proxied through the server — multiple browser clients share the same quota rather than each consuming it independently. Weather responses are cached server-side, further reducing API usage.
 

@@ -162,6 +162,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   6 favorites because an 8th row geometrically cannot fit 44 px touch targets on the
   fleet's 480 px screens (measured; LLD §4 amendment).
 
+### Documentation
+
+- **README screenshot gallery rebuilt on v3.** Fifteen captures replacing the single v2-era
+  desktop PNG: the three layouts (desktop, Pi 7" 800x480, Pi 10" 1024x600, phone), the dusk
+  and `nightRed` palettes, and close-ups of the gov-alert detail, the alert QR, the
+  nearby-alert polygon overlay, the radar timeline, the maximized forecast, the Places
+  popover and its edit mode, Settings, and the debug panel's services bucket. Every frame is
+  the **same location at the same hour** -- Mont Belvieu, TX, under an NWS Tropical Storm
+  Warning with intensity-5 echoes inside the 30 mi ring -- so the layouts compare against
+  each other rather than against different weather. Captured through the app itself at exact
+  viewports (headless Chrome over CDP, a real map tap for the position), EN / imperial / 12 h.
+  WebP: the whole set is 2.4 MB against 2.1 MB for the one PNG it replaces. The debug frame
+  deliberately shows the *services* bucket only -- the server bucket prints the host name and
+  the machine's LAN addresses and must never be published.
+
 ## [3.2.0] - 2026-08-14
 
 ### Performance (React Compiler, 2026-08)
