@@ -10,11 +10,11 @@
   "author": "Eric Lewin",
   "license": "MIT",
   "dependencies": {
-    "@anthropic-ai/sdk": "^0.120.0",
-    "axios": "^1.19.0",
+    "@anthropic-ai/sdk": "^0.122.0",
+    "axios": "^1.20.0",
     "body-parser": "^2.2.2",
     "express": "^5.2.1",
-    "express-rate-limit": "^8.6.2",
+    "express-rate-limit": "^8.7.0",
     "open": "^11.0.0",
     "pngjs": "^7.0.0"
   },
