@@ -495,6 +495,9 @@ The 2026-06-09 audit's six mediums and all actionable lows shipped across PRs #2
 
 ---
 
+### 🔒 Dependabot auto-merge safety net does not cover transitive security PRs
+The `dependabot-auto-merge` workflow (2026-05-24) arms `gh pr merge --auto` only when `dependabot/fetch-metadata` returns a non-empty `ghsa-id`. That output is populated for **direct** dependencies only: every security PR for an **indirect** dependency (`dependency-type: indirect`) arrives with an empty `ghsa-id`, the gate stays closed, and the PR waits for a human — observed on PR #298 (July 2026, `fast-uri`) and again on all five September 2026 security PRs (#344 `fast-uri`, #345 `qs`, #346 `postcss-selector-parser`, #347 `@humanfs/node`, #351 `browserslist`), which sat one to five days. Since this project's exposure is almost entirely transitive (ajv / babel / eslint / postcss subtrees, `qs` via express), the net currently covers the half that never fires. Candidate fixes, in order of preference: (1) gate on `steps.metadata.outputs.alert-state` / the Dependabot security label instead of `ghsa-id`; (2) drop the metadata dependency and ask the alerts API (`GET /repos/{owner}/{repo}/dependabot/alerts?state=open&package=<name>`) whether the bumped package has an open alert; (3) accept the status quo and rely on the monthly manual sweep. Whichever lands, keep the patch/minor-only guard — a transitive *major* still deserves eyes. Verification recipe from the September sweep worth keeping either way: build the security-only subset in a worktree and `cmp` `dist/` — byte-identical output is the proof that a dev-tree advisory has no fleet reach.
+
 ## Perspective
 
 The three items I would prioritize above all others if returning to this project:
