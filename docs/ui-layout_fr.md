@@ -86,8 +86,8 @@ Le diagramme ci-dessous détaille le rail en **MID**.
 │   (Leaflet + tuiles radar├──────────────────────────┤
 │    RainViewer)           │ AlertDetailInline         │
 │                          ├──────────────────────────┤
-│         [›]              │ HeroCompact               │
-│    (chevron repliable)   │ (lieu · temp · condition ·│
+│  [carré focus] -> MIN    │ HeroCompact               │
+│  (sous la pile de zoom)  │ (lieu · temp · condition ·│
 │                          │  ressenti · méta soleil/  │
 │                          │  lune)                    │
 │                          ├──────────────────────────┤
@@ -113,7 +113,7 @@ Le diagramme ci-dessous détaille le rail en **MID**.
 ### Adaptations toujours actives (toute hauteur en `LayoutPi`)
 
 - **ChartTabs (v3.1 Phase 5)** — un panneau « Prévisions » : pills de période (`24 h` / `5 jours`) à côté du titre, et quatre onglets de métrique étiquetés (Temp · Vent · Précip · Heures/Jours) remplaçant les anciens points de carrousel (constat F9). Temp = courbe accent + remplissage + étiquettes des points clés ; Vent = vitesse + rafales en pointillé + rangée de flèches de direction ; Précip = barres d'accumulation + ligne de probabilité pointillée ; le dernier onglet est la grille d'icônes heure/jour. Pills de résumé chiffré sous chaque graphique (max/min/pic…, le constat F13 corrige les axes : « 14° », unité une seule fois sur le tick max) plus un chip « Précip » optionnel de superposition sur Temp/Vent. Le bouton agrandir garde sa zone de 44 px et la paire d'équerres partagée avec les contrôles radar ; le choix de métrique par période persiste en localStorage.
-- **Basculement du panneau** — Un chevron (`›` / `‹`) est épinglé au bord droit de la carte pour replier/déplier le rail. Lorsque replié, la carte occupe toute la largeur ; Leaflet appelle `map.invalidateSize()` afin que les tuiles se réajustent.
+- **Bascule focus radar (MIN)** — le carré `RadarFocusControl` sous la pile de zoom Leaflet (haut-gauche de la carte, 40 × 40 px, paire d'équerres partagée avec le bouton agrandir de la carte mobile) replie le rail et masque le dock pour que le radar remplisse l'écran, puis rétablit le split au tap suivant ; `MapResizer` appelle `map.invalidateSize()` après chaque bascule afin que les tuiles se réajustent. Il a remplacé le chevron v2 du bord droit (`›` / `‹`) en v3.1.
 - **FloatingMiniBanner** — Lorsque le rail est replié et qu'une alerte météo gouvernementale sévère est active, une bannière compacte se superpose en haut à droite de la carte pour que l'alerte ne soit jamais silencieusement masquée. Appuyer dessus rouvre le rail.
 
 ### Adaptations compactes pour superpositions (`max-height ≤ 520 px` — affichage 7" officiel 800×480)
@@ -124,18 +124,17 @@ Ces ajustements ne se déclenchent que sur les viewports courts (l'écran Pi 7" 
 - **Mode compact DebugPanel** — Zoom de police réduit + interlignes resserrés pour que le viewport 800×480 montre plus de KPI / données services sans défilement.
 - **LayoutMobile mapCard landscape** — La carte radar mini passe de 220 → 160 px en paysage pour que le hero + la première rangée de métriques restent visibles sans scroll.
 
-### Rail replié
+### Focus radar (MIN)
 
 ```
-┌────────────────────────────────────┬──┐
-│                                    │  │
-│                                    │‹ │
-│   WeatherMap (pleine largeur)      │  │
-│                                    │  │
-│  [FloatingMiniBanner si alerte]    │  │
-│                                    │  │
-└────────────────────────────────────┴──┤
-│  BottomDock                           │
+┌───────────────────────────────────────┐
+│ [restaurer]      [FloatingMiniBanner  │
+│ (haut-gauche,     si alerte active —  │
+│  sous le zoom)    haut-droite]        │
+│                                       │
+│   WeatherMap (plein écran, sans cadre)│
+│                                       │
+│   rail + dock masqués                 │
 └───────────────────────────────────────┘
 ```
 
@@ -154,7 +153,7 @@ La carte occupe tout le viewport en arrière-plan pleine saignée. Le HeroBand, 
 │ │  + condition + ressenti     │  date     │ │           │
 │ │  méta-ligne soleil/lune     │  heure    │ │ - Air     │
 │ └─────────────────────────────┴───────────┘ │ - Métriq. │
-│                                         [›] │ - Alertes │
+│ [+][-] [focus]  (sous la pile de zoom)      │ - Alertes │
 │  WeatherMap                                 │ - Graphes │
 │  (pleine saignée — radar visible à travers) │ - Résumé  │
 │                                             │   IA      │
@@ -186,9 +185,9 @@ Composants (de haut en bas) :
 6. **ChartTabs** — onglets de prévisions sur 24 heures et 5 jours avec graphiques Recharts
 7. **AiSummaryInline** — résumé météo IA Claude ; expansible pour remplir le rail (bouton ↑)
 
-### Rail replié (LayoutDesktop)
+### Focus radar (LayoutDesktop)
 
-Le chevron (`›` / `‹`) sur le bord droit de la carte replie le rail. Le HeroBand s'étend pour occuper la largeur libérée. FloatingMiniBanner apparaît si une alerte est active.
+Le carré de focus radar sous la pile de zoom (haut-gauche) entre en mode focus : le HeroBand et le rail sont masqués pour que le radar occupe toute la largeur, la barre de chronologie s'étend jusqu'au bord droit et le dock reste. La FloatingMiniBanner apparaît en haut à droite si une alerte rouge/orange est active ; appuyer dessus quitte le mode focus. Il a remplacé le chevron v2 du bord droit (`›` / `‹`) en v3.1.
 
 ---
 

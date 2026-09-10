@@ -86,8 +86,8 @@ The diagram below details the **MID** rail.
 │   (Leaflet + RainViewer  ├──────────────────────────┤
 │    radar tiles)          │ AlertDetailInline         │
 │                          ├──────────────────────────┤
-│         [›]              │ HeroCompact               │
-│    (chevron toggle)      │ (location · temp ·        │
+│  [focus square] -> MIN   │ HeroCompact               │
+│  (under the zoom stack)  │ (location · temp ·        │
 │                          │  condition · feels-like · │
 │                          │  sun/moon meta-line)      │
 │                          ├──────────────────────────┤
@@ -113,7 +113,7 @@ The diagram below details the **MID** rail.
 ### Always-on adaptations (any height in `LayoutPi`)
 
 - **ChartTabs (v3.1 Phase 5)** — a "Forecast" panel: period pills (`24 h` / `5 days`) next to the title, and four labelled metric tabs (Temp · Wind · Precip · Hours/Days) replacing the old carousel dots (audit F9). Temp = accent line + area fill + key-point labels; Wind = speed + dashed gusts + direction-arrow row; Precip = accumulation bars + dashed probability line; the last tab is the hour/day icon grid. Numeric summary pills under each chart (max/min/peak…, audit F13 fixed the axes: `14°`, unit once on the top tick) plus an optional "Precip" overlay chip on Temp/Wind. The maximize button keeps its 44 px hit area and the bracket-icon pair shared with the radar controls; per-period metric choice persists in localStorage.
-- **Panel toggle** — A chevron (`›` / `‹`) is pinned to the map's right edge to collapse/expand the rail. When collapsed the map fills the full width; Leaflet calls `map.invalidateSize()` so the tiles re-fit.
+- **Radar focus toggle (MIN)** — the `RadarFocusControl` square under the Leaflet zoom stack (top-left of the map, 40 × 40 px, bracket-icon pair shared with the mobile card's maximize toggle) collapses the rail and hides the dock so the radar fills the screen, and restores the split on the next tap; `MapResizer` calls `map.invalidateSize()` after each toggle so the tiles re-fit. It replaced the v2 right-edge chevron (`›` / `‹`) in v3.1.
 - **FloatingMiniBanner** — When the rail is collapsed and a government severe alert is active, a compact banner overlays the map's top-right so the alert is never silently hidden. Tapping it re-opens the rail.
 
 ### Compact-overlay adaptations (`max-height ≤ 520 px` — official 7" display 800×480)
@@ -124,18 +124,17 @@ These trigger only on short viewports (the 7" Pi screen and similar). 10"-class 
 - **DebugPanel compact mode** — Smaller font zoom + tighter row gaps so the 800×480 viewport can show more KPI / service data without scrolling.
 - **LayoutMobile landscape mapCard** — Mini radar card height drops 220 → 160 px in landscape so the hero + first metrics row stay above the fold.
 
-### Collapsed rail
+### Radar focus (MIN)
 
 ```
-┌────────────────────────────────────┬──┐
-│                                    │  │
-│                                    │‹ │
-│   WeatherMap (full width)          │  │
-│                                    │  │
-│  [FloatingMiniBanner if alert]     │  │
-│                                    │  │
-└────────────────────────────────────┴──┤
-│  BottomDock                           │
+┌───────────────────────────────────────┐
+│ [restore]        [FloatingMiniBanner  │
+│ (top-left, under  if an alert is      │
+│  the zoom stack)  active — top-right] │
+│                                       │
+│   WeatherMap (full screen, unframed)  │
+│                                       │
+│   rail + dock hidden                  │
 └───────────────────────────────────────┘
 ```
 
@@ -154,7 +153,7 @@ The map fills the entire viewport as a full-bleed background. The HeroBand, righ
 │ │  + condition + feels-like   │  date     │ │           │
 │ │  sun/moon meta-line         │  time     │ │ - Air     │
 │ └─────────────────────────────┴───────────┘ │ - Metrics │
-│                                         [›] │ - Alerts  │
+│ [+][-] [focus]  (under the zoom stack)      │ - Alerts  │
 │  WeatherMap                                 │ - Charts  │
 │  (full-bleed — radar visible through slabs) │ - AI sum. │
 │                                             │           │
@@ -186,9 +185,9 @@ Components (top to bottom):
 6. **ChartTabs** — 24-hour and 5-day forecast tabs with Recharts graphs
 7. **AiSummaryInline** — Claude AI weather summary; expandable to fill the rail (↑ button)
 
-### Collapsed rail (LayoutDesktop)
+### Radar focus (LayoutDesktop)
 
-The chevron (`›` / `‹`) on the map's right edge collapses the rail. The HeroBand extends to fill the freed width. FloatingMiniBanner appears if an alert is active.
+The radar focus square under the zoom stack (top-left) enters focus mode: the HeroBand and the rail are hidden so the radar fills the width, the timeline bar stretches to the right edge, and the dock stays. The FloatingMiniBanner appears top-right if a red/orange alert is active; tapping it exits focus mode. It replaced the v2 right-edge chevron (`›` / `‹`) in v3.1.
 
 ---
 
