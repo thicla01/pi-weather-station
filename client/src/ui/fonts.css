@@ -7,10 +7,22 @@
  * the four files we actually need is simpler and removes the
  * Next.js coupling.
  *
- * We only wire the three weights actually used by the Ambient Layers
- * surface — Regular (body), Medium (labels, hero captions), Bold (hero
- * temperature). Loading every weight would push the bundle by ~250 KB
- * for no visible benefit; the kiosk renders a fixed visual language.
+ * We only wire the weights the Ambient Layers surface actually uses —
+ * Geist Regular 400 (body), Medium 500 (labels, hero captions), Bold 700
+ * (hero temperature, popover values, emphasis) and Geist Mono Medium 500
+ * (every mono numeral, badge and section title). Loading every weight
+ * would push the bundle by ~250 KB for no visible benefit; the kiosk
+ * renders a fixed visual language.
+ *
+ * THE CONTRACT: a stylesheet may only ask for a weight declared below —
+ * Sans 400 / 500 / 700, Mono 500. Anything else fails with zero build or
+ * lint signal: the browser silently snaps to the nearest heavier face
+ * (600 → Bold on Sans) or, when no heavier face exists (600 / 700 on
+ * Mono), synthesizes a faux-bold that Skia (Chromium on the Pi kiosk)
+ * and CoreText (WebKit in the iOS PWA) draw differently — the same badge
+ * at two visibly different weights across the fleet. 43 rules had
+ * drifted that way by 2026-09; `test/fontWeightGuards.test.js` now
+ * fails the suite on any weight without a loaded face.
  *
  * `font-display: swap` lets the OS fallback render immediately so there
  * is no FOUC on the Pi's first paint. The swap to Geist happens within

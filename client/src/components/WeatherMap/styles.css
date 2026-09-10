@@ -511,7 +511,7 @@
 .survey-head {
   font-family: "Geist Mono", monospace;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   padding: 9px 12px 6px;
   color: var(--c-text-dim, #6d655a);
 }

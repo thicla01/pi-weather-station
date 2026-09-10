@@ -217,7 +217,7 @@
 .metricTabs .metricTabActive {
   background-color: var(--c-accent-soft);
   color: var(--c-text);
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .metricTabs .metricTabActive svg {
