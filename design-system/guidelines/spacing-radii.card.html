@@ -1,0 +1,25 @@
+<!-- @dsCard group="Spacing" viewport="700x280" name="Shape, spacing, elevation" subtitle="Radii 3→14 + pill · the slab recipe · float shadow · glass · 44 px hit targets" -->
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../styles.css">
+<style>
+  body{margin:0;font-family:var(--font-sans);background:var(--c-bg);color:var(--c-text);padding:14px 18px;display:grid;grid-template-columns:1fr 1fr;gap:14px 22px}
+  h3{font-family:var(--font-mono);font-weight:500;font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--c-text-dim);margin:0 0 8px}
+  .radii{display:flex;gap:8px;align-items:flex-end}
+  .radii div{width:44px;height:36px;background:var(--c-surface);border:1px solid var(--c-border);display:flex;align-items:flex-end;justify-content:center;font-family:var(--font-mono);font-size:8.5px;color:var(--c-text-dim);padding-bottom:3px}
+  .slab{background:var(--c-surface);border:1px solid var(--c-border);border-radius:10px;padding:12px 14px;box-shadow:inset 4px 0 0 var(--c-warn);font-size:12px;line-height:1.4}
+  .slab b{display:block;font-family:var(--font-mono);font-weight:500;font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--c-text-dim);margin-bottom:4px}
+  .float{background:var(--c-surface);border:1px solid var(--c-border);border-radius:10px;box-shadow:var(--shadow-float);padding:8px 10px;font-size:11px;display:inline-block}
+  .glassbg{background:linear-gradient(100deg,rgba(0,208,208,.5),rgba(240,230,0,.5),rgba(240,130,0,.5));border-radius:10px;padding:10px;display:flex;gap:10px;align-items:center}
+  .glass{background:var(--c-surface);border:1px solid var(--c-border);border-radius:14px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:8px 14px;font-size:11px;min-height:52px;display:flex;align-items:center;gap:14px}
+  .glass i{width:24px;height:24px;border-radius:6px;border:1.5px solid currentColor;display:inline-block}
+  .hit{display:flex;gap:14px;align-items:center;font-size:11px;color:var(--c-text-dim)}
+  .hit .t{width:44px;height:44px;border:1px dashed var(--c-text-dim);border-radius:6px;display:flex;align-items:center;justify-content:center}
+  .hit .t i{width:28px;height:28px;background:var(--c-surface-hybrid);border:1px solid var(--c-border);border-radius:6px;display:block}
+  .mono{font-family:var(--font-mono);font-size:9.5px;color:var(--c-text-dim);line-height:1.5}
+</style></head><body>
+<div><h3>Radii</h3><div class="radii"><div style="border-radius:3px">3 chip</div><div style="border-radius:4px">4</div><div style="border-radius:6px">6</div><div style="border-radius:8px">8 cell</div><div style="border-radius:10px">10 slab</div><div style="border-radius:14px">14 dock</div><div style="border-radius:999px">pill</div></div>
+  <div class="mono" style="margin-top:8px">Hairline 1px var(--c-border) everywhere · hybrid strip = inset 3px (cells) / 4px (slabs)</div></div>
+<div><h3>The slab recipe</h3><div class="slab"><b>Horloge · 12 / 14 padding</b>background var(--c-surface) · border 1px var(--c-border) · radius 10 · box-shadow: inset 4px 0 0 var(--c-strip-color) — here showing the amber strip of a moderate alert.</div></div>
+<div><h3>Elevation & glass</h3><div style="display:flex;gap:12px;align-items:center;margin-bottom:8px"><span class="float">float · 0 1px 2px .08 + 0 6px 16px .12</span><span class="mono">overlay · 0 4px 16px .35</span></div>
+  <div class="glassbg"><div class="glass"><i></i><i></i><i></i><span class="mono">dock · blur(8px) · 52 px</span></div></div></div>
+<div><h3>Touch</h3><div class="hit"><span class="t"><i></i></span><span>Hit box ≥ 44 px even when the visual is 28 px.<br>Feedback = :active (accent-soft + scale .985) and :focus-visible (2px dashed outline). Hover paints nothing.</span></div></div>
+</body></html>

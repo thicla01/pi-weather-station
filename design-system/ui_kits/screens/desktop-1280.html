@@ -1,0 +1,61 @@
+<!-- @dsCard group="Screens" viewport="1280x800" name="Desktop ≥ 1280" subtitle="1280×800 · LayoutDesktop: full-bleed radar, floating hero band + clock, rail 320 (alert · air · 2×2 · forecast · AI), dock 52 · dusk, watch active" -->
+<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css"><link rel="stylesheet" href="screens.css">
+<style>
+  .screen{width:1280px;height:800px}
+  .map{position:absolute;inset:0 0 52px 0;overflow:hidden}
+  .heroSlot{position:absolute;top:16px;left:86px;right:352px;z-index:10}
+  .rail{position:absolute;top:16px;right:16px;bottom:68px;width:320px;z-index:10;display:flex;flex-direction:column;gap:10px;overflow:hidden}
+  .dockSlot{position:absolute;left:0;right:0;bottom:0;height:52px;z-index:10}
+  .dockSlot .dock{border-radius:14px}
+  .fc .chart svg{width:100%;height:100%}
+</style></head><body data-theme="dusk">
+<div class="screen" data-theme="dusk" data-hybrid="light">
+  <div class="map radar">
+    <span class="ring" style="width:300px;height:300px;left:calc(46% - 150px);top:calc(52% - 150px)"><span class="lab">50 km</span></span>
+    <span class="marker" style="left:46%;top:52%"></span>
+    <div class="zoom" style="top:16px;left:16px"><span>+</span><span>−</span></div>
+    <div class="focus" style="top:110px;left:16px"><svg><use href="sprite.svg#expand"/></svg></div>
+    <div class="legend" style="left:16px;bottom:16px">
+      <div><div class="t">Rayons d'analyse</div><div class="r"><span class="circ"></span>50 km · zone radar</div></div>
+      <div><div class="t">Précipitations</div><div class="bar"><i style="background:var(--rc-tile-1)"></i><i style="background:var(--rc-tile-2)"></i><i style="background:var(--rc-tile-3)"></i><i style="background:var(--rc-tile-4)"></i><i style="background:var(--rc-tile-5)"></i><i style="background:var(--rc-tile-6)"></i></div><div class="r" style="justify-content:space-between"><span>faible</span><span>extrême</span></div></div>
+      <div><div class="t">Alertes à proximité</div><div class="r"><span class="sw" style="background:var(--rc-alert-warn)"></span>avertissement</div><div class="r"><span class="sw" style="background:var(--rc-alert-watch)"></span>veille · 1 dans le rayon</div><div class="r"><span class="sw" style="background:var(--rc-alert-adv)"></span>avis</div></div>
+    </div>
+    <div class="rt" style="left:16px;right:352px;bottom:190px">
+      <div class="h"><span class="play"><svg><use href="sprite.svg#play"/></svg></span><span class="step"><svg><use href="sprite.svg#prev"/></svg></span><span class="step"><svg><use href="sprite.svg#next"/></svg></span><span class="speed">1×</span><span class="info"><span class="ts">22:20<span class="now">Maintenant</span></span><span class="sub">12 images · −2 h → +30 min</span></span><span class="src">RainViewer · 10 min</span></div>
+      <div class="wrap"><div class="track"><span class="past"></span><span class="future"></span><span class="nowm"><i>Now</i></span><span class="thumb"></span></div></div>
+      <div class="ticks"><span>−2 h</span><span>−1 h 30</span><span>−1 h</span><span>−30 min</span><span>Now</span><span>+30 min</span></div>
+    </div>
+    <span class="attrib">© Mapbox © OpenStreetMap · RainViewer</span>
+  </div>
+  <div class="heroSlot"><div class="band">
+    <div class="hero-card"><div class="place"><svg><use href="sprite.svg#pin"/></svg><u>Montréal, QC</u></div>
+      <div class="focal"><div class="tbk"><span class="tv">14</span><span class="tu">°C</span></div><div class="cc"><svg class="ci"><use href="sprite.svg#cloudsun"/></svg><div class="ct">Partiellement nuageux</div><span class="fl"><span>Ressenti</span><span class="v">11°</span><span class="d">−3°</span></span></div></div>
+      <div class="astro"><span class="tap"><svg class="sun"><use href="sprite.svg#sun"/></svg>06:24<svg class="arr"><use href="sprite.svg#arrow"/></svg>19:12</span><span class="sep">·</span><span class="tap"><svg class="moon" viewBox="0 0 20 20"><circle class="disc" cx="10" cy="10" r="9"/><path class="lit" d="M 10 1 A 9 9 0 0 1 10 19 A 4.5 9 0 0 1 10 1 Z"/></svg>Gibbeuse croissante · 59%</span></div></div>
+    <div class="clock-card"><div class="eyebrow">Jeudi</div><div class="time">22:20</div><div class="dmeta">10 sept. · Équinoxe dans 12 j</div></div>
+  </div></div>
+  <aside class="rail">
+    <div class="banner orange"><span class="x"><svg><use href="sprite.svg#x"/></svg></span><div class="head"><div class="topRow"><div class="badges"><span class="badge">ECCC</span><span class="chip tier-med"><svg><use href="sprite.svg#tri"/></svg>Veille</span></div><svg class="chev"><use href="sprite.svg#down"/></svg></div><div class="title">Veille d'orages violents — région de Montréal</div><div class="metaRow"><span class="meta">ECCC QC</span><span class="meta fresh">Émis il y a 1 h</span><span class="meta">Expire 02:00</span><span class="counter">1 / 1</span></div></div></div>
+    <div class="air"><div class="r"><span class="vg"><span class="v">3</span><span class="l">AQHI</span></span><span class="pill cg"><i></i>Bon</span></div><div class="r"><span class="vg"><span class="vt">Ambroisie</span><span class="l">Pollen</span></span><span class="pill cb"><i></i>Élevé</span></div></div>
+    <div class="grid">
+      <div class="cell"><div class="top"><span class="ic"><svg><use href="sprite.svg#wind"/></svg></span><span class="vg"><span class="v">21</span><span class="u">km/h</span></span></div><div class="l">Vent</div></div>
+      <div class="cell"><div class="top"><span class="ic"><svg><use href="sprite.svg#wind"/></svg></span><span class="vg"><span class="v">38</span><span class="u">km/h</span></span></div><div class="l">Rafales</div></div>
+      <div class="cell"><svg class="chev"><use href="sprite.svg#chev"/></svg><div class="top"><span class="ic"><svg><use href="sprite.svg#uv"/></svg></span><span class="vg"><span class="v">0</span></span></div><div class="l">UV<span class="cat-mod"> · Faible</span></div></div>
+      <div class="cell"><div class="top"><span class="ic"><svg><use href="sprite.svg#hum"/></svg></span><span class="vg"><span class="v">71</span><span class="u">%</span></span></div><div class="l">Humidité</div></div>
+    </div>
+    <div class="fc">
+      <div class="hr"><span class="ht">Prévisions</span><span class="pp"><span class="pil on">24 h</span><span class="pil">5 j</span></span><span class="ab"><svg><use href="sprite.svg#expand"/></svg></span></div>
+      <div class="tabs"><span class="tab on"><svg><use href="sprite.svg#temp"/></svg>Temp</span><span class="tab"><svg><use href="sprite.svg#wind"/></svg>Vent</span><span class="tab"><svg><use href="sprite.svg#drop"/></svg>Précip</span><span class="tab"><svg><use href="sprite.svg#gridI"/></svg>Heures</span></div>
+      <div class="chart"><svg viewBox="0 0 296 140" preserveAspectRatio="none"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--c-accent)" stop-opacity=".35"/><stop offset="1" stop-color="var(--c-accent)" stop-opacity="0"/></linearGradient></defs><path d="M0 110 C 40 105, 60 60, 100 52 S 160 40, 200 70 S 260 120, 296 112 V140 H0 Z" fill="url(#g)"/><path d="M0 110 C 40 105, 60 60, 100 52 S 160 40, 200 70 S 260 120, 296 112" fill="none" stroke="var(--c-accent)" stroke-width="2"/><g font-family="Geist Mono" font-size="9" fill="var(--c-text-dim)"><text x="0" y="132">23h</text><text x="96" y="132">5h</text><text x="192" y="132">11h</text><text x="276" y="132">17h</text></g><text x="104" y="44" font-family="Geist Mono" font-size="10" font-weight="500" fill="var(--c-text)">17°</text></svg></div>
+      <div class="sum"><span>Max<b>17°</b></span><span>Min<b>7°</b></span><span class="acc">Pluie dès 17h</span></div>
+    </div>
+    <div class="ai"><div class="h"><span class="l"><svg><use href="sprite.svg#sparkle"/></svg>Résumé Claude</span><svg><use href="sprite.svg#down"/></svg></div></div>
+  </aside>
+  <div class="dockSlot"><div class="dock">
+    <div class="group"><span class="gl">Carte</span><span class="b"><svg><use href="sprite.svg#target"/></svg></span><span class="b"><svg><use href="sprite.svg#bookmark"/></svg></span><span class="b down"><svg><use href="sprite.svg#timeline"/></svg></span><span class="b down"><svg><use href="sprite.svg#legend"/></svg></span><span class="b down"><svg><use href="sprite.svg#warn"/></svg><span class="cnt" style="background:var(--rc-alert-watch)">1</span></span></div>
+    <div class="group"><span class="gl">Vues</span><span class="b"><svg><use href="sprite.svg#sparkle"/></svg></span><span class="b"><svg><use href="sprite.svg#chart"/></svg></span></div>
+    <div class="group"><span class="gl">Affichage</span><span class="b down"><svg><use href="sprite.svg#contrast"/></svg></span><span class="b"><svg><use href="sprite.svg#moonI"/></svg></span></div>
+    <div class="group"><span class="gl">Système</span><span class="b"><svg><use href="sprite.svg#renew"/></svg></span><span class="b"><svg><use href="sprite.svg#gear"/></svg></span></div>
+    <span class="hchip"><i><svg><use href="sprite.svg#check"/></svg></i>Tout va bien</span>
+  </div></div>
+</div>
+</body></html>

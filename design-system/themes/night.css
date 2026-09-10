@@ -1,0 +1,36 @@
+/* night — near-black, copper accent. DEFINED BUT NOT REACHABLE TODAY:
+   useTimeOfDay() returns day / dusk / nightRed only until the solar wiring
+   (Phase 5) distinguishes dusk from night. Design against it, but expect
+   dusk on real screens. */
+[data-theme="night"] {
+  color-scheme: dark;
+  --c-bg: #0e0c0a;
+  --c-text: #c4c0b8;
+  --c-text-dim: #6a6660;
+  --c-accent: #c47030;
+  --c-accent-soft: rgba(196, 112, 48, 0.16);
+  --c-surface: rgba(28, 26, 22, 0.85);
+  --c-surface-hybrid: rgba(28, 26, 22, 0.96);
+  --c-border: rgba(196, 192, 184, 0.08);
+  --c-border-hybrid: rgba(196, 192, 184, 0.16);
+  --c-warn: #c47030;
+  --c-danger: #b04030;
+  --c-advisory: #f0c000;
+  --c-cool: #5a7898;
+  --c-strip-color: transparent;
+  --sev-low-bg: rgba(232, 200, 122, 0.10);
+  --sev-low-border: rgba(232, 200, 122, 0.35);
+  --sev-low-ink: #e8c87a;
+  --sev-med-bg: rgba(232, 150, 87, 0.14);
+  --sev-med-border: rgba(232, 150, 87, 0.45);
+  --sev-med-ink: #f0b27a;
+  --sev-high-bg: rgba(220, 80, 80, 0.14);
+  --sev-high-border: rgba(220, 80, 80, 0.45);
+  --sev-high-ink: #ee9090;
+  --c-moon-lit: #f0ddb8;
+  --c-moon-dark: #3a3528;
+  --mx-cat-good: #6db582;
+  --mx-cat-mod: #d9b260;
+  --mx-cat-bad: #d56f6f;
+  --mx-cat-vhigh: #a87fd4;
+}

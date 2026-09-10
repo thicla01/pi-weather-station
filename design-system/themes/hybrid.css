@@ -1,0 +1,16 @@
+/* Hybrid levels — alert-aware escalation shared by all four palettes
+   (AmbientLayers/index.js). The runtime sets data-hybrid="none|light|full"
+   on the root from the worst active government-alert severity
+   (ui/hybrid.js hybridLevel(): moderate → light, severe/extreme → full).
+   Three knobs move at once so every slab escalates without per-component
+   logic: surface alpha .85 → .96, a stronger hairline, and a left strip
+   (amber for light, red for full) painted as
+   box-shadow: inset 3px 0 0 var(--c-strip-color). Imported last so it wins
+   over the palette files at equal specificity. */
+[data-hybrid="light"],
+[data-hybrid="full"] {
+  --c-surface: var(--c-surface-hybrid);
+  --c-border: var(--c-border-hybrid);
+}
+[data-hybrid="light"] { --c-strip-color: var(--c-warn); }
+[data-hybrid="full"]  { --c-strip-color: var(--c-danger); }

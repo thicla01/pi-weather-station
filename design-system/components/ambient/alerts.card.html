@@ -1,0 +1,73 @@
+<!-- @dsCard group="Components" viewport="700x420" name="Alert surfaces" subtitle="AlertBanner head · AirAlertCard · FloatingMiniBanner · AlertMiniCards — one grammar, four sources" -->
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css">
+<style>
+  body{margin:0;font-family:var(--font-sans);background:#fff}
+  .row{display:grid;grid-template-columns:1fr 1fr}
+  section{background:var(--c-bg);color:var(--c-text);padding:12px;display:flex;flex-direction:column;gap:8px;min-height:396px}
+  .name{font-family:var(--font-mono);font-weight:500;font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--c-text-dim)}
+  .badge{display:inline-block;background-color:var(--c-accent-soft);color:var(--c-text);font-family:var(--font-mono);font-size:11px;font-weight:500;letter-spacing:.6px;text-transform:uppercase;padding:2px 7px;border-radius:3px;vertical-align:1px}
+  .chip{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:9.5px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;padding:4px 9px 4px 7px;border-radius:999px;border:1px solid;white-space:nowrap}
+  .chip svg{width:11px;height:11px}.chip.compact{padding:4px 7px;gap:0}
+  .tier-med{color:var(--sev-med-ink);background:var(--sev-med-bg);border-color:var(--sev-med-border)}
+  .tier-high{color:var(--sev-high-ink);background:var(--sev-high-bg);border-color:var(--sev-high-border)}
+  .tier-low{color:var(--sev-low-ink);background:var(--sev-low-bg);border-color:var(--sev-low-border)}
+  /* AlertBanner/styles.css — Phase 4 head */
+  .banner{position:relative;background-color:var(--c-surface);border:1px solid var(--c-border);border-radius:8px;color:var(--c-text)}
+  .banner::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;border-radius:8px 0 0 8px;background-color:var(--c-danger)}
+  .head{padding:14px 44px 12px 18px;display:flex;flex-direction:column;gap:8px}
+  .topRow{display:flex;align-items:center;justify-content:space-between;gap:10px}
+  .badges{display:flex;align-items:center;flex-wrap:wrap;gap:4px 6px;min-width:0}
+  .chevron{width:14px;height:14px;color:var(--c-text-dim);flex-shrink:0}
+  .title{margin-top:-2px;font-size:15px;font-weight:500;letter-spacing:-.005em;line-height:1.3}
+  .metaRow{display:flex;align-items:center;gap:8px}
+  .meta{display:inline-flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.05em;color:var(--c-text-dim);background:var(--c-surface-hybrid);border:1px solid var(--c-border-hybrid);border-radius:999px;padding:2px 8px;white-space:nowrap}
+  .meta.fresh{color:var(--c-accent);background:var(--c-accent-soft);border-color:transparent}
+  .counter{margin-left:auto;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.06em;color:var(--c-text-dim)}
+  .dismiss{position:absolute;top:6px;right:6px;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;color:var(--c-text-dim)}
+  .dismiss svg{width:12px;height:12px}
+  /* AirAlertCard/styles.css */
+  .aac{position:relative;background-color:var(--c-surface);border:1px solid var(--c-border);border-radius:8px;padding:9px 12px 9px 16px;overflow:hidden;--strip:var(--c-warn);--tint-bg:var(--sev-med-bg);--tint-border:var(--sev-med-border);--tint-ink:var(--sev-med-ink)}
+  .aac::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;border-radius:8px 0 0 8px;background-color:var(--strip)}
+  .aac .r{display:flex;align-items:center;gap:7px}
+  .airBadge{display:inline-flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:9.5px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;padding:4px 9px 4px 7px;border-radius:999px;border:1px solid var(--tint-border);background:var(--tint-bg);color:var(--tint-ink);white-space:nowrap}
+  .airBadge svg{width:12px;height:12px}
+  .reading{display:inline-flex;align-items:baseline;min-width:0;white-space:nowrap}
+  .reading .v{font-family:var(--font-mono);font-size:16px;font-weight:500;letter-spacing:-.3px;font-variant-numeric:tabular-nums}
+  .reading .sep{color:var(--c-text-dim);white-space:pre}
+  .reading .lvl{font-weight:500;font-size:13px;color:var(--tint-ink)}
+  /* FloatingMiniBanner/styles.css */
+  .fmb{position:relative;display:flex;align-items:center;gap:8px;max-width:360px;padding:8px 12px 8px 16px;background-color:var(--c-surface-hybrid);border:1px solid var(--c-border-hybrid);border-radius:6px;font-size:13px;font-weight:500;overflow:hidden;align-self:flex-end}
+  .fmb::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background-color:var(--c-warn)}
+  .fmb .t{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fmb .c{font-family:var(--font-mono);font-weight:500;font-size:10px;letter-spacing:.06em;color:var(--c-text-dim)}
+  /* AlertMiniCards/styles.css */
+  .list{display:flex;flex-direction:column;gap:6px}
+  .mini{display:flex;align-items:center;gap:10px;padding:10px 14px;background-color:var(--c-surface);border:1px solid var(--c-border);border-left:4px solid var(--sev-med-border);border-radius:8px}
+  .mini.yellow{border-left-color:var(--sev-low-border)}
+  .mini .t{flex:1;min-width:0;font-size:13px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;line-height:1.3}
+  .cap{font-family:var(--font-mono);font-size:8.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--c-text-dim);margin:2px 0 -4px}
+</style></head><body>
+<svg style="display:none"><symbol id="tri" viewBox="0 0 24 24"><path d="M12 2 L22 20 L2 20 Z" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/><line x1="12" y1="9" x2="12" y2="14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="17.5" r=".5" fill="currentColor"/></symbol><symbol id="down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol><symbol id="right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol><symbol id="x" viewBox="0 0 24 24"><path d="M5 5l14 14M19 5L5 19" fill="none" stroke="currentColor" stroke-width="2.2"/></symbol><symbol id="gust" viewBox="0 0 24 24"><path d="M3 8h11a3 3 0 1 0-3-3M3 12h15a3 3 0 1 1-3 3M3 16h8a2 2 0 1 1-2 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol></svg>
+<div class="row">
+  <section><div class="name">day</div>
+    <div class="cap">AlertBanner · gov alert head (collapsed)</div>
+    <div class="banner"><span class="dismiss"><svg><use href="#x"/></svg></span><div class="head"><div class="topRow"><div class="badges"><span class="badge">ECCC</span><span class="chip tier-high"><svg><use href="#tri"/></svg>Warning</span></div><svg class="chevron"><use href="#down"/></svg></div><div class="title">Severe thunderstorm warning — Montréal area</div><div class="metaRow"><span class="meta">ECCC QC</span><span class="meta fresh">Issued 1h ago</span><span class="meta">Expires 21:00</span><span class="counter">1 / 3</span></div></div></div>
+    <div class="cap">AirAlertCard · AIR + index badge · value · level</div>
+    <div class="aac"><div class="r"><span class="airBadge"><svg><use href="#gust"/></svg>Air</span><span class="badge">AQHI</span><span class="reading"><span class="v">7</span><span class="sep"> · </span><span class="lvl">High</span></span></div></div>
+    <div class="cap">FloatingMiniBanner · map states where the rail is hidden</div>
+    <div class="fmb"><span class="t">Wind warning — Laurentides</span><span class="c">2 / 3</span><svg class="chevron"><use href="#right"/></svg></div>
+    <div class="cap">AlertMiniCards · the other active alerts</div>
+    <div class="list"><div class="mini"><span class="chip tier-med compact"><svg><use href="#tri"/></svg></span><span class="t">Wind warning — Laurentides</span><svg class="chevron"><use href="#right"/></svg></div><div class="mini yellow"><span class="chip tier-low compact"><svg><use href="#tri"/></svg></span><span class="t">Frost advisory — Lanaudière</span><svg class="chevron"><use href="#right"/></svg></div></div>
+  </section>
+  <section data-theme="dusk" data-hybrid="full"><div class="name">dusk · hybrid full (severe alert)</div>
+    <div class="cap">AlertBanner</div>
+    <div class="banner"><span class="dismiss"><svg><use href="#x"/></svg></span><div class="head"><div class="topRow"><div class="badges"><span class="badge">ECCC</span><span class="chip tier-high"><svg><use href="#tri"/></svg>Avertissement</span></div><svg class="chevron"><use href="#down"/></svg></div><div class="title">Avertissement d'orages violents — région de Montréal</div><div class="metaRow"><span class="meta">ECCC QC</span><span class="meta fresh">Émis il y a 1 h</span><span class="meta">Expire 21:00</span><span class="counter">1 / 3</span></div></div></div>
+    <div class="cap">AirAlertCard</div>
+    <div class="aac"><div class="r"><span class="airBadge"><svg><use href="#gust"/></svg>Air</span><span class="badge">IQA</span><span class="reading"><span class="v">58</span><span class="sep"> · </span><span class="lvl">Mauvais</span></span></div></div>
+    <div class="cap">FloatingMiniBanner</div>
+    <div class="fmb"><span class="t">Avertissement de vent — Laurentides</span><span class="c">2 / 3</span><svg class="chevron"><use href="#right"/></svg></div>
+    <div class="cap">AlertMiniCards</div>
+    <div class="list"><div class="mini"><span class="chip tier-med compact"><svg><use href="#tri"/></svg></span><span class="t">Avertissement de vent — Laurentides</span><svg class="chevron"><use href="#right"/></svg></div><div class="mini yellow"><span class="chip tier-low compact"><svg><use href="#tri"/></svg></span><span class="t">Avis de gel — Lanaudière</span><svg class="chevron"><use href="#right"/></svg></div></div>
+  </section>
+</div>
+</body></html>

@@ -1,0 +1,46 @@
+/* Radar & map chrome — component-scoped in the codebase
+   (client/src/components/WeatherMap/styles.css, switched via data-palette),
+   deliberately NOT part of ui/tokens.js. Two families:
+     --rc-*  radar-chrome roles: tile scale, alert-tier swatches, surface-2, ink-3
+     --map-* on-map paint: analysis-circle stroke + label ink
+   RainViewer tile colours are the tiles' own colour scheme 6 and NEVER
+   recolour — identical in all four palettes, nightRed included (an honest
+   legend beats palette purity). Alert tiers = what the app paints on the map
+   (WeatherMap/geometry.js tierColour); nightRed collapses them to the red
+   family with opacity steps carrying the hierarchy (warn 1 · watch .6 · adv .32). */
+:root {
+  --rc-tile-1: #00d0d0;  /* RainViewer scheme 6, segment 1 (lightest) */
+  --rc-tile-2: #00c800;
+  --rc-tile-3: #f0e600;
+  --rc-tile-4: #f08200;
+  --rc-tile-5: #e60000;
+  --rc-tile-6: #7800b4;  /* segment 6 (most intense) */
+  --rc-alert-warn: #e60000;   /* warning tier polygon */
+  --rc-alert-watch: #ee7710;  /* watch tier */
+  --rc-alert-adv: #f0c000;    /* advisory tier — same gold as --c-advisory */
+  --rc-surface-2: #f3ecd9;    /* radar legend / timeline secondary fill */
+  --rc-ink-3: #a39a82;        /* micro-label ink on radar chrome */
+  --map-circle: rgba(40, 30, 20, 0.4);  /* 50 km analysis ring stroke */
+  --map-circle-label: #594a36;
+}
+[data-theme="dusk"] {
+  --rc-surface-2: #332e26;
+  --rc-ink-3: #6c6253;
+  --map-circle: rgba(235, 222, 200, 0.42);
+  --map-circle-label: #c8baa2;
+}
+[data-theme="night"] {
+  --rc-surface-2: #28251e;
+  --rc-ink-3: #5e564a;
+  --map-circle: rgba(230, 220, 200, 0.4);
+  --map-circle-label: #b8b3a2;
+}
+[data-theme="nightRed"] {
+  --rc-surface-2: #1f0a0a;
+  --rc-ink-3: #5a2020;
+  --map-circle: rgba(220, 80, 80, 0.45);
+  --map-circle-label: rgba(220, 80, 80, 0.7);
+  --rc-alert-warn: #e85858;
+  --rc-alert-watch: rgba(232, 88, 88, 0.6);
+  --rc-alert-adv: rgba(232, 88, 88, 0.32);
+}

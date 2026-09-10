@@ -1,0 +1,58 @@
+/* Typography — Geist + Geist Mono, self-hosted (client/src/ui/fonts.css).
+   THE CONTRACT: Sans 400 / 500 / 700 and Mono 500 — nothing else. A rule
+   asking for any other weight fails with zero build or lint signal (the
+   browser snaps or synthesizes a faux-bold that Skia on the Pi kiosk and
+   CoreText in the iOS PWA draw differently). test/fontWeightGuards.test.js
+   fails the suite on any weight without a loaded face. */
+@font-face { font-family: "Geist"; font-style: normal; font-weight: 400; font-display: swap; src: url("../assets/fonts/Geist-Regular.woff2") format("woff2"); }
+@font-face { font-family: "Geist"; font-style: normal; font-weight: 500; font-display: swap; src: url("../assets/fonts/Geist-Medium.woff2") format("woff2"); }
+@font-face { font-family: "Geist"; font-style: normal; font-weight: 700; font-display: swap; src: url("../assets/fonts/Geist-Bold.woff2") format("woff2"); }
+@font-face { font-family: "Geist Mono"; font-style: normal; font-weight: 500; font-display: swap; src: url("../assets/fonts/GeistMono-Medium.woff2") format("woff2"); }
+
+:root {
+  /* Stacks — literal in every component stylesheet; named here for mockups. */
+  --font-sans: "Geist", system-ui, -apple-system, sans-serif;
+  --font-mono: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+
+  --fw-regular: 400; /* @kind font */  /* body copy */
+  --fw-medium: 500;  /* @kind font */  /* labels, captions, most values — the workhorse */
+  --fw-bold: 700;    /* @kind font */  /* hero temperature (desktop), popover values, emphasis */
+  --fw-mono: 500;    /* @kind font */  /* Geist Mono ships Medium ONLY: numerals, badges, section titles */
+
+  /* Size ladder — DOCUMENTATION tokens. The codebase writes literal px per
+     stylesheet; these are the sizes it actually uses (histogram over
+     components/ambient), before --c-font-scale. Pick from the ladder. */
+  --fs-micro: 9px;      /* chip abbreviations, micro mono labels (SeverityChip 9.5px) */
+  --fs-label: 10px;     /* mono eyebrows + section titles ("PRÉVISIONS"), uppercase, tracked */
+  --fs-caption: 11px;   /* meta lines, source badges, dim captions, date above the clock */
+  --fs-body: 12px;      /* body copy inside slabs */
+  --fs-body-lg: 13px;   /* verdicts, row values, condition text on the Pi */
+  --fs-value: 14px;     /* NowcastLine, condition text, list rows */
+  --fs-title: 16px;
+  --fs-sub: 18px;
+  --fs-metric: 22px;    /* metric-tile value, hero unit suffix */
+  --fs-clock-pi: 30px;  /* TimeBlock on the Pi 7" (800–1279 px) */
+  --fs-temp-pi: 39px;   /* HeroCompact temperature on the Pi 7" */
+  --fs-clock: 40px;     /* TimeBlock default (56px on mobile) */
+  --fs-clock-desktop: 44px; /* HeroBand clock card (56px ≥ 1600 px) */
+  --fs-temp-mobile: 56px;   /* HeroCompact temperature on mobile */
+  --fs-temp-desktop: 72px;  /* HeroBand temperature (88px ≥ 1600 px) */
+
+  --lh-tight: 1;    /* @kind font */  /* numerals */
+  --lh-snug: 1.2;   /* @kind font */
+  --lh-body: 1.4;   /* @kind font */
+
+  --tracking-badge: 0.6px;     /* SourceBadge uppercase mono */
+  --tracking-eyebrow: 0.8px;   /* date caption above the clock */
+  --tracking-chip: 0.12em;     /* SeverityChip uppercase mono */
+  --tracking-numeral: -1px;    /* large mono numerals (−1.5px at 56px, −0.5px at 30px) */
+
+  /* Text-density preference S / M / L (client/src/ui/fontSize.js). Applied as
+     `zoom` on the SCROLLABLE subtrees only (rail, hero slot, dock) — never on
+     the map. Map-overlay text scales with calc(base * var(--c-font-scale)).
+     Settings / Debug overlays run one notch larger (× 1.15 boost). */
+  --c-font-scale: 1;        /* @kind font */
+  --c-font-scale-s: 0.85;   /* @kind font */
+  --c-font-scale-l: 1.15;   /* @kind font */
+  --c-panel-font-boost: 1.15; /* @kind font */
+}

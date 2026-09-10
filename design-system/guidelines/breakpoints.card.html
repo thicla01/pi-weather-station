@@ -1,0 +1,38 @@
+<!-- @dsCard group="Layout" viewport="700x330" name="Three viewports, one grammar" subtitle="mobile < 800 · Pi 800–1279 (rail MIN / MID / MAX) · desktop ≥ 1280 · height gates 520 / 540" -->
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../styles.css">
+<style>
+  body{margin:0;font-family:var(--font-sans);background:var(--c-bg);color:var(--c-text);padding:14px 18px 10px}
+  .wf{display:grid;grid-template-columns:96px 250px 1fr;gap:26px;align-items:end}
+  .frame{background:var(--c-surface-hybrid);border:1px solid var(--c-border);position:relative;overflow:hidden}
+  .map{background:linear-gradient(120deg,rgba(0,208,208,.25),rgba(0,200,0,.2) 50%,transparent);border:1px dashed var(--c-border)}
+  .s{background:var(--c-surface);border:1px solid var(--c-border);border-radius:3px}
+  .lab{font-family:var(--font-mono);font-size:9.5px;color:var(--c-text-dim);margin-top:7px;line-height:1.5}
+  .lab b{color:var(--c-text);font-weight:500}
+  .gates{margin-top:12px;border-top:1px solid var(--c-border);padding-top:8px;font-family:var(--font-mono);font-size:9.5px;color:var(--c-text-dim);line-height:1.6}
+</style></head><body>
+<div class="wf">
+  <div>
+    <div class="frame" style="width:96px;height:200px;border-radius:12px;padding:6px;display:flex;flex-direction:column;gap:4px">
+      <div class="s" style="height:34px"></div><div class="map" style="height:64px;border-radius:6px"></div><div class="s" style="height:18px"></div><div class="s" style="height:40px"></div><div class="s" style="flex:1"></div><div class="s" style="height:16px;border-radius:8px"></div>
+    </div>
+    <div class="lab"><b>mobile · &lt; 800</b><br>LayoutMobile<br>one scroll column<br>radar = maximizable card</div>
+  </div>
+  <div>
+    <div class="frame" style="width:250px;height:150px;border-radius:6px;padding:4px;display:grid;grid-template-columns:1fr 94px;grid-template-rows:1fr 18px;gap:4px">
+      <div class="map" style="border-radius:5px"></div>
+      <div style="display:flex;flex-direction:column;gap:3px"><div class="s" style="height:26px"></div><div class="s" style="height:12px"></div><div class="s" style="height:14px;border-left:2px solid var(--c-warn)"></div><div class="s" style="flex:1"></div><div class="s" style="height:34px"></div></div>
+      <div class="s" style="grid-column:1/3;border-radius:5px"></div>
+    </div>
+    <div class="lab"><b>Pi 7" · 800×480 · 800–1279</b><br>LayoutPi grid 1fr 300 (340 ≥ 1280) + dock 52 · framed 10 px gutters<br>rail states <b>MIN</b> radar full-bleed · <b>MID</b> split · <b>MAX</b> forecast-forward</div>
+  </div>
+  <div>
+    <div class="frame map" style="width:100%;height:150px;border-radius:6px;border-style:solid">
+      <div style="position:absolute;left:12px;top:12px;display:flex;gap:6px"><div class="s" style="width:110px;height:44px"></div><div class="s" style="width:70px;height:44px"></div></div>
+      <div style="position:absolute;right:12px;top:12px;bottom:34px;width:76px;display:flex;flex-direction:column;gap:4px"><div class="s" style="height:16px"></div><div class="s" style="height:30px"></div><div class="s" style="flex:1"></div></div>
+      <div class="s" style="position:absolute;left:12px;right:100px;bottom:8px;height:18px;border-radius:9px"></div>
+    </div>
+    <div class="lab"><b>desktop · ≥ 1280</b> · LayoutDesktop<br>full-bleed map, floating hero band + clock card, rail 320 (360 ≥ 1600, min(60vw, 960) when a slab is maximized), dock 52, edge gap 16</div>
+  </div>
+</div>
+<div class="gates">Height gates — <b>max-height 520</b>: compact Settings / Debug, radar legend collapses to an (i) chip · <b>max-height 540</b>: Pi three-state rail (separate threshold on purpose) · <b>max-width 600 + portrait</b>: secondary dock buttons hide · text density never touches the map.</div>
+</body></html>

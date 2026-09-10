@@ -1,0 +1,32 @@
+<!-- @dsCard group="Type" viewport="700x380" name="Type scale & weights" subtitle="Geist 400/500/700 + Geist Mono 500 — nothing else (fontWeightGuards test)" -->
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../styles.css">
+<style>
+  body{margin:0;font-family:var(--font-sans);background:var(--c-bg);color:var(--c-text);padding:16px 20px 12px;display:grid;grid-template-columns:1.25fr 1fr;gap:18px}
+  .r{display:flex;align-items:baseline;gap:12px;border-bottom:1px solid var(--c-border);padding:5px 0}
+  .m{font-family:var(--font-mono);font-size:9px;color:var(--c-text-dim);width:118px;flex:none;letter-spacing:.3px}
+  .mono{font-family:var(--font-mono);font-weight:500;font-variant-numeric:tabular-nums;line-height:1}
+  .badge{display:inline-block;background:var(--c-accent-soft);font-family:var(--font-mono);font-weight:500;font-size:11px;letter-spacing:.6px;text-transform:uppercase;padding:2px 7px;border-radius:3px}
+  .eyebrow{font-family:var(--font-mono);font-weight:500;font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--c-text-dim)}
+  h3{font-family:var(--font-mono);font-weight:500;font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--c-text-dim);margin:0 0 6px}
+  .w{padding:6px 0;border-bottom:1px solid var(--c-border);font-size:15px}
+  .w span{font-family:var(--font-mono);font-size:9px;color:var(--c-text-dim);margin-left:8px}
+  .note{font-family:var(--font-mono);font-size:9.5px;color:var(--c-text-dim);line-height:1.5;margin-top:10px}
+</style></head><body>
+<div>
+  <div class="r"><span class="m">72 · mono · desktop temp</span><span class="mono" style="font-size:60px;letter-spacing:-1.5px">−12<span style="font-size:22px;color:var(--c-text-dim)">°C</span></span></div>
+  <div class="r"><span class="m">40 · mono · clock</span><span class="mono" style="font-size:40px;letter-spacing:-1px">23:59<span style="font-size:14px;color:var(--c-text-dim);margin-left:6px">PM</span></span></div>
+  <div class="r"><span class="m">22 · mono · metric</span><span class="mono" style="font-size:22px">38<span style="font-size:11px;color:var(--c-text-dim);margin-left:3px">km/h</span></span></div>
+  <div class="r"><span class="m">14 · 500 · nowcast</span><span style="font-size:14px;font-weight:500">Pluie dans ≈ 25 min, du sud-ouest</span></div>
+  <div class="r"><span class="m">12 / 13 · body</span><span style="font-size:12px;line-height:1.4">Averses éparses en après-midi, vent modéré. <span style="font-size:13px;font-weight:500">Dégagement en soirée.</span></span></div>
+  <div class="r"><span class="m">11 · caption · badge</span><span style="font-size:11px;font-weight:500;color:var(--c-text-dim)">Ressenti 9° · −3°</span> <span class="badge">ECCC</span> <span class="badge">Radar</span></div>
+  <div class="r"><span class="m">10 · mono eyebrow</span><span class="eyebrow">Prévisions · Jeudi 10 sept.</span></div>
+</div>
+<div>
+  <h3>Weights</h3>
+  <div class="w" style="font-weight:400">Regular — body copy<span>400</span></div>
+  <div class="w" style="font-weight:500">Medium — labels, values<span>500</span></div>
+  <div class="w" style="font-weight:700">Bold — hero, emphasis<span>700</span></div>
+  <div class="w mono" style="font-size:15px">Mono Medium — 12:34 · 38 km/h<span style="font-family:var(--font-mono)">500</span></div>
+  <div class="note">No 600, no italics, no synthesized weights: Geist Mono ships Medium only. Hierarchy = size + weight + tracking + uppercase mono eyebrows. Numerals are tabular wherever they update live.<br><br>Text density S · M · L = 0.85 · 1 · 1.15, applied as zoom on the rail / hero / dock — never on the map. Settings & Debug run × 1.15 on top.</div>
+</div>
+</body></html>

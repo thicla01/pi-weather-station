@@ -1,0 +1,34 @@
+/* dusk — the dark-mode palette served today (dark mode on, night mode off).
+   Deep warm grey, amber accent. Phase 0 anchor palette. */
+[data-theme="dusk"] {
+  color-scheme: dark;
+  --c-bg: #1c1a17;
+  --c-text: #d8d4cc;
+  --c-text-dim: #8a8680;
+  --c-accent: #e8a050;
+  --c-accent-soft: rgba(232, 160, 80, 0.18);
+  --c-surface: rgba(38, 34, 30, 0.85);
+  --c-surface-hybrid: rgba(38, 34, 30, 0.96);
+  --c-border: rgba(216, 212, 204, 0.10);
+  --c-border-hybrid: rgba(216, 212, 204, 0.20);
+  --c-warn: #e8a050;
+  --c-danger: #d8503c;
+  --c-advisory: #f0c000;
+  --c-cool: #7a98b8;
+  --c-strip-color: transparent;
+  --sev-low-bg: rgba(232, 200, 122, 0.12);
+  --sev-low-border: rgba(232, 200, 122, 0.40);
+  --sev-low-ink: #e8c87a;
+  --sev-med-bg: rgba(232, 150, 87, 0.15);
+  --sev-med-border: rgba(232, 150, 87, 0.48);
+  --sev-med-ink: #f0b27a;
+  --sev-high-bg: rgba(220, 80, 80, 0.16);
+  --sev-high-border: rgba(220, 80, 80, 0.48);
+  --sev-high-ink: #ee9090;
+  --c-moon-lit: #f0ddb8;
+  --c-moon-dark: #3a3528;
+  --mx-cat-good: #79b389;
+  --mx-cat-mod: #d3a953;
+  --mx-cat-bad: #d97070;
+  --mx-cat-vhigh: #a778d0;
+}

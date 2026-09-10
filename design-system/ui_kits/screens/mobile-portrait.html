@@ -1,0 +1,41 @@
+<!-- @dsCard group="Screens" viewport="390x844" name="Mobile portrait" subtitle="390×844 · LayoutMobile: one scroll column (clock · alert · hero · air · 2×2 · radar card 220 · forecast · AI) + portrait dock · day" -->
+<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css"><link rel="stylesheet" href="screens.css">
+<style>
+  .screen{width:390px;height:844px;display:flex;flex-direction:column}
+  .scroll{flex:1;min-height:0;overflow:hidden;padding:12px 14px 16px;display:flex;flex-direction:column;gap:10px}
+  .mapCard{position:relative;width:100%;height:220px;border-radius:10px;overflow:hidden;border:1px solid var(--c-border);flex:none}
+  .mapMax{position:absolute;top:8px;right:8px;width:44px;height:44px;border-radius:8px;background:var(--c-surface);border:1px solid var(--c-border);display:grid;place-items:center;color:var(--c-text);box-shadow:var(--shadow-float)}
+  .mapMax svg{width:18px;height:18px}
+  .dockSlot{flex:none;padding:0 0 0;}
+  .dockSlot .dock{border-radius:14px 14px 0 0;padding-left:max(14px,env(safe-area-inset-left));padding-right:max(14px,env(safe-area-inset-right))}
+  .zoom span{width:36px;height:36px}
+  .hc .tv{font-size:56px}
+</style></head><body>
+<div class="screen">
+  <div class="scroll">
+    <div class="tb mobile"><div class="date">JEUDI 10 SEPTEMBRE</div><div class="time">10:37<span class="ampm">AM</span></div></div>
+    <div class="banner orange"><span class="x"><svg><use href="sprite.svg#x"/></svg></span><div class="head"><div class="topRow"><div class="badges"><span class="badge">ECCC</span><span class="chip tier-med"><svg><use href="sprite.svg#tri"/></svg>Veille</span></div><svg class="chev"><use href="sprite.svg#down"/></svg></div><div class="title">Veille d'orages violents — région de Montréal</div><div class="metaRow"><span class="meta">ECCC QC</span><span class="meta fresh">Émis il y a 1 h</span><span class="counter">1 / 1</span></div></div></div>
+    <div class="hc"><div class="place"><svg><use href="sprite.svg#pin"/></svg><u>Montréal, QC</u></div><div class="focal"><div class="tbk"><span class="tv">14</span><span class="tu">°C</span></div><div class="cc"><svg class="ci"><use href="sprite.svg#cloudsun"/></svg><div class="ct">Partiellement nuageux</div><span class="fl"><span>Ressenti</span><span class="v">11°</span><span class="d">−3°</span></span></div></div>
+      <div class="astro"><span class="tap"><svg class="sun"><use href="sprite.svg#sun"/></svg>06:24<svg class="arr"><use href="sprite.svg#arrow"/></svg>19:12</span><span class="sep">·</span><span class="tap"><svg class="moon" viewBox="0 0 20 20"><circle class="disc" cx="10" cy="10" r="9"/><path class="lit" d="M 10 1 A 9 9 0 0 1 10 19 A 4.5 9 0 0 1 10 1 Z"/></svg>Gibbeuse croissante · 59%</span></div></div>
+    <div class="air"><div class="r"><span class="vg"><span class="v">3</span><span class="l">AQHI</span></span><span class="pill cg"><i></i>Bon</span></div><div class="r"><span class="vg"><span class="vt">Ambroisie</span><span class="l">Pollen</span></span><span class="pill cb"><i></i>Élevé</span></div></div>
+    <div class="grid">
+      <div class="cell"><div class="top"><span class="ic"><svg><use href="sprite.svg#wind"/></svg></span><span class="vg"><span class="v">21</span><span class="u">km/h</span></span></div><div class="l">Vent</div></div>
+      <div class="cell"><div class="top"><span class="ic"><svg><use href="sprite.svg#wind"/></svg></span><span class="vg"><span class="v">38</span><span class="u">km/h</span></span></div><div class="l">Rafales</div></div>
+      <div class="cell"><svg class="chev"><use href="sprite.svg#chev"/></svg><div class="top"><span class="ic"><svg><use href="sprite.svg#uv"/></svg></span><span class="vg"><span class="v">6</span></span></div><div class="l">UV<span class="cat-mod"> · Modéré</span></div></div>
+      <div class="cell"><div class="top"><span class="ic"><svg><use href="sprite.svg#hum"/></svg></span><span class="vg"><span class="v">64</span><span class="u">%</span></span></div><div class="l">Humidité</div></div>
+    </div>
+    <div class="mapCard radar"><span class="ring" style="width:120px;height:120px;left:calc(50% - 60px);top:calc(50% - 60px)"></span><span class="marker" style="left:50%;top:50%"></span><div class="zoom" style="top:10px;left:10px"><span>+</span><span>−</span></div><span class="mapMax"><svg><use href="sprite.svg#expand"/></svg></span><span class="attrib">© Mapbox · RainViewer</span></div>
+    <div class="fc">
+      <div class="hr"><span class="ht">Prévisions</span><span class="pp"><span class="pil on">24 h</span><span class="pil">5 j</span></span><span class="ab"><svg><use href="sprite.svg#expand"/></svg></span></div>
+      <div class="tabs"><span class="tab on"><svg><use href="sprite.svg#temp"/></svg>Temp</span><span class="tab"><svg><use href="sprite.svg#wind"/></svg>Vent</span><span class="tab"><svg><use href="sprite.svg#drop"/></svg>Précip</span><span class="tab"><svg><use href="sprite.svg#gridI"/></svg>Heures</span></div>
+      <div class="chart"><div class="hstrip"><div class="col"><span class="hour">11h</span><span class="ir"><svg><use href="sprite.svg#sun"/></svg></span><span class="t">14°</span><span class="p"></span></div><div class="col"><span class="hour">14h</span><span class="ir"><svg><use href="sprite.svg#cloudsun"/></svg></span><span class="t">17°</span><span class="p">20 %</span></div><div class="col"><span class="hour">17h</span><span class="ir"><svg><use href="sprite.svg#rain"/></svg></span><span class="t">15°</span><span class="p">70 %</span></div><div class="col"><span class="hour">20h</span><span class="ir"><svg><use href="sprite.svg#rain"/></svg></span><span class="t">12°</span><span class="p">80 %</span></div></div></div>
+    </div>
+  </div>
+  <div class="dockSlot"><div class="dock narrow">
+    <div class="group"><span class="b"><svg><use href="sprite.svg#target"/></svg></span><span class="b"><svg><use href="sprite.svg#pin"/></svg></span></div>
+    <div class="group"><span class="b"><svg><use href="sprite.svg#contrast"/></svg></span></div>
+    <div class="group"><span class="b"><svg><use href="sprite.svg#renew"/></svg></span><span class="b"><svg><use href="sprite.svg#gear"/></svg></span></div>
+    <span class="hdot" style="margin-left:auto"><i></i></span>
+  </div></div>
+</div>
+</body></html>

@@ -1,0 +1,22 @@
+<!-- @dsCard group="Colors" viewport="700x250" name="Category qualifiers & moon" subtitle="--mx-cat-{good,mod,bad,vhigh} for AQ / pollen / UV pills · --c-moon-{lit,dark}" -->
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../styles.css">
+<style>
+  body{margin:0;font-family:var(--font-sans);background:#fff}
+  .row{display:grid;grid-template-columns:repeat(4,1fr);height:196px}
+  section{background:var(--c-bg);color:var(--c-text);padding:14px;display:flex;flex-direction:column;gap:7px}
+  .name{font-family:var(--font-mono);font-weight:500;font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--c-text-dim)}
+  .pill{display:inline-flex;align-items:center;gap:6px;align-self:flex-start;font-family:var(--font-mono);font-size:9.5px;font-weight:500;letter-spacing:.1em;text-transform:uppercase;padding:3px 8px 3px 6px;border-radius:999px;border:1px solid var(--c-border);background:var(--c-surface)}
+  .pill i{width:8px;height:8px;border-radius:50%;background:currentColor}
+  .moon{display:flex;align-items:center;gap:10px;margin-top:auto;font-size:11px;color:var(--c-text-dim)}
+  .disc{width:26px;height:26px;border-radius:50%;background:var(--c-moon-lit);position:relative;overflow:hidden;flex:none}
+  .disc::after{content:"";position:absolute;top:0;bottom:0;left:-9px;width:26px;border-radius:50%;background:var(--c-moon-dark)}
+  .foot{font-family:var(--font-mono);font-size:9.5px;color:#6d655a;padding:10px 14px;line-height:1.5}
+</style></head><body>
+<div class="row">
+  <section><div class="name">day</div><span class="pill" style="color:var(--mx-cat-good)"><i></i>Good</span><span class="pill" style="color:var(--mx-cat-mod)"><i></i>Moderate</span><span class="pill" style="color:var(--mx-cat-bad)"><i></i>High</span><span class="pill" style="color:var(--mx-cat-vhigh)"><i></i>Very high</span><div class="moon"><span class="disc"></span>waxing crescent</div></section>
+  <section data-theme="dusk"><div class="name">dusk</div><span class="pill" style="color:var(--mx-cat-good)"><i></i>Good</span><span class="pill" style="color:var(--mx-cat-mod)"><i></i>Moderate</span><span class="pill" style="color:var(--mx-cat-bad)"><i></i>High</span><span class="pill" style="color:var(--mx-cat-vhigh)"><i></i>Very high</span><div class="moon"><span class="disc"></span>waxing crescent</div></section>
+  <section data-theme="night"><div class="name">night</div><span class="pill" style="color:var(--mx-cat-good)"><i></i>Good</span><span class="pill" style="color:var(--mx-cat-mod)"><i></i>Moderate</span><span class="pill" style="color:var(--mx-cat-bad)"><i></i>High</span><span class="pill" style="color:var(--mx-cat-vhigh)"><i></i>Very high</span><div class="moon"><span class="disc"></span>waxing crescent</div></section>
+  <section data-theme="nightRed"><div class="name">nightRed · one red</div><span class="pill" style="color:var(--mx-cat-good)"><i></i>Good</span><span class="pill" style="color:var(--mx-cat-mod)"><i></i>Moderate</span><span class="pill" style="color:var(--mx-cat-bad)"><i></i>High</span><span class="pill" style="color:var(--mx-cat-vhigh)"><i></i>Very high</span><div class="moon"><span class="disc"></span>waxing crescent</div></section>
+</div>
+<div class="foot">good = low · mod = moderate · bad = high · vhigh = veryHigh (UV "extreme" aliases vhigh — no fifth token). Moon: DARK disc + BRIGHT lit side in every palette (the emoji convention; the silhouette style field-tested as confusing). No `success` token by design — the palette stays calm when all is fine.</div>
+</body></html>

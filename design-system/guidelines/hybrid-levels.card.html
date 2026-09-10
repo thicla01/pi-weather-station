@@ -1,0 +1,27 @@
+<!-- @dsCard group="Colors" viewport="700x300" name="Hybrid levels" subtitle="data-hybrid none · light · full — surface .85 → .96, stronger hairline, amber or red strip" -->
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../styles.css">
+<style>
+  body{margin:0;font-family:var(--font-sans);background:#fff}
+  .pal{position:relative;height:126px;padding:12px 14px;display:grid;grid-template-columns:repeat(3,1fr);gap:12px;color:var(--c-text);
+       background:var(--c-bg) linear-gradient(115deg,transparent 0 30%,rgba(0,208,208,.35) 30% 44%,rgba(0,200,0,.35) 44% 56%,rgba(240,230,0,.35) 56% 66%,rgba(240,130,0,.3) 66% 74%,transparent 74%)}
+  .cell{background:var(--c-surface);border:1px solid var(--c-border);border-radius:8px;padding:10px 12px 8px;min-height:58px;box-shadow:inset 3px 0 0 var(--c-strip-color,transparent);display:flex;flex-direction:column}
+  .v{font-family:var(--font-mono);font-weight:500;font-size:22px;line-height:1;font-variant-numeric:tabular-nums}
+  .v small{font-size:11px;color:var(--c-text-dim);margin-left:3px}
+  .l{font-size:10px;font-weight:500;letter-spacing:.6px;text-transform:uppercase;color:var(--c-text-dim);margin-top:6px}
+  .tag{position:absolute;bottom:6px;font-family:var(--font-mono);font-size:9px;color:var(--c-text-dim)}
+  .foot{font-family:var(--font-mono);font-size:9.5px;color:#6d655a;padding:9px 14px;line-height:1.5}
+</style></head><body>
+<div class="pal">
+  <div class="cell"><div class="v">38<small>km/h</small></div><div class="l">Vent · none</div></div>
+  <div class="cell" data-hybrid="light"><div class="v">38<small>km/h</small></div><div class="l">Vent · light</div></div>
+  <div class="cell" data-hybrid="full"><div class="v">38<small>km/h</small></div><div class="l">Vent · full</div></div>
+  <span class="tag" style="left:14px">day · surface .85 · hairline .16</span><span class="tag" style="left:50%;transform:translateX(-50%)">.96 · .18 · strip --c-warn</span><span class="tag" style="right:14px">.96 · .18 · strip --c-danger</span>
+</div>
+<div class="pal" data-theme="dusk">
+  <div class="cell"><div class="v">38<small>km/h</small></div><div class="l">Vent · none</div></div>
+  <div class="cell" data-hybrid="light"><div class="v">38<small>km/h</small></div><div class="l">Vent · light</div></div>
+  <div class="cell" data-hybrid="full"><div class="v">38<small>km/h</small></div><div class="l">Vent · full</div></div>
+  <span class="tag" style="left:14px">dusk · surface .85 · hairline .10</span><span class="tag" style="left:50%;transform:translateX(-50%)">.96 · .20 · strip --c-warn</span><span class="tag" style="right:14px">.96 · .20 · strip --c-danger</span>
+</div>
+<div class="foot">Set once on the root from the worst active gov alert (moderate → light · severe/extreme → full); every slab escalates at once. The radar keeps showing through the calm surface; the hybrid surface goes nearly opaque so the alert wall reads solid.</div>
+</body></html>

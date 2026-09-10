@@ -7,6 +7,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- **`design-system/` — the Ambient Layers design system as a Claude Design bundle.** Source of
+  the three DesignSync pushes (2026-09-10) that seeded the maintainer's "Design System" project on
+  claude.ai/design: the four palettes transposed from `ui/tokens.js` as `[data-theme]` themes plus
+  the `data-hybrid` alert escalation, the Geist face contract, radar/map and layout tokens, nine
+  foundation cards, seven component specimens copied from the production stylesheets, React ports
+  of the five true primitives and five screen anatomies at real pixel size (Pi 800×480 MIN / MID /
+  MAX, desktop 1280, mobile portrait). `readme.md` carries the kiosk/touch and alert rule-sets so a
+  mockup can no longer invent an option the code does not have — the codebase wins on conflict.
+  Maintainer tooling only, nothing runs on a Pi.
+
 ### Changed
 - **Pinning the kiosk's own default location no longer costs a favorite slot** — the list
   holds **7 places when one of them is the default, 6 otherwise**. The cap was always really

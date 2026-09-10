@@ -1,0 +1,43 @@
+<!-- @dsCard group="Screens" viewport="800x480" name="Pi 7″ · MID" subtitle="800×480 · LayoutPi split: framed radar + lean rail (clock · hero · nowcast · air · 2×2) + dock · day, calm" -->
+<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css"><link rel="stylesheet" href="screens.css">
+<style>
+  .screen{width:800px;height:480px;display:grid;grid-template-columns:1fr 300px;grid-template-rows:1fr auto;gap:10px;padding:10px;box-sizing:border-box}
+  .map{position:relative;border:1px solid var(--c-border);border-radius:14px;overflow:hidden}
+  .rail{display:flex;flex-direction:column;gap:10px;overflow:hidden;min-height:0}
+  .dock{grid-column:1/-1}
+</style></head><body>
+<div class="screen">
+  <div class="map radar">
+    <span class="ring" style="width:220px;height:220px;left:calc(50% - 110px);top:calc(50% - 110px)"><span class="lab">50 km</span></span>
+    <span class="marker" style="left:50%;top:50%"></span>
+    <div class="zoom" style="top:10px;left:10px"><span>+</span><span>−</span></div>
+    <div class="focus" style="top:100px;left:10px"><svg><use href="sprite.svg#expand"/></svg></div>
+    <div class="lchip" style="left:16px;bottom:124px"><i>i</i>Légende<span class="bar"><i style="background:var(--rc-tile-1)"></i><i style="background:var(--rc-tile-2)"></i><i style="background:var(--rc-tile-3)"></i><i style="background:var(--rc-tile-4)"></i><i style="background:var(--rc-tile-5)"></i><i style="background:var(--rc-tile-6)"></i></span></div>
+    <div class="rt" style="left:16px;right:16px;bottom:16px">
+      <div class="h"><span class="play"><svg><use href="sprite.svg#play"/></svg></span><span class="step"><svg><use href="sprite.svg#prev"/></svg></span><span class="step"><svg><use href="sprite.svg#next"/></svg></span><span class="speed">1×</span><span class="info"><span class="ts">10:30<span class="now">Maintenant</span></span><span class="sub">12 images · −2 h → +30 min</span></span><span class="src">RainViewer · 10 min</span></div>
+      <div class="wrap"><div class="track"><span class="past"></span><span class="future"></span><span class="nowm"><i>Now</i></span><span class="thumb"></span></div></div>
+      <div class="ticks"><span>−2 h</span><span>−1 h</span><span>−30</span><span>+30</span></div>
+    </div>
+    <span class="attrib">© Mapbox © OpenStreetMap · RainViewer</span>
+  </div>
+  <aside class="rail">
+    <div class="tb compact"><div><span class="time">10:37<span class="ampm">AM</span></span></div><div class="m"><span class="date">Jeu. 10 sept.</span><span class="sun"><svg><use href="sprite.svg#sun"/></svg>19:12</span></div></div>
+    <div class="hc pi"><div class="place"><svg><use href="sprite.svg#pin"/></svg><u>Montréal, QC</u></div><div class="focal"><div class="tbk"><span class="tv">14</span><span class="tu">°C</span></div><div class="cc"><svg class="ci"><use href="sprite.svg#cloudsun"/></svg><div class="ct">Partiellement nuageux</div><span class="fl"><span>Ressenti</span><span class="v">11°</span><span class="d">−3°</span></span></div></div></div>
+    <div class="nc calm"><span class="badge">Radar</span><svg class="sky"><use href="sprite.svg#sun"/></svg><span class="verdict">Aucune pluie à moins de 50 km</span></div>
+    <div class="air pi"><div class="r"><span class="vg"><span class="v">3</span><span class="l">AQHI</span></span><span class="pill cg"><i></i>Bon</span></div><div class="r"><span class="vg"><span class="vt">Ambroisie</span><span class="l">Pollen</span></span><span class="pill cb"><i></i>Élevé</span></div></div>
+    <div class="grid">
+      <div class="cell"><div class="top"><span class="ic"><svg><use href="sprite.svg#wind"/></svg></span><span class="vg"><span class="v">21</span><span class="u">km/h</span></span></div><div class="l">Vent</div></div>
+      <div class="cell"><div class="top"><span class="ic"><svg><use href="sprite.svg#wind"/></svg></span><span class="vg"><span class="v">38</span><span class="u">km/h</span></span></div><div class="l">Rafales</div></div>
+      <div class="cell"><svg class="chev"><use href="sprite.svg#chev"/></svg><div class="top"><span class="ic"><svg><use href="sprite.svg#uv"/></svg></span><span class="vg"><span class="v">6</span></span></div><div class="l">UV<span class="cat-mod"> · Modéré</span></div></div>
+      <div class="cell"><div class="top"><span class="ic"><svg><use href="sprite.svg#hum"/></svg></span><span class="vg"><span class="v">64</span><span class="u">%</span></span></div><div class="l">Humidité</div></div>
+    </div>
+  </aside>
+  <div class="dock narrow">
+    <div class="group"><span class="b"><svg><use href="sprite.svg#target"/></svg></span><span class="b"><svg><use href="sprite.svg#bookmark"/></svg></span><span class="b down"><svg><use href="sprite.svg#timeline"/></svg></span><span class="b"><svg><use href="sprite.svg#legend"/></svg></span><span class="b"><svg><use href="sprite.svg#warn"/></svg></span></div>
+    <div class="group"><span class="b"><svg><use href="sprite.svg#sparkle"/></svg></span><span class="b"><svg><use href="sprite.svg#chart"/></svg></span></div>
+    <div class="group"><span class="b"><svg><use href="sprite.svg#contrast"/></svg></span><span class="b"><svg><use href="sprite.svg#moonI"/></svg></span></div>
+    <div class="group"><span class="b"><svg><use href="sprite.svg#renew"/></svg></span><span class="b"><svg><use href="sprite.svg#gear"/></svg></span></div>
+    <span class="hchip"><i><svg><use href="sprite.svg#check"/></svg></i></span>
+  </div>
+</div>
+</body></html>

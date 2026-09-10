@@ -1,0 +1,29 @@
+<!-- @dsCard group="Colors" viewport="700x360" name="Four palettes" subtitle="day · dusk · night · nightRed — same 28 roles, dispatcher picks one" -->
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../styles.css">
+<style>
+  body{margin:0;font-family:var(--font-sans);background:#fff;color:#2a2620}
+  .row{display:grid;grid-template-columns:repeat(4,1fr);height:300px}
+  section{background:var(--c-bg);color:var(--c-text);padding:14px 14px 12px;display:flex;flex-direction:column;gap:10px}
+  .name{font-family:var(--font-mono);font-weight:500;font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--c-text-dim)}
+  .slab{background:var(--c-surface);border:1px solid var(--c-border);border-radius:10px;padding:12px 14px;box-shadow:inset 4px 0 0 var(--c-strip-color,transparent)}
+  .temp{font-family:var(--font-mono);font-weight:500;font-size:30px;letter-spacing:-.5px;line-height:1;font-variant-numeric:tabular-nums}
+  .temp small{font-size:15px;color:var(--c-text-dim);vertical-align:top;margin-left:2px}
+  .cap{font-size:11px;font-weight:500;color:var(--c-text-dim);margin-top:6px}
+  .badge{display:inline-block;margin-top:8px;background:var(--c-accent-soft);color:var(--c-text);font-family:var(--font-mono);font-weight:500;font-size:11px;letter-spacing:.6px;text-transform:uppercase;padding:2px 7px;border-radius:3px}
+  .sw{display:grid;grid-template-columns:repeat(5,1fr);gap:4px}
+  .sw div{height:18px;border-radius:4px;border:1px solid var(--c-border)}
+  .sw span{font-family:var(--font-mono);font-size:8px;color:var(--c-text-dim);text-transform:uppercase;display:block;text-align:center;margin-top:3px}
+  .foot{font-family:var(--font-mono);font-size:9.5px;color:#6d655a;padding:10px 14px;line-height:1.5}
+</style></head><body>
+<div class="row">
+  <section><div class="name">day · :root</div><div class="slab"><div class="temp">12<small>°C</small></div><div class="cap">Ressenti 9° · −3°</div><span class="badge">Radar</span></div>
+    <div class="sw"><div><div style="height:18px;border-radius:4px;background:var(--c-accent)"></div><span>accent</span></div><div><div style="height:18px;border-radius:4px;background:var(--c-warn)"></div><span>warn</span></div><div><div style="height:18px;border-radius:4px;background:var(--c-danger)"></div><span>danger</span></div><div><div style="height:18px;border-radius:4px;background:var(--c-advisory)"></div><span>advis.</span></div><div><div style="height:18px;border-radius:4px;background:var(--c-cool)"></div><span>cool</span></div></div></section>
+  <section data-theme="dusk"><div class="name">dusk · dark mode</div><div class="slab"><div class="temp">12<small>°C</small></div><div class="cap">Ressenti 9° · −3°</div><span class="badge">Radar</span></div>
+    <div class="sw"><div><div style="height:18px;border-radius:4px;background:var(--c-accent)"></div><span>accent</span></div><div><div style="height:18px;border-radius:4px;background:var(--c-warn)"></div><span>warn</span></div><div><div style="height:18px;border-radius:4px;background:var(--c-danger)"></div><span>danger</span></div><div><div style="height:18px;border-radius:4px;background:var(--c-advisory)"></div><span>advis.</span></div><div><div style="height:18px;border-radius:4px;background:var(--c-cool)"></div><span>cool</span></div></div></section>
+  <section data-theme="night"><div class="name">night · unreachable today</div><div class="slab"><div class="temp">12<small>°C</small></div><div class="cap">Ressenti 9° · −3°</div><span class="badge">Radar</span></div>
+    <div class="sw"><div><div style="height:18px;border-radius:4px;background:var(--c-accent)"></div><span>accent</span></div><div><div style="height:18px;border-radius:4px;background:var(--c-warn)"></div><span>warn</span></div><div><div style="height:18px;border-radius:4px;background:var(--c-danger)"></div><span>danger</span></div><div><div style="height:18px;border-radius:4px;background:var(--c-advisory)"></div><span>advis.</span></div><div><div style="height:18px;border-radius:4px;background:var(--c-cool)"></div><span>cool</span></div></div></section>
+  <section data-theme="nightRed"><div class="name">nightRed · night vision</div><div class="slab"><div class="temp">12<small>°C</small></div><div class="cap">Ressenti 9° · −3°</div><span class="badge">Radar</span></div>
+    <div class="sw"><div><div style="height:18px;border-radius:4px;background:var(--c-accent)"></div><span>accent</span></div><div><div style="height:18px;border-radius:4px;background:var(--c-warn)"></div><span>warn</span></div><div><div style="height:18px;border-radius:4px;background:var(--c-danger)"></div><span>danger</span></div><div><div style="height:18px;border-radius:4px;background:var(--c-advisory)"></div><span>advis.</span></div><div><div style="height:18px;border-radius:4px;background:var(--c-cool)"></div><span>cool</span></div></div></section>
+</div>
+<div class="foot">Dispatcher (ui/hybrid.js useTimeOfDay): dark mode OFF → day · dark mode ON → dusk · dark mode + sleep night mode → nightRed · night = defined, unreachable until solar wiring. Every component ships in all four; nightRed is mono-red by design — status never relies on colour alone.</div>
+</body></html>

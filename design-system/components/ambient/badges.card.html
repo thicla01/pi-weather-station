@@ -1,0 +1,60 @@
+<!-- @dsCard group="Components" viewport="700x340" name="Badges & chips" subtitle="SourceBadge (+ TEST qualifier) · SeverityChip · ConfidencePill · category pill · AlertMetaChips" -->
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css">
+<style>
+  body{margin:0;font-family:var(--font-sans);background:#fff}
+  .row{display:grid;grid-template-columns:repeat(3,1fr)}
+  section{background:var(--c-bg);color:var(--c-text);padding:14px;display:flex;flex-direction:column;gap:9px;min-height:312px}
+  .name{font-family:var(--font-mono);font-weight:500;font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--c-text-dim)}
+  .cap{font-family:var(--font-mono);font-size:8.5px;letter-spacing:.6px;text-transform:uppercase;color:var(--c-text-dim);margin:4px 0 -4px}
+  .line{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+  /* SourceBadge/styles.css */
+  .badge{display:inline-block;background-color:var(--c-accent-soft);color:var(--c-text);font-family:var(--font-mono);font-size:11px;font-weight:500;letter-spacing:.6px;text-transform:uppercase;padding:2px 7px;border-radius:3px;vertical-align:1px}
+  .badge.test{background-color:transparent;color:var(--c-text-dim);border:1px solid var(--c-text-dim);padding:1px 6px}
+  /* SeverityChip/styles.css */
+  .chip{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:9.5px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;padding:4px 9px 4px 7px;border-radius:999px;border:1px solid;white-space:nowrap}
+  .chip svg{width:11px;height:11px;flex-shrink:0}
+  .chip.abbrev{gap:4px;letter-spacing:.04em;padding:4px 7px 4px 6px}.chip.abbrev svg{width:10px;height:10px}
+  .tier-low{color:var(--sev-low-ink);background:var(--sev-low-bg);border-color:var(--sev-low-border)}
+  .tier-med{color:var(--sev-med-ink);background:var(--sev-med-bg);border-color:var(--sev-med-border)}
+  .tier-high{color:var(--sev-high-ink);background:var(--sev-high-bg);border-color:var(--sev-high-border)}
+  /* ConfidencePill/styles.css */
+  .pill{display:inline-block;font-family:var(--font-mono);font-size:11px;font-weight:500;letter-spacing:.4px;padding:2px 7px;border-radius:3px;vertical-align:1px;color:var(--c-text)}
+  .bucket-high{background-color:var(--c-accent-soft)}
+  .bucket-mid{background-color:color-mix(in srgb,var(--c-warn) 35%,transparent)}
+  .bucket-low{background-color:color-mix(in srgb,var(--c-danger) 35%,transparent)}
+  /* AirCard/styles.css .pill */
+  .cat{display:inline-flex;align-items:center;gap:5px;white-space:nowrap;font-family:var(--font-mono);font-weight:500;font-size:11px;letter-spacing:1px;text-transform:uppercase;padding:3px 8px;border-radius:999px;color:var(--cat);background:color-mix(in srgb,var(--cat) 13%,transparent);border:1px solid color-mix(in srgb,var(--cat) 26%,transparent)}
+  .cat i{width:5px;height:5px;border-radius:50%;background:currentColor}
+  .cat-good{--cat:var(--mx-cat-good)}.cat-mod{--cat:var(--mx-cat-mod)}.cat-bad{--cat:var(--mx-cat-bad)}.cat-vhigh{--cat:var(--mx-cat-vhigh)}
+  /* AlertMetaChips/styles.css */
+  .meta{display:inline-flex;align-items:center;gap:5px;font-family:var(--font-mono);font-size:9.5px;letter-spacing:.05em;color:var(--c-text-dim);background:var(--c-surface-hybrid);border:1px solid var(--c-border-hybrid);border-radius:999px;padding:2px 8px;white-space:nowrap}
+  .meta svg{width:10px;height:10px;opacity:.7}
+  .meta.fresh{color:var(--c-accent);background:var(--c-accent-soft);border-color:transparent}
+  [data-theme="nightRed"] .meta.fresh{color:var(--c-text)}
+  .counter{font-family:var(--font-mono);font-size:9.5px;letter-spacing:.06em;color:var(--c-text-dim);margin-left:auto}
+</style></head><body>
+<svg style="display:none"><symbol id="tri" viewBox="0 0 24 24"><path d="M12 2 L22 20 L2 20 Z" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/><line x1="12" y1="9" x2="12" y2="14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="17.5" r=".5" fill="currentColor"/></symbol><symbol id="cal" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2" fill="none" stroke="currentColor" stroke-width="2"/><path d="M3 10h18M8 3v4M16 3v4" stroke="currentColor" stroke-width="2"/></symbol><symbol id="clk" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" fill="none" stroke="currentColor" stroke-width="2"/></symbol></svg>
+<div class="row">
+  <section><div class="name">day</div>
+    <div class="cap">SourceBadge · variant="test"</div><div class="line"><span class="badge">ECCC</span><span class="badge">NWS</span><span class="badge">Radar</span><span class="badge">Air</span><span class="badge">AQHI</span><span class="badge test">Test</span></div>
+    <div class="cap">SeverityChip · tier from CAP severity, word = product type</div><div class="line"><span class="chip tier-low"><svg><use href="#tri"/></svg>Advisory</span><span class="chip tier-med"><svg><use href="#tri"/></svg>Watch</span><span class="chip tier-high"><svg><use href="#tri"/></svg>Warning</span><span class="chip tier-high abbrev"><svg><use href="#tri"/></svg>Avert.</span></div>
+    <div class="cap">ConfidencePill · ≥70 · 40–69 · &lt;40</div><div class="line"><span class="pill bucket-high">82%</span><span class="pill bucket-mid">55%</span><span class="pill bucket-low">30%</span></div>
+    <div class="cap">Category pill (AirCard)</div><div class="line"><span class="cat cat-good"><i></i>Good</span><span class="cat cat-mod"><i></i>Moderate</span><span class="cat cat-bad"><i></i>High</span><span class="cat cat-vhigh"><i></i>Very high</span></div>
+    <div class="cap">AlertMetaChips + counter</div><div class="line"><span class="meta"><svg><use href="#cal"/></svg>NWS Gray ME</span><span class="meta fresh"><svg><use href="#clk"/></svg>Issued 2h ago</span><span class="meta">Expires 18:00</span><span class="counter">1 / 3</span></div>
+  </section>
+  <section data-theme="dusk"><div class="name">dusk</div>
+    <div class="cap">SourceBadge · variant="test"</div><div class="line"><span class="badge">ECCC</span><span class="badge">NWS</span><span class="badge">Radar</span><span class="badge">Air</span><span class="badge">AQHI</span><span class="badge test">Test</span></div>
+    <div class="cap">SeverityChip</div><div class="line"><span class="chip tier-low"><svg><use href="#tri"/></svg>Avis</span><span class="chip tier-med"><svg><use href="#tri"/></svg>Veille</span><span class="chip tier-high"><svg><use href="#tri"/></svg>Avertissement</span><span class="chip tier-high abbrev"><svg><use href="#tri"/></svg>Avert.</span></div>
+    <div class="cap">ConfidencePill</div><div class="line"><span class="pill bucket-high">82%</span><span class="pill bucket-mid">55%</span><span class="pill bucket-low">30%</span></div>
+    <div class="cap">Category pill</div><div class="line"><span class="cat cat-good"><i></i>Bon</span><span class="cat cat-mod"><i></i>Modéré</span><span class="cat cat-bad"><i></i>Élevé</span><span class="cat cat-vhigh"><i></i>Très élevé</span></div>
+    <div class="cap">AlertMetaChips + counter</div><div class="line"><span class="meta"><svg><use href="#cal"/></svg>ECCC QC</span><span class="meta fresh"><svg><use href="#clk"/></svg>Émis il y a 2 h</span><span class="meta">Expire 18:00</span><span class="counter">1 / 3</span></div>
+  </section>
+  <section data-theme="nightRed"><div class="name">nightRed · word carries the tier</div>
+    <div class="cap">SourceBadge · TEST stays outlined, never amber</div><div class="line"><span class="badge">ECCC</span><span class="badge">NWS</span><span class="badge">Radar</span><span class="badge">Air</span><span class="badge">AQHI</span><span class="badge test">Test</span></div>
+    <div class="cap">SeverityChip · all red</div><div class="line"><span class="chip tier-low"><svg><use href="#tri"/></svg>Advisory</span><span class="chip tier-med"><svg><use href="#tri"/></svg>Watch</span><span class="chip tier-high"><svg><use href="#tri"/></svg>Warning</span><span class="chip tier-high abbrev"><svg><use href="#tri"/></svg>Avert.</span></div>
+    <div class="cap">ConfidencePill</div><div class="line"><span class="pill bucket-high">82%</span><span class="pill bucket-mid">55%</span><span class="pill bucket-low">30%</span></div>
+    <div class="cap">Category pill · one red</div><div class="line"><span class="cat cat-good"><i></i>Good</span><span class="cat cat-mod"><i></i>Moderate</span><span class="cat cat-bad"><i></i>High</span><span class="cat cat-vhigh"><i></i>Very high</span></div>
+    <div class="cap">AlertMetaChips · fresh chip uses --c-text</div><div class="line"><span class="meta"><svg><use href="#cal"/></svg>NWS Gray ME</span><span class="meta fresh"><svg><use href="#clk"/></svg>Issued 2h ago</span><span class="meta">Expires 18:00</span><span class="counter">1 / 3</span></div>
+  </section>
+</div>
+</body></html>

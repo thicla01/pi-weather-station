@@ -1,0 +1,40 @@
+/* day — default palette (:root). Warm cream, dark ink, amber accent.
+   Served whenever dark mode is off. Source: client/src/ui/tokens.js `day`. */
+:root {
+  color-scheme: light;
+  --c-bg: #f4f0e8;                          /* page background, always opaque */
+  --c-text: #2a2620;                        /* primary ink */
+  --c-text-dim: #6d655a;                    /* secondary / metadata ink */
+  --c-accent: #b85a18;                      /* brand accent — warm amber family across palettes */
+  --c-accent-soft: rgba(184, 90, 24, 0.18); /* tints, outlines, badge fill, ON-toggle signal */
+  --c-surface: rgba(255, 250, 240, 0.85);   /* translucent slab fill (calm) — the radar shows through */
+  --c-surface-hybrid: rgba(255, 250, 240, 0.96); /* slab fill during a moderate+ alert */
+  --c-border: rgba(42, 38, 32, 0.16);       /* hairline — lifted from .10: dark-on-cream reads fainter */
+  --c-border-hybrid: rgba(42, 38, 32, 0.18);
+  --c-warn: #c47a18;                        /* moderate severity (amber) */
+  --c-danger: #b03028;                      /* severe / extreme (red) */
+  --c-advisory: #f0c000;                    /* minor tier strip — the map's alert-zone gold, NOT sev-low-ink */
+  --c-cool: #3a5a78;                        /* informational blue-grey */
+  --c-strip-color: transparent;             /* hybrid strip; see themes/hybrid.css */
+
+  /* Severity chips — bg / border / ink triplets (v3.1 Phase 4) */
+  --sev-low-bg: rgba(232, 200, 122, 0.18);
+  --sev-low-border: rgba(232, 200, 122, 0.5);
+  --sev-low-ink: #8a6a18;
+  --sev-med-bg: rgba(232, 150, 87, 0.20);
+  --sev-med-border: rgba(232, 150, 87, 0.55);
+  --sev-med-ink: #b85a2d;
+  --sev-high-bg: rgba(220, 80, 80, 0.18);
+  --sev-high-border: rgba(220, 80, 80, 0.55);
+  --sev-high-ink: #b03030;
+
+  /* Moon glyph — dark disc + bright lit side (emoji convention, all palettes) */
+  --c-moon-lit: #f4e4a8;
+  --c-moon-dark: #7a6a48;
+
+  /* Category qualifiers — good=low · mod=moderate · bad=high · vhigh=veryHigh (+extreme) */
+  --mx-cat-good: #3e7d52;
+  --mx-cat-mod: #a8801f;
+  --mx-cat-bad: #b54848;
+  --mx-cat-vhigh: #7e3fb1;
+}

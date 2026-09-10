@@ -1,0 +1,40 @@
+<!-- @dsCard group="Colors" viewport="700x320" name="Severity tiers" subtitle="Chips --sev-{low,med,high} + strips advisory/warn/danger · colour = CAP severity, never the alert type" -->
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../styles.css">
+<style>
+  body{margin:0;font-family:var(--font-sans);background:#fff}
+  .row{display:grid;grid-template-columns:repeat(4,1fr);height:262px}
+  section{background:var(--c-bg);color:var(--c-text);padding:14px;display:flex;flex-direction:column;gap:8px}
+  .name{font-family:var(--font-mono);font-weight:500;font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--c-text-dim);margin-bottom:2px}
+  .chip{display:inline-flex;align-items:center;gap:6px;align-self:flex-start;font-family:var(--font-mono);font-size:9.5px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;padding:4px 9px 4px 7px;border-radius:999px;border:1px solid}
+  .chip svg{width:11px;height:11px}
+  .low{color:var(--sev-low-ink);background:var(--sev-low-bg);border-color:var(--sev-low-border)}
+  .med{color:var(--sev-med-ink);background:var(--sev-med-bg);border-color:var(--sev-med-border)}
+  .high{color:var(--sev-high-ink);background:var(--sev-high-bg);border-color:var(--sev-high-border)}
+  .strip{margin-top:4px;background:var(--c-surface);border:1px solid var(--c-border);border-left-width:4px;border-radius:6px;padding:6px 10px;font-size:11px;font-weight:500}
+  .y{border-left-color:var(--c-advisory)}.o{border-left-color:var(--c-warn)}.r{border-left-color:var(--c-danger)}
+  .foot{font-family:var(--font-mono);font-size:9.5px;color:#6d655a;padding:10px 14px;line-height:1.5}
+</style></head><body>
+<div class="row">
+  <section><div class="name">day</div>
+    <span class="chip low"><svg viewBox="0 0 12 12"><path d="M6 1.5 11 10.5H1z" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>Advisory</span>
+    <span class="chip med"><svg viewBox="0 0 12 12"><path d="M6 1.5 11 10.5H1z" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>Watch</span>
+    <span class="chip high"><svg viewBox="0 0 12 12"><path d="M6 1.5 11 10.5H1z" fill="currentColor"/></svg>Warning</span>
+    <div class="strip y">Minor · yellow strip</div><div class="strip o">Moderate · warn</div><div class="strip r">Severe · danger</div></section>
+  <section data-theme="dusk"><div class="name">dusk</div>
+    <span class="chip low"><svg viewBox="0 0 12 12"><path d="M6 1.5 11 10.5H1z" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>Advisory</span>
+    <span class="chip med"><svg viewBox="0 0 12 12"><path d="M6 1.5 11 10.5H1z" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>Watch</span>
+    <span class="chip high"><svg viewBox="0 0 12 12"><path d="M6 1.5 11 10.5H1z" fill="currentColor"/></svg>Warning</span>
+    <div class="strip y">Minor · yellow strip</div><div class="strip o">Moderate · warn</div><div class="strip r">Severe · danger</div></section>
+  <section data-theme="night"><div class="name">night</div>
+    <span class="chip low"><svg viewBox="0 0 12 12"><path d="M6 1.5 11 10.5H1z" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>Advisory</span>
+    <span class="chip med"><svg viewBox="0 0 12 12"><path d="M6 1.5 11 10.5H1z" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>Watch</span>
+    <span class="chip high"><svg viewBox="0 0 12 12"><path d="M6 1.5 11 10.5H1z" fill="currentColor"/></svg>Warning</span>
+    <div class="strip y">Minor · yellow strip</div><div class="strip o">Moderate · warn</div><div class="strip r">Severe · danger</div></section>
+  <section data-theme="nightRed"><div class="name">nightRed · collapses</div>
+    <span class="chip low"><svg viewBox="0 0 12 12"><path d="M6 1.5 11 10.5H1z" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>Advisory</span>
+    <span class="chip med"><svg viewBox="0 0 12 12"><path d="M6 1.5 11 10.5H1z" fill="none" stroke="currentColor" stroke-width="1.4"/></svg>Watch</span>
+    <span class="chip high"><svg viewBox="0 0 12 12"><path d="M6 1.5 11 10.5H1z" fill="currentColor"/></svg>Warning</span>
+    <div class="strip y">Minor · red</div><div class="strip o">Moderate · red</div><div class="strip r">Severe · red</div></section>
+</div>
+<div class="foot">Tier = CAP severity (minor → low · moderate → med · severe/extreme → high); the chip WORD is the parsed product type (Watch / Warning / Veille / Avert.). One alert, four colours — one per palette. In nightRed every tier is red: the word and the triangle fill carry the difference.</div>
+</body></html>

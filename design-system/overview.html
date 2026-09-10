@@ -1,0 +1,66 @@
+<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><title>Pi Weather Station — Ambient Layers, aperçu</title>
+<style>
+  body{margin:0;font-family:"Geist",system-ui,-apple-system,sans-serif;background:#f4f0e8;color:#2a2620;padding:34px 40px 60px}
+  h1{font-size:28px;margin:0 0 4px;letter-spacing:-.01em}
+  p.sub{color:#6d655a;margin:0 0 6px;max-width:860px;line-height:1.5;font-size:15px}
+  .note{display:inline-block;margin:14px 0 0;font-size:13px;color:#2a2620;border:1px solid rgba(42,38,32,.16);border-radius:8px;padding:9px 13px;line-height:1.45;background:rgba(255,250,240,.85)}
+  code{background:rgba(42,38,32,.08);border-radius:4px;padding:1px 6px;font-size:12.5px;font-family:"Geist Mono",ui-monospace,Menlo,monospace}
+  h2{font-family:"Geist Mono",ui-monospace,Menlo,monospace;font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:#6d655a;margin:40px 0 15px;border-bottom:1px solid rgba(42,38,32,.16);padding-bottom:9px}
+  .grid{display:flex;flex-wrap:wrap;gap:18px}
+  .card{border:1px solid rgba(42,38,32,.16);border-radius:12px;overflow:hidden;background:#fff;box-shadow:0 1px 2px rgba(0,0,0,.08),0 6px 16px rgba(0,0,0,.12)}
+  .card .label{font:500 11px/1 "Geist Mono",ui-monospace,Menlo,monospace;letter-spacing:.1em;text-transform:uppercase;color:#6d655a;padding:9px 13px;border-bottom:1px solid rgba(42,38,32,.12)}
+  .frame{overflow:hidden}.frame iframe{border:0;transform-origin:top left;pointer-events:none}
+</style></head><body>
+<h1>Pi Weather Station — système de design « Ambient Layers »</h1>
+<p class="sub">Langage visuel du kiosque météo v3 (Raspberry Pi 7″ tactile, aussi desktop et PWA mobile), transposé depuis le code : quatre palettes servies à l'exécution (<code>tokens/</code> + <code>themes/</code>), niveaux hybrides d'alerte, contrat typographique Geist, recette de slab, jetons radar et carte, grammaire à trois viewports et règles kiosque.</p>
+<div class="note">Palette par défaut = <strong>day</strong>. Ajoutez <code>data-theme="dusk"</code>, <code>"night"</code> ou <code>"nightRed"</code> et, pendant une alerte, <code>data-hybrid="light|full"</code> sur n'importe quel conteneur. Le code fait foi en cas de désaccord ; la galerie complète vit dans l'onglet « Design System ».</div>
+<h2>Fondations</h2>
+<div class="grid" data-kind="found"></div>
+<h2>Composants — primitives ambient</h2>
+<div class="grid" data-kind="comp"></div>
+<h2>Écrans — anatomies à l'échelle</h2>
+<div class="grid" data-kind="screens"></div>
+<script>
+  const found = [
+    ["palettes","guidelines/palettes.card.html",700,360],
+    ["severity tiers","guidelines/severity-tiers.card.html",700,320],
+    ["categories & moon","guidelines/categories.card.html",700,250],
+    ["hybrid levels","guidelines/hybrid-levels.card.html",700,300],
+    ["type scale","guidelines/type-scale.card.html",700,380],
+    ["shape & spacing","guidelines/spacing-radii.card.html",700,280],
+    ["radar & map","guidelines/radar-map.card.html",700,280],
+    ["viewports","guidelines/breakpoints.card.html",700,330],
+    ["kiosk rules","guidelines/kiosk-rules.card.html",700,330]
+  ];
+  function build(list, sel, colW){
+    const wrap = document.querySelector('.grid[data-kind="'+sel+'"]');
+    list.forEach(([name,src,w,h])=>{
+      const scale = colW / w;
+      const card = document.createElement('div'); card.className='card';
+      card.innerHTML = '<div class="label">'+name+'</div>'+
+        '<div class="frame" style="width:'+colW+'px;height:'+Math.round(h*scale)+'px">'+
+        '<iframe src="'+src+'" scrolling="no" style="width:'+w+'px;height:'+h+'px;transform:scale('+scale+')"></iframe></div>';
+      wrap.appendChild(card);
+    });
+  }
+  const comp = [
+    ["badges & chips","components/ambient/badges.card.html",700,340],
+    ["rail slabs","components/ambient/slabs.card.html",700,520],
+    ["alert surfaces","components/ambient/alerts.card.html",700,420],
+    ["hero","components/ambient/hero.card.html",700,470],
+    ["dock & squares","components/ambient/dock.card.html",700,300],
+    ["popovers & QR","components/ambient/popovers.card.html",700,300],
+    ["forecast slab","components/ambient/forecast.card.html",700,380]
+  ];
+  const screens = [
+    ["Pi 7\u2033 · MID","ui_kits/screens/pi-7in-mid.html",800,480],
+    ["Pi 7\u2033 · MIN","ui_kits/screens/pi-7in-min.html",800,480],
+    ["Pi 7\u2033 · MAX","ui_kits/screens/pi-7in-max.html",800,480],
+    ["desktop ≥ 1280","ui_kits/screens/desktop-1280.html",1280,800],
+    ["mobile portrait","ui_kits/screens/mobile-portrait.html",390,844]
+  ];
+  build(found,'found',420);
+  build(comp,'comp',420);
+  build(screens,'screens',420);
+</script>
+</body></html>

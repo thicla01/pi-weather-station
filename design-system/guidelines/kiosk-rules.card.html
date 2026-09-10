@@ -1,0 +1,20 @@
+<!-- @dsCard group="Rules" viewport="700x330" name="Kiosk & touch rules" subtitle="The floor that wins: what a mockup must respect before anything else" -->
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../styles.css">
+<style>
+  body{margin:0;font-family:var(--font-sans);background:var(--c-bg);color:var(--c-text);padding:14px 18px;display:grid;grid-template-columns:1fr 1fr;gap:8px 20px;align-content:start}
+  .r{display:flex;gap:10px;align-items:flex-start;padding:6px 0;border-bottom:1px solid var(--c-border)}
+  .g{flex:none;width:30px;height:30px;border-radius:6px;background:var(--c-surface);border:1px solid var(--c-border);display:flex;align-items:center;justify-content:center;font-family:var(--font-mono);font-weight:500;font-size:11px;color:var(--c-accent)}
+  b{display:block;font-size:12px;font-weight:500;margin-bottom:1px}
+  p{margin:0;font-size:10.5px;line-height:1.4;color:var(--c-text-dim)}
+</style></head><body>
+<div class="r"><span class="g">✕</span><div><b>No hover-painted state, ever</b><p>A :hover that paints a background sticks after a tap, even behind a media-query gate. Hover may only drop opacity. tap-highlight is transparent.</p></div></div>
+<div class="r"><span class="g">∞</span><div><b>No infinite animation on kiosk surfaces</b><p>A composited loop keeps the Pi GPU awake every vsync (+12 °C measured). Transitions are one-shot, ≤ 300 ms, on user action only.</p></div></div>
+<div class="r"><span class="g">44</span><div><b>Hit targets ≥ 44 px</b><p>Pad the hit box, not the glyph. Feedback = :active (accent-soft, scale .985) + :focus-visible dashed outline.</p></div></div>
+<div class="r"><span class="g">▦</span><div><b>External links = QR code only</b><p>The kiosk browser has no chrome and no way back. Stable vendor landing pages, never deep links with IDs or coordinates.</p></div></div>
+<div class="r"><span class="g">×4</span><div><b>Done means done in four palettes</b><p>day · dusk · night · nightRed. nightRed is mono-red: status never relies on colour alone — use the word, the shape, a badge.</p></div></div>
+<div class="r"><span class="g">◐</span><div><b>No emoji — inline SVG on currentColor</b><p>Platform emoji differ across macOS, Pi Chromium and Firefox and break the palette. The moon is a parametric SVG.</p></div></div>
+<div class="r"><span class="g">S/L</span><div><b>Text density scales the rail, never the map</b><p>--c-font-scale 0.85 / 1 / 1.15 as zoom on rail, hero, dock; map overlay text uses calc(). Leaflet stays native.</p></div></div>
+<div class="r"><span class="g">ECCC</span><div><b>Every alert carries its source badge</b><p>ECCC · NWS · RADAR · AIR (FCST tags the forecast reason chip). TEST is a neutral outlined qualifier, never a source.</p></div></div>
+<div class="r"><span class="g">12</span><div><b>Tabular numerals wherever values update live</b><p>Clock, temperatures, timeline, metric tiles: Geist Mono 500 with tabular-nums so the layout never jitters.</p></div></div>
+<div class="r"><span class="g">EN</span><div><b>Real data, three languages</b><p>EN / FR (Québec) / ES for every kiosk string. Mockups use plausible scenarios (Montréal, Québec, Winslow AZ), calm and alert states, never lorem ipsum.</p></div></div>
+</body></html>

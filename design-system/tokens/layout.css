@@ -1,0 +1,29 @@
+/* Layout tokens — LayoutDesktop / LayoutPi / BottomDock. */
+:root {
+  /* Desktop (≥ 1280 px): full-bleed map, floating hero band + right rail + dock */
+  --c-rail-width: 320px;             /* 360px ≥ 1600px; min(60vw, 960px) while a slab is maximized */
+  --c-rail-visible-width: var(--c-rail-width); /* 0px in radar-focus mode */
+  --c-dock-height: 52px;
+  --c-edge-gap: 16px;
+
+  /* Pi 7" (800–1279 px): grid `1fr 300px` (rail 340px ≥ 1280px), dock row below */
+  --pi-rail-width: 300px;
+  --pi-frame-gap: 10px;              /* v3.2 framed layout: map · rail · dock as inset cards; MIN drops to 0 */
+  --pi-map-radius: 14px;
+
+  /* Viewport grammar — DOCUMENTATION tokens (media queries cannot read var()).
+     AmbientLayers/index.js: MOBILE_MQ (max-width: 799px), DESKTOP_MQ (min-width: 1280px). */
+  --bp-mobile-max: 799px;
+  --bp-desktop-min: 1280px;
+  --bp-wide-min: 1600px;
+  --gate-short-screen: 520px;        /* max-height: compact Settings/Debug, radar-legend auto-hide */
+  --gate-priority-views: 540px;      /* max-height: Pi 3-state rail (ui/piLayout.js) — separate threshold ON PURPOSE */
+  --gate-dock-collapse: 600px;       /* max-width + portrait: secondary dock buttons hide */
+
+  /* Dock ↔ ControlButtons re-skin contract (BottomDock/styles.css) */
+  --ctrl-btn-bg: transparent;
+  --ctrl-btn-active: transparent;    /* press flash deliberately removed (touch keeps :active latched) */
+  --ctrl-btn-down: var(--c-accent-soft); /* the ONLY accent signal in the dock = toggle is ON */
+  --ctrl-btn-border: var(--c-border-hybrid);
+  --ctrl-btn-border-l: transparent;
+}

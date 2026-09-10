@@ -1,0 +1,36 @@
+<!-- @dsCard group="Screens" viewport="800x480" name="Pi 7″ · MAX" subtitle="800×480 · forecast-forward: map frozen to a 190 px thumbnail, ChartTabs fills the rail (Hours grid), dock hidden · day" -->
+<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css"><link rel="stylesheet" href="screens.css">
+<style>
+  .screen{width:800px;height:480px;display:grid;grid-template-columns:190px 1fr;grid-template-rows:1fr 0;gap:10px;padding:10px;box-sizing:border-box}
+  .map{position:relative;border:1px solid var(--c-border);border-radius:14px;overflow:hidden}
+  .host{display:flex;flex-direction:column;min-height:0}
+  .fc{flex:1;min-height:0;overflow:hidden}
+  .fc .chart{flex:1 1 auto;height:auto;min-height:0}
+  .hstrip{grid-template-columns:repeat(4,1fr);grid-auto-rows:auto;align-content:center;gap:12px 6px}
+  .hstrip .ir svg{width:28px;height:28px}
+</style></head><body>
+<div class="screen">
+  <div class="map radar">
+    <span class="ring" style="width:110px;height:110px;left:calc(50% - 55px);top:calc(50% - 55px)"><span class="lab">50 km</span></span>
+    <span class="marker" style="left:50%;top:50%"></span>
+    <span class="attrib">© Mapbox · RainViewer</span>
+  </div>
+  <div class="host">
+    <div class="fc pi">
+      <div class="hr"><span class="pp"><span class="pil on">24 h</span><span class="pil">5 j</span></span><span class="ab"><svg><use href="sprite.svg#restore"/></svg></span></div>
+      <div class="tabs"><span class="tab"><svg><use href="sprite.svg#temp"/></svg>Temp</span><span class="tab"><svg><use href="sprite.svg#wind"/></svg>Vent</span><span class="tab"><svg><use href="sprite.svg#drop"/></svg>Précip</span><span class="tab on"><svg><use href="sprite.svg#gridI"/></svg>Heures</span></div>
+      <div class="chart"><div class="hstrip">
+        <div class="col"><span class="hour">11h</span><span class="ir"><svg><use href="sprite.svg#sun"/></svg></span><span class="t">14°</span><span class="p"></span></div>
+        <div class="col"><span class="hour">14h</span><span class="ir"><svg><use href="sprite.svg#cloudsun"/></svg></span><span class="t">17°</span><span class="p">20 %</span></div>
+        <div class="col"><span class="hour">17h</span><span class="ir"><svg><use href="sprite.svg#rain"/></svg></span><span class="t">15°</span><span class="p">70 %</span></div>
+        <div class="col"><span class="hour">20h</span><span class="ir"><svg><use href="sprite.svg#rain"/></svg></span><span class="t">12°</span><span class="p">80 %</span></div>
+        <div class="col"><span class="hour">23h</span><span class="ir"><svg><use href="sprite.svg#cloud"/></svg></span><span class="t">10°</span><span class="p">30 %</span></div>
+        <div class="col"><span class="hour">2h</span><span class="ir"><svg><use href="sprite.svg#cloud"/></svg></span><span class="t">8°</span><span class="p"></span></div>
+        <div class="col"><span class="hour">5h</span><span class="ir"><svg><use href="sprite.svg#cloud"/></svg></span><span class="t">7°</span><span class="p"></span></div>
+        <div class="col"><span class="hour">8h</span><span class="ir"><svg><use href="sprite.svg#sun"/></svg></span><span class="t">11°</span><span class="p"></span></div>
+      </div></div>
+      <div class="sum"><span>Max<b>17°</b></span><span>Min<b>7°</b></span><span class="acc">Pluie dès 17h</span></div>
+    </div>
+  </div>
+</div>
+</body></html>

@@ -1,0 +1,37 @@
+<svg xmlns="http://www.w3.org/2000/svg" style="display:none">
+<symbol id="tri" viewBox="0 0 24 24"><path d="M12 2 L22 20 L2 20 Z" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round"/><line x1="12" y1="9" x2="12" y2="14" stroke="currentColor" stroke-width="2.4" stroke-linecap="round"/><circle cx="12" cy="17.5" r=".5" fill="currentColor"/></symbol>
+<symbol id="down" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+<symbol id="right" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+<symbol id="x" viewBox="0 0 24 24"><path d="M5 5l14 14M19 5L5 19" fill="none" stroke="currentColor" stroke-width="2.2"/></symbol>
+<symbol id="expand" viewBox="0 0 24 24"><path d="M4 9 V 4 H 9 M 15 4 H 20 V 9 M 20 15 V 20 H 15 M 9 20 H 4 V 15" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+<symbol id="restore" viewBox="0 0 24 24"><path d="M9 4 V 9 H 4 M 20 9 H 15 V 4 M 15 20 V 15 H 20 M 4 15 H 9 V 20" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+<symbol id="pin" viewBox="0 0 24 24"><path d="M12 22s7-7 7-12a7 7 0 0 0-14 0c0 5 7 12 7 12z" fill="none" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="10" r="2.5" fill="currentColor"/></symbol>
+<symbol id="cloudsun" viewBox="0 0 24 24"><circle cx="8" cy="8" r="3.5" fill="none" stroke="currentColor" stroke-width="2"/><path d="M8 1.5v2M2 8h2M3.5 3.5l1.4 1.4" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><path d="M9 20h9a4 4 0 0 0 .5-8 6 6 0 0 0-11.3 1.6A3.3 3.3 0 0 0 9 20z" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+<symbol id="sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.5" fill="currentColor"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+<symbol id="cloud" viewBox="0 0 24 24"><path d="M7 19h10a4 4 0 0 0 .6-8 6 6 0 0 0-11.5 1.5A3.3 3.3 0 0 0 7 19z" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+<symbol id="rain" viewBox="0 0 24 24"><path d="M7 15h10a4 4 0 0 0 .6-8 6 6 0 0 0-11.5 1.5A3.3 3.3 0 0 0 7 15z" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9 18l-1 3M13 18l-1 3M17 18l-1 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+<symbol id="snow" viewBox="0 0 24 24"><path d="M12 3v18M4.2 7.5l15.6 9M4.2 16.5l15.6-9" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+<symbol id="arrow" viewBox="0 0 24 24"><path d="M4 12h14M13 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+<symbol id="wind" viewBox="0 0 24 24"><path d="M3 8h11a3 3 0 1 0-3-3M3 12h15a3 3 0 1 1-3 3M3 16h8a2 2 0 1 1-2 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+<symbol id="uv" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" fill="none" stroke="currentColor" stroke-width="2"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+<symbol id="hum" viewBox="0 0 24 24"><path d="M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+<symbol id="target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4" stroke="currentColor" stroke-width="1.8"/></symbol>
+<symbol id="bookmark" viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+<symbol id="timeline" viewBox="0 0 24 24"><path d="M3 18h18M5 14l4-6 4 4 6-8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+<symbol id="legend" viewBox="0 0 24 24"><rect x="4" y="5" width="4" height="4" fill="currentColor"/><rect x="4" y="11" width="4" height="4" fill="currentColor"/><rect x="4" y="17" width="4" height="3" fill="currentColor"/><path d="M11 7h9M11 13h9M11 18.5h9" stroke="currentColor" stroke-width="1.8"/></symbol>
+<symbol id="warn" viewBox="0 0 24 24"><path d="M12 3 21 20H3z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="17" r=".7" fill="currentColor"/></symbol>
+<symbol id="contrast" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></symbol>
+<symbol id="moonI" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+<symbol id="sparkle" viewBox="0 0 24 24"><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+<symbol id="chart" viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+<symbol id="renew" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+<symbol id="gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2.5v3.2M12 18.3v3.2M2.5 12h3.2M18.3 12h3.2M5.3 5.3l2.2 2.2M16.5 16.5l2.2 2.2M5.3 18.7l2.2-2.2M16.5 7.5l2.2-2.2" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></symbol>
+<symbol id="check" viewBox="0 0 24 24"><path d="M5 12l4 4 10-10" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="play" viewBox="0 0 24 24"><path d="M7 4l13 8-13 8z" fill="currentColor"/></symbol>
+<symbol id="prev" viewBox="0 0 24 24"><path d="M15 5l-7 7 7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+<symbol id="next" viewBox="0 0 24 24"><path d="M9 5l7 7-7 7" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+<symbol id="temp" viewBox="0 0 24 24"><path d="M10 4a2 2 0 0 1 4 0v9a4 4 0 1 1-4 0z" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+<symbol id="drop" viewBox="0 0 24 24"><path d="M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z" fill="none" stroke="currentColor" stroke-width="2"/></symbol>
+<symbol id="gridI" viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 10h16M4 16h16M10 4v16M16 4v16" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+<symbol id="chev" viewBox="0 0 24 24"><path d="M9 6l6 6-6 6" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol>
+</svg>

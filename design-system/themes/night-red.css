@@ -1,0 +1,37 @@
+/* nightRed — night-vision palette (dark mode + sleep night mode). RED ONLY:
+   every severity and category tier collapses to the red family, so the WORD
+   (chip label, qualifier, badge) carries the tier — never the colour alone.
+   text #d05050 ≈ 5.1:1 and textDim #b84848 ≈ 4:1 on the card surface (WCAG AA).
+   iOS PWA body paint uses the composite #270c0c, not --c-bg. */
+[data-theme="nightRed"] {
+  color-scheme: dark;
+  --c-bg: #100404;
+  --c-text: #d05050;
+  --c-text-dim: #b84848;
+  --c-accent: #c44040;
+  --c-accent-soft: rgba(196, 64, 64, 0.18);
+  --c-surface: rgba(40, 12, 12, 0.85);
+  --c-surface-hybrid: rgba(40, 12, 12, 0.96);
+  --c-border: rgba(176, 64, 64, 0.10);
+  --c-border-hybrid: rgba(176, 64, 64, 0.22);
+  --c-warn: #c44040;
+  --c-danger: #e04040;
+  --c-advisory: #c44040;   /* collapses to red (elsewhere the alert gold) */
+  --c-cool: #783838;
+  --c-strip-color: transparent;
+  --sev-low-bg: rgba(232, 80, 80, 0.10);
+  --sev-low-border: rgba(232, 80, 80, 0.30);
+  --sev-low-ink: #d04848;
+  --sev-med-bg: rgba(232, 80, 80, 0.14);
+  --sev-med-border: rgba(232, 80, 80, 0.40);
+  --sev-med-ink: #e05858;
+  --sev-high-bg: rgba(232, 80, 80, 0.20);
+  --sev-high-border: rgba(232, 80, 80, 0.55);
+  --sev-high-ink: #f06060;
+  --c-moon-lit: #d04848;
+  --c-moon-dark: #2a0e0e;
+  --mx-cat-good: #d04848;
+  --mx-cat-mod: #d04848;
+  --mx-cat-bad: #d04848;
+  --mx-cat-vhigh: #d04848;
+}

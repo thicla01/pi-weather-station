@@ -1,0 +1,39 @@
+/* Shape, spacing, elevation — observed scale across components/ambient.
+   The codebase writes literal px; these names exist for mockups. */
+:root {
+  /* Radii */
+  --radius-chip: 3px;    /* SourceBadge */
+  --radius-xs: 4px;      /* small buttons, tags, inputs */
+  --radius-sm: 6px;      /* NowcastLine, cells, popover rows */
+  --radius-card: 8px;    /* tight cards: metric cells, alert mini-cards */
+  --radius-slab: 10px;   /* rail slabs: hero, clock, forecast, AI summary, radar legend, Leaflet zoom bar */
+  --radius-dock: 14px;   /* dock + the framed map on the Pi (v3.2) */
+  --radius-pill: 999px;  /* SeverityChip, ConfidencePill, period pills */
+
+  /* Edges */
+  --hairline: 1px solid var(--c-border);
+  --strip-width: 3px;    /* hybrid severity strip on cells: box-shadow: inset 3px 0 0 var(--c-strip-color) */
+  --strip-width-slab: 4px; /* same strip on the clock / hero slabs */
+  --nowcast-edge: 4px;   /* NowcastLine left border, tier-coloured */
+
+  /* Spacing */
+  --slab-pad: 12px 14px;       /* TimeBlock; ChartTabs 10px 12px 12px; HeroCompact Pi 10px 16px 9px */
+  --cell-pad: 10px 12px 8px;   /* MetricsGrid cell (min-height 58px) */
+  --grid-gap: 8px;             /* MetricsGrid */
+  --frame-gap: 10px;           /* Pi framed layout gutter (gap + padding), 0 in MIN */
+  --dock-pad-y: 8px;           /* dock: 8px + 36px icon cell + 8px = 52px */
+  --dock-pad-x: 14px;
+
+  /* Elevation */
+  --shadow-float: 0 1px 2px rgba(0, 0, 0, 0.08), 0 6px 16px rgba(0, 0, 0, 0.12); /* floating cards, Leaflet bar, radar legend */
+  --shadow-overlay: 0 4px 16px rgba(0, 0, 0, 0.35);                              /* popovers, overlays */
+
+  /* Glass — always paired with -webkit-backdrop-filter */
+  --glass-blur: 8px;       /* dock, radar legend, timeline bar, map chrome */
+  --glass-blur-soft: 6px;  /* AI summary slab, maximized chart slab, control buttons */
+
+  /* Touch */
+  --hit-target: 44px;      /* minimum tappable box, even when the visual is 28px */
+  --leaflet-btn: 40px;     /* zoom +/− and radar-focus buttons (36px on mobile) */
+  --dock-icon: 24px;
+}

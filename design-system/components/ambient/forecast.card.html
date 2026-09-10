@@ -1,0 +1,59 @@
+<!-- @dsCard group="Components" viewport="700x380" name="Forecast slab" subtitle="ChartTabs header (title · period pills · FCST reason chip · action) · metric tabs · Hourly / Daily column strips" -->
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css">
+<style>
+  body{margin:0;font-family:var(--font-sans);background:#fff}
+  .row{display:grid;grid-template-columns:1fr 1fr}
+  section{background:var(--c-bg);color:var(--c-text);padding:12px;min-height:356px}
+  /* ChartTabs/styles.css */
+  .slab{background-color:var(--c-surface);border:1px solid var(--c-border);border-radius:10px;padding:10px 12px 12px;display:flex;flex-direction:column}
+  .hr{display:flex;align-items:center;gap:10px;margin-bottom:10px}
+  .ht{font-family:var(--font-mono);font-weight:500;font-size:10px;letter-spacing:.14em;text-transform:uppercase;color:var(--c-text-dim);flex:1;min-width:0;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .pp{display:inline-flex;align-items:center;gap:4px}
+  .pill{font-family:var(--font-mono);font-weight:500;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;padding:3px 9px;border-radius:999px;border:1px solid var(--c-border);color:var(--c-text-dim);white-space:nowrap}
+  .pill.on{background-color:var(--c-accent-soft);color:var(--c-accent);border-color:var(--c-accent)}
+  .rc{display:inline-flex;align-items:center;gap:5px}
+  .badge{display:inline-block;background-color:var(--c-accent-soft);color:var(--c-text);font-family:var(--font-mono);font-size:11px;font-weight:500;letter-spacing:.6px;text-transform:uppercase;padding:2px 7px;border-radius:3px}
+  .rcl{font-family:var(--font-mono);font-size:11px;letter-spacing:.04em;color:var(--c-text-dim)}
+  .ab{position:relative;width:44px;height:44px;margin:-8px -8px -8px -4px;display:inline-flex;align-items:center;justify-content:center;color:var(--c-text-dim);flex-shrink:0}
+  .ab::before{content:"";position:absolute;inset:8px;border-radius:6px;background-color:var(--c-surface-hybrid);border:1px solid var(--c-border)}
+  .ab svg{position:relative;width:16px;height:16px}
+  .tabs{display:flex;background-color:var(--c-surface-hybrid);border:1px solid var(--c-border);border-radius:10px;padding:3px;margin-bottom:10px}
+  .tab{flex:1;display:inline-flex;align-items:center;justify-content:center;gap:5px;padding:7px 6px;color:var(--c-text-dim);font-size:11.5px;font-weight:500;letter-spacing:-.005em;border-radius:7px;white-space:nowrap}
+  .tab svg{width:12px;height:12px;opacity:.7}
+  .tab.on{background-color:var(--c-accent-soft);color:var(--c-text);font-weight:700}.tab.on svg{opacity:1;color:var(--c-accent)}
+  /* HourlyForecastColumns/styles.css (compact 4-col) */
+  .hstrip{display:grid;grid-template-columns:repeat(4,1fr);gap:8px 6px;margin-bottom:10px}
+  .col{display:flex;flex-direction:column;align-items:center;gap:2px;padding:2px 1px}
+  .hour{font-size:11px;font-weight:500;letter-spacing:.5px;color:var(--c-text-dim)}
+  .ir{height:26px;display:flex;align-items:center;justify-content:center;color:var(--c-text)}.ir svg{width:26px;height:26px}
+  .t{font-size:14px;font-weight:700;line-height:1.1}
+  .p{font-size:10px;font-weight:500;color:var(--c-cool);min-height:12px}
+  /* DailyForecastColumns/styles.css */
+  .dstrip{display:grid;grid-template-columns:repeat(5,minmax(0,1fr));gap:4px;border-top:1px solid var(--c-border);padding-top:8px}
+  .dcol{display:flex;flex-direction:column;align-items:center;gap:4px;padding:4px 2px}
+  .day{font-size:11px;font-weight:500;letter-spacing:.8px;color:var(--c-text-dim)}
+  .dir{height:30px;display:flex;align-items:center;justify-content:center;color:var(--c-text)}.dir svg{width:30px;height:30px}
+  .tmax{font-size:15px;font-weight:700;line-height:1.1}.tmin{font-size:13px;font-weight:400;color:var(--c-text-dim);line-height:1.1}
+  .dp{font-size:11px;font-weight:500;color:var(--c-cool);min-height:14px;margin-top:2px}
+  .name{font-family:var(--font-mono);font-weight:500;font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--c-text-dim);margin-bottom:8px}
+</style></head><body>
+<svg style="display:none"><symbol id="sun" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4.5" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M5 5l2 2M17 17l2 2M5 19l2-2M17 7l2-2" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol><symbol id="cloud" viewBox="0 0 24 24"><path d="M7 19h10a4 4 0 0 0 .6-8 6 6 0 0 0-11.5 1.5A3.3 3.3 0 0 0 7 19z" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol><symbol id="rain" viewBox="0 0 24 24"><path d="M7 15h10a4 4 0 0 0 .6-8 6 6 0 0 0-11.5 1.5A3.3 3.3 0 0 0 7 15z" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M9 18l-1 3M13 18l-1 3M17 18l-1 3" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol><symbol id="temp" viewBox="0 0 24 24"><path d="M10 4a2 2 0 0 1 4 0v9a4 4 0 1 1-4 0z" fill="none" stroke="currentColor" stroke-width="2"/></symbol><symbol id="wind" viewBox="0 0 24 24"><path d="M3 8h11a3 3 0 1 0-3-3M3 12h15a3 3 0 1 1-3 3M3 16h8a2 2 0 1 1-2 2" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></symbol><symbol id="drop" viewBox="0 0 24 24"><path d="M12 3s6 7 6 11a6 6 0 0 1-12 0c0-4 6-11 6-11z" fill="none" stroke="currentColor" stroke-width="2"/></symbol><symbol id="grid" viewBox="0 0 24 24"><path d="M4 4h16v16H4zM4 10h16M4 16h16M10 4v16M16 4v16" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol><symbol id="expand" viewBox="0 0 24 24"><path d="M4 9 V 4 H 9 M 15 4 H 20 V 9 M 20 15 V 20 H 15 M 9 20 H 4 V 15" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol></svg>
+<div class="row">
+  <section><div class="name">day · auto-selected Précip tab (FCST reason chip)</div>
+    <div class="slab">
+      <div class="hr"><span class="ht">Prévisions</span><span class="pp"><span class="pill on">24 h</span><span class="pill">5 j</span></span><span class="rc"><span class="badge">FCST</span><span class="rcl">Précip</span></span><span class="ab"><svg><use href="#expand"/></svg></span></div>
+      <div class="tabs"><span class="tab"><svg><use href="#temp"/></svg>Temp</span><span class="tab"><svg><use href="#wind"/></svg>Vent</span><span class="tab on"><svg><use href="#drop"/></svg>Précip</span><span class="tab"><svg><use href="#grid"/></svg>Heures</span></div>
+      <div class="hstrip"><div class="col"><span class="hour">11h</span><span class="ir"><svg><use href="#sun"/></svg></span><span class="t">14°</span><span class="p"></span></div><div class="col"><span class="hour">14h</span><span class="ir"><svg><use href="#cloud"/></svg></span><span class="t">17°</span><span class="p">20 %</span></div><div class="col"><span class="hour">17h</span><span class="ir"><svg><use href="#rain"/></svg></span><span class="t">15°</span><span class="p">70 %</span></div><div class="col"><span class="hour">20h</span><span class="ir"><svg><use href="#rain"/></svg></span><span class="t">12°</span><span class="p">80 %</span></div></div>
+      <div class="dstrip"><div class="dcol"><span class="day">JEU</span><span class="dir"><svg><use href="#rain"/></svg></span><span class="tmax">17°</span><span class="tmin">9°</span><span class="dp">70 %</span></div><div class="dcol"><span class="day">VEN</span><span class="dir"><svg><use href="#cloud"/></svg></span><span class="tmax">15°</span><span class="tmin">7°</span><span class="dp"></span></div><div class="dcol"><span class="day">SAM</span><span class="dir"><svg><use href="#sun"/></svg></span><span class="tmax">19°</span><span class="tmin">8°</span><span class="dp"></span></div><div class="dcol"><span class="day">DIM</span><span class="dir"><svg><use href="#sun"/></svg></span><span class="tmax">21°</span><span class="tmin">10°</span><span class="dp"></span></div><div class="dcol"><span class="day">LUN</span><span class="dir"><svg><use href="#rain"/></svg></span><span class="tmax">16°</span><span class="tmin">9°</span><span class="dp">40 %</span></div></div>
+    </div>
+  </section>
+  <section data-theme="dusk"><div class="name">dusk · 5-day period, Temp tab</div>
+    <div class="slab">
+      <div class="hr"><span class="ht">Forecast</span><span class="pp"><span class="pill">24 h</span><span class="pill on">5 d</span></span><span class="ab"><svg><use href="#expand"/></svg></span></div>
+      <div class="tabs"><span class="tab on"><svg><use href="#temp"/></svg>Temp</span><span class="tab"><svg><use href="#wind"/></svg>Wind</span><span class="tab"><svg><use href="#drop"/></svg>Precip</span><span class="tab"><svg><use href="#grid"/></svg>Days</span></div>
+      <div class="hstrip"><div class="col"><span class="hour">11 PM</span><span class="ir"><svg><use href="#cloud"/></svg></span><span class="t">9°</span><span class="p"></span></div><div class="col"><span class="hour">2 AM</span><span class="ir"><svg><use href="#cloud"/></svg></span><span class="t">7°</span><span class="p"></span></div><div class="col"><span class="hour">5 AM</span><span class="ir"><svg><use href="#rain"/></svg></span><span class="t">6°</span><span class="p">60 %</span></div><div class="col"><span class="hour">8 AM</span><span class="ir"><svg><use href="#sun"/></svg></span><span class="t">10°</span><span class="p"></span></div></div>
+      <div class="dstrip"><div class="dcol"><span class="day">THU</span><span class="dir"><svg><use href="#rain"/></svg></span><span class="tmax">17°</span><span class="tmin">9°</span><span class="dp">70 %</span></div><div class="dcol"><span class="day">FRI</span><span class="dir"><svg><use href="#cloud"/></svg></span><span class="tmax">15°</span><span class="tmin">7°</span><span class="dp"></span></div><div class="dcol"><span class="day">SAT</span><span class="dir"><svg><use href="#sun"/></svg></span><span class="tmax">19°</span><span class="tmin">8°</span><span class="dp"></span></div><div class="dcol"><span class="day">SUN</span><span class="dir"><svg><use href="#sun"/></svg></span><span class="tmax">21°</span><span class="tmin">10°</span><span class="dp"></span></div><div class="dcol"><span class="day">MON</span><span class="dir"><svg><use href="#rain"/></svg></span><span class="tmax">16°</span><span class="tmin">9°</span><span class="dp">40 %</span></div></div>
+    </div>
+  </section>
+</div>
+</body></html>

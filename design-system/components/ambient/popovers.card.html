@@ -1,0 +1,36 @@
+<!-- @dsCard group="Components" viewport="700x300" name="Popovers & QR" subtitle="DetailsPopover shell · detail rows · MoonDetailsPopover · QrCode (external links are QR-only)" -->
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css">
+<style>
+  body{margin:0;font-family:var(--font-sans);background:#fff}
+  .row{display:grid;grid-template-columns:1fr 1fr}
+  section{background:var(--c-bg);color:var(--c-text);padding:14px;display:flex;gap:12px;align-items:flex-start;min-height:272px}
+  .name{position:absolute;font-family:var(--font-mono);font-weight:500;font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--c-text-dim)}
+  /* DetailsPopover/styles.css */
+  .pop{min-width:200px;max-width:300px;background-color:var(--c-bg);border:1px solid var(--c-border);border-radius:8px;box-shadow:0 4px 16px rgba(0,0,0,.35);padding:10px 12px 12px;font-size:12px;margin-top:22px}
+  .hd{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:8px;padding-bottom:6px;border-bottom:1px solid var(--c-border)}
+  .ti{font-weight:700;font-size:11px;letter-spacing:.5px;text-transform:uppercase;color:var(--c-text-dim)}
+  .x{width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border-radius:4px;color:var(--c-text-dim)}.x svg{width:12px;height:12px}
+  .body{font-size:12px;line-height:1.5}
+  .dr{display:flex;flex-direction:column;gap:1px;margin-bottom:8px}.dr:last-child{margin-bottom:0}
+  .dl{font-size:10px;font-weight:500;text-transform:uppercase;letter-spacing:.5px;color:var(--c-text-dim)}
+  .dv{font-size:13px;font-weight:500}.dv.bold{font-weight:700}
+  .cat-bad{color:var(--mx-cat-bad)}
+  .gd{margin:6px 0 0;font-size:12px;line-height:1.5}
+  .moon{width:1.2em;height:1.2em;margin-right:6px;vertical-align:middle;position:relative;top:-.05em}
+  .moon .disc{fill:var(--c-moon-dark)}.moon .lit{fill:var(--c-moon-lit)}
+  .qr{display:inline-flex;flex-direction:column;align-items:center;gap:6px;margin-top:22px}
+  .qr svg{width:96px;height:96px;background:var(--c-text);border-radius:4px;padding:6px;box-sizing:border-box}
+  .qr .cap{font-family:var(--font-mono);font-size:9.5px;color:var(--c-text-dim);text-align:center;max-width:120px;line-height:1.4}
+</style></head><body>
+<svg style="display:none"><symbol id="x" viewBox="0 0 24 24"><path d="M5 5l14 14M19 5L5 19" fill="none" stroke="currentColor" stroke-width="2.2"/></symbol></svg>
+<div class="row">
+  <section><span class="name">day</span>
+    <div class="pop"><div class="hd"><span class="ti">UV</span><span class="x"><svg><use href="#x"/></svg></span></div><div class="body"><div class="dr"><span class="dl">Valeur</span><span class="dv cat-bad">7 — Élevé</span></div><p class="gd">Réduire l'exposition entre 11 h et 15 h ; chapeau, lunettes et écran solaire.</p></div></div>
+    <div class="pop"><div class="hd"><span class="ti">Lune</span><span class="x"><svg><use href="#x"/></svg></span></div><div class="body"><div class="dr"><span class="dl">Phase</span><span class="dv bold"><svg class="moon" viewBox="0 0 20 20"><circle class="disc" cx="10" cy="10" r="9"/><path class="lit" d="M 10 1 A 9 9 0 0 1 10 19 A 4.5 9 0 0 1 10 1 Z"/></svg>Gibbeuse croissante · 59 %</span></div><div class="dr"><span class="dl">Lever</span><span class="dv bold">15:42</span></div><div class="dr"><span class="dl">Coucher</span><span class="dv bold">01:18</span></div></div></div>
+  </section>
+  <section data-theme="dusk"><span class="name">dusk · QR is the only way out to an external page</span>
+    <div class="pop"><div class="hd"><span class="ti">Qualité de l'air</span><span class="x"><svg><use href="#x"/></svg></span></div><div class="body"><div class="dr"><span class="dl">Valeur</span><span class="dv cat-bad">7 — Élevé</span></div><div class="dr"><span class="dl">Station</span><span class="dv">Montréal — Parc Pilon</span></div><div class="dr"><span class="dl">Source</span><span class="dv">ECCC AQHI</span></div><div class="dr"><span class="dl">Âge</span><span class="dv">il y a 25 min</span></div></div></div>
+    <div class="qr"><svg viewBox="0 0 21 21" shape-rendering="crispEdges"><rect width="21" height="21" fill="var(--c-bg)"/><g fill="var(--c-text)"><path d="M0 0h7v7H0zM14 0h7v7h-7zM0 14h7v7H0z"/><path d="M1 1h5v5H1zM15 1h5v5h-5zM1 15h5v5H1z" fill="var(--c-bg)"/><path d="M2 2h3v3H2zM16 2h3v3h-3zM2 16h3v3H2z"/><path d="M8 0h1v2H8zM10 0h1v1h-1zM12 1h1v2h-1zM8 3h2v1H8zM11 3h1v1h-1zM0 8h1v1H0zM2 8h2v1H2zM5 8h1v2H5zM7 8h1v1H7zM9 8h1v2H9zM11 8h1v1h-1zM13 8h2v1h-2zM16 8h1v1h-1zM18 8h2v1h-2zM1 10h1v1H1zM3 10h1v1H3zM7 10h1v1H7zM10 10h2v1h-2zM14 10h1v2h-1zM17 10h1v1h-1zM19 10h2v1h-2zM0 12h2v1H0zM4 12h2v1H4zM8 12h1v1H8zM11 12h2v1h-2zM15 12h2v1h-2zM19 12h1v1h-1zM8 14h2v1H8zM11 14h1v1h-1zM13 14h1v2h-1zM16 14h1v1h-1zM18 14h2v1h-2zM8 16h1v2H8zM10 16h2v1h-2zM14 16h2v1h-2zM17 16h1v1h-1zM19 16h1v2h-1zM9 18h1v1H9zM11 18h1v2h-1zM13 18h2v1h-2zM16 18h2v1h-2zM8 20h2v1H8zM12 20h1v1h-1zM15 20h1v1h-1zM18 20h2v1h-2z"/></g></svg><span class="cap">Détails sur meteo.gc.ca — scanner avec le téléphone</span></div>
+  </section>
+</div>
+</body></html>

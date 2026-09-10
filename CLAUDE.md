@@ -75,6 +75,9 @@ pi-weather-station/
 │                          # harden-kiosk.sh, logrotate, launchd plist, uninstall.sh
 ├── docs/                 # api.md, architecture, KPI, security, troubleshooting, ui-layout (en/fr),
 │                          # radar-classification (RainViewer pixel → tier → display colour)
+├── design-system/        # Ambient Layers design-system bundle for Claude Design — tokens, 4 themes (+ data-hybrid),
+│                          # guideline + specimen cards, React ports of the primitives, screen anatomies. Source of the
+│                          # DesignSync pushes to the "Design System" project (maintainer tooling; nothing runs on a Pi)
 └── tools/                # CSV→Excel converter, Sense HAT display daemons (sensehat_weather.py + horloge.py,
                            # both poll GET /api/sensehat over HTTPS and render on the LED matrix)
 ```

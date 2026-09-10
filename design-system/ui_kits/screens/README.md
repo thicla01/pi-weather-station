@@ -1,0 +1,11 @@
+# Screen kit — Ambient Layers
+
+Five anatomies at real pixel size, composed from the same recipes as the specimen cards (`screens.css` holds the shared component CSS; each screen adds only its layout rules). Radar tiles are a static gradient standing in for RainViewer.
+
+- **pi-7in-mid** — 800×480, the default 7″ kiosk state. `LayoutPi` grid `1fr 300px` + dock row, 10 px framed gutters, map as a 14 px card. Rail order (calm, non-priority): compact clock (62 px) · HeroCompact (39 px temperature, no astro line) · NowcastLine · AirCard (Pi tightening) · MetricsGrid 2×2 · Indoor when configured. **The rail scrolls** — at 480 px the grid's second row sits below the fold. Timeline open, legend collapsed to its "(i)" chip (≤ 520 px gate), dock without group labels (≤ 980 px), health chip icon-only.
+- **pi-7in-min** — radar owns the screen: grid collapses to `1fr 0`, no padding, no radius, rail and dock gone; the focus button reads solid accent; the FloatingMiniBanner (top 16 / right 12) keeps an active government alert visible — never blind the user to a warning. Dusk.
+- **pi-7in-max** — forecast-forward: map frozen to a `190px` thumbnail, `ChartTabs` in its `slabPiMax` form fills the rail (title hidden, period pills flush left, restore bracket), Hours grid 4 × 2 at a 3-hour step, summary row. Dock hidden. Reached from the dock's Views group, left via the slab's restore button.
+- **desktop-1280** — 1280×800 `LayoutDesktop`: full-bleed map (`inset 0 0 52px`), hero band top-left (left 86 = gap + zoom stack, right = rail 320 + 2 gaps), rail 320 (alert head · air · 2×2 · forecast · AI summary), dock 52 with group labels and the health chip. Legend card bottom-left; the timeline anchors above it when both are on. Dusk + `data-hybrid="light"` (a watch is active).
+- **mobile-portrait** — 390×844 `LayoutMobile`: one scroll column with 10 px rhythm — clock (56 px) · alert head · HeroCompact (56 px, astro line) · air · 2×2 · radar card 220 px with its 44 px maximize button · forecast · AI. Portrait dock keeps the essentials only (recenter, marker, contrast, refresh, settings, health dot).
+
+Each file links `../../styles.css` and `screens.css`, is tagged `@dsCard group="Screens"`, and uses `sprite.svg` for the glyphs (simplified stand-ins for the Iconify icons the code ships).

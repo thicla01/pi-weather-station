@@ -1,0 +1,19 @@
+/* Pi Weather Station — "Ambient Layers" (v3) design system: global entry point.
+   Consumers link THIS file. It only @imports token + theme files.
+
+   Runtime truth lives in the codebase: the four palettes are JS objects in
+   client/src/ui/tokens.js, mirrored onto CSS custom properties by
+   client/src/components/AmbientLayers/index.js (root attributes
+   data-palette / data-hybrid / data-layout / data-font-size). This bundle is
+   the CSS transposition of that contract for Claude Design. Themes use
+   [data-theme="…"] so the Design System pane detects them; the runtime
+   attribute is data-palette. On any conflict, the codebase wins. */
+@import "tokens/typography.css";
+@import "tokens/spacing.css";
+@import "tokens/layout.css";
+@import "themes/day.css";        /* :root — default palette (day) */
+@import "themes/dusk.css";       /* [data-theme="dusk"] — the dark-mode palette served today */
+@import "themes/night.css";      /* [data-theme="night"] — defined, unreachable until solar wiring (Phase 5) */
+@import "themes/night-red.css";  /* [data-theme="nightRed"] — night-vision, red-only */
+@import "themes/hybrid.css";     /* [data-hybrid] alert escalation — imported LAST so it overrides every palette */
+@import "tokens/radar.css";      /* --rc-* / --map-* radar & map chrome, per palette */

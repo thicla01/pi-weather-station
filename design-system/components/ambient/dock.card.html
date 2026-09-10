@@ -1,0 +1,70 @@
+<!-- @dsCard group="Components" viewport="700x300" name="Dock & squares" subtitle="BottomDock + grouped ControlButtons (Map · Views · Display · System) · HealthIndicator chip · RailSquareButton · ChartTabs action button" -->
+<!DOCTYPE html><html><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css">
+<style>
+  body{margin:0;font-family:var(--font-sans);background:#fff}
+  section{background:var(--c-bg);color:var(--c-text);padding:12px 14px;display:flex;flex-direction:column;gap:8px}
+  .name{font-family:var(--font-mono);font-weight:500;font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--c-text-dim)}
+  .mapbg{background:var(--c-bg) linear-gradient(100deg,transparent 0 55%,rgba(240,230,0,.25) 55% 68%,rgba(240,130,0,.22) 68% 78%,transparent 78%)}
+  /* BottomDock/styles.css */
+  .dock{background-color:var(--c-surface);border:1px solid var(--c-border);border-radius:14px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:8px 14px;display:flex;align-items:center;min-height:52px;color:var(--c-text);--ctrl-btn-down:var(--c-accent-soft)}
+  /* ControlButtons/styles.css — grouped mode */
+  .group{display:flex;align-items:center;gap:2px;padding:0 6px;position:relative}
+  .group+.group::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:1px;background:var(--c-border-hybrid);opacity:.7}
+  .gl{font-family:var(--font-mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--c-text-dim);margin-right:6px;padding-left:4px;white-space:nowrap}
+  .b{width:40px;height:40px;display:flex;justify-content:center;align-items:center;border-radius:7px;position:relative;color:var(--c-text)}
+  .b svg{width:24px;height:24px}
+  .b.down{background:var(--ctrl-btn-down)}
+  .b.dis{opacity:.35}
+  .ub{position:absolute;top:6px;right:6px;width:7px;height:7px;border-radius:50%;background:#f97316}
+  .cnt{position:absolute;top:1px;right:1px;min-width:15px;height:15px;padding:0 3px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;line-height:1;box-shadow:0 0 0 1.5px rgba(0,0,0,.3);background:#ee7710;color:#fff}
+  /* HealthIndicator chip */
+  .chipwrap{margin-left:auto;display:inline-flex}
+  .chip{display:inline-flex;align-items:center;gap:7px;padding:5px 11px 5px 8px;border-radius:999px;background-color:color-mix(in oklab,var(--c-bg) 92%,var(--c-accent) 8%);border:1px solid var(--c-border-hybrid);box-shadow:inset 0 1px 0 rgba(255,255,255,.04);color:var(--c-text-dim);font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;white-space:nowrap}
+  [data-theme="dusk"] .chip,[data-theme="night"] .chip,[data-theme="nightRed"] .chip{background-color:color-mix(in oklab,var(--c-bg) 82%,var(--c-accent) 18%);box-shadow:inset 0 1px 0 rgba(255,255,255,.08)}
+  .ci{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#5cb85c;color:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.18)}
+  .ci svg{width:12px;height:12px}
+  /* squares */
+  .sqrow{display:flex;align-items:center;gap:16px;font-family:var(--font-mono);font-size:9.5px;color:var(--c-text-dim)}
+  .sq{width:28px;height:28px;border:1px solid var(--c-border);border-radius:6px;background-color:var(--c-surface-hybrid);color:var(--c-text-dim);display:inline-flex;align-items:center;justify-content:center}
+  .sq svg{width:16px;height:16px}
+  .ab{position:relative;width:44px;height:44px;display:inline-flex;align-items:center;justify-content:center;color:var(--c-text-dim);outline:1px dashed color-mix(in srgb,var(--c-text-dim) 40%,transparent);outline-offset:-1px}
+  .ab::before{content:"";position:absolute;inset:8px;border-radius:6px;background-color:var(--c-surface-hybrid);border:1px solid var(--c-border)}
+  .ab svg{position:relative;width:16px;height:16px}
+</style></head><body>
+<svg style="display:none">
+<symbol id="target" viewBox="0 0 24 24"><circle cx="12" cy="12" r="7" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="1.8" fill="currentColor"/><path d="M12 2v4M12 18v4M2 12h4M18 12h4" stroke="currentColor" stroke-width="1.8"/></symbol>
+<symbol id="bookmark" viewBox="0 0 24 24"><path d="M6 3h12v18l-6-4-6 4z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+<symbol id="timeline" viewBox="0 0 24 24"><path d="M3 18h18M5 14l4-6 4 4 6-8" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+<symbol id="legend" viewBox="0 0 24 24"><rect x="4" y="5" width="4" height="4" fill="currentColor"/><rect x="4" y="11" width="4" height="4" fill="currentColor"/><rect x="4" y="17" width="4" height="3" fill="currentColor"/><path d="M11 7h9M11 13h9M11 18.5h9" stroke="currentColor" stroke-width="1.8"/></symbol>
+<symbol id="warn" viewBox="0 0 24 24"><path d="M12 3 21 20H3z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/><path d="M12 9v5" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><circle cx="12" cy="17" r=".7" fill="currentColor"/></symbol>
+<symbol id="contrast" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 4a8 8 0 0 1 0 16z" fill="currentColor"/></symbol>
+<symbol id="moonI" viewBox="0 0 24 24"><path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5z" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+<symbol id="sparkle" viewBox="0 0 24 24"><path d="M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2z" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linejoin="round"/></symbol>
+<symbol id="chart" viewBox="0 0 24 24"><path d="M5 20V10M12 20V4M19 20v-7" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></symbol>
+<symbol id="renew" viewBox="0 0 24 24"><path d="M20 12a8 8 0 1 1-2.3-5.7" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/><path d="M20 4v5h-5" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round"/></symbol>
+<symbol id="gear" viewBox="0 0 24 24"><circle cx="12" cy="12" r="6.5" fill="none" stroke="currentColor" stroke-width="1.8"/><circle cx="12" cy="12" r="2.2" fill="none" stroke="currentColor" stroke-width="1.8"/><path d="M12 2.5v3.2M12 18.3v3.2M2.5 12h3.2M18.3 12h3.2M5.3 5.3l2.2 2.2M16.5 16.5l2.2 2.2M5.3 18.7l2.2-2.2M16.5 7.5l2.2-2.2" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></symbol>
+<symbol id="upgrade" viewBox="0 0 24 24"><path d="M12 20V6M6 12l6-6 6 6" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="check" viewBox="0 0 24 24"><path d="M5 12l4 4 10-10" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+<symbol id="expand" viewBox="0 0 24 24"><path d="M4 9 V 4 H 9 M 15 4 H 20 V 9 M 20 15 V 20 H 15 M 9 20 H 4 V 15" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+<symbol id="restore" viewBox="0 0 24 24"><path d="M9 4 V 9 H 4 M 20 9 H 15 V 4 M 15 20 V 15 H 20 M 4 15 H 9 V 20" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
+</svg>
+<section class="mapbg"><div class="name">BottomDock · desktop labels shown (hidden ≤ 980 px) · day</div>
+  <div class="dock">
+    <div class="group"><span class="gl">Map</span><span class="b"><svg><use href="#target"/></svg></span><span class="b"><svg><use href="#bookmark"/></svg></span><span class="b down"><svg><use href="#timeline"/></svg></span><span class="b dis"><svg><use href="#legend"/></svg></span><span class="b down"><svg><use href="#warn"/></svg><span class="cnt">2</span></span></div>
+    <div class="group"><span class="gl">Views</span><span class="b"><svg><use href="#sparkle"/></svg></span><span class="b"><svg><use href="#chart"/></svg></span></div>
+    <div class="group"><span class="gl">Display</span><span class="b"><svg><use href="#contrast"/></svg></span><span class="b"><svg><use href="#moonI"/></svg></span></div>
+    <div class="group"><span class="gl">System</span><span class="b"><svg><use href="#renew"/></svg></span><span class="b"><svg><use href="#upgrade"/></svg><span class="ub"></span></span><span class="b"><svg><use href="#gear"/></svg></span></div>
+    <span class="chipwrap"><span class="chip"><span class="ci"><svg><use href="#check"/></svg></span>Tout va bien</span></span>
+  </div>
+</section>
+<section class="mapbg" data-theme="dusk"><div class="name">dusk · toggle ON = accent-soft, the dock's only accent signal · no press flash, no hover paint</div>
+  <div class="dock">
+    <div class="group"><span class="gl">Map</span><span class="b"><svg><use href="#target"/></svg></span><span class="b"><svg><use href="#bookmark"/></svg></span><span class="b down"><svg><use href="#timeline"/></svg></span><span class="b"><svg><use href="#legend"/></svg></span><span class="b"><svg><use href="#warn"/></svg></span></div>
+    <div class="group"><span class="gl">Views</span><span class="b down"><svg><use href="#sparkle"/></svg></span><span class="b"><svg><use href="#chart"/></svg></span></div>
+    <div class="group"><span class="gl">Display</span><span class="b"><svg><use href="#contrast"/></svg></span><span class="b down"><svg><use href="#moonI"/></svg></span></div>
+    <div class="group"><span class="gl">System</span><span class="b"><svg><use href="#renew"/></svg></span><span class="b"><svg><use href="#gear"/></svg></span></div>
+    <span class="chipwrap"><span class="chip"><span class="ci" style="background:#ee7710"><svg><use href="#warn"/></svg></span>2 dégradés</span></span>
+  </div>
+  <div class="sqrow"><span class="sq"><svg><use href="#expand"/></svg></span><span class="sq"><svg><use href="#restore"/></svg></span>RailSquareButton 28 px · expand / restore brackets<span class="ab"><svg><use href="#expand"/></svg></span>ChartTabs action: 44 px hit, 28 px visible</div>
+</section>
+</body></html>
