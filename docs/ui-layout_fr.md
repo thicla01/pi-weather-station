@@ -75,40 +75,49 @@ Variante A « Compagnon nomade » du dossier de design. Colonne unique défilant
 - **MIN** — radar plein écran (l'ancien mode focus) : le rail se replie et le dock se masque pour que le radar remplisse vraiment l'écran. Rien d'autre ne recouvre la carte — la seule superposition est la **FloatingMiniBanner**, épinglée en haut à droite quand une alerte gouvernementale admissible est active, pour que le mode focus ne masque jamais une alerte sévère. *(Le `HeroOverlayMin` compact lieu / température que la v3.2 épinglait d'abord sur le radar a été retiré et le composant supprimé ; le coup d'œil lieu / température est à un tap dans le rail.)*
 - **MAX** — prévisions prioritaires : la carte se réduit en vignette gelée ~190 px et le graphique de prévisions prend tout le rail. Atteint par le **bouton prévisions** du dock (groupe Vues) ; quitté par le bouton restaurer du graphique. *(Refonte des affordances du rail 2026-06-24 : la NowcastLine ne maximise plus — c'est une ligne d'état radar seulement ; les prévisions sont passées au dock pour que l'état radar « maintenant » et les prévisions « futur » soient des affordances distinctes.)*
 
-Le diagramme ci-dessous détaille le rail en **MID**.
+Le diagramme ci-dessous détaille le rail en **MID** (ordre v3.2, de haut en bas — le graphique de prévisions et le résumé IA ne sont pas dans ce coup d'œil).
 
 ```
 ┌──────────────────────────┬──────────────────────────┐
-│                          │ TimeBlock                 │
-│                          │ (date · horloge)          │
+│ [+][−] zoom              │ AlertBanner (alerte gouv,│
+│ [carré focus] -> MIN     │  rangée compacte : chip ·│
+│ (sous la pile de zoom)   │  source · titre · 1/N)   │
 │                          ├──────────────────────────┤
-│   WeatherMap             │ AlertBanner               │
-│   (Leaflet + tuiles radar├──────────────────────────┤
-│    RainViewer)           │ AlertDetailInline         │
+│                          │ AlertDetailInline (tap   │
+│                          │  la bannière → détail)   │
 │                          ├──────────────────────────┤
-│  [carré focus] -> MIN    │ HeroCompact               │
-│  (sous la pile de zoom)  │ (lieu · temp · condition ·│
-│                          │  ressenti · méta soleil/  │
-│                          │  lune)                    │
+│                          │ AlertMiniCards (pastille │
+│                          │  « restaurer » seulement)│
 │                          ├──────────────────────────┤
-│                          │ AirCard (IQA · pollen)    │
+│                          │ AirAlertCard (AIR, si    │
+│                          │  QA ≥ élevé seulement)   │
 │                          ├──────────────────────────┤
-│                          │ MetricsGrid               │
-│                          │ (vent · humidité · UV ·   │
-│                          │  pression)                │
+│   WeatherMap             │ TimeBlock compact        │
+│   (carte encadrée 14 px, │ (heure · date · coucher) │
+│    Leaflet + tuiles radar├──────────────────────────┤
+│    RainViewer)           │ HeroCompact (lieu · temp │
+│                          │  · condition · ressenti ;│
+│                          │  pas d'astro en 7")      │
 │                          ├──────────────────────────┤
-│                          │ IndoorBlock (Homebridge)  │
+│                          │ NowcastLine (RADAR ·     │
+│                          │  verdict · confiance)    │
 │                          ├──────────────────────────┤
-│                          │ ChartTabs                 │
-│                          │ (onglets 24 h / 5 jours)  │
+│                          │ AirCard (IQA · pollen ;  │
+│                          │  rangée IQA masquée si   │
+│                          │  AirAlertCard affichée)  │
 │                          ├──────────────────────────┤
-│                          │ AiSummaryInline           │
-│                          │ (expansible ↑)            │
+│                          │ MetricsGrid 2×2 (vent ·  │
+│                          │  rafales · UV · humidité)│
+│ (i) chip légende         ├──────────────────────────┤
+│ [barre de chronologie]   │ IndoorBlock (Homebridge, │
+│             attribution  │  si configuré)           │
 └──────────────────────────┴──────────────────────────┤
-│ BottomDock (ControlButtons — groupes Carte · Vues ·  │
-│  Affichage · Système ; Vues = résumé IA + prévisions)│
-└──────────────────────────────────────────────────────┘
+│ BottomDock (ControlButtons — groupes Carte · Vues · │
+│  Affichage · Système ; Vues = prévisions (MAX) + IA)│
+└─────────────────────────────────────────────────────┘
 ```
+
+*Les rangées de la pile d'alertes, la AirAlertCard et l'IndoorBlock ne s'affichent que lorsqu'elles ont quelque chose à montrer ; le rail défile quand la pile dépasse les 480 px de l'écran.*
 
 ### Adaptations toujours actives (toute hauteur en `LayoutPi`)
 
