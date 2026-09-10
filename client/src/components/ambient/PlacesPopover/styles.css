@@ -50,7 +50,7 @@
   background: transparent;
   color: var(--c-text);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   text-align: left;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
@@ -110,7 +110,7 @@
   padding: 0 10px;
   border-color: var(--c-danger);
   color: var(--c-danger);
-  font-weight: 600;
+  font-weight: 700;
   white-space: nowrap;
 }
 
@@ -142,7 +142,7 @@
   background: var(--c-bg);
   color: var(--c-text);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .empty {
@@ -174,7 +174,7 @@
   background: transparent;
   color: var(--c-text-dim);
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;
 }

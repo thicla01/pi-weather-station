@@ -467,7 +467,7 @@
   left: 6px;
   font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 7px;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 0.4px;
   line-height: 1.3;
   background-color: var(--c-warn);
@@ -565,7 +565,7 @@
 .stackHeaderLabel {
   font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 11px;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 1.4px;
   text-transform: uppercase;
   color: var(--c-text);
@@ -587,7 +587,7 @@
 .sectionTitle {
   font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 10px;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 1.6px;
   text-transform: uppercase;
   color: var(--c-accent);
@@ -699,7 +699,7 @@
   font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 8.5px;
   letter-spacing: 1px;
-  font-weight: 600;
+  font-weight: 500;
   text-transform: uppercase;
   padding: 1px 5px;
   border-radius: 2px;
@@ -720,7 +720,7 @@
   gap: 5px;
   font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 8.5px;
-  font-weight: 600;
+  font-weight: 500;
   letter-spacing: 1px;
   text-transform: uppercase;
   padding: 2px 8px;
@@ -860,7 +860,7 @@
  * at/above trip 4. No green "good" tier — the night-red palette is
  * intentionally mono-red. */
 .kvValueWarn { color: var(--c-warn); }
-.kvValueCrit { color: var(--c-danger); font-weight: 600; }
+.kvValueCrit { color: var(--c-danger); font-weight: 500; }
 
 .quotaTrack {
   height: 4px;
@@ -1138,7 +1138,7 @@
   margin-top: 4px;
   border-top: 1px solid var(--c-border);
   padding-top: 6px;
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .quotaCellWarn {
@@ -1147,7 +1147,7 @@
 
 .quotaCellErr {
   color: var(--c-danger);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 /* Section title row with inline metadata (e.g. "last fetch: HH:MM:SS"). */
@@ -1167,17 +1167,17 @@
 /* FPS colour ramp — mirrors v2 thresholds (50+ green, 30+ warn, else err). */
 .fpsGood {
   color: var(--c-cool);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .fpsWarn {
   color: var(--c-warn);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 .fpsErr {
   color: var(--c-danger);
-  font-weight: 600;
+  font-weight: 500;
 }
 
 /* Network block: stacked LAN URLs + Internet connectivity badge.
@@ -1282,11 +1282,13 @@
 
 /* Inline colour-coded latency values, embedded in the hero's ping
  * line. Three tiers tied to a "raw link latency" mental model
- * (see tcpLatencyTier helper in index.js). Bold to lift the tag
- * out of the surrounding mono text. */
-.netLatencyGreen  { color: #5cb85c; font-weight: 700; }
-.netLatencyYellow { color: #f0c000; font-weight: 700; }
-.netLatencyRed    { color: #e60000; font-weight: 700; }
+ * (see tcpLatencyTier helper in index.js). Colour alone lifts the tag
+ * out of the surrounding mono text — Geist Mono ships only Medium
+ * (ui/fonts.css), so any heavier weight would be a synthesized bold
+ * that Skia and CoreText draw differently. */
+.netLatencyGreen  { color: #5cb85c; font-weight: 500; }
+.netLatencyYellow { color: #f0c000; font-weight: 500; }
+.netLatencyRed    { color: #e60000; font-weight: 500; }
 .netLatencyUnknown { color: var(--c-text-dim); }
 
 /* Container for the stacked TCP + HTTPS scales. Each row is a
@@ -1478,7 +1480,7 @@
   border-radius: 6px;
   font-family: "Geist", system-ui, -apple-system, sans-serif;
   font-size: 12px;
-  font-weight: 600;
+  font-weight: 700;
   letter-spacing: 0.4px;
   cursor: pointer;
   -webkit-tap-highlight-color: transparent;

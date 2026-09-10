@@ -126,6 +126,12 @@
 .time {
   grid-row: 3;
   font-family: var(--sans);
+  /* 200 is intentional and NOT a Geist weight: `--sans` is the OS-native
+     stack the sleep-mode mock was designed on, so the clock takes the
+     platform's thinnest face where one exists (SF Pro on Apple devices)
+     and degrades to the nearest face elsewhere (a stock Pi may render it
+     close to Regular). Whitelisted in test/fontWeightGuards.test.js —
+     do not "fix" it to 400, that would flatten the Apple rendering. */
   font-weight: 200;
   color: var(--time);
   /* ~25–30 % of viewport height; vmin keeps it sane on the 800×480 panel. */

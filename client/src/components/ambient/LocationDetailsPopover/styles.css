@@ -23,7 +23,7 @@
 
 .detailValue {
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 /* ISO country code rendered slightly dimmer alongside the country
@@ -97,7 +97,7 @@
   background: var(--c-surface-hybrid, var(--c-surface));
   color: var(--c-text);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
   /* Chromium paints a lingering grey wash on tap that survives the
    * touch on this fleet's kiosks — see incident_dock_button_sticky_overlay. */
@@ -114,7 +114,7 @@
   display: flex;
   align-items: center;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--c-text-dim);
 }
 

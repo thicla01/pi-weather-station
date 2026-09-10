@@ -76,12 +76,12 @@
   color: var(--c-text-dim);
 }
 
-/* High / low temperature pair. The high stays at the full text
- * colour and font weight; the low drops one weight and uses the
- * dimmed token so the eye picks up the daily range at a glance. */
+/* High / low temperature pair. The high is Bold at the full text
+ * colour; the low drops to Regular and the dimmed token so the eye
+ * picks up the daily range at a glance. */
 .tempMax {
   font-size: 15px;
-  font-weight: 600;
+  font-weight: 700;
   color: var(--c-text);
   line-height: 1.1;
 }
@@ -179,7 +179,7 @@
 .strip.expanded .tempMax {
   font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
   font-size: 17px;
-  font-weight: 600;
+  font-weight: 500;
   color: var(--c-text);
   line-height: 1.1;
   text-align: left;
