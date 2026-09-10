@@ -75,40 +75,50 @@ Variant A "Compagnon nomade" from the design package. Single scrollable column t
 - **MIN** — radar fullscreen (the old focus mode): the rail collapses and the dock hides so the radar truly fills the screen. Nothing else sits over the map — the only overlay is the **FloatingMiniBanner**, pinned top-right when an eligible government alert is active, so focus mode never hides a severe alert. *(The compact place/temp `HeroOverlayMin` that v3.2 first pinned over the radar was removed and the component deleted; the at-a-glance readout is one tap away in the rail.)*
 - **MAX** — forecast-forward: the map shrinks to a frozen ~190 px thumbnail and the forecast chart takes the full-width rail. Reached from the dock's **forecast button** (Views group); left via the chart's restore button. *(Rail-affordance redesign 2026-06-24: the NowcastLine no longer maximizes — it is a status-only radar line; the forecast moved to the dock so the "now" radar status and the "future" forecast are distinct affordances.)*
 
-The diagram below details the **MID** rail.
+The diagram below details the **MID** rail (v3.2 order, top to bottom — the forecast chart and the AI prose are not in this glance).
 
 ```
 ┌──────────────────────────┬──────────────────────────┐
-│                          │ TimeBlock                 │
-│                          │ (date · clock)            │
+│ [+][−] zoom              │ AlertBanner (gov alert,  │
+│ [focus square] -> MIN    │  compact row: chip ·     │
+│ (under the zoom stack)   │  source · title · 1/N)   │
 │                          ├──────────────────────────┤
-│   WeatherMap             │ AlertBanner               │
-│   (Leaflet + RainViewer  ├──────────────────────────┤
-│    radar tiles)          │ AlertDetailInline         │
+│                          │ AlertDetailInline (tap   │
+│                          │  the banner to expand)   │
 │                          ├──────────────────────────┤
-│  [focus square] -> MIN   │ HeroCompact               │
-│  (under the zoom stack)  │ (location · temp ·        │
-│                          │  condition · feels-like · │
-│                          │  sun/moon meta-line)      │
+│                          │ AlertMiniCards (restore  │
+│                          │  pill only, on the Pi)   │
 │                          ├──────────────────────────┤
-│                          │ AirCard (AQI · pollen)    │
+│                          │ AirAlertCard (AIR, only  │
+│                          │  when AQ ≥ high)         │
 │                          ├──────────────────────────┤
-│                          │ MetricsGrid               │
-│                          │ (wind · humidity · UV ·   │
-│                          │  pressure)                │
+│   WeatherMap             │ TimeBlock compact        │
+│   (framed 14 px card,    │ (clock · date · sunset)  │
+│    Leaflet + RainViewer  ├──────────────────────────┤
+│    radar tiles)          │ HeroCompact (place ·     │
+│                          │  temp · condition ·      │
+│                          │  feels-like; no astro    │
+│                          │  line on the 7")         │
 │                          ├──────────────────────────┤
-│                          │ IndoorBlock (Homebridge)  │
+│                          │ NowcastLine (RADAR ·     │
+│                          │  verdict · confidence)   │
 │                          ├──────────────────────────┤
-│                          │ ChartTabs                 │
-│                          │ (24 hours / 5 days tabs)  │
+│                          │ AirCard (AQI · pollen;   │
+│                          │  AQI row hidden when     │
+│                          │  the AirAlertCard shows) │
 │                          ├──────────────────────────┤
-│                          │ AiSummaryInline           │
-│                          │ (expandable ↑)            │
+│                          │ MetricsGrid 2×2 (wind ·  │
+│                          │  gust · UV · humidity)   │
+│ (i) legend chip          ├──────────────────────────┤
+│ [timeline bar]           │ IndoorBlock (Homebridge, │
+│             attribution  │  when configured)        │
 └──────────────────────────┴──────────────────────────┤
-│ BottomDock (ControlButtons — Map · Views · Display · │
-│  System groups; Views = AI summary + forecast)       │
-└──────────────────────────────────────────────────────┘
+│ BottomDock (ControlButtons — Map · Views · Display ·│
+│  System groups; Views = forecast (MAX) + AI summary)│
+└─────────────────────────────────────────────────────┘
 ```
+
+*Rows in the alert stack, the AirAlertCard and the IndoorBlock only render when they have something to show; the rail scrolls when the stack is taller than the 480 px screen.*
 
 ### Always-on adaptations (any height in `LayoutPi`)
 
