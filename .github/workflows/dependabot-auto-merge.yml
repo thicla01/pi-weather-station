@@ -9,12 +9,34 @@
 # until a direct manual push superseded it. This workflow lets
 # security patches flow to master automatically when:
 #   - the PR was opened by `dependabot[bot]`, AND
-#   - Dependabot's metadata identifies it as a security update
-#     (the `ghsa-id` output is set), AND
+#   - the PR is a security update (either signal below), AND
 #   - the bump is `version-update:semver-patch` or
 #     `version-update:semver-minor`, AND
 #   - the required status checks pass (gated by branch protection
 #     on `master` — `gh pr merge --auto` waits for them).
+#
+# Two signals identify a security update, and either one is enough:
+#   1. `ghsa-id` from `dependabot/fetch-metadata` — populated only when
+#      the bumped package is a DIRECT dependency (listed in a manifest).
+#   2. Dependabot's own security-fix footer in the PR body ("You can
+#      disable automated security fix PRs for this repo…") — the only
+#      signal that survives on a TRANSITIVE dependency, where
+#      fetch-metadata returns an empty `ghsa-id` AND an empty
+#      `alert-state`.
+#
+# Why the second signal exists (2026-09-24): with the `ghsa-id` gate
+# alone every transitive security PR fell through — PR #298 in July,
+# then all six of September's (#344 fast-uri, #345 qs, #346
+# postcss-selector-parser, #347 @humanfs/node, #351 browserslist,
+# #352 js-yaml) sat one to five days for a human, the exact failure
+# this workflow was built to prevent. This project's exposure is
+# almost entirely transitive (ajv / babel / eslint / postcss subtrees,
+# qs via express), so the net covered the half that never fires. The
+# footer was checked against the 40 most recent Dependabot PRs before
+# being trusted: present on all 11 security PRs (direct and
+# transitive), absent from all 29 plain version-update PRs — including
+# the ones whose upstream release notes talk about security, which is
+# why release-notes text is deliberately NOT used as a signal.
 #
 # Major-version security bumps still need manual review (breaking
 # changes are common across major boundaries; a CVE fix that's only
@@ -51,17 +73,30 @@ jobs:
 
       - name: Enable auto-merge for security patch/minor bumps
         # Gated on:
-        #   - `ghsa-id` non-empty → this PR fixes a published security
-        #     advisory (Dependabot only sets this for security PRs).
+        #   - a security signal: `ghsa-id` non-empty (direct dependency)
+        #     OR Dependabot's security-fix footer in the PR body
+        #     (transitive dependency). The body is tested with
+        #     `contains()` inside the expression and never interpolated
+        #     into a shell, so the upstream release notes Dependabot
+        #     quotes in it cannot inject anything.
         #   - update-type ∈ {semver-patch, semver-minor} → major bumps
         #     still need human eyes for breaking-change review.
         if: |
-          steps.metadata.outputs.ghsa-id != '' &&
+          (steps.metadata.outputs.ghsa-id != '' ||
+           contains(github.event.pull_request.body, 'automated security fix PRs')) &&
           (steps.metadata.outputs.update-type == 'version-update:semver-patch' ||
            steps.metadata.outputs.update-type == 'version-update:semver-minor')
         run: |
-          echo "Auto-merging security ${{ steps.metadata.outputs.update-type }} for ${{ steps.metadata.outputs.dependency-names }} (advisory ${{ steps.metadata.outputs.ghsa-id }})"
+          if [ -n "$GHSA_ID" ]; then
+            reason="advisory $GHSA_ID (direct dependency)"
+          else
+            reason="Dependabot security-fix footer in the PR body (transitive dependency)"
+          fi
+          echo "Auto-merging security $UPDATE_TYPE for $DEPENDENCY_NAMES — $reason"
           gh pr merge --auto --squash "$PR_URL"
         env:
           PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GHSA_ID: ${{ steps.metadata.outputs.ghsa-id }}
+          UPDATE_TYPE: ${{ steps.metadata.outputs.update-type }}
+          DEPENDENCY_NAMES: ${{ steps.metadata.outputs.dependency-names }}
