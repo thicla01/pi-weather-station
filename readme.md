@@ -165,6 +165,8 @@ for tagged releases.
 
 # Setup
 
+> **Hardware:** runs on any Raspberry Pi from the **3B (1 GB)** up — tested continuously on a fleet of Pi 3B, Pi 4B, Pi 5, and CM5 units (plus regular Debian/Ubuntu, openSUSE, and macOS machines). The Pi 3B / 3B+ is the practical floor: validated by a months-long endurance bench on the current version (longest uninterrupted run 20+ days, zero software failures — the July 2026 performance work that made this comfortable cut server memory from ~158 to ~92 MB and background traffic by 64 %, see [PR 294](https://github.com/thicla01/pi-weather-station/pull/294)). Two things matter on a 1 GB board: run **v3.2.0 or later**, and **power the Pi directly** through its own power input with a proper supply (official 5.1 V / 2.5 A) — never through the official touchscreen's board via the GPIO pins, which drops enough voltage under load to cause freeze-then-watchdog-reboot cycles ([issue 284](https://github.com/thicla01/pi-weather-station/issues/284)).
+
 > **Node.js requirement:** Node.js 18 or later is required to **run** the server. `install.sh` installs Node.js 22 on all supported platforms — via [nvm](https://github.com/nvm-sh/nvm) on Bullseye 32-bit (`armv7l`, where NodeSource has no packages), and via NodeSource on Bullseye 64-bit (`aarch64`), Bookworm (Debian 12), and Trixie (Debian 13). **Building** the client (`npm run prod` — only needed with `--rebuild-client` or for development, since the bundle ships pre-built in `client/dist/`) requires Node `^22.18 || >=24.11` (Babel 8 toolchain).
 
 > **API keys:** If you use the automated install (Option 1), the script will offer to configure your API keys automatically. For a manual setup, copy the example settings file and edit it:
