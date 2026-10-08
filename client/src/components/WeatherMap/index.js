@@ -894,17 +894,14 @@ const WeatherMap = ({ zoom, dark }) => {
   const [radarFrameIdx, setRadarFrameIdx] = useState(-1);
   const animationIntervalRef = useRef(null);
 
-  // Small-screen detection used to auto-hide the radar legend while
-  // the radar timeline is open. On the 7" Pi kiosk (height ≤ 520 px,
-  // panel deployed) the timeline's right edge ends up sliding under
-  // the legend's bottom-right block — the legend has higher z-index
-  // (1000 vs 500) so it visually masks the rightmost portion of the
-  // scrubber. Both elements are pinned to `bottom: 24px`, so there's
-  // no clean way to keep them side by side at this width. Same media
-  // query (max-height: 520px) used by the ambient SettingsPanel /
-  // DebugPanel for their compact modes. NOTE: `ui/piLayout.js` gates
-  // the Pi 3-state rail on (max-height: 540px) — a deliberately
-  // separate threshold; don't unify the two.
+  // Short-screen detection (the 7" kiosk, height ≤ 520 px): collapses
+  // the radar legend card to its "(i)" chip wherever the map can't
+  // spare the room (see the RadarLegend render below) and switches the
+  // timeline to its compact copy. Same media query (max-height: 520px)
+  // used by the ambient SettingsPanel / DebugPanel for their compact
+  // modes. NOTE: `ui/piLayout.js` gates the Pi 3-state rail on
+  // (max-height: 540px) — a deliberately separate threshold; don't
+  // unify the two.
   const SMALL_SCREEN_MQ = "(max-height: 520px)";
   const [isSmallScreen, setIsSmallScreen] = useState(
     () => typeof window !== "undefined" && window.matchMedia(SMALL_SCREEN_MQ).matches
@@ -1623,13 +1620,27 @@ const WeatherMap = ({ zoom, dark }) => {
           timeline drives RainViewer's frame URLs). Hidden entirely when
           radarSource is ECCC — Phase A doesn't bring scrubbing across.
 
-          Short screens (≤ 520 px height) with the timeline open get the
-          legend as a compact "(i)" chip instead of the card — the Q5
-          mutual-exclusion rule from the Phase 3 design: both can't fit
-          in the 7" kiosk's vertical budget, but the legend stays one
-          tap away instead of vanishing. */}
+          Short screens (≤ 520 px height) get the legend as a compact
+          "(i)" chip instead of the card wherever the map can't spare the
+          room — the Q5 mutual-exclusion rule from the Phase 3 design:
+          the legend stays one tap away instead of vanishing.
+          - Timeline bar on screen: keyed on `timelineShown`, the boolean
+            that also re-anchors the legend above the bar (`withTimeline`),
+            never on the persisted `radarTimelineVisible` pref. In the
+            v3.3 priority model the MIN scrubber follows the ephemeral
+            `piScrubberOpen` flag instead, so keying on the pref put the
+            full card over the open scrubber whenever it was saved false.
+          - LayoutPi's MID pane: the 7" glance map is ~470 × 390 px, and
+            the card (~190 px tall with the nearby-alerts section, ~215 px
+            at font size L) would cover half its height and part of the
+            analysis rings.
+          The fullscreen MIN radar without the scrubber has the room and
+          keeps the card. */}
       {mapTimestamps && radarSource === "rainviewer" && !hideRadarLegend && !isPiMaxView(piLayoutState) && (
-        <RadarLegend dark={dark} chipMode={radarTimelineVisible && isSmallScreen} />
+        <RadarLegend
+          dark={dark}
+          chipMode={isSmallScreen && (timelineShown || piLayoutState === "mid")}
+        />
       )}
       {timelineShown && (
         <RadarTimeline

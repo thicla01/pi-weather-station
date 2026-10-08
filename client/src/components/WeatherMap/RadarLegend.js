@@ -42,7 +42,8 @@ const PrecipScale = () => (
  *
  * Three presentations, one component:
  *  - card (default) — bottom-left, glanceable, non-interactive;
- *  - chip (`chipMode`, 7" kiosk with the timeline open) — the Q5
+ *  - chip (`chipMode`, 7" kiosk wherever the map can't spare the room:
+ *    timeline bar on screen, or LayoutPi's narrow MID pane) — the Q5
  *    mutual-exclusion rule: a compact "(i) Légende" pill that opens
  *    the full legend as an overlay;
  *  - mobile strip — full-width compact bar, CSS-gated to the ambient
@@ -52,7 +53,7 @@ const PrecipScale = () => (
  *
  * @param {object} props
  * @param {boolean} props.dark Dark-palette variant
- * @param {boolean} props.chipMode Render the compact chip instead of the card (short screens with the timeline open)
+ * @param {boolean} props.chipMode Render the compact chip instead of the card (short screens with the timeline bar on screen, or on LayoutPi's MID pane — WeatherMap decides)
  * @returns {JSX.Element} Legend overlay
  */
 const RadarLegend = ({ dark, chipMode }) => {

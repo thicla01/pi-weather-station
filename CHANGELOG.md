@@ -17,6 +17,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   bench after its ED HDMI monitor was swapped back for the official 7" DSI touchscreen.
   Detection now requires a parseable `Backlight: [N]` value; kiosks with a working ED monitor
   (SenseHat, CM5-PWS-2, RPi5-PWS5 all answer `[N]`) keep the DDC backend.
+- **The 7" radar legend no longer shows its full card over the open radar scrubber.** Since the
+  v3.3 priority views, the 7" opens the scrubber only on the fullscreen radar (MIN), through
+  the dock's timeline button and an in-memory flag; that button no longer touches the persisted
+  `radarTimelineVisible` preference. `WeatherMap` still picked the legend card or its "(i)
+  Légende" chip from that preference. A kiosk that had saved it off showed the full card
+  stacked above the open scrubber, the overlap the chip exists to prevent, and the full card on
+  the glance; kiosks on the default saw the chip, even on a fullscreen radar with no scrubber.
+  On short screens (≤ 520 px tall) the chip now shows whenever the timeline bar is on screen
+  (the condition that already re-anchors the legend above the bar) and on the glance's narrow
+  map, where the full card (~190 px tall with the nearby-alerts section, ~215 px at font size
+  L, on a ~470 × 390 px map) covered half the radar's height and part of the analysis rings.
+  The fullscreen radar without the scrubber shows the full card. Desktop, mobile and the taller
+  Pi panels are unchanged. Found by reading the code; reproduced at 800×480 with the preference
+  on and off.
 
 ## [3.3.0] - 2026-10-08
 

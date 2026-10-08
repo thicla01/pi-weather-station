@@ -232,10 +232,11 @@
   color: var(--rc-ink-3);
 }
 
-/* Compact chip replacing the legend card when the timeline is open on
- * short screens (≤ 520 px height — Q5 mutual-exclusion rule). Tapping
- * it opens the full legend as an overlay sheet. Interactive, unlike
- * the card. */
+/* Compact chip replacing the legend card on short screens (≤ 520 px
+ * height) wherever the map can't spare the room — timeline bar open,
+ * or LayoutPi's narrow MID pane (Q5 mutual-exclusion rule; the gate
+ * lives in WeatherMap). Tapping it opens the full legend as an overlay
+ * sheet. Interactive, unlike the card. */
 /* Selector doubling (.x.x) on every <button>-styled rule below: the
  * global reset `.ambientRoot button` (ui/reset.css) is (0,1,1) and
  * strips font/color/background/border/padding from any single-class
