@@ -591,7 +591,9 @@ function pointInRing(lat, lon, ring) {
  * Is (lat, lon) inside a GeoJSON Polygon / MultiPolygon? Holes are
  * honoured (XOR across each polygon's rings). The client mirror of the
  * server's `_shared.pointInPolygon`, used to detect which nearby-alert
- * polygons a map tap landed in (Phase 3b survey popup).
+ * polygons a map tap landed in (Phase 3b survey popup) — minus its
+ * GeometryCollection branch, which the client doesn't need: ECCC alerts
+ * and NWS zones reach it already flattened to a MultiPolygon.
  *
  * @param {Number} lat
  * @param {Number} lon

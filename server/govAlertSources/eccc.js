@@ -40,6 +40,7 @@ const {
   pointInCABox,
   CA_BBOX,
   pointInPolygon,
+  mergeAsMultiPolygon,
   normalizeSeverity,
   severityToTier,
   isWatchEvent,
@@ -224,14 +225,19 @@ function normalize(feature) {
     senderName: p.province ? `ECCC ${p.province}` : "ECCC",
     expiresAt: p.expiration_datetime || p.event_end_datetime || null,
     areaDesc: p.feature_name_en || p.feature_name_fr || p.province || null,
-    // GeoJSON Polygon / MultiPolygon — always present for ECCC
-    // since we use `pointInPolygon(lat, lon, feature.geometry)`
-    // server-side to filter alerts, so every alert that reaches the
-    // client has gone through that check and therefore carries a
-    // valid geometry. Propagating it lets the client overlay the
-    // affected zone on the radar via Leaflet's GeoJSON layer
-    // (Phase 4d, 2026-05-28).
-    geometry: feature.geometry || null,
+    // The alert's area, which the client overlays on the radar via
+    // Leaflet's GeoJSON layer (Phase 4d, 2026-05-28). Every alert that
+    // reaches the client was selected by it (pointInPolygon for the
+    // banner, circleIntersectsPolygon for the nearby overlay), so it
+    // always has one. Polygon / MultiPolygon pass through untouched; a
+    // GeometryCollection is flattened to a MultiPolygon of its polygonal
+    // members — the normalisation NWS zones get in getZoneGeometry — so
+    // the client never sees one: its `pointInGeometry` tap test knows
+    // only Polygon / MultiPolygon, and Leaflet would draw a collection's
+    // points and lines as stray markers and strokes.
+    geometry: feature.geometry?.type === "GeometryCollection"
+      ? mergeAsMultiPolygon([feature.geometry])
+      : feature.geometry || null,
   };
 }
 

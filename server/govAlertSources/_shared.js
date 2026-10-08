@@ -63,11 +63,52 @@ function pointInRing(lat, lon, ring) {
 }
 
 /**
- * Test whether (lat, lon) falls inside a GeoJSON Polygon or
- * MultiPolygon geometry. The first ring of each polygon is the outer
- * boundary; subsequent rings are holes — a point inside an outer ring
- * but inside a hole counts as outside, so we XOR the inside-ness
- * across the rings of each polygon.
+ * Every polygon a GeoJSON geometry carries, as a flat list of Polygon
+ * coordinate arrays (`[outerRing, ...holeRings]` each). This is the one
+ * place that decides which geometry types have an area: Polygon and
+ * MultiPolygon contribute their polygons, a GeometryCollection is
+ * flattened recursively into its members' polygons, and the non-areal
+ * types (Point, LineString and their Multi* forms) contribute nothing —
+ * a point or a line contains no location.
+ *
+ * GeoJSON has seven geometry types, not two, and a Polygon/MultiPolygon-
+ * only check silently reads anything else as "covers nothing". NWS serves
+ * some forecast zones as a GeometryCollection (TXZ213 "Inland Harris" left
+ * a hole over Houston in the 2026-06-14 Flood Watch footprint). ECCC hands
+ * its raw geometry to pointInPolygon, where such a check made a
+ * GeometryCollection alert match no point at all: no banner, no map
+ * overlay, nothing on the Sense HAT. Never observed on ECCC (found by the
+ * 2026-10-07 audit), but its targeted warning polygons "can be split and
+ * merged".
+ *
+ * @param {?Object} geometry GeoJSON geometry
+ * @returns {Array<Array<Array<Array<Number>>>>} polygons, possibly empty
+ */
+function polygonsOf(geometry) {
+  if (!geometry) return [];
+  if (geometry.type === "Polygon") {
+    return Array.isArray(geometry.coordinates) ? [geometry.coordinates] : [];
+  }
+  if (geometry.type === "MultiPolygon") {
+    return Array.isArray(geometry.coordinates) ? geometry.coordinates : [];
+  }
+  if (geometry.type === "GeometryCollection") {
+    return Array.isArray(geometry.geometries)
+      ? geometry.geometries.flatMap((member) => polygonsOf(member))
+      : [];
+  }
+  return [];
+}
+
+/**
+ * Test whether (lat, lon) falls inside the area of a GeoJSON geometry:
+ * a Polygon, a MultiPolygon, or a GeometryCollection holding them (see
+ * polygonsOf — a geometry with no area never contains the point). The
+ * first ring of each polygon is the outer boundary; subsequent rings
+ * are holes — a point inside an outer ring but inside a hole counts as
+ * outside, so we XOR the inside-ness across the rings of each polygon.
+ * Polygons are tested independently, so two overlapping members of a
+ * collection don't cancel each other out.
  *
  * @param {Number} lat
  * @param {Number} lon
@@ -75,13 +116,7 @@ function pointInRing(lat, lon, ring) {
  * @returns {Boolean}
  */
 function pointInPolygon(lat, lon, geometry) {
-  if (!geometry) return false;
-  const polys = geometry.type === "MultiPolygon"
-    ? geometry.coordinates
-    : geometry.type === "Polygon"
-      ? [geometry.coordinates]
-      : [];
-  for (const poly of polys) {
+  for (const poly of polygonsOf(geometry)) {
     let inside = false;
     for (const ring of poly) {
       if (pointInRing(lat, lon, ring)) inside = !inside;
@@ -89,6 +124,30 @@ function pointInPolygon(lat, lon, geometry) {
     if (inside) return true;
   }
   return false;
+}
+
+/**
+ * Combine an array of GeoJSON geometries into a single MultiPolygon of
+ * every polygon they carry (see polygonsOf: Polygon and MultiPolygon
+ * members, GeometryCollections flattened recursively, null and non-areal
+ * inputs dropped silently). Returns null if no polygon survives, so the
+ * caller can fall back to a null geometry on the alert.
+ *
+ * Merges an NWS alert's resolved zones into one footprint, and turns a
+ * GeometryCollection (an NWS zone, an ECCC alert) into the canonical
+ * shape every consumer handles — Leaflet's `<GeoJSON>` layer and the
+ * client's Polygon/MultiPolygon-only `pointInGeometry` tap test included.
+ * Coordinates aren't re-projected or simplified — both feeds already
+ * publish WGS84 lon/lat, which is what Leaflet expects.
+ *
+ * @param {Array<?Object>} geometries
+ * @returns {?Object} { type: "MultiPolygon", coordinates: [[[[lon, lat], ...]]] }
+ */
+function mergeAsMultiPolygon(geometries) {
+  if (!Array.isArray(geometries) || geometries.length === 0) return null;
+  const coords = geometries.flatMap((g) => polygonsOf(g));
+  if (coords.length === 0) return null;
+  return { type: "MultiPolygon", coordinates: coords };
 }
 
 /**
@@ -269,17 +328,14 @@ function kmPerDegLon(lat) {
 }
 
 /**
- * Flatten a GeoJSON Polygon / MultiPolygon to a flat list of its rings
- * (outer boundaries and holes alike — for edge proximity an edge is an
- * edge regardless of which ring it bounds).
+ * Flatten every polygon of a GeoJSON geometry (see polygonsOf) to a flat
+ * list of its rings (outer boundaries and holes alike — for edge
+ * proximity an edge is an edge regardless of which ring it bounds).
  * @param {Object} geometry GeoJSON geometry
  * @returns {Array<Array<Array<Number>>>}
  */
 function geometryRings(geometry) {
-  if (!geometry) return [];
-  if (geometry.type === "Polygon") return geometry.coordinates || [];
-  if (geometry.type === "MultiPolygon") return (geometry.coordinates || []).flat();
-  return [];
+  return polygonsOf(geometry).flat();
 }
 
 /**
@@ -303,7 +359,8 @@ function distPointToSegmentKm(px, py, ax, ay, bx, by) {
 
 /**
  * Does a circle of `radiusKm` centred on (lat, lon) intersect (touch or
- * overlap) the given GeoJSON Polygon / MultiPolygon? True when the centre
+ * overlap) the area of the given GeoJSON geometry (Polygon, MultiPolygon,
+ * or a GeometryCollection of them — see polygonsOf)? True when the centre
  * is inside the polygon, when the polygon sits inside the circle, or when
  * any polygon edge passes within `radiusKm` — which crucially catches a
  * large county whose polygon edge clips the circle even though its
@@ -313,7 +370,7 @@ function distPointToSegmentKm(px, py, ax, ay, bx, by) {
  * @param {Number} lat
  * @param {Number} lon
  * @param {Number} radiusKm
- * @param {Object} geometry GeoJSON Polygon | MultiPolygon
+ * @param {Object} geometry GeoJSON Polygon | MultiPolygon | GeometryCollection
  * @returns {Boolean}
  */
 function circleIntersectsPolygon(lat, lon, radiusKm, geometry) {
@@ -365,6 +422,7 @@ module.exports = {
   pointInCABox,
   CA_BBOX,
   pointInPolygon,
+  mergeAsMultiPolygon,
   normalizeSeverity,
   severityToTier,
   isWatchEvent,

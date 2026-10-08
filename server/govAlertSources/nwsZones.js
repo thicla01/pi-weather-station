@@ -21,6 +21,7 @@
 // a disk-backed variant can drop in behind the same get/set API.
 
 const axios = require("axios").default;
+const { mergeAsMultiPolygon } = require("./_shared");
 
 // 24h TTL — forecast zones change very rarely
 const ZONE_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
@@ -132,55 +133,6 @@ async function getZoneGeometry(url) {
 }
 
 /**
- * Combine an array of GeoJSON geometries into a single MultiPolygon.
- * Accepts Polygon and MultiPolygon members, plus GeometryCollection
- * (flattened recursively into its polygonal parts — see the Houston
- * note below). Drops null / undefined / non-polygonal inputs silently.
- * Returns null if no valid input survives, so the caller can fall back
- * to a null geometry on the alert.
- *
- * The resulting MultiPolygon is the canonical shape Leaflet's
- * `<GeoJSON>` layer renders. Coordinates aren't re-projected or
- * simplified — NWS already publishes them in WGS84 lon/lat which
- * is what Leaflet expects.
- *
- * @param {Array<?Object>} geometries
- * @returns {?Object} { type: "MultiPolygon", coordinates: [[[[lon, lat], ...]]] }
- */
-function mergeAsMultiPolygon(geometries) {
-  if (!Array.isArray(geometries) || geometries.length === 0) return null;
-  const coords = [];
-  for (const g of geometries) {
-    if (!g) continue;
-    if (g.type === "Polygon" && Array.isArray(g.coordinates)) {
-      coords.push(g.coordinates);
-    } else if (g.type === "MultiPolygon" && Array.isArray(g.coordinates)) {
-      // Spread MultiPolygon's coordinates (which is an array of
-      // Polygon coordinate sets) directly into the merged list.
-      for (const poly of g.coordinates) {
-        coords.push(poly);
-      }
-    } else if (g.type === "GeometryCollection" && Array.isArray(g.geometries)) {
-      // Some NWS zones are served as a GeometryCollection mixing Polygon
-      // + MultiPolygon members (e.g. forecast zone TXZ213 "Inland Harris"
-      // over Houston) instead of a single polygonal geometry. Recurse so
-      // its members contribute their polygons rather than being silently
-      // dropped — a dropped zone punches a hole in the merged alert
-      // footprint exactly over that zone (the 2026-06-14 Houston Flood
-      // Watch case). Recursion also covers nested collections.
-      const inner = mergeAsMultiPolygon(g.geometries);
-      if (inner) {
-        for (const poly of inner.coordinates) {
-          coords.push(poly);
-        }
-      }
-    }
-  }
-  if (coords.length === 0) return null;
-  return { type: "MultiPolygon", coordinates: coords };
-}
-
-/**
  * Clear the in-memory zone cache. Intended for tests and the debug
  * "force refresh" path; not called during normal operation.
  */
@@ -190,6 +142,8 @@ function clearZoneCache() {
 
 module.exports = {
   getZoneGeometry,
+  // Re-exported for nws.js and the zone tests: it lives in _shared.js since
+  // 2026-10, where ECCC uses the same GeometryCollection flattening.
   mergeAsMultiPolygon,
   clearZoneCache,
   // exported for diagnostics (Debug panel could surface "N zones cached")
