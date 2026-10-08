@@ -186,7 +186,7 @@ These rules apply to every change, regardless of size. They exist to keep the co
 - External link targets must be **stable, vendor-curated landing pages** — not deep links to specific alerts via opaque IDs. ECCC's JSON-API IDs don't map to public URL slugs, and the per-alert URLs would 404 the moment the alert expires upstream. Use root or national-overview pages (`meteo.gc.ca/canada_f.html`, `weather.gc.ca/canada_e.html`, `weather.gov/`). Never include lat/lon as query parameters to external destinations (privacy: see `<user_privacy>` in the system prompt).
 
 ### Server
-- All outbound HTTP calls must include `{ timeout: 10_000 }` — no exceptions
+- All outbound HTTP calls must include `{ timeout: 10_000 }` — deliberate exception: the Anthropic SDK client in `aiSummaryCtrl` uses `CLAUDE_TIMEOUT_MS` (30 s), since a generated reply plus adaptive thinking outlasts a data fetch
 - New endpoints must be protected by the appropriate middleware (`localhostOnly`, `apiLimiter`, or `tileLimiter`) before being shipped
 - Never read `settings.json` directly from a controller — always go through `settingsCtrl.getSettings()`
 
@@ -217,7 +217,7 @@ These rules apply to every change, regardless of size. They exist to keep the co
 | Mapbox | Base map tiles | `mapApiKey` in settings.json |
 | RainViewer | Radar tiles + 50 km zone analysis | No key required |
 | LocationIQ | Reverse geocoding | `reverseGeoApiKey` in settings.json |
-| Anthropic Claude | AI weather summary (claude-haiku-4-5) | `anthropicApiKey` in settings.json |
+| Anthropic Claude | AI weather summary (claude-haiku-5-5) | `anthropicApiKey` in settings.json |
 | Homebridge (`homebridge-config-ui-x`) | Indoor temperature/humidity/air quality | `indoorTemperature.*` in settings.json |
 | ipapi.co | IP-based geolocation (default location) | No key required |
 | sunrise-sunset.org | Sunrise/sunset times | No key required |

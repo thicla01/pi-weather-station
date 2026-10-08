@@ -37,6 +37,49 @@ const inflightSummaries = new Map();
 // interval so expired-but-under-cap entries don't linger.
 const SUMMARY_CACHE_MAX = 200;
 
+// ── Claude request shape (Haiku 5.5, 2026-10) ────────────────────────────
+// Fixed model id, no date suffix. Rolling back to Haiku 4.5 means reverting
+// the whole commit, not editing one string: Haiku 4.5 rejects
+// `output_config.effort` with a 400 (it only knows budget-based thinking),
+// and Haiku 5.5 rejects a non-default `temperature` / `top_p`, any
+// `top_k`, an assistant prefill and a `fallbacks` model list with a 400.
+// See docs/ai-summary.md § "Model upgrades".
+const CLAUDE_MODEL = "claude-haiku-5-5";
+// Adaptive thinking is Haiku 5.5's default; it is sent explicitly so a
+// future default change can't silently move the bill. Low effort lets the
+// model skip thinking on easy prompts and spend a little on busy radar
+// rings, where inferring approach + ETA from the snapshots is the hard
+// part. Effort, not prompt wording, is what controls thinking length.
+const CLAUDE_THINKING = Object.freeze({ type: "adaptive" });
+const CLAUDE_EFFORT = "low";
+// Token caps. Haiku 5.5's tokenizer counts the same text as ~30% more
+// tokens than Haiku 4.5, AND thinking tokens count toward max_tokens. The
+// 4.5-era caps (400 radar / 150 no-radar) were sized for text alone, and
+// 400 was itself a bump from 280 after the French radar paragraph
+// truncated mid-sentence ("...attendue dans les 1<EOF>", May 2026). On 5.5,
+// 400 would hold only ~308 tokens of 4.5-equivalent text, back at the cap
+// that failed, before any thinking. These caps leave room for low-effort
+// thinking plus the longest (French) reply. The radar cap went from 2048
+// to 3072 after a live extended-radius call over real precipitation
+// (Montréal, 2026-10-08) used 1260 output tokens, 1012 of them thinking,
+// i.e. 62% of 2048. They are ceilings, not targets: billing follows what
+// the model actually generates. They also set the dollar bound of the
+// billed-call ceiling below, so keep them modest.
+const MAX_TOKENS_RADAR = 3072;    // 3 paragraphs incl. radar analysis
+const MAX_TOKENS_NO_RADAR = 1024; // 1-2 paragraphs, no radar block
+// A reply cut at max_tokens is still served (partial text beats nothing)
+// but cached for minutes, not the full window, so the next poll, AiView
+// open or other client regenerates it instead of pinning a mid-sentence
+// summary on every kiosk for 15 min.
+const TRUNCATED_SUMMARY_TTL = 5 * 60 * 1000;
+// maxRetries capped at 1 (SDK default is 2) so a transient Anthropic
+// overload can't fan one request into three. The 30 s timeout is a
+// deliberate exception to the 10 s outbound rule in CLAUDE.md: a generated
+// reply (plus adaptive thinking on 5.5) takes longer than a data fetch.
+// Don't tighten it without measuring p99 latency at CLAUDE_EFFORT.
+const CLAUDE_MAX_RETRIES = 1;
+const CLAUDE_TIMEOUT_MS = 30_000;
+
 // Valid unit / language values. Anything else is snapped to a default
 // BEFORE the value reaches the cache key, so junk query params can't
 // expand the cache's key cardinality (a denial-of-wallet lever on the paid
@@ -94,6 +137,13 @@ setInterval(() => pruneObjectCache(summaryCache, { maxEntries: SUMMARY_CACHE_MAX
 // whole global budget (and starve other remote clients) — the per-peer
 // 120/min apiLimiter caps a peer's overall request rate, but only this
 // bounds its share of *billed* Claude calls specifically.
+// The ceiling bounds call COUNT; the dollar bound is
+// calls/min × 1440 × (prompt_tokens × input_price + max_tokens × output_price).
+// Theoretical worst case (every call a ~4.2K-token stormy extended-radius
+// prompt, as measured live on 2026-10-08, that uses the whole
+// MAX_TOKENS_RADAR cap) is ≈ $28/day on Haiku 5.5 at $0.10 / $0.50 per
+// MTok, vs ≈ $75/day on Haiku 4.5 at the old 400 cap.
+// Raising the caps raises this bound.
 const MAX_CLAUDE_CALLS_PER_MIN = 10;          // global ceiling, all remote peers combined
 const MAX_CLAUDE_CALLS_PER_MIN_PER_PEER = 4;  // sub-ceiling per remote peer
 const claudeCallTimestamps = [];              // global sliding window
@@ -182,6 +232,90 @@ function pushRadarSnapshot(entry) {
 }
 function getRecentRadarSnapshots() {
   return recentRadarSnapshots.slice();
+}
+
+/**
+ * Build the Messages API request for one summary. Kept pure so tests can
+ * lock the request shape (test/aiSummaryClaudeReply.test.js): no sampling
+ * params, no prefill, no `fallbacks` (a 400 on Haiku 5.5, or a no-op for
+ * `fallbacks: "default"`, since the model has no server-side fallback).
+ *
+ * @param {String} prompt fully assembled user prompt
+ * @param {Boolean} hasRadar whether the prompt carries the radar block
+ * @returns {Object} params for client.messages.create
+ */
+function buildClaudeRequest(prompt, hasRadar) {
+  return {
+    model: CLAUDE_MODEL,
+    max_tokens: hasRadar ? MAX_TOKENS_RADAR : MAX_TOKENS_NO_RADAR,
+    thinking: CLAUDE_THINKING,
+    output_config: { effort: CLAUDE_EFFORT },
+    messages: [{ role: "user", content: prompt }],
+  };
+}
+
+/**
+ * Classify a Messages API reply and extract the summary text. Content
+ * blocks are read by `type`, never by position: a Haiku 5.5 reply can open
+ * with `thinking` blocks (empty text + signature), and a refusal or a cap
+ * hit during thinking can carry no text block at all. Branches on
+ * `stop_reason`, never on `stop_details` (which can be null). Never throws.
+ *
+ * Outcomes:
+ *   - "refusal"   stop_reason "refusal" (safety classifier, still HTTP 200).
+ *                 Any partial text is discarded, never served.
+ *   - "empty"     no usable text (thinking only, whitespace, no content).
+ *   - "truncated" text present but cut at max_tokens / the context window.
+ *   - "ok"        any other reply with text.
+ *
+ * @param {Object} message Anthropic Messages API response
+ * @returns {{outcome: String, text: String, stopReason: ?String, category: ?String}}
+ *   `text` is "" unless the outcome is "ok" or "truncated"; `category` is the
+ *   refusal category, as any string or null (the SDK union is wider than
+ *   the four categories the docs list)
+ */
+function classifyClaudeReply(message) {
+  const stopReason = message?.stop_reason ?? null;
+  if (stopReason === "refusal") {
+    return { outcome: "refusal", text: "", stopReason, category: message?.stop_details?.category ?? null };
+  }
+  const blocks = Array.isArray(message?.content) ? message.content : [];
+  const text = blocks
+    .filter((b) => b?.type === "text" && typeof b.text === "string")
+    .map((b) => b.text)
+    .join("")
+    .trim();
+  if (!text) return { outcome: "empty", text: "", stopReason, category: null };
+  const truncated = stopReason === "max_tokens" || stopReason === "model_context_window_exceeded";
+  return { outcome: truncated ? "truncated" : "ok", text, stopReason, category: null };
+}
+
+/**
+ * One-line token-usage note for the service log and the debug snapshot.
+ * Thinking tokens are already part of output_tokens (and billed as
+ * output); they're split out so the effort / max_tokens choice can be
+ * checked against real calls.
+ *
+ * @param {Object} [usage] message.usage
+ * @returns {String} e.g. "in=1650 out=310 think=120" ("?" for a missing field)
+ */
+function formatUsage(usage) {
+  const n = (v) => (Number.isFinite(v) ? v : "?");
+  return `in=${n(usage?.input_tokens)} out=${n(usage?.output_tokens)} think=${n(usage?.output_tokens_details?.thinking_tokens)}`;
+}
+
+/**
+ * Readable reason for a failed Anthropic call. The SDK builds err.message
+ * as `${status} ${JSON.stringify(body)}`, so the old 100-char slice kept
+ * only ~30 chars of the API's actual reason. Prefer the nested message.
+ *
+ * @param {Error & {status?: Number, error?: Object}} err
+ * @returns {String} at most 160 chars
+ */
+function describeClaudeError(err) {
+  const apiMessage = err?.error?.error?.message;
+  const text = apiMessage ? `${err.status} ${apiMessage}` : (err?.message || "AI summary failed");
+  return text.slice(0, 160);
 }
 
 const LANG_NAMES = { en: "English", fr: "French", es: "Spanish" };
@@ -302,8 +436,10 @@ const CALM_RADAR_BY_LANG = {
 // translate when not French — in practice Claude sometimes kept the
 // French verbatim, producing English summaries that opened with the
 // French label. Providing the exact target string per language keeps
-// Claude on-rails. Must end with the same trailing space/punctuation
-// the model is expected to emit so we can detect it later if needed.
+// Claude on-rails. The label is part of the output contract:
+// AiView's RADAR_PREFIX regex (client ambient/AiView) detects and strips
+// it to build the radar section, and CALM_RADAR_BY_LANG must match it
+// too. Pinned by test/aiSummaryClaudeReply.test.js.
 const RADAR_PARAGRAPH_LABEL_BY_LANG = {
   en: "Radar analysis: ",
   fr: "Analyse radar : ",
@@ -893,7 +1029,7 @@ async function getWeatherSummary(req, res) {
   const dataPayload = [currentSection, secondSection, radarSection].filter(Boolean).join("");
 
   const distanceUnitInstruction = distanceUnit === "mi" ? "miles" : "km";
-  // Haiku sometimes drifts to English when the prompt is dense with imperial/US
+  // Haiku 4.5 sometimes drifted to English when the prompt was dense with imperial/US
   // unit tokens (°F, mph, miles) despite the opening "in {language}" — the same
   // English-anchoring that forced the hard-coded radar label (see
   // RADAR_PARAGRAPH_LABEL_BY_LANG). A closing reminder at highest recency
@@ -901,6 +1037,8 @@ async function getWeatherSummary(req, res) {
   // language regardless of the unit system. Confirmed bug: fr/es + imperial
   // returned English; metric did not. English needs no reminder (it's the drift
   // target), so the reminder is scoped to non-English to keep that prompt lean.
+  // Kept unchanged on Haiku 5.5 until a 5.5-only A/B shows it is no longer
+  // needed (ROADMAP technical debt).
   const langReminder = lang !== "en"
     ? `\n\nWrite the entire summary in ${language}, regardless of the measurement units used in the data above.`
     : "";
@@ -929,47 +1067,69 @@ async function getWeatherSummary(req, res) {
   }
 
   try {
-    // maxRetries capped at 1 (SDK default is 2) so a transient Anthropic
-    // overload can't fan one request into three; timeout bounds a hung call.
-    const client = new Anthropic({ apiKey: settings.anthropicApiKey, maxRetries: 1, timeout: 30_000 });
-    const message = await client.messages.create({
-      model: "claude-haiku-4-5-20251001",
-      // Token budget: 150 for the no-radar 2-paragraph response,
-      // 400 for the 3-paragraph response that includes the radar
-      // analysis. Bumped from 280 -> 400 (May 2026) after a user
-      // reported the radar paragraph truncating mid-sentence in
-      // French ("...attendue dans les 1<EOF>"): French weather
-      // narration runs ~20% longer than English, and a rich radar
-      // paragraph that names quadrants + distances + temporal
-      // evolution easily uses ~300 tokens on its own. 400 gives
-      // Claude headroom to finish sentences cleanly. Cost impact
-      // is negligible — the cap is only hit at the upper bound
-      // when the radar block is genuinely busy.
-      max_tokens: radarText ? 400 : 150,
-      temperature: 0,
-      messages: [{ role: "user", content: prompt }],
+    // Retry / timeout rationale: see CLAUDE_MAX_RETRIES / CLAUDE_TIMEOUT_MS.
+    const client = new Anthropic({
+      apiKey: settings.anthropicApiKey,
+      maxRetries: CLAUDE_MAX_RETRIES,
+      timeout: CLAUDE_TIMEOUT_MS,
     });
-    const summary = message.content[0].text.trim();
-    // Log when Claude hit the token cap so we have visibility on
-    // future truncations. `stop_reason: "max_tokens"` is the
-    // signal; "end_turn" is the normal completion.
-    if (message.stop_reason && message.stop_reason !== "end_turn") {
-      console.warn(`[ai-summary] Claude stopped early: stop_reason=${message.stop_reason}, lang=${lang}, summary tail="${summary.slice(-80)}"`);
+    const message = await client.messages.create(buildClaudeRequest(prompt, hasRadar));
+    // The call is billed whatever the reply holds, so count it before any
+    // early return. Refusals and empty replies used to go uncounted.
+    increment("anthropic", "summary");
+    const reply = classifyClaudeReply(message);
+    const usageNote = formatUsage(message.usage);
+    const snapshotRadarText = hasRadar
+      ? radarText
+      : `(no radar block in prompt — ${radarUnavailableReason || "reason unknown"})`;
+
+    if (reply.outcome === "refusal" || reply.outcome === "empty") {
+      // Unusable reply. It is never cached: the next poll is the retry,
+      // since Haiku 5.5 has no server-side fallback (a `fallbacks` model
+      // list is a 400). It is kept in the debug ring so the input that triggered it
+      // can be inspected, and recorded with a non-2xx sentinel so it can't
+      // pass for a good call: 422 = declined by the safety classifier
+      // (precedent: the synthetic 429 above), 502 = upstream answered with
+      // no text (e.g. max_tokens hit during thinking). Never 503: both
+      // clients read 503 as "no API key" and hide the feature for good.
+      const comment = reply.outcome === "refusal"
+        ? `refusal (category=${reply.category ?? "none"}, lang=${lang}; ${usageNote})`
+        : `no text in reply (stop_reason=${reply.stopReason ?? "none"}, lang=${lang}; ${usageNote})`;
+      pushRadarSnapshot({
+        lat, lon, lang, source: `claude-${reply.outcome}`,
+        radarText: snapshotRadarText,
+        summary: "",
+        stopReason: reply.stopReason,
+        usage: usageNote,
+      });
+      recordServiceCall("Claude (AI summary)", reply.outcome === "refusal" ? 422 : 502, comment);
+      return settleInflight(502, "AI summary failed");
     }
-    setSummaryCache(cacheKey, { summary, periodKind, expiresAt: Date.now() + SUMMARY_CACHE_TTL });
+
+    const summary = reply.text;
+    // Any stop other than end_turn is logged, so truncations stay visible
+    // in server.log (max_tokens / context window → outcome "truncated").
+    if (reply.stopReason !== "end_turn") {
+      console.warn(`[ai-summary] Claude stopped early: stop_reason=${reply.stopReason}, lang=${lang}, ${usageNote}, summary tail="${summary.slice(-80)}"`);
+    }
+    const ttl = reply.outcome === "truncated" ? TRUNCATED_SUMMARY_TTL : SUMMARY_CACHE_TTL;
+    setSummaryCache(cacheKey, { summary, periodKind, expiresAt: Date.now() + ttl });
     pushRadarSnapshot({
       lat, lon, lang, source: "claude",
-      radarText: hasRadar
-        ? radarText
-        : `(no radar block in prompt — ${radarUnavailableReason || "reason unknown"})`,
+      radarText: snapshotRadarText,
       summary,
+      stopReason: reply.stopReason,
+      usage: usageNote,
     });
-    recordServiceCall("Claude (AI summary)", 200, "OK");
-    increment("anthropic", "summary");
+    recordServiceCall(
+      "Claude (AI summary)",
+      200,
+      reply.outcome === "truncated" ? `OK, truncated (${reply.stopReason}; ${usageNote})` : `OK (${usageNote})`
+    );
     return settleInflight(200, { summary, period: periodKind });
   } catch (err) {
     const status = err?.status || 500;
-    recordServiceCall("Claude (AI summary)", status, (err?.message || "AI summary failed").slice(0, 100));
+    recordServiceCall("Claude (AI summary)", status, describeClaudeError(err));
     return settleInflight(500, "AI summary failed");
   }
 }
@@ -979,8 +1139,8 @@ module.exports = {
   summaryCache,
   getRecentRadarSnapshots,
   // Exported for regression testing only — internal helpers, not part of
-  // the public surface. See test/aiSummary.cache.test.js and
-  // test/aiSummaryCalmPath.test.js.
+  // the public surface. See test/aiSummary.cache.test.js,
+  // test/aiSummaryCalmPath.test.js and test/aiSummaryClaudeReply.test.js.
   __test: {
     buildSummaryCacheKey,
     SUMMARY_CACHE_TTL,
@@ -996,5 +1156,18 @@ module.exports = {
     buildCalmDayTemplate,
     getHourlyForecast,
     getPeriod,
+    // Claude request / reply handling (Haiku 5.5)
+    buildClaudeRequest,
+    classifyClaudeReply,
+    formatUsage,
+    describeClaudeError,
+    CLAUDE_MODEL,
+    CLAUDE_EFFORT,
+    MAX_TOKENS_RADAR,
+    MAX_TOKENS_NO_RADAR,
+    TRUNCATED_SUMMARY_TTL,
+    // Output contract parsed by the client (AiView RADAR_PREFIX)
+    RADAR_PARAGRAPH_LABEL_BY_LANG,
+    CALM_RADAR_BY_LANG,
   },
 };

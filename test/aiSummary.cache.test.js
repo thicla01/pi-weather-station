@@ -23,7 +23,9 @@
 // Behavioural test of "cache hit short-circuits Anthropic" is not done
 // here: that would require mocking the whole external chain (Tomorrow.io,
 // Anthropic SDK, radar analyzer). The structural contracts above catch
-// the most plausible regressions without that infrastructure.
+// the most plausible regressions without that infrastructure. The Claude
+// request shape and reply classification (what gets cached, and for how
+// long) are covered in test/aiSummaryClaudeReply.test.js.
 
 const { test } = require("node:test");
 const assert = require("node:assert/strict");

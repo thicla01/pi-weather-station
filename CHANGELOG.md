@@ -19,6 +19,38 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   Maintainer tooling only, nothing runs on a Pi.
 
 ### Changed
+- **The AI summary now runs on Claude Haiku 5.5** (`claude-haiku-5-5`, was
+  `claude-haiku-4-5-20251001`) — and it was not a one-string swap. **Request**
+  (`buildClaudeRequest`): `temperature: 0` is gone (any value but 1 is a 400 on 5.5, as are a
+  non-default `top_p`, any `top_k`, prefill and a `fallbacks` model list); adaptive thinking is
+  sent explicitly so a default change can't move the bill, at `effort: "low"` (the 5.5 default is
+  `medium`); the caps rise to **3072 with radar / 1024 without** (were 400/150) because the 5.5
+  tokenizer counts the same text as ~30 % more tokens *and* thinking shares the cap — 400 would
+  hold ~308 tokens of 4.5-equivalent text, back near the 280 cap behind the May 2026 French
+  truncation; the radar cap went from 2048 to 3072 after an end-to-end extended-radius call over
+  real precipitation used 1260 output tokens, 1012 of them thinking (62 % of 2048). **Reply**
+  (`classifyClaudeReply`): text is read by block type, since a reply can
+  open with thinking blocks (the old `content[0].text` would throw). A refusal
+  (`stop_reason: "refusal"`, still HTTP 200, no server-side fallback on 5.5) or a text-less reply
+  returns **502, never cached** — the next poll retries and the last summary stays on screen —
+  with service status 422 / 502, never 503 (clients read 503 as "no key" and hide the feature).
+  A reply cut at `max_tokens` is still served but cached 5 min (`TRUNCATED_SUMMARY_TTL`), not 15.
+  **Observability:** every answered call's service comment carries `in=… out=… think=…`, radar
+  snapshots gain `stopReason` / `usage` (sources `claude-refusal` / `claude-empty` for unusable
+  replies), API errors keep the API's real reason, and the quota counter ticks right after the
+  billed call, so refusal/empty calls now count.
+  **Cost:** $0.10 / $0.50 per MTok in/out for prompts up to 100K tokens (was $1 / $5); a live
+  smoke test (6 calls, en/fr/es) measured ≈ $0.0006–0.0008 per call with radar and ≈ $0.00013
+  without, roughly 0.25–0.3× the 4.5 per-call cost (an estimate, not a side-by-side run) —
+  re-baseline the Console cost dashboard. **Latency:** radar calls now take ~4–5 s (~650–750
+  thinking tokens on the ETA reasoning, ~1000 on a busy extended-radius ring); no-radar
+  calls skip thinking and stay ~1 s. Prompt text unchanged pending a 5.5-only A/B. **Rollback =
+  revert the whole commit** (Haiku 4.5 rejects `effort` with a 400). Docs corrected:
+  the model-upgrade runbook in `docs/ai-summary.md`, the stale 280-token cap in
+  `architecture.md`, and the ROADMAP prompt-caching minimum (4096 tokens on Haiku 4.5 and 512 on
+  Haiku 5.5, not the 1024 it quoted); `docs/api.md` now spells out the endpoint's error contract,
+  new 502 included. 21 new tests in `test/aiSummaryClaudeReply.test.js` lock the request shape,
+  the reply classification and the radar label AiView parses (suite 603 → 624).
 - **Pinning the kiosk's own default location no longer costs a favorite slot** — the list
   holds **7 places when one of them is the default, 6 otherwise**. The cap was always really
   a *row* budget: the Places popover fits 7 rows, and the `⌂` home pseudo-row occupies one
