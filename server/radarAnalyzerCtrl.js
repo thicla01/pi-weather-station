@@ -1,9 +1,11 @@
-// Radar analyzer — samples the RainViewer radar at 32 points around a given
-// location (8 directions × 4 distances), at 3 timestamps (now, -15min, -45min),
-// and returns a compact textual summary suitable for inclusion in a Claude
-// prompt. The point of the textual representation is to let the model reason
-// about precipitation movement and arrival time without trying to interpret
-// raw map images.
+// Radar analyzer — samples the RainViewer radar around a given location at
+// 161 points (centre + INNER_DIRECTIONS' 16 directions × 10 RADAR_GEOMETRY
+// distances), or 481 when extendedRadius adds the outer ring
+// (OUTER_DIRECTIONS' 32 directions × 10 more distances), at 3 timestamps
+// (now, -15min, -45min), and returns a compact textual summary suitable for
+// inclusion in a Claude prompt. The point of the textual representation is
+// to let the model reason about precipitation movement and arrival time
+// without trying to interpret raw map images.
 //
 // Tiles are fetched from the same RainViewer endpoint the client uses for
 // the radar layer. We cache tile PNGs across requests and cache the final

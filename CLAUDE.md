@@ -188,7 +188,7 @@ These rules apply to every change, regardless of size. They exist to keep the co
 ### Server
 - All outbound HTTP calls must include `{ timeout: 10_000 }` — deliberate exception: the Anthropic SDK client in `aiSummaryCtrl` uses `CLAUDE_TIMEOUT_MS` (30 s), since a generated reply plus adaptive thinking outlasts a data fetch
 - New endpoints must be protected by the appropriate middleware (`localhostOnly`, `apiLimiter`, or `tileLimiter`) before being shipped
-- Never read `settings.json` directly from a controller — always go through `settingsCtrl.getSettings()`
+- Never read `settings.json` directly from a controller — always go through `settingsCtrl.getSettingsData()` (`getSettings` is the `GET /settings` HTTP handler, not an internal reader)
 
 ### Tests
 - Live in `test/<area>.test.js` and run via `npm test` (Node's built-in `node --test` runner — no test deps).

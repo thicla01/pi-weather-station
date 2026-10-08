@@ -122,8 +122,10 @@ told explicitly which piece is missing so it doesn't hallucinate values.
 
 1. Fetches the **RainViewer frame index** (`weather-maps.json`) to discover
    the latest 3 timestamps it should compare (now / -15 min / -45 min).
-2. Computes which **256×256 PNG tiles** at zoom 6 cover the user's
-   location plus the surrounding 100 km radius.
+2. Computes which **512×512 PNG tiles** at zoom 7 (RainViewer's max
+   native zoom — `ZOOM` / `TILE_SIZE`) cover the sampling points: the
+   user's location plus the surrounding 50 km radius (100 km with
+   `advanced.ai.extendedRadius`).
 3. Fetches each unique `(framePath, tileX, tileY)` PNG from RainViewer's
    `tilecache.rainviewer.com` CDN. Tile cache: 60 minutes
    (`TILE_CACHE_TTL`, a pure eviction policy: a tile's content never
@@ -143,8 +145,9 @@ told explicitly which piece is missing so it doesn't hallucinate values.
    (`formatSnapshot`) — only non-zero samples within the active annulus
    are listed; "Clear within X km" and "Clear beyond Y km" describe the
    surrounding empty zones in one phrase each. This compression dropped
-   the radar block from ~5000 to ~2600 chars (62% reduction) and is what
-   keeps the Anthropic call cheap.
+   the radar block from ~5000 to ~2600 chars (~48 % reduction; ~62 % vs
+   the 6770-char uncompressed legacy format — measured on a real
+   Montréal frame, 2026-05-05) and is what keeps the Anthropic call cheap.
 8. Caches the formatted snapshot keyed by
    `lat:lon:radiusTag:unit:FORMAT_VERSION`. Freshness is two-tier
    (2026-07): inside the 5-minute soft TTL (`ANALYSIS_CACHE_TTL`) the
@@ -499,7 +502,7 @@ Advanced settings → AI weather summary**:
 
 | Setting | Default | What it does |
 |---|---|---|
-| `radarAnalysisEnabled` | `true` | Scope knob for the LLM-narrated portion of the radar feature. When `false`: (a) the AI summary's third paragraph is skipped entirely — analyzer short-circuited server-side, no radar block in the prompt; (b) the dashed sampling-zone circles disappear from the map. On Haiku 5.5 it is a small cost lever (≈ $0.0006-0.0008 vs ≈ $0.00013 per call in the 2026-10-08 smoke test) but the main latency lever: no-radar prompts skipped thinking entirely and returned in ~1-1.5 s instead of ~4-5 s. **The rain-alert banner is unaffected** — it uses the same risk data computed locally and keeps firing for severe / heavy precipitation regardless of this setting (since v2026-05-09 — see PR #68 for the decoupling rationale). |
+| `radarAnalysisEnabled` | `true` | Scope knob for the LLM-narrated portion of the radar feature. When `false`: (a) the AI summary's third paragraph is skipped entirely — analyzer short-circuited server-side, no radar block in the prompt; (b) the dashed sampling-zone circles disappear from the map. On Haiku 5.5 it is a small cost lever (≈ $0.0006-0.0008 vs ≈ $0.00013 per call in the 2026-10-08 smoke test) but the main latency lever: no-radar prompts skipped thinking entirely and returned in ~1-1.5 s instead of ~4-5 s. **The rain-alert banner is unaffected** — it uses the same risk data computed locally and keeps firing for severe / heavy precipitation regardless of this setting (since v2026-05-09 — see [PR 68](https://github.com/thicla01/pi-weather-station/pull/68) for the decoupling rationale). |
 | `extendedRadius` | `false` | When `true`, samples the outer ring (32 directions × 10 distances, 55-100 km / 33-60 mi). Triples the sample count (161 → 481), more than doubles the prompt (2026-10-08 smoke test, synthetic radar: 3461 input tokens for the Spanish extended-radius prompt vs 1397-1496 for the English / French inner-ring ones), and lets Claude reason about cells further out. |
 | `showSamplingPoints` | `false` | Purely client-side render flag — no impact on the prompt. |
 | `calmDayFastPath` | `true` | When enabled, the server skips the Claude call on calm days (no active precipitation, current and period precipitation probabilities below 20 %, AND the radar snapshot is fully clear) and returns a localised templated summary instead. The template renders three paragraphs to mirror the Claude path's structure: current conditions, period forecast (`evening` / `overnight` / `tomorrow` window), and a confident radar "nothing to report within {distance}". Saves one Claude call per cache window per location whenever conditions are quiet: under a tenth of a cent per skipped call on Haiku 5.5, but also the call's latency and its failure modes. Claude is still invoked the moment any of the four gates trip — including when Tomorrow.io says calm but radar shows precipitation, so the summary never contradicts what's visible on the map. Disable to always invoke Claude regardless of conditions. |

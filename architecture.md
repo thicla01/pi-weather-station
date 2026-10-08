@@ -441,6 +441,10 @@ Client: GET /api/weather-summary?lat=…&lon=…&lang=fr&localHour=14&…
   → aiSummaryCtrl reads anthropicApiKey via settingsCtrl.getSettingsData()
       → 503 if absent
   → checks summaryCache (key: lat/lon/lang/localHour period + unit prefs) → miss
+  → in-flight coalescing (inflightSummaries): a concurrent miss on the same key
+      awaits the build already running and mirrors its status/body — one radar
+      pipeline + one Claude call for the lot (exception: a local kiosk that
+      would inherit a remote owner's 429 runs its own build instead)
   → reads current/hourly/daily from shared weatherCache (a current-conditions
       miss triggers one non-fatal Tomorrow.io backfill)
   → calls radarAnalyzerCtrl.analyzeRadar(lat, lon)
@@ -450,7 +454,15 @@ Client: GET /api/weather-summary?lat=…&lon=…&lang=fr&localHour=14&…
         161 sample points (centre + 16 directions × 10 distances; 481 with
         advanced.ai.extendedRadius), classifies intensity, formats as text
       → returns a compact "now: clear / -15 min: light NE / -45 min: ..." block
+  → calm-day fast path (advanced.ai.calmDayFastPath, default on): benign weather
+      code, precip probability < 20 % now and for the coming period, and no
+      radar return → templated summary, NO Claude call; cached 15 min,
+      recordServiceCall(…, 200, "calm-day fast path (no LLM call)") → returns
+  → no current, period or radar data at all → 503 "No weather data available"
   → builds 1/2/3-paragraph prompt depending on which data is available
+  → billed-call ceiling (reserveClaudeCall), remote peers only — the local kiosk
+      is exempt: past 10 billed calls/min process-wide or 4/min per socket peer
+      → 429 "AI summary temporarily rate-limited", nothing spent
   → Anthropic SDK (buildClaudeRequest): claude-haiku-5-5, adaptive thinking,
       effort "low", no sampling params → max_tokens 3072 with radar, 1024 without
   → classifyClaudeReply: summary = the reply's type === "text" blocks only
