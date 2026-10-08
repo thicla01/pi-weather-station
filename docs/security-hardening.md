@@ -189,8 +189,10 @@ the billing implications.
 ### Threat: a remote user inflates the API bill
 
 The AI weather summary consumes Anthropic API tokens. Each refresh of the
-summary makes one Claude call (cached 15 min server-side). The size and
-behavior of that call is controlled by `advanced.ai.*` settings:
+summary makes at most one Claude call (cached 15 min server-side; a
+truncated reply only 5 min, and a refusal or empty reply not at all, so the
+next poll retries it). The size and behavior of that call is controlled by
+`advanced.ai.*` settings:
 
 | Setting | Effect on Claude billing |
 |---|---|
@@ -198,7 +200,10 @@ behavior of that call is controlled by `advanced.ai.*` settings:
 | `extendedRadius` | Adds the outer-ring samples (161 → 481 points fed to the prompt) — meaningfully larger context |
 | `showSamplingPoints` | Purely client-side rendering; no billing impact |
 
-The per-toggle impact is small (a few cents per refresh at most), but the
+The per-toggle impact is small — a whole call cost well under a cent even
+on Haiku 4.5, and on Haiku 5.5 it is ≈ $0.0001 without radar to ≈ $0.0011
+with the extended-radius radar block over real precipitation (measured
+2026-10-08) — but the
 aggregate risk on a long-running deployment is real, and the principle
 matters: **only the device owner should be able to dial up settings that
 bill against their API key**.
@@ -214,6 +219,23 @@ bill against their API key**.
   mode (toggles dimmed, click-blocked) with a notice directing the user to
   open an SSH tunnel for actual changes. The UI lock is cosmetic — the
   server-side `localhostOnly` is the real enforcement.
+- **Billed-call ceiling.** The settings lock bounds what each call costs;
+  this bounds how many calls a remote client can make. `aiSummaryCtrl`
+  reserves a slot before every Claude call that a remote request triggers:
+  at most `MAX_CLAUDE_CALLS_PER_MIN` (10) per sliding minute for all remote
+  peers combined, and `MAX_CLAUDE_CALLS_PER_MIN_PER_PEER` (4) for any one
+  socket peer. Over either, the endpoint answers 429 without calling
+  Anthropic. The ceiling is per process and in memory. The local kiosk
+  (`req.isLocal`, from the socket peer) is exempt, so a remote flood can't
+  starve its own refresh. The summary cache can't give this guarantee,
+  because its key can be jittered. Dollar bound, worst case (every call a
+  ~4.2K-token stormy extended-radius prompt, as measured live, that fills
+  the whole 3,072-token `MAX_TOKENS_RADAR` cap): 10 calls/min × 1,440 min ×
+  (4.2K × $0.10/MTok + 3,072 × $0.50/MTok) ≈ **$28/day** on Haiku 5.5,
+  against ≈ $75/day on Haiku 4.5 at its old 400-token cap ($1 / $5 per MTok;
+  its tokenizer counts the same prompt as ~3.2K tokens). The output cap is ~80 % of
+  that figure, so raising the `MAX_TOKENS_*` caps raises the bound.
+  The kiosk's own refreshes come on top.
 
 #### What `GET /settings` still exposes to a remote client
 
@@ -232,14 +254,27 @@ is `localhostOnly`.
 
 ### Recommendations beyond the defaults
 
-- Set per-period quotas in the Anthropic dashboard so a misbehaving deploy
-  cannot run away with billing. The debug panel already tracks per-endpoint
-  request counters but doesn't enforce caps.
+- Set per-period quotas (a spend limit plus spend alerts) in the Anthropic
+  Console so a misbehaving deploy cannot run away with billing. The
+  ceiling above caps call *count*, not dollars, and the debug panel's
+  per-endpoint request counters only count. Haiku 5.5 brought the per-call
+  price down to roughly a quarter of Haiku 4.5's, so lower any threshold
+  sized for the old bill: legitimate use is about one billed call per
+  15-minute cache window per kiosk and location (≈ 96/day, so ≈ $0.06-0.10/day
+  at the measured radar cost on Haiku 5.5 and ≈ $0.19/day if every call hit
+  the worst case above, less on calm days). An alert at about $8 a month
+  per kiosk still leaves headroom, and a remote flood saturating the
+  ceiling (≈ $28/day) trips it quickly. A threshold sized for the Haiku 4.5
+  bill would let the same flood run several times longer before anyone
+  hears about it.
 - For multi-Pi deployments, prefer one API key per device rather than one
   shared key — limits blast radius if a single device is compromised.
 - Watch for unexpected spikes in `services` activity in the debug panel,
   particularly Anthropic call rates. A sudden 24x jump is more likely
   configuration drift than an attack but worth investigating either way.
+  A 429 with the comment `throttled (per-process call ceiling)` on the
+  `Claude (AI summary)` service row means the billed-call ceiling is biting,
+  which legitimate remote traffic never does.
 
 ## TLS / SSL — using your own certificate
 

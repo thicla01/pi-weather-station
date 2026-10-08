@@ -109,7 +109,8 @@ server/index.js  ─── entry point, routes, middleware, HTTPS server
     │                        the radar analyzer's textual snapshots, then
     │                        calls Claude Haiku (Anthropic SDK). Owns its
     │                        own in-memory summary cache (15 min TTL, keyed
-    │                        by lat/lon/lang/period). Returns 503 if no key.
+    │                        by lat/lon/lang/period + temp/speed/distance
+    │                        units). Returns 503 if no key.
     │
     ├── radarAnalyzerCtrl.js Samples the RainViewer radar around the user at
     │                        3 timestamps (now, -15, -45 min). Geometry is
@@ -122,7 +123,7 @@ server/index.js  ─── entry point, routes, middleware, HTTPS server
     │                        Reads tile pixels via pngjs, classifies against
     │                        the 6-level NEXRAD palette, returns a compact
     │                        textual grid for inclusion in the AI prompt.
-    │                        Tile cache: 12 min. Analysis cache: 5 min.
+    │                        Tile cache: 60 min. Analysis cache: 5 min.
     │
     ├── geolocationCtrl.js   Resolves the Pi's approximate location via
     │                        ipapi.co with retry-with-backoff (5 attempts)
@@ -437,19 +438,31 @@ User clicks map
 
 ```
 Client: GET /api/weather-summary?lat=…&lon=…&lang=fr&localHour=14&…
-  → aiSummaryCtrl checks summaryCache → miss
-  → reads anthropicApiKey from settings.json → 503 if absent
-  → reads current/hourly/daily from shared weatherCache (no new API call)
+  → aiSummaryCtrl reads anthropicApiKey via settingsCtrl.getSettingsData()
+      → 503 if absent
+  → checks summaryCache (key: lat/lon/lang/localHour period + unit prefs) → miss
+  → reads current/hourly/daily from shared weatherCache (a current-conditions
+      miss triggers one non-fatal Tomorrow.io backfill)
   → calls radarAnalyzerCtrl.analyzeRadar(lat, lon)
-      → fetches RainViewer past frames (cached 12 min)
+      → fetches the RainViewer past-frames index (analysis cached 5 min,
+        decoded tiles 60 min)
       → for now, -15 min, -45 min: fetches matching tiles, reads pixels at
-        the 32 sample points, classifies intensity, formats as text
+        161 sample points (centre + 16 directions × 10 distances; 481 with
+        advanced.ai.extendedRadius), classifies intensity, formats as text
       → returns a compact "now: clear / -15 min: light NE / -45 min: ..." block
   → builds 1/2/3-paragraph prompt depending on which data is available
-  → Anthropic SDK: claude-haiku-4-5 → max_tokens 280 with radar, 150 without
-  → stores in summaryCache (TTL 15 min)
-  → recordServiceCall("Claude (AI summary)", 200, "OK")
-  → returns { summary: "…three paragraphs…" }
+  → Anthropic SDK (buildClaudeRequest): claude-haiku-5-5, adaptive thinking,
+      effort "low", no sampling params → max_tokens 3072 with radar, 1024 without
+  → classifyClaudeReply: summary = the reply's type === "text" blocks only
+      (a Haiku 5.5 reply can open with thinking blocks)
+      → ok              → stores in summaryCache (TTL 15 min)
+      → truncated       → served, cached TRUNCATED_SUMMARY_TTL (5 min) only
+      → refusal / empty → 502 "AI summary failed", never cached; service
+          status 422 (refusal) / 502 (no text)
+  → recordServiceCall("Claude (AI summary)", 200, "OK (in=… out=… think=…)")
+      (ok / truncated only; a truncated reply logs "OK, truncated (…)")
+  → returns { summary: "…three paragraphs…", period: "evening" }
+      (period = forecast slot covered: evening / overnight / tomorrow, or null)
 ```
 
 ### Indoor temperature poll loop

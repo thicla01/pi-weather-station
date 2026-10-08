@@ -51,9 +51,9 @@ The `/6/` segment selects **NEXRAD Level III colour scheme 6** —
 that's the palette we match pixels against in step ③, so changing it
 would invalidate the matching table.
 
-Tiles are cached for 12 minutes per `(framePath, tileX, tileY)` —
-RainViewer refreshes radar every ~10 minutes, so most polls hit the
-cache.
+Tiles are cached for 60 minutes per `(framePath, tileX, tileY)`. A
+tile's content never changes for a given frame path, so the TTL is
+only an eviction policy; most polls hit the cache.
 
 ## ③ Pixel → intensity (the noisy step)
 
