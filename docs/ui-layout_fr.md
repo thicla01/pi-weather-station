@@ -73,9 +73,11 @@ Variante A « Compagnon nomade » du dossier de design. Colonne unique défilant
 
 - **MID** (défaut) — le split ci-dessous : carte radar à gauche, rail *compagnon du radar* allégé à droite (alertes · horloge slim · hero ancré sur le ressenti · NowcastLine · qualité de l'air · un 2×2 Vent / Rafales / UV / Humidité · intérieur). Le graphique de prévisions et le résumé IA ne sont pas dans ce coup d'œil — les deux s'atteignent depuis le groupe **Vues** du dock : le bouton prévisions ouvre MAX, et le bouton IA (étincelle) ouvre la vue IA plein rail, quittée par son bouton retour. L'ouverture de la vue IA fonctionne sur tous les écrans Pi, y compris les 10,1" plus hauts (CSS 1024×640, hors du gate des vues prioritaires v3.3) ; jusqu'en 2026-10 elle n'existait que dans le modèle prioritaire v3.3, ce qui privait ces écrans de tout accès au résumé IA.
 - **MIN** — radar plein écran (l'ancien mode focus) : le rail se replie et le dock se masque pour que le radar remplisse vraiment l'écran. Rien d'autre ne recouvre la carte — la seule superposition est la **FloatingMiniBanner**, épinglée en haut à droite quand une alerte gouvernementale admissible est active, pour que le mode focus ne masque jamais une alerte sévère. *(Le `HeroOverlayMin` compact lieu / température que la v3.2 épinglait d'abord sur le radar a été retiré et le composant supprimé ; le coup d'œil lieu / température est à un tap dans le rail.)*
-- **MAX** — prévisions prioritaires : la carte se réduit en vignette gelée ~190 px et le graphique de prévisions prend tout le rail. Atteint par le **bouton prévisions** du dock (groupe Vues) ; quitté par le bouton restaurer du graphique. *(Refonte des affordances du rail 2026-06-24 : la NowcastLine ne maximise plus — c'est une ligne d'état radar seulement ; les prévisions sont passées au dock pour que l'état radar « maintenant » et les prévisions « futur » soient des affordances distinctes.)*
+- **MAX** — prévisions prioritaires : la carte se réduit en vignette gelée ~190 px, le graphique de prévisions prend tout le rail et le dock se masque (comme en MIN). Atteint par le **bouton prévisions** du dock (groupe Vues) ; quitté par le bouton restaurer du graphique. *(Refonte des affordances du rail 2026-06-24 : la NowcastLine ne maximise plus — c'est une ligne d'état radar seulement ; les prévisions sont passées au dock pour que l'état radar « maintenant » et les prévisions « futur » soient des affordances distinctes.)*
 
-Le diagramme ci-dessous détaille le rail en **MID** (ordre v3.2, de haut en bas — le graphique de prévisions et le résumé IA ne sont pas dans ce coup d'œil).
+**Deux rails MID.** MIN, MAX et la vue IA sont communs, mais LayoutPi a deux rails MID, choisis selon la hauteur du viewport CSS : au-dessus de 540 px, le rail empilé v3.2 détaillé ci-dessous ; à 540 px ou moins — le 7" officiel 800×480 — le coup d'œil des vues prioritaires v3.3, dont les points d'entrée ouvrent deux vues plein rail de plus, Alerte et Conditions (voir *Vues prioritaires (v3.3)* plus bas).
+
+Le diagramme ci-dessous détaille le rail **MID** empilé (ordre v3.2, de haut en bas — le graphique de prévisions et le résumé IA ne sont pas dans ce coup d'œil).
 
 ```
 ┌──────────────────────────┬──────────────────────────┐
@@ -118,6 +120,92 @@ Le diagramme ci-dessous détaille le rail en **MID** (ordre v3.2, de haut en bas
 ```
 
 *Les rangées de la pile d'alertes, la AirAlertCard et l'IndoorBlock ne s'affichent que lorsqu'elles ont quelque chose à montrer ; le rail défile quand la pile dépasse les 480 px de l'écran.*
+
+### Vues prioritaires (v3.3 — viewport court)
+
+Sur un viewport limité en hauteur, le rail empilé ci-dessus ne tient pas — sur le 7" en taille de texte G, il repoussait le 2×2 des métriques hors de la zone visible — alors LayoutPi passe au **modèle des vues prioritaires v3.3** : MID devient un *coup d'œil* compact dont chaque point d'entrée ouvre une **vue plein rail**, le mécanisme de MAX généralisé. Livré dans la PR 257 (squash `622965a`, 2026-06-20) derrière un indicateur opt-in et activé automatiquement sur l'écran court par la PR 258 (`aeda96e`) ; la PR 285 (`fbf11b8`) a basé la condition d'activation sur la hauteur du viewport CSS.
+
+#### Activation
+
+`priorityViewsEnabled()` dans `client/src/ui/piLayout.js` choisit le rail MID qu'affiche LayoutPi (LayoutPi lui-même reste choisi selon la largeur, 800–1279 px) :
+
+- **Automatique** — `matchMedia("(max-height: 540px)")`, la hauteur du *viewport* CSS (pas `window.screen.height`). Actif sur le 7" officiel 800×480 et sur tout écran que l'échelle d'affichage du kiosque ramène à la même hauteur (p. ex. un écran 7" 1024×600 mis automatiquement à l'échelle 1,25 → 819×480 px CSS). Les viewports LayoutPi plus spacieux — p. ex. les écrans 10,1" à 1024×640 px CSS — gardent le rail empilé v3.2.
+- **Stable d'une taille de texte à l'autre** — la préférence P / M / G est un `zoom` limité au sous-arbre `.rail` et ne change jamais le viewport ; le modèle ne peut donc pas basculer d'une taille de texte à l'autre sur un même écran.
+- **Forçage manuel** — `localStorage.forcePriorityViews = "on"` force le modèle sur un viewport plus haut (développement / test en fenêtre). L'une ou l'autre condition suffit à l'activer.
+- Contrairement au choix de disposition, la condition n'a pas d'écouteur `change` — elle est lue au rendu (un viewport de kiosque est fixe ; un changement d'échelle d'affichage relance le kiosque).
+
+#### Le coup d'œil (MID)
+
+```
+┌──────────────────────────┬──────────────────────────┐
+│ [+][−] zoom              │ AlertBanner — carte gouv │
+│ [carré focus] -> MIN     │  2 lignes : chip · source│
+│ (sous la pile de zoom)   │  · [⤢] -> AlertView ;    │
+│                          │  titre · compteur 1/N    │
+│                          ├──────────────────────────┤
+│                          │ AlertMiniCards (pastille │
+│                          │  « restaurer » seulement)│
+│                          ├──────────────────────────┤
+│                          │ AirAlertCard (AIR, si    │
+│   WeatherMap             │  QA ≥ élevé seulement)   │
+│   (carte encadrée 14 px, ├──────────────────────────┤
+│    Leaflet + tuiles radar│ TimeBlock compact        │
+│    RainViewer)           │ (heure · date · coucher) │
+│                          ├──────────────────────────┤
+│ pas de chronologie dans  │ HeroCompact (lieu · temp │
+│ le coup d'œil : le bouton│  · condition ; sans      │
+│ chronologie du dock      │  ressenti) [⤢] ->        │
+│ l'ouvre en MIN           │  ConditionsView          │
+│                          ├──────────────────────────┤
+│                          │ NowcastLine (RADAR ·     │
+│                          │  verdict · confiance —   │
+│                          │  état seulement, sans ⤢) │
+│                          ├──────────────────────────┤
+│                          │ AirCard (IQA · pollen ;  │
+│ légende                  │  rangée IQA masquée si   │
+│             attribution  │  AirAlertCard affichée)  │
+└──────────────────────────┴──────────────────────────┤
+│ BottomDock — groupe Vues : IA -> AiView ·           │
+│  prévisions -> MAX ; groupe Carte : chronologie ->  │
+│  MIN + curseur (dock masqué en MIN et dans les vues)│
+└─────────────────────────────────────────────────────┘
+```
+
+- **Carte d'alerte** — la carte gouvernementale compacte passe sur deux lignes : chip de sévérité · badge de source · ⤢, puis le titre sur sa propre ligne à côté du compteur `1 / N` qui fait défiler les alertes. Le ⤢ et le compteur sont ses deux zones de tap ; le ⤢ ouvre **AlertView**, et l'expansion en ligne `AlertDetailInline` disparaît.
+- **HeroCompact** — lieu · température · condition. La ligne du ressenti passe dans ConditionsView (la ligne soleil/lune est déjà masquée sur le rail Pi) ; le ⤢ en coin ouvre **ConditionsView** sans ajouter de hauteur à la carte.
+- **MetricsGrid et IndoorBlock** quittent le coup d'œil — tous deux passent dans ConditionsView.
+- **Inchangés par rapport au rail empilé** — la pastille « restaurer » (AlertMiniCards), la AirAlertCard, le TimeBlock slim, la NowcastLine (ligne d'état seulement) et l'AirCard (sa rangée IQA cède toujours la place à la AirAlertCard). Comme sur le rail empilé, le graphique de prévisions et le résumé IA ne sont pas dans le coup d'œil : les deux s'ouvrent en vues plein rail depuis le dock.
+
+#### Vues plein rail
+
+La v3.3 a étendu l'enum `piLayoutState` avec `'alert'`, `'conditions'` et `'ai'` ; avec `'max'`, ils forment `MAX_VIEWS` dans `client/src/ui/piLayout.js` (vérifié par `isPiMaxView()`). Seul le modèle prioritaire produit `'alert'` et `'conditions'` ; `'ai'` et `'max'` s'ouvrent depuis le dock sur toute LayoutPi, rail empilé compris. Toutes les vues plein rail partagent le cadre de MAX : la carte se réduit en vignette gelée ~190 px (zoom, carré focus et légende masqués, animation radar en pause), le coup d'œil et le dock se masquent, et la vue prend tout le rail. Le carré de réduction de chaque vue (équerres vers l'intérieur, en haut à droite) ramène à `'mid'` — le dock étant masqué, c'est le chemin du retour.
+
+| État | Vue | Ouverte depuis | Rail |
+|------|-----|----------------|------|
+| `'alert'` | **AlertView** | le ⤢ de la carte d'alerte | prioritaire seulement |
+| `'conditions'` | **ConditionsView** | le ⤢ du HeroCompact | prioritaire seulement |
+| `'ai'` | **AiView** | le bouton IA (étincelle) du dock — groupe Vues | les deux |
+| `'max'` | **ChartTabs**, agrandi (prévisions) | le bouton prévisions du dock — groupe Vues | les deux |
+
+- **AlertView** — un en-tête fixe porte le traitement de sévérité (une alerte `extreme` reçoit une bande rouge pleine, texte en blanc ; toute autre sévérité, le chip de sévérité teinté), le badge de source, le titre et le carré de réduction, plus une ligne de validité (p. ex. « Jusqu'à 19 h 30 · NWS Mobile AL ») quand l'alerte a une expiration. En dessous, un sélecteur **Aussi actives** liste les autres alertes admissibles en chips à pastille de sévérité — toucher un chip en fait l'alerte affichée (la rangée défile horizontalement). Seul le corps structuré défile : les sections extraites (*Zones affectées* · *Ce qui se passe* · *Ce qui a été observé* · *Source des données* · *Impacts possibles*…), avec le même rendu de sections que `AlertDetailInline` ; *Mesures à prendre* n'apparaît que si le bulletin de l'autorité contient un bloc d'actions — le kiosque ne rédige jamais ses propres consignes de sécurité. Le corps se termine par le code QR vers le bulletin source (règle kiosque : QR seulement) et **Masquer** (cache l'alerte 4 h ; elle réapparaît si elle s'aggrave), qui ramène au coup d'œil. Si l'alerte expire ou quitte l'ensemble admissible pendant la lecture, la vue revient d'elle-même au coup d'œil.
+- **ConditionsView** — de haut en bas : la ligne du ressenti ; le **MetricsGrid** étendu à six tuiles sur trois colonnes, soit deux rangées thématiques — Vent · Rafales · UV, puis Humidité · Pression · Visibilité (pression selon la préférence d'unités, visibilité selon l'unité de distance ; la tuile UV garde son popover détail) ; l'**IndoorBlock** (si configuré) ; et un almanach **Soleil / Lune** — lever · coucher · durée du jour, phase de lune + illumination · lever · coucher de la lune — dont les en-têtes soulignés en pointillé ouvrent les mêmes popovers soleil/lune que le héros grand écran (LayoutPi masque la ligne astro du héros ; sur le 7", c'est donc le seul accès à ces popovers).
+- **AiView** — le résumé de Claude en au plus trois sections titrées par leur vraie période : *Maintenant*, puis *Ce soir* / *Cette nuit* / *Demain* (sinon *Prochaine période*), puis *Analyse radar*, avec les états « Génération du résumé… » et « Résumé IA indisponible. ». Montée à la demande — seulement dans l'état `'ai'` — pour que l'appel Anthropic payant parte à l'ouverture de la vue, jamais en arrière-plan. Le bouton étincelle l'ouvre depuis le dock de toute LayoutPi, rail empilé compris (voir MID plus haut) ; il s'affiche sauf si le serveur a répondu qu'aucune clé Anthropic n'est configurée (HTTP 503), et n'est pas réservé au mode debug.
+- **Prévisions (`'max'`)** — le MAX v3.2 décrit plus haut, inchangé : ChartTabs agrandi ; son bouton restaurer ramène à `'mid'`. Comme AiView, elle existe aussi sur le rail empilé.
+
+Les hôtes prévisions, conditions et alerte restent montés pendant qu'ils sont masqués (`display: none`), ce qui préserve leur état lors d'un aller-retour (p. ex. les onglets de période et de métrique des prévisions) ; l'hôte IA n'est monté que lorsque la vue est ouverte.
+
+#### Curseur radar → MIN
+
+Dans le modèle prioritaire, la chronologie radar ne s'affiche jamais sur la demi-carte du coup d'œil — le curseur est un outil du radar plein écran :
+
+- Le bouton chronologie du dock (groupe Carte) active l'indicateur éphémère `piScrubberOpen` (AppContext, en mémoire seulement) et passe en MIN, avec le toast « Chronologie radar affichée ». Il ne touche jamais la préférence persistée `radarTimelineVisible` qu'utilisent le rail empilé, LayoutDesktop et LayoutMobile.
+- Le curseur ne s'affiche que si l'état est MIN **et** que l'indicateur est actif.
+- LayoutPi efface l'indicateur dès que l'état quitte MIN, par n'importe quel chemin (carré focus, FloatingMiniBanner) : la prochaine entrée en MIN par le carré focus donne un radar épuré, et le curseur ne revient que par le bouton du dock. Le dock étant masqué en MIN, fermer le curseur revient à quitter MIN.
+
+#### Références de design
+
+- [`docs/v3.3-priority-views-design.md`](v3.3-priority-views-design.md) — le design figé ; ses notes **As built** consignent les écarts du code (pas de renommage `'forecast'`, la vue IA ajoutée — sur tous les écrans Pi depuis 2026-10 — et l'entrée des prévisions déplacée au dock).
+- [`docs/rail-affordance-redesign-design.md`](rail-affordance-redesign-design.md) — le vocabulaire de tap que suit le coup d'œil : le ⤢ approfondit le même sujet, un bouton du dock change de sujet, un soulignement pointillé ouvre un popover ; pourquoi la NowcastLine a perdu son ⤢.
 
 ### Adaptations toujours actives (toute hauteur en `LayoutPi`)
 
