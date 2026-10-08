@@ -21,6 +21,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   the view opens. Found on HMIRaspiFR while canarying the Haiku 5.5 switch, where the kiosk had
   made no AI request since 2026-10-03; the threshold question (extend the v3.3 priority views to
   1024×640 panels?) stays open.
+- **The AI view's radar section now opens with a capital letter.** Claude writes the radar
+  paragraph as `Analyse radar : les précipitations…` — lower case after the colon, correct inline
+  — and the AI view strips that label because the section already carries an "Analyse radar"
+  heading, which left the body opening in lower case. `AiView` now upper-cases the first letter
+  of the stripped body (`capitalizeFirst`); the calm-day template's radar line gets the same fix.
 
 ## [3.3.0] - 2026-10-08
 

@@ -19,13 +19,28 @@ const RADAR_PREFIX = /^(analyse radar|radar analysis|análisis radar)\s*:\s*/i;
 const KNOWN_PERIODS = ["evening", "overnight", "tomorrow"];
 
 /**
+ * Upper-case the first character of a section body. Stripping the radar label
+ * leaves the sentence that followed the colon, which French and Spanish (and
+ * often English) write lower-case after a colon — correct inline, but once the
+ * label becomes a section heading the body reads as a sentence that opens in
+ * lower case ("les précipitations…").
+ *
+ * @param {string} text section body
+ * @returns {string} the body with its first character upper-cased
+ */
+function capitalizeFirst(text) {
+  return text ? text.charAt(0).toLocaleUpperCase() + text.slice(1) : text;
+}
+
+/**
  * Split the raw Claude summary string into the three priority-view sections.
  *
  * The summary is up to three paragraphs (blank-line separated, but tolerant of
  * a single newline — same split as AiSummaryInline): current conditions, the
  * forecast period, and the radar analysis. The radar paragraph is identified by
  * its language-specific prefix (not by position) so a missing forecast doesn't
- * mislabel it; the prefix is stripped from the body. Anything beyond the first
+ * mislabel it; the prefix is stripped from the body, whose first letter is then
+ * upper-cased (see `capitalizeFirst`). Anything beyond the first
  * non-radar paragraph folds into the forecast section so no text is dropped.
  *
  * The first two sections are titled by their REAL period name — "Now" for the
@@ -47,7 +62,7 @@ function splitSummary(summary, t, period) {
   // a stray internal newline that splits the radar paragraph doesn't leak its
   // tail into the forecast section. Paragraphs before it are current/forecast.
   const radar = radarIdx >= 0
-    ? paras.slice(radarIdx).join("\n\n").replace(RADAR_PREFIX, "").trim()
+    ? capitalizeFirst(paras.slice(radarIdx).join("\n\n").replace(RADAR_PREFIX, "").trim())
     : null;
   const rest = radarIdx >= 0 ? paras.slice(0, radarIdx) : paras;
 
@@ -71,8 +86,9 @@ function splitSummary(summary, t, period) {
 
 /**
  * v3.3 IA priority view — the Claude weather summary as a full-rail surface,
- * reached from the dock's IA button on the 7" kiosk (the button was a dead
- * toggle in the priority model since the AI prose was dropped from the glance).
+ * reached from the dock's IA button on every Pi panel — the 7" priority model
+ * and, since 2026-10, the taller 10.1" panels' v3.2 stacked rail (neither rail
+ * shows the AI prose inline, so without this view the summary is unreadable).
  *
  * Mounted lazily (LayoutPi renders it only in the "ai" state) so the paid
  * Anthropic call fires on demand via `useAiSummary`, not as background
