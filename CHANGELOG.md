@@ -7,7 +7,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
-### Fixed
+## [3.3.0] - 2026-10-08
+
+### Fixed (post-stamp, folded in before tagging)
 - **An ECCC alert whose area arrives as a GeoJSON `GeometryCollection` now matches the point it covers.** `eccc.js` hands each alert's raw geometry to `_shared.pointInPolygon`, which understood only `Polygon` / `MultiPolygon` and silently answered "outside" for anything else — and for ECCC that test *is* the detection, so such an alert would have produced no banner, no map overlay and nothing on the Sense HAT, with no error anywhere. The nearby-alerts radius test (`circleIntersectsPolygon`) had the same blind spot. Latent, never observed: ECCC serves plain polygons today, but its targeted thunderstorm / tornado warning polygons (launched 2026-08-12) "can be split and merged", and NWS already hit the identical hole in June (the Houston Flood Watch, zone `TXZ213` served as a `GeometryCollection`). Found by the 2026-10-07 read-only audit. The flattening now lives once, in `_shared.js` (`polygonsOf`): `Polygon` / `MultiPolygon` contribute their polygons, a `GeometryCollection` is flattened recursively, and points and lines contribute nothing — a line through the location still covers no area. `pointInPolygon`, the radius test's ring extraction and `mergeAsMultiPolygon` (moved from `nwsZones.js`, which re-exports it) all build on it, so ECCC and NWS share one implementation. ECCC also normalises the geometry it serves: a `GeometryCollection` reaches the client as a `MultiPolygon` of its polygonal members, the treatment NWS zones already get, because the client's map-tap test only knows polygonal shapes. NWS behaviour and plain `Polygon` / `MultiPolygon` alerts are unchanged — the existing zone tests pass untouched, and the merge and the point / radius tests give identical results before and after on 40,000 fuzzed inputs. A polygon with no coordinates now reads as "covers nothing" instead of throwing a `TypeError` out of the alert scan. 13 new regression tests in `test/geometryCollection.test.js` (10 fail on the old code); suite 637/637. Server-side fix: the one client edit is a comment, and a rebuild leaves `dist/` byte-identical.
 - **The AI summary is reachable again on the 10.1" Pi panels.** Since the June 2026 Pi layout
   overhaul (`622965a`), neither Pi rail carries the Claude summary inline; the only way to read
@@ -26,8 +28,6 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   — and the AI view strips that label because the section already carries an "Analyse radar"
   heading, which left the body opening in lower case. `AiView` now upper-cases the first letter
   of the stripped body (`capitalizeFirst`); the calm-day template's radar line gets the same fix.
-
-## [3.3.0] - 2026-10-08
 
 ### Added
 - **`design-system/` — the Ambient Layers design system as a Claude Design bundle.** Source of
@@ -66,7 +66,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   without, roughly 0.25–0.3× the 4.5 per-call cost (an estimate, not a side-by-side run) —
   re-baseline the Console cost dashboard. **Latency:** radar calls now take ~4–5 s (~650–750
   thinking tokens on the ETA reasoning, ~1000 on a busy extended-radius ring); no-radar
-  calls skip thinking and stay ~1 s. Prompt text unchanged pending a 5.5-only A/B. **Rollback =
+  calls skip thinking and stay ~1 s. Prompt text unchanged pending a 5.5-only A/B.
+  **Canary** (RPi5-PWS5 + HMIRaspiFR, ~16 h): every call `end_turn`, no refusal / empty /
+  truncated reply; largest output 1694 tokens (1401 thinking), 55 % of the 3072 cap. **Rollback =
   revert the whole commit** (Haiku 4.5 rejects `effort` with a 400). Docs corrected:
   the model-upgrade runbook in `docs/ai-summary.md`, the stale 280-token cap in
   `architecture.md`, and the ROADMAP prompt-caching minimum (4096 tokens on Haiku 4.5 and 512 on
