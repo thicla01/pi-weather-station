@@ -33,8 +33,8 @@ import styles from "./styles.css";
  *   │                              │  AirCard               │
  *   │                              │  MetricsGrid           │
  *   │                              │  IndoorBlock           │
- *   │                              │  ChartTabs             │
- *   │                              │  AiSummaryInline       │
+ *   │                              │  (ChartTabs: MAX only) │
+ *   │                              │  (AiView: "ai" only)   │
  *   ├──────────────────────────────┴────────────────────────┤
  *   │  BottomDock                                            │
  *   └────────────────────────────────────────────────────────┘
@@ -53,7 +53,8 @@ import styles from "./styles.css";
  * forecast dock button (the "views" group), left via the chart's restore
  * button. (The NowcastLine no longer maximizes — rail-affordance redesign
  * 2026-06-24: it is a status-only radar line; forecast access lives in the
- * dock.)
+ * dock.) The dock's IA button opens the AI view the same way (`"ai"` state,
+ * left via its back button) on every Pi panel, priority gate or not.
  *
  * The sentinel: `piLayoutState` is "mid" on mount / `null` on unmount
  * (mirroring LayoutDesktop). `null` keeps the WeatherMap RadarFocusControl
@@ -201,11 +202,14 @@ const LayoutPi = () => {
             <AlertView />
           </div>
         )}
-        {/* v3.3 IA view host — mounted LAZILY (only in the "ai" state), unlike
+        {/* IA view host — mounted LAZILY (only in the "ai" state), unlike
           * the always-mounted hosts above: the AI view has no interactive state
           * to preserve, and lazy mount means the paid Anthropic fetch fires on
-          * open rather than as background overhead. */}
-        {priority && piLayoutState === "ai" && (
+          * open rather than as background overhead. NOT gated on `priority`:
+          * the v3.2 stacked rail has no inline AI summary either, so the dock's
+          * IA button opens this view on every Pi panel (the taller 10.1"
+          * panels, CSS 1024×640, sit outside the priority gate). */}
+        {piLayoutState === "ai" && (
           <div className={styles.aiHost}>
             <AiView />
           </div>

@@ -364,9 +364,11 @@ export function AppContextProvider({ children }) {
   // v3.2 "3 états radar": the 7" Pi screen now has THREE layout states
   // (MIN fullscreen radar / MID split / MAX forecast-forward), carried by a
   // single enum `piLayoutState: "min" | "mid" | "max" | "alert" |
-  // "conditions" | "ai" | null`. The last three are the v3.3 priority-views
-  // full-rail views (Alert / Conditions / AI), produced only when
-  // `priorityViewsEnabled()`; `MAX_VIEWS` in `ui/piLayout.js` lists every
+  // "conditions" | "ai" | null`. The last three are the v3.3 full-rail views
+  // (Alert / Conditions / AI); "alert" and "conditions" are produced only
+  // when `priorityViewsEnabled()`, while "ai" is reachable from the dock's IA
+  // button on every LayoutPi (no Pi rail shows the AI summary inline);
+  // `MAX_VIEWS` in `ui/piLayout.js` lists every
   // full-rail state. `null` keeps the sentinel meaning "LayoutPi not mounted"
   // (the WeatherMap RadarFocusControl gate keys on non-null). MIN maps to the
   // old focus-mode `true`; every other state maps to `false`.

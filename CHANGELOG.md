@@ -9,6 +9,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Fixed
 - **An ECCC alert whose area arrives as a GeoJSON `GeometryCollection` now matches the point it covers.** `eccc.js` hands each alert's raw geometry to `_shared.pointInPolygon`, which understood only `Polygon` / `MultiPolygon` and silently answered "outside" for anything else — and for ECCC that test *is* the detection, so such an alert would have produced no banner, no map overlay and nothing on the Sense HAT, with no error anywhere. The nearby-alerts radius test (`circleIntersectsPolygon`) had the same blind spot. Latent, never observed: ECCC serves plain polygons today, but its targeted thunderstorm / tornado warning polygons (launched 2026-08-12) "can be split and merged", and NWS already hit the identical hole in June (the Houston Flood Watch, zone `TXZ213` served as a `GeometryCollection`). Found by the 2026-10-07 read-only audit. The flattening now lives once, in `_shared.js` (`polygonsOf`): `Polygon` / `MultiPolygon` contribute their polygons, a `GeometryCollection` is flattened recursively, and points and lines contribute nothing — a line through the location still covers no area. `pointInPolygon`, the radius test's ring extraction and `mergeAsMultiPolygon` (moved from `nwsZones.js`, which re-exports it) all build on it, so ECCC and NWS share one implementation. ECCC also normalises the geometry it serves: a `GeometryCollection` reaches the client as a `MultiPolygon` of its polygonal members, the treatment NWS zones already get, because the client's map-tap test only knows polygonal shapes. NWS behaviour and plain `Polygon` / `MultiPolygon` alerts are unchanged — the existing zone tests pass untouched, and the merge and the point / radius tests give identical results before and after on 40,000 fuzzed inputs. A polygon with no coordinates now reads as "covers nothing" instead of throwing a `TypeError` out of the alert scan. 13 new regression tests in `test/geometryCollection.test.js` (10 fail on the old code); suite 637/637. Server-side fix: the one client edit is a comment, and a rebuild leaves `dist/` byte-identical.
+- **The AI summary is reachable again on the 10.1" Pi panels.** Since the June 2026 Pi layout
+  overhaul (`622965a`), neither Pi rail carries the Claude summary inline; the only way to read
+  it is the full-rail AI view, and the dock's IA (sparkle) button opened that view only in the
+  v3.3 priority model, which is gated on a CSS viewport ≤ 540 px tall. The 10.1" kiosks
+  (1280×800 at display scale 1.25 = CSS 1024×640) sit outside that gate, so they had no AI
+  section at all, and their IA button had fallen back to the debug-only "hide the inline
+  section" toggle, which hid nothing. The IA button now opens the AI view on every Pi panel
+  (`ControlButtons` on `inPiDock`; `LayoutPi` mounts the AI host whenever `piLayoutState` is
+  `"ai"`); the v3.2 stacked rail itself is unchanged, and the summary is still fetched only when
+  the view opens. Found on HMIRaspiFR while canarying the Haiku 5.5 switch, where the kiosk had
+  made no AI request since 2026-10-03; the threshold question (extend the v3.3 priority views to
+  1024×640 panels?) stays open.
 
 ## [3.3.0] - 2026-10-08
 

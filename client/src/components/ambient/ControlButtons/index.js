@@ -145,6 +145,10 @@ const ControlButtons = () => {
   // the radar-timeline button (maximizes to MIN so the scrubber gets the full
   // radar width instead of the cramped MID half-pane).
   const inPriorityDock = priorityViewsEnabled() && piLayoutState != null;
+  // Any LayoutPi dock, v3.2 stacked rail or v3.3 priority views alike:
+  // LayoutPi sets piLayoutState ("mid") on mount in both. Drives the
+  // view-open buttons that must work on every Pi panel (IA, forecast).
+  const inPiDock = piLayoutState != null;
 
   // Places popover — local open state, anchored to its dock button. Kept
   // here rather than in AppContext: no other component needs to know
@@ -625,17 +629,22 @@ const ControlButtons = () => {
     </div>
   ) : null;
   // IA button — two behaviours sharing the sparkle glyph:
-  //  • v3.3 priority model (LayoutPi, flag on → `piLayoutState != null`):
-  //    opens the full-rail AiView (the Claude summary was dropped from the
-  //    glance, so the toggle had nothing to act on). Shown whenever the AI is
-  //    configured server-side — NOT debug-gated, it's a real feature. It does
-  //    NOT gate on `aiSummaryUserVisible`: that's the v2 "hide the inline
-  //    section" debug toggle, meaningless for a deliberate view open (and it
-  //    persists, so a stale `false` would wrongly suppress the view).
-  //  • v2 / desktop: the original debug-only toggle that hides the inline AI
-  //    summary section without touching the Anthropic key (`aiSummaryAvailable`
-  //    = server key reachable; `aiSummaryUserVisible` = this override).
-  const btnBot = inPriorityDock
+  //  • Any LayoutPi (`inPiDock`, v3.2 stacked rail AND v3.3 priority views):
+  //    opens the full-rail AiView. Neither Pi rail carries the Claude summary
+  //    inline since the 2026-06 layout overhaul, so this view is the ONLY way
+  //    to read it on a Pi panel. It was gated on `inPriorityDock` until
+  //    2026-10, which left the taller 10.1" panels (CSS 1024×640, outside the
+  //    ≤ 540 px priority gate) with no AI access at all and a dead debug
+  //    toggle in its place. Shown whenever the AI is configured server-side —
+  //    NOT debug-gated, it's a real feature. It does NOT gate on
+  //    `aiSummaryUserVisible`: that's the "hide the inline section" debug
+  //    toggle, meaningless for a deliberate view open (and it persists, so a
+  //    stale `false` would wrongly suppress the view).
+  //  • Mobile / desktop: the original debug-only toggle that hides the inline
+  //    AI summary section without touching the Anthropic key
+  //    (`aiSummaryAvailable` = server key reachable; `aiSummaryUserVisible` =
+  //    this override).
+  const btnBot = inPiDock
     ? (aiSummaryAvailable ? (
       <div
         key="bot"
@@ -670,7 +679,6 @@ const ControlButtons = () => {
   // entry point on the Pi. The down-state is a plain `.buttonDown` class
   // toggle when MAX is active — no animated highlight (kiosk-GPU rule #264).
   // No non-Pi analogue, so off the Pi dock the button is `null`.
-  const inPiDock = piLayoutState != null;
   const btnForecast = inPiDock ? (
     <div
       key="forecast"
@@ -779,8 +787,8 @@ const ControlButtons = () => {
         * to a full-rail content view", distinct from the Map group's
         * "manipulate the map in place". Holds the IA/sparkle view-open
         * (relocated out of the Map group) and the new forecast view-open.
-        * Both buttons are Pi-dock-only (btnForecast on `inPiDock`, btnBot's
-        * view-open on `inPriorityDock`); off the Pi they are both `null`. The
+        * Both view-opens are Pi-dock-only (both on `inPiDock`); off the Pi
+        * btnForecast is `null` and btnBot is at most the debug toggle. The
         * wrapper `.group` div + `.groupLabel` span are ALWAYS in the JSX, so
         * the group does NOT collapse on its own when empty — it would leave
         * an orphan "VIEWS" label (desktop) and a stray separator hairline.
