@@ -14,10 +14,11 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 - **The AI summary is reachable again on the 10.1" Pi panels.** Since the June 2026 Pi layout
   overhaul (`622965a`), neither Pi rail carries the Claude summary inline; the only way to read
   it is the full-rail AI view, and the dock's IA (sparkle) button opened that view only in the
-  v3.3 priority model, which is gated on a CSS viewport ≤ 540 px tall. The 10.1" kiosks
-  (1280×800 at display scale 1.25 = CSS 1024×640) sit outside that gate, so they had no AI
-  section at all, and their IA button had fallen back to the debug-only "hide the inline
-  section" toggle, which hid nothing. The IA button now opens the AI view on every Pi panel
+  v3.3 priority model, which is gated on a CSS viewport ≤ 540 px tall. Every taller Pi-layout
+  screen — the 10.1" kiosks (1280×800 at display scale 1.25 = CSS 1024×640, or an unscaled
+  1024×600) — sat outside that gate and had no AI section at all: the IA button was hidden, or,
+  on a `DEBUG=true` kiosk, replaced by the debug-only "hide the inline section" toggle, which hid
+  nothing. The IA button now opens the AI view on every Pi panel
   (`ControlButtons` on `inPiDock`; `LayoutPi` mounts the AI host whenever `piLayoutState` is
   `"ai"`); the v3.2 stacked rail itself is unchanged, and the summary is still fetched only when
   the view opens. Found on HMIRaspiFR while canarying the Haiku 5.5 switch, where the kiosk had
