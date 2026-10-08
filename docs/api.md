@@ -1,6 +1,6 @@
 # Pi Weather Station — API Reference
 
-*Current as of v2.19.0.*
+*Tracks `master`: every new or modified endpoint is documented here in the same change that ships it (a project rule, see `CLAUDE.md`). Release history lives in [`CHANGELOG.md`](../CHANGELOG.md).*
 
 All endpoints are served by the Express server on port **8443 (HTTPS)** or **8080 (HTTP)** as a fallback. Endpoints prefixed with `/api/` are subject to rate limiting unless noted otherwise.
 

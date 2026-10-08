@@ -16,7 +16,7 @@ const MAX_VIEWS = ["max", "alert", "conditions", "ai"];
 
 /**
  * True when the layout state is one of the full-rail views (forecast /
- * alert / conditions). Used by WeatherMap to switch the map to its
+ * alert / conditions / ai). Used by WeatherMap to switch the map to its
  * thumbnail + frozen-animation mode for ANY of them.
  *
  * @param {?string} state — the `piLayoutState` value

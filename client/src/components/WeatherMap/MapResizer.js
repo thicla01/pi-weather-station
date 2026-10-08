@@ -52,7 +52,7 @@ const MOBILE_INVALIDATE_FINAL_MS = 350;
  * @param {boolean} props.mobileRadarMaximized null on non-mobile layouts
  * @param {boolean} props.desktopRadarMaximized Desktop focus-mode state
  * @param {boolean} props.piRadarMaximized LayoutPi focus-mode state (MIN ⇔ true; derived shim)
- * @param {string} props.piLayoutState LayoutPi v3.2 layout enum ("min"|"mid"|"max"|null) — re-triggers the invalidate on the mid↔max thumbnail morph
+ * @param {string} props.piLayoutState LayoutPi layout enum ("min"|"mid"|"max"|"alert"|"conditions"|"ai"|null) — re-triggers the invalidate on the thumbnail morph into and out of any full-rail view
  * @param {number} props.latitude Current marker latitude
  * @param {number} props.longitude Current marker longitude
  * @param {number} props.zoom Current map zoom level

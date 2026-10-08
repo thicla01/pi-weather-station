@@ -173,7 +173,7 @@ async function checkDeployArtefactsChanged(repo) {
 // User-visible commit types that warrant a "What's new" entry in the update
 // modal. Internal-only types (docs, test, refactor, plain chore, ci) are
 // excluded so documentation-only pushes don't ping users. This vocabulary is
-// load-bearing for the whole 8-Pi fleet: `updateAvailable = shasDiffer &&
+// load-bearing for every kiosk in the fleet: `updateAvailable = shasDiffer &&
 // commits.length > 0`, so a type missing from this regex makes the kiosk
 // report "up to date" even though the SHAs differ. Five silent failures
 // shaped the current list:
@@ -182,7 +182,7 @@ async function checkDeployArtefactsChanged(repo) {
 //     exactly the kind of change the kiosk owner wants to know about.
 //   - `chore(deps):` was added after the 2026-05-07 Dependabot batch (express
 //     4 → 5, body-parser 1 → 2, plus minor groups) silently failed to surface
-//     an update on a fleet of 7 Pis: dependency upgrades carry security
+//     an update on the fleet (7 Pis then): dependency upgrades carry security
 //     patches and warrant a notification of their own.
 //   - `release:` was added 2026-05-13 after the v2.14.0 promotion commit
 //     (the literal "release: v2.14.0 — promote v3 Ambient UI…") was invisible

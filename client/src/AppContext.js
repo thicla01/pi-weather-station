@@ -363,10 +363,13 @@ export function AppContextProvider({ children }) {
   // routes its toggle to whichever sentinel is active.
   // v3.2 "3 états radar": the 7" Pi screen now has THREE layout states
   // (MIN fullscreen radar / MID split / MAX forecast-forward), carried by a
-  // single enum `piLayoutState: "min" | "mid" | "max" | null`. `null` keeps
-  // the sentinel meaning "LayoutPi not mounted" (the WeatherMap
-  // RadarFocusControl gate keys on non-null). MIN maps to the old focus-mode
-  // `true`; MID/MAX map to `false`.
+  // single enum `piLayoutState: "min" | "mid" | "max" | "alert" |
+  // "conditions" | "ai" | null`. The last three are the v3.3 priority-views
+  // full-rail views (Alert / Conditions / AI), produced only when
+  // `priorityViewsEnabled()`; `MAX_VIEWS` in `ui/piLayout.js` lists every
+  // full-rail state. `null` keeps the sentinel meaning "LayoutPi not mounted"
+  // (the WeatherMap RadarFocusControl gate keys on non-null). MIN maps to the
+  // old focus-mode `true`; every other state maps to `false`.
   const [piLayoutState, setPiLayoutState] = useState(null);
   // v3.3 priority: ephemeral (NOT persisted) "radar scrubber open in MIN" flag.
   // Decouples the priority MIN scrubber from the shared, persisted
