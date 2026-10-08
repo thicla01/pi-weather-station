@@ -106,16 +106,20 @@ let _edDdcDetectResult = null;
 function edDdcDetect() {
   if (_edDdcDetectResult !== null) return _edDdcDetectResult;
   try {
-    // The actual read command — a successful invocation proves the
-    // binary is installed, the i2c bus is accessible to the `pi`
-    // user, and the attached monitor responds to DDC/CI. Any of
-    // these missing makes the call throw and we fall through to
-    // the next backend.
-    execSync("ed-ddc-server brightness read", {
+    // The actual read command. A missing binary or an unreachable i2c
+    // bus makes it throw, but an exit code of 0 is NOT enough: with no
+    // DDC/CI monitor attached, `ed-ddcci-mib-tool` 1.20250604.1 prints
+    // `Backlight: []` and still exits 0 (seen 2026-10-08 on the RPi-3B
+    // bench after its ED HDMI monitor was swapped for the 7" DSI panel —
+    // the backend was picked, every read failed, and the slider reported
+    // `available: false` while the DSI backlight sat unused in sysfs).
+    // So the backend is only taken when the reply carries a real value;
+    // otherwise we fall through to the next backend.
+    const out = execSync("ed-ddc-server brightness read", {
       timeout: ED_DDC_DETECT_TIMEOUT_MS,
       stdio: ["ignore", "pipe", "ignore"],
-    });
-    _edDdcDetectResult = true;
+    }).toString();
+    _edDdcDetectResult = edDdcParsePercent(out) !== null;
   } catch {
     _edDdcDetectResult = false;
   }
@@ -194,9 +198,11 @@ function edDdcWrite(percent, opts) {
 // reports whatever we wrote.
 //
 // Reversing the order fixes this: ed-ddc-server requires an explicit
-// `apt install ed-ddcci-mib-tool` and only succeeds when a DDC/CI-
-// compliant monitor responds on the i2c bus — both are strong signals
-// that the user actually wants this backend. If ed-ddc-server isn't
+// `apt install ed-ddcci-mib-tool`, and detection only succeeds when a
+// DDC/CI-compliant monitor actually returns a brightness value (the
+// tool alone exits 0 with an empty `Backlight: []` when none answers —
+// see edDdcDetect) — both are strong signals that the user actually
+// wants this backend. If ed-ddc-server isn't
 // installed (Pi 7" DSI kiosks, mac dev box, etc.), the detect() call
 // fails fast (~10 ms fork/exec of a missing binary) and we fall
 // through to sysfs the way we did before.

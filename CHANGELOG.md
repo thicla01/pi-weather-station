@@ -7,6 +7,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed
+- **The brightness slider no longer goes dead on a kiosk that kept the EDATEC DDC tool after
+  its ED monitor was removed.** `brightnessCtrl` tries the `ed-ddc-server` backend first and
+  took it whenever `ed-ddc-server brightness read` exited 0 — but with no DDC/CI monitor
+  attached, `ed-ddcci-mib-tool` 1.20250604.1 prints `Backlight: []` and still exits 0. The DDC
+  backend was picked with nothing behind it, every read failed, and `/api/brightness` answered
+  `{"available": false}` while the panel's real sysfs backlight went unused. Seen on the RPi-3B
+  bench after its ED HDMI monitor was swapped back for the official 7" DSI touchscreen.
+  Detection now requires a parseable `Backlight: [N]` value; kiosks with a working ED monitor
+  (SenseHat, CM5-PWS-2, RPi5-PWS5 all answer `[N]`) keep the DDC backend.
+
 ## [3.3.0] - 2026-10-08
 
 ### Fixed (post-stamp, folded in before tagging)

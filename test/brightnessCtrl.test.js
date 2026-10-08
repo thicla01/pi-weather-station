@@ -38,6 +38,18 @@ test("edDdcParsePercent: canonical format with trailing newline (as captured fro
   assert.equal(edDdcParsePercent("Backlight: [75]\n"), 75);
 });
 
+// ─── No DDC/CI monitor attached ────────────────────────────────────
+// `ed-ddcci-mib-tool` 1.20250604.1 exits 0 with an EMPTY list when no
+// monitor answers (RPi-3B bench, 2026-10-08, after its ED HDMI monitor
+// was swapped for the 7" DSI panel). edDdcDetect gates the backend on
+// this parse, so it must be null — otherwise the DDC backend is picked
+// with nothing behind it and the DSI backlight is never used.
+
+test("edDdcParsePercent: empty list from a tool with no monitor attached → null", () => {
+  assert.equal(edDdcParsePercent("Backlight: []\n"), null);
+  assert.equal(edDdcParsePercent("Backlight: []"), null);
+});
+
 test("edDdcParsePercent: canonical format with surrounding whitespace", () => {
   assert.equal(edDdcParsePercent("  Backlight: [42]  \n"), 42);
 });
