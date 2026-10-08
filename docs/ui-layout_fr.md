@@ -32,7 +32,7 @@ Variante A « Compagnon nomade » du dossier de design. Colonne unique défilant
 │ HeroCompact                  │  ◀ lieu · grosse temp · condition ·
 │                              │    ressenti · méta-ligne soleil/lune
 │ AirCard                      │  ◀ rangées IQA + pollen (pastilles)
-│ MetricsGrid                  │  ◀ tuiles vent / humidité / UV / pression
+│ MetricsGrid                  │  ◀ tuiles vent / rafales / UV / humidité
 │ IndoorBlock                  │  ◀ températures Homebridge (si configuré)
 │ Carte radar mini (~220 px) [⛶] │ ◀ carte inset; bouton maximiser
 │ ChartTabs                    │  ◀ graphique horaire 24 h
@@ -277,7 +277,7 @@ Composants (de haut en bas) :
 1. **AlertBanner** — pastille d'alerte météo sévère gouvernementale (masquée en l'absence d'alerte active)
 2. **AlertDetailInline** — texte de l'alerte développée (masqué lorsque réduit)
 3. **AirCard** — rangées qualité de l'air : IQA (valeur + étiquette formant un seul terme **souligné en pointillé**, tap sur la rangée → popover détail) + pollen opt-in (pire allergène + étiquette, même soulignement pointillé ; masquée si réglage off ou hors couverture), chacune avec sa pastille de catégorie. Le soulignement pointillé a remplacé l'ancien chevron (refonte des affordances du rail 2026-06-24) — c'est le signal popover de la maison, comme les soulignements nom-de-ville / lune ; toute la rangée reste la surface de tap. En nightRed, les pastilles s'effondrent au rouge — le mot porte le palier.
-4. **MetricsGrid** — grille 2×2 stricte : vitesse du vent · humidité · indice UV (qualificatif, cellule tappable + chevron) · pression de surface (hPa / inHg / kPa selon la préférence d'unités)
+4. **MetricsGrid** — grille 2×2 stricte : vitesse du vent · rafales · indice UV (qualificatif, cellule tappable + chevron) · humidité — le même 2×2 dans toutes les dispositions depuis la v3.2. La pression de surface (retirée du 2×2 en v3.2) et la visibilité n'apparaissent que dans la grille étendue à six tuiles de ConditionsView (voir *Vues prioritaires (v3.3)* plus haut).
 5. **IndoorBlock** — température / humidité / qualité de l'air intérieurs Homebridge (masqué si non configuré)
 6. **ChartTabs** — onglets de prévisions sur 24 heures et 5 jours avec graphiques Recharts
 7. **AiSummaryInline** — résumé météo IA Claude ; expansible pour remplir le rail (bouton ↑)

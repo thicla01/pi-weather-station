@@ -32,7 +32,7 @@ Variant A "Compagnon nomade" from the design package. Single scrollable column t
 │ HeroCompact                  │  ◀ location · big temp · condition ·
 │                              │    feels-like · sun/moon meta-line
 │ AirCard                      │  ◀ AQI + pollen rows (pills)
-│ MetricsGrid                  │  ◀ wind / humid / UV / pressure tiles
+│ MetricsGrid                  │  ◀ wind / gust / UV / humidity tiles
 │ IndoorBlock                  │  ◀ Homebridge temps (when configured)
 │ Radar mini (~220 px) [⛶]    │  ◀ small inset map; maximize toggle
 │ ChartTabs                    │  ◀ 24 h hourly chart
@@ -278,7 +278,7 @@ Components (top to bottom):
 1. **AlertBanner** — government severe-weather alert pill (hidden when no active alert)
 2. **AlertDetailInline** — expanded alert text (hidden when collapsed)
 3. **AirCard** — air-quality rows: AQI (value + label as one **dotted-underlined** term, tap the row → detail popover) + opt-in pollen (worst allergen + label, same dotted underline; hidden when the setting is off or out of coverage), each with its category pill. The dotted underline replaced the old chevron (rail-affordance redesign 2026-06-24) — the house popover signal, matching the city-name / moon underlines; the whole row stays the tap surface. In nightRed the pills collapse to red — the word carries the tier.
-4. **MetricsGrid** — strict 2×2 grid: wind speed · humidity · UV index (qualifier, tappable cell + chevron) · surface pressure (hPa / inHg / kPa per the units preference)
+4. **MetricsGrid** — strict 2×2 grid: wind speed · wind gust · UV index (qualifier, tappable cell + chevron) · humidity — the same 2×2 on every layout since v3.2. Surface pressure (dropped from the 2×2 in v3.2) and visibility appear only in ConditionsView's extended six-tile grid (see *Priority views (v3.3)* above).
 5. **IndoorBlock** — Homebridge indoor temperature / humidity / air quality (hidden if not configured)
 6. **ChartTabs** — 24-hour and 5-day forecast tabs with Recharts graphs
 7. **AiSummaryInline** — Claude AI weather summary; expandable to fill the rail (↑ button)

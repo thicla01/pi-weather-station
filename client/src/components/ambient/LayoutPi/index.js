@@ -26,24 +26,32 @@ import styles from "./styles.css";
  *
  * Structure (top to bottom × left to right):
  *   ┌──────────────────────────────┬────────────────────────┐
- *   │ FloatingMiniBanner (overlay) │  TimeBlock             │
- *   │ RadarFocusControl (Leaflet,  │  HeroCompact           │
- *   │  top-left under +/-)         │  AlertBanner           │
- *   │  WeatherMap (full-bleed)     │  AlertDetailInline     │
+ *   │ FloatingMiniBanner (overlay) │  AlertBanner           │
+ *   │ RadarFocusControl (Leaflet,  │  AlertDetailInline †   │
+ *   │  top-left under +/-)         │  AlertMiniCards        │
+ *   │  WeatherMap (full-bleed)     │  AirAlertCard          │
+ *   │                              │  TimeBlock             │
+ *   │                              │  HeroCompact           │
+ *   │                              │  NowcastLine           │
  *   │                              │  AirCard               │
- *   │                              │  MetricsGrid           │
- *   │                              │  IndoorBlock           │
+ *   │                              │  MetricsGrid †         │
+ *   │                              │  IndoorBlock †         │
  *   │                              │  (ChartTabs: MAX only) │
+ *   │                              │  (ConditionsView ‡)    │
+ *   │                              │  (AlertView ‡)         │
  *   │                              │  (AiView: "ai" only)   │
  *   ├──────────────────────────────┴────────────────────────┤
- *   │  BottomDock                                            │
- *   └────────────────────────────────────────────────────────┘
+ *   │  BottomDock                                           │
+ *   └───────────────────────────────────────────────────────┘
+ *   The first four rail rows are the alert stack. † v3.2 stacked rail
+ *   only. ‡ v3.3 priority views only (shown in the "conditions" /
+ *   "alert" state).
  *
  * v3.2 "3 états radar": one `piLayoutState` enum ("min" | "mid" | "max"
  * | null) drives the shell via `data-pi-state` on the root. MID (default)
  * is the split above — radar map + the lean "radar-companion" rail
  * (alerts · clock · hero/feels-like · NowcastLine · air · 2×2 metrics ·
- * indoor · a "Prévisions" button into MAX); the forecast chart and AI
+ * indoor); the forecast chart and AI
  * prose are NOT in the glance (the chart lives in MAX). MIN collapses the
  * rail so the radar fills the screen — a pure radar focus with no hero
  * card; only (when an eligible gov alert is active) a FloatingMiniBanner is
