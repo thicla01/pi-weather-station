@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [3.3.0] - 2026-10-08
+
 ### Added
 - **`design-system/` — the Ambient Layers design system as a Claude Design bundle.** Source of
   the three DesignSync pushes (2026-09-10) that seeded the maintainer's "Design System" project on
