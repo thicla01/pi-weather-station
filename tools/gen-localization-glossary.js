@@ -120,18 +120,41 @@ function readString(src, i) {
   return null;
 }
 
+/** Blank out every comment in a source file without moving anything.
+ *
+ * The `lbl(` scan below is a plain regex, so on raw source it also hits prose
+ * that merely mentions the helper — a DebugPanel JSDoc line reading "inline
+ * `lbl()` strings" was counted as a non-literal call. Each comment becomes
+ * spaces of the same length (newlines kept), so every offset, and therefore
+ * every reported line number, is unchanged. String and template literals are
+ * matched first and kept, so the `//` of a URL inside one is not taken for a
+ * comment; a backslash pair is kept the same way, so the escaped slashes of a
+ * regex literal like `/\/\//` can't open one either.
+ *
+ * @param {string} src file text
+ * @returns {string} the same text with each comment blanked to spaces
+ */
+function blankComments(src) {
+  return src.replace(
+    /("(?:\\[\s\S]|[^"\\\n])*"|'(?:\\[\s\S]|[^'\\\n])*'|`(?:\\[\s\S]|[^`\\])*`|\\[\s\S])|\/\*[\s\S]*?\*\/|\/\/[^\n]*/g,
+    (match, kept) => kept || match.replace(/[^\n]/g, " ")
+  );
+}
+
 /** Extract every `lbl(lang, "en", "fr", "es")` call from a source file.
  *
  * Deliberately literal-only: a call whose three label arguments aren't plain
  * string literals (a template, a variable, a nested call) is skipped and
  * counted, because there is no single string to put in the table. The count is
  * reported in the output so a reader knows the table isn't claiming to be
- * exhaustive when it isn't.
+ * exhaustive when it isn't. Comments are blanked first (see `blankComments`),
+ * so a mention of `lbl()` in one is neither a row nor a skipped call.
  *
- * @param {string} src file text
+ * @param {string} raw file text
  * @returns {{rows: Array<{en: string, fr: string, es: string, line: number}>, skipped: number}} parsed rows
  */
-function extractLbl(src) {
+function extractLbl(raw) {
+  const src = blankComments(raw);
   const rows = [];
   let skipped = 0;
   const re = /\blbl\s*\(/g;
@@ -346,11 +369,12 @@ function main() {
     L.push("");
     L.push(`${src.blurb} Source: \`${src.file}\`.`);
     if (src.skipped) {
+      const one = src.skipped === 1;
       L.push("");
-      L.push(`> ${src.skipped} further \`lbl()\` call${src.skipped === 1 ? "" : "s"} in this file build`);
+      L.push(`> ${src.skipped} further \`lbl()\` call${one ? "" : "s"} in this file build${one ? "s" : ""}`);
       L.push("> at least one label from a template or a variable rather than a plain string literal,");
-      L.push("> so there is no fixed wording to tabulate. They are counted here rather than dropped");
-      L.push("> silently — a translation pass has to read those call sites directly.");
+      L.push(`> so there is no fixed wording to tabulate. ${one ? "It is" : "They are"} counted here rather than dropped`);
+      L.push(`> silently — a translation pass has to read ${one ? "that call site" : "those call sites"} directly.`);
     }
     L.push("");
     L.push("| Validé | EN | FR | ES | Ligne |");
