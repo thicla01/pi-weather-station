@@ -9,6 +9,11 @@ written since the CSV formula-injection guard (q() in
 client/src/ui/exportDebugCsv.js) started prefixing every cell that begins
 with "=" with one apostrophe.
 
+Every cell is written as a literal string (see write_text), so the .xlsx
+never contains a formula, whatever the CSV holds: a pre-2026-06-11 export
+or a hand-edited CSV carries no guard apostrophe, and openpyxl would
+otherwise turn any data cell starting with "=" into a live formula.
+
 Usage:
     python3 debug_csv_to_excel.py [input.csv] [output.xlsx]
 
@@ -43,6 +48,9 @@ SECTION_FONT   = Font(bold=True, color="FFFFFF", size=11)
 HEADER_FONT    = Font(bold=True, color="FFFFFF", size=10)
 META_LABEL_FONT = Font(bold=True, size=10)
 
+# openpyxl's data_type for a literal (inline) string cell.
+TEXT_TYPE = "s"
+
 
 def style_section_row(ws, row_idx, ncols):
     for col in range(1, ncols + 1):
@@ -56,6 +64,26 @@ def style_header_row(ws, row_idx, ncols):
         cell = ws.cell(row=row_idx, column=col)
         cell.fill = HEADER_FILL
         cell.font = HEADER_FONT
+
+
+def write_text(ws, row, column, value):
+    """
+    Write one value as a literal string cell and return the cell.
+
+    openpyxl infers a str cell's type from its content: anything longer
+    than one character that starts with "=" becomes a FORMULA (stored as
+    <f> and evaluated when Excel opens the file), and an Excel error code
+    such as "#N/A" becomes an error cell. Forcing the string type after the
+    bind keeps the workbook formula-free by construction, independent of
+    the client's export guard, which a pre-2026-06-11 export or a
+    hand-edited CSV does not carry.
+
+    Numbers are unaffected: csv.reader yields str for every field, so
+    numeric values were already stored as text before this existed.
+    """
+    cell = ws.cell(row=row, column=column, value=value)
+    cell.data_type = TEXT_TYPE
+    return cell
 
 
 def auto_width(ws):
@@ -84,10 +112,12 @@ def unguard_marker(cell):
     apostrophe, and only when it sits directly in front of "===" (the exact
     shape the guard gives a marker). Any other cell is returned unchanged.
 
-    Deliberately not applied to data cells: openpyxl stores any string that
-    starts with "=" as a formula, so un-guarding them would re-open in the
-    .xlsx the very injection the guard closes in the CSV. Their apostrophe
-    stays, exactly as the CSV carries it.
+    Deliberately not applied to data cells: their apostrophe stays, exactly
+    as the CSV carries it. The .xlsx is formula-free either way (write_text
+    forces every cell to a string), but a bare "=..." string becomes a live
+    formula as soon as someone edits the cell in Excel, or saves the sheet
+    as CSV and reopens it, and an old export can't tell a guard apostrophe
+    from a genuine one.
     """
     if cell.startswith(GUARD_PREFIX + SECTION_DELIM):
         return cell[len(GUARD_PREFIX):]
@@ -146,7 +176,7 @@ def write_overview(ws, rows):
     ws.title = "Overview"
     for i, row in enumerate(rows, start=1):
         for j, val in enumerate(row, start=1):
-            cell = ws.cell(row=i, column=j, value=val)
+            cell = write_text(ws, i, j, val)
             if j == 1:
                 cell.font = META_LABEL_FONT
     auto_width(ws)
@@ -160,7 +190,7 @@ def write_section(ws, name, rows):
         return
 
     # First row: section title banner
-    ws.cell(row=1, column=1, value=f"  {name}")
+    write_text(ws, 1, 1, f"  {name}")
     ncols = max(len(r) for r in rows)
     style_section_row(ws, 1, max(ncols, 1))
     if ncols > 1:
@@ -178,14 +208,14 @@ def write_section(ws, name, rows):
     row_idx = 2
     if header_row:
         for j, val in enumerate(header_row, start=1):
-            ws.cell(row=row_idx, column=j, value=val)
+            write_text(ws, row_idx, j, val)
         style_header_row(ws, row_idx, len(header_row))
         row_idx += 1
         data_start = row_idx
 
     for row in data_rows:
         for j, val in enumerate(row, start=1):
-            ws.cell(row=row_idx, column=j, value=val)
+            write_text(ws, row_idx, j, val)
         row_idx += 1
 
     auto_width(ws)
