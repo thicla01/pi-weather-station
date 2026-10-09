@@ -4,6 +4,38 @@ import axios from "axios";
 import { AppActionsContext, SystemContext, LocationContext, UiPrefsContext } from "~/AppContext";
 
 const REFRESH_INTERVAL = 15 * 60 * 1000;
+// HTTP status + body `reason` of the server's "no Anthropic key" answer
+// (aiSummaryCtrl SUMMARY_ERROR_REASON.NO_KEY). Kept in step by
+// test/aiAvailability.test.js.
+const NO_KEY_STATUS = 503;
+const NO_KEY_REASON = "no-key";
+
+/**
+ * Whether a failed `/api/weather-summary` request means "this server has no
+ * Anthropic key" — the one failure that switches the AI feature off
+ * (AppContext's `aiSummaryAvailable`). Every other failure is transient: the
+ * surface keeps what it shows and the next poll retries.
+ *
+ * Only a 503 qualifies. A 503 whose body has no `reason` comes from a server
+ * that predates the field (e.g. the window between a `git pull` and the
+ * service restart), so it keeps its old meaning; a 503 carrying any other
+ * reason is treated as transient, because wrongly hiding a working feature
+ * is the costly mistake, while polling a keyless server costs nothing (that
+ * 503 is answered before any paid call). The server's "no weather data"
+ * answer is a 502, so it never reaches this test.
+ *
+ * Shared with AiSummaryInline, which still duplicates the fetch itself.
+ *
+ * @param {{response?: {status?: number, data?: (string|{reason?: string})}}} err
+ *   the rejection from the axios request
+ * @returns {boolean} true when the server says no Anthropic key is configured
+ */
+export function isAiSummaryKeyMissing(err) {
+  const response = err?.response;
+  if (response?.status !== NO_KEY_STATUS) return false;
+  const reason = response.data?.reason;
+  return reason === undefined || reason === NO_KEY_REASON;
+}
 
 /**
  * Fetches + refreshes the Claude weather summary (the 3-paragraph string:
@@ -17,17 +49,17 @@ const REFRESH_INTERVAL = 15 * 60 * 1000;
  *
  * `available` is AppContext's `aiSummaryAvailable`. It is normally settled
  * before this hook ever mounts — the boot settings read clears it when no
- * Anthropic key is configured, which also hides the dock's IA button — so the
- * 503 handling below is the authoritative fallback (a remote client whose
- * masked settings can't reveal the "key" placeholder, a settings.json edited
- * after boot, or the server's "no weather data at all" 503), not the primary
- * way the client learns there is no key.
+ * Anthropic key is configured (local raw value or remote masked boolean
+ * alike), which also hides the dock's IA button — so the no-key 503 handling
+ * below is the authoritative fallback (a settings.json edited after boot, or
+ * a boot settings read that failed), not the primary way the client learns
+ * there is no key.
  *
  * @returns {{ summary: string|null, available: boolean, lang: "en"|"fr"|"es",
  *   period: "evening"|"overnight"|"tomorrow"|null, errored: boolean }} the raw
  *   summary, the availability flag, the resolved language, the forecast-paragraph
  *   period kind (server-derived, titles the "next period" section), and whether
- *   the last fetch failed for a non-503 reason.
+ *   the last fetch failed for any reason other than "no Anthropic key".
  */
 export default function useAiSummary() {
   const { mapGeo } = useContext(LocationContext);
@@ -51,9 +83,10 @@ export default function useAiSummary() {
   // server-side from the local hour + data availability — kept alongside the
   // summary so the AiView can title the second section with the real period.
   const [period, setPeriod] = useState(null);
-  // Set when a fetch fails for a reason OTHER than 503 (500 / network / timeout)
-  // so AiView can fall back to "unavailable" instead of a permanent loading
-  // caption when no summary is on screen yet; cleared on the next success.
+  // Set when a fetch fails for any reason OTHER than "no Anthropic key" (500 /
+  // 502 incl. no weather data / 429 / network / timeout) so AiView can fall
+  // back to "unavailable" instead of a permanent loading caption when no
+  // summary is on screen yet; cleared on the next success.
   const [errored, setErrored] = useState(false);
   const intervalRef = useRef(null);
 
@@ -98,13 +131,14 @@ export default function useAiSummary() {
         })
         .catch((err) => {
           if (cancelled) return;
-          // 503 = no Anthropic key (or no weather data at all) server-side →
-          // mark unavailable; authoritative over the boot settings read, which
-          // never re-enables what this switched off. Any other
-          // error (500 / network / timeout) flags `errored` so AiView falls back
-          // from the loading caption to "unavailable" when nothing is shown yet;
-          // an already-displayed summary stays on screen.
-          if (err?.response?.status === 503) setAvailable(false);
+          // No Anthropic key server-side → mark unavailable; authoritative
+          // over the boot settings read, which never re-enables what this
+          // switched off. Any other error (incl. the transient "no weather
+          // data" 502) flags `errored` so AiView falls back from the loading
+          // caption to "unavailable" when nothing is shown yet; an
+          // already-displayed summary stays on screen and the next poll
+          // retries.
+          if (isAiSummaryKeyMissing(err)) setAvailable(false);
           else setErrored(true);
         });
     };

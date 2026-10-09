@@ -5,6 +5,7 @@ import maximize from "@iconify/icons-carbon/maximize";
 import minimize from "@iconify/icons-carbon/minimize";
 import axios from "axios";
 import { AppActionsContext, SystemContext, LocationContext, UiPrefsContext } from "~/AppContext";
+import { isAiSummaryKeyMissing } from "~/components/hooks/useAiSummary";
 import styles from "./styles.css";
 
 const LABEL = { en: "AI SUMMARY", fr: "RÉSUMÉ IA", es: "RESUMEN IA" };
@@ -18,12 +19,15 @@ const REFRESH_INTERVAL = 15 * 60 * 1000;
  * `/api/weather-summary` with lat/lon + unit preferences, refreshes
  * every 15 minutes, and silently hides itself when no Anthropic key is
  * configured. That is usually known before the first fetch — the boot
- * settings read clears AppContext's `aiSummaryAvailable`, so the slab
- * never calls the endpoint at all — with a 503 from the endpoint as the
- * authoritative fallback (e.g. a remote client, whose masked settings
- * can't reveal the "key" placeholder). The fetch logic is duplicated in
- * `useAiSummary()` (the Pi AiView's hook) — collapsing the two is still
- * open Phase 10 cleanup.
+ * settings read (local raw value or remote masked boolean alike) clears
+ * AppContext's `aiSummaryAvailable`, so the slab never calls the endpoint
+ * at all — with the endpoint's no-key 503 as the authoritative fallback
+ * (e.g. a settings.json edited after boot). Any other failure, the
+ * transient "no weather data" 502 included, keeps the last summary on
+ * screen until the next poll. The fetch logic is duplicated in
+ * `useAiSummary()` (the Pi AiView's hook), which also owns the shared
+ * `isAiSummaryKeyMissing` rule — collapsing the two fetches is still open
+ * Phase 10 cleanup.
  *
  * Visual treatment: collapsed by default to keep the right rail
  * compact on the 7" screen, expanded shows three paragraphs. The
@@ -133,13 +137,14 @@ const AiSummaryInline = () => {
         })
         .catch((err) => {
           if (cancelled) return;
-          if (err?.response?.status === 503) {
-            // Feature gated server-side (no Anthropic key, or no weather
-            // data at all) — hide. Authoritative over the boot settings
-            // read, which only ever turns availability off.
+          if (isAiSummaryKeyMissing(err)) {
+            // Feature gated server-side (no Anthropic key) — hide.
+            // Authoritative over the boot settings read, which only ever
+            // turns availability off.
             setAvailable(false);
           }
-          // Other errors: keep the last known summary on screen.
+          // Other errors (incl. the transient "no weather data" 502): keep
+          // the last known summary on screen; the next poll retries.
         });
     };
 

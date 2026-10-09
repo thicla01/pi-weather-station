@@ -122,6 +122,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   "N/A" because the panel passed no client metrics: Export CSV now samples FPS for 1 s, then
   records page load, JS heap, screen size and API calls, whether or not the Client section is
   open. New `test/exportDebugCsv.test.js`.
+- **A brief weather-data gap no longer hides the AI summary on a Pi that has an Anthropic key.**
+  `/api/weather-summary` answered 503 both for "no Anthropic key" and for "nothing to
+  summarise" (Tomorrow.io failing with cold caches and no radar block), and both clients read
+  any 503 as "no key". The IA button and the inline slab disappeared and the radar rings dimmed
+  until a reload or a Settings save. The no-data case now answers 502 with
+  `reason: "no-weather-data"`: the summary on screen stays and the next poll retries. Only the
+  503, now `reason: "no-key"`, hides the feature. Remote clients also learn at boot that a key
+  is missing: the masked `GET /settings` reports an `anthropicApiKey` still at the `"key"`
+  placeholder as `false` (the same rule as that 503) instead of `true`.
 
 ### Documentation
 - **A `☑` in the localization glossary now stays on the exact wording it validated.**

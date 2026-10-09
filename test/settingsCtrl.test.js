@@ -29,7 +29,7 @@ const path = require("node:path");
 const settingsCtrl = require("../server/settingsCtrl");
 
 const { __test } = settingsCtrl;
-const { sanitizeSettings, maskForRemote, preserveServerOwnedAdvanced, ensureSecurePermissions, mergeAdvancedSubKey, serializeWrite, writeSettingsFile, sweepOrphanSettingsTmp, setSettingsPathForTest, FILE_MODE, ALLOWED_KEYS, API_KEY_FIELDS, REMOTE_HIDDEN_KEYS } = __test;
+const { sanitizeSettings, maskForRemote, preserveServerOwnedAdvanced, ensureSecurePermissions, mergeAdvancedSubKey, serializeWrite, writeSettingsFile, sweepOrphanSettingsTmp, setSettingsPathForTest, FILE_MODE, ALLOWED_KEYS, API_KEY_FIELDS, REMOTE_HIDDEN_KEYS, API_KEY_PLACEHOLDER, PLACEHOLDER_MEANS_UNSET_FIELDS } = __test;
 
 // === sanitizeSettings: the input whitelist ===
 
@@ -108,6 +108,66 @@ test("maskForRemote: every API key field becomes a boolean reflecting truthiness
   assert.equal(out.anthropicApiKey, true);
   assert.equal(out.airNowApiKey, false);
   assert.equal(out.openAqApiKey, true);
+});
+
+test("maskForRemote: the \"key\" placeholder masks to false for anthropicApiKey (the server treats it as no key)", () => {
+  // aiSummaryCtrl answers its no-key 503 for the placeholder; masking it
+  // `true` let a remote client believe the AI summary existed until that 503.
+  assert.equal(maskForRemote({ anthropicApiKey: API_KEY_PLACEHOLDER }).anthropicApiKey, false);
+  assert.equal(maskForRemote({ anthropicApiKey: "sk-ant-api03-abc" }).anthropicApiKey, true);
+});
+
+test("maskForRemote: the placeholder stays true for the key fields whose controllers still use it", () => {
+  // Tomorrow.io / Mapbox / LocationIQ / AirNow / OpenAQ are called with
+  // whatever is stored, placeholder included, and remote clients gate on these
+  // booleans (no weather key → the Settings panel opens, no map key → no map).
+  // A field joins PLACEHOLDER_MEANS_UNSET_FIELDS only together with the
+  // controller change that makes it treat the placeholder as unset.
+  for (const field of API_KEY_FIELDS) {
+    if (PLACEHOLDER_MEANS_UNSET_FIELDS.has(field)) continue;
+    assert.equal(maskForRemote({ [field]: API_KEY_PLACEHOLDER })[field], true, field);
+  }
+});
+
+test("maskForRemote: the API key boolean is exactly isApiKeyConfigured, for every field and value shape", () => {
+  const values = [undefined, null, "", "key", "Key", " key", "key ", "real", true, false, 0, 1];
+  for (const field of API_KEY_FIELDS) {
+    for (const v of values) {
+      const out = maskForRemote(v === undefined ? {} : { [field]: v });
+      if (v === undefined) {
+        assert.ok(!(field in out), `${field}: an absent key must stay absent`);
+      } else {
+        assert.equal(out[field], settingsCtrl.isApiKeyConfigured(field, v), `${field}=${JSON.stringify(v)}`);
+      }
+    }
+  }
+});
+
+test("isApiKeyConfigured: exact placeholder match only — no trimming, no case folding", () => {
+  // Stricter than the server would hide the feature for a value aiSummaryCtrl
+  // still sends to Anthropic, masking a real key error behind a missing one.
+  const { isApiKeyConfigured } = settingsCtrl;
+  assert.equal(isApiKeyConfigured("anthropicApiKey", "key"), false);
+  assert.equal(isApiKeyConfigured("anthropicApiKey", ""), false);
+  assert.equal(isApiKeyConfigured("anthropicApiKey", null), false);
+  assert.equal(isApiKeyConfigured("anthropicApiKey", undefined), false);
+  assert.equal(isApiKeyConfigured("anthropicApiKey", "Key"), true);
+  assert.equal(isApiKeyConfigured("anthropicApiKey", "key "), true);
+  assert.equal(isApiKeyConfigured("anthropicApiKey", " "), true);
+});
+
+test("PLACEHOLDER_MEANS_UNSET_FIELDS is anthropicApiKey only, and a subset of API_KEY_FIELDS", () => {
+  assert.deepEqual([...PLACEHOLDER_MEANS_UNSET_FIELDS], ["anthropicApiKey"]);
+  for (const k of PLACEHOLDER_MEANS_UNSET_FIELDS) {
+    assert.ok(API_KEY_FIELDS.has(k), `"${k}" should also be an API key field`);
+  }
+});
+
+test("API_KEY_PLACEHOLDER matches every key in settings.example.json", () => {
+  const example = JSON.parse(fs.readFileSync(path.join(__dirname, "..", "settings.example.json"), "utf8"));
+  for (const k of API_KEY_FIELDS) {
+    assert.equal(example[k], API_KEY_PLACEHOLDER, `settings.example.json ${k}`);
+  }
 });
 
 test("maskForRemote: indoorTemperature subtree is entirely absent — not masked, stripped", () => {

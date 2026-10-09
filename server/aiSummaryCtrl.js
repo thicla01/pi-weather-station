@@ -1,6 +1,6 @@
 const Anthropic = require("@anthropic-ai/sdk");
 const axios = require("axios").default;
-const { getSettingsData } = require("./settingsCtrl");
+const { getSettingsData, isApiKeyConfigured } = require("./settingsCtrl");
 // Cache helpers + field-hash constants are imported from proxyCtrl rather
 // than re-derived here. Before this import was added the controller hand-
 // crafted 3-part keys (`hourly:<lat>:<lon>`) that always missed against
@@ -79,6 +79,21 @@ const TRUNCATED_SUMMARY_TTL = 5 * 60 * 1000;
 // Don't tighten it without measuring p99 latency at CLAUDE_EFFORT.
 const CLAUDE_MAX_RETRIES = 1;
 const CLAUDE_TIMEOUT_MS = 30_000;
+
+// Machine-readable `reason` on the two error bodies the clients base the AI
+// feature's availability on ({ error, reason }; every other error body is a
+// bare JSON string). The status carries the meaning on its own, so a client
+// that predates `reason` still does the right thing:
+//   - NO_KEY → 503, the ONLY response the clients read as "this server has
+//     no AI summary": they hide the IA button / slab and subdue the rings.
+//   - NO_WEATHER_DATA → 502: nothing to summarise right now (no current
+//     conditions, no period forecast, no radar). Transient, so deliberately
+//     not 503: the clients keep what they show and retry at the next poll.
+// The client mirror is useAiSummary.js (`isAiSummaryKeyMissing`).
+const SUMMARY_ERROR_REASON = Object.freeze({
+  NO_KEY: "no-key",
+  NO_WEATHER_DATA: "no-weather-data",
+});
 
 // Valid unit / language values. Anything else is snapped to a default
 // BEFORE the value reaches the cache key, so junk query params can't
@@ -673,9 +688,11 @@ function getPeriod(localHour) {
 /**
  * GET /api/weather-summary
  * Returns an AI-generated natural language weather summary.
- * Returns 503 if the Anthropic API key is not configured or there is no
- * weather data to summarise (feature is optional). The handler also reads
- * tempUnit / speedUnit / distanceUnit / localHour / ts18 / ts21 /
+ * Returns 503 `{ reason: "no-key" }` if the Anthropic API key is not
+ * configured (feature is optional — the clients hide it), and 502
+ * `{ reason: "no-weather-data" }` when there is no weather data to
+ * summarise right now (transient — the clients retry). The handler also
+ * reads tempUnit / speedUnit / distanceUnit / localHour / ts18 / ts21 /
  * ts05tomorrow and can answer 400 / 429 / 500 / 502 — see docs/api.md
  * § GET /api/weather-summary for the full parameter and status list.
  *
@@ -717,8 +734,14 @@ async function getWeatherSummary(req, res) {
     return res.status(500).json("Could not read settings").end();
   }
 
-  if (!settings.anthropicApiKey || settings.anthropicApiKey === "key") {
-    return res.status(503).json("Anthropic API key not configured").end();
+  // Same rule as the boolean GET /settings masks for a remote client
+  // (settingsCtrl.isApiKeyConfigured: missing, empty or the "key"
+  // placeholder), so every client can learn this from its boot settings read.
+  if (!isApiKeyConfigured("anthropicApiKey", settings.anthropicApiKey)) {
+    return res.status(503).json({
+      error: "Anthropic API key not configured",
+      reason: SUMMARY_ERROR_REASON.NO_KEY,
+    }).end();
   }
 
   const cacheKey = buildSummaryCacheKey(lat, lon, lang, period, tempUnit, speedUnit, distanceUnit);
@@ -971,14 +994,19 @@ async function getWeatherSummary(req, res) {
   }
 
   // If none of the three sections has any content, there's nothing for
-  // Claude to summarise — return 503 so the client hides the AI banner.
-  // Pre-refactor, an empty currentLines couldn't happen because we'd
-  // already 500'd; now we have to check.
+  // Claude to summarise. Pre-refactor, an empty currentLines couldn't happen
+  // because we'd already 500'd; now we have to check. It is a data gap
+  // (Tomorrow.io failing with cold caches and no radar), not a missing
+  // feature, so 502 rather than 503: the clients read 503 as "no API key"
+  // and used to hide the AI summary on a keyed install until a reload.
   const hasCurrent = Boolean(currentLines);
   const hasPeriod = Boolean(secondPeriodLabel);
   const hasRadar = Boolean(radarText);
   if (!hasCurrent && !hasPeriod && !hasRadar) {
-    return settleInflight(503, "No weather data available");
+    return settleInflight(502, {
+      error: "No weather data available",
+      reason: SUMMARY_ERROR_REASON.NO_WEATHER_DATA,
+    });
   }
 
   // Build the per-paragraph instructions in the order they appear in the
@@ -1094,8 +1122,8 @@ async function getWeatherSummary(req, res) {
       // can be inspected, and recorded with a non-2xx sentinel so it can't
       // pass for a good call: 422 = declined by the safety classifier
       // (precedent: the synthetic 429 above), 502 = upstream answered with
-      // no text (e.g. max_tokens hit during thinking). Never 503: both
-      // clients read 503 as "no API key" and hide the feature for good.
+      // no text (e.g. max_tokens hit during thinking). Never 503: the
+      // clients read 503 as "no API key" and hide the feature.
       const comment = reply.outcome === "refusal"
         ? `refusal (category=${reply.category ?? "none"}, lang=${lang}; ${usageNote})`
         : `no text in reply (stop_reason=${reply.stopReason ?? "none"}, lang=${lang}; ${usageNote})`;
@@ -1173,5 +1201,7 @@ module.exports = {
     // Output contract parsed by the client (AiView RADAR_PREFIX)
     RADAR_PARAGRAPH_LABEL_BY_LANG,
     CALM_RADAR_BY_LANG,
+    // Error contract the clients base AI availability on (useAiSummary)
+    SUMMARY_ERROR_REASON,
   },
 };

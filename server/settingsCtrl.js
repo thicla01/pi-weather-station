@@ -78,6 +78,42 @@ const API_KEY_FIELDS = new Set([
   "weatherApiKey", "mapApiKey", "reverseGeoApiKey", "anthropicApiKey", "airNowApiKey", "openAqApiKey",
 ]);
 
+// The unfilled-key placeholder settings.example.json ships for every API key
+// (install.sh also writes it for the three required keys on a fresh file).
+const API_KEY_PLACEHOLDER = "key";
+
+// API key fields whose consuming controller treats API_KEY_PLACEHOLDER exactly
+// like a missing key, so the remote mask must report it as not configured.
+// Today that is only the Anthropic key: aiSummaryCtrl answers its no-key 503
+// for it, through isApiKeyConfigured below, so the mask and that gate share
+// one rule and can't drift. Every other controller sends the stored value
+// upstream as-is (the placeholder included, where it fails as an invalid
+// key), and remote clients gate on those booleans (no weather key → the
+// Settings panel opens, no map key → no map). Masking the placeholder `false`
+// there would contradict what the server actually does and what the local
+// kiosk reads, so a field joins this set only together with the controller
+// change that makes it treat the placeholder as unset.
+const PLACEHOLDER_MEANS_UNSET_FIELDS = new Set(["anthropicApiKey"]);
+
+/**
+ * Whether a stored API key value counts as "configured": the one rule behind
+ * the remote mask's boolean (maskForRemote) and aiSummaryCtrl's no-key 503.
+ *
+ * Empty / missing is never configured. The `"key"` placeholder is not
+ * configured for the fields in PLACEHOLDER_MEANS_UNSET_FIELDS. The comparison
+ * is exact (no trimming, no case folding): a stricter rule would report "not
+ * configured" for a value the server still tries to use, hiding a real key
+ * error behind a missing feature.
+ *
+ * @param {string} field API key field name (one of API_KEY_FIELDS)
+ * @param {*} value the value stored in settings.json
+ * @returns {boolean} true when the server would use the key
+ */
+function isApiKeyConfigured(field, value) {
+  if (!value) return false;
+  return !(PLACEHOLDER_MEANS_UNSET_FIELDS.has(field) && value === API_KEY_PLACEHOLDER);
+}
+
 // Top-level keys whose value is a structured sub-object that may contain
 // secrets (passwords, etc.) — entirely stripped from /settings responses to
 // remote clients. Local clients still see the full content.
@@ -237,9 +273,10 @@ function sanitizeSettings(obj) {
  *   1. Top-level keys in REMOTE_HIDDEN_KEYS (e.g. `indoorTemperature`) are
  *      stripped entirely — host / credentials are not even masked, the
  *      subtree is simply absent from the response.
- *   2. API key fields are replaced with a boolean (true when set, false
- *      otherwise) so the remote sees whether a key is configured without
- *      ever receiving the value.
+ *   2. API key fields are replaced with a boolean (isApiKeyConfigured: true
+ *      when the server would use the key, false otherwise — including the
+ *      `"key"` placeholder for `anthropicApiKey`) so the remote sees whether
+ *      a key is configured without ever receiving the value.
  *
  * @param {Object} data parsed settings object as read from disk
  * @returns {Object} masked view safe for remote clients
@@ -249,7 +286,7 @@ function maskForRemote(data) {
   return Object.fromEntries(
     Object.entries(sanitizeSettings(data))
       .filter(([k]) => !REMOTE_HIDDEN_KEYS.has(k))
-      .map(([k, v]) => [k, API_KEY_FIELDS.has(k) ? Boolean(v) : v])
+      .map(([k, v]) => [k, API_KEY_FIELDS.has(k) ? isApiKeyConfigured(k, v) : v])
   );
 }
 
@@ -747,9 +784,12 @@ module.exports = {
   ensureSecurePermissions,
   sweepOrphanSettingsTmp,
   patchAdvancedSubKey,
+  isApiKeyConfigured,
   // Exported for regression testing only — internal helpers, not part of
   // the public surface. See test/settingsCtrl.test.js.
   __test: {
+    API_KEY_PLACEHOLDER,
+    PLACEHOLDER_MEANS_UNSET_FIELDS,
     sanitizeSettings,
     sanitizeFavorites,
     sanitizeValue,
