@@ -40,6 +40,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   "(system default)" marker: its `.desktop` file launches `brave-browser-stable`, now reported
   as the `brave-browser` name `start-server` knows. New `test/kioskBrowserLists.test.js` checks
   the offered, classified and lock-cleanup lists against each other.
+- **A `PATCH /setting` that creates `settings.json` now validates its value like every other
+  write.** When the file did not exist yet, `setSetting` wrote `{ [key]: val }` as received and
+  skipped `sanitizeValue`. So the PATCH that created the file on a fresh install could store an
+  unvalidated `favorites` list (extra properties, unrounded coordinates, more than seven
+  entries, even a non-array), contrary to `docs/api.md`. Creating the file is now patching an
+  empty object: both branches build what they store through one helper, and the new file is
+  still `0600` from birth. Every other key is stored exactly as before. New tests drive
+  `setSetting` and `replaceSettings` against a temp `settings.json` through a test-only path
+  seam (`__test.setSettingsPathForTest`). Found by reading the code.
 
 ### Documentation
 - **A `☑` in the localization glossary now stays on the exact wording it validated.**

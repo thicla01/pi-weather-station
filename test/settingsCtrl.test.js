@@ -15,7 +15,10 @@
 //     remote response, not merely null-ed or boolean-ed.
 //
 // Both helpers are pure and exported via the controller's `__test`
-// surface — same pattern as radarAnalyzerCtrl and aiSummaryCtrl.
+// surface — same pattern as radarAnalyzerCtrl and aiSummaryCtrl. Later
+// sections cover the write path too (file mode, atomic write, tmp sweep, the
+// advanced-subkey merge) and, at the end, drive the setSetting handler itself
+// against a temp settings.json via `__test.setSettingsPathForTest`.
 
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
@@ -23,8 +26,10 @@ const fs = require("node:fs");
 const os = require("node:os");
 const path = require("node:path");
 
-const { __test } = require("../server/settingsCtrl");
-const { sanitizeSettings, maskForRemote, preserveServerOwnedAdvanced, ensureSecurePermissions, mergeAdvancedSubKey, serializeWrite, writeSettingsFile, sweepOrphanSettingsTmp, FILE_MODE, ALLOWED_KEYS, API_KEY_FIELDS, REMOTE_HIDDEN_KEYS } = __test;
+const settingsCtrl = require("../server/settingsCtrl");
+
+const { __test } = settingsCtrl;
+const { sanitizeSettings, maskForRemote, preserveServerOwnedAdvanced, ensureSecurePermissions, mergeAdvancedSubKey, serializeWrite, writeSettingsFile, sweepOrphanSettingsTmp, setSettingsPathForTest, FILE_MODE, ALLOWED_KEYS, API_KEY_FIELDS, REMOTE_HIDDEN_KEYS } = __test;
 
 // === sanitizeSettings: the input whitelist ===
 
@@ -435,4 +440,144 @@ test("sweepOrphanSettingsTmp: purges tmp siblings, keeps the settings file and .
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
   }
+});
+
+// === setSetting (PATCH /setting), driven end to end against a temp file ===
+//
+// The handler takes (req, res) and no path argument, so these tests redirect
+// the controller with __test.setSettingsPathForTest and restore it in a
+// `finally`. The create branch is the reason they exist: it used to write
+// `{ [key]: val }` raw, skipping sanitizeValue, so the PATCH that CREATED
+// settings.json could persist an unvalidated value — something no test of
+// the pure helpers could see.
+
+/**
+ * Call an Express-style handler with a mock `res`; resolves once the handler
+ * sends its response — on `.json()` or `.end()`, whichever comes first. In
+ * Express `res.json()` sends by itself (the trailing `.end()` settingsCtrl
+ * chains is redundant), so a cleanup that drops it must not hang the suite:
+ * node:test has no default timeout.
+ *
+ * @param {Function} handler controller handler (req, res)
+ * @param {Object} req mock request
+ * @returns {Promise<{statusCode: number, body: *}>} the captured response
+ */
+function invokeHandler(handler, req) {
+  return new Promise((resolve, reject) => {
+    const res = {
+      statusCode: undefined,
+      body: undefined,
+      status(code) { this.statusCode = code; return this; },
+      json(payload) { this.body = payload; resolve(this); return this; },
+      end() { resolve(this); return this; },
+    };
+    try {
+      handler(req, res);
+    } catch (err) {
+      reject(err);
+    }
+  });
+}
+
+/**
+ * Run `fn` with the controller pointed at `settings.json` inside a fresh
+ * temp dir (absent until something writes it); always restores the previous
+ * path and removes the dir.
+ *
+ * @param {Function} fn async (target, dir) => *
+ * @returns {Promise<*>} whatever `fn` resolves to
+ */
+async function withTempSettings(fn) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), "settings-handler-"));
+  const target = path.join(dir, "settings.json");
+  const previous = setSettingsPathForTest(target);
+  try {
+    return await fn(target, dir);
+  } finally {
+    setSettingsPathForTest(previous);
+    fs.rmSync(dir, { recursive: true, force: true });
+  }
+}
+
+const patch = (key, val) => invokeHandler(settingsCtrl.setSetting, { body: { key, val } });
+
+test("setSetting (create path): HTTP 201, file created 0600, no tmp leftover", async () => {
+  await withTempSettings(async (target, dir) => {
+    assert.equal(fs.existsSync(target), false);
+    const res = await patch("startingLat", "45.5");
+    assert.equal(res.statusCode, 201);
+    assert.deepEqual(res.body, { startingLat: "45.5" });
+    assert.deepEqual(JSON.parse(fs.readFileSync(target, "utf8")), { startingLat: "45.5" });
+    assert.equal(fs.statSync(target).mode & 0o777, FILE_MODE);
+    assert.deepEqual(fs.readdirSync(dir), ["settings.json"], "no .tmp sibling may survive the write");
+  });
+});
+
+test("setSetting (create path): the value goes through the sanitizer — favorites", async () => {
+  await withTempSettings(async (target) => {
+    const res = await patch("favorites", [
+      { id: "a", label: "  Chalet  ", lat: 46.317283941, lon: "-74.220512345", zoom: 9, evil: "payload" },
+      { id: "b", label: "", lat: 45, lon: -73 },
+      "junk",
+    ]);
+    const expected = { favorites: [{ id: "a", label: "Chalet", lat: 46.3173, lon: -74.2205 }] };
+    assert.equal(res.statusCode, 201);
+    assert.deepEqual(res.body, expected);
+    assert.deepEqual(JSON.parse(fs.readFileSync(target, "utf8")), expected, "disk must match the sanitized response");
+  });
+});
+
+test("setSetting: creating the file and patching an existing empty one store the same value", async () => {
+  // Structural guard: both branches must compute what they persist the same
+  // way. A future edit that special-cases creation again fails here.
+  const val = [{ label: "Lac", lat: "46.1000049", lon: -74.5, extra: true }, null];
+  const created = await withTempSettings(async () => (await patch("favorites", val)).body);
+  const updated = await withTempSettings(async (target) => {
+    fs.writeFileSync(target, "{}", { mode: FILE_MODE });
+    const res = await patch("favorites", val);
+    assert.equal(res.statusCode, 200);
+    return res.body;
+  });
+  assert.deepEqual(created, updated);
+  assert.deepEqual(created.favorites, [{ id: "fav_0", label: "Lac", lat: 46.1, lon: -74.5 }]);
+});
+
+test("setSetting (create path): opaque `advanced` is written as sent (no stored sensehat to splice)", async () => {
+  await withTempSettings(async (target) => {
+    const advanced = { ai: { showSamplingPoints: true }, sleep: { nightMode: false } };
+    const res = await patch("advanced", advanced);
+    assert.equal(res.statusCode, 201);
+    assert.deepEqual(JSON.parse(fs.readFileSync(target, "utf8")), { advanced });
+  });
+});
+
+test("setSetting (create path): a falsy value (\"\") still creates the file", async () => {
+  await withTempSettings(async (target) => {
+    const res = await patch("weatherApiKey", "");
+    assert.equal(res.statusCode, 201);
+    assert.deepEqual(JSON.parse(fs.readFileSync(target, "utf8")), { weatherApiKey: "" });
+  });
+});
+
+test("setSetting: an unknown key is rejected with 400 and creates no file", async () => {
+  await withTempSettings(async (target) => {
+    const res = await patch("rogueKey", "x");
+    assert.equal(res.statusCode, 400);
+    assert.equal(fs.existsSync(target), false);
+  });
+});
+
+test("setSetting (update path): other keys are kept and the stored sensehat survives an advanced PATCH", async () => {
+  await withTempSettings(async (target) => {
+    fs.writeFileSync(target, JSON.stringify({
+      weatherApiKey: "k",
+      advanced: { sensehat: { mode: "radar", radarBrightness: 40 }, ai: {} },
+    }), { mode: FILE_MODE });
+    const res = await patch("advanced", { ai: { showSamplingPoints: true } });
+    assert.equal(res.statusCode, 200);
+    assert.deepEqual(JSON.parse(fs.readFileSync(target, "utf8")), {
+      weatherApiKey: "k",
+      advanced: { ai: { showSamplingPoints: true }, sensehat: { mode: "radar", radarBrightness: 40 } },
+    });
+  });
 });
