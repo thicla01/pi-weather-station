@@ -49,6 +49,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   still `0600` from birth. Every other key is stored exactly as before. New tests drive
   `setSetting` and `replaceSettings` against a temp `settings.json` through a test-only path
   seam (`__test.setSettingsPathForTest`). Found by reading the code.
+- **The Sense HAT daemons now log which government alert they are pulsing for, instead of
+  `event=None`.** `GET /api/sensehat` built `alert.event` from `top.event`, but the normalised
+  NWS and ECCC alerts have no `event` property (they carry `eventType` plus `title_en` /
+  `title_fr`), so the field was always undefined and dropped from the JSON, contrary to
+  `docs/api.md`. It now carries the alert's short English title (`title_en`): the CAP `event`
+  for NWS ("Tornado Warning"), the capitalised `alert_name_en` for ECCC ("Rainfall warning")
+  rather than its terse `alert_code` (`RFW`), falling back to `eventType`. LED rendering is
+  unchanged (both daemons key their transitions on `tier`). Pinned for both sources by
+  `test/sensehatAlert.test.js`, which runs each source's real normaliser.
 
 ### Documentation
 - **A `☑` in the localization glossary now stays on the exact wording it validated.**

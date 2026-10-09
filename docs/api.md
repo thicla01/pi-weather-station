@@ -610,7 +610,7 @@ When no location is configured in `settings.json` (`startingLat` / `startingLon`
     "tier":     "red",
     "severity": "extreme",
     "source":   "ECCC",
-    "event":    "Tornado Warning"
+    "event":    "Tornado warning"
   }
 }
 ```
@@ -631,7 +631,7 @@ The `mode` field echoes the persisted Sense HAT display mode (`weather` / `clock
 | `mode` | string | Persisted display mode: `weather` \| `clock` \| `radar` \| `auto` |
 | `radarBrightness` | integer | Brightness percent (0–100) for the radar grid, applied in both day and night (like the clock). Set via `POST /api/sensehat-radar-brightness` (persists only — the daemon re-reads it from settings.json live, no service restart). The client slider is pinned to a 20 % minimum (below ~15 % the matrix reads black on both v1 and v2). |
 | `radar` | object \| absent | Present only in `radar`/`auto` mode: `{ grid: number[64] (0–6, row-major, N up), litCells: integer, radiusKm: number }` — coarse 8×8 precipitation reprojection |
-| `alert` | object \| absent | Optional: top active gov alert (tier ≥ orange). Object shape: `{ tier: "red"\|"orange", severity: "extreme"\|"severe"\|"moderate", source: "ECCC"\|"NWS", event: string }` |
+| `alert` | object \| absent | Optional: top active gov alert (tier ≥ orange). Object shape: `{ tier: "red"\|"orange", severity: "extreme"\|"severe"\|"moderate", source: "ECCC"\|"NWS", event: string }`. `event` is the alert's short English title — the normalised `title_en` the banner shows in English: the CAP `event` for NWS (`"Tornado Warning"`), the capitalised `alert_name_en` for ECCC (`"Tornado warning"`) rather than its terse `alert_code` (`RFW`, `SFW`); falls back to `eventType` if a title is ever missing. Always English whatever the UI language; the LED daemons only log it |
 
 - **Errors:** `500` `{ "error": "..." }` — settings unreadable; `503` `{ "error": "..." }` — no location configured (no kiosk location, no `startingLat` / `startingLon`) and the ipapi.co lookup failed
 
