@@ -28,8 +28,14 @@
   --shadow-float: 0 1px 2px rgba(0, 0, 0, 0.08), 0 6px 16px rgba(0, 0, 0, 0.12); /* floating cards, Leaflet bar, radar legend */
   --shadow-overlay: 0 4px 16px rgba(0, 0, 0, 0.35);                              /* popovers, overlays */
 
-  /* Glass — always paired with -webkit-backdrop-filter */
-  --glass-blur: 8px;       /* dock, radar legend, timeline bar, map chrome */
+  /* Glass — always paired with -webkit-backdrop-filter. Only on surfaces that
+     float over the radar. Firefox (html[data-browser="firefox"]) drops every
+     backdrop-filter and raises --c-surface to --c-surface-hybrid (96 %), so a
+     frosted surface must read unblurred and no layout may hang on the blur's
+     containing block / stacking context. */
+  --glass-blur: 8px;       /* map chrome only: radar legend card + "(i)" chip, mobile legend strip, legend detail overlay
+                              (popover on the 7″/desktop, bottom sheet on mobile), timeline bar.
+                              NOT the dock: no blur since 2026-10, it never sits over the map */
   --glass-blur-soft: 6px;  /* dock toast (the maximized AI / chart slabs: none, opaque --c-bg fill) */
 
   /* Touch */

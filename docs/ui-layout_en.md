@@ -245,7 +245,7 @@ These trigger only on short viewports (the 7" Pi screen and similar). 10"-class 
 
 ## LayoutDesktop — HD monitor / desktop (≥ 1280 px wide)
 
-The map fills the entire viewport as a full-bleed background. The HeroBand, right rail, and BottomDock are translucent slabs floating on top of the radar.
+The map fills the viewport above the BottomDock as a full-bleed background (`.mapArea` is inset `0 0 var(--c-dock-height) 0`). The HeroBand and the right rail are translucent slabs (`--c-surface`, 85 %, no backdrop blur) floating on top of the radar; the BottomDock sits below the map, never over it, and carries no blur either.
 
 ```
 ┌─────────────────────────────────────────────┬───────────┐

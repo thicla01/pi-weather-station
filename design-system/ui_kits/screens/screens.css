@@ -2,6 +2,9 @@
    production stylesheets (see components/ambient/*.card.html for the
    per-component provenance). Each screen adds its own layout rules inline. */
 html,body{margin:0}
+/* ui/reset.css: border-box on everything under .ambientRoot — so every
+   min-height / width below is the box's outer size, as in production. */
+.screen,.screen *,.screen *::before,.screen *::after{box-sizing:border-box}
 body{font-family:var(--font-sans);background:var(--c-bg);color:var(--c-text)}
 .screen{position:relative;overflow:hidden;background:var(--c-bg);color:var(--c-text)}
 /* fake radar: tiles never recolour, so the same gradient in every palette */
@@ -43,7 +46,7 @@ body{font-family:var(--font-sans);background:var(--c-bg);color:var(--c-text)}
 .rt .nowm{position:absolute;top:-8px;left:78%;transform:translateX(-50%);width:2px;height:20px;background:var(--c-accent);border-radius:1px}
 .rt .nowm i{position:absolute;bottom:100%;left:50%;transform:translateX(-50%);font-family:var(--font-mono);font-style:normal;font-size:9.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--c-accent);padding-bottom:2px;font-weight:500}
 .rt .thumb{position:absolute;top:50%;left:78%;transform:translate(-50%,-50%);width:14px;height:14px;background:var(--c-accent);border-radius:50%;border:2px solid var(--c-bg);box-shadow:0 1px 4px rgba(0,0,0,.2)}
-.rt .ticks{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:9px;color:var(--c-text-dim);margin-top:2px}
+.rt .ticks{display:flex;justify-content:space-between;font-family:var(--font-mono);font-size:9px;line-height:1;color:var(--c-text-dim);height:12px;margin-top:-12px;padding-top:2px} /* .rt-ticks sit inside the track wrap's 14 px bottom padding: the bar is 100 px tall, so a legend re-anchored at bottom 122 clears it */
 /* legend card + short-screen chip */
 .legend{position:absolute;width:178px;display:flex;flex-direction:column;gap:8px;padding:10px 12px;border-radius:10px;border:1px solid var(--c-border);background:var(--c-surface);box-shadow:var(--shadow-float);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font-family:var(--font-mono);font-weight:500}
 .legend .t{font-size:8.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--rc-ink-3)}
@@ -51,9 +54,10 @@ body{font-family:var(--font-sans);background:var(--c-bg);color:var(--c-text)}
 .legend .r{display:flex;align-items:center;gap:6px;font-size:9px;color:var(--c-text-dim)}
 .legend .sw{width:14px;height:8px;border-radius:2px}
 .legend .circ{width:12px;height:12px;border-radius:50%;border:1.5px solid var(--map-circle)}
-.lchip{position:absolute;display:inline-flex;align-items:center;gap:6px;padding:4px 8px 4px 5px;border-radius:999px;border:1px solid var(--c-border);background:var(--c-surface);box-shadow:var(--shadow-float);font-family:var(--font-mono);font-weight:500;font-size:9.5px;letter-spacing:.06em;text-transform:uppercase;color:var(--c-text-dim)}
-.lchip i{width:20px;height:20px;border-radius:50%;background:var(--rc-surface-2);border:1px solid var(--c-border);display:grid;place-items:center;font-style:italic;font-size:11px;text-transform:none;color:var(--c-text)}
-.lchip .bar{display:flex;height:5px;width:36px;border-radius:3px;overflow:hidden}.lchip .bar i{flex:1;width:auto;height:auto;border:0;border-radius:0;background:none}
+/* "(i)" legend chip (RadarLegend chipMode, WeatherMap/styles.css .legend-chip): (i) · precip scale · label */
+.lchip{position:absolute;display:inline-flex;align-items:center;gap:8px;height:34px;padding:0 12px 0 8px;border-radius:999px;border:1px solid var(--c-border);background:var(--c-surface);box-shadow:var(--shadow-float);backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);font-family:var(--font-mono);font-weight:500;font-size:10.5px;letter-spacing:.08em;text-transform:uppercase;color:var(--c-text)}
+.lchip i{width:20px;height:20px;flex:none;border-radius:50%;background:var(--rc-surface-2);border:1px solid var(--c-border);display:grid;place-items:center;font-style:italic;font-size:11px;text-transform:none;color:var(--c-text)}
+.lchip .bar{display:flex;height:5px;width:36px;flex:none;border-radius:2px;overflow:hidden}.lchip .bar i{flex:1;width:auto;height:auto;border:0;border-radius:0;background:none}
 /* badges & chips */
 .badge{display:inline-block;background-color:var(--c-accent-soft);color:var(--c-text);font-family:var(--font-mono);font-size:11px;font-weight:500;letter-spacing:.6px;text-transform:uppercase;padding:2px 7px;border-radius:3px;vertical-align:1px;flex:none}
 .chip{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:9.5px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;padding:4px 9px 4px 7px;border-radius:999px;border:1px solid;white-space:nowrap;flex:none}
@@ -89,16 +93,21 @@ body{font-family:var(--font-sans);background:var(--c-bg);color:var(--c-text)}
 .tb .date{font-size:11px;font-weight:500;letter-spacing:.8px;color:var(--c-text-dim);margin-bottom:2px}
 .tb .time{font-family:var(--font-mono);font-size:40px;font-weight:500;letter-spacing:-1px;line-height:1;font-variant-numeric:tabular-nums}
 .tb .ampm{font-size:14px;font-weight:500;color:var(--c-text-dim);margin-left:6px;vertical-align:8px}
-.tb.compact{display:flex;align-items:center;justify-content:space-between;padding:10px 14px;min-height:62px}
+/* TimeBlock compact (Pi rail): time · right-aligned meta (date = Saisons trigger, next sun event) */
+.tb.compact{display:flex;align-items:center;gap:11px;padding:9px 14px}
 .tb.compact .time{font-size:30px;letter-spacing:-.5px}.tb.compact .ampm{font-size:13px;margin-left:5px;vertical-align:6px}
-.tb.compact .m{display:flex;flex-direction:column;align-items:flex-end;gap:3px}
-.tb.compact .m .date{margin:0;white-space:nowrap}
-.tb.compact .m .sun{display:inline-flex;align-items:center;gap:4px;font-family:var(--font-mono);font-weight:500;font-size:10px;color:var(--c-text-dim)}
-.tb.compact .m .sun svg{width:11px;height:11px;color:var(--c-accent)}
+.tb.compact .m{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:3px}
+.tb.compact .m .date{margin:0;line-height:1.2;letter-spacing:.3px;white-space:nowrap;text-transform:capitalize}
+.tb.compact .m .date u{text-decoration:none;border-bottom:1px dotted var(--c-text-dim);border-radius:3px;padding:1px 2px 0;margin:0 -2px}
+.tb.compact .m .sun{display:inline-flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:11px;color:var(--c-text-dim);white-space:nowrap}
+.tb.compact .m .sun svg{width:16px;height:16px;color:var(--c-accent)}
 .tb.mobile .date{font-size:12px;letter-spacing:.6px;margin-bottom:8px}.tb.mobile .time{font-size:56px;letter-spacing:-1.5px}.tb.mobile .ampm{font-size:22px;margin-left:8px;vertical-align:12px}
 /* hero compact */
 .hc{position:relative;background-color:var(--c-surface);border:1px solid var(--c-border);border-radius:10px;padding:14px 16px 12px;box-shadow:inset 4px 0 0 var(--c-strip-color,transparent);flex:none}
-.hc.pi{padding:10px 16px 9px}
+.hc.pi{padding:10px 16px 9px}.hc.pi .place{margin-bottom:6px}.hc.pi .focal{gap:12px}
+/* v3.3 glance: the ⤢ corner square that opens the Conditions view (HeroCompact .maximize) — absolute, adds no height */
+.hc .mx{position:absolute;top:10px;right:12px;z-index:2;width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border:1px solid var(--c-border);border-radius:6px;background-color:var(--c-surface-hybrid);color:var(--c-text-dim)}
+.hc .mx svg{width:16px;height:16px}.hc.withMax .place{padding-right:34px}
 .place{display:flex;align-items:center;gap:4px;font-family:var(--font-mono);font-weight:500;font-size:11px;letter-spacing:1.2px;text-transform:uppercase;color:var(--c-text-dim);margin-bottom:8px}
 .place svg{width:11px;height:11px;color:var(--c-accent)}
 .place u{text-decoration:none;border-bottom:1px dotted var(--c-text-dim);padding-bottom:1px}
@@ -198,17 +207,20 @@ body{font-family:var(--font-sans);background:var(--c-bg);color:var(--c-text)}
 .ai .h{display:flex;align-items:center;justify-content:space-between;padding:6px 8px 6px 14px;color:var(--c-text-dim)}
 .ai .h .l{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-weight:500;font-size:10px;letter-spacing:.12em;text-transform:uppercase}
 .ai .h svg{width:14px;height:14px}
-/* dock */
-.dock{background-color:var(--c-surface);border:1px solid var(--c-border);border-radius:14px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:8px 14px;display:flex;align-items:center;min-height:52px;color:var(--c-text)}
+/* dock — no backdrop-filter in any layout since 2026-10: it never sits over the map
+   (BottomDock/styles.css), so a blur would only frost the flat --c-bg behind it */
+.dock{background-color:var(--c-surface);border:1px solid var(--c-border);border-radius:14px;padding:8px 14px;display:flex;align-items:center;min-height:52px;color:var(--c-text)}
 .group{display:flex;align-items:center;gap:2px;padding:0 6px;position:relative}
 .group+.group::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:1px;background:var(--c-border-hybrid);opacity:.7}
 .gl{font-family:var(--font-mono);font-size:9px;letter-spacing:.16em;text-transform:uppercase;color:var(--c-text-dim);margin-right:6px;padding-left:4px;white-space:nowrap}
 .dock.narrow .gl{display:none}.dock.narrow .group{padding:0 4px}
 .b{width:40px;height:40px;display:flex;justify-content:center;align-items:center;border-radius:7px;position:relative;color:var(--c-text)}
-.b svg{width:24px;height:24px}.b.down{background:var(--c-accent-soft)}
+.b svg{width:24px;height:24px}.b.down{background:var(--c-accent-soft)}.b.dis{opacity:.35}
+.b.moon svg{color:#c44040} /* night-red toggle: MOON_COLOR in every palette (ControlButtons) */
 .b .cnt{position:absolute;top:1px;right:1px;min-width:15px;height:15px;padding:0 3px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;line-height:1;box-shadow:0 0 0 1.5px rgba(0,0,0,.3);background:#e60000;color:#fff}
 .hchip{margin-left:auto;display:inline-flex;align-items:center;gap:7px;padding:5px 11px 5px 8px;border-radius:999px;background-color:color-mix(in oklab,var(--c-bg) 92%,var(--c-accent) 8%);border:1px solid var(--c-border-hybrid);color:var(--c-text-dim);font-family:var(--font-mono);font-size:10px;letter-spacing:.06em;white-space:nowrap}
 [data-theme="dusk"] .hchip,[data-theme="night"] .hchip,[data-theme="nightRed"] .hchip{background-color:color-mix(in oklab,var(--c-bg) 82%,var(--c-accent) 18%)}
 .hchip i{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#5cb85c;color:#fff;box-shadow:0 0 0 1px rgba(0,0,0,.18)}
 .hchip i svg{width:12px;height:12px}
+.hchip.icon{padding:4px;gap:0} /* < 1280 px: the label hides, the disc stands alone (HealthIndicator) */
 .hdot{margin-left:4px;width:36px;height:36px;display:grid;place-items:center}.hdot i{display:block;width:10px;height:10px;border-radius:50%;background:#5cb85c;box-shadow:0 0 0 1px rgba(0,0,0,.18),0 1px 2px rgba(0,0,0,.2)}
