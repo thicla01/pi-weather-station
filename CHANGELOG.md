@@ -70,6 +70,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   (frames mounted, playback flips opacity) and
   [`2b0d0d1`](https://github.com/Aryeh95/Sweep/commit/2b0d0d1decd78ad7deb3c0d345cc5a21f21d32a1)
   (frames loaded on play, not on opening the timeline).
+- **The maximized AI-summary and forecast slabs no longer blur the radar they hide.** Both carried
+  `backdrop-filter: blur(6px)` under a fully opaque `--c-bg` fill, so the blur never reached the
+  screen; yet on the desktop layout, where the rail overlays the map, Chromium recomputed it on
+  every frame of a pan, a zoom or a radar-loop step (Firefox already skipped it, see above). The
+  AI slab kept its blur as a "safety net" in case `--c-bg` ever turned translucent, but through a
+  translucent fill a blur only frosts the radar, it doesn't hide it. `test/opaqueBgToken.test.js`
+  takes over that role: it pins every palette's `bg` to an opaque hex colour, and `--c-bg` to
+  `palette.bg` with no hybrid-mode or stylesheet override. Checked in Chrome over a high-contrast
+  stripe pattern in the map pane, with each palette's `bg`, on the desktop layout (1440 and
+  1280 px) and the mobile one: moving the pattern under a maximized slab changes no pixel inside
+  it, and turning the blur off changes only the anti-aliased rim of the slab's rounded corners
+  and, by 1 to 9 levels out of 255, a few edge pixels of small rounded controls inside it, whereas
+  the same test on the 85 % rest fill changes almost every pixel. Neither slab has a `position: fixed`
+  descendant, so losing the containing block the filter created moves nothing.
 
 ### Fixed
 - **Leaving the fullscreen radar no longer leaves the map off-centre on a slow Pi.** Leaflet

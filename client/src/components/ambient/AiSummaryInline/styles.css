@@ -47,11 +47,17 @@
    * yellow-rain / dark-water patches from the map in light mode,
    * making the AI text's contrast inconsistent line by line.
    * `--c-bg` is the only token guaranteed 100 % opaque on every
-   * palette, so use it for maximize. The blur stays as a safety
-   * net in case `--c-bg` is ever redefined with transparency. */
+   * palette (test/opaqueBgToken.test.js pins it), so use it for
+   * maximize.
+   *
+   * No `backdrop-filter` on purpose: the opaque fill hides whatever a
+   * backdrop blur produces, but Chromium still recomputes it over the
+   * moving map on every frame of a pan, a zoom or a radar-loop step
+   * (on LayoutDesktop the rail overlays the map). The `blur(6px)` that
+   * sat here as a "safety net" was that cost for no pixel, and no net
+   * either: through a translucent fill it would only have frosted the
+   * radar, not hidden it. Same reasoning in ChartTabs/styles.css. */
   background-color: var(--c-bg);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
 }
 
 /* The slab is the *last* flex item in the rail's vertical column.

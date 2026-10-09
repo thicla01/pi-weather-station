@@ -33,7 +33,12 @@
  *
  * `--c-bg` is the only token guaranteed 100 % opaque on every palette
  * (`--c-surface` sits at 85 %, the radar would bleed through at this
- * size). */
+ * size; test/opaqueBgToken.test.js pins the opacity). No
+ * `backdrop-filter`: the opaque fill hides whatever a backdrop blur
+ * produces, while Chromium would still recompute it over the moving
+ * map on every frame of a pan, a zoom or a radar-loop step (on
+ * LayoutDesktop the rail overlays the map). Same reasoning in
+ * AiSummaryInline/styles.css. */
 .slab.slabMaximized {
   position: absolute;
   /* v2.16.5: pushed the maximized slab further down on iOS PWA
@@ -53,8 +58,6 @@
   bottom: auto;
   z-index: 5;
   background-color: var(--c-bg);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
 }
 
 /* v3.2 Pi MAX (forecast-forward): unlike the Desktop/Mobile in-rail
