@@ -1,9 +1,13 @@
 # AI Summary — how it works
 
-The `AI SUMMARY` slab (`client/src/components/ambient/AiSummaryInline/`) is a
-1-3 paragraph natural-language description of the user's current weather, the
-next forecast period, and what the radar around them is doing. It's powered by
-Claude (Anthropic API, Haiku 5.5 since 2026-10) and refreshed every 15 minutes.
+The AI summary is a 1-3 paragraph natural-language description of the user's
+current weather, the next forecast period, and what the radar around them is
+doing. It's powered by Claude (Anthropic API, Haiku 5.5 since 2026-10). The
+desktop and mobile layouts show it in the `AI SUMMARY` slab
+(`client/src/components/ambient/AiSummaryInline/`); on the Pi it lives in the
+full-rail AI view (`ambient/AiView`), opened from the dock's IA button. Both
+refresh it every 15 minutes while mounted; the Pi view is mounted only while
+it is open, so a Pi calls the endpoint only then.
 
 This document explains exactly which pieces of work happen on the Pi and
 which happen on Anthropic's servers, how data flows between them, and how
@@ -46,15 +50,15 @@ Anthropic API key to function.
 | **AlertBanner** (red/orange banner above the current weather) | Picks one of `alert.redNear` / `redApproaching` / `redIntensifying` / `redLeaving` / `orangeNear` / etc. based on the radar-derived risk tier and trend, OR surfaces a government alert from NWS / ECCC. Every banner carries a leading source badge (`RADAR` / `NWS` / `ECCC`) so the user can distinguish locally-derived alerts from authoritative government feeds. Pure local computation + i18n key lookup. | **None.** Server-side `getRiskLevels` reads the same RainViewer tiles the AI analyzer reads (shared `tileCache`), classifies them into a tier, computes the trend, and returns it as JSON. The client picks the wording. |
 | **Inner / outer dashed circles on the map** (50 km / 100 km) | Same data as the AlertBanner. The circle colour follows the same risk tier. When no Anthropic key is configured, the calm-tier circle is rendered with reduced opacity and a sparser dash pattern to signal "analysis zone present, AI narrative absent" — coloured tiers stay loud regardless. | **None.** Client just renders Leaflet circles with the colour coming from `/api/radar-risk`. |
 | **Radar tile colours themselves** | RainViewer-encoded intensity, no post-processing. | **None.** Pure CDN tiles. |
-| **Government weather alerts** (frost advisory, severe thunderstorm watch, etc.) | Polled every 10 min from NWS or Environment Canada XML feeds. | **None.** The Pi pulls the official feed, parses, and shows the title verbatim. |
+| **Government weather alerts** (frost advisory, severe thunderstorm watch, etc.) | Polled every 10 min from the NWS (api.weather.gov GeoJSON) and Environment Canada (api.weather.gc.ca JSON) alert APIs. | **None.** The Pi pulls the official feed, parses, and shows the title verbatim. |
 | **Forecast charts** (24 h / 5 day) | Tomorrow.io payload rendered via Chart.js. | **None.** |
-| **Indoor temperature, UV, AQHI badges** | Polled from Homebridge / EPA AirNow / OpenAQ / MELCC / ECCC. | **None.** |
+| **Indoor temperature, UV, air-quality and pollen readouts** | Indoor from Homebridge; UV from the Tomorrow.io current payload; air quality from MELCC / EPA AirNow / OpenAQ / ECCC; pollen from Open-Meteo. | **None.** |
 
 **The only LLM-involved part of the entire app is the AI summary block
-itself** — the 1-3 paragraph natural-language text that appears below
-the charts when the user expands the AI summary section. Everything
-else on the screen is computed locally on the Pi from the same data
-sources.
+itself** — the 1-3 paragraph natural-language text shown in the
+`AI SUMMARY` slab below the charts (desktop / mobile) or in the AI view
+opened from the dock's IA button (Pi). Everything else on the screen is
+computed locally on the Pi from the same data sources.
 
 The reason the AlertBanner sometimes feels "AI-like" is that it shares
 the radar pixel data with the AI summary's third paragraph: when severe
@@ -62,11 +66,13 @@ precipitation is approaching, *both* fire — one as a coloured banner
 above the current conditions, the other as a textual description in
 the AI summary. They draw the same conclusion from the same data, but
 the banner does it via deterministic rules in
-`server/radarAnalyzerCtrl.js` and `client/src/components/ambient/AlertBanner/`,
-while the AI summary phrases it in natural language via Claude. The
-banner works perfectly even when the AI summary is disabled (no
-Anthropic key) — the user just doesn't get the natural-language
-narrative alongside it.
+`server/radarAnalyzerCtrl.js` and `client/src/ui/alertLogic.js`
+(`getRadarAlertState`), rendered by `ambient/AlertBanner` on desktop /
+mobile and by `ambient/NowcastLine` on the Pi (where the banner's radar
+branch is suppressed), while the AI summary phrases it in natural
+language via Claude. The banner works perfectly even when the AI
+summary is disabled (no Anthropic key) — the user just doesn't get the
+natural-language narrative alongside it.
 
 ---
 
@@ -104,7 +110,8 @@ analyzer** (`server/radarAnalyzerCtrl.js`):
 - **Period forecast** — picked dynamically from `localHour`:
   - morning / afternoon → tonight's evening (18 h–21 h) from hourly data
   - evening → overnight (21 h–05 h) from hourly data
-  - night → tomorrow from daily data
+  - night → tomorrow from daily data (also the fallback for the two
+    cases above when the hourly window is unavailable)
   Averages temperature and wind across the window; takes max precipitation
   probability.
 - **Radar analysis** (toggleable via `advanced.ai.radarAnalysisEnabled`,
@@ -113,8 +120,10 @@ analyzer** (`server/radarAnalyzerCtrl.js`):
   [Settings that affect the AI summary](#settings-that-affect-the-ai-summary)).
 
 All three sections are independent. If one fails (Tomorrow.io throttled,
-RainViewer down, etc.), the prompt still gets the others and Claude is
-told explicitly which piece is missing so it doesn't hallucinate values.
+RainViewer down, etc.), the prompt still gets the others: a missing period
+or radar section simply drops its paragraph (the numbering adapts), and a
+missing current-conditions section adds an explicit note telling Claude
+not to invent values.
 
 ### 3. Radar pixel sampling — the most local-CPU-heavy part
 
@@ -129,8 +138,11 @@ told explicitly which piece is missing so it doesn't hallucinate values.
 3. Fetches each unique `(framePath, tileX, tileY)` PNG from RainViewer's
    `tilecache.rainviewer.com` CDN. Tile cache: 60 minutes
    (`TILE_CACHE_TTL`, a pure eviction policy: a tile's content never
-   changes for a given frame path). Many tiles are shared across the 3 timestamps and
-   across users at nearby locations, so the cache hit rate is high.
+   changes for a given frame path). Tiles are reused across successive
+   runs (the frame sampled as `now` is sampled again as the -15 and
+   -45 min frames on later runs), by the `/api/radar-risk` computation
+   that samples the same frames, and across nearby locations, so the
+   cache hit rate is high.
 4. Decodes each PNG via `pngjs` (no native dependency).
 5. For each of **161 sampling points** (1 centre + 16 directions × 10
    distances on the inner ring 5–50 km) — or **481 points** when
@@ -312,9 +324,10 @@ too.
 **What the API call carries:**
 
 - the assembled prompt (current conditions, period forecast, radar text)
-- approximate latitude / longitude **only as embedded in the radar
-  text** ("Active 5–25 km NE: ...") — never as raw coordinates with a
-  user identifier
+- the user's surroundings **only as distances and bearings relative to
+  the user** inside the radar text (an `Active 5km-25km:` header followed
+  by lines like `NE     : 10km light`) — the prompt contains no
+  coordinates, place name or other absolute location
 - the language preference
 
 **What the API call does not carry:**
@@ -498,14 +511,14 @@ analyzer, and the client (`client/dist` untouched).
 ## Settings that affect the AI summary
 
 All under `advanced.ai.*` in `settings.json`, exposed in **Settings →
-Advanced settings → AI weather summary**:
+Advanced → AI · radar analysis**:
 
 | Setting | Default | What it does |
 |---|---|---|
 | `radarAnalysisEnabled` | `true` | Scope knob for the LLM-narrated portion of the radar feature. When `false`: (a) the AI summary's third paragraph is skipped entirely — analyzer short-circuited server-side, no radar block in the prompt; (b) the dashed sampling-zone circles disappear from the map. On Haiku 5.5 it is a small cost lever (≈ $0.0006-0.0008 vs ≈ $0.00013 per call in the 2026-10-08 smoke test) but the main latency lever: no-radar prompts skipped thinking entirely and returned in ~1-1.5 s instead of ~4-5 s. **The rain-alert banner is unaffected** — it uses the same risk data computed locally and keeps firing for severe / heavy precipitation regardless of this setting (since v2026-05-09 — see [PR 68](https://github.com/thicla01/pi-weather-station/pull/68) for the decoupling rationale). |
 | `extendedRadius` | `false` | When `true`, samples the outer ring (32 directions × 10 distances, 55-100 km / 33-60 mi). Triples the sample count (161 → 481), more than doubles the prompt (2026-10-08 smoke test, synthetic radar: 3461 input tokens for the Spanish extended-radius prompt vs 1397-1496 for the English / French inner-ring ones), and lets Claude reason about cells further out. |
 | `showSamplingPoints` | `false` | Purely client-side render flag — no impact on the prompt. |
-| `calmDayFastPath` | `true` | When enabled, the server skips the Claude call on calm days (no active precipitation, current and period precipitation probabilities below 20 %, AND the radar snapshot is fully clear) and returns a localised templated summary instead. The template renders three paragraphs to mirror the Claude path's structure: current conditions, period forecast (`evening` / `overnight` / `tomorrow` window), and a confident radar "nothing to report within {distance}". Saves one Claude call per cache window per location whenever conditions are quiet: under a tenth of a cent per skipped call on Haiku 5.5, but also the call's latency and its failure modes. Claude is still invoked the moment any of the four gates trip — including when Tomorrow.io says calm but radar shows precipitation, so the summary never contradicts what's visible on the map. Disable to always invoke Claude regardless of conditions. |
+| `calmDayFastPath` | `true` | When enabled, the server skips the Claude call on calm days (no active precipitation, current and period precipitation probabilities below 20 %, AND the radar snapshot, if one was obtained, is fully clear) and returns a localised templated summary instead. The template renders three paragraphs to mirror the Claude path's structure: current conditions, period forecast (`evening` / `overnight` / `tomorrow` window), and a confident radar "nothing to report within {distance}" (dropped when radar analysis is off). Saves one Claude call per cache window per location whenever conditions are quiet: under a tenth of a cent per skipped call on Haiku 5.5, but also the call's latency and its failure modes. Claude is still invoked the moment any of the four gates trip — including when Tomorrow.io says calm but radar shows precipitation, so the summary never contradicts what's visible on the map. Disable to always invoke Claude regardless of conditions. |
 
 The **API key** (`anthropicApiKey`) lives at the top level of
 `settings.json`, not under `advanced`. When it's missing or blank, the
@@ -519,24 +532,30 @@ spinner, no error, just no banner.
 Walking from the user's tap to Anthropic, the caches that can absorb the
 load are:
 
-1. **Browser cache** — none. The client always re-issues
-   `GET /api/weather-summary` on a 15-minute interval and on certain
-   user actions (location pan, settings change).
+1. **Browser cache** — none. The client re-issues
+   `GET /api/weather-summary` every 15 minutes while the summary surface
+   is mounted and the screen is awake (on the Pi only while the AI view is
+   open), and immediately on a location change, a language / unit change,
+   or wake from the screensaver.
 2. **`summaryCache` in `aiSummaryCtrl.js`** — 15 min TTL (5 min for a
    truncated reply; refused and empty replies are never cached). First
    line of defense. A hit returns the cached text, never touches the
    network.
 3. **`weatherCache` in `proxyCtrl.js`** (shared with the rest of the
-   weather endpoints) — 15 min for current, 30 min for hourly, 30 min
+   weather endpoints) — 15 min for current, 30 min for hourly, 6 h
    for daily. The AI summary reuses the same entries the rest of the
    app already populated.
 4. **`tileCache` in `radarAnalyzerCtrl.js`** — 60 min per decoded tile
    (`TILE_CACHE_TTL`).
    Shared with `getRiskLevels` (the inner/outer ring colouring), so a
    typical poll cycle on a kiosk hits the cache for every tile.
-5. **`analysisCache` in `radarAnalyzerCtrl.js`** — 5 min for the formatted
-   text. Shorter than the summary cache so radar context can refresh
-   inside a single summary cache window if needed.
+5. **`analysisCache` in `radarAnalyzerCtrl.js`** — 5 min soft TTL for the
+   formatted text (`ANALYSIS_CACHE_TTL`); past it, only the RainViewer
+   frame index is re-fetched and the cached text is reused as long as the
+   frames it would sample (now, -15 min, -45 min) are unchanged, up to a
+   30 min hard TTL (`ANALYSIS_HARD_TTL_MS`). The soft TTL is shorter than
+   the summary cache so radar context can refresh inside a single summary
+   cache window if needed.
 6. **Anthropic** — Claude.
 
 A typical "all caches warm" call returns in 1-3 ms (the cache lookup +
@@ -562,7 +581,7 @@ ample headroom; don't tighten it without measuring p99 latency at
 | `server/radarAnalyzerCtrl.js` | RainViewer fetch, PNG decode, sampling, formatting |
 | `server/proxyCtrl.js` | Shared weather cache (Tomorrow.io payloads) |
 | `client/src/components/ambient/AiSummaryInline/index.js` | Display — the summary slab used by the desktop and mobile layouts (carries its own fetch + 15-min refresh) |
-| `client/src/components/hooks/useAiSummary.js` | Fetch + refresh contract, extracted as a hook (15-min interval, `REFRESH_INTERVAL`). Consumed by `ambient/AiView`, the full-rail AI view on the 7" Pi layout |
+| `client/src/components/hooks/useAiSummary.js` | Fetch + refresh contract, extracted as a hook (15-min interval, `REFRESH_INTERVAL`). Consumed by `ambient/AiView`, the full-rail AI view opened from the IA dock button on every Pi layout (7" priority views and the 10.1" stacked rail) |
 | `client/src/components/ambient/AiView/index.js` | Pi full-rail AI view; splits the summary into sections and finds the radar paragraph by its label (`RADAR_PREFIX`) |
 | `client/src/components/ambient/SettingsPanel/index.js` | Settings UI for `advanced.ai.*` |
 | `test/aiSummaryClaudeReply.test.js` | Locks the Haiku 5.5 request shape, the reply classification and the radar-label contract with `RADAR_PREFIX` (`npm test`; siblings `aiSummary.cache.test.js`, `aiSummaryCalmPath.test.js`) |
@@ -572,7 +591,7 @@ ample headroom; don't tighten it without measuring p99 latency at
 
 ## Privacy posture
 
-The AI summary makes outbound calls to two third parties:
+The AI summary makes outbound calls to up to three third parties:
 
 - **RainViewer** — public radar tile CDN, no API key, no user identifier.
   Standard CDN log retention applies.
@@ -581,10 +600,12 @@ The AI summary makes outbound calls to two third parties:
   [data-handling policies](https://docs.anthropic.com/en/docs/legal/data-protection)
   apply to that single inference call. No conversation history, no
   retention beyond what their default policy specifies.
-
-Tomorrow.io fetches do not happen as part of the AI summary path
-specifically — they happen as part of the regular weather endpoints, and
-the AI summary just reads from the cache they populate.
+- **Tomorrow.io** — normally not contacted: the AI summary reads the
+  shared weather cache populated by the regular weather endpoints. When
+  the current-conditions entry is missing or expired (e.g. cold boot), it
+  makes its own `timesteps=current` request with the location's lat/lon
+  and the user's `weatherApiKey`, through the shared dispatch spacer
+  (recorded in the service status as "AI summary backfill").
 
 The AI portion can be **disabled in three different shapes** — pick the
 one that matches your concern:
@@ -606,7 +627,9 @@ one that matches your concern:
    server-side `SUMMARY_CACHE_TTL` (15 min) and the client polling
    interval (also 15 min) can be lengthened in code if a deployment
    wants fewer calls per hour. Doubling the cache TTL roughly halves
-   the call rate at low end (a 30 min TTL drops 96 calls/day to 48).
+   the call rate at low end (a 30 min TTL drops 96 calls/day to 48; 96
+   assumes continuous polling — a desktop / mobile client, or a Pi AI
+   view left open, with the screen awake).
 
 ### Behaviour matrix across the AI / radar settings
 
@@ -614,9 +637,9 @@ one that matches your concern:
 |---|---|:---:|:---:|:---:|:---:|
 | No `anthropicApiKey` | — | ❌ | ❌ | ✅ subdued | ✅ |
 | Key + `radarAnalysisEnabled: true` + active weather | Claude | ✅ | ✅ | ✅ full contrast | ✅ |
-| Key + `radarAnalysisEnabled: true` + calm + fast-path on (default) | **Template (no Claude call)** | ✅ | ❌ (skipped) | ✅ full contrast | ✅ |
-| Key + `radarAnalysisEnabled: false` | Claude | ✅ | ❌ | ❌ | ✅ |
+| Key + `radarAnalysisEnabled: true` + calm + fast-path on (default) | **Template (no Claude call)** | ✅ | ✅ (templated "nothing to report") | ✅ full contrast | ✅ |
+| Key + `radarAnalysisEnabled: false` | Claude (calm + fast-path on: two-paragraph template, no Claude call) | ✅ | ❌ | ❌ | ✅ |
 
 Notes:
-- The **calm-day fast path** (third row) is enabled by default via `advanced.ai.calmDayFastPath: true`. It triggers when **all four** of: (1) current weather code is in the benign range (no 4xxx-8000), (2) current precipitation probability < 20 %, (3) period forecast's max precipitation probability < 20 %, (4) radar snapshot is fully clear. When all four hold, the server renders a three-paragraph template (current conditions + period forecast + radar "nothing to report within 50 km / 100 km depending on extendedRadius"), no Anthropic tokens spent. The radar gate exists specifically to defend against the case where Tomorrow.io reports calm but RainViewer already shows an approaching band — in that case the fast path bails out and Claude takes over so the summary stays honest. Set `calmDayFastPath: false` to always invoke Claude regardless of conditions.
+- The **calm-day fast path** (third row) is enabled by default via `advanced.ai.calmDayFastPath: true`. It triggers when **all four** of: (1) current weather code is in the benign range (no 4xxx-8000), (2) current precipitation probability < 20 %, (3) period forecast's max precipitation probability < 20 %, (4) the radar snapshot, if one was obtained, shows no `Active` zone — an unavailable or disabled radar block passes this gate. The current temperature must also be present and the period max must be known (a missing period forecast defers to Claude). When all four hold, the server renders a three-paragraph template (current conditions + period forecast + radar "nothing to report within 50 km / 100 km, or 30 mi / 60 mi, depending on `extendedRadius`"; the radar paragraph is dropped when radar analysis is off), no Anthropic tokens spent. The radar gate exists specifically to defend against the case where Tomorrow.io reports calm but RainViewer already shows an approaching band — in that case the fast path bails out and Claude takes over so the summary stays honest. Set `calmDayFastPath: false` to always invoke Claude regardless of conditions.
 - The "subdued" treatment in the no-key case lowers the calm-tier ring's opacity (0.85 → 0.35) and switches to a sparser dash pattern (`6 6` → `3 9`); coloured tiers (yellow / orange / red) keep their full contrast — alerts need to stay loud regardless of AI availability.

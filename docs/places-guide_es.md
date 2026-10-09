@@ -21,7 +21,12 @@ Se abre con el **icono de marcador** de la barra inferior.
 No hay campo de búsqueda. Se guarda **el sitio que está viendo en ese
 momento**, lo que en una pantalla táctil es más rápido que escribir.
 
-1. Lleve el mapa al sitio que quiera — arrastrándolo, o tocándolo.
+1. Toque el mapa en el sitio que quiera — si queda fuera de la
+   pantalla, arrastre antes el mapa, pero arrastrar solo mueve la
+   vista: la ubicación, y el nombre de la ciudad arriba, cambian al
+   tocar. Si se muestran las alertas cercanas en el mapa y toca dentro
+   de una de sus zonas, se abre un recuadro en su lugar: toque
+   **Recentrar aquí**.
 2. Toque el **nombre de la ciudad**, arriba en la pantalla. Se abre un
    panel con los detalles de esa ubicación.
 3. Al final de ese panel, toque **Anclar este lugar**.
@@ -93,11 +98,12 @@ arranca la estación. Conviértala primero en un lugar real: en modo
 Modificar, toque el `★` de la fila `⌂`. Pasa a ser una fila normal, que
 puede renombrar con `✎`.
 
-> **¿Adónde fue la fila `⌂`?** Esto sorprende. Una vez anclada su
-> ubicación de inicio, *pasa a ser* uno de sus lugares guardados — así
-> que la fila de recordatorio ya no hace falta y desaparece, y la
-> casita se traslada a su fila guardada. No se ha perdido nada: el
-> mismo sitio aparece una vez en lugar de dos.
+> **¿Adónde fue la fila `⌂`?** Esto sorprende. En cuanto su ubicación
+> de inicio es uno de sus lugares guardados — anclada con `★`, o
+> elegida con `⌂` en una fila guardada — la fila de recordatorio ya no
+> hace falta y desaparece, y la casita se traslada a su fila guardada.
+> No se ha perdido nada: el mismo sitio aparece una vez en lugar de
+> dos.
 
 **Para volver a automático:** en modo Modificar, toque `↺` en la fila
 `⌂`. La estación vuelve a deducir su ubicación de la conexión a
@@ -117,17 +123,19 @@ deshacer, así que no se muestra.
 
 La razón es el tamaño del panel: muestra siete filas en la pantalla de
 7 pulgadas sin tener que desplazar, y la fila `⌂` ocupa una. Ancle su
-ubicación de inicio y esa fila deja de hacer falta, lo que libera el
-sitio para un lugar real.
+ubicación de inicio y esa fila deja de hacer falta: la ubicación de
+inicio ocupa ese sitio ella misma, así que no cuesta una fila más —
+pero no hace sitio para otro lugar.
 
 En el límite, **Anclar este lugar** aparece atenuado con *«Lista
-llena»*. Quite alguno que ya no use y vuelve a activarse.
+llena»*. Quite alguno que ya no use y vuelve a activarse. (En modo
+Modificar, el `★` de la fila `⌂` sigue funcionando en el límite.)
 
 ## Desde un móvil u otro ordenador
 
 Si abre la estación desde otro dispositivo de su red, puede **ver la
 lista y tocar las filas para mover el mapa**, pero el botón
-**Modificar** no está.
+**Modificar** no está, ni tampoco **Anclar este lugar**.
 
 Es intencionado. Los cambios solo se aceptan desde la propia estación,
 para que nadie más en la red pueda tocar sus ajustes. Para modificar
@@ -140,12 +148,12 @@ principal — cuenta como la propia estación.
 
 | Lo que ve | Qué está pasando |
 |---|---|
-| Un lugar lleva solo el nombre de la región, como *Texas* | Los datos del mapa no tienen municipio para ese punto exacto, así que solo llegó la zona más amplia. Renómbrelo como prefiera |
+| Un lugar lleva solo el nombre de la región, como *Texas*, o sus coordenadas | Los datos del mapa no tienen municipio ni condado para ese punto exacto (o ninguna dirección), así que solo llegó la zona más amplia — o la posición sin más. Renómbrelo como prefiera |
 | El nombre es correcto pero prefiere otro | Modificar → `✎`. Los nombres son libres |
-| *«Lista llena»* en el botón de anclar | Está en el límite. Quite uno, o ancle su ubicación de inicio para liberar un sitio |
+| *«Lista llena»* en el botón de anclar | Está en el límite. Quite un lugar que ya no use |
 | El `✎` abre una casilla donde no se puede escribir | No hay teclado conectado — vea *Renombrar* |
-| No aparece el botón **Modificar** | Está conectado desde otro dispositivo — vea más arriba |
-| La fila `⌂` ha desaparecido | La ancló; la casita está ahora en su fila guardada |
+| No aparece el botón **Modificar** ni **Anclar este lugar** | Está conectado desde otro dispositivo — vea más arriba |
+| La fila `⌂` ha desaparecido | Su ubicación de inicio es ahora uno de sus lugares guardados (la ancló con `★`, o eligió un lugar guardado con `⌂`); la casita está en esa fila |
 | Sigue arrancando en el sitio equivocado tras borrarlo todo | La ubicación de inicio es independiente de la lista — use `↺` en la fila `⌂` |
 | Tocar una fila no hace nada | El modo Modificar está activo. Toque **Hecho** primero |
 

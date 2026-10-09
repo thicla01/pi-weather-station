@@ -26,7 +26,7 @@ GetCapabilities exposes **5 radar-related layers**. No nowcast/forecast layer ex
 |---|---|---|---|---|
 | `RADAR_1KM_RRAI` | Radar precipitation rate for rain | mm/h | rolling ~3h, 6-min step | **Default for the kiosk's ECCC mode (v2.13).** Primary visual layer year-round; conceptually equivalent to RainViewer's tile. |
 | `RADAR_1KM_RSNO` | Radar precipitation rate for snow | cm/h | rolling ~3h, 6-min step | Winter alternative. Same data conversion to snow rate via reflectivity → cm/h formula. Could be auto-selected by the `SfcPrecipType` layer. |
-| `Radar_1km_SfcPrecipType` | Surface precipitation type | categorical (rain / snow / mixed / etc.) | rolling ~3h, 6-min step | Diagnostic layer that classifies *what kind* of precipitation each pixel represents. Useful for the `auto rain-vs-snow source switch` Phase C idea. |
+| `Radar_1km_SfcPrecipType` | Surface precipitation type | categorical (rain / snow / mixed / etc.) | rolling ~3h, 6-min step | Diagnostic layer that classifies *what kind* of precipitation each pixel represents. Useful for an auto rain-vs-snow switch (option 2 under "To switch rain → snow seasonally" below; a Phase A stretch goal in ROADMAP, not scheduled). |
 | `RADAR_COVERAGE_RRAI` | Dynamic radar coverage for rain | n/a | rolling ~3h, 6-min step | Polygons showing which radar sites are currently reporting rain data. Useful as a debug overlay (a kiosk in a coverage hole would otherwise show a blank radar without explanation). |
 | `RADAR_COVERAGE_RSNO` | Dynamic radar coverage for snow | n/a | rolling ~3h, 6-min step | Same as above for snow. |
 
@@ -189,11 +189,14 @@ Current implementation in [`client/src/components/WeatherMap/index.js`](../clien
       version: "1.3.0",
     }}
     opacity={dark ? radarOpacityDark : radarOpacityLight}
+    maxZoom={12}
   />
 ) : ...}
 ```
 
 Three properties are implicit (server defaults): `STYLES` → first listed (`Radar-Rain_14colors`); `TIME` → most recent frame; `CRS` → inherits from the Leaflet `MapContainer` (EPSG:3857).
+
+*Updated 2026-10-08:* `maxZoom={12}` was added on 2026-05-19, after this document's last verification. The radar has no useful detail past z=12 (≈ 1 km native resolution), and the cap stops Safari/iPad from upscaling the WMS PNG into a freeze. The basemap keeps zooming; only the radar overlay disappears above z=12.
 
 ### To swap the style
 
@@ -227,11 +230,11 @@ Two paths, neither implemented today:
 | **History** | 10 past frames + 3 nowcast (~3 h total) | last 3 h, no nowcast |
 | **Coverage** | Global | North America only (bbox above) |
 | **Authority** | Commercial aggregate | Source-of-truth (Canadian government, US NOAA) |
-| **Style options** | None — fixed palette | 16 named styles (rain), 16 (snow), 2 (precip type), 6 (coverage) |
+| **Style options** | A few numbered colour schemes (URL segment) — we pin scheme 6 because the analyzer palette (`INTENSITY_PALETTE`) and the client legend are hard-wired to it | 16 named styles (rain), 16 (snow), 2 (precip type), 6 (coverage) |
 | **Snow/rain separation** | No (intensity only) | **Yes** — distinct layers + `SfcPrecipType` classifier |
 | **Format** | Pre-rendered PNG tiles via CDN | Dynamic WMS GetMap (server-side rendered) |
 | **Auth / key** | None | None |
-| **Rate limits** | Unspecified, 256×256 tile pipeline | Unspecified, dynamic render |
+| **Rate limits** | Unspecified, 512×512 tile pipeline | Unspecified, dynamic render |
 | **Suitable analyzer source** | **Yes (current)** — pixel-decoded intensity | TBD — Phase B work; OGC API Coverages may expose raw values |
 | **Time-dimension API for scrubbing** | RainViewer's frame URLs (`{path}/{z}/{x}/{y}`) | WMS `TIME=` parameter |
 
@@ -241,9 +244,9 @@ Captured in `ROADMAP.md` under "🇨🇦 Environment Canada radar source" — th
 
 - **No nowcast frames.** RainViewer ships 3 short-range forecast frames driving the timeline scrubber's amber portion. ECCC has no equivalent for radar — the time dimension's upper bound is "now". Phase B's scrubber will lose the +0..+30 min preview unless we hybrid-pull it from RainViewer.
 
-- **Analyzer port.** The kiosk's tier/trend/AlertBanner pipeline depends on RainViewer's PNG palette being decodable pixel-by-pixel into a 0-7 intensity scale ([`server/radarAnalyzerCtrl.js`](../server/radarAnalyzerCtrl.js), see [`docs/radar-classification.md`](radar-classification.md)). To port to ECCC the cleanest route is **OGC API Coverages** at `api.weather.gc.ca` for raw mm/h precipitation-rate values, sampled at the kiosk's geometry. Whether that endpoint exposes per-point queries efficiently is **not yet verified** — research and a small spike are pre-requisites before Phase B starts.
+- **Analyzer port.** The kiosk's tier/trend/AlertBanner pipeline depends on RainViewer's PNG palette being decodable pixel-by-pixel into a 0–6 intensity scale (0 = clear, 1–6 = the RainViewer colour scheme 6 levels) ([`server/radarAnalyzerCtrl.js`](../server/radarAnalyzerCtrl.js), see [`docs/radar-classification.md`](radar-classification.md)). To port to ECCC the cleanest route is **OGC API Coverages** at `api.weather.gc.ca` for raw mm/h precipitation-rate values, sampled at the kiosk's geometry. Whether that endpoint exposes per-point queries efficiently is **not yet verified** — research and a small spike are pre-requisites before Phase B starts.
 
-- **Auto-source switching.** Today's setting is manual per-kiosk. Phase B should auto-default to ECCC for kiosks geolocated inside Canada (per `req.ip` + bbox check or the existing `geolocationCtrl.js` cache), RainViewer outside.
+- **Auto-source switching.** Today's setting is manual per-kiosk. Phase B should auto-default to ECCC for kiosks geolocated inside Canada (bbox check against the existing `geolocationCtrl.js` location — an ipapi.co lookup of the server's own public IP, 30-day disk cache — or the kiosk's current map coordinates; not `req.ip`, which is loopback for the kiosk itself and XFF-spoofable for remote clients), RainViewer outside.
 
 - **Coverage-hole UX.** ECCC's `RADAR_COVERAGE_RRAI` layer is the right input for a "no data here" diagnostic — a kiosk inside a coverage gap currently sees a blank ECCC layer and has no way to know it's a coverage issue rather than a clear-sky reading. Worth surfacing in the small-screen layout as a faint overlay or a banner.
 

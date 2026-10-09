@@ -38,9 +38,12 @@ to `grep`, easier to ship through `logrotate`, and survives operations
 that would otherwise drop journal entries (the journal can be
 volatile-only on space-constrained Pis). The trade-off is that
 `journalctl --user -u pi-weather-server` now contains only systemd
-**lifecycle** events (start, stop, exit code, ExecStartPre output)
-and **none** of the application's own logging. If you grep journalctl
-and find nothing useful, that is why — read the file instead.
+**lifecycle** events (start, stop, restart, exit code) and **none** of
+the application's own logging. (`StandardOutput` / `StandardError`
+apply to every `Exec*` command of the unit, so any `ExecStartPre`
+output lands in the same log file, not the journal.) If you grep
+journalctl and find nothing useful, that is why — read the file
+instead.
 
 ### Why the XDG state dir (and not `/tmp`)
 
@@ -88,9 +91,9 @@ manually with `: > ~/pi-weather-station/server.log` if it gets large
 
 ### Reading systemd lifecycle events (Linux)
 
-For the systemd-side view (start/stop, restart-on-failure history,
-`ExecStartPre` output), `journalctl` is still the right tool — it just
-won't have the application logs:
+For the systemd-side view (start/stop, restart-on-failure history),
+`journalctl` is still the right tool — it just won't have the
+application logs:
 
 ```bash
 # Lifecycle events for this user unit
@@ -100,7 +103,7 @@ journalctl --user -u pi-weather-server -n 50
 journalctl --user -u pi-weather-server -f
 ```
 
-### Sense HAT companion service (`pi-sensehat`)
+### Sense HAT companion services (`pi-sensehat` / `pi-sensehat-clock`)
 
 The optional Sense HAT display service is a Python script with no
 StandardOutput override, so its output **does** flow through the
@@ -109,6 +112,27 @@ journal as expected:
 ```bash
 journalctl --user -u pi-sensehat -n 50
 journalctl --user -u pi-sensehat -f
+```
+
+The two Sense HAT daemons are mutually exclusive. In clock mode
+(`/api/sensehat-mode`) `pi-sensehat` is stopped and the clock daemon
+(`tools/horloge.py`) logs to its own unit, also with no StandardOutput
+override:
+
+```bash
+journalctl --user -u pi-sensehat-clock -n 50
+journalctl --user -u pi-sensehat-clock -f
+```
+
+### Kiosk relaunch (`POST /api/relaunch-kiosk`)
+
+`deploy/relaunch-kiosk.sh` (spawned detached by `displayScaleCtrl`)
+appends the launcher's and browser's output to
+`~/.local/state/pi-weather-station/kiosk.log` — the only trace left
+when a relaunched kiosk stays dark:
+
+```bash
+tail -f ~/.local/state/pi-weather-station/kiosk.log
 ```
 
 ## Other server-side artefacts
@@ -121,14 +145,16 @@ similar names:
 | `npm-audit.log` | Legacy: output of `npm audit` runs from older versions of `install.sh`. Vulnerability scanning moved to Dependabot on GitHub (`.github/dependabot.yml`) and the Debug panel's "Vulnerability scan" section now links there directly; this file is no longer read or updated and can be safely deleted | `<repo>/npm-audit.log` (gitignored) |
 | `request-counts.json` | Daily quota counters for external APIs, not human-readable as logs | `<repo>/server/request-counts.json` (gitignored) |
 
-## Debug panel — bottom-of-page log preview
+## Debug panel — "Recent logs" preview (Server bucket)
 
 When `DEBUG=true` is set in the systemd / launchd drop-in (toggle via
 `bash deploy/toggle-debug.sh`), the in-app debug panel shows the last
-~100 lines of the server log inline — same file as above, just
-surfaced through `/api/debug` for convenience when SSH is awkward.
-The endpoint is `localhostOnly`, so this preview is never exposed to
-remote clients; it tails the file the host is actually writing to
+~100 lines of the server log in the **Recent logs** section of the
+**Server** bucket — same file as above, just surfaced through
+`/api/debug` for convenience when SSH is awkward. The endpoint is gated
+by `debugLocalhostOnly` (socket-peer check, like `localhostOnly`), so
+this preview is never exposed to remote clients; it tails the file the
+host is actually writing to
 (`~/.local/state/pi-weather-station/server.log` on Linux — falling
 back to the legacy `/tmp/weather-server.log` on not-yet-migrated
 installs — and `<repo>/server.log` on macOS).
