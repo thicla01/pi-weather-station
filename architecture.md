@@ -329,6 +329,8 @@ App                               Root — mounts the overlays and AmbientLayers
 │       │   │                         + Mapbox tiles; RainViewer TileLayers in fixed
 │       │   │                         slots, a step flips opacity (frame window:
 │       │   │                         ui/radarFrameStack.js)
+│       │   ├── RadarTileLayer        RainViewer frame layer: TileLayer + shared
+│       │   │                          failed-tile cooldown (no 429 storm)
 │       │   ├── MapResizer            invalidateSize on every container resize
 │       │   │                          (ResizeObserver) + mobile maximize recenter
 │       │   ├── PanHandler            Programmatic re-centering with rail-offset math
@@ -368,9 +370,11 @@ App                               Root — mounts the overlays and AmbientLayers
 │       │     otherwise the displayed frame only. Bounded rather than every
 │       │     frame: each mounted layer fetches on every pan / zoom / resize,
 │       │     RainViewer rate-limits per public IP (500 req/min, 300 burst), and
-│       │     the Pi 3B has 1 GB. Failed radar tiles get two delayed retries
-│       │     (`RADAR_TILE_EVENTS` in WeatherMap/index.js): Leaflet never
-│       │     re-requests one while its layer stays mounted.
+│       │     the Pi 3B has 1 GB. Each frame layer is a `RadarTileLayer`
+│       │     (WeatherMap/RadarTileLayer.js): a tile URL that failed is held
+│       │     for 65 s (ui/radarTileCooldown.js, longer than RainViewer's 60 s
+│       │     window) and retried when the hold ends, so refused tiles can't
+│       │     keep the shared per-IP limit saturated.
 │       │
 │       ├── FloatingMiniBanner        Gov-alert chip over the map while the radar is
 │       │                             focused (Pi MIN / Desktop) or maximized (Mobile)

@@ -70,6 +70,7 @@ import RadarTimeline from "./RadarTimeline";
 import RiskRing from "./RiskRing";
 import RingLabels from "./RingLabels";
 import MapResizer from "./MapResizer";
+import RadarTileLayer from "./RadarTileLayer";
 import RadarFocusControl from "./RadarFocusControl";
 import {
   hasVal,
@@ -179,34 +180,6 @@ const MAPBOX_ATTRIBUTION = '© <a href="https://www.mapbox.com/feedback/">Mapbox
  * @returns {string} Leaflet tile URL template.
  */
 const rainViewerTileUrl = (path) => `https://tilecache.rainviewer.com${path}/512/{z}/{x}/{y}/6/1_1.png`;
-
-// Delays before each retry of a radar tile that failed to load.
-const RADAR_TILE_RETRY_DELAYS_MS = Object.freeze([5_000, 30_000]);
-
-// Leaflet marks a tile that failed (a RainViewer 429 under the per-IP
-// limit, a Wi-Fi blip) as done and never requests it again while its
-// layer stays mounted. The single url-swapped layer used to rebuild every
-// tile on each step, which retried it; the kept-mounted frame layers need
-// an explicit retry. Each failed tile is retried at most twice, with the
-// exact URL that failed: rebuilding it from the layer (getTileUrl) would
-// use the layer's current zoom and unwrapped world coordinates, which are
-// wrong after a zoom or on a wrapped world copy. The timer is not tied to
-// a component: it does nothing once the tile has left the document (layer
-// removed, tile pruned) or Leaflet has pointed it elsewhere (a removed
-// tile gets an empty-image src). Frozen module constant, so react-leaflet
-// binds it once per layer.
-const RADAR_TILE_EVENTS = Object.freeze({
-  tileerror: ({ tile }) => {
-    const url = tile.getAttribute("src");
-    const attempt = Number(tile.dataset.retries || 0);
-    if (!url || attempt >= RADAR_TILE_RETRY_DELAYS_MS.length) return;
-    tile.dataset.retries = String(attempt + 1);
-    setTimeout(() => {
-      if (tile.isConnected && tile.getAttribute("src") === url) tile.src = url;
-    }, RADAR_TILE_RETRY_DELAYS_MS[attempt]);
-  },
-});
-
 
 /**
  * Handles map click events from inside the MapContainer context
@@ -1516,13 +1489,12 @@ const WeatherMap = ({ zoom, dark }) => {
            * Leaflet's setUrl → redraw, which during a pinch uses the
            * fractional zoom until the gesture ends — the old url swap
            * did the same on the visible layer. */
-          <TileLayer
+          <RadarTileLayer
             key={`rainviewer-slot-${slot}`}
             /* Same string on every frame layer: Leaflet's attribution
              * control counts duplicates and shows it once. */
             attribution='<a href="https://www.rainviewer.com/">RainViewer</a>'
             url={rainViewerTileUrl(path)}
-            eventHandlers={RADAR_TILE_EVENTS}
             opacity={path === mapTimestamp.path
               ? (dark ? radarOpacityDark : radarOpacityLight)
               : 0}

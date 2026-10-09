@@ -26,41 +26,42 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   now resolves against the viewport, as its coordinates assume. Chromium is unchanged. Idea
   ported from [@Aryeh95](https://github.com/Aryeh95)'s [Sweep](https://github.com/Aryeh95/Sweep)
   fork, commit [`c0e2ed4`](https://github.com/Aryeh95/Sweep/commit/c0e2ed443c900d55d1f6789be96774d80ce3a446).
-- **The radar timeline no longer blanks between frames.** Each play or scrub step used to swap
-  the single RainViewer `TileLayer`'s `url`, so Leaflet dropped and re-created every visible tile
-  for the new frame. The map flashed empty between frames and storms popped in and out instead
-  of moving, worst on wide viewports (the stutter logged in the ROADMAP on a 13.3" panel).
-  `WeatherMap` now keeps several frames mounted as separate layers, so a step flips `opacity`
-  onto a layer that has already loaded. `client/src/ui/radarFrameStack.js` picks the frames. While the timeline is closed,
-  open but paused on "now", or on the Pi's MAX view, only the displayed frame is mounted, as
-  before. While it plays or is parked off "now", the displayed frame and two frames on each side
-  are mounted, in a fixed set of five layer slots. In playback and frame-by-frame scrubbing, each
-  step lands on a frame loaded two steps earlier and hands the slot of the frame leaving the
-  window to the one entering it: a hidden layer changes url, and no layer is created or destroyed
-  (only opening or closing the window does).
-  The network and tile work per step thus stay those of the old url swap (one frame, from the
-  browser cache after the first pass). A first version created and destroyed one layer per step;
-  on the RPi-3B it used about 20 points more CPU than the url swap during 4× playback. A
-  headless-Chrome benchmark (800×480, 4×, 60 s, two runs per build) traced that to a second,
-  forced layout per step (a new Leaflet layer reads `offsetWidth` when it creates its zoom
-  level) and ~35 % more main-thread time. The number of mounted layers had no measurable effect (3 or
-  5). With the slots, the same benchmark measures the url swap's one layout per step, ~11 % more
-  main-thread time, and ~9 % less renderer + GPU time overall. The first step off "now" and a jump (a tap on the track) still
-  land on a frame that isn't loaded, as before, and mount up to five frames at once, the
-  displayed one first. The fork this comes from mounts every frame. A fixed window was chosen
-  because every mounted layer, hidden or not, fetches tiles on each pan, zoom or resize, and
-  RainViewer rate-limits per public IP (500 requests/min, 300 in a burst, shared by the kiosks
-  behind one router and their servers' radar analysis). The Pi 3B also has 1 GB. Leaflet never
-  retries a failed tile while its layer stays mounted, so a failed radar tile is now retried
-  after 5 s and again after 30 s. A pinch also skips the intermediate zoom levels
-  (`updateWhenZooming: false`).
+- **The radar timeline no longer blanks between frames.** Each play or scrub step used to swap the
+  single RainViewer `TileLayer`'s `url`, so Leaflet dropped and re-created every visible tile for
+  the new frame. The map flashed empty between frames and storms popped in and out instead of
+  moving, worst on wide viewports (the stutter logged in the ROADMAP on a 13.3" panel).
+  `WeatherMap` now keeps several frames mounted as separate layers, so a step flips `opacity` onto
+  a layer that has already loaded. `client/src/ui/radarFrameStack.js` picks the frames. While the
+  timeline is closed, open but paused on "now", or on the Pi's MAX view, only the displayed frame
+  is mounted, as before. While it plays or is parked off "now", the displayed frame and two frames
+  on each side are mounted, in a fixed set of five layer slots. In playback and frame-by-frame
+  scrubbing, each step lands on a frame loaded two steps earlier and hands the slot of the frame
+  leaving the window to the one entering it: a hidden layer changes url, and no layer is created
+  or destroyed (only opening or closing the window does). The network and tile work per step thus
+  stay those of the old url swap (one frame, from the browser cache after the first pass). A first
+  version created and destroyed one layer per step; on the RPi-3B it used about 20 points more CPU
+  than the url swap during 4× playback. A headless-Chrome benchmark (800×480, 4×, 60 s, two runs
+  per build) traced that to a second, forced layout per step (a new Leaflet layer reads
+  `offsetWidth` when it creates its zoom level) and ~35 % more main-thread time. The number of
+  mounted layers had no measurable effect (3 or 5). With the slots, the same benchmark measures
+  the url swap's one layout per step, ~11 % more main-thread time, and ~9 % less renderer + GPU
+  time overall. The first step off "now" and a jump (a tap on the track) still land on a frame
+  that isn't loaded, as before, and mount up to five frames at once, the displayed one first. The
+  fork this comes from mounts every frame. A fixed window was chosen because every mounted layer,
+  hidden or not, fetches tiles on each pan, zoom or resize, and RainViewer rate-limits per public
+  IP (500 requests/min, 300 in a burst, shared by the kiosks behind one router and their servers'
+  radar analysis). The Pi 3B also has 1 GB. Leaflet never retries a failed tile while its layer
+  stays mounted, so failed radar tiles are now held and retried (see the RainViewer rate-limit
+  entry under Fixed). A pinch also skips the intermediate zoom levels (`updateWhenZooming:
+  false`).
 
   Measured at 1024×640 (4 tiles per frame, 13 frames) at 4× speed:
   - always exactly 5 layers and one visible, and no layer created during steady playback;
   - the displayed frame fully loaded at every sample (240 with the first version, 393 with the
     slots);
-  - a displayed frame whose 4 tiles were forced to 404 was whole again within 8.5 s, without
-    moving;
+  - a displayed frame whose 4 tiles were forced to 404 was whole again on its delayed retry,
+    without moving (8.5 s with the first version's 5 s retry; a refused tile is now held for 65 s,
+    see the rate-limit entry under Fixed);
   - a zoom with the window active creates 20 tiles (5 layers × 4), against 4 before.
 
   Also checked on the 7" priority-view scrubber (MIN); the ECCC radar source is untouched. New
@@ -86,6 +87,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   descendant, so losing the containing block the filter created moves nothing.
 
 ### Fixed
+- **A wide kiosk playing the radar loop no longer locks every kiosk on the network out of
+  RainViewer.** RainViewer limits tile requests per public IP (500 a minute, bursts of 300), and
+  every kiosk behind the same router shares that budget with its server's radar analysis. At 4×
+  each step loads a whole frame, 32 tiles on a 34" panel, so a first pass with a cold cache
+  overruns the burst. A refused tile (429) is never cached, so every later loop pass and every
+  retry requested it again and kept the IP over the limit for as long as the loop played. Measured
+  behind such a router with Chrome at 3440×1440, cold cache, 4×: ~2 900 refused requests in a
+  minute, RainViewer's own counter at 2 400-4 200 against 500, on the release and on the new frame
+  slots alike. Radar frames now go through `WeatherMap/RadarTileLayer.js`, a Leaflet `TileLayer`
+  whose tiles honour a shared cooldown (`client/src/ui/radarTileCooldown.js`): a URL that failed
+  is not requested again for 65 s (longer than RainViewer's 60 s window) and the tile is retried
+  when the hold ends, at most twice, instead of after 5 s and 30 s. Same test, 120 s of play: 116
+  refusals, all in the first 15 s (the cold burst), the counter peaking at 469, the held tiles all
+  loading on their retry a minute later, and no network request after that. A zoom to a cold
+  level still bursts once (203 refusals) and then waits instead of hammering. An image error
+  carries no status code, so a Wi-Fi blip now leaves its hole for a minute too.
+  `@react-leaflet/core` (already installed with `react-leaflet`) is now a declared dependency.
+  New `test/radarTileCooldown.test.js` (6 tests).
 - **Leaving the fullscreen radar no longer leaves the map off-centre on a slow Pi.** Leaflet
   caches the map's size and uses it for every pan and for the recenter button. `MapResizer`
   re-read it 50 ms and 250 ms after a layout flag changed, but a CSS transition only gets its

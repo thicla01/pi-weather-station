@@ -20,8 +20,8 @@
 //     servers' radar analysis). A 34" panel shows ~30 tiles per frame, so
 //     13 mounted frames would overrun the burst on one zoom.
 //   - Leaflet never retries a failed tile while its layer stays mounted
-//     (WeatherMap retries radar tiles itself; a frame that leaves the
-//     window and comes back is rebuilt anyway).
+//     (WeatherMap/RadarTileLayer.js holds a refused tile's URL past
+//     RainViewer's 60 s window, then retries it).
 //   - Memory on a 1 GB Pi 3B.
 // So:
 //   - Inactive (timeline closed, open but paused on "now" — the newest
