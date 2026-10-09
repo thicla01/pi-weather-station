@@ -121,6 +121,18 @@ Real-time operational status fetched from each external service's public status 
 
 ---
 
+## Recent Service Calls
+
+The last recorded outbound call of each server-side upstream service, from the in-memory service-status map (`server/serviceStatus.js`; cleared on server restart). Unlike the lists elsewhere in the panel that stop at 10 rows (response times, client API calls, remote clients, security events), this one is never capped: the server pre-registers its whole inventory at startup (`registerKnownServices` in `server/index.js` — Tomorrow.io ×3, Mapbox, LocationIQ, ipapi.co, sunrise-sunset.org, RainViewer ×2, Claude, Homebridge, the air-quality sources, both alert feeds and Open-Meteo pollen), so a service that has not been called yet — or never will be on this install — still has a row, and a service recorded without being pre-registered is listed too. Failing services are listed first (HTTP 5xx, then 4xx), then every other service in the server's order: startup registration order, with a service first seen later at the end. The list has no internal scroll; the panel's content pane scrolls as a whole. The CSV export's `SERVICES` section carries the same entries in the server's order (no failures-first hoist) plus each entry's last-call time.
+
+| Column | Definition |
+|---|---|
+| **Status** | Last HTTP status, as a tag: red for 5xx, amber for 4xx, green for 2xx–3xx; `?` (neutral) when the service has not been called since the server started. |
+| **Service** | Service name as recorded by the controller (e.g. `Tomorrow.io (current)`, `NWS (severe weather alerts)`). |
+| **Comment** | Free-text detail of the last call — `OK`, a cache note, or the upstream error message; `Not yet called` for a pre-registered service with no call yet. |
+
+---
+
 ## API Quota Counters
 
 Tracks outbound calls to paid/rate-limited external services. Counters are persisted to `server/request-counts.json` and survive server restarts. Period keys reset automatically at the start of each hour, day, and month.
