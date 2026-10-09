@@ -29,6 +29,56 @@ const RELAUNCH_SCRIPT_CANDIDATES = [
 // fallback without blocking the event loop if the call ever hangs.
 const DETECT_TIMEOUT_MS = 3_000;
 
+// `ps -eo args` is a /proc walk (tens of ms on a Pi). It runs synchronously,
+// so this caps how long a wedged call can stall the event loop.
+const PS_TIMEOUT_MS = 2_000;
+
+// The flag start-server passes to EVERY kiosk browser (Chromium family and
+// Firefox alike) — the same token relaunch-kiosk.sh pkills by. Matched as a
+// whole argv token, never as a substring of another argument.
+const KIOSK_FLAG = "--kiosk";
+
+// argv[0] basenames of a Chromium-family kiosk's MAIN (browser) process, for
+// every browser start-server can launch (install.sh KNOWN_BROWSERS /
+// classify_browser_family). Two spellings can reach `ps`:
+//  - the real binary the vendor wrapper execs — what Chromium normally shows,
+//    since it re-titles itself from /proc/self/exe:
+//    /usr/lib/chromium/chromium (Debian, Raspberry Pi OS, openSUSE),
+//    /usr/lib/chromium-browser/chromium-browser[-v7] (Pi OS Bullseye),
+//    /opt/google/chrome/chrome and Ubuntu's chromium snap .../chrome,
+//    /opt/microsoft/msedge/msedge, /opt/brave.com/brave/brave;
+//  - the launcher name itself (a bare BROWSER_CMD, or the `exec -a "$0"` the
+//    Chrome / Edge / Brave wrappers do): chromium, chromium-browser,
+//    google-chrome[-stable], microsoft-edge[-stable], brave-browser[-stable].
+// Anchored on purpose so the helper binaries sharing those install dirs —
+// chrome_crashpad_handler, msedge_crashpad_handler, chrome-sandbox,
+// chromedriver — never match.
+const CHROMIUM_KIOSK_EXE = new RegExp(
+  "^(?:chromium(?:-browser)?(?:-v\\d+)?|chrome"
+  + "|google-chrome(?:-stable|-beta|-unstable)?"
+  + "|msedge|microsoft-edge(?:-stable|-beta|-dev)?"
+  + "|brave|brave-browser(?:-stable|-beta|-nightly)?)$",
+);
+
+// argv[0] basenames of a Firefox kiosk's main process: the firefox /
+// firefox-esr launcher names, the deb + snap binaries of the same names, and
+// the Mozilla tarball's firefox-bin.
+const FIREFOX_KIOSK_EXE = /^firefox(?:-esr|-bin)?$/;
+
+// Child processes run the browser's own binary but are not the kiosk:
+// Chromium zygote / renderer / GPU / utility helpers carry `--type=…`,
+// Firefox content processes `-contentproc`. The launch flags we read live on
+// the main process only.
+const CHILD_PROCESS_ARG = /^(?:--type=|-contentproc$)/;
+
+// Chromium's scale switch. A repeated switch is legal and the LAST one wins
+// (base::CommandLine overwrites), so every occurrence is scanned.
+const SCALE_SWITCH_PREFIX = "--force-device-scale-factor=";
+
+// What Chromium accepts as a factor; anything else it logs and ignores,
+// falling back to no forced scale.
+const SCALE_VALUE = /^\d+(?:\.\d+)?$/;
+
 const SNAP_STEP = 0.25;
 // UI ceiling (maintainer decision 2026-06-24): the fleet's densest real
 // panel needs 1.25, so 2.0 is a wide margin. detect-display-scale.sh's own
@@ -166,33 +216,91 @@ function detectAuto() {
 }
 
 /**
+ * Find the kiosk browser's MAIN process(es) in a `ps -eo args` listing. A
+ * line qualifies only when its argv[0] basename is a supported kiosk browser
+ * (see CHROMIUM_KIOSK_EXE / FIREFOX_KIOSK_EXE), it carries `--kiosk` as a
+ * whole token, and it is not a child process (`--type=…` / `-contentproc`).
+ * That rules out crashpad handlers, renderer/zygote/GPU helpers, a desktop
+ * browser window without `--kiosk`, and any shell or grep/pgrep/pkill
+ * command line that merely mentions the words.
+ *
+ * Tokens are split on whitespace (ps joins argv with spaces), which is exact
+ * for the paths and flags start-server produces.
+ *
+ * @param {String} psStdout output of `ps -eo args`
+ * @returns {Array<{family:String, args:String[]}>} one entry per kiosk main
+ *   process, in listing order; `family` is "chromium" or "firefox"
+ */
+function findKioskProcesses(psStdout) {
+  if (typeof psStdout !== "string") return [];
+  const kiosks = [];
+  for (const line of psStdout.split("\n")) {
+    const args = line.trim().split(/\s+/);
+    if (!args.includes(KIOSK_FLAG)) continue;
+    if (args.some((a) => CHILD_PROCESS_ARG.test(a))) continue;
+    const exe = path.posix.basename(args[0]);
+    if (CHROMIUM_KIOSK_EXE.test(exe)) kiosks.push({ family: "chromium", args });
+    else if (FIREFOX_KIOSK_EXE.test(exe)) kiosks.push({ family: "firefox", args });
+  }
+  return kiosks;
+}
+
+/**
+ * The device-scale-factor a Chromium-family browser runs with, from its
+ * argv: the LAST `--force-device-scale-factor=X` (Chromium's own rule for a
+ * repeated switch). No flag — or a value Chromium can't parse, which it
+ * ignores — ⇒ "1": no forced factor, the browser follows the compositor.
+ *
+ * @param {String[]} args the main process's argv tokens
+ * @returns {String} the applied factor ("1.25") or "1"
+ */
+function chromiumScaleFromArgs(args) {
+  let raw = null;
+  for (const a of args) {
+    if (a.startsWith(SCALE_SWITCH_PREFIX)) raw = a.slice(SCALE_SWITCH_PREFIX.length);
+  }
+  return raw !== null && SCALE_VALUE.test(raw) ? raw : "1";
+}
+
+/**
  * Pull the device-scale-factor actually applied to the RUNNING kiosk from a
  * `ps` listing — the ground truth of what the user currently sees, vs the
  * `override` in browser.conf (which only takes effect on the next relaunch).
- * Chromium carries it as `--force-device-scale-factor=X` on the `--kiosk`
- * process; absent ⇒ "1" (no scaling). Returns null when no Chromium kiosk
- * is found (Firefox — scale lives in a profile pref, not argv — or headless),
- * which the client treats as "unknown ⇒ allow relaunch".
+ *
+ * What `applied` means per family:
+ *  - **Chromium family** (Chromium, Chrome, Brave, Edge): the
+ *    `--force-device-scale-factor=X` on the kiosk's main process, or "1"
+ *    when start-server launched it without the flag (no forced factor).
+ *  - **Firefox**: always null. Firefox has no scale flag — start-server
+ *    writes the factor into the kiosk profile's user.js
+ *    (`layout.css.devicePixelRatio`) before launch, which argv can't show,
+ *    so the running value is genuinely unknown here. Reporting "1" for a
+ *    flagless Firefox would claim "no scaling" on a possibly-scaled screen.
+ *  - **No kiosk found** (headless, mid-relaunch), or several kiosk main
+ *    processes that disagree (old and new browser overlapping during a
+ *    relaunch): null.
+ *
+ * The client reads null as "unknown ⇒ keep the Relaunch button available".
  *
  * @param {String} psStdout output of `ps -eo args`
  * @returns {String|null} applied factor ("1.25"), "1" (no flag), or null
  */
 function parseAppliedFromPs(psStdout) {
-  if (typeof psStdout !== "string") return null;
-  const line = psStdout.split("\n").find((l) => /--kiosk/.test(l) && /chrom/i.test(l));
-  if (!line) return null;
-  const m = line.match(/--force-device-scale-factor=([0-9.]+)/);
-  return m ? m[1] : "1";
+  const kiosks = findKioskProcesses(psStdout);
+  if (kiosks.length === 0) return null;
+  const values = new Set(kiosks.map((k) => (k.family === "chromium" ? chromiumScaleFromArgs(k.args) : null)));
+  return values.size === 1 ? [...values][0] : null;
 }
 
 /**
  * Read the scale currently applied to the running kiosk. Never throws.
  *
  * @returns {String|null} applied factor, "1", or null if undeterminable
+ *   (Firefox kiosk, no kiosk running, or `ps` unavailable)
  */
 function detectApplied() {
   try {
-    const r = spawnSync("ps", ["-eo", "args"], { encoding: "utf8", timeout: 2_000 });
+    const r = spawnSync("ps", ["-eo", "args"], { encoding: "utf8", timeout: PS_TIMEOUT_MS });
     if (r.error) return null;
     return parseAppliedFromPs(r.stdout || "");
   } catch {
@@ -218,7 +326,7 @@ function getDisplayScale(req, res) {
     available: true,
     override,
     autoDetected: auto.value,   // null ⇒ effective 1.0
-    applied: detectApplied(),   // scale on the running kiosk ("1.25"/"1"/null)
+    applied: detectApplied(),   // running kiosk: "1.25"/"1"; null = unknown (Firefox, none)
     ppi: auto.ppi,
     raw: auto.raw,
     choices: SCALE_CHOICES,
@@ -327,5 +435,7 @@ module.exports = {
     validateScale,
     rewriteBrowserConf,
     parseAppliedFromPs,
+    findKioskProcesses,
+    chromiumScaleFromArgs,
   },
 };

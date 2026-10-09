@@ -104,6 +104,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   QR only. This exception to the QR-only rule is codified in `CLAUDE.md`; the same-origin
   "Download cert" link is unchanged, and the three trust-cert guides and
   `docs/ui-layout_{en,fr}.md` describe the QR and the remote-only link.
+- **On a Brave or Edge kiosk, Settings now offers "Relaunch kiosk to apply" only when a
+  relaunch would change the display scale.** `GET /api/display-scale` found the running kiosk
+  by looking for "chrom" on a `--kiosk` command line. Brave (`/opt/brave.com/brave/brave`) and
+  Edge (`/opt/microsoft/msedge/msedge`) never matched, so `applied` stayed `null` and the
+  button showed even when the selected scale was already in effect. The kiosk is now identified
+  by its executable for every Chromium-family browser `start-server` launches. Crashpad and
+  renderer helpers, non-kiosk windows and shell lines that merely mention `--kiosk` are ignored.
+  A repeated `--force-device-scale-factor` is read the way Chromium reads it (the last one wins).
+  A Firefox kiosk still reports `null` on purpose: its scale is a profile pref that the process
+  list can't show. New `test/displayScaleApplied.test.js`.
 
 ### Documentation
 - **A `☑` in the localization glossary now stays on the exact wording it validated.**
