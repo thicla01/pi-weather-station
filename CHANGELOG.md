@@ -85,6 +85,31 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   and, by 1 to 9 levels out of 255, a few edge pixels of small rounded controls inside it, whereas
   the same test on the 85 % rest fill changes almost every pixel. Neither slab has a `position: fixed`
   descendant, so losing the containing block the filter created moves nothing.
+- **Production builds no longer ship the CSS comments.** The stylesheets under `client/src`
+  document themselves at length: about 225 KB of comments in 405 KB of CSS. style-loader embeds
+  each one in `bundle.min.js` as a JS string, which Terser leaves alone, so every comment reached
+  every kiosk (Pi 3B included) and every phone or PWA viewer, which downloaded it (the server
+  sends the bundle uncompressed), parsed it and injected it. In production builds only, a small
+  PostCSS step in `client/webpack.config.js` (`stripCssComments`) now removes the comment nodes,
+  after `postcss-preset-env` has run, including autoprefixer's own pass, so a
+  `/* autoprefixer: ignore next */` control comment would still be honoured.
+  `bundle.min.js` drops from 1 950 399 to 1 725 237 bytes (−225 162, −11.5 %), and the CSS
+  injected at boot from 522 322 to 306 540 characters. Nothing else changes. The source files and
+  dev builds keep their comments, and a `/*! … */` block would be kept (there are none). No rule
+  is reordered, merged or rewritten (no cssnano), so the doubled `.foo.foo` selectors and the
+  cross-file order notes still hold. Checked against a build of `a41ec00`:
+  - unminified, the JS outside the stylesheet strings is byte-identical (CSS-modules class names
+    included), and each of the 49 stripped stylesheets equals its old text minus its comment
+    nodes;
+  - minified, the two bundles differ only by the stylesheet strings and some mangled variable
+    names (Terser ranks short names by character frequency, strings included);
+  - in the browser, the old and new bundles build the same CSSOM (56 sheets, 1 396 rules, same
+    SHA-256), and the mobile (375×812), Pi (800×480) and desktop layouts render as before.
+
+  Still shipped, about 12 KB in all: the comments of `styles/main.css`, `ui/reset.css` and
+  `ui/fonts.css`, global stylesheets imported with an inline `!style-loader!css-loader!` request
+  that bypasses the configured loaders (about 10.8 KB), and those of Leaflet's stylesheet (about
+  1.2 KB). See ROADMAP.
 
 ### Fixed
 - **On a phone, the maximized AI summary now hides the radar card.** On the mobile layout
