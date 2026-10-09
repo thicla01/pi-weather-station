@@ -58,6 +58,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   differing line. Both ignore the `:<line>` refs of the inline `lbl()` tables, which shift with
   almost every `SettingsPanel` / `DebugPanel` edit: a change that only moves code no longer needs a
   regeneration, and the refs catch up at the next one.
+- **Glossary cells double backslashes before escaping pipes.** With pipes escaped alone, a string
+  containing `\|` was written `\\|`, which GitHub displays as `|`, and a backslash before other
+  punctuation (`\%`) vanished too (checked against GitHub's GFM renderer). Every backslash now
+  shows as typed. No current string contains one, so the generated glossary is unchanged.
 
 ## [3.3.0] - 2026-10-08
 

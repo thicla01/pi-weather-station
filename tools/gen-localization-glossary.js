@@ -225,6 +225,12 @@ function extractLbl(raw) {
 
 /** Escape a string for safe rendering inside a markdown table cell.
  *
+ * Backslashes are doubled before pipes are escaped. GitHub keeps a `\|` in
+ * its cell but drops that backslash, then reads a backslash before
+ * punctuation as an escape, so with pipes escaped alone a raw `\|` (written
+ * `\\|`) showed as `|` and `\%` as `%` (checked against GitHub's GFM
+ * renderer). Doubled first, every backslash shows as typed.
+ *
  * @param {string|undefined} s raw string, or `undefined` for a translation
  *   the locale file lacks (the row is also listed under "Coverage gaps")
  * @returns {string} table-safe string
@@ -232,6 +238,7 @@ function extractLbl(raw) {
 function cell(s) {
   if (s === undefined) return "*(missing)*";
   return s
+    .replace(/\\/g, "\\\\")
     .replace(/\|/g, "\\|")
     .replace(/\n/g, " ")
     .replace(/\s+/g, " ")

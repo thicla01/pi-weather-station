@@ -469,6 +469,40 @@ test("a pipe inside a string splits neither its cell nor the tick's match", () =
   assert.equal(render(src, seeded).text, seeded);
 });
 
+/**
+ * Show a table cell the way GitHub displays it (checked against its GFM
+ * renderer on 2026-10-08): the backslash of each `\|` is dropped when the row
+ * is split, then a backslash before ASCII punctuation is read as an escape.
+ *
+ * @param {string} c cell as written in the glossary
+ * @returns {string} the text a reader sees
+ */
+const shown = (c) => c.replace(/\\\|/g, "|").replace(/\\([!-/:-@[-`{-~])/g, "$1");
+
+test("a backslash in a string shows on GitHub as typed, next to a pipe or not", () => {
+  const raws = ["a\\|b", "100\\%", "C:\\path", "x\\\\y", "ends\\", "a | b"];
+  const src = fixture();
+  raws.forEach((raw, i) => {
+    src.en.set(`test.k${i}`, raw);
+    src.fr.set(`test.k${i}`, `${raw} fr`);
+    src.es.set(`test.k${i}`, `${raw} es`);
+  });
+  src.panels[1].rows.push({ en: "a\\|b", fr: "a\\|b fr", es: "a\\|b es", line: 50 });
+  const text = render(src).text;
+  const rows = rowsOf(text);
+  raws.forEach((raw, i) => {
+    // rowsOf finds a row only if its five cells survived the split.
+    const row = rows.find(key(`test.k${i}`));
+    assert.ok(row, `row for ${JSON.stringify(raw)} lost its shape`);
+    assert.deepEqual([shown(row.en), shown(row.fr), shown(row.es)], [raw, `${raw} fr`, `${raw} es`]);
+  });
+  const inline = rows.find((r) => r.panel === "DebugPanel" && r.ref === ":50");
+  assert.equal(shown(inline.en), "a\\|b");
+  // Ticks on those rows survive a regeneration byte for byte.
+  const seeded = tick(text, (r) => r.ref.startsWith("test.k") || r.ref === ":50");
+  assert.equal(render(src, seeded).text, seeded);
+});
+
 test("a key missing from fr.json is listed as a coverage gap instead of crashing the run", () => {
   const src = fixture();
   const seeded = tick(render(src).text, key("charts.pillAvg"));
