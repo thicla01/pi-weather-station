@@ -869,6 +869,8 @@ cd ~/pi-weather-station && git pull && bash deploy/install.sh
 
 **Consequences:** The browser choice survives upgrades. Users can switch by re-running `install.sh` or editing the conf file directly. When the conf file is absent, `start-server` falls back to the first of `chromium`, `chromium-browser`, `google-chrome` or `firefox` it finds (backward compatible with installs that pre-date this feature). The supported executable names live in three lists that must move in lockstep — `KNOWN_BROWSERS` (what the installer offers) and `classify_browser_family` in `install.sh`, and `start-server`'s family case — and drift between them fails silently: Brave was classified in both scripts from the start but missing from `KNOWN_BROWSERS`, so the installer never offered it until 2026-10. `test/kioskBrowserLists.test.js` now parses the three lists (plus `start-server`'s per-browser profile-lock cleanup) and fails when an offered name is unclassified, is classified differently by the two scripts, or (Chromium family) has no lock cleanup; it also pins Brave in the offered list.
 
+**Amended 2026-10-09:** the page also tells Firefox apart, independently of `browser.conf`: `client/src/index.js` matches `navigator.userAgent` and stamps `<html data-browser="firefox">`, so every Firefox client, kiosk or remote viewer, gets the same opt-out. Firefox pays far more than Chromium for `backdrop-filter` over the moving map (WebRender re-blurs it under each overlay every frame, on the CPU under software compositing), so `client/src/styles/main.css` turns the blur off under that attribute and raises the slab fill (`--c-surface`) to the 96 % hybrid value to make up for it.
+
 ---
 
 ## 8. Known limitations

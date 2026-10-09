@@ -27,3 +27,37 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* Firefox: no backdrop blur.
+ *
+ * The surfaces that float over the radar map carry `backdrop-filter:
+ * blur()`: the legend card / "(i)" chip / mobile strip / sheet, the
+ * timeline bar, the dock's toast and, on the desktop layout (where the
+ * rail overlays the map), the maximized AI-summary and forecast slabs.
+ * Every frame of a pan, a zoom or a radar-loop step re-blurs the moving
+ * map under each of them. Chromium does that on the GPU; Firefox's
+ * WebRender pays far more for it, and does it on the CPU under software
+ * compositing (about:support → Graphics → Compositing). The rule is
+ * global, so it also drops the blur of surfaces over static content,
+ * such as the dock itself. `data-browser` is stamped on <html> at boot
+ * whenever the user agent is Firefox, kiosk or remote viewer alike
+ * (client/src/index.js). Technique ported from the Sweep fork
+ * (github.com/Aryeh95, commit c0e2ed4).
+ *
+ * Two side effects of dropping the filter, both handled:
+ * - Without the blur, the radar's colours show through the 85 %-opaque
+ *   calm fill (`--c-surface`) of the legend, the timeline bar and the
+ *   toast. Firefox instead uses, in every palette, the 96 % fill the
+ *   slabs already take in hybrid mode (any moderate-or-worse government
+ *   alert); the hybrid border and strip still mark that mode.
+ * - `backdrop-filter` also makes the dock the containing block of its
+ *   `position: fixed` toast. Without it the toast resolves against the
+ *   viewport, which is what the viewport coordinates computed in
+ *   ambient/ControlButtons assume. */
+html[data-browser="firefox"] * {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+html[data-browser="firefox"] .ambientRoot {
+  --c-surface: var(--c-surface-hybrid) !important;
+}
