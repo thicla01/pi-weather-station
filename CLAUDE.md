@@ -55,7 +55,7 @@ pi-weather-station/
 │   │   │   ├── App/                  # Root shell — mounts AmbientLayers, the Settings/Debug overlays, UpdateModal, ScreenSaver; boot actions + sleep-stage hardware-brightness orchestration (layout itself lives in ambient/Layout*)
 │   │   │   ├── ambient/              # v3 "Ambient Layers" tree — default since v2.18, and the ONLY UI since the v2 tree was deleted (2026-07). LayoutDesktop/Mobile/Pi, HeroBand, HeroCompact, MetricsGrid, ChartTabs, BottomDock, alert banner + detail slab, SettingsPanel/DebugPanel, MoonDetailsPopover, etc. (incl. ControlButtons + weatherCharts, moved here in 2026-06 from what was then the v2 tree because the dock and ChartTabs consume them)
 │   │   │   ├── AmbientLayers/        # Palette dispatcher (day/dusk/night/nightRed), viewport breakpoints, iOS PWA bg paint
-│   │   │   ├── WeatherMap/           # Leaflet radar — index.js (RainViewer frame window: one TileLayer per mounted frame, opacity-flipped; which frames → ui/radarFrameStack.js) + RadarTimeline + RadarLegend + RiskRing + RingLabels (radius chips) + MapResizer + RadarFocusControl + icons.js (inline SVG control glyphs) + geometry.js (pure helpers + style tables)
+│   │   │   ├── WeatherMap/           # Leaflet radar — index.js (RainViewer frame window: one TileLayer per mounted frame, opacity-flipped; which frames → ui/radarFrameStack.js) + RadarTileLayer (frame layer with the failed-tile cooldown) + RadarTimeline + RadarLegend + RiskRing + RingLabels (radius chips) + MapResizer + RadarFocusControl + icons.js (inline SVG control glyphs) + geometry.js (pure helpers + style tables)
 │   │   │   ├── UpdateModal/          # In-app updater UX (commits, warnings, errors)
 │   │   │   ├── ScreenSaver/          # Sleep mode (stage 1 minimal clock, stage 2 anti-burn-in dot)
 │   │   │   ├── LocationName/         # Reverse-geocoded place name (imported by ambient/HeroBand + ambient/HeroCompact)
@@ -73,7 +73,7 @@ pi-weather-station/
 │   │   │   ├── useEligibleGovAlerts.js # Single source of truth for the displayed gov-alert set + current alert (dismissals + tier gate: red/orange by default, + yellow when the per-device showAdvisoryAlerts opt-in is on), shared by every gov-alert surface
 │   │   │   └── useDismissedAlerts.js # Per-device dismissal tracking for AlertBanner (4 h auto-resurface floor)
 │   │   ├── i18n/locales/             # EN / FR / ES translations
-│   │   ├── ui/                       # Pure logic + design tokens — tokens.js (day/dusk/night/nightRed palettes), hybrid.js (useTimeOfDay palette key + hybrid-mode escalation), alertLogic.js, autoTabSelector.js (reducer), radarFrameStack.js (which RainViewer frames are mounted during playback / scrubbing — the displayed one ±2 — and which fixed layer slot each uses, so a step retargets a layer instead of creating one; CommonJS so `test/radarFrameStack.test.js` runs it), piLayout.js, severity.js, weatherCodes.js, … + fonts.css / reset.css
+│   │   ├── ui/                       # Pure logic + design tokens — tokens.js (day/dusk/night/nightRed palettes), hybrid.js (useTimeOfDay palette key + hybrid-mode escalation), alertLogic.js, autoTabSelector.js (reducer), radarTileCooldown.js (failed radar tile URLs held 65 s, past RainViewer's 60 s rate-limit window), radarFrameStack.js (which RainViewer frames are mounted during playback / scrubbing — the displayed one ±2 — and which fixed layer slot each uses, so a step retargets a layer instead of creating one; CommonJS so `test/radarFrameStack.test.js` runs it), piLayout.js, severity.js, weatherCodes.js, … + fonts.css / reset.css
 │   │   └── services/                 # conversions.js (unit conversions + labels: temp, speed, pressure, length — no km↔mi helper; that's KM_PER_UNIT in WeatherMap/geometry.js), formatting.js, brightnessRestore.js, geolocation.js, reverseGeocode.js
 │   └── dist/             # Compiled bundle (committed to git)
 ├── deploy/               # Multi-distro install.sh, systemd units, autostart, kiosk launcher,
@@ -237,7 +237,7 @@ These rules apply to every change, regardless of size. They exist to keep the co
 |---|---|---|
 | Tomorrow.io | Weather data (current, hourly, daily) | `weatherApiKey` in settings.json |
 | Mapbox | Base map tiles | `mapApiKey` in settings.json |
-| RainViewer | Radar tiles + 50 km zone analysis | No key required |
+| RainViewer | Radar tiles + 50 km zone analysis | No key required; rate-limited per public IP (500 req/min, 300 burst — shared by every kiosk behind one router), hence the failed-tile cooldown in `WeatherMap/RadarTileLayer.js` |
 | LocationIQ | Reverse geocoding | `reverseGeoApiKey` in settings.json |
 | Anthropic Claude | AI weather summary (claude-haiku-5-5) | `anthropicApiKey` in settings.json |
 | Homebridge (`homebridge-config-ui-x`) | Indoor temperature/humidity/air quality | `indoorTemperature.*` in settings.json |
