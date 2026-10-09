@@ -131,6 +131,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   503, now `reason: "no-key"`, hides the feature. Remote clients also learn at boot that a key
   is missing: the masked `GET /settings` reports an `anthropicApiKey` still at the `"key"`
   placeholder as `false` (the same rule as that 503) instead of `true`.
+- **The Open-Meteo comparison endpoint now answers in the units of the Tomorrow.io data it is
+  compared against.** `GET /api/weather/openmeteo` never set `wind_speed_unit`, so `windSpeed`
+  came back in Open-Meteo's default km/h, 3.6× too high against Tomorrow.io's m/s. The current
+  `precipitationIntensity` was the amount that fell in the last 15 minutes rather than mm/h,
+  about 4× too low. The adapter now requests m/s and scales the amount to mm/h, so
+  `tools/compare-weather.js` compares like units. The "Open-Meteo is windier" findings in
+  `docs/open-meteo-plan-b.md` came from the unit mismatch and are withdrawn. The kiosk UI never
+  used this endpoint.
 
 ### Documentation
 - **A `☑` in the localization glossary now stays on the exact wording it validated.**
