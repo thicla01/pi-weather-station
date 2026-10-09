@@ -15,6 +15,7 @@ import { AppContext } from "~/AppContext";
 import { getPalette } from "~/ui/tokens";
 import { useTimeOfDay } from "~/ui/hybrid";
 import { resolvePanelFontSizeZoom } from "~/ui/fontSize";
+import QrCode from "~/components/ambient/QrCode";
 import styles from "./styles.css";
 
 /**
@@ -37,6 +38,25 @@ import styles from "./styles.css";
  *   an unknown or empty locale) — `en` is the fallback, never null.
  */
 const lbl = (lang, en, fr, es) => (lang === "fr" ? fr : lang === "es" ? es : en);
+
+// Per-platform certificate-trust guide shown as a QR code in the
+// "Trust this Pi on this device" block (plus a "Read the guide ↗" link
+// to the same URL for remote clients only). Only
+// `docs/pwa-trust-cert_{en,fr,es}.md` ship, so any other locale (and the
+// unlikely null/empty case) falls back to the English guide.
+const TRUST_GUIDE_URL_PREFIX =
+  "https://github.com/thicla01/pi-weather-station/blob/master/docs/pwa-trust-cert_";
+const TRUST_GUIDE_LANGS = ["fr", "es"];
+
+/**
+ * Resolve the trust-cert guide URL for the viewer's UI language.
+ *
+ * @param {string} lang — two-letter locale (`en` / `fr` / `es`)
+ * @returns {string} the GitHub URL of `pwa-trust-cert_<lang>.md` when
+ *   `lang` is "fr" or "es", otherwise the English guide's URL
+ */
+const trustGuideUrl = (lang) =>
+  `${TRUST_GUIDE_URL_PREFIX}${TRUST_GUIDE_LANGS.includes(lang) ? lang : "en"}.md`;
 
 // Rail sections — single-selection navigation, reusing the DebugPanel
 // rail grammar (icon-above-short-label chips, compact ≤520px). Order
@@ -229,11 +249,17 @@ const SettingsPanel = () => {
  * @param {object} props.ctx — AppContext value; supplies each preference
  *   and its matching `saveXxx` helper (font size, clock, the five unit
  *   selectors, the hide/show flags) plus `isLocal`, which gates the
- *   localhost-only "Show test alerts" row
+ *   localhost-only "Show test alerts" row and, inverted, the remote-only
+ *   "Read the guide ↗" link of the trust-cert block
  * @param {string} props.lang — short locale ("fr" | "en" | "es")
  * @returns {JSX.Element} the preferences section; always rendered (the
  *   rows write to localStorage, so no remote-write gate applies), minus
- *   the "Show test alerts" row when the client is not localhost
+ *   the "Show test alerts" row when the client is not localhost. It ends
+ *   with the "Trust this Pi on this device" block: a same-origin
+ *   certificate download plus a QR code to the per-platform guide in the
+ *   viewer's UI language, shown to everyone; remote clients also get a
+ *   "Read the guide ↗" link to the same URL next to "Download cert"
+ *   (never the kiosk — see the block comment)
  */
 const SectionLocalPrefs = ({ ctx, lang }) => {
   // Phase 8b wires the writes — every preference is now persisted via
@@ -257,7 +283,9 @@ const SectionLocalPrefs = ({ ctx, lang }) => {
     showAlertRing, saveShowAlertRing,
     // Locality gate for the localhost-only "Show test alerts" row. This
     // section renders for remote clients too, so the row is wrapped in
-    // {isLocal} to keep it (and the feature) invisible to them.
+    // {isLocal} to keep it (and the feature) invisible to them. The
+    // trust-cert block uses the inverse ({isLocal === false}) for its
+    // remote-only guide link.
     isLocal,
   } = ctx;
 
@@ -470,38 +498,70 @@ const SectionLocalPrefs = ({ ctx, lang }) => {
        * the "P on black" home-screen icon issue (iOS rejects the
        * apple-touch-icon background fetch over an untrusted cert)
        * AND removes the "Not secure" warning when navigating to
-       * the Pi from a remote browser. See `docs/pwa-trust-cert.md`
-       * for the per-platform install steps. */}
+       * the Pi from a remote browser. The per-platform install steps
+       * live in `docs/pwa-trust-cert_{en,fr,es}.md`; the guide is
+       * offered to everyone as a QR code — CLAUDE.md kiosk rule: a
+       * tap on an external `<a>` strands the chrome-less kiosk
+       * browser on a page it has no way back from. "Download cert"
+       * stays a link: `/api/cert.pem` is same-origin, not external.
+       *
+       * Remote clients ALSO get a "Read the guide ↗" link to the same
+       * URL (codified exception in CLAUDE.md, maintainer decision
+       * 2026-10-08): a phone viewing Settings on its own screen can't
+       * scan its own QR, and a remote browser has normal navigation
+       * chrome (back button, tabs), so the kiosk trap doesn't apply.
+       * Why it can never reach the kiosk: `isLocal` starts `true` in
+       * AppContext and is only set from GET /api/is-local, which the
+       * server derives from the unspoofable TCP socket peer (never
+       * req.ip / X-Forwarded-For). The kiosk launcher
+       * (`deploy/start-server`) always loads `localhost`, so the kiosk's
+       * socket peer is loopback and it keeps the QR-only block — even
+       * when that fetch fails (the default stays `true`); the strict
+       * `=== false` also hides the link if the response were ever
+       * malformed (e.g. no boolean `isLocal`). SSH-tunnel viewers count
+       * as local and get the QR only, which matches the rule. */}
       <div className={styles.trustCert}>
-        <div className={styles.trustCertLabel}>
-          {lbl(lang,
-            "Trust this Pi on this device",
-            "Faire confiance à ce Pi sur cet appareil",
-            "Confiar en este Pi en este dispositivo")}
+        <div className={styles.trustCertBody}>
+          <div className={styles.trustCertLabel}>
+            {lbl(lang,
+              "Trust this Pi on this device",
+              "Faire confiance à ce Pi sur cet appareil",
+              "Confiar en este Pi en este dispositivo")}
+          </div>
+          <div className={styles.trustCertDesc}>
+            {lbl(lang,
+              "Installs the Pi's certificate as a trusted profile. Fixes the home-screen icon on iOS and dismisses the security warning. See the guide for per-platform steps.",
+              "Installe le certificat du Pi comme profil de confiance. Corrige l'icône d'écran d'accueil sur iOS et fait disparaître l'avertissement de sécurité. Voir le guide pour les étapes par plateforme.",
+              "Instala el certificado del Pi como perfil de confianza. Corrige el icono de la pantalla de inicio en iOS y elimina la advertencia de seguridad. Vea la guía para los pasos por plataforma.")}
+          </div>
+          <div className={styles.trustCertActions}>
+            <a className={styles.trustCertLink} href="/api/cert.pem" download="pi-weather-cert.pem">
+              {lbl(lang, "Download cert", "Télécharger le cert", "Descargar cert")}
+            </a>
+            {isLocal === false && (
+              <a
+                className={styles.trustCertLinkSecondary}
+                href={trustGuideUrl(lang)}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {lbl(lang, "Read the guide", "Lire le guide", "Leer la guía")} ↗
+              </a>
+            )}
+          </div>
         </div>
-        <div className={styles.trustCertDesc}>
-          {lbl(lang,
-            "Installs the Pi's certificate as a trusted profile. Fixes the home-screen icon on iOS and dismisses the security warning. See the guide for per-platform steps.",
-            "Installe le certificat du Pi comme profil de confiance. Corrige l'icône d'écran d'accueil sur iOS et fait disparaître l'avertissement de sécurité. Voir le guide pour les étapes par plateforme.",
-            "Instala el certificado del Pi como perfil de confianza. Corrige el icono de la pantalla de inicio en iOS y elimina la advertencia de seguridad. Vea la guía para los pasos por plataforma.")}
-        </div>
-        <div className={styles.trustCertActions}>
-          <a className={styles.trustCertLink} href="/api/cert.pem" download="pi-weather-cert.pem">
-            {lbl(lang, "Download cert", "Télécharger le cert", "Descargar cert")}
-          </a>
-          <a
-            className={styles.trustCertLinkSecondary}
-            /* Resolve the guide URL to the matching language file —
-             * we only ship _en / _fr / _es. Any other locale (and
-             * the unlikely null/empty case) falls back to the
-             * English guide. */
-            href={`https://github.com/thicla01/pi-weather-station/blob/master/docs/pwa-trust-cert_${["fr", "es"].includes(lang) ? lang : "en"}.md`}
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            {lbl(lang, "Read the guide", "Lire le guide", "Leer la guía")} ↗
-          </a>
-        </div>
+        <figure className={styles.trustCertGuide}>
+          <QrCode
+            value={trustGuideUrl(lang)}
+            title={lbl(lang,
+              "QR code: certificate install guide",
+              "Code QR : guide d'installation du certificat",
+              "Código QR: guía de instalación del certificado")}
+          />
+          <figcaption className={styles.trustCertGuideCaption}>
+            {lbl(lang, "Scan to read the guide", "Scannez pour consulter le guide", "Escanee para leer la guía")}
+          </figcaption>
+        </figure>
       </div>
     </div>
   );

@@ -381,7 +381,7 @@ Au premier démarrage, le serveur crée sa propre autorité racine (`ca-cert.pem
 2. Installer le profil iOS (Réglages → Profil téléchargé).
 3. Activer la confiance complète : Réglages → Général → Information → Réglages de confiance des certificats.
 
-Procédure détaillée par plateforme : [`docs/pwa-trust-cert_fr.md`](pwa-trust-cert_fr.md).
+Procédure détaillée par plateforme : [`docs/pwa-trust-cert_fr.md`](pwa-trust-cert_fr.md). Le même bloc des Paramètres l'offre à tous sous forme de code QR (« Scannez pour consulter le guide », dans la langue d'interface de l'utilisateur : FR / ES, sinon EN). Les clients distants reçoivent aussi un lien « Lire le guide ↗ » vers la même page, à côté de « Télécharger le cert », parce qu'un téléphone ne peut pas scanner son propre écran et qu'un navigateur distant a son propre bouton Retour. Le kiosque n'a jamais ce lien, pas plus que tout autre client local (tunnel SSH compris), selon la règle kiosque « QR seulement » pour les URL externes.
 
 ### Rafraîchir une PWA installée
 

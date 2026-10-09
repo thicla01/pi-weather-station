@@ -23,6 +23,8 @@ L'installation la plus rapide. Fonctionne sur iOS, Android, macOS, Windows et Li
 
 Le lien « Télécharger le cert » pointe vers `/api/cert.pem` qui sert le fichier avec `Content-Type: application/x-x509-ca-cert` — iOS, Android et macOS reconnaissent tous ce type MIME et proposent d'installer le certificat en tant que profil / racine système.
 
+Le même bloc affiche aussi un **code QR** accompagné de la légende « Scannez pour consulter le guide » : il ouvre ce guide dans la langue d'affichage de l'app (anglais, français ou espagnol). Scannez-le avec l'appareil photo de votre téléphone — pratique quand le panneau Paramètres est ouvert sur le kiosque ou sur un ordinateur. Quand vous consultez les Paramètres depuis un téléphone ou un ordinateur par le réseau (comme dans les étapes ci-dessus), un lien **Lire le guide ↗** vers le même guide apparaît aussi à côté de **Télécharger le cert** — tapez dessus plutôt que de scanner, puisqu'un téléphone ne peut pas scanner son propre écran. Le kiosque lui-même n'affiche que le code QR, et c'est voulu : son navigateur n'a ni barre d'adresse ni bouton Retour, donc toucher un lien vers une page externe l'y laisserait coincé.
+
 ---
 
 ## iOS / iPadOS (Safari + tout autre navigateur iOS)
