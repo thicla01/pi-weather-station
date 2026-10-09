@@ -12,14 +12,14 @@ A full-stack weather display application originally designed for the Raspberry P
 
 The kiosk browser is chosen interactively by `install.sh` (Chromium, Chrome, Brave, Edge, or Firefox) and persisted in `~/.config/pi-weather-station/browser.conf`. Snap-confined Firefox is supported via a named profile (`-P pi-weather-station`).
 
-## 📣 Highlights — August 2026
+## 📣 Highlights — October 2026
 
-A major milestone just landed (full details in [CHANGELOG.md](./CHANGELOG.md) and on the [Releases](https://github.com/thicla01/pi-weather-station/releases) page):
+Release 3.3.0 just landed (full details in [CHANGELOG.md](./CHANGELOG.md) and on the [Releases](https://github.com/thicla01/pi-weather-station/releases) page):
 
-- **Release 3.2.0 — the React 19 era.** A three-step migration arc, each step unlocking the next: **React 18 → 19 with react-leaflet 5**, the **react-hooks v7 rules cluster** (25 sites refactored into documented React patterns), and finally the **React Compiler** — the client is now built with build-time auto-memoisation, measured A/B on a 1 GB Pi 3B against an active storm cell: **−37 % animation CPU, +7.5 % FPS, −1.9 °C**.
-- **Favorite locations.** Pin up to 6 places — 7 when one of them is the kiosk's own default — jump back to them from the Places popover in the dock, and promote one as the default; the popover's home row names the default location. User guide: [`docs/places-guide_en.md`](docs/places-guide_en.md) ([FR](docs/places-guide_fr.md) · [ES](docs/places-guide_es.md)).
-- **Accuracy + efficiency.** Current temperature is now a server-side smoothed reading (Tomorrow.io's raw feed swings ±2-3 °C between fetches; displayed ≥2 °C jumps cut from 108 to 1 on a 5-day replay), and the idle-waste performance lot cut background traffic by −64 % requests/hour with node RSS down from 158 to 92 MB on 1 GB hardware.
-- **Built with Claude.** The design references come from Claude Design; the implementation, the adversarial multi-agent reviews, the A/B benches, and the audits were carried out with [Claude Code](https://claude.com/claude-code) running Anthropic's **Fable 5** (earlier phases: Opus 4.8).
+- **The AI summary runs on Claude Haiku 5.5.** `claude-haiku-5-5` with adaptive thinking at low effort, at an estimated 25–30 % of the previous per-call cost (less still without the radar paragraph). A refused or empty reply is never cached, so the last summary stays on screen and the next poll retries. The AI view now opens from the dock on every Pi panel, the 10.1" kiosks included.
+- **Places refinements.** Pinning the kiosk's own default location no longer costs a favorite slot (7 places when one of them is the default, 6 otherwise), renaming is no longer hidden on touchscreen kiosks (typing the name still takes a keyboard), and a `↺` in the Places popover returns the default location to IP geolocation without a trip to Settings. User guide: [`docs/places-guide_en.md`](docs/places-guide_en.md) ([FR](docs/places-guide_fr.md) · [ES](docs/places-guide_es.md)).
+- **Security sweep.** The release's dependency alerts were all cleared — every one transitive, none with runtime exposure on the Pis, including a critical `proxy-addr` advisory under Express — and the Dependabot auto-merge safety net now catches transitive security fixes too.
+- **Built with Claude.** The design references come from Claude Design; the implementation, the adversarial multi-agent reviews, the canary runs and the audits were carried out with [Claude Code](https://claude.com/claude-code) running Anthropic's **Opus 5, Opus 5.5, Fable 5 and Fable 5.1**.
 
 ## Interface
 
