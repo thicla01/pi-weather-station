@@ -1,5 +1,16 @@
 # Pi Weather Station — Design Notes (v2 refinement)
 
+> **Historical handoff (May 2026) — kept as written.** Direction C
+> shipped as the v3 `client/src/components/ambient/` tree; §12–13 were
+> ported as `ambient/SettingsPanel/` and `ambient/DebugPanel/`, and
+> sleep mode lives in `client/src/components/ScreenSaver/`. Several
+> notes were superseded at implementation (three width layouts < 800 /
+> 800–1279 / ≥ 1280; RadarFocusControl instead of the right-edge
+> chevron; hybrid mode driven by gov-alert severity only; palette
+> values in `client/src/ui/tokens.js`; three Settings sections, no
+> Experimental). The code, `docs/api.md` and `design-system/` are
+> authoritative.
+
 Direction **C — Ambient Layers** retained. These notes document the
 decisions made during the v2 refinement so they survive into the
 implementation phase.

@@ -1,5 +1,7 @@
 # Brief — Disposition mobile pour pi-weather-station
 
+> **Brief historique (mai 2026, v2.14.78) — conservé tel quel.** La variante A a été livrée comme `LayoutMobile` (< 800 px) en v2.15–v2.16 ; la pile est maintenant React 19. Pour les layouts actuels, voir `docs/ui-layout_fr.md`.
+
 ## Contexte
 
 **pi-weather-station** est une station météo open-source qui tourne sur Raspberry Pi 7" en kiosque. L'app affiche météo temps réel, radar animé (RainViewer), prévisions, alertes gouvernementales (ECCC/NWS) et un résumé IA généré par Claude.

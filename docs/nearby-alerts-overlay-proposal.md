@@ -1,6 +1,7 @@
 # Proposal — "Nearby alerts" map overlay (feedback wanted)
 
-**Status:** idea under consideration, not built yet. Sharing it to gauge whether it would actually be useful before any code is written.
+**Status:** ✅ Shipped 2026-06-08 (PRs 198-201, released in v3.1.0). This file is kept as the original proposal and worked example. The as-built feature differs in two ways: it surveys a user-set radius (Settings → Advanced → Nearby alerts, 50-100 km in 10 km steps, default 50 km) instead of "your state or province", and the tap popup lists each alert's source, severity and title (no expiry) with a "Re-center here" button. As proposed, it is off by default; it is switched per device from the dock, and PR 242 later made the radius ring a separate toggle. The as-built design is recorded in `ROADMAP.md` ("Nearby alerts — configurable-radius overlay (display-only)") and in `docs/design-references/nearby-alerts-brief.md`.
+**Original status (2026-06-05):** idea under consideration, not built yet. Sharing it to gauge whether it would actually be useful before any code is written.
 **Audience:** anyone who monitors weather alerts on a fixed-location kiosk — and specifically the AllStarLink / SkywarnPlus crowd, since this idea came directly out of one of your reports.
 
 ---

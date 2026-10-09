@@ -462,8 +462,8 @@ Goal: ship the major version bump.
   `Settings/` (including `AdvancedSettings/`), `Spinner/`, `SunRiseSet/`,
   `UvAqiBadges/`, `WeatherInfo/` — plus `hooks/useDragScroll.js` and the two
   `ambient/weatherCharts/` chart components reachable only from it, and the
-  second-order dead code they were keeping alive. See the `[Unreleased]` entry in
-  `CHANGELOG.md` for the full inventory.
+  second-order dead code they were keeping alive. See the v2-tree removal entry under
+  `[3.2.0]` in `CHANGELOG.md` for the full inventory.
   *(The plan's `CurrentLayout` never existed under that name — the v2 layout was the
   `experimentalUiC ? … : …` branch inside `App/index.js`, removed with the flag.)*
 - [ ] Update `package.json`: `version: "2.13.x"` → `"3.0.0"`.

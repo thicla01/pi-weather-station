@@ -62,8 +62,9 @@ requests) would be the next step. For our actual situation, free is fine.
 - The `light-v10` / `light-v11` / `dark-v10` / `dark-v11` granularity —
   MapTiler's catalogue is flatter (no separate light/dark variants of
   the same style). Dark mode would need either a custom MapTiler style
-  or to live with `base-v4` rendered with the existing client-side CSS
-  filters.
+  or to live with `base-v4` darkened by new client-side CSS filters
+  (none exist today — dark mode currently swaps to Mapbox `dark-v10` /
+  `dark-v11`).
 
 **What we'd gain**:
 - `outdoor-v4` would be a genuine new option for users who want a topo
@@ -174,9 +175,10 @@ three services we'd potentially want. Results:
   - **`streets-v4`** is the closest equivalent in label density and
     road network rendering, but the palette is **more pastel /
     desaturated** than `streets-v12`'s warmer green-beige. Switching
-    would require re-tuning the cream `rgb(238, 236, 232)` panel
-    background — the current value would clash with the cooler
-    palette.
+    would have required re-tuning the cream `rgb(238, 236, 232)` panel
+    background (the former v2 InfoPanel cream, removed with the v2
+    tree in 2026-07) — the then-current value would have clashed with
+    the cooler palette.
   - **`base-v4`** is too sparse for a weather kiosk — minimal road
     labelling, no spatial reference for the user. Not a candidate.
   - **`outdoor-v4`** is the genuinely interesting one — surfaces
@@ -227,7 +229,8 @@ more details worth recording:
   colours / fonts / labels and host the result under your account
   with its own slug. Useful if we ever wanted to tune `outdoor-v4`'s
   palette specifically against the kiosk's cream panel
-  (`rgb(238, 236, 232)`) instead of relying on its default colours.
+  (`rgb(238, 236, 232)` — the former v2 InfoPanel cream) instead of
+  relying on its default colours.
   Not a priority; flagged as an option if visual tuning becomes a
   requirement.
 - **URL conveniences.** The gallery's URL carries
@@ -245,9 +248,9 @@ pressure — included in the same Cloud free tier. **It is not a fit for
 our use case** for two reasons:
 
 1. **Update cadence is 6 hours** ("Data in hourly intervals, updated
-   every 6 hours"). Our radar pipeline polls RainViewer every 5
-   minutes for tile updates and runs `/api/radar-risk` analyses every
-   5 minutes on top of that. Substituting a 6-hour-stale source
+   every 6 hours"). Our radar pipeline refreshes the RainViewer frame
+   index every 10 minutes and runs `/api/radar-risk` analyses every
+   5 minutes. Substituting a 6-hour-stale source
    would silently turn the radar from "what's happening right now"
    into "what was happening six hours ago" — the wrong direction.
    Spatial resolution is also worse (28 km vs RainViewer's
@@ -276,9 +279,8 @@ use case.
 **Stay on current providers if**:
 - Mapbox / LocationIQ / ipapi.co continue to work fine within their
   current free tiers
-- The maintainer has already-tuned styling (cream `rgb(238, 236, 232)`
-  panel, dark-mode dashed-circle weights) calibrated against the
-  current Mapbox basemaps
+- The maintainer has already-tuned styling (dark-mode dashed-circle
+  weights) calibrated against the current Mapbox basemaps
 
 **Switch to MapTiler if**:
 - One of the current providers raises prices or revokes the free tier
@@ -330,7 +332,6 @@ needed before starting work.
 
 ---
 
-*Document last verified against MapTiler docs and pricing on the date of
-the last commit modifying this file. URL patterns and free-tier limits
-are subject to MapTiler updates — re-verify before relying on the
-specific numbers.*
+*Document last verified against MapTiler docs and pricing on 2026-05-09.
+URL patterns and free-tier limits are subject to MapTiler updates —
+re-verify before relying on the specific numbers.*

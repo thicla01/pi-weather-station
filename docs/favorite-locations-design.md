@@ -4,6 +4,8 @@
 feature, replacing the 2026-07-27 pre-implementation LLD and the eight dated amendments that
 accumulated on top of it during the 2026-08-16/17 field cycle. The original document is
 recoverable at `git show ee4df8b:docs/favorite-locations-design.md`.
+*Amended 2026-10-08:* a doc-drift pass against the code at `dffb408` — factual corrections only,
+no behaviour change; the two decision rationales it corrected are logged in §10.1.
 **Audience:** whoever changes this code next. Dev-facing, English only.
 **Scope:** the v3 ambient tree (all layouts), the `favorites` key in `settings.json`, one
 value-level sanitizer on the server. No external service, no API key.
@@ -48,7 +50,7 @@ gestures:
 
 | Gesture | Where | Effect |
 |---|---|---|
-| **Create** | `★ Pin this place` in `LocationDetailsPopover` (the city-name popover) | Appends the current `mapGeo`, rounded (§4.2), label auto-filled from the reverse geocode |
+| **Create** | `Pin this place` in `LocationDetailsPopover` (the city-name popover) | Appends the current `mapGeo`, rounded (§4.2), label auto-filled from the reverse geocode |
 | **Pick** | **Places** dock button (Map group) → `PlacesPopover` | Tap a row → `setMapPosition()`; everything downstream follows |
 | **Promote** | `⌂` on a row, Edit mode | Writes `startingLat`/`startingLon`; that row gets the `⌂` badge |
 | **Pin home** | `★` on the `⌂` home row, Edit mode | Converts the default into a stored favorite — which makes it renamable |
@@ -105,7 +107,7 @@ standing between you and a regression is this list.
 |---|---|---|---|
 | **INV-1** | Coordinates are stored `round4` on **both** sides. A cache-key contract, not cosmetics (§4.2) | `useFavoriteLocations.js` `round4`; `settingsCtrl.js` `round4` | `favorites.test.js` |
 | **INV-2** | `sanitizeValue` runs on **both** `sanitizeSettings` *and* `setSetting` — PATCH never calls the former (§5.1) | `settingsCtrl.js` | `favorites.test.js` (the seam is exported for this) |
-| **INV-3** | The server sanitizer is **the only real validation in the system**: React 19 runs no `propTypes` on function components, so a malformed favorite produces no warning anywhere | `settingsCtrl.js` `sanitizeFavorites` | — (do not thin it out; §6.4) |
+| **INV-3** | The server sanitizer is **the only real validation on the write path** (and on the remote read path, §5.2): React 19 runs no `propTypes` on function components, so a malformed favorite produces no warning anywhere | `settingsCtrl.js` `sanitizeFavorites` | — (do not thin it out; §6.4) |
 | **INV-4** | `browserGeo` is the single definition of "home", for the pseudo-row *and* the `⌂` badge. Never `customLat`/`customLon` (§7.2) | `PlacesPopover` `homeCoords` | Not pinned — field-verified |
 | **INV-5** | Selecting a favorite **pans and never sets zoom** (§10 D-05) | `PlacesPopover` `handleSelect` | Not pinned — field-verified |
 | **INV-6** | Home is always the **first row**; display-only ordering, storage keeps insertion order | `PlacesPopover` `orderedFavorites` | Not pinned |
@@ -185,9 +187,12 @@ popover scrolls ~39 px. Gracefully, since PR 328; nothing clips. Moving the defa
 
 ### 3.4 At the cap
 
-The `★` action goes **disabled** with an explanatory line (`favorites.full` — "List full — remove
-one first"). Do **not** silently evict FIFO: silent eviction on a kiosk someone checks once a week
-is indistinguishable from data loss, and it could evict the entry currently marked as default.
+The **Pin this place** action in the city popover goes **disabled** with an explanatory line
+(`favorites.full` — "List full — remove one first"). The home row's `★` stays enabled at that cap
+— pinning home replaces the pseudo-row, so it adds no row — and is disabled only in the §3.3
+8-row state, where `favorites.full` appears as a tooltip only (invisible on a touchscreen). Do
+**not** silently evict FIFO: silent eviction on a kiosk someone checks once a week is
+indistinguishable from data loss, and it could evict the entry currently marked as default.
 
 > **Trap.** `pin()` must budget the **resulting** list, not the current one. A pre-insert check
 > reads the old, stricter cap and silently refuses the very action that would relax it — the `★`
@@ -216,7 +221,7 @@ is indistinguishable from data loss, and it could evict the entry currently mark
 | Option | Verdict |
 |---|---|
 | `localStorage` only | **Rejected** — lost when the kiosk browser profile is reset (which happens on this fleet), invisible to the server, not covered by any backup |
-| **`settings.json` key `favorites`** | **Chosen** — sits next to `startingLat`/`startingLon`, which the feature must write anyway; survives a profile wipe; `PUT /settings` already preserves untouched whitelisted keys, so a Settings-panel save will not clobber it; writes ride the existing atomic `serializeWrite` + `writeSettingsFile` path |
+| **`settings.json` key `favorites`** | **Chosen** — sits next to `startingLat`/`startingLon`, which the feature must write anyway; survives a profile wipe; `PUT /settings` already preserves untouched whitelisted keys, so a Settings-panel save will not clobber it; writes ride the existing atomic `writeSettingsFile` path (§5.3) |
 | Hybrid, mirrored | **Rejected** — synchronisation complexity for no gain |
 
 **No new endpoint.** `PATCH /setting` with `{ key: "favorites", val: [...] }` is sufficient and is
@@ -287,26 +292,39 @@ of junk at the head cannot consume the budget and hide the real favorites.
 ### 5.2 The read path
 
 Because `maskForRemote` projects through `sanitizeSettings`, the sanitizer runs on the way out too
-— a hand-edited or corrupted array can never reach a client verbatim, and a corrupt file degrades
-to a shorter list rather than a crash. Truncating server-side means the ceiling holds even if a
-future client forgets it.
+— for **remote** clients only: a hand-edited or corrupted array never reaches a LAN viewer
+verbatim, and degrades to a shorter list rather than a crash. Local clients (the kiosk itself, an
+SSH tunnel, RPi Connect) get the raw file from `getSettings`. For them the only read-path guard is
+the client `hydrate` filter — a non-empty string label, finite `Number(lat/lon)`, trimmed to
+`MAX_ROWS`; no range check, no rounding, no `id` requirement, and `Number(null)` passes as `0` — so
+a hand-edit is normalised only by the next write. The server-side ceiling is enforced on writes:
+`sanitizeFavorites` caps POST/PUT and PATCH at `MAX_FAVORITES`, so a future client that forgets
+its own cap still cannot store more than seven.
 
 ### 5.3 Durability
 
-Writes go through the existing atomic path: a per-process-unique `.tmp` opened `0600`, `fsync`,
+Writes go through the existing atomic path: a per-write-unique `.tmp` opened `0600`, `fsync`,
 then `rename`. `settings.json` stays owner-only; every `settingsCtrl` write passes `mode: 0o600`
 so a freshly created file starts locked down.
+
+The HTTP write handlers do **not** go through `serializeWrite`, which only serialises internal
+writes such as `patchAdvancedSubKey` (the Sense HAT mode/brightness writes). A favorites `PATCH`
+is therefore an unserialised read-modify-write against those and against any other HTTP write:
+each file lands complete, and the last rename wins.
 
 ### 5.4 Remote masking — deliberately unmasked
 
 `favorites` is **not** in `API_KEY_FIELDS` or `REMOTE_HIDDEN_KEYS`. It reaches remote clients
-verbatim, the same exposure `startingLat`/`startingLon` already have.
+unmasked — sanitized (§5.2) but not hidden — the same exposure `startingLat`/`startingLon` already
+have.
 
-This is a decision, not an oversight (§10 D-10): the SSH-tunnel and LAN workflows both need to
-read the list. It does widen location exposure from one coordinate pair to up to seven labelled
-points carrying user-authored text. A test pins the behaviour so a refactor cannot silently flip
-it, and `docs/security-hardening.md` records it with the opt-out: add `favorites` to
-`REMOTE_HIDDEN_KEYS`; the cost is an empty Places list for remote viewers, editing unaffected.
+This is a decision, not an oversight (§10 D-10): a LAN/VPN viewer needs to read the list.
+SSH-tunnel and RPi Connect sessions terminate at loopback, are treated as local and always receive
+the unmasked file, so they are unaffected either way. It does widen location exposure from one
+coordinate pair to up to seven labelled points carrying user-authored text. A test pins the
+behaviour so a refactor cannot silently flip it, and `docs/security-hardening.md` records it with
+the opt-out: add `favorites` to `REMOTE_HIDDEN_KEYS`; the cost is an empty Places list for remote
+viewers, editing unaffected.
 
 ### 5.5 Write gating
 
@@ -345,11 +363,14 @@ touch geo state the hook has no business owning (§6.3). `canRename` no longer e
 
 ### 6.2 Context wiring
 
-The hook is called once in `AppContext` and spread into **`locationSlice`**, alongside `mapGeo`,
-`browserGeo`, `customLat`, `customLon` and `reverseGeoResult`. Three unrelated consumers need it —
-`LocationDetailsPopover` (via both heroes), `PlacesPopover`, and `ControlButtons` for the dock
-button — which clears the CLAUDE.md bar for promoting state out of local component state.
-`AppContext` grows by the hook call plus the slice fields, and no more.
+The hook is called once in `AppContext` and exposed on **`locationSlice`** — `favorites` and
+`maxFavorites` as-is, the rest renamed (`canPinFavorite`, `canPinHomeFavorite`, `isFavoritePinned`,
+`pinFavorite`, `removeFavorite`, `renameFavorite`); `hydrate` stays private to `AppContext` —
+alongside `mapGeo`, `browserGeo`, `customLat`, `customLon` and `reverseGeoResult`. Two unrelated
+consumers need it — `LocationDetailsPopover` (via both heroes) and `PlacesPopover` — which clears
+the CLAUDE.md bar for promoting state out of local component state; `ControlButtons` only owns the
+popover's open state and mounts it (§7.2). `AppContext` grows by the hook call plus the slice
+fields, and no more.
 
 ### 6.3 The actions that live in AppContext
 
@@ -401,7 +422,7 @@ Four still bind this feature.
 3. **PropTypes no longer validate at runtime** on function components. They stay mandatory
    (`react/prop-types` is a build error, and they document the API), but no console warning will
    ever fire for a malformed favorite — which is why the server sanitizer is the only real
-   validation in the system (INV-3).
+   validation on the write path (INV-3).
 4. **Do not reach for `react-transition-group` casually.** Under React 19 a consumer without
    `nodeRef` falls back to the removed `findDOMNode`, and the throw unmounts the whole root — blank
    kiosk, no error boundary above `App`. Prefer a plain CSS transition; if it is genuinely needed,
@@ -426,8 +447,8 @@ Appended to `LocationDetailsPopover`, below the reverse-geocode detail rows. Thr
 
 | Condition | Render |
 |---|---|
-| Not pinned, list not full | `★ Pin this place`, 44 px hit area |
-| Already pinned (rounded-coordinate match) | `★ Pinned` — static, dimmed, not a button |
+| Not pinned, list not full | `Pin this place` (`favorites.pin`), 44 px hit area |
+| Already pinned (rounded-coordinate match) | `Pinned` (`favorites.pinned`) — static, dimmed, not a button |
 | List full | Button disabled + the `favorites.full` helper |
 
 The whole footer is hidden for remote clients: pinning writes `settings.json`, which is
@@ -474,12 +495,12 @@ duplicated. Caught in the browser, not in review.
 the pseudo-row is not rendered at all — that favorite carries the badge itself, and two rows for
 one place is the redundant-affordance problem the rail redesign spent a session removing.
 
-**The home row is pinnable** (`★`, Edit mode, localhost-gated, disabled with the `favorites.full`
-hint at the cap). Pinning converts home into a stored favorite: suppression hides the pseudo-row,
-the badge migrates, and the stored row becomes renamable and removable through the existing flow —
-one tap, and no parallel persistence for a home label. The label falls back to the rounded
-coordinates when the boot geocode never resolved, because the server drops label-less entries and
-the affordance must not depend on `homeLabel`.
+**The home row is pinnable** (`★`, Edit mode, localhost-gated; disabled only once 7 favorites are
+stored, with `favorites.full` as a tooltip — §3.4). Pinning converts home into a stored favorite:
+suppression hides the pseudo-row, the badge migrates, and the stored row becomes renamable and
+removable through the existing flow — one tap, and no parallel persistence for a home label. The
+label falls back to the rounded coordinates when the boot geocode never resolved, because the
+server drops label-less entries and the affordance must not depend on `homeLabel`.
 
 **Home is always first** (INV-6) — as the pseudo-row when unpinned, as the badged favorite when
 pinned. Display-only; storage keeps insertion order. Without it, pinning home would visually
@@ -489,6 +510,11 @@ teleport "my home" from the top of the list to the bottom just because it change
 > `favorites.length` alone, a zero-favorite user — issue 319's exact state — could never reach Edit
 > mode, and therefore never reach the `★` that is the whole path to a renamable default. The
 > condition is `isLocal && (favorites.length > 0 || showHomeRow)`.
+
+**Transient state resets on close.** `ControlButtons` mounts `PlacesPopover` only while it is open,
+so every close path (✕, backdrop, Esc, the dock button) unmounts it and resets Edit mode, the armed
+remove, the rename draft and the error line by construction. An always-mounted popover would bring
+that state back on reopen.
 
 **Empty state.** Keep the dock button visible and render a one-line explainer — "Open a place on
 the map, tap its name, then *Pin this place*." A hidden button is an undiscoverable feature. (Since
@@ -552,12 +578,12 @@ destructive touch action is reused verbatim from `RelaunchButton`, with its own 
 - Arming is keyed on the entry **id**, so a concurrent edit cannot turn the second tap into an
   off-by-one deletion (INV-11).
 
-**No undo toast.** It is the obvious alternative and the wrong one here: the toast would have to
-render from inside a `portal`-mode popover, and this project has a documented incident where any
-ancestor `filter` / `backdrop-filter` / `transform` confines a `position: fixed` toast to its
-stacking context (`incident_dock_toast_stacking_context`) — and `DetailsPopover` uses
-`backdrop-filter`. The two-tap arm gives the same protection with zero new surface, and re-pinning
-a deleted favorite costs two taps anyway, since it is almost always the place currently displayed.
+**No undo toast.** It is the obvious alternative and the wrong one here. The only toast the
+popover can reach is the dock's, through `onNotify` (as `toasts.favoriteDefaultSet` does), and that
+toast is non-interactive — `pointer-events: none`, gone after 2.5 s — so an undo would need a new
+interactive, timed surface plus a deferred-delete or restore path. The two-tap arm gives the same
+protection with zero new surface, and re-pinning a deleted favorite costs two taps anyway, since it
+is almost always the place currently displayed.
 
 **No swipe gesture.** Swipe-to-delete collides with map and rail dragging and with the drag-scroll
 behaviour that already produced one investigation (`docs/investigation-drag-scroll-2026-04.md`).
@@ -624,8 +650,8 @@ Places is a map-scope action available on every layout.
 
 **Icon: `carbon/bookmark`.** The dock was unified on `@iconify/icons-carbon`; the AI sparkle is the
 single documented exception. `location-star` is semantically closest but draws a map pin, and
-`location`/`location-filled` are already the marker-visibility toggle two buttons away in the same
-group — two pin glyphs side by side would read as one control with two states.
+`location`/`location-filled` are already the marker-visibility toggle immediately next to it in the
+same group — two pin glyphs side by side would read as one control with two states.
 
 ### 7.7 Styling guard-rails
 
@@ -711,7 +737,7 @@ resetHome, renameHint, edit, done, empty, remoteReadOnly, saveFailed}`, plus
 
 | Key | What happened |
 |---|---|
-| `toasts.favoriteAdded` | Never created. Pin feedback is the button flipping to "Pinned" in place, which is in-context; a toast from inside the shell hits the `backdrop-filter` stacking trap (§7.4) |
+| `toasts.favoriteAdded` | Never created. Pin feedback is the button flipping to "Pinned" in place, which is in-context (§7.1) |
 | `toasts.favoriteSaveFailed` | Replaced by the inline `favorites.saveFailed` — the error belongs beside the action that failed |
 | `favorites.currentPosition` | Removed: the "Current position" footer button became the `⌂` home row, whose fallback label is `favorites.homeFallback` |
 | `favorites.isDefault` | Removed as dead — the `⌂` badge is `aria-hidden` inside a button that already carries the label |
@@ -731,10 +757,10 @@ Never hand-edit it; `--check` exits 1 when it is stale.
 | **D-04** | Capacity is a **7-row budget**; the home entry does not count | A flat cap of 6 charged a slot for a place shown for free; a flat 7 breaks the quota margin — §3 |
 | **D-05** | Selecting a favorite **never changes zoom**; the field is removed | Storing it fought the user *and* drifted the marker — see below |
 | **D-06** | Rename **ungated** on any local client | `maxTouchPoints === 0`; `(any-hover) and (any-pointer: fine)`; `keyboardSeen` — all proxies for a question the platform cannot answer — §7.3 |
-| **D-07** | Two-tap arm for delete, no undo | An undo toast cannot escape the popover's stacking context; swipe collides with map/rail dragging — §7.4 |
+| **D-07** | Two-tap arm for delete, no undo | An undo needs a new interactive, timed surface (the dock toast is non-interactive) plus a deferred-delete path; swipe collides with map/rail dragging — §7.4 *(rationale corrected 2026-10-08 — §10.1)* |
 | **D-08** | The `⌂` home row is a **pseudo-row** | Auto-seeding the stored list: spends a slot, writes unasked, kills the empty state, moves itself, labels with raw coordinates — §7.2 |
 | **D-09** | `↺` reset affordance on the home row | A post-deletion prompt pushes one outcome when two are legitimate — §7.5 |
-| **D-10** | `favorites` reaches remote clients **unmasked** | Hiding it empties the Places list for the documented SSH-tunnel workflow; opt-out recipe recorded instead — §5.4 |
+| **D-10** | `favorites` reaches remote clients **unmasked** | Hiding it empties the Places list for direct LAN/VPN viewers (SSH-tunnel and RPi Connect sessions are local and unaffected); opt-out recipe recorded instead — §5.4 *(rationale corrected 2026-10-08 — §10.1)* |
 | **D-11** | Icon `carbon/bookmark` | `location-star` draws a map pin next to the existing marker toggle — two pin glyphs read as one control — §7.6 |
 | **D-12** | Dock button visible even when the list is empty | Hiding it makes the feature undiscoverable — §7.2 |
 | **D-13** | Label frozen at pin time; `id` stable across rename | A live label would re-write storage on every geocode refresh |
@@ -763,6 +789,8 @@ Never hand-edit it; `--check` exits 1 when it is stale.
 | "The three-button crunch never happens on the 7"" | Rested on the removed rename gate *and* on a ~280 px width estimate; measured 346 px | §8 |
 | "The non-touch gate protects the kiosk" | It answers the wrong question, and the field failure was a touch panel *with* a keyboard | §7.3 |
 | "Per-favorite zoom is a viewing preference" | It is an artefact of the pinning gesture | D-05 |
+| "An undo toast from the popover hits the `backdrop-filter` stacking trap" | `DetailsPopover` carries no `filter`/`backdrop-filter`/`transform`, and the popover already reaches the dock toast through `onNotify`; the real cost is that this toast is non-interactive | §7.4, D-07 |
+| "Hiding `favorites` breaks the SSH-tunnel workflow" | SSH-tunnel and RPi Connect sessions terminate at loopback, are treated as local and always get the unmasked file | §5.4, D-10 |
 
 ---
 
@@ -803,13 +831,15 @@ directions** of the county fallback. `test/react19Guards.test.js` covers the two
 are silent at build time.
 
 **Not pinned — and this is the part people misread.** There is no client-side test harness
-(tech-debt D2). Every interaction behaviour in §7 and every geometry claim in §8 — the two-tap arm,
-mode exclusivity, rename blur semantics, home-row suppression, the row budget on screen — is
-verified only by browser sessions and one field test. A green suite says nothing about the popover.
+(tech-debt D2 — `ROADMAP.md` → Technical debt › Automated tests). Every interaction behaviour in
+§7 and every geometry claim in §8 — the two-tap arm, mode exclusivity, rename blur semantics,
+home-row suppression, the row budget on screen — is verified only by browser sessions and one
+field test. A green suite says nothing about the popover.
 
 **Build gate:** `cd client && npm run prod` with zero errors, `npm test`, and
-`node tools/gen-localization-glossary.js --check`. Current baseline: **600/600 tests**, build
-**0 errors / 151 warnings**, glossary green.
+`node tools/gen-localization-glossary.js --check` — redundant since 2026-10, when `npm test` began
+failing on a stale glossary (`test/localizationGlossary.test.js`). Baseline at ship time
+(2026-08-17): **600/600 tests**, build **0 errors / 151 warnings**, glossary green.
 
 ### 12.1 The field-test record
 
@@ -853,8 +883,9 @@ exists.
    and nothing was written.
 4. `↺` on the home row clears the override and Recenter lands on the IP-derived location, with **no
    reload**.
-5. Alternate between two favorites inside 15 minutes and confirm `[cache] HIT current:` in
-   `server.log`.
+5. Alternate between two favorites inside 15 minutes and confirm a `[cache] HIT  current:` line
+   (two spaces after `HIT`) in `server.log`, e.g.
+   `grep -E '\[cache\] HIT +current:' ~/.local/state/pi-weather-station/server.log`.
 6. Palette pass — day and nightRed — on the Edit-mode row with all three actions.
 
 ---
@@ -873,7 +904,8 @@ exists.
   changes.
 - **The server/client cap divergence** (§3.1) is deliberate; nobody has decided whether it should
   stay that way if the budget changes.
-- **No client-side test harness** (tech-debt D2) — see §12.
+- **No client-side test harness** (tech-debt D2 — `ROADMAP.md` → Technical debt › Automated
+  tests) — see §12.
 
 **Deliberate non-goals.**
 

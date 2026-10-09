@@ -9,7 +9,7 @@
 **Three existing layouts,** selected by viewport width (`AmbientLayers`):
 
 - `LayoutMobile` — `< 800 px`: one scroll column (clock · alert · hero · air · 2×2 · radar card · forecast · AI), portrait dock at the bottom
-- `LayoutPi` — `800–1279 px`: the 7″ kiosk. Grid `1fr 300px` (map · rail) + dock, framed 10 px gutters, and **three rail states** — MIN (radar owns the screen), MID (split, default), MAX (forecast-forward, map becomes a 190 px thumbnail)
+- `LayoutPi` — `800–1279 px`: the 7″ kiosk. Grid `1fr 300px` (map · rail) + dock, framed 10 px gutters, and **three rail states** — MIN (radar owns the screen), MID (split, default), MAX (forecast-forward, map becomes a 190 px thumbnail) — plus a full-rail AI view opened from the dock. On a viewport ≤ 540 px tall (the 7″ at 800×480) the v3.3 priority-views model applies automatically: the MID glance moves the 2×2 and indoor into a full-rail Conditions view (opened from the hero), and the alert card opens a full-rail Alert view
 - `LayoutDesktop` — `≥ 1280 px`: full-bleed map, floating hero band, rail 320, dock
 
 **iPhone Duo = a new target,** not necessarily a new layout from scratch. Apple's guidance is explicit: *one compact layout for the outer display, one regular layout for the inner display, and let the layout expand across poses* — no custom layout per pose, no extreme rearrangement when the device folds.
@@ -64,7 +64,7 @@ Two layouts and one transition, in this order.
 
 Start from `pi-7in-mid`. Put the split **on the hinge**: map on one half, rail on the other, a hinge gutter between them wide enough to survive the partially-folded (book) pose — propose a value and name it as a token (e.g. `--hinge-gutter`). Then answer the three states:
 
-- **MID** — which side gets the map? (Apple: controls on the camera side; the camera is on the trailing edge of the right half in the HIG figures.) What does the rail hold at ≈ 445 px wide and ≈ 570 px tall once Safari's bars are removed — the MID stack (alert · clock · hero · NowcastLine · air · 2×2 · indoor) is ≈ 520 px on the 7″; does anything change?
+- **MID** — which side gets the map? (Apple: controls on the camera side; the camera is on the trailing edge of the right half in the HIG figures.) What does the rail hold at ≈ 445 px wide and ≈ 570 px tall once Safari's bars are removed? At ≈ 570–626 px the Duo sits above the current 540 px gate (a threshold still under review), so it gets the full stacked MID rail the `pi-7in-mid` anatomy draws (alert · clock · hero · NowcastLine · air · 2×2 · indoor); the real 7″ (800×480) shows only the priority glance (alert · clock · hero · NowcastLine · air). Does anything change?
 - **MIN** — radar owning the screen: the map may cross the crease when fully open (nano-texture, single panel) — or should it stay on one half with the timeline on the other? Argue it.
 - **MAX** — forecast-forward on a display that already splits in two: forecast on one half and map thumbnail on the other (the thumbnail grows), or the current 190 px thumbnail?
 
