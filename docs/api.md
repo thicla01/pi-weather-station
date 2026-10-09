@@ -2,11 +2,12 @@
 
 *Tracks `master`: every new or modified endpoint is documented here in the same change that ships it (a project rule, see `CLAUDE.md`). Release history lives in [`CHANGELOG.md`](../CHANGELOG.md).*
 
-All endpoints are served by the Express server on port **8443 (HTTPS)** or **8080 (HTTP)** as a fallback. Endpoints prefixed with `/api/` are subject to rate limiting unless noted otherwise.
+All endpoints are served by the Express server on port **8443 (HTTPS)**. If no TLS certificate is available, the server falls back to cleartext HTTP on **8080, bound to 127.0.0.1 only** (even with `ALLOW_REMOTE=true`), so remote access is HTTPS-only. Public `/api/` reads are rate limited (exceptions below); each endpoint's **Access** line is authoritative.
 
 **Rate limits (per connection socket peer — `req.socket.remoteAddress`, not the X-Forwarded-For-spoofable `req.ip`):**
-- Weather, geocoding, summary, indoor-temperature, sensehat, pollen, update-check: **120 req / min**
+- Every public `GET /api/*` read except map tiles, `/api/is-local` and `/api/cert.pem`: **120 req / min**
 - Map tiles: **600 req / min**
+- Not rate limited: `/api/is-local`, `/api/cert.pem`, and every localhost-only route (`/api/debug*`, `/api/update`, `/api/update-check/force`, and the localhost-only POSTs)
 
 **Access levels:**
 - 🌐 **Public** — accessible from any client (localhost and remote when `ALLOW_REMOTE=true`)
@@ -48,12 +49,12 @@ Returns the current settings.
 ---
 
 ### `POST /settings`
-Creates or overwrites `settings.json` with the provided body.
+Creates `settings.json` from the provided body and returns HTTP 201 with the written contents. Returns HTTP 409 if the file already exists — use `PUT /settings` or `PATCH /setting` to modify an existing file.
 
 - **Access:** 🔒 Localhost only
 - **Body:** JSON object with any subset of known keys (unknown keys are stripped)
-- **Whitelisted top-level keys:** `weatherApiKey`, `mapApiKey`, `reverseGeoApiKey`, `anthropicApiKey`, `airNowApiKey`, `openAqApiKey`, `startingLat`, `startingLon`, `indoorTemperature`, `advanced`
-- **`advanced` sub-object** — opaque, grouped by feature area:
+- **Whitelisted top-level keys:** `weatherApiKey`, `mapApiKey`, `reverseGeoApiKey`, `anthropicApiKey`, `airNowApiKey`, `openAqApiKey`, `startingLat`, `startingLon`, `indoorTemperature`, `advanced`, `favorites` (shape-validated — see `PATCH /setting` → `favorites` below)
+- **`advanced` sub-object** — opaque, grouped by feature area. A `PATCH /setting` of `advanced` replaces the whole blob, so a writer must send every sub-tree below (the client rebuilds it in full on each save); only the server-owned `advanced.sensehat` is spliced back in when omitted:
   - `advanced.ai.radarAnalysisEnabled` (boolean) — controls whether the AI summary's third paragraph (`Radar analysis: …`) is generated and the analysis circles render on the map. Defaults to `true`. When `false`, the analyzer is short-circuited server-side and no circles are drawn client-side.
   - `advanced.ai.extendedRadius` (boolean) — when `true`, the analyzer also samples the outer ring (32 directions × 10 distances every 5 km / 3 mi from 55–100 km or 33–60 mi) on top of the default inner ring (16 directions × 10 distances every 5 km / 3 mi from 5–50 km or 3–30 mi). The map shows a second outer dashed circle. Defaults to `false`. (`doubleOuterPoints` is no longer a setting — outer is always sampled at the dense 32-direction grid when extendedRadius is on.)
   - `advanced.ai.showSamplingPoints` (boolean) — purely client-side rendering flag. When `true`, `WeatherMap` overlays a small dot at every (direction, distance) the analyzer reads. Defaults to `false`.
@@ -64,33 +65,39 @@ Creates or overwrites `settings.json` with the provided body.
   - `advanced.display.radarOpacityDark` (number, 0.05–1.0) — same control for dark mode. Defaults to `0.3` (lower because the dark basemap makes radar colours pop naturally — too high and they look saturated).
   - `advanced.sleep.enabled` (boolean) — master toggle for the sleep-mode / screensaver feature. Defaults to `false` (existing installs see no change). When `true`, the idle hook attaches input listeners and arms the two-stage timer described below.
   - `advanced.sleep.stage1Delay` (number, minutes) — inactivity threshold before stage 1 (clock screensaver) appears. Defaults to `10`.
-  - `advanced.sleep.stage1Brightness` (number, 10–100) — hardware brightness applied during stage 1. Defaults to `30`. Honoured only on devices with an exposed backlight (sysfs `/sys/class/backlight/*`); silently ignored otherwise.
+  - `advanced.sleep.stage1Brightness` (number, 10–100) — hardware brightness applied during stage 1. Defaults to `30`. Honoured only where a brightness backend is available (sysfs `/sys/class/backlight/*`, or a DDC/CI monitor via `ed-ddc-server`); silently ignored otherwise.
   - `advanced.sleep.stage2Enabled` (boolean) — whether to ever transition into stage 2 (black screen with anti-burn-in dot). Defaults to `true` (so the default sleep flow walks all the way to the black-screen stage).
   - `advanced.sleep.stage2Delay` (number, minutes) — additional delay after stage 1 before stage 2 kicks in. Defaults to `20` (so total time-to-black at defaults is `stage1Delay + stage2Delay = 30` min). Stage 2 hardcodes a brightness write of `{ percent: 0, allowOff: true }` so the backlight goes fully off on panels that honour 0 (and to its hardware floor on panels that don't — no user knob in between, since the floor is hardware-bound regardless of the value written).
-  - `advanced.sleep.nightMode` (boolean) — when dark mode is active, switches the screensaver palette from cream-on-anthracite to red-on-near-black. Defaults to `true` (long-wavelength red has minimal impact on melatonin, friendlier for a kiosk visible from a bedroom).
+  - `advanced.sleep.nightMode` (boolean) — when dark mode is active, switches the whole UI (the ambient `nightRed` palette, screensaver included) to red-on-near-black; toggled by the dock's moon button. Defaults to `true` (long-wavelength red has minimal impact on melatonin, friendlier for a kiosk visible from a bedroom). Also mirrored to `localStorage` per device, and a stored value there wins over the server value on load (so a remote client, whose PATCH is refused, keeps its own choice).
+  - `advanced.pollen.enabled` (boolean) — opt-in for the pollen row of `ambient/AirCard`; the client only polls `GET /api/pollen` while it is `true`. Defaults to `false`.
+  - `advanced.alerts.radius` (number, km) — survey radius of the Nearby-alerts map overlay, sent as `radiusKm` to `GET /api/nearby-alerts` (which clamps it to 10–100). Defaults to `50`; the Settings slider covers 50–100 in steps of 10.
+  - `advanced.sensehat.*` (`mode`, `clockBrightness`, `radarBrightness`) — server-owned: written only by the Sense HAT endpoints (see `GET /api/sensehat-mode` and the two brightness endpoints under *Sense HAT Display*), never by the client's settings form. A `PATCH /setting` of `advanced` that omits `sensehat` keeps the stored block.
 
 ---
 
 ### `PUT /settings`
-Replaces `settings.json` entirely.
+Merges the body into `settings.json`: whitelisted top-level keys present in the body replace their stored values, whitelisted keys absent from the body (e.g. `advanced`, `indoorTemperature`, `favorites`) are preserved, and unknown keys are stripped. To remove a key, use `DELETE /setting`. Returns HTTP 200 (201 when the file was created).
 
 - **Access:** 🔒 Localhost only
-- **Body:** full settings JSON object — same whitelist as `POST /settings`
+- **Body:** JSON object with any subset of the keys whitelisted for `POST /settings`
+- **Errors:** HTTP 400 without a body
 
 ---
 
 ### `PATCH /setting`
-Updates a single key in `settings.json`.
+Updates a single key in `settings.json` (HTTP 200), or creates the file with that key when it does not exist yet (HTTP 201).
 
 - **Access:** 🔒 Localhost only
-- **Body:** `{ "key": "<name>", "value": "<value>" }`
-- **Errors:** HTTP 400 if the key is not in the whitelist
+- **Body:** `{ "key": "<name>", "val": <value> }` — the field is `val`, not `value`; `false`, `0` and `""` are accepted
+- **Errors:** HTTP 400 if `key` or `val` is missing or `val` is `null`, or if the key is not in the whitelist
 
 #### `favorites`
 
 Favorite locations — a bounded list of places the kiosk can jump back to.
 Unlike `advanced` and `indoorTemperature`, this key is **not opaque**: its
-value is shape-validated server-side on both the write and the read path.
+value is shape-validated server-side on write (`POST` / `PUT` / `PATCH`) and
+on the remote read path (`GET /settings` from a non-localhost client —
+localhost receives the stored file verbatim).
 
 ```json
 { "key": "favorites", "val": [
@@ -139,7 +146,7 @@ Removes a single key from `settings.json`.
 ### `GET /geolocation`
 Returns the device's approximate location based on its public IP address (via ipapi.co). Used as the default map center when no custom coordinates are configured.
 
-The result is cached on disk (`server/geolocation-cache.json`, 30-day TTL). At cold boot, fresh fetches use retry-with-backoff (5 attempts, ~31 s worst case). If all retries fail but a stale cache exists, the cached value is returned rather than 500.
+The result is cached on disk (`server/geolocation-cache.json`, 30-day TTL). At cold boot, fresh fetches use retry-with-backoff (5 attempts, 1/2/4/8 s back-off between tries plus a 10 s timeout per attempt — ~65 s worst case). If all retries fail but a stale cache exists, the cached value is returned rather than 500.
 
 - **Access:** 🌐 Public
 - **Response:** `{ "latitude": 45.5, "longitude": -73.6 }`
@@ -168,7 +175,8 @@ All weather endpoints proxy Tomorrow.io and share a server-side cache.
 | `lat` | float | ✅ | Latitude (-90 to 90) |
 | `lon` | float | ✅ | Longitude (-180 to 180) |
 
-- **Response:** Tomorrow.io timeline JSON, cached and forwarded as-is — **except `GET /api/weather/current`**, whose `temperature` and `temperatureApparent` are replaced with a trailing 3-fetch moving average (per location, deduped by `intervalStart`) to damp the noisy `timesteps=current` feed before caching. All other fields (`weatherCode`, wind, humidity…) are forwarded raw. See the "current-temperature smoothing" note in `CHANGELOG.md`.
+- **Response:** Tomorrow.io timeline JSON, cached and forwarded as-is — **except `GET /api/weather/current`**, whose `temperature` and `temperatureApparent` are replaced with a trailing 3-fetch moving average (per location, deduped by `intervalStart`) to damp the noisy `timesteps=current` feed before caching. All other fields (`weatherCode`, wind, humidity…) are forwarded raw. See the "current-temperature smoothing" note in `CHANGELOG.md`. On upstream failure, the last good payload (up to 24 h past its expiry) is served with HTTP 200 (stale-on-error); otherwise the upstream error status is forwarded (500 when there is none, e.g. a timeout).
+- **Errors:** HTTP 400 for missing/invalid `lat`/`lon`; HTTP 503 when `weatherApiKey` is not configured; HTTP 500 when settings can't be read
 
 ---
 
@@ -187,7 +195,7 @@ Proxies Mapbox raster tiles.
 | `x` | integer | Tile X coordinate |
 | `y` | integer | Tile Y coordinate |
 
-- **Errors:** HTTP 400 if `style` is not in the allowed list
+- **Errors:** HTTP 400 if `style` is not in the allowed list or `z`/`x`/`y` do not parse as integers (`z` must be 0–22); HTTP 503 when `mapApiKey` is not configured; HTTP 500 when settings can't be read or the Mapbox fetch fails
 
 ---
 
@@ -206,6 +214,7 @@ Returns a human-readable location name for the given coordinates (via LocationIQ
 
 - **Response (200):** LocationIQ reverse geocoding JSON
 - **Response (204 — No Content):** LocationIQ returned no address for the coord (ocean, undeveloped area). The client's `reverseGeocode` service resolves this to `null` and the caller falls back to displaying lat/lon. Pre-v2.16.5 this was a 500 — switched to 204 so devtools no longer logs it as an error on accidental ocean-clicks.
+- **Errors:** HTTP 400 for missing/invalid `lat`/`lon` (range-checked); HTTP 503 when `reverseGeoApiKey` is not configured; HTTP 500 when settings can't be read or on any other upstream failure
 
 ---
 
@@ -222,8 +231,10 @@ Returns sunrise and sunset times for the given coordinates (via sunrise-sunset.o
 | `lat` | float | ✅ | Latitude |
 | `lon` | float | ✅ | Longitude |
 | `date` | string `YYYY-MM-DD` | ⬜ | Optional. Forwarded to the upstream API. The client passes its LOCAL date so the returned sunrise/sunset belong to the user's day. Without it the upstream defaults to "today UTC" — and for users west of UTC during evening hours that's already the next UTC day, which skips over today's local sunset and flips auto dark-mode early. Strict regex match server-side so junk values can't reach the upstream URL. |
+| `tomorrow` | any non-empty value | ⬜ | Optional. Also fetches the day after `date` (or after today UTC) in a parallel upstream call and adds its `results` as `tomorrowResults`. A failure of that call is non-fatal (the field is omitted). The client always sends `tomorrow=1`. |
 
-- **Response:** sunrise-sunset.org JSON
+- **Response:** sunrise-sunset.org JSON (`formatted=0`), plus `tomorrowResults` when `tomorrow` is set
+- **Errors:** HTTP 400 for missing/invalid `lat`/`lon`; HTTP 500 when the upstream call for today fails
 
 ---
 
@@ -237,7 +248,7 @@ Returns an AI-generated weather summary powered by Claude Haiku (Anthropic). Ret
 The response can be 1, 2, or 3 paragraphs depending on what data is available:
 
 1. **Current conditions** (always)
-2. **Period preview** when timestamp params are present and the matching cache (hourly/daily) is hot — evening preview (18h–21h) in the morning/afternoon, overnight preview (21h–5h) in the evening, next-day preview at night
+2. **Period preview** when timestamp params are present and the matching cache (hourly/daily) is hot — evening preview (18h–21h) in the morning/afternoon, overnight preview (21h–5h) in the evening, next-day preview at night; when the evening/overnight window can't be built (missing timestamp params or a cold hourly cache), it falls back to the next-day preview from the daily cache at any hour (that fallback needs no timestamp params)
 3. **Radar analysis** (since v2.4.0) when the radar analyzer can sample tiles successfully — starts with the localised label `Analyse radar : ...` and describes where precipitation is, whether it is approaching, and an estimated arrival time. Sampling geometry depends on `distanceUnit` and `advanced.ai.extendedRadius`:
    - **Default (inner ring only):** 161 points = 1 centre point on the user's exact location (labelled `C` in the prompt grid) + 16 directions (every 22.5°: N, NNE, NE, ENE, …, NNW) × 10 distances. Distances are `5/10/15/.../50 km` when `distanceUnit=km` (inner circle 50 km) and `3/6/9/.../30 mi` when `distanceUnit=mi` (inner circle 30 mi). The centre sample catches small cells sitting right on the marker — too narrow to extend out to the closest 5 km / 3 mi probes.
    - **`extendedRadius: true`:** adds an outer ring of 32 directions (every 11.25°) × 10 distances every 5 km / 3 mi from 55–100 km / 33–60 mi → 481 points total. The map shows a second dashed circle (100 km or 60 mi) in addition to the inner one. Where outer bearings match the 16 inner cardinals, both ring's samples merge into one direction block in the prompt — denser radial profile per direction makes movement easier for Claude to reason about. The 16 in-between outer bearings are labelled by their value (e.g. `11.25`, `33.75`).
@@ -270,7 +281,7 @@ Summaries are cached 15 minutes server-side, keyed by `lat:lon:lang:period:tempU
   - **503** `"Anthropic API key not configured"`, or `"No weather data available"` when there are no current conditions, no forecast period and no radar block to summarise. The client hides the feature.
 
 ### `GET /api/radar-risk`
-Returns the current "right now" radar-risk level for the inner and (optionally) outer dashed circles around the user. Drives the colour of those circles in the WeatherMap component, on top of the underlying RainViewer tile layer. Worst-case approach: each ring's level reflects the highest precipitation intensity sampled on that ring, mapped via the table below.
+Returns the current "right now" radar-risk level for the inner and (optionally) outer dashed circles around the user. Drives the colour of those circles in the WeatherMap component, on top of the underlying RainViewer tile layer. Hysteretic approach: each ring's level comes from the 2nd-highest sample intensity on that ring (`TIER_HYSTERESIS_N = 2`, so a single rogue pixel can't escalate the ring). Samples in a direction trending `leaving` first count one intensity step lower (e.g. 4 → 3). That tier-deciding intensity is mapped via the table below, then raised one level when the ring is approaching (see `inner.level`). `maxIntensity` stays the raw worst-case sample, kept for diagnostics.
 
 | RainViewer intensity | Level | Hex |
 |---:|---|---|
@@ -302,16 +313,17 @@ The outer ring is sampled only when `advanced.ai.extendedRadius` is `true` (serv
 
 | Field | Type | Description |
 |---|---|---|
-| `inner.level` | string | `calm` \| `yellow` \| `orange` \| `red` — already includes the trend bump (one notch up from `maxIntensity` when `trend === "approaching"`) |
+| `inner.level` | string | `calm` \| `yellow` \| `orange` \| `red` — already includes the trend bump: one level up (yellow→orange→red; red stays red) from the level of the tier-deciding intensity (2nd-highest leaving-adjusted sample), applied when `trend === "approaching"` and that intensity is ≥ 2 |
+| `inner.bumped` | boolean | `true` when `level` was raised one notch by the approaching-trend bump (the client uses it to pick the softer "approaching" wording) |
 | `inner.maxIntensity` | integer | Worst-case RainViewer intensity (0–6) sampled on the inner ring |
 | `inner.trend` | string | `approaching` \| `drifting` \| `leaving` \| `stable` — ring-level trend computed by intensity-weighted summarization of per-direction trends: the direction with the highest peak intensity in the latest frame dictates the ring's trend (the band that defines the tier also defines the trend). Per-direction `approaching` requires a band shifted inward by ≥5 km / ≥3 mi (inner) or ≥8 km / ≥5 mi (outer) over the 45-min window AND projected arrival under 60 min (widened from 30 in May 2026 after the Sorel false-leaving case). `drifting` is the same inward shift without the ETA gate clearing — added in May 2026 after the Stratford case where a moving system around an in-precipitation user collapsed back to "stable" with 0 % confidence (see CHANGELOG). |
-| `inner.trendConfidence` | integer | 0–100 score of how strongly the data supports the trend label. For `approaching`/`leaving`: built from inward-shift magnitude (up to 60 pts at 2× threshold), monotonicity across the mid frame (up to 25 pts), and intensity persistence (up to 15 pts when both endpoints are ≥ light precip). For `stable`: inverse of evidence-for-movement (`(1 − min(1, |shift|/threshold)) × 100`), so a direction sitting well below threshold reads as "definitely stable" and a direction blocked only by the ETA gate reads as "barely stable". |
+| `inner.trendConfidence` | integer | 0–100 score of how strongly the data supports the trend label. For `approaching`/`leaving`: built from inward-shift magnitude (up to 60 pts at 2× threshold), monotonicity across the mid frame (up to 25 pts), and intensity persistence (up to 15 pts when both endpoints are ≥ light precip). For `stable`: inverse of evidence-for-movement (`(1 − min(1, \|shift\|/threshold)) × 100`), so a direction sitting well below threshold reads as "definitely stable" and a direction blocked only by the ETA gate reads as "barely stable". |
 | `inner.samples` | array | Per-point intensities: `[{ direction, distance, intensity }, ...]` — for the inner ring, direction is `C` for the centre + the 16 cardinals (`N`/`NNE`/`NE`/`ENE`/.../`NNW`); for the outer ring (when present), the same 16 cardinal names where bearings match plus 16 in-between bearings labelled by their value (`11.25`, `33.75`, …, `348.75`). Distance is in the user's unit. Always from the latest frame (trend uses older frames internally but doesn't expose them). Used by the WeatherMap to colour individual sampling-point dots when that overlay is on. |
-| `inner.directionVectors` | array | Per-direction vectors for the optional arrow overlay: `[{ direction, peakDistance, peakIntensity, magnitude, trend, confidence }, ...]`. Stable directions are filtered out server-side — drawing an arrow on a band that isn't moving would be visual noise. `peakDistance` (user's unit) anchors the arrow on the map; `magnitude` is the absolute inward shift over the trend window; `trend` is `approaching` or `leaving`; `confidence` 0–100 drives arrow opacity. The client computes the lat/lon position via the same `offsetLatLon` helper the dot overlay uses. |
+| `inner.directionVectors` | array | Per-direction vectors for the optional arrow overlay: `[{ direction, peakDistance, peakIntensity, magnitude, trend, confidence }, ...]`. Stable directions are filtered out server-side — drawing an arrow on a band that isn't moving would be visual noise. `peakDistance` (user's unit) anchors the arrow on the map; `magnitude` is the absolute inward shift over the trend window; `trend` is `approaching`, `drifting` or `leaving`; `confidence` 0–100 drives arrow opacity. The client computes the lat/lon position via the same `offsetLatLon` helper the dot overlay uses. |
 | `outer` | object \| null | Same shape as `inner` (level + maxIntensity + trend + trendConfidence + bumped + samples + directionVectors), or `null` when `extendedRadius` is off |
 | `timestamp` | integer | Unix timestamp (seconds) of the latest RainViewer frame the result is computed from |
 
-- **Errors:** HTTP 503 when RainViewer is unreachable or returns no recent frames
+- **Errors:** HTTP 400 `"Invalid coordinates"` for missing/invalid `lat`/`lon`; HTTP 503 `"Radar risk unavailable"` when RainViewer is unreachable or returns no recent frames; HTTP 500 `"Radar risk failed"` on an unexpected analyzer error
 
 ---
 
@@ -327,8 +339,8 @@ Sources:
 - **MELCC RSQA Montréal** — Ville de Montréal real-time IQA CSV (`donnees.montreal.ca`, hourly ~50 min after the hour). Covers the island of Montreal. Source label `MELCC-Mtl`.
 - **MELCC RSQAQ provincial** — Quebec MELCC ArcGIS FeatureServer (`services3.arcgis.com`, hourly real-time, `rsqaq-indice-de-la-qualite-de-l-air` on Données Québec). Covers all of Quebec except the island of Montreal (excluded by intergovernmental agreement; Montreal's network is published by the Mtl source above). Source label `MELCC-RSQAQ`.
 - **EPA AirNow** — `airnowapi.org/aq/data/` (raw station endpoint, not the reporting-area endpoint). Covers the United States (continental + AK + HI + PR/VI). Free with a per-install API key, rate-limited at 500 calls/hour. Queried with a ~80 km bbox and a 3-hour lookback window; the response contains one record per station per pollutant per hour. The source groups records by station, keeps the latest reading per pollutant, picks the geographically closest station to the query point, then takes the worst-case AQI across that station's pollutants — EPA's official "current AQI" methodology. The raw-station endpoint is used instead of `/aq/observation/latLong/current/` because the reporting-area endpoint silently excludes plenty of valid stations whose "reporting area" is offline (e.g. Decatur, AL where the EPA reporting area returns empty but the DECATUR station 8 km away publishes hourly readings). Reported `kind` is `nowcast` — AirNow uses the NowCast 12-hour weighted average for PM2.5/PM10 and 1-hour averages for ozone, both of which are EPA's current-observation methodology rather than instantaneous spot values. Source label `AirNow`.
-- **OpenAQ** — `api.openaq.org/v3/locations` + `/locations/{id}/latest`. Global coverage (~150 countries) — primarily fills the gap outside the US + Canada footprint. Free with a per-install API key. Aggregates only government monitoring stations (no community sensors), CC-BY-4.0 licence. Returns raw pollutant concentrations (no pre-computed AQI), so the source converts to EPA-canonical units and applies the official EPA AQI breakpoint formula per supported pollutant (PM2.5, PM10, O3, NO2, SO2, CO), then takes the worst-case sub-index across what the station reports. Reported `kind` is `observation`. Source label `OpenAQ`.
-- **Environment Canada AQHI** — `api.weather.gc.ca` OGC Features API. Covers all of Canada. Prefers `aqhi-observations-realtime`; when empty (Quebec stations sometimes publish forecasts but no observations), falls back to `aqhi-forecasts-realtime` and picks the forecast row whose `forecast_datetime` is the latest hour ≤ now. The forecast value is official Health Canada AQHI for the hour in question — predicted rather than measured but still authoritative — and the response's `kind` field distinguishes the two. Source label `ECCC`.
+- **OpenAQ** — `api.openaq.org/v3/locations` + `/locations/{id}/latest`. Global coverage (~150 countries) — primarily fills the gap outside the US + Canada footprint. Free with a per-install API key. OpenAQ lists government reference monitors and also low-cost/community sensor networks; the source applies no monitor/sensor filter and takes the nearest of the (up to 25) locations OpenAQ returns within 25 km. CC-BY-4.0 licence. Returns raw pollutant concentrations (no pre-computed AQI), so the source converts to EPA-canonical units and applies the official EPA AQI breakpoint formula per supported pollutant (PM2.5, PM10, O3, NO2, SO2, CO), then takes the worst-case sub-index across what the station reports. Reported `kind` is `observation`. Source label `OpenAQ`.
+- **Environment Canada AQHI** — `api.weather.gc.ca` OGC Features API. Covers all of Canada. Prefers `aqhi-observations-realtime`; when empty (Quebec stations sometimes publish forecasts but no observations), falls back to `aqhi-forecasts-realtime` and picks the forecast row whose `forecast_datetime` is the latest hour ≤ now (or, when the bulletin has no past hour, the earliest upcoming hour). The forecast value is official Health Canada AQHI for the hour in question — predicted rather than measured but still authoritative — and the response's `kind` field distinguishes the two. Source label `ECCC`.
 
 Selection rule:
 
@@ -359,22 +371,21 @@ For each ECCC candidate, defunct stations are skipped automatically: the control
   "scale": "iqa",
   "kind": "observation",
   "stationName": "75 Ontario Est",
-  "stationDistanceKm": 1,
-  "observedAt": "2026-05-21T17:00:00Z"
+  "stationDistanceKm": 1
 }
 ```
 
 | Field | Type | Description |
 |---|---|---|
 | `value` | number | Raw value in the source's native scale (AQHI 1–10+, IQA 1–100+, EPA AQI 0–500) |
-| `category` | string | `low` \| `moderate` \| `high` \| `veryHigh` — pre-normalised by the source so the badge's colour mapping is scale-agnostic |
-| `source` | string | `MELCC-Mtl` \| `MELCC-RSQAQ` \| `AirNow` \| `OpenAQ` \| `ECCC` — drives the badge tooltip's source label |
-| `scale` | string | `aqhi` (Health Canada AQHI) \| `iqa` (Quebec MELCC IQA) \| `epa` (US EPA AQI, also used by OpenAQ since the source applies the EPA AQI formula to OpenAQ's raw concentrations) — drives badge label ("AQHI/CAS" vs "IQA" vs "AQI") and value formatting (1 decimal for AQHI, integer otherwise) |
+| `category` | string | `low` \| `moderate` \| `high` \| `veryHigh` — pre-normalised by the source so the client's tier-colour mapping (`ambient/AirCard` / `ambient/AirAlertCard`) is scale-agnostic |
+| `source` | string | `MELCC-Mtl` \| `MELCC-RSQAQ` \| `AirNow` \| `OpenAQ` \| `ECCC` — drives the source label in the `AirCard` / `AirAlertCard` detail popover |
+| `scale` | string | `aqhi` (Health Canada AQHI) \| `iqa` (Quebec MELCC IQA) \| `epa` (US EPA AQI, also used by OpenAQ since the source applies the EPA AQI formula to OpenAQ's raw concentrations) — drives the scale label ("AQHI" vs "IQA" vs "AQI") shown by `ambient/AirCard` / `ambient/AirAlertCard`; the value is displayed as returned |
 | `kind` | string | `observation` (live measurement, used by MELCC + OpenAQ + ECCC observation path) \| `nowcast` (AirNow's 12 h weighted average / 1 h ozone) \| `forecast` (ECCC, used when the observation pipeline is empty) |
 | `stationName` | string | Human-readable station name (or municipal address for the Montreal source, the AirNow `SiteName` for AirNow, the OpenAQ-published name for OpenAQ) |
 | `stationDistanceKm` | integer | Great-circle distance from the requested point, rounded to the nearest km |
-| `pollutant` | string | (AirNow + OpenAQ only) The pollutant that drove the worst-case AQI — `pm25`, `pm10`, `o3`, `no2`, `so2`, or `co`. Surfaced for the Debug panel; not displayed by the badge. |
-| `observedAt` | string\|null | (AirNow + OpenAQ) ISO 8601 UTC timestamp of the measurement that won the worst-case AQI. Surfaced in the badge tooltip and the Debug panel as a human-readable "X ago" so the user can tell live readings from stale ones — AirNow's raw-station endpoint surfaces hourly station snapshots that can be 1-2 hours old (vs. the older reporting-area endpoint which silently dropped non-fresh stations), and OpenAQ's `/latest` doesn't enforce a freshness window at all, so a station may return its last reading from hours or days ago. Other sources will populate this field as the data becomes available upstream; clients should `&&`-guard the field rather than assume it's always present. |
+| `pollutant` | string | (AirNow + OpenAQ only) The pollutant that drove the worst-case AQI. OpenAQ: its parameter name (`pm25`, `pm10`, `o3`, `no2`, `so2`, `co`). AirNow: its raw upstream `Parameter` string, passed through unchanged (only ozone, PM2.5 and PM10 are queried). Shown, uppercased, in the `AirCard` / `AirAlertCard` detail popover, and in the source's Debug-panel service-status line. |
+| `observedAt` | string\|null | (AirNow + OpenAQ) ISO 8601 UTC timestamp of the measurement that won the worst-case AQI. Surfaced in the `AirCard` / `AirAlertCard` detail popover and the Debug panel as a human-readable "X ago" so the user can tell live readings from stale ones — AirNow's raw-station endpoint surfaces hourly station snapshots that can be 1-2 hours old (vs. the older reporting-area endpoint which silently dropped non-fresh stations), and OpenAQ's `/latest` doesn't enforce a freshness window at all, so a station may return its last reading from hours or days ago. Other sources will populate this field as the data becomes available upstream; clients should `&&`-guard the field rather than assume it's always present. |
 
 Category cut-points per scale:
 
@@ -383,17 +394,18 @@ Category cut-points per scale:
 - EPA AQI (`scale: "epa"`): `low` 0-50 (Good), `moderate` 51-100 (Moderate), `high` 101-150 (Unhealthy for Sensitive Groups), `veryHigh` >150. EPA officially defines six tiers (USG / Unhealthy / Very Unhealthy / Hazardous past 150); we collapse the top three into `veryHigh` so the four-tier colour vocabulary stays consistent across sources. The 150 split is the same point at which EPA's own palette transitions from orange to red.
 
 - **Response (no source had a reading):** `{ "available": false, "reason": "no-data" }`. Each source soft-fails internally and returns null; the orchestrator only emits `available: false` when every source has fallen through.
+- **Errors:** HTTP 400 `"Invalid coordinates"` on missing, non-numeric or out-of-range coordinates.
 
 ---
 
 ## Pollen
 
 ### `GET /api/pollen`
-Returns the current pollen readings for the six standard allergens — alder, birch, grass, mugwort, olive, and ragweed — via the [Open-Meteo Air Quality API](https://open-meteo.com/en/docs/air-quality-api) (free, no key required). Feeds the optional Pollen cell in the client's MetricsGrid: the worst-case category colours the cell, the per-allergen breakdown fills the detail popover.
+Returns the current pollen readings for the six standard allergens — alder, birch, grass, mugwort, olive, and ragweed — via the [Open-Meteo Air Quality API](https://open-meteo.com/en/docs/air-quality-api) (free, no key required). Feeds the optional pollen row of `ambient/AirCard` (opt-in `advanced.pollen.enabled`): the worst-case category colours the row, the per-allergen breakdown fills its detail popover.
 
-Coverage is **effectively Europe-only**: Open-Meteo's pollen variables come from the CAMS *European* air-quality model, and queries outside its domain (verified live: Montréal and New York return `null` for all six allergens, mid grass season) yield no data. Out-of-coverage regions and upstream failures both return HTTP 200 with `{ "available": false }` so the client hides the cell silently without a devtools error. No server-side cache — each request is one upstream fetch.
+Coverage is **effectively Europe-only**: Open-Meteo's pollen variables come from the CAMS *European* air-quality model, and queries outside its domain (verified live: Montréal and New York return `null` for all six allergens, mid grass season) yield no data. Out-of-coverage regions and upstream failures both return HTTP 200 with `{ "available": false }` so the client hides the pollen row silently without a devtools error. No server-side cache — each request is one upstream fetch.
 
-**Category bucketing** — pollen has no universal scale, so a single approximate threshold set (in grains/m³) maps every allergen onto the same 4-tier vocabulary the UV and air-quality badges already use:
+**Category bucketing** — pollen has no universal scale, so a single approximate threshold set (in grains/m³) maps every allergen onto the same 4-tier vocabulary the UV cell and the air-quality reading already use:
 
 | Value (grains/m³) | Category |
 |---:|---|
@@ -453,7 +465,7 @@ Sources:
 - **NWS (United States)** — `api.weather.gov/alerts/active?point=lat,lon`. Free, no API key, descriptive User-Agent required by policy. NWS does the spatial matching internally (zone- or polygon-based depending on the alert), so this endpoint normalises the response and enriches any zone-only alert (no inline polygon) with its real geometry, fetched from the alert's `affectedZones` (cached 24 h) — see `nwsZones.js`. Out-of-bounds coordinates return HTTP 400 from NWS, which is treated as "no coverage" rather than an error.
 - **ECCC (Canada)** — `api.weather.gc.ca/collections/weather-alerts/items` (the same pygeoapi instance that serves AQHI), queried with the OGC `bbox=` spatial filter around the request point. The bbox snaps to a 1° grid cell sized to cover the 100 km max nearby radius, so the banner point-query and the nearby-alerts radius-query share one cached upstream fetch per cell (5 min TTL, `BoundedMap` of 8 cells); point-in-polygon still runs locally on what comes back, over any GeoJSON geometry that has an area — a `GeometryCollection` is flattened to its polygonal members (points and lines ignored) and served as a `MultiPolygon`, the same normalisation NWS zones get. (Historical note: the module long fetched the entire national feed on the belief the bbox filter was non-functional — re-validated 2026-07-09, it works; the old symptom is reproduced exactly by passing the box in `lat,lon` order, and the national feed had meanwhile grown to ~840 features / ~10 MB per refresh.) Bilingual EN/FR is built into every property (`alert_name_en` / `alert_name_fr`, etc.) and preserved through to the client.
 
-The two sources run in parallel — each is cached, so the cost is negligible even at the US/Canada border where both fire. Failures are isolated: one source erroring out doesn't blank the other. The endpoint always returns 200 with an `alerts` array (possibly empty); the client never has to handle "out of coverage" specially.
+The two sources run in parallel — each is cached, so the cost is negligible even at the US/Canada border where both fire. Failures are isolated: one source erroring out doesn't blank the other. For valid coordinates the endpoint always returns 200 with an `alerts` array (possibly empty); the client never has to handle "out of coverage" specially.
 
 - **Access:** 🌐 Public — rate limited (120 req/min)
 - **Caching:** Per-source server cache 5 min. Response sets `Cache-Control: public, max-age=300` so a remote client polling at the recommended 10 min cadence sees consistent results. When `showTest=1` is honored the response is `Cache-Control: private, max-age=0, no-store` instead, since the body then varies on locality and must not be shared by a cache or a same-host proxy.
@@ -466,6 +478,7 @@ The two sources run in parallel — each is cached, so the cost is negligible ev
 | `lon` | float | ✅ | Longitude |
 | `showTest` | `"1"` | | Include test/exercise alerts (`isTest`). **Localhost only** — ignored for remote requests. |
 
+- **Errors:** HTTP 400 `"Invalid coordinates"` on missing, non-numeric or out-of-range `lat`/`lon`
 - **Response:**
 
 ```json
@@ -491,19 +504,22 @@ The two sources run in parallel — each is cached, so the cost is negligible ev
 | Field | Type | Description |
 |---|---|---|
 | `source` | string | `NWS` \| `ECCC` — drives the badge label on the banner |
-| `isTest` | boolean | NWS only. `true` when CAP `status` ≠ `Actual` (Test/Exercise/System/Draft). Present in the payload only when `showTest=1` was honored (localhost); the client renders a neutral `TEST` badge + "TEST ·" title prefix for these. |
+| `isTest` | boolean | NWS only (always present on NWS entries). `true` when CAP `status` ≠ `Actual` (Test/Exercise/System/Draft); such entries are included only when `showTest=1` was honored (localhost), so a normal response carries only `isTest: false`. The client renders a neutral `TEST` badge + "TEST ·" title prefix for these. |
 | `id` | string\|null | Upstream alert identifier; useful for de-duplication if more sources are added later |
 | `severity` | string | `minor` \| `moderate` \| `severe` \| `extreme` — normalised from the source's CAP severity (or ECCC's `impact_*` field). **Watches are capped at `moderate`** (a CAP-`Severe` Flood/Tornado Watch is downgraded) so a watch never paints red like a warning; non-watch alerts pass through unchanged. |
 | `tier` | string | `yellow` \| `orange` \| `red` — pre-mapped colour tier matching the radar-derived banner so the client doesn't need to know severity vocabulary |
 | `eventType` | string | Raw upstream event code (`RFW`, `Tornado Warning`, etc.) |
 | `title_en` | string | Short, banner-sized event title in English (capitalised; `event` for NWS, `alert_name_en` for ECCC) |
 | `title_fr` | string | Same for French — for NWS this mirrors `title_en` since NWS is English-only |
-| `description_en` | string | Longer body text (NWS `headline` + `description`, ECCC `alert_text_en`). Not shown in the MVP banner; kept in the payload for future expansion-on-tap UI |
+| `description_en` | string | Longer body text (NWS `headline` + `description`, ECCC `alert_text_en`). Rendered in the expanded alert detail (`ambient/AlertDetailInline`, Pi `ambient/AlertView`) |
 | `description_fr` | string | Same for French |
+| `sentAt` | string\|null | Issue time (NWS `sent` or `effective`; ECCC `publication_datetime`) — feeds the alert meta chips |
+| `senderName` | string\|null | Issuing office — NWS `senderName` (nullable); ECCC → `ECCC <province>`, or plain `ECCC` when no province |
 | `expiresAt` | string\|null | ISO 8601 timestamp |
 | `areaDesc` | string\|null | Human-readable area name (NWS `areaDesc`, ECCC `feature_name_en` or `province`) |
+| `geometry` | object\|null | GeoJSON `Polygon` / `MultiPolygon` (NWS inline, or resolved from `affectedZones`; an ECCC `GeometryCollection` is flattened to a `MultiPolygon`) — drives the map overlay |
 
-The `alerts` array is sorted server-side by descending severity, ties broken by descending expiry time so the freshest critical alert lands first. The client banner shows only the first orange/red entry; minor/yellow alerts are present in the payload but not promoted to the banner (small craft advisories, frost watches, etc. fire often enough that surfacing them as a permanent banner would devalue the louder ones).
+The `alerts` array is sorted server-side by descending severity, ties broken by descending expiry time so the freshest critical alert lands first. The client banner stack shows every non-dismissed orange/red entry (counter + mini-cards, presented in this sort order); minor/yellow alerts stay in the payload and are shown only when the per-device `showAdvisoryAlerts` opt-in is enabled (small craft advisories, frost watches, etc. fire often enough that surfacing them by default would devalue the louder ones).
 
 Coverage gaps:
 
@@ -515,7 +531,7 @@ Coverage gaps:
 How it differs from `/api/weather-alerts`:
 
 - **US** — the NWS alerts API has no radius parameter, so the endpoint fetches by the **state(s) the radius circle spans** (`api.weather.gov/alerts/active?area=XX`), resolved from the circle's bounding-box corners via `api.weather.gov/points/{lat,lon}` (1 state typically, 2 at a border corner; the point→state lookup is cached 24 h). Each state's alerts are normalised + geometry-enriched (zone-only alerts resolved through `affectedZones`, same as the point feed), then culled to the circle.
-- **Canada** — reuses the existing all-Canada ECCC feed (cached) and culls it to the circle, so a US point near the border naturally picks up Canadian alerts without extra coverage logic.
+- **Canada** — reuses the same per-grid-cell ECCC feed as `/api/weather-alerts` (OGC `bbox=` sized to cover the 100 km max radius, cached 5 min per 1° cell; skipped when the cell can't intersect Canada) and culls it to the circle, so a US point near the border naturally picks up Canadian alerts without extra coverage logic.
 - **Circle test** — `_shared.circleIntersectsPolygon` (hand-rolled, **no turf.js dependency**): true when the centre is inside the polygon, the polygon is inside the circle, or any polygon edge passes within `radiusKm`. The edge test is what catches a large multi-county alert whose near edge clips the circle even though its centroid sits far outside.
 - **Unmappable alerts** — a rare alert with no resolvable polygon can't be circle-tested or drawn, so it is omitted from `alerts` and only counted in `residualCount` (the client's "+N not mapped" note).
 
@@ -531,6 +547,7 @@ How it differs from `/api/weather-alerts`:
 | `radiusKm` | float | — | Survey radius. Defaults to 50; clamped to the supported 10–100 km range. |
 | `showTest` | `"1"` | | Include test/exercise alert polygons (`isTest`). **Localhost only** — ignored for remote requests. |
 
+- **Errors:** HTTP 400 `"Invalid coordinates"` on missing, non-numeric or out-of-range `lat`/`lon`; HTTP 429 when the per-peer concurrency cap is exceeded (see **Access**)
 - **Response:**
 
 ```json
@@ -565,7 +582,7 @@ Every entry carries the same fields as `/api/weather-alerts` (see the table abov
 ## Sense HAT Display
 
 ### `GET /api/sensehat`
-Lightweight aggregated weather state intended for the Sense HAT 8×8 LED matrix display script (`tools/sensehat_weather.py`). Pulls current weather from the shared server-side cache (no extra Tomorrow.io quota) and computes day/night and sun position from sunrise/sunset.org (1-hour in-process cache).
+Lightweight aggregated weather state intended for the Sense HAT 8×8 LED matrix display script (`tools/sensehat_weather.py`). Pulls current weather from the shared server-side cache; a cold cache falls back to an internal `GET /api/weather/current` call, which populates the shared cache. A weather failure is non-fatal: the weather fields default to null/0 and the alert is still served. Computes day/night and sun position from sunrise/sunset.org (1-hour in-process cache).
 
 When no location is configured in `settings.json` (`startingLat` / `startingLon`), falls back to `ipapi.co` for IP-based geolocation (cached 1 hour).
 
@@ -616,14 +633,16 @@ The `mode` field echoes the persisted Sense HAT display mode (`weather` / `clock
 | `radar` | object \| absent | Present only in `radar`/`auto` mode: `{ grid: number[64] (0–6, row-major, N up), litCells: integer, radiusKm: number }` — coarse 8×8 precipitation reprojection |
 | `alert` | object \| absent | Optional: top active gov alert (tier ≥ orange). Object shape: `{ tier: "red"\|"orange", severity: "extreme"\|"severe"\|"moderate", source: "ECCC"\|"NWS", event: string }` |
 
+- **Errors:** `500` `{ "error": "..." }` — settings unreadable; `503` `{ "error": "..." }` — no location configured (no kiosk location, no `startingLat` / `startingLon`) and the ipapi.co lookup failed
+
 **Location resolution order** (the coordinates fed into the weather + alert lookups):
 
 1. **Kiosk in-memory cache** — set by `POST /api/kiosk-location` whenever the user pans the map in the browser. Takes priority so the Sense HAT alert override tracks what the user is currently looking at on the kiosk.
-2. **`settings.json` `startingLat` / `startingLon`** — user-chosen persistent default (Settings → Avancé → Position personnalisée).
+2. **`settings.json` `startingLat` / `startingLon`** — user-chosen persistent default (Settings → Configuration & API keys → Location & hardware → Latitude / Longitude, or Places → Edit → `⌂` on a saved place).
 3. **ipapi.co** — IP-based geolocation fallback when neither of the above is set. Cached server-side for 1 hour.
 
 ### `POST /api/kiosk-location`
-Push the kiosk's currently-viewed map coordinates into a server-side in-memory cache. Consumed by `GET /api/sensehat` (see resolution order above) so background daemons that don't share React state with the client — currently just `tools/sensehat_weather.py` — can follow what the user is looking at.
+Push the kiosk's currently-viewed map coordinates into a server-side in-memory cache. Consumed by `GET /api/sensehat` (see resolution order above) so background daemons that don't share React state with the client — `tools/sensehat_weather.py` and the clock daemon `tools/horloge.py` (for its alert pulse) — can follow what the user is looking at.
 
 - **Access:** 🏠 Local only (kiosk runs on the same Pi as the server)
 - **Body:** `{ "lat": <number>, "lon": <number> }` — must be a finite number, `lat ∈ [-90, 90]`, `lon ∈ [-180, 180]`
@@ -668,7 +687,7 @@ Persists a new display mode and switches the systemd user services to match: the
 - **Errors:**
   - `400` — `mode` not in the whitelist
   - `503` — no Sense HAT detected on this host
-  - `500` — the target service failed to start (`{ "error": "..." }`)
+  - `500` — the settings write failed or the target service failed to start (`{ "error": "..." }`)
 
 The persisted mode is re-applied at every server boot (`applySenseHatModeOnBoot`), so a Pi reboot doesn't silently revert to the weather daemon that `WantedBy=default.target` would otherwise enable.
 
@@ -748,11 +767,11 @@ See `docs/indoor-temperature.md` for setup details.
 
 | Field | Type | Description |
 |---|---|---|
-| `enabled` | boolean | `true` when configured + cached data available; `false` when the `indoorTemperature` block is absent or its `enabled` flag is false |
+| `enabled` | boolean | `true` whenever the `indoorTemperature` block is enabled (before the first successful poll the reading fields are `null` and `isStale` is `true`); `false` when the block is absent or its `enabled` flag is false |
 | `value` | float \| null | Temperature in °C; `null` until the first successful poll |
 | `humidity` | float \| null | Relative humidity in %, when the sensor exposes it (Dyson does, Hue doesn't) |
 | `airQuality` | integer \| null | HomeKit AirQuality 1..5 (1=Excellent..5=Poor); `null` when not exposed |
-| `sensorName` | string | Echo of the configured `serviceName` |
+| `sensorName` | string | Echo of the configured `indoorTemperature.sensorName` (matched against the Homebridge accessory's `serviceName`) |
 | `lastUpdated` | string \| null | ISO 8601 of the last successful poll |
 | `isStale` | boolean | `true` when the cached reading is older than 30 min |
 
@@ -779,7 +798,7 @@ Checks GitHub for a newer release. Cached 1 hour to stay within GitHub's unauthe
     { "type": "feat", "message": "promote indoor temperature out of experimental" },
     { "type": "fix",  "message": "render AM/PM suffix at digital-clock proportions" }
   ],
-  "serviceFileChanged":  false,
+  "changedDeployFiles":  [],
   "needsManualUpgrade":  false,
   "platform":            "linux",
   "isSystemd":           true
@@ -788,11 +807,11 @@ Checks GitHub for a newer release. Cached 1 hour to stay within GitHub's unauthe
 
 | Field | Type | Description |
 |---|---|---|
-| `updateAvailable` | boolean | True only when remote head differs from local AND at least one feat/fix commit is in the diff (silent for docs-only releases) |
+| `updateAvailable` | boolean | True only when remote head differs from local AND at least one user-facing commit (`feat` / `fix` / `perf` / `style` / `polish` / `ux` / `release` / `chore(deps)`) is in the diff (silent for docs / test / refactor / plain `chore` pushes) |
 | `latestVersion` | string \| null | Semver from `package.json` on master |
 | `latestSha` / `localSha` | string \| null | Short SHAs |
-| `commits` | array | feat/fix commits in the diff, most recent first |
-| `serviceFileChanged` | boolean \| null | True when `deploy/pi-weather-server.service` differs from the installed copy — the modal disables one-click and shows a `cp + daemon-reload` recipe. Null on non-systemd platforms or when the comparison can't be made |
+| `commits` | array | User-facing commits in the diff (same vocabulary; `type` is the prefix, `deps` for `chore(deps)`), most recent first |
+| `changedDeployFiles` | string[] \| null | Names of installed deploy artefacts whose content differs from upstream master (`pi-weather-server.service` and `start-server` on Linux, `com.pi-weather-station.plist` on macOS). When non-empty, the modal lists them, disables one-click and shows the `git pull && bash deploy/install.sh` recipe. `[]` when nothing diverges or no update is available; `null` when none of this platform's artefacts is installed locally or every comparison failed |
 | `needsManualUpgrade` | boolean \| null | True when the local SHA is older than the v2.4.1 commit that added `npm install` to `/api/update` — the modal disables one-click and points the user at `bash deploy/install.sh` |
 | `platform` | string | `process.platform` |
 | `isSystemd` | boolean | `true` when the server is running under systemd (presence of `INVOCATION_ID`) |
@@ -817,11 +836,14 @@ Pulls the latest code, installs new dependencies, and restarts the service.
 |---|---|
 | `detached-head` | `git symbolic-ref --short HEAD` failed (working copy at a specific SHA, not on a branch) |
 | `wrong-branch` | Current branch isn't `master` (`currentBranch` field returned for context) |
-| `local-changes` | `git status --porcelain` reported uncommitted changes (`dirtyFiles` field returned for context) |
+| `local-changes` | After silently reverting the auto-generated lockfiles and `client/dist` (`git checkout HEAD -- package-lock.json client/package-lock.json client/dist`), `git status --porcelain --untracked-files=no` still reported uncommitted changes to tracked files — untracked files never block (`dirtyFiles` field, first 5 entries, returned for context) |
 | `git-status-failed` | git itself errored unexpectedly |
 | `update-in-progress` | another `/api/update` is already running — overlapping invocations are rejected so two `git pull` + `npm ci` runs can't corrupt the working tree. The lock releases when the in-flight update's response settles. |
 
-- **Successful flow** — when pre-flight passes, runs `git pull --ff-only`, then `npm install --omit=dev --no-audit --no-fund`, then schedules a service restart. Errors during the pull or install return HTTP 500 with `{ error, reason: "pull-failed" | "npm-install-failed", message: "..." }`.
+- **Successful flow** — when pre-flight passes, runs `git pull --ff-only` (90 s timeout), then `npm ci --omit=dev --no-audit --no-fund` (180 s timeout; installs exactly what the lockfile pins), then schedules a service restart. Errors during the pull or install are raised after pre-flight has passed (they are not preconditions) and use the shape `{ error: true, reason, message }`:
+  - `504` — `reason: "pull-timeout"` (`git pull` ran past 90 s and was aborted; it may have completed in the background)
+  - `409` — `reason: "permission-denied"` (`git pull` hit root-owned files left by an earlier `sudo` pull/install; `message` carries a `sudo chown -R` recipe)
+  - `500` — `reason: "pull-failed"` (any other pull error) or `"npm-install-failed"` (the `npm ci` step failed — the reason string predates the switch from `npm install`)
 
 - **Success response:** `{ "ok": true, "isSystemd": true }`
 
@@ -865,11 +887,11 @@ Lightweight endpoint polled by the debug panel every 5 s while open, alongside `
 ---
 
 ### `GET /api/brightness`
-Reports the current screen-brightness state. The client uses this on mount to decide whether to render the brightness slider in Advanced settings (hidden when `available: false`) and to initialize the slider value.
+Reports the current screen-brightness state. The client uses this on mount to decide whether to render the brightness slider in Settings → *Configuration & API keys* → *Location & hardware* (hidden when `available: false`; the *Soft sleep · brightness* slider under *Advanced* falls back to a read-only value) and to initialize the slider value.
 
-- **Access:** 🌐 Public — rate limited (120 req/min). Read is harmless and the client needs it before rendering even on remote (where the slider stays hidden anyway); the limiter is there because on the ed-ddc backend each read forks `ed-ddc-server` (~150 ms `execSync`), so an unrated GET could be spammed to block the event loop.
-- **Response when supported:** `{ "available": true, "percent": <0-100>, "raw": <int>, "max": <int>, "devicePath": "/sys/class/backlight/...", "minPercent": 10 }`
-- **Response when not supported** (no kernel backlight, e.g. HDMI monitor, missing dtoverlay, macOS): `{ "available": false }`
+- **Access:** 🌐 Public — rate limited (120 req/min). Read is harmless and the client needs it before rendering even on remote (where the slider is shown disabled anyway); the limiter is there because on the ed-ddc backend each read forks `ed-ddc-server` (~150 ms `execSync`), so an unrated GET could be spammed to block the event loop.
+- **Response when supported:** `{ "available": true, "percent": <0-100>, "raw": <int>, "max": <int>, "devicePath": "/sys/class/backlight/...", "minPercent": 10 }` — two backends, detected once per process: `ed-ddc-server` (a DDC/CI HDMI monitor, probed first) and the sysfs kernel backlight. On the ed-ddc backend `raw` equals `percent`, `max` is `100` and `devicePath` is `"ed-ddc-server"`.
+- **Response when not supported** (neither backend answered: no DDC/CI monitor via `ed-ddc-server` and no kernel backlight, e.g. plain HDMI monitor, missing dtoverlay, macOS): `{ "available": false }`
 
 ---
 
@@ -882,13 +904,14 @@ Sets the screen brightness in percent (0–100). Floors at `minPercent` (10%) by
 - **Errors:**
   - `400` — `{ error: "Body must be { percent: <number> }" }` or `invalid-percent`
   - `403` — `{ error: "no-write-permission" }` (udev rule missing — install.sh adds it under `/etc/udev/rules.d/52-pi-weather-station-backlight.rules`)
-  - `503` — `{ error: "no-device" }` (no `/sys/class/backlight/*` exposed; usually means the kernel `dtoverlay=rpi-backlight` line is missing from `/boot/firmware/config.txt`)
+  - `503` — `{ error: "no-device" }` (no backend detected: no DDC/CI monitor answering `ed-ddc-server` and no `/sys/class/backlight/*` exposed; on a DSI panel this usually means the kernel `dtoverlay=rpi-backlight` line is missing from `/boot/firmware/config.txt`)
+  - `504` — `{ error: "write-timeout" }` (ed-ddc backend: the DDC/CI write timed out)
   - `500` — `{ error: "max-unreadable" }` or `write-failed`
 
 ---
 
 ### `GET /api/display-scale`
-Reports the kiosk display-scale override and what auto-detection currently resolves to. The client uses this on mount to decide whether to render the "Display scale" picker in Advanced settings (hidden when `available: false`) and to label the **Auto** choice with its detected percent. The scale corrects the auto-detected device-scale-factor for panels whose EDID misreports their physical size (so `detect-display-scale.sh` lands on the wrong factor, usually `1.0`).
+Reports the kiosk display-scale override and what auto-detection currently resolves to. The client uses this on mount to decide whether to render the "Display scale" picker in Settings → *Configuration & API keys* → *Location & hardware* (hidden when `available: false`) and to show the detected percent in the hint under it ("Auto detects N % on this screen" — the **Auto** chip itself is a plain label since PR 270). The scale corrects the auto-detected device-scale-factor for panels whose EDID misreports their physical size (so `detect-display-scale.sh` lands on the wrong factor, usually `1.0`).
 
 - **Access:** 🌐 Public — rate limited (120 req/min). Read is harmless and the client needs it before rendering even on remote (where the picker stays disabled anyway); the limiter is there because the read shells out to `detect-display-scale.sh` to learn the auto value.
 - **Response when this is a kiosk install** (`~/.config/pi-weather-station/browser.conf` present): `{ "available": true, "override": "auto"|"off"|"<number>", "autoDetected": "<number>"|null, "applied": "<number>"|"1"|null, "ppi": <number>|null, "raw": <number>|null, "choices": ["auto","off","1.25","1.5","1.75","2"], "appliesOnRestart": true }` — `autoDetected: null` means auto resolves to no scaling (effective `1.0`); `applied` is the scale on the **running** kiosk (read from the live Chromium `--force-device-scale-factor`; `"1"` = no flag, `null` = undeterminable, e.g. Firefox/headless). The client compares `applied` to the selected scale to decide whether a relaunch would change anything.
@@ -910,7 +933,7 @@ Sets the kiosk display-scale override by managing the `DISPLAY_SCALE=` line in `
 ---
 
 ### `POST /api/relaunch-kiosk`
-Relaunches the kiosk browser so a changed display scale takes effect (the scale is a browser **launch** flag and can't change on a live page). **NOT a server restart** — the kiosk browser is a separate process from `pi-weather-server`; `systemctl restart pi-weather-server` would not change the scale. Spawns `deploy/relaunch-kiosk.sh` **detached** (it must outlive the browser it kills) and returns immediately; the script stops the autostart launcher, kills the `--kiosk` browser (TERM→KILL), clears Chromium singleton locks, and re-launches via `~/.local/bin/start-server` under `setsid`. The screen blanks for ~15 s.
+Relaunches the kiosk browser so a changed display scale takes effect (the scale is a browser **launch** flag and can't change on a live page). **NOT a server restart** — the kiosk browser is a separate process from `pi-weather-server`; `systemctl restart pi-weather-server` would not change the scale. Spawns `deploy/relaunch-kiosk.sh` **detached** (it must outlive the browser it kills) and returns immediately; the script stops the autostart launcher, kills the `--kiosk` browser (TERM→KILL), clears Chromium singleton locks, and re-launches `~/.local/bin/start-server` in a transient `systemd-run --user --scope` (detached with `setsid`) so the kiosk lives outside the server's cgroup and survives a later `systemctl --user restart pi-weather-server` (plain `setsid nohup` is the fallback when `systemd-run` is unavailable). Launcher output is appended to `~/.local/state/pi-weather-station/kiosk.log`. The screen blanks for ~15 s.
 
 - **Access:** 🔒 Localhost only — it cycles the Pi's physical kiosk.
 - **Body:** none.
@@ -936,18 +959,23 @@ Aggregates the in-memory `serviceStatus` map into a three-tier health verdict fo
   "issues": [
     { "service": "Tomorrow.io (daily)", "status": 429, "comment": "rate limited", "critical": true }
   ],
+  "providerStatus": { "github": { "name": "GitHub", "indicator": "none", "description": "…" } } | null,
   "lastChecked": "2026-05-18T12:00:00.000Z"
 }
 ```
+
+`providerStatus` surfaces the GitHub statuspage (30-min cache) for the in-app update flow and is rendered in the `HealthIndicator` popover. It is informational only and never affects `status`; it is `null` when no GitHub entry could be obtained.
 
 Classification logic:
 - **green**: every critical service is responding and no non-critical service is in a sustained-failure window.
 - **yellow**: at least one non-critical service is failing (Anthropic, RainViewer, Homebridge, ipapi.co, sunrise-sunset.org, AQ sources, gov alert sources).
 - **red**: at least one critical service is down (Tomorrow.io current/hourly/daily, Mapbox, LocationIQ).
 
-Two suppression layers prevent false-positive red dots:
-1. **`lastSuccess` window (10 min)**: a failure is suppressed if the same service had a successful call within the last 10 minutes. Protects against transient flakes and duplicate call paths (e.g. AI-summary re-fetching Tomorrow.io and failing while the main weather poll just succeeded).
-2. **`ALTERNATIVE_GROUPS` cross-suppression**: services orchestrated as alternative chains (NWS+ECCC alerts; MELCC-Mtl / MELCC-RSQAQ / ECCC AQHI / EPA AirNow / OpenAQ for air quality) — a failure on one member is suppressed if any sibling in the group has a recent success. Prevents "wrong region for this user" failures from polluting the dot.
+Four suppression layers prevent false-positive red dots:
+1. **`lastSuccess` window (35 min)**: a failure is suppressed if the same service had a successful call within the last 35 minutes. Protects against transient flakes and duplicate call paths (e.g. AI-summary re-fetching Tomorrow.io and failing while the main weather poll just succeeded).
+2. **Consecutive-failure threshold (2)**: a service must fail on two consecutive calls (`MIN_CONSECUTIVE_FAILURES`) before it is reported, so one transient 5xx/429 on the hourly/daily poll — whose last success always predates the window — never paints the dot. Trade-off: a real outage needs two failed polls to surface.
+3. **Never-succeeded alternatives**: a member of an alternative group (below) that has never had a successful call (e.g. EPA AirNow with no valid key, or outside its region) is ignored until it succeeds once.
+4. **`ALTERNATIVE_GROUPS` cross-suppression**: services orchestrated as alternative chains (NWS+ECCC alerts; MELCC-Mtl / MELCC-RSQAQ / ECCC AQHI / EPA AirNow / OpenAQ for air quality) — a failure on one member is suppressed if any sibling in the group has a success within the same 35-min window. Prevents "wrong region for this user" failures from polluting the dot.
 
 If the client itself cannot reach the server (network failure), the dot paints red with `Server unreachable` synthesized client-side.
 
@@ -956,12 +984,12 @@ If the client itself cannot reach the server (network failure), the dot paints r
 ## Cert
 
 ### `GET /api/cert.pem`
-Serves the server's self-signed TLS certificate as a downloadable `.pem` file for the Settings panel's "Trust this Pi on this device" affordance. Lets users install + trust the cert in iOS / macOS / Android / Windows for a clean PWA experience without a security warning every visit.
+Serves the Pi's self-signed root CA certificate (`server/ca-cert.pem`) as a downloadable `.pem` file for the Settings panel's "Trust this Pi on this device" affordance. Lets users install + trust the cert in iOS / macOS / Android / Windows for a clean PWA experience without a security warning every visit.
 
 - **Access:** 🌐 Public — rate limit not applied (small static payload, served once per device)
 - **Query params:** none
-- **Response headers:** `Content-Type: application/x-x509-ca-cert` (triggers the iOS "install profile" flow when opened from Safari)
-- **Response body:** the PEM-encoded cert from `server/cert.pem`
+- **Response headers:** `Content-Type: application/x-x509-ca-cert` (triggers the iOS "install profile" flow when opened from Safari), `Content-Disposition: attachment; filename="pi-weather-cert.pem"`
+- **Response body:** the PEM-encoded root CA from `server/ca-cert.pem` (the artefact to trust); falls back to the leaf `server/cert.pem` on legacy installs without a CA. Returns `404` when no cert file exists.
 
 See [`docs/pwa-trust-cert_en.md`](pwa-trust-cert_en.md) for the per-platform trust-install walkthrough.
 
