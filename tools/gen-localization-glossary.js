@@ -15,12 +15,30 @@
  * 2026-07 and 177 keys were pruned). A hand-written file that claims to be
  * "generated" is worse than either — this makes the claim true.
  *
- * VALIDATION MARKS ARE PRESERVED. The `Validé` column is human review state
- * (a native speaker confirming a translation reads right), which no generator
- * can reconstruct. Before writing, the existing glossary is parsed and every
- * ☑/✓ is carried forward, matched on the row's key for locale rows and on the
- * EN string for inline rows. A regeneration therefore never silently discards
- * review work — the whole reason it is safe to re-run.
+ * VALIDATION MARKS FOLLOW THE WORDING THEY VALIDATED. The `Validé` column is
+ * human review state (a native speaker confirming that a row's FR and ES read
+ * right), which no generator can reconstruct. Before writing, the existing
+ * glossary is parsed and each ☑/✓ is carried forward, but only to a row that
+ * shows exactly the EN, FR and ES the reviewer saw (see `carryMarks`):
+ *
+ *   - a locale row keeps its mark while its key is still there with all three
+ *     strings unchanged. An inline row has no key, so it keeps its mark while
+ *     its panel still lists the same three strings; identical rows of one
+ *     panel therefore share a mark;
+ *   - rewording any of the three puts the row back to ☐;
+ *   - a mark whose row is gone (a renamed key, a string moved to the other
+ *     panel or migrated to a locale key) follows its unchanged wording to the
+ *     rows that are new in this run, never to a row that was already listed:
+ *     the reviewer left that one unmarked, or never read it in its own
+ *     context (two keys sharing an EN word can need a different FR or ES
+ *     agreement).
+ *
+ * Until 2026-10, marks were matched on the key for locale rows and on the EN
+ * string alone for inline rows: a mark leaked to every row sharing the EN
+ * text whatever its FR/ES, outlived a reworded FR/ES, and was lost on a key
+ * rename. A regeneration now prints each mark it drops, and each box it can't
+ * read as a tick (☑ or ✓; the emoji form ☑️ counts as ☑), so a row that needs
+ * re-validating is never lost track of.
  *
  * Usage:  node tools/gen-localization-glossary.js
  *         node tools/gen-localization-glossary.js --check   (exit 1 if stale)
@@ -30,8 +48,17 @@ const fs = require("fs");
 const path = require("path");
 
 const ROOT = path.resolve(__dirname, "..");
-const LOCALE_DIR = path.join(ROOT, "client/src/i18n/locales");
+const LOCALE_DIR = "client/src/i18n/locales";
 const OUT = path.join(ROOT, "docs/localization-glossary.md");
+
+// The `Validé` column: the empty box, and the ticks a reviewer may type in it,
+// strongest first (☑ is the documented one). When identical rows of a panel
+// share a mark, the stronger tick is the one kept.
+const UNMARKED = "☐";
+const MARKS = ["☑", "✓"];
+// An emoji picker appends a presentation selector to ☑ (U+2611 U+FE0F). It is
+// the same character, so the selector is stripped before the box is read.
+const PRESENTATION_SELECTORS = /[︎️]/g;
 
 // Components carrying inline trilingual strings. Order drives section order.
 const INLINE_SOURCES = [
@@ -194,10 +221,12 @@ function extractLbl(raw) {
 
 /** Escape a string for safe rendering inside a markdown table cell.
  *
- * @param {string} s raw string
+ * @param {string|undefined} s raw string, or `undefined` for a translation
+ *   the locale file lacks (the row is also listed under "Coverage gaps")
  * @returns {string} table-safe string
  */
 function cell(s) {
+  if (s === undefined) return "*(missing)*";
   return s
     .replace(/\|/g, "\\|")
     .replace(/\n/g, " ")
@@ -205,47 +234,233 @@ function cell(s) {
     .trim() || "*(empty)*";
 }
 
-/** Parse the previous glossary for human validation marks.
+/** Identify a row's wording by its three rendered cells.
  *
- * @param {string} file path to the existing glossary (may not exist)
- * @returns {{byKey: Map<string,string>, byEn: Map<string,string>, rows: number}} preserved
- *   marks indexed both ways, plus the count of marked rows found
+ * Marks are compared in the rendered form: it is all the previous glossary
+ * keeps, and it is what the reviewer read. (A raw-string edit that `cell()`
+ * flattens away, such as a doubled space, therefore keeps the mark.)
+ *
+ * @param {string} en rendered EN cell
+ * @param {string} fr rendered FR cell
+ * @param {string} es rendered ES cell
+ * @returns {string} the three cells joined by a newline, which no cell contains
  */
-function readExistingMarks(file) {
-  const byKey = new Map();
-  const byEn = new Map();
-  let rows = 0;
-  if (!fs.existsSync(file)) return { byKey, byEn, rows };
-  for (const line of fs.readFileSync(file, "utf8").split("\n")) {
-    if (!line.startsWith("|")) continue;
-    const cols = line.split("|").map((c) => c.trim());
-    // cols[0] is the empty string before the leading pipe.
-    const mark = cols[1];
-    if (mark !== "☑" && mark !== "✓") continue;
-    rows += 1;
-    const en = cols[2];
-    const last = cols[cols.length - 2] || "";
-    const keyMatch = last.match(/`([^`]+)`/);
-    // A locale row is matched on its key; an inline row has no key, so it is
-    // matched on its EN wording. Both indexes are populated for locale rows so
-    // a key that later moves namespace still keeps its mark.
-    if (keyMatch) byKey.set(keyMatch[1], mark);
-    if (en) byEn.set(en, mark);
-  }
-  return { byKey, byEn, rows };
+function wording(en, fr, es) {
+  return [en, fr, es].join("\n");
 }
 
-function main() {
-  const check = process.argv.includes("--check");
+/** Show a wording as a table row reads, for the console summary.
+ *
+ * @param {string} w wording from `wording()`
+ * @returns {string} "EN | FR | ES"
+ */
+function showWording(w) {
+  return w.split("\n").join(" | ");
+}
 
-  const en = flatten(JSON.parse(fs.readFileSync(path.join(LOCALE_DIR, "en.json"), "utf8")));
-  const fr = flatten(JSON.parse(fs.readFileSync(path.join(LOCALE_DIR, "fr.json"), "utf8")));
-  const es = flatten(JSON.parse(fs.readFileSync(path.join(LOCALE_DIR, "es.json"), "utf8")));
+/** Rank a mark for the cases where two of them meet on one wording.
+ *
+ * @param {string} mark a tick from MARKS, or "" for ☐
+ * @returns {number} 0 for no tick; higher for a stronger tick (☑ beats ✓)
+ */
+function rankOf(mark) {
+  return mark ? MARKS.length - MARKS.indexOf(mark) : 0;
+}
 
-  const marks = readExistingMarks(OUT);
-  const markFor = (key, enText) =>
-    marks.byKey.get(key) || (key ? "☐" : marks.byEn.get(cell(enText)) || "☐");
+/** Split a markdown table row into trimmed cells.
+ *
+ * Splits on unescaped pipes only, since `cell()` escapes the ones inside a
+ * string, and tolerates what a hand edit can leave behind: indentation, CRLF
+ * line endings, a missing trailing pipe.
+ *
+ * @param {string} line one line of the glossary
+ * @returns {string[]|null} the cells, or null when the line is not a table row
+ */
+function splitRow(line) {
+  const row = line.trim();
+  if (!row.startsWith("|")) return null;
+  const cells = row.split(/(?<!\\)\|/).slice(1).map((c) => c.trim());
+  if (cells.length && cells[cells.length - 1] === "") cells.pop();
+  return cells;
+}
 
+/** Parse a previously generated glossary for its validation marks.
+ *
+ * Rows are recognised by shape rather than by heading text: a five-cell row
+ * is a locale row when its last cell is a `key`, or an inline row when it is a
+ * `:line` (its panel is the `##` heading above it); a two-cell row ending in
+ * a `key` is a universal string. A row counts as listed whatever its box
+ * holds: a box that reads as neither ☐ nor a tick is reported, not skipped,
+ * so the row can't pass for new and adopt an orphaned mark.
+ *
+ * @param {string} text previous glossary ("" when there is none)
+ * @returns {{locale: Map<string,{wording: string, mark: string}>, inline: Map<string,Map<string,string>>, keys: Set<string>, unrecognized: Array<{where: string, box: string}>}}
+ *   every locale row by key; every inline wording per panel, mapped to its mark
+ *   ("" for ☐); every key the file listed, universal ones included, which is
+ *   what "new in this run" is measured against; and the boxes that could not
+ *   be read. Where one key or one panel wording is listed twice (a resolved
+ *   merge conflict, identical rows), the stronger mark wins
+ */
+function parseGlossary(text) {
+  const locale = new Map();
+  const inline = new Map();
+  const keys = new Set();
+  const unrecognized = [];
+  let heading = "";
+  for (const line of text.split("\n")) {
+    if (line.startsWith("## ")) heading = line.slice(3).trim();
+    const cells = splitRow(line);
+    if (!cells) continue;
+    const ref = (cells[cells.length - 1] || "").match(/^`([^`]+)`$/);
+    if (!ref) continue;
+    const [, id] = ref;
+    if (cells.length === 2) { keys.add(id); continue; }
+    if (cells.length !== 5) continue;
+    const [raw, en, fr, es] = cells;
+    const box = raw.replace(PRESENTATION_SELECTORS, "");
+    const mark = MARKS.includes(box) ? box : "";
+    const isInline = /^:\d+$/.test(id);
+    if (!mark && box !== UNMARKED) unrecognized.push({ where: isInline ? `${heading} ${id}` : id, box: raw });
+    const w = wording(en, fr, es);
+    if (isInline) {
+      if (!inline.has(heading)) inline.set(heading, new Map());
+      const panel = inline.get(heading);
+      if (!panel.has(w) || rankOf(mark) > rankOf(panel.get(w))) panel.set(w, mark);
+    } else {
+      keys.add(id);
+      const seen = locale.get(id);
+      if (!seen || rankOf(mark) > rankOf(seen.mark)) locale.set(id, { wording: w, mark });
+    }
+  }
+  return { locale, inline, keys, unrecognized };
+}
+
+/** Give each row of this run the mark the previous glossary left it.
+ *
+ * Implements the rule in the file header. First, a row still listed with the
+ * same wording keeps its mark: same key for a locale row, same panel for an
+ * inline row. Then a mark whose row is gone (its key no longer exists, or its
+ * wording is no longer in its panel) becomes an orphan, and a row that is new
+ * in this run (a key the previous file didn't list, or a wording new to its
+ * panel) takes the orphaned mark of its identical wording. Every other mark is
+ * dropped: reworded rows, and orphans that found no new row.
+ *
+ * @param {ReturnType<typeof parseGlossary>} prev the previous glossary
+ * @param {Array<{key: string, wording: string}>} localeRows this run's translated locale rows
+ * @param {Array<{label: string, rows: Array<{wording: string, line: number}>}>} panels this run's inline rows, per panel
+ * @param {Set<string>} keys every key in this run's en.json (a key that moved to
+ *   the universal table still exists, so its mark is dropped, not orphaned)
+ * @returns {{marks: Map<object,string>, followed: Array<{wording: string, from: string[], to: string[]}>, dropped: Array<{where: string, wording: string}>}}
+ *   the mark per row object (unmarked rows are absent); the orphaned marks
+ *   that followed their wording, from the previous rows (key or panel) to the
+ *   new ones (key, or panel and line); and the previous marks that reached no row
+ */
+function carryMarks(prev, localeRows, panels, keys) {
+  const marks = new Map();
+  const kept = new Set();
+  const keyId = (key) => `key\n${key}`;
+  const panelId = (label, w) => `panel\n${label}\n${w}`;
+
+  for (const r of localeRows) {
+    const old = prev.locale.get(r.key);
+    if (old && old.mark && old.wording === r.wording) {
+      marks.set(r, old.mark);
+      kept.add(keyId(r.key));
+    }
+  }
+  for (const { label, rows } of panels) {
+    const old = prev.inline.get(label);
+    for (const r of rows) {
+      const mark = old && old.get(r.wording);
+      if (!mark) continue;
+      marks.set(r, mark);
+      kept.add(panelId(label, r.wording));
+    }
+  }
+
+  const orphans = new Map();
+  const orphan = (w, mark, id, where) => {
+    if (!orphans.has(w)) orphans.set(w, { mark, ids: [], from: [], to: [] });
+    const o = orphans.get(w);
+    o.ids.push(id);
+    o.from.push(where);
+  };
+  for (const [key, old] of prev.locale) {
+    if (old.mark && !keys.has(key)) orphan(old.wording, old.mark, keyId(key), key);
+  }
+  for (const [label, words] of prev.inline) {
+    const panel = panels.find((p) => p.label === label);
+    const listed = new Set(panel ? panel.rows.map((r) => r.wording) : []);
+    for (const [w, mark] of words) {
+      if (mark && !listed.has(w)) orphan(w, mark, panelId(label, w), label);
+    }
+  }
+
+  const adopt = (r, where) => {
+    const o = orphans.get(r.wording);
+    if (!o) return;
+    marks.set(r, o.mark);
+    o.to.push(where);
+  };
+  for (const r of localeRows) {
+    if (!marks.has(r) && !prev.keys.has(r.key)) adopt(r, r.key);
+  }
+  for (const { label, rows } of panels) {
+    const old = prev.inline.get(label);
+    for (const r of rows) {
+      if (!marks.has(r) && !(old && old.has(r.wording))) adopt(r, `${label} :${r.line}`);
+    }
+  }
+
+  const followed = [];
+  for (const [w, o] of orphans) {
+    if (!o.to.length) continue;
+    o.ids.forEach((id) => kept.add(id));
+    followed.push({ wording: showWording(w), from: o.from, to: o.to });
+  }
+  const dropped = [];
+  for (const [key, old] of prev.locale) {
+    if (old.mark && !kept.has(keyId(key))) dropped.push({ where: key, wording: showWording(old.wording) });
+  }
+  for (const [label, words] of prev.inline) {
+    for (const [w, mark] of words) {
+      if (mark && !kept.has(panelId(label, w))) dropped.push({ where: label, wording: showWording(w) });
+    }
+  }
+  return { marks, followed, dropped };
+}
+
+/** Read the generator's inputs from a checkout.
+ *
+ * @param {string} root repository root
+ * @returns {{en: Map<string,string>, fr: Map<string,string>, es: Map<string,string>, panels: Array<object>}}
+ *   the three flattened locale trees, and each `INLINE_SOURCES` entry with the
+ *   rows and skipped count `extractLbl` found in its file
+ */
+function loadSources(root) {
+  const read = (rel) => fs.readFileSync(path.join(root, rel), "utf8");
+  const locale = (lang) => flatten(JSON.parse(read(`${LOCALE_DIR}/${lang}.json`)));
+  return {
+    en: locale("en"),
+    fr: locale("fr"),
+    es: locale("es"),
+    panels: INLINE_SOURCES.map((src) => ({ ...src, ...extractLbl(read(src.file)) })),
+  };
+}
+
+/** Render the glossary, carrying validation marks over from the previous one.
+ *
+ * Pure (no filesystem access), so tests can render edited copies of the
+ * sources; `main` does the reading and writing.
+ *
+ * @param {ReturnType<typeof loadSources>} sources locale trees and inline rows
+ * @param {string} previous the glossary being replaced ("" when there is none)
+ * @param {string} today generation date, YYYY-MM-DD
+ * @returns {{text: string, stats: {localeRows: number, universal: number, inlineRows: number, validated: number, followed: Array<object>, dropped: Array<object>, unrecognized: Array<object>}}}
+ *   the file text, plus row counts, the mark moves `carryMarks` reported, and
+ *   the boxes `parseGlossary` couldn't read as a tick
+ */
+function renderGlossary({ en, fr, es, panels }, previous, today) {
   // Locale keys whose three translations are byte-identical get their own
   // section at the bottom: listing "mph | mph | mph" 40 times buries the rows
   // a translator actually has to look at.
@@ -255,7 +470,7 @@ function main() {
     const e = en.get(key);
     const f = fr.get(key);
     const s = es.get(key);
-    const row = { key, en: e, fr: f, es: s };
+    const row = { key, en: e, fr: f, es: s, wording: wording(cell(e), cell(f), cell(s)) };
     if (e === f && f === s) { universal.push(row); continue; }
     const ns = key.split(".")[0];
     if (!byNamespace.has(ns)) byNamespace.set(ns, []);
@@ -271,31 +486,32 @@ function main() {
   }
   const extra = [...new Set([...fr.keys(), ...es.keys()])].filter((k) => !en.has(k));
 
-  const inline = INLINE_SOURCES.map((src) => {
-    const text = fs.readFileSync(path.join(ROOT, src.file), "utf8");
-    return { ...src, ...extractLbl(text) };
-  });
+  // Fresh row objects: marks are tracked per row object, and the same
+  // `sources` may be rendered more than once.
+  const inline = panels.map((src) => ({
+    ...src,
+    rows: src.rows.map((r) => ({ ...r, wording: wording(cell(r.en), cell(r.fr), cell(r.es)) })),
+  }));
+  const prev = parseGlossary(previous);
+  const { marks, followed, dropped } = carryMarks(prev, [...byNamespace.values()].flat(), inline, new Set(en.keys()));
+  const box = (r) => marks.get(r) || UNMARKED;
 
-  // Local date, not toISOString(): the maintainer is UTC-4/-5, so a run after
-  // ~20:00 would otherwise be stamped with tomorrow's date.
-  const now = new Date();
-  const today = [
-    now.getFullYear(),
-    String(now.getMonth() + 1).padStart(2, "0"),
-    String(now.getDate()).padStart(2, "0"),
-  ].join("-");
   const L = [];
   L.push("# Localization glossary");
   L.push("");
   L.push("<!-- GENERATED FILE — do not edit by hand.");
   L.push("     Regenerate with: node tools/gen-localization-glossary.js");
-  L.push("     Validation marks (☑) in the first column ARE preserved across runs. -->");
+  L.push("     Validation marks (☑) in the first column are carried forward while a row's wording is unchanged. -->");
   L.push("");
   L.push(`**Generated** by \`tools/gen-localization-glossary.js\` on ${today}. Re-run it after`);
   L.push("touching a locale file or an inline `lbl()` string — every row below is derived, so a");
   L.push("hand edit will be overwritten. The one exception is the **Validé** column: it is human");
-  L.push("review state and the generator carries existing `☑` marks forward, matching on the key");
-  L.push("(locale rows) or on the EN string (inline rows).");
+  L.push("review state, and the generator carries each `☑` forward only while the row still shows");
+  L.push("the EN, FR and ES the reviewer confirmed — matched on the key for locale rows, and on the");
+  L.push("panel for inline rows, which have no key (identical rows of one panel share a mark).");
+  L.push("Rewording any of the three puts the row back to `☐`. A mark whose row is gone — a renamed");
+  L.push("key, a string moved to another file — follows its unchanged wording to the new row, never");
+  L.push("to a row that was already listed.");
   L.push("");
   L.push("Replace `☐` with `☑` when a native speaker has confirmed the FR and ES wording of a row.");
   L.push("");
@@ -355,7 +571,7 @@ function main() {
     L.push("| Validé | EN | FR | ES | Clé |");
     L.push("|--------|----|----|-----|-----|");
     for (const r of rows) {
-      L.push(`| ${markFor(r.key)} | ${cell(r.en)} | ${cell(r.fr)} | ${cell(r.es)} | \`${r.key}\` |`);
+      L.push(`| ${box(r)} | ${cell(r.en)} | ${cell(r.fr)} | ${cell(r.es)} | \`${r.key}\` |`);
     }
     L.push("");
   }
@@ -380,7 +596,7 @@ function main() {
     L.push("| Validé | EN | FR | ES | Ligne |");
     L.push("|--------|----|----|-----|-------|");
     for (const r of src.rows) {
-      L.push(`| ${markFor(null, r.en)} | ${cell(r.en)} | ${cell(r.fr)} | ${cell(r.es)} | \`:${r.line}\` |`);
+      L.push(`| ${box(r)} | ${cell(r.en)} | ${cell(r.fr)} | ${cell(r.es)} | \`:${r.line}\` |`);
     }
     L.push("");
   }
@@ -397,12 +613,48 @@ function main() {
   for (const r of universal) L.push(`| ${cell(r.en)} | \`${r.key}\` |`);
   L.push("");
 
-  const out = L.join("\n");
+  return {
+    text: L.join("\n"),
+    stats: {
+      localeRows: localeRowCount,
+      universal: universal.length,
+      inlineRows: inline.reduce((n, s) => n + s.rows.length, 0),
+      validated: marks.size,
+      followed,
+      dropped,
+      unrecognized: prev.unrecognized,
+    },
+  };
+}
+
+/** Tell whether the regenerated text differs from the file on disk in
+ * anything but the generation date, which is what `--check` reports.
+ *
+ * @param {string} previous the glossary on disk
+ * @param {string} text the regenerated glossary
+ * @returns {boolean} true when the file is stale
+ */
+function isStale(previous, text) {
+  const strip = (t) => t.replace(/^\*\*Generated\*\* by .* on \d{4}-\d{2}-\d{2}\./m, "");
+  return strip(previous) !== strip(text);
+}
+
+function main() {
+  const check = process.argv.includes("--check");
+  const previous = fs.existsSync(OUT) ? fs.readFileSync(OUT, "utf8") : "";
+
+  // Local date, not toISOString(): the maintainer is UTC-4/-5, so a run after
+  // ~20:00 would otherwise be stamped with tomorrow's date.
+  const now = new Date();
+  const today = [
+    now.getFullYear(),
+    String(now.getMonth() + 1).padStart(2, "0"),
+    String(now.getDate()).padStart(2, "0"),
+  ].join("-");
+  const { text, stats } = renderGlossary(loadSources(ROOT), previous, today);
 
   if (check) {
-    const current = fs.existsSync(OUT) ? fs.readFileSync(OUT, "utf8") : "";
-    const strip = (t) => t.replace(/^\*\*Generated\*\* by .* on \d{4}-\d{2}-\d{2}\./m, "");
-    if (strip(current) !== strip(out)) {
+    if (isStale(previous, text)) {
       console.error("localization glossary is stale — run: node tools/gen-localization-glossary.js");
       process.exit(1);
     }
@@ -410,13 +662,25 @@ function main() {
     return;
   }
 
-  fs.writeFileSync(OUT, out);
-  const preserved = marks.rows;
+  fs.writeFileSync(OUT, text);
   console.log(
-    `wrote ${path.relative(ROOT, OUT)} — ${localeRowCount} translated locale rows, ` +
-    `${universal.length} universal, ${inline.reduce((n, s) => n + s.rows.length, 0)} inline` +
-    (preserved ? `, ${preserved} validation mark(s) preserved` : "")
+    `wrote ${path.relative(ROOT, OUT)} — ${stats.localeRows} translated locale rows, ` +
+    `${stats.universal} universal, ${stats.inlineRows} inline` +
+    (stats.validated ? `, ${stats.validated} validated` : "")
   );
+  for (const f of stats.followed) {
+    console.log(`  ☑ kept, wording unchanged: ${f.from.join(" + ")} → ${f.to.join(", ")} (${f.wording})`);
+  }
+  for (const d of stats.dropped) {
+    console.log(`  ☐ dropped, wording changed or row removed — re-validate: ${d.where} (was: ${d.wording})`);
+  }
+  for (const u of stats.unrecognized) {
+    console.log(`  ? box "${u.box}" isn't a tick, row left ☐ — type ☑ to validate it: ${u.where}`);
+  }
 }
 
-main();
+module.exports = {
+  __test: { readString, blankComments, extractLbl, parseGlossary, carryMarks, loadSources, renderGlossary, isStale },
+};
+
+if (require.main === module) main();
