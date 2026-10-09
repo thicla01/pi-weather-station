@@ -101,11 +101,14 @@ if [[ "$PLATFORM" != "Darwin" ]]; then
     fi
 fi
 
-# --- 2. start-server and start-weather scripts (Linux only) ---
+# --- 2. Helper scripts in ~/.local/bin (Linux only) ---
+# start-server + detect-display-scale.sh are what install.sh deploys there
+# (start-server runs the latter at every kiosk launch); start-weather is the
+# manual "Option 3" launcher from the readme.
 if [[ "$PLATFORM" != "Darwin" ]]; then
     echo ""
     echo ">> Removing scripts from ~/.local/bin..."
-    for SCRIPT in start-server start-weather; do
+    for SCRIPT in start-server detect-display-scale.sh start-weather; do
         if [ -f "$HOME/.local/bin/$SCRIPT" ]; then
             rm "$HOME/.local/bin/$SCRIPT"
             echo "   ~/.local/bin/$SCRIPT removed."
@@ -184,29 +187,73 @@ fi
 # require parsing profiles.ini. To clean up, run `firefox -ProfileManager`
 # and delete the "pi-weather-station" profile manually.
 
-# --- 4. settings.json (optional) ---
+# Print the names of the given files that exist, space-separated (empty when
+# none does), for the prompts below.
+existing_files() {
+    local f found=""
+    for f in "$@"; do
+        [ -e "$f" ] && found="$found $(basename "$f")"
+    done
+    echo "${found# }"
+}
+
+# --- 4. settings.json + its backup (optional) ---
+# settings.json.bak is the copy install.sh keeps when settings are
+# reconfigured — it holds the same API keys, so it goes (or stays) with the
+# original rather than being left behind on its own.
 echo ""
-if [ -f "$REPO_DIR/settings.json" ]; then
-    read -p ">> Remove settings.json (contains your API keys)? (y/N) " -n 1 -r
+SETTINGS_FILES=("$REPO_DIR/settings.json" "$REPO_DIR/settings.json.bak")
+SETTINGS_PRESENT=$(existing_files "${SETTINGS_FILES[@]}")
+if [ -n "$SETTINGS_PRESENT" ]; then
+    read -p ">> Remove $SETTINGS_PRESENT (where your API keys are stored)? (y/N) " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        rm "$REPO_DIR/settings.json"
-        echo "   settings.json removed."
+        rm -f "${SETTINGS_FILES[@]}"
+        echo "   $SETTINGS_PRESENT removed."
     else
-        echo "   settings.json kept."
+        echo "   $SETTINGS_PRESENT kept."
     fi
 fi
 
-# --- 5. SSL certificates (optional) ---
+# --- 5. SSL certificates + private root CA (optional) ---
+# One prompt for the whole chain: the server re-signs the leaf with the CA it
+# finds, so keeping the CA preserves every device's trust across a reinstall,
+# while removing it takes its private key (ca-key.pem) off the disk — anyone
+# holding that key could mint certificates those devices would trust.
+# leaf.csr / leaf-ext.conf only linger after a failed leaf generation; the
+# ca-*.pem.bak pair is the auto-generated CA that docs/ssl-custom-cert_*.md
+# has a bring-your-own-certificate user move aside — the same private key.
 echo ""
-if [ -f "$REPO_DIR/server/cert.pem" ] || [ -f "$REPO_DIR/server/key.pem" ]; then
-    read -p ">> Remove SSL certificates (server/cert.pem, server/key.pem)? (y/N) " -n 1 -r
+CERT_FILES=(
+    "$REPO_DIR/server/cert.pem"
+    "$REPO_DIR/server/key.pem"
+    "$REPO_DIR/server/ca-cert.pem"
+    "$REPO_DIR/server/ca-key.pem"
+    "$REPO_DIR/server/ca-cert.srl"
+    "$REPO_DIR/server/ca-cert.pem.bak"
+    "$REPO_DIR/server/ca-key.pem.bak"
+    "$REPO_DIR/server/leaf.csr"
+    "$REPO_DIR/server/leaf-ext.conf"
+)
+CERT_PRESENT=$(existing_files "${CERT_FILES[@]}")
+if [ -n "$CERT_PRESENT" ]; then
+    echo ">> SSL certificate files in server/: $CERT_PRESENT"
+    if [[ " $CERT_PRESENT " == *" ca-key.pem"[\ .]* ]]; then
+        echo "   ca-key.pem (or its .bak copy) is the private key of the root CA your"
+        echo "   devices may trust: keep it to reinstall later without re-trusting,"
+        echo "   or remove it so no CA key is left on disk."
+    fi
+    read -p "   Remove them? (y/N) " -n 1 -r
     echo
     if [[ $REPLY =~ ^[Yy]$ ]]; then
-        rm -f "$REPO_DIR/server/cert.pem" "$REPO_DIR/server/key.pem"
-        echo "   SSL certificates removed."
+        rm -f "${CERT_FILES[@]}"
+        echo "   SSL certificate files removed."
+        if [[ " $CERT_PRESENT " == *" ca-cert.pem"[\ .]* ]]; then
+            echo "   Devices that installed the CA keep trusting it until you remove it"
+            echo "   from each of them (see docs/pwa-trust-cert_en.md for where it went)."
+        fi
     else
-        echo "   SSL certificates kept."
+        echo "   SSL certificate files kept."
     fi
 fi
 
@@ -303,9 +350,18 @@ RUNTIME_FILES=(
     "$REPO_DIR/server/request-counts.json"
 )
 # Server logs outside the repo: the XDG state dir (current installs) and
-# /tmp (pre-2026-06 installs), including rotated .1/.2.gz copies.
-rm -f "$HOME/.local/state/pi-weather-station/server.log"* /tmp/weather-server.log* 2>/dev/null || true
-rmdir "$HOME/.local/state/pi-weather-station" 2>/dev/null || true
+# /tmp (pre-2026-06 installs), including rotated .1/.2.gz copies. The state
+# dir also holds the kiosk relaunch log (relaunch-kiosk.sh) and, when sudo
+# was refused during install, the pending logrotate config — without them
+# the rmdir below fails and the directory is left behind.
+STATE_DIR="$HOME/.local/state/pi-weather-station"
+rm -f "$STATE_DIR/server.log"* "$STATE_DIR/kiosk.log" \
+    "$STATE_DIR/logrotate-weather-server.pending" /tmp/weather-server.log* 2>/dev/null || true
+rmdir "$STATE_DIR" 2>/dev/null || true
+# Orphaned settings temp files (a crash mid-write; the server sweeps them at
+# startup, but it won't start again). Each is a full settings copy — API keys
+# included — and never the live file, so they go unconditionally.
+rm -f "$REPO_DIR/settings.json.tmp" "$REPO_DIR"/settings.json.*.tmp 2>/dev/null || true
 RUNTIME_REMOVED=0
 for FILE in "${RUNTIME_FILES[@]}"; do
     if [ -f "$FILE" ]; then

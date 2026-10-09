@@ -22,15 +22,42 @@
 
 set -e
 
-# --- Locate the repo --------------------------------------------------------
-SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-REPO_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
+# Nothing inside the repo is touched (the server generates its own TLS
+# certificate): only the systemd drop-in — plus a legacy line in the unit,
+# see below — or the launchd plist.
 PLATFORM="$(uname)"
 
 SERVICE_FILE="$HOME/.config/systemd/user/pi-weather-server.service"
 DROPIN_DIR="$HOME/.config/systemd/user/pi-weather-server.service.d"
 DROPIN_FILE="$DROPIN_DIR/local.conf"
 PLIST_FILE="$HOME/Library/LaunchAgents/com.pi-weather-station.plist"
+
+# Would the server's auto-generated leaf certificate cover the address $1?
+# Mirrors collectSanEntries() in server/index.js: localhost, 127.0.0.1, the
+# hostname with and without `.local`, and every non-internal IPv4 address of
+# this machine — nothing typed at the prompt is ever added. Names compare
+# case-insensitively, as certificate name matching does. Answers "covered"
+# when the addresses can't be listed, so a failed lookup never prints a false
+# warning. (Same helper as deploy/install.sh.)
+cert_covers() {
+    local want host addrs
+    want="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+    host="$(hostname 2>/dev/null | tr '[:upper:]' '[:lower:]')"
+    host="${host%.local}"
+    case "$want" in
+        localhost|127.0.0.1) return 0 ;;
+    esac
+    if [ -n "$host" ] && { [ "$want" = "$host" ] || [ "$want" = "$host.local" ]; }; then
+        return 0
+    fi
+    if [ "$PLATFORM" = "Darwin" ]; then
+        addrs="$(ifconfig 2>/dev/null | awk '$1 == "inet" { print $2 }')"
+    else
+        addrs="$(hostname -I 2>/dev/null | tr ' ' '\n')"
+    fi
+    [ -z "$addrs" ] && return 0
+    printf '%s\n' "$addrs" | grep -qxF -- "$want"
+}
 
 # --- Detect current state ---------------------------------------------------
 # ALLOW_REMOTE lives in `local.conf` (drop-in) on installs from v2.8.1+, but
@@ -112,10 +139,22 @@ if [ "$TARGET" = "enabled" ]; then
     REMOTE_IP=${CUSTOM_IP:-$DETECTED_IP}
 
     echo ""
-    echo ">> The server will detect the new SAN coverage requirement on restart"
-    echo "   and re-sign the leaf cert to include $REMOTE_IP. The root CA file"
-    echo "   (ca-cert.pem) is preserved, so clients that already installed the"
-    echo "   CA stay trusted — no re-trust on phones/laptops required."
+    echo ">> No certificate change needed: the server's auto-generated TLS"
+    echo "   certificate already covers localhost, this machine's hostname (and"
+    echo "   .local) and every IPv4 address assigned to it, whether or not remote"
+    echo "   access is enabled — and the server re-signs it on restart if an"
+    echo "   address changed. The root CA (ca-cert.pem) is unchanged, so devices"
+    echo "   that already trust it stay trusted — no re-trust on phones/laptops"
+    echo "   required. (A certificate you supplied yourself, with"
+    echo "   SKIP_CERT_AUTOGEN=true, is used as-is.)"
+    if ! cert_covers "$REMOTE_IP"; then
+        echo ""
+        echo "   WARNING: $REMOTE_IP is not an address of this machine, so the"
+        echo "   auto-generated certificate does NOT cover it (the value above only"
+        echo "   sets the URL shown at the end). Browsers reaching the station"
+        echo "   through it — e.g. a router port-forward or VPN address — will report"
+        echo "   a name mismatch even on devices that trust the CA."
+    fi
 fi
 
 # --- Apply the toggle -------------------------------------------------------
