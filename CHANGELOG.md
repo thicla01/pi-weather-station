@@ -403,6 +403,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ### Security (dependency maintenance, 2026-10)
 - **`ip-address` 10.4.0 → 10.7.2 (server, transitive via `express-rate-limit`; medium — the NAT64 local-use range `64:ff9b:1::/48` was missing from every classifier, GHSA-2vr4-cq9g-pvrc; PR #363) — the first security PR merged by the repaired auto-merge net.** It arrived with an empty `ghsa-id` and `alert-state` (`dependency-type: indirect`), the exact shape that used to strand transitive fixes for days; the gate armed on Dependabot's security-fix footer and the PR landed 90 seconds after it opened. No runtime exposure here: express-rate-limit only uses the library to normalise the socket peer into a bucket key, and those keys were verified identical under 10.4.0 and 10.7.2 for IPv4, IPv4-mapped, IPv6 (/56 collapse) and NAT64 inputs. Deployed through the updater, fleet 10/10.
+- **`brace-expansion` 1.1.18 → 1.1.21 (client dev-tree, transitive; 4 high + 2 medium — GHSA-6j4f-fj2g-mc7p, GHSA-qhr7-859c-m2p7, GHSA-q2hr-2g5m-vwhr; PR #364).** *Added 2026-10-09: this entry was missing from the original 3.3.0 notes.* A lockfile-only bump in the build subtree (`client/package-lock.json`), auto-merged by the security net on 2026-10-03 about 90 seconds after Dependabot opened it, closing six alerts; nothing a Pi runs or ships changes. The same day Dependabot auto-dismissed two more dev-tree alerts under its own rules: `braces` (high, GHSA-vfj7-8cjw-p6xm) and `fast-uri` (medium, GHSA-hrr3-gc8f-f4qj).
 
 ## [3.2.0] - 2026-08-14
 
