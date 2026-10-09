@@ -7,6 +7,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Performance
+- **Firefox no longer blurs the radar under the overlays.** The surfaces that float over the
+  moving map carry `backdrop-filter: blur()`: the radar legend (card, "(i)" chip, mobile strip,
+  sheet), the timeline bar, the dock's toast and, on the desktop layout where the rail overlays
+  the map, the maximized AI-summary and forecast slabs. The browser recomputes that blur on every
+  frame of a pan, a zoom or a radar-loop step. Chromium does it on the GPU; Firefox's WebRender
+  pays far more for it, and runs it on the CPU under software compositing. `client/src/index.js`
+  now stamps `<html data-browser="firefox">` at boot whenever the user agent is Firefox (kiosk or
+  remote viewer), and `styles/main.css` turns `backdrop-filter` off under it, on every element.
+  Without the blur, the radar's colours showed through the 85 %-opaque calm fill
+  (`--c-surface`) of the legend, the timeline and the toast, so Firefox now uses, in every
+  palette, the 96 % fill the slabs already take in hybrid mode (any moderate-or-worse government
+  alert).
+  Checked with a high-contrast stripe pattern under the overlays in the day, dusk and night-red
+  palettes, and in Firefox 157 (the stamp, no backdrop filter, the 96 % fill). The dock was also
+  the containing block of its `position: fixed` toast because of the blur; on Firefox the toast
+  now resolves against the viewport, as its coordinates assume. Chromium is unchanged. Idea
+  ported from [@Aryeh95](https://github.com/Aryeh95)'s [Sweep](https://github.com/Aryeh95/Sweep)
+  fork, commit [`c0e2ed4`](https://github.com/Aryeh95/Sweep/commit/c0e2ed443c900d55d1f6789be96774d80ce3a446).
+
 ### Fixed
 - **The brightness slider no longer goes dead on a kiosk that kept the EDATEC DDC tool after
   its ED monitor was removed.** `brightnessCtrl` tries the `ed-ddc-server` backend first and

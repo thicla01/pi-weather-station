@@ -107,6 +107,7 @@ pi-weather-station/
 ### CSS
 - CSS Modules with kebab-case in `.css` files → camelCase in JSX
 - css-loader requires `{ esModule: false }` for `.locals` to work with style-loader
+- **`backdrop-filter` is off on Firefox, globally.** `client/src/index.js` stamps `<html data-browser="firefox">` at boot and `styles/main.css` sets `backdrop-filter: none !important` on every element under it (Firefox re-blurs the moving map under each overlay every frame, on the CPU under software compositing), and raises `--c-surface` to the 96 % `--c-surface-hybrid` fill to make up for the lost blur. A new frosted surface must therefore stay legible unblurred over a busy radar. Dropping the filter also drops the containing block and stacking context it creates (see the dock toast in `ControlButtons`): don't let a `position: fixed` descendant depend on one
 
 ### ESLint rules to watch
 - `prefer-destructuring`: use `const { x } = obj` instead of `const x = obj.x`
