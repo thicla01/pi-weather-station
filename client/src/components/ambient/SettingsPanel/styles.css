@@ -1157,13 +1157,31 @@
 
 /* Trust-this-Pi helper block at the bottom of section 1. Visually
  * subordinate to the rest of the section (smaller text, dim border)
- * because it's an action most users only need once per device. */
+ * because it's an action most users only need once per device.
+ *
+ * Two columns: the text + "Download cert" on the left, the QR code to
+ * the per-platform guide on the right (shown to everyone — kiosk
+ * external-link rule; remote clients also get a "Read the guide ↗" link
+ * in the actions row, see index.js). Side by side, the 96 px QR sits
+ * alongside the ~100 px text column instead of stacking under it, so
+ * the block only grows by about the caption's height rather than a full
+ * QR row — which matters in the ≤ 520 px compact mode. Below ~300 px of
+ * block width the QR wraps under the text. */
 .trust-cert {
   margin-top: 14px;
   padding: 10px 12px;
   border: 1px solid var(--c-border);
   border-radius: 8px;
   background-color: var(--c-surface-tint, transparent);
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 12px;
+}
+
+.trust-cert-body {
+  flex: 1 1 180px;
+  min-width: 0;
 }
 
 .trust-cert-label {
@@ -1220,17 +1238,55 @@
   outline: none;
 }
 
+/* Remote-only "Read the guide ↗" link, next to "Download cert" in the
+ * actions row. Secondary weight (transparent fill, neutral border) so the
+ * primary action keeps the accent. It lives in the actions row rather than
+ * under the QR caption: the ~130 px uppercase label would widen the 96 px
+ * QR column, whereas the text column has spare height beside the taller
+ * QR column — so on a narrow or ≤ 520 px compact viewport the row wraps
+ * at no (or little) cost to the block height, and on a wide one it adds
+ * none. Never rendered on the kiosk (gated on `isLocal === false`). */
 .trust-cert-link-secondary {
   background-color: transparent;
   border: 1px solid var(--c-border);
   color: var(--c-text-dim);
 }
 
-.trust-cert-link-secondary:hover,
 .trust-cert-link-secondary:focus-visible {
   color: var(--c-text);
   border-color: var(--c-text-dim);
   outline: none;
+}
+
+/* Hover gated behind `(hover: hover) and (pointer: fine)` — same rationale
+ * as `.remoteNoticeCopyBtn:hover`: the link's audience is largely phones,
+ * where an ungated hover paint would stick after the tap. */
+@media (hover: hover) and (pointer: fine) {
+  .trust-cert-link-secondary:hover {
+    color: var(--c-text);
+    border-color: var(--c-text-dim);
+  }
+}
+
+/* QR code to the per-platform guide + its caption. `figure` carries a
+ * UA margin — reset it. The caption width matches the 96 px QR so it
+ * wraps under the code instead of widening the column. */
+.trust-cert-guide {
+  flex: 0 0 auto;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.trust-cert-guide-caption {
+  max-width: 96px;
+  font-size: 10px;
+  line-height: 1.3;
+  color: var(--c-text-dim);
+  text-align: center;
+  text-wrap: balance;
 }
 
 /* ── API keys (variant B — tight list) ──────────────────────────── */

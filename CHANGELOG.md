@@ -90,6 +90,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   Saving a key in Settings now brings the AI surfaces back without a reload.
   `test/aiAvailability.test.js` checks that the client rule matches the server's 503 test and
   that AppContext applies it.
+- **The Settings panel's "Trust this Pi on this device" block no longer opens GitHub inside the
+  kiosk.** Its "Read the guide ↗" was a raw `<a target="_blank">` to the per-platform
+  certificate guide on GitHub, which is exactly what the kiosk rule forbids: kiosk Chromium has
+  no address bar or Back button, so a tap left the kiosk stuck on GitHub. The guide
+  (`docs/pwa-trust-cert_{en,fr,es}.md`, in the viewer's UI language) is now a QR code beside the
+  block's text, captioned "Scan to read the guide" and drawn by the shared `ambient/QrCode`
+  wrapper. Phones and computers that open Settings over the network also get the **Read the
+  guide ↗** link back, next to **Download cert**, since a phone can't scan its own screen and a
+  remote browser has its own Back button. The link renders only when `isLocal === false`:
+  `isLocal` starts `true` and is set only by the socket-peer check in `GET /api/is-local`, so the
+  kiosk (which always loads `localhost`, even if that call fails) and SSH-tunnel viewers keep the
+  QR only. This exception to the QR-only rule is codified in `CLAUDE.md`; the same-origin
+  "Download cert" link is unchanged, and the three trust-cert guides and
+  `docs/ui-layout_{en,fr}.md` describe the QR and the remote-only link.
 
 ### Documentation
 - **A `☑` in the localization glossary now stays on the exact wording it validated.**

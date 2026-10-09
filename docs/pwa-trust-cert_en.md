@@ -54,6 +54,17 @@ file with `Content-Type: application/x-x509-ca-cert` — iOS, Android,
 and macOS all recognise that MIME and offer to install the cert
 as a profile / system root.
 
+The same block also shows a **QR code** captioned "Scan to read the
+guide": it opens this guide in the app's display language (English,
+French or Spanish). Scan it with your phone's camera — handy when the
+Settings panel is open on the kiosk or on a computer. When you view
+Settings from a phone or computer over the network (as in the steps
+above), a **Read the guide ↗** link to the same guide also appears
+next to **Download cert** — tap it instead of scanning, since a phone
+can't scan its own screen. The kiosk itself shows only the QR code, on
+purpose: its browser has no address bar or Back button, so tapping a
+link to an outside page would leave it stuck there.
+
 ---
 
 ## iOS / iPadOS (Safari + every other iOS browser)

@@ -382,7 +382,7 @@ On first boot the server creates its own root CA (`ca-cert.pem`, CN: `Pi Weather
 2. Install the iOS profile (Settings → Downloaded profile).
 3. Enable full trust: Settings → General → About → Certificate Trust Settings.
 
-Per-platform walkthrough: [`docs/pwa-trust-cert_en.md`](pwa-trust-cert_en.md).
+Per-platform walkthrough: [`docs/pwa-trust-cert_en.md`](pwa-trust-cert_en.md). The same Settings block offers it to every viewer as a QR code ("Scan to read the guide", resolved to the viewer's UI language: FR / ES, otherwise EN). Remote clients also get a "Read the guide ↗" link to the same page next to "Download cert", because a phone can't scan its own screen and a remote browser has its own back button. The kiosk never gets the link, nor does any other local viewer (SSH tunnel included), per the kiosk QR-only rule for external URLs.
 
 ### Refreshing an installed PWA
 
