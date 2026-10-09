@@ -31,10 +31,10 @@ const DESKTOP_MQ = "(min-width: 1280px)";
 // Font-size scaling — mirrors the v2 fontSize setting (S / M / L)
 // so users who picked a custom zoom in Settings get the same
 // behaviour under Direction C. Same scalar values v2 uses on its
-// info-container; applied via the `zoom` property on the AmbientLayers
-// root (zoom is non-standard but supported in all the kiosk browsers
-// the project targets — Chromium, Firefox, Safari/WebKit). When
-// fontSize is unset or unrecognised, the scalar falls back to 1.0.
+// info-container; exposed on the AmbientLayers root as the
+// `--c-font-scale` custom property (see `cssVars` below — never as
+// `zoom` on the root itself). When fontSize is unset or unrecognised,
+// `fontSizeKey` falls back to "m" (scalar 1.0).
 // FONT_SIZE_ZOOM is imported at the top from `~/ui/fontSize` — shared
 // with SettingsPanel + DebugPanel so the user's text-size preference
 // reaches every UI surface, including the overlays that mount outside
@@ -48,8 +48,9 @@ const DESKTOP_MQ = "(min-width: 1280px)";
  *   1. Resolves the active palette via `useTimeOfDay()` and mirrors it
  *      onto CSS custom properties at the root so every descendant
  *      slab can pull tokens via `var(--c-bg)` etc.
- *   2. Tracks viewport width via `window.matchMedia(DESKTOP_MQ)` and
- *      dispatches to `LayoutPi` (small) or `LayoutDesktop` (HD+).
+ *   2. Tracks viewport width via `window.matchMedia` (MOBILE_MQ +
+ *      DESKTOP_MQ) and dispatches to `LayoutMobile` (< 800 px),
+ *      `LayoutPi` (800-1279 px) or `LayoutDesktop` (≥ 1280 px).
  *      Live updates on resize.
  *   3. Sets `data-palette` / `data-hybrid` / `data-layout` attributes
  *      for diagnostics.
@@ -190,14 +191,16 @@ const AmbientLayers = () => {
     "--mx-cat-mod": palette.catMod,
     "--mx-cat-bad": palette.catBad,
     "--mx-cat-vhigh": palette.catVhigh,
-    // Font-size scaling is exposed as `--c-font-scale` and consumed by
-    // the scrollable subtrees (rail in both layouts, heroSlot in
-    // LayoutDesktop). Applying `zoom` here on the root broke
-    // positioning of absolute children (Phase 7 incident) because
-    // 100dvh references inside the layout no longer matched the
-    // zoomed root. Scoping the zoom to scrollable subtrees keeps the
-    // map at native resolution while the user's text-density
-    // preference still has visible effect on the slabs and metrics.
+    // Font-size scaling is exposed as `--c-font-scale`. LayoutPi and
+    // LayoutDesktop apply it as `zoom` on their `.rail` only (the
+    // LayoutDesktop heroSlot is deliberately NOT zoomed); HeroBand and
+    // the map overlays scale their text via `calc(base × --c-font-scale)`.
+    // Applying `zoom` here on the root broke positioning of absolute
+    // children (Phase 7 incident) because 100dvh references inside the
+    // layout no longer matched the zoomed root. Scoping the zoom to the
+    // rail keeps the map at native resolution while the user's
+    // text-density preference still has visible effect on the slabs
+    // and metrics.
     "--c-font-scale": FONT_SIZE_ZOOM[fontSizeKey],
     // Tells the UA to render native form-control chrome (select
     // dropdown panel, scrollbars, focus rings) in light or dark

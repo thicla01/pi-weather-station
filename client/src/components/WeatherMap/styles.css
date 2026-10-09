@@ -70,16 +70,19 @@
 }
 
 /* TYPOGRAPHY NOTE (post-Phase 3/5 field feedback): the user's S/M/L
- * font-size preference is applied as `zoom` on the SCROLLABLE subtrees
- * only (rail, heroSlot) — deliberately never on the map, so Leaflet
- * stays at native resolution (Phase 7 incident). The map overlays
- * therefore scale their TEXT through `calc(base × --c-font-scale)`
- * instead: labels follow the preference while the geometries (40 px
- * buttons, 4 px track, hit areas) stay fixed. Base sizes also sit
- * ~1-1.5 px above the design reference's micro-type, which was
- * calibrated for a 720 px mock device, not a real screen. The legal
- * attribution strip is the one deliberate exception (fixed 10 px — it
- * must fit the 16 px corridor under the bar). */
+ * font-size preference is applied as `zoom` on the layouts' `.rail`
+ * subtree only (LayoutPi + LayoutDesktop; LayoutMobile has no zoom) —
+ * deliberately never on the map, so Leaflet stays at native resolution
+ * (Phase 7 incident). LayoutDesktop's heroSlot is NOT zoomed either (a
+ * zoomed slot overlapped the rail at L); HeroBand scales its micro-text
+ * through calc() instead. The map overlays likewise scale their TEXT
+ * through `calc(base × --c-font-scale)`: labels follow the preference
+ * while the geometries (40 px buttons, 4 px track, hit areas) stay
+ * fixed. Base sizes also sit ~1-1.5 px above the design reference's
+ * micro-type, which was calibrated for a 720 px mock device, not a
+ * real screen. The legal attribution strip is the one deliberate
+ * exception (fixed 10 px — it must fit the 16 px corridor under the
+ * bar). */
 
 /* ============================================================
  * Radar legend — bottom-left card, three sections (Phase 3 v2.1):

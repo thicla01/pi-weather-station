@@ -1,15 +1,24 @@
 /* LayoutPi — orchestrates the Pi 7"/10" composition.
  *
+ * Only mounted for 800–1279 px wide viewports: AmbientLayers/index.js
+ * hands ≤ 799 px (MOBILE_MQ) to LayoutMobile and ≥ 1280 px (DESKTOP_MQ)
+ * to LayoutDesktop. A `min-width: 1280px` rule in this file can never
+ * apply, so the rail is a single fixed 300 px column (a dead
+ * `1fr 340px` override at ≥ 1280 px was removed 2026-10).
+ *
  * CSS Grid:
  *   row 1 (1fr):    map | rail
  *   row 2 (auto):   dock spans both columns
  *
- * The rail width animates between 300/340px and 0 when the user taps
- * the Leaflet RadarFocusControl (topleft, under the zoom +/-) and the
- * layout enters focus mode (.layout.focused). Width transitions on
- * the grid template column drive the change; WeatherMap's MapResizer
- * reacts to the shared `piRadarMaximized` flag and re-fits the
- * Leaflet canvas afterward.
+ * The rail column animates between 300px and 0 when the layout enters
+ * MIN (`data-pi-state="min"`, radar fullscreen) — e.g. when the user
+ * taps the RadarFocusControl, the 40 px button WeatherMap renders
+ * top-left under the zoom +/- as a plain overlay (outside the Leaflet
+ * MapContainer, not a Leaflet control; not rendered in the full-rail
+ * views, where the map is only a thumbnail). Width transitions on the
+ * grid template column drive the change; WeatherMap's MapResizer
+ * reacts to the shared `piRadarMaximized` / `piLayoutState` flags and
+ * re-fits the Leaflet canvas afterward.
  *
  * The legacy right-edge chevron that previously drove this collapse
  * was removed in the 2026-05-28 v3.1 consolidation — see LayoutPi/
@@ -35,19 +44,13 @@
   transition: grid-template-columns 200ms ease-out, grid-template-rows 200ms ease-out, padding 200ms ease-out, gap 200ms ease-out;
 }
 
-@media (min-width: 1280px) {
-  .layout {
-    grid-template-columns: 1fr 340px;
-  }
-}
-
 /* v3.2: the focus/MIN state is now one value of the `data-pi-state` enum
  * on the root (set by LayoutPi from `piLayoutState`), not a `.focused`
  * class. The base `.layout` rule above is the MID (split) geometry; the
- * MAX (forecast-forward, map → thumbnail) override is added in a later
- * step. MIN collapses the rail column to zero AND the dock row to zero
- * (the dock itself slides out via the rule near the bottom of this file)
- * so the radar truly fills the screen. */
+ * MAX (forecast-forward, map → thumbnail) override follows below. MIN
+ * collapses the rail column to zero AND the dock row to zero (the dock
+ * itself slides out via the rule near the bottom of this file) so the
+ * radar truly fills the screen. */
 .layout[data-pi-state="min"] {
   grid-template-columns: 1fr 0;
   grid-template-rows: 1fr 0;

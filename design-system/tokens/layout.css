@@ -6,9 +6,10 @@
   --c-dock-height: 52px;
   --c-edge-gap: 16px;
 
-  /* Pi 7" (800–1279 px): grid `1fr 300px`, dock row below. (LayoutPi/styles.css
-     also carries a `1fr 340px` rule at ≥ 1280px — dead: LayoutDesktop takes over
-     at 1280, so LayoutPi never renders that wide.) */
+  /* Pi 7" (800–1279 px), MID state: grid `1fr 300px`, dock row below.
+     LayoutPi never renders at ≥ 1280px (LayoutDesktop takes over), so 300px
+     is the MID rail's only width (no wider breakpoint). MIN collapses the
+     rail to 0; the full-rail views (MAX + priority views) use `190px 1fr`. */
   --pi-rail-width: 300px;
   --pi-frame-gap: 10px;              /* v3.2 framed layout: map · rail · dock as inset cards; MIN drops to 0 */
   --pi-map-radius: 14px;
