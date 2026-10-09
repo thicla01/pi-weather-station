@@ -139,6 +139,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `tools/compare-weather.js` compares like units. The "Open-Meteo is windier" findings in
   `docs/open-meteo-plan-b.md` came from the unit mismatch and are withdrawn. The kiosk UI never
   used this endpoint.
+- **QR codes now have an accessible name, so a screen reader announces them instead of an
+  unnamed image.** `ambient/QrCode` put its `title` on the wrapper `<div>` (a tooltip, not a
+  reliable accessible name) and never passed it to `QRCodeSVG`, so its `<svg role="img">` had
+  no name. The title now renders as the SVG's `<title>`, which is both the accessible name and
+  the same hover tooltip. This applies to the gov-alert QR (detail slab, Pi alert view) and the
+  Settings trust-cert guide QR. Nothing changes on screen.
 
 ### Documentation
 - **A `☑` in the localization glossary now stays on the exact wording it validated.**
