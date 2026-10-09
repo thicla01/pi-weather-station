@@ -11,13 +11,15 @@
 // mechanical normalization to both, and asserts textual equality.
 //
 // Covered pairs (the five files audited in quality-audit lot D, plus
-// radarGeometry, registered the day it was created — must match PAIRS):
-//   test/radarGeometry.test.js ↔ client/src/components/WeatherMap/geometry.js
-//   test/conversions.test.js  ↔ client/src/services/conversions.js
-//   test/alertParser.test.js  ↔ client/src/ui/alertParser.js
-//   test/alertLogic.test.js   ↔ client/src/ui/alertLogic.js (+ hybrid.js)
-//   test/moonLitPath.test.js  ↔ client/src/ui/astronomy.js
-//   test/uiHybrid.test.js     ↔ client/src/ui/hybrid.js
+// radarGeometry, registered the day it was created, and severityProductType,
+// registered by the 2026-10 audit follow-up — must match PAIRS):
+//   test/radarGeometry.test.js       ↔ client/src/components/WeatherMap/geometry.js
+//   test/conversions.test.js         ↔ client/src/services/conversions.js
+//   test/alertParser.test.js         ↔ client/src/ui/alertParser.js
+//   test/alertLogic.test.js          ↔ client/src/ui/alertLogic.js (+ hybrid.js)
+//   test/severityProductType.test.js ↔ client/src/ui/alertLogic.js (eventProductType)
+//   test/moonLitPath.test.js         ↔ client/src/ui/astronomy.js
+//   test/uiHybrid.test.js            ↔ client/src/ui/hybrid.js
 //
 // Normalization is deliberately mechanical (regex-based, no JS parser —
 // the suite must stay deps-free per CLAUDE.md). It erases formatting
@@ -63,20 +65,21 @@ const COPY_END_RE = /^\/\/ -{4,} end of verbatim copy -{4,}\s*$/m;
 // not be discovered as standalone declarations.
 const TOP_LEVEL_DECL_RE = /^(?:export\s+)?(?:async\s+)?(?:function\s+(\w+)\s*\(|const\s+(\w+)\s*=)/gm;
 
-// Inventory size as of 2026-06 (12 + 8 + 6 + 1 + 9 + 4). Guards against the
-// discovery silently finding nothing (which would fake-pass the suite).
-// If a copied declaration is legitimately removed from a test file,
-// lower this consciously.
-const EXPECTED_CHECK_COUNT = 40;
+// Inventory size as of 2026-10 (12 + 8 + 6 + 1 + 9 + 1 + 4, in PAIRS
+// order). Guards against the discovery silently finding nothing (which
+// would fake-pass the suite). If a copied declaration is legitimately
+// removed from a test file, lower this consciously.
+const EXPECTED_CHECK_COUNT = 41;
 
 /**
- * The six copy-carrying test files and how to find their copies.
+ * The seven copy-carrying test files and how to find their copies.
  *
  * Marker-delimited files (`radarGeometry`, `conversions`, `alertParser`,
- * `moonLitPath`) need no `sourceFile`/`copiedNames`: the source path comes from the
- * start marker and the copied declarations are auto-discovered inside
- * the block. `alertLogic` and `uiHybrid` predate the marker convention
- * and embed their copies inline, so their pairs are spelled out.
+ * `moonLitPath`, `severityProductType`) need no `sourceFile`/`copiedNames`:
+ * the source path comes from the start marker and the copied declarations
+ * are auto-discovered inside the block. `alertLogic` and `uiHybrid` predate
+ * the marker convention and embed their copies inline, so their pairs are
+ * spelled out.
  *
  * `adaptations` documents the places where a copy INTENTIONALLY differs
  * from the source beyond what `normalizeJs` erases:
@@ -171,6 +174,13 @@ const PAIRS = [
         ],
       },
     },
+  },
+  {
+    testFile: "test/severityProductType.test.js",
+    // Marker-delimited copy of `eventProductType` from alertLogic.js —
+    // the SeverityChip product-type word (2026-06-14 fix). Unregistered
+    // until the 2026-10 audit follow-up, so drift in a branch the tests
+    // don't assert went unnoticed.
   },
   {
     testFile: "test/uiHybrid.test.js",
@@ -387,7 +397,7 @@ test("verbatimSync: discovery found the full copied-declaration inventory", () =
   assert.equal(
     CHECKS.length,
     EXPECTED_CHECK_COUNT,
-    `expected ${EXPECTED_CHECK_COUNT} copied declarations across the six test files, `
+    `expected ${EXPECTED_CHECK_COUNT} copied declarations across the ${PAIRS.length} test files, `
       + `found ${CHECKS.length} (${CHECKS.map((c) => c.name).join(", ")}) — `
       + "update EXPECTED_CHECK_COUNT if a copy was deliberately added/removed",
   );
