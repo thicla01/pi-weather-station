@@ -23,6 +23,10 @@ curl -sk "https://localhost:8443/api/weather/current?lat=45.5&lon=-73.6"
 curl -sk "https://localhost:8443/api/weather/openmeteo?lat=45.5&lon=-73.6"
 ```
 
+**Units match the Tomorrow.io proxy:** °C, wind in m/s, precipitation in mm (mm/h for intensities), pressure in hPa. Tomorrow.io returns metric because the proxy sends no `units` parameter. Open-Meteo's own default for wind is km/h, so the adapter requests `temperature_unit=celsius&wind_speed_unit=ms&precipitation_unit=mm` (`OPEN_METEO_UNIT_PARAMS`; only the wind one changes the payload, the other two restate Open-Meteo's defaults). The adapter asks Open-Meteo for m/s instead of dividing by 3.6 itself, so that one parameter covers every wind variable (current, hourly, daily, and the gust variables once mapped) and the `_raw` passthrough carries the same wind values as the envelope. Until 2026-10 the wind parameter was missing and `windSpeed` came back in km/h, 3.6× too high; see the correction under *Empirical observations*.
+
+One value does need converting in the adapter: Open-Meteo's `current.precipitation` is the amount that fell over the preceding `current.interval` seconds (900 s = 15 min), not a rate, so `precipitationIntensity` is that amount × 3600 / `interval` (×4), in mm/h. `_raw.current.precipitation` keeps the per-15-min amount. The hourly `precipitation` is a 1 h sum, so it already reads as mm/h. Until 2026-10 the current amount was served raw, about 4× too low.
+
 Quick comparison snippet (Montreal, current conditions):
 
 ```bash
@@ -44,10 +48,10 @@ EOF
 | `temperature`                | `current.temperature_2m`                   | °C ✓ |
 | `temperatureApparent`        | `current.apparent_temperature`             | °C ✓ |
 | `humidity`                   | `current.relative_humidity_2m`             | % ✓ |
-| `windSpeed`                  | `current.wind_speed_10m`                   | km/h ✓ |
+| `windSpeed`                  | `current.wind_speed_10m` / `hourly.wind_speed_10m` | m/s ✓ — requested with `wind_speed_unit=ms` (Open-Meteo's default is km/h) |
 | `cloudCover`                 | `current.cloud_cover`                      | % ✓ |
 | `uvIndex`                    | `current.uv_index` / `hourly.uv_index`     | ✓ |
-| `precipitationIntensity`     | `current.precipitation`                    | mm ✓ |
+| `precipitationIntensity`     | `current.precipitation` (scaled) and `hourly.precipitation` | mm/h ✓ — the current value is a 15-min amount (`current.interval` = 900 s), so the adapter multiplies it by 3600 ÷ `interval` (×4); the hourly value is a 1 h sum, used as is |
 | `precipitationProbability`   | `hourly.precipitation_probability`         | **Not in `current` block** — null fallback in adapter |
 | `weatherCode`                | `current.weather_code` (WMO)               | Mapped via `WMO_TO_TOMORROW_CODE` |
 | `temperatureMax/Min`         | `daily.temperature_2m_max/min`             | ✓ |
@@ -58,10 +62,10 @@ EOF
 | `weatherCodeMax`             | `daily.weather_code` (mapped)              | ✓ |
 | `weatherCodeDay`             | derived from `hourly.weather_code[noon]`   | Open-Meteo doesn't split day/night codes; adapter samples 13:00 local |
 | `weatherCodeNight`           | derived from `hourly.weather_code[01:00]`  | Adapter samples 01:00 local |
-| `windGust`                   | `wind_gusts_10m` (current / hourly)        | **Not mapped** — requested by the Tomorrow.io proxy since the PoC (Gust tile, Vent tab) |
-| `visibility`                 | `visibility` (hourly variable, metres)     | **Not mapped** — requested since the PoC (Visibility tile) |
+| `windGust`                   | `wind_gusts_10m` (current / hourly)        | **Not mapped** — requested by the Tomorrow.io proxy since the PoC (Gust tile, Vent tab). Already m/s once requested: `wind_speed_unit` applies to gusts too |
+| `visibility`                 | `visibility` (hourly variable, metres)     | **Not mapped** — requested since the PoC (Visibility tile). Tomorrow.io's metric visibility is in km, so mapping it needs ÷1000 |
 | `windDirection`              | `hourly.wind_direction_10m` / `daily.wind_direction_10m_dominant` | **Not mapped** — requested since the PoC (Vent-tab direction arrows) |
-| `windGustMax`                | `daily.wind_gusts_10m_max`                 | **Not mapped** — requested since the PoC (daily Vent tab) |
+| `windGustMax`                | `daily.wind_gusts_10m_max`                 | **Not mapped** — requested since the PoC (daily Vent tab). m/s via `wind_speed_unit`, like `windGust` |
 | `moonriseTime` / `moonsetTime` | — (no Open-Meteo equivalent known)       | **Not mapped** — moon popover; would need a local computation or another source |
 
 ## Bonus fields from Open-Meteo we don't currently use
@@ -81,13 +85,15 @@ EOF
 
 ## Empirical observations (Montreal, May 2026)
 
+> **Correction (2026-10-09): the wind comparisons below mixed units.** When these observations were taken, the adapter did not send `wind_speed_unit`, so Open-Meteo's `windSpeed` was in km/h while Tomorrow.io's was in m/s, and both the spot-check and `tools/compare-weather.js` subtracted the two raw numbers as if they shared a unit. The spot-check row is recomputed below (both raw values were recorded). The longitudinal wind mean is withdrawn: only the mixed-unit delta was kept, so it can't be recovered. Every conclusion that relied on "Open-Meteo is windier" is withdrawn too. Temperature, apparent temperature, humidity and cloud cover compared like units, so those figures stand. Precipitation did not (Open-Meteo's current value was a 15-min amount in mm, Tomorrow.io's a rate in mm/h), but the only precipitation reading below is an Open-Meteo 0, which is 0 in either unit; see the caveat there. The adapter now requests m/s and converts the precipitation amount to mm/h; re-run the longitudinal comparison to settle the wind question.
+
 ### Spot-check, 2026-05-17 23:45 EDT (kiosk on macOS launchd)
 
 | Field            | Tomorrow.io | Open-Meteo | Δ |
 |------------------|-------------|------------|---|
 | temperature      | 14.78 °C    | 13.0 °C    | -1.78 |
 | humidity         | 52 %        | 50 %       | -2 |
-| windSpeed        | 3.7 km/h    | 5.7 km/h   | +2.0 |
+| windSpeed        | 3.7 m/s     | 1.6 m/s (5.7 km/h raw) | -2.1 (originally logged as +2.0, comparing km/h to m/s) |
 | cloudCover       | 40.6 %      | 86 %       | +45.4 |
 | weatherCode      | 1101        | 1001       | partly cloudy → cloudy |
 
@@ -108,24 +114,24 @@ Ran `tools/compare-weather.js --watch 30 --csv` on a production Pi (Montréal co
 
 | Field                | Mean Δ (OM − TI) | Tendency                             | Read |
 |----------------------|------------------|--------------------------------------|------|
-| `temperatureApparent`| **−3.9 °C**      | OM always colder                     | Downstream of the wind delta below — bigger wind chill |
-| `windSpeed`          | **+5.0 km/h**    | OM always windier (2-7 km/h higher)  | OM likely on ICON-D2 / GFS — known to overestimate 10 m wind over urban / sub-grid terrain |
+| `temperatureApparent`| **−3.9 °C**      | OM always colder                     | Real (each source computes its own, both in °C), but cause unknown. It was first put down to OM's higher wind, a claim the correction above withdraws |
+| `windSpeed`          | ~~+5.0~~ withdrawn | —                                  | **Mixed units**: OM km/h minus TI m/s. Only the delta was kept, so the real difference can't be recovered |
 | `cloudCover`         | **+25.6 %**      | OM stuck at 100 % in 16/19 samples; TI varies 33 → 100 % | OM appears to have near-binary "overcast / not" resolution; TI gradates more naturally |
 | `temperature`        | −1.1 °C          | OM slightly colder, within noise     | Acceptable, both within typical model band |
 | `humidity`           | ±4 %             | No sign bias                         | Equivalent |
 
-Precipitation: Tomorrow.io detected 0.20-0.22 mm/h light drizzle at 11h43 and 12h43 UTC; OM reported 0 at both samples. The two sources converged on `weatherCode = 1001` (cloudy) only once the actual sky genuinely became 100 % overcast (around 05h43 UTC).
+Precipitation: Tomorrow.io detected 0.20-0.22 mm/h light drizzle at 11h43 and 12h43 UTC; OM reported 0 at both samples. Caveat (2026-10-09): OM's current value is a 15-min amount rounded to 0.1 mm, so anything under about 0.2 mm/h (0.05 mm per 15 min) reads as 0, and its smallest non-zero reading is 0.4 mm/h. Tomorrow.io's 0.20-0.22 mm/h sits right at that edge, so OM's 0 only says its model had less than about 0.2 mm/h, not that it saw no drizzle at all. The two sources converged on `weatherCode = 1001` (cloudy) only once the actual sky genuinely became 100 % overcast (around 05h43 UTC).
 
 ### What the longitudinal data settles
 
 - The cloud-cover "Open-Meteo wins" hypothesis from the spot-check **does not hold** over 8 h. OM's bias toward 100 % is systemic and matches neither the AccuWeather narrative nor the Tomorrow.io gradient.
-- The wind-speed delta IS consistent and significant. Which source is right depends on what we want — a smoothed multi-model blend (Tomorrow.io) or a raw model output (Open-Meteo). For a kiosk display, Tomorrow.io's smoother values are arguably more useful (less anxiety-inducing "windy" reports when the air outside is calm).
-- The `temperatureApparent` delta is entirely downstream of the wind delta (wind chill formula). Not an independent disagreement.
-- The drizzle-detection event (11h43-12h43) gives Tomorrow.io one point in the precipitation prediction column, modulo whether actual rain was observed on the ground that morning.
+- ~~The wind-speed delta IS consistent and significant.~~ **Withdrawn (2026-10-09):** the delta compared Open-Meteo km/h to Tomorrow.io m/s (see the correction above). The run settles nothing about wind; the one spot-check with both raw values recorded had Open-Meteo *calmer* (1.6 vs 3.7 m/s).
+- ~~The `temperatureApparent` delta is entirely downstream of the wind delta.~~ **Withdrawn (2026-10-09)** for the same reason. The −3.9 °C delta itself is real, but its cause is open.
+- The drizzle-detection event (11h43-12h43) gives Tomorrow.io one point in the precipitation prediction column, modulo whether actual rain was observed on the ground that morning, and modulo the resolution of OM's current reading (see the caveat above).
 
 ### Operational verdict (revised)
 
-Tomorrow.io remains the better default for our kiosk use case: smoother gradient on cloud cover, more conservative wind values that match urban-environment intuition, slightly more sensitive precipitation detection. Open-Meteo is still a clean Plan B if Tomorrow.io ever becomes unavailable or quota-constrained, but it's NOT an upgrade — migrating today would change the visual character of the kiosk (more "windy and overcast" reads in conditions where the alternative says "calm and partly cloudy") without a clear accuracy win.
+Tomorrow.io remains the better default for our kiosk use case: smoother gradient on cloud cover, slightly more sensitive precipitation detection (one drizzle event, near OM's reporting floor). (The earlier "more conservative wind values" argument is withdrawn: it rested on the km/h vs m/s mix-up, see the correction above. Wind is undecided until a re-run.) Open-Meteo is still a clean Plan B if Tomorrow.io ever becomes unavailable or quota-constrained, but it's NOT an upgrade: migrating today would change the visual character of the kiosk (more "overcast" reads in conditions where the alternative says "partly cloudy") without a clear accuracy win.
 
 Worth re-running the longitudinal comparison during a more dynamic weather episode (front passage, thunderstorm onset, sudden clearing) — that's where one source's tracking of reality would show up more clearly than a quiet overnight under marine layer.
 
@@ -147,4 +153,4 @@ Worth re-running the longitudinal comparison during a more dynamic weather episo
 
 ## Recommendation
 
-Keep Tomorrow.io as the default until a real reason to migrate emerges (quota pressure, pricing change, outage history). The PoC adapter stays in the repo as the prepared Plan B. The May 2026 longitudinal run (`Longitudinal sample` section above) clarified the picture: Open-Meteo is a legitimate fallback but is not an accuracy upgrade for our kiosk use case. Re-run the side-by-side comparison during a more dynamic weather episode if we ever want stronger evidence either way.
+Keep Tomorrow.io as the default until a real reason to migrate emerges (quota pressure, pricing change, outage history). The PoC adapter stays in the repo as the prepared Plan B. The May 2026 longitudinal run (`Longitudinal sample` section above) clarified the picture: Open-Meteo is a legitimate fallback but is not an accuracy upgrade for our kiosk use case. Re-run the side-by-side comparison during a more dynamic weather episode if we ever want stronger evidence either way. That re-run is also the only valid wind comparison so far, since the May 2026 wind figures mixed km/h and m/s.

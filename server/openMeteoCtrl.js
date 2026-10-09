@@ -12,15 +12,54 @@
 //   - Weather codes are WMO 0-99 (mapped here to the existing
 //     Tomorrow.io-style codes via WMO_TO_TOMORROW_CODE so the
 //     client's `parseWeatherCode` can render icons unchanged).
-//   - `snowfall_sum` is in cm (Tomorrow.io: mm) — multiplied here
-//     for parity with `rainAccumulation` units (mm).
-//   - Wind in km/h, temperature in °C — same as Tomorrow.io.
+//   - Units must match the Tomorrow.io envelope, which is metric
+//     because the proxy sends no `units` param: °C, wind in m/s,
+//     precipitation in mm (mm/h for intensities), pressure in hPa.
+//     Every consumer of that envelope assumes it (client
+//     `services/conversions.js` converts FROM m/s; `aiSummaryCtrl`
+//     formats m/s), so a swap-in must too. Open-Meteo's
+//     own default wind unit is km/h, so the request pins every unit
+//     explicitly — see OPEN_METEO_UNIT_PARAMS. Until 2026-10 it did
+//     not, and `windSpeed` came back 3.6× too high.
+//   - `current.precipitation` is a sum in mm over the preceding
+//     `current.interval` seconds (900 = 15 min), not a rate, so the
+//     adapter scales it to mm/h (Tomorrow.io's `precipitationIntensity`
+//     unit) — see precipitationRatePerHour. Until 2026-10 it was passed
+//     through raw, about 4× too low. `hourly.precipitation` is a 1 h
+//     sum, so it already reads as mm/h.
+//   - `snowfall_sum` is in cm even with `precipitation_unit=mm`
+//     (Tomorrow.io: mm) — multiplied here for parity with
+//     `rainAccumulation` units (mm).
 
 const axios = require("axios");
 const { recordServiceCall } = require("./serviceStatus");
 
 const SERVICE_NAME = "Open-Meteo (PoC)";
 const API_TIMEOUT_MS = 10_000;
+const OPEN_METEO_FORECAST_URL = "https://api.open-meteo.com/v1/forecast";
+const FORECAST_DAYS = 5;
+const SECONDS_PER_HOUR = 3600;
+
+// Units requested from Open-Meteo, chosen to equal the Tomorrow.io
+// envelope's. Only `wind_speed_unit` changes the payload (Open-Meteo
+// defaults to km/h); the other two restate Open-Meteo's defaults so
+// the whole unit contract sits in one place.
+//
+// Wind is converted upstream rather than ÷3.6 in the adapters because
+// one parameter covers every wind variable in every block: current,
+// hourly and daily, plus the gust variables (`wind_gusts_10m`,
+// `wind_gusts_10m_max`) once they are mapped (they are km/h by
+// default too). A per-field conversion would have to be remembered at
+// each new mapping. It also keeps the `_raw` passthrough in the same
+// units as the adapted envelope, so comparing the two for a spot-check
+// shows no false 3.6× gap.
+const OPEN_METEO_UNIT_PARAMS = Object.freeze({
+  temperature_unit: "celsius",
+  wind_speed_unit: "ms",
+  // mm is also what keeps `snowfall_sum` in cm (the ×10 in
+  // adaptDaily). With "inch", Open-Meteo returns snowfall in inches.
+  precipitation_unit: "mm",
+});
 
 // WMO code → Tomorrow.io-style code used everywhere else in the
 // codebase. Mapping is best-effort — WMO has ~30 codes vs
@@ -64,6 +103,24 @@ function mapWmoCode(wmo) {
 }
 
 /**
+ * Turn Open-Meteo's `current.precipitation` — the amount in mm that
+ * fell over the preceding `current.interval` seconds (900 = 15 min) —
+ * into a rate in mm/h, the unit of Tomorrow.io's
+ * `precipitationIntensity`. A rate can't be derived without the
+ * interval, so a missing or non-positive one yields null rather than
+ * a raw amount that would read as mm/h.
+ *
+ * @param {number|null|undefined} amountMm Precipitation sum over the interval, in mm
+ * @param {number|null|undefined} intervalSec Length of that interval, in seconds
+ * @returns {number|null} Rate in mm/h, or null when either input is missing or invalid
+ */
+function precipitationRatePerHour(amountMm, intervalSec) {
+  if (typeof amountMm !== "number" || !Number.isFinite(amountMm)) return null;
+  if (typeof intervalSec !== "number" || !Number.isFinite(intervalSec) || intervalSec <= 0) return null;
+  return (amountMm * SECONDS_PER_HOUR) / intervalSec;
+}
+
+/**
  * Wrap a single `values` object into the Tomorrow.io envelope shape
  * that the rest of the codebase already consumes.
  *
@@ -100,7 +157,8 @@ function adaptCurrent(src) {
   return asEnvelope([asInterval(src.time, {
     cloudCover: src.cloud_cover,
     humidity: src.relative_humidity_2m,
-    precipitationIntensity: src.precipitation,
+    // mm per `interval` seconds upstream → mm/h, like Tomorrow.io.
+    precipitationIntensity: precipitationRatePerHour(src.precipitation, src.interval),
     // Open-Meteo current doesn't return precip probability — only
     // hourly does. Surfacing null here matches Tomorrow.io's behaviour
     // when a field is missing (clients already guard with `?? null`).
@@ -113,7 +171,7 @@ function adaptCurrent(src) {
     // pressureSurfaceLevel; Open-Meteo's surface_pressure is hPa too.
     pressureSurfaceLevel: src.surface_pressure ?? null,
     weatherCode: mapWmoCode(src.weather_code),
-    windSpeed: src.wind_speed_10m,
+    windSpeed: src.wind_speed_10m, // m/s, via wind_speed_unit=ms
   })]);
 }
 
@@ -127,11 +185,12 @@ function adaptCurrent(src) {
 function adaptHourly(hourly) {
   if (!hourly || !Array.isArray(hourly.time)) return null;
   const intervals = hourly.time.map((t, i) => asInterval(t, {
+    // Preceding-hour sum in mm, i.e. already mm/h — no rescaling.
     precipitationIntensity: hourly.precipitation ? hourly.precipitation[i] : null,
     precipitationProbability: hourly.precipitation_probability ? hourly.precipitation_probability[i] : null,
     temperature: hourly.temperature_2m ? hourly.temperature_2m[i] : null,
     weatherCode: hourly.weather_code ? mapWmoCode(hourly.weather_code[i]) : null,
-    windSpeed: hourly.wind_speed_10m ? hourly.wind_speed_10m[i] : null,
+    windSpeed: hourly.wind_speed_10m ? hourly.wind_speed_10m[i] : null, // m/s, via wind_speed_unit=ms
   }));
   return asEnvelope(intervals);
 }
@@ -187,12 +246,36 @@ function adaptDaily(daily, hourly) {
 }
 
 /**
+ * Build the Open-Meteo forecast URL for one location. Pure, so the
+ * unit parameters it carries can be pinned by a test.
+ *
+ * @param {number} lat Validated latitude
+ * @param {number} lon Validated longitude
+ * @param {string} tz IANA timezone or "auto", already regex-checked
+ * @returns {string} The full upstream URL, units included
+ */
+function buildForecastUrl(lat, lon, tz) {
+  const unitParams = Object.entries(OPEN_METEO_UNIT_PARAMS)
+    .map(([key, value]) => `&${key}=${value}`)
+    .join("");
+  return OPEN_METEO_FORECAST_URL
+    + `?latitude=${lat}&longitude=${lon}`
+    + "&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m,uv_index,surface_pressure"
+    + "&hourly=temperature_2m,relative_humidity_2m,precipitation,precipitation_probability,weather_code,wind_speed_10m,uv_index"
+    + "&daily=weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,precipitation_sum,rain_sum,snowfall_sum,precipitation_probability_max,uv_index_max,sunrise,sunset"
+    + unitParams
+    + `&timezone=${encodeURIComponent(tz)}`
+    + `&forecast_days=${FORECAST_DAYS}`;
+}
+
+/**
  * GET /api/weather/openmeteo?lat&lon[&tz]
  *
  * Side-by-side PoC endpoint for evaluating Open-Meteo as a possible
  * Tomorrow.io replacement. Returns current + hourly + daily in three
  * sub-keys, each shaped exactly like the corresponding Tomorrow.io
- * endpoint so a client can compare values without re-normalising.
+ * endpoint (same keys, same metric units: °C, m/s, mm, hPa) so a
+ * client can compare values without re-normalising.
  *
  * @param {import("express").Request} req
  * @param {import("express").Response} res
@@ -209,13 +292,7 @@ async function getOpenMeteoWeather(req, res) {
   const tz = typeof req.query.tz === "string" && /^[A-Za-z_/+\-0-9]{1,64}$/.test(req.query.tz)
     ? req.query.tz : "auto";
 
-  const url = "https://api.open-meteo.com/v1/forecast"
-    + `?latitude=${lat}&longitude=${lon}`
-    + "&current=temperature_2m,relative_humidity_2m,apparent_temperature,is_day,precipitation,weather_code,cloud_cover,wind_speed_10m,wind_direction_10m,uv_index,surface_pressure"
-    + "&hourly=temperature_2m,relative_humidity_2m,precipitation,precipitation_probability,weather_code,wind_speed_10m,uv_index"
-    + "&daily=weather_code,temperature_2m_max,temperature_2m_min,apparent_temperature_max,apparent_temperature_min,precipitation_sum,rain_sum,snowfall_sum,precipitation_probability_max,uv_index_max,sunrise,sunset"
-    + `&timezone=${encodeURIComponent(tz)}`
-    + "&forecast_days=5";
+  const url = buildForecastUrl(lat, lon, tz);
 
   try {
     const result = await axios.get(url, { timeout: API_TIMEOUT_MS });
@@ -226,7 +303,11 @@ async function getOpenMeteoWeather(req, res) {
       hourly: adaptHourly(hourly),
       daily: adaptDaily(daily, hourly),
       // Raw passthrough kept for debugging / spot-checks. Drop once
-      // the PoC moves to a real integration.
+      // the PoC moves to a real integration. Same units as the
+      // envelope (see OPEN_METEO_UNIT_PARAMS; `_raw.current_units`
+      // and friends name them), except `current.precipitation`, which
+      // stays a per-`interval` amount (mm per 15 min) where the
+      // envelope's `precipitationIntensity` is the mm/h rate (×4).
       _raw: result.data,
     }).end();
   } catch (err) {
@@ -237,4 +318,8 @@ async function getOpenMeteoWeather(req, res) {
   }
 }
 
-module.exports = { getOpenMeteoWeather };
+module.exports = {
+  getOpenMeteoWeather,
+  // Exposed for test/openMeteoAdapter.test.js only.
+  __test: { buildForecastUrl, precipitationRatePerHour, adaptCurrent, adaptHourly, adaptDaily },
+};

@@ -12,6 +12,18 @@
  *   node tools/compare-weather.js --csv log.csv    # append to CSV log
  *   node tools/compare-weather.js --watch 15 --csv weather-deltas.csv
  *
+ * UNITS
+ *   Both endpoints answer in the same metric units (°C, %, wind m/s,
+ *   precipitation mm/h), so the Δ column is like-for-like and no
+ *   conversion happens here. Before the 2026-10 fix the Open-Meteo
+ *   adapter (server/openMeteoCtrl.js) returned wind in km/h, Open-
+ *   Meteo's default, while Tomorrow.io is m/s, and returned
+ *   `precipitationIntensity` as the mm that fell in the last 15 min
+ *   rather than mm/h. CSV rows recorded against a server that
+ *   predates the fix therefore carry `windSpeed_om` in km/h (divide
+ *   by 3.6) and `precipitationIntensity_om` in mm per 15 min
+ *   (multiply by 4) before comparing.
+ *
  * Self-signed TLS cert is accepted (the kiosk uses one). No
  * dependencies beyond Node's built-in https + fs.
  */
@@ -24,6 +36,7 @@ const fs = require("fs");
 const agent = new https.Agent({ rejectUnauthorized: false });
 
 const BASE = "https://localhost:8443";
+const UNITS_NOTE = "Units (both sources): °C, %, wind m/s, precipitation mm/h";
 
 function get(url) {
   return new Promise((resolve, reject) => {
@@ -70,6 +83,7 @@ async function compare(lat, lon) {
 
 function printTable(rows, timestamp) {
   console.log(`\n=== ${timestamp} ===`);
+  console.log(UNITS_NOTE);
   console.log("Field".padEnd(24) + "Tomorrow.io".padStart(14) + "Open-Meteo".padStart(14) + "   Δ");
   console.log("-".repeat(60));
   for (const r of rows) {
