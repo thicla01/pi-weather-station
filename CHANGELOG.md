@@ -87,6 +87,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   descendant, so losing the containing block the filter created moves nothing.
 
 ### Fixed
+- **On a phone, the maximized AI summary now hides the radar card.** On the mobile layout
+  (< 800 px wide) the maximized AI-summary slab pins over the whole scroll column (z-index 5),
+  but the radar card further down still showed through it: the map tiles, the zoom buttons, the
+  card's maximize button and the attribution strip covered the summary text (seen in Chrome at
+  375×812 and 390×844). The card was positioned without a z-index, so it formed no stacking
+  context, and Leaflet's panes and controls (z-index 200 to 1000) competed directly with the
+  slab. The card now sets `z-index: 0` so Leaflet's layers stay inside it, the same fix
+  LayoutDesktop's `.mapArea` already carries. The maximized radar card keeps its z-index 10 and
+  still covers the slabs. The maximized forecast slab ends above the card on today's layouts, so
+  it was not affected, but it gets the same protection. Checked in the day, dusk and night-red
+  palettes: the maximized radar (timeline, legend strip and sheet), the dock toast over the mini
+  and maximized card, and the UV popover that opens over the card.
 - **A wide kiosk playing the radar loop no longer locks every kiosk on the network out of
   RainViewer.** RainViewer limits tile requests per public IP (500 a minute, bursts of 300), and
   every kiosk behind the same router shares that budget with its server's radar analysis. At 4×

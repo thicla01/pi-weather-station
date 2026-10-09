@@ -153,6 +153,14 @@
  * tokens (same as LayoutPi). */
 .mapCard {
   position: relative;
+  /* z-index: 0 is load-bearing — it makes the card its own stacking
+   * context so Leaflet's panes and controls (z-index 200-1000) stay
+   * inside it. Without it they competed in the scroll column's context
+   * and painted the tiles, zoom stack, maximize button and attribution
+   * over the maximized AiSummaryInline slab (z-index 5), which pins
+   * over the whole column. Same fix as `.mapArea` in
+   * LayoutDesktop/styles.css; the maximized card below lifts it to 10. */
+  z-index: 0;
   width: 100%;
   height: 220px;
   border-radius: 10px;
@@ -364,8 +372,8 @@
 }
 
 /* BottomDock cell — last child of the flex column. The rule makes it a
- * stacking context and lifts it above the radar card's Leaflet panes
- * (z-index up to 1000) and the maximized card (10). The dock's toast
+ * stacking context and lifts it above the radar card (its own stacking
+ * context: 0 in mini mode, 10 maximized). The dock's toast
  * (`position: fixed`, z-index 1500) is painted inside that context, so
  * this 1100 is what keeps it above the map. It also keeps the dock
  * itself on top while pull-to-refresh slides the scroll column under
