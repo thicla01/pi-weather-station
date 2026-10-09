@@ -114,6 +114,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   A repeated `--force-device-scale-factor` is read the way Chromium reads it (the last one wins).
   A Firefox kiosk still reports `null` on purpose: its scale is a profile pref that the process
   list can't show. New `test/displayScaleApplied.test.js`.
+- **The Debug panel's CSV export now carries the client KPIs and the real cache coordinates, and
+  no longer writes 1970 dates.** A service not yet called exported its LAST CALL as the Unix
+  epoch (`new Date(null)`); that cell, like every other unset date, is now empty. The CACHE
+  section split `type:fieldsHash:lat:lon` keys as `type:lat:lon`, so LAT held the field hash;
+  each key shape is now split into TYPE / VARIANT / LAT / LON. Page Load and FPS always read
+  "N/A" because the panel passed no client metrics: Export CSV now samples FPS for 1 s, then
+  records page load, JS heap, screen size and API calls, whether or not the Client section is
+  open. New `test/exportDebugCsv.test.js`.
 
 ### Documentation
 - **A `☑` in the localization glossary now stays on the exact wording it validated.**

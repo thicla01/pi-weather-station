@@ -143,7 +143,7 @@ The compiled `dist/` files are committed to git so Pis can `git pull` without re
 ### Debug panel
 - Accessible from localhost only (both server-side middleware and client-side button)
 - Enabled via `DEBUG=true` in the systemd drop-in (`pi-weather-server.service.d/override.conf`) or the launchd plist on macOS; flip it with `bash deploy/toggle-debug.sh`. The flag only reveals the client-side button — the `/api/debug*` endpoints are localhost-gated regardless
-- Exports the server-side sections to CSV (`weather-station-debug-*.csv` → the browser's download folder); the client KPI section reads "N/A" because the Client bucket's metrics (`useClientMetrics`) are not yet passed to the exporter (`exportDebugCsv(data, null, null)`)
+- Exports every section to CSV (`weather-station-debug-*.csv` → the browser's download folder), client KPIs included. The About bucket's Export CSV measures FPS for 1 s (`sampleFps`), then passes a `snapshotClientMetrics()` taken at click time (the same collector the Client bucket's `useClientMetrics` reads) to `exportDebugCsv(data, clientMetrics, fps)`, so the export does not depend on the Client bucket being pinned. `client/src/ui/exportDebugCsv.js` is CommonJS (like `ui/autoTabSelector.js`) so `test/exportDebugCsv.test.js` runs the real exporter
 - Use SSH tunnel to access from macOS: `ssh -L 8443:localhost:8443 pi@<pi-ip>`
 
 ### Deployment on other Pis
