@@ -61,6 +61,12 @@ apparaissent sur chaque ligne :
 | `✎` | Le **renommer** |
 | `✕` | Le **retirer** de la liste |
 
+Une exception : sur la ligne enregistrée qui *est* déjà votre position
+de départ (celle qui porte la petite maison à côté de son nom), `⌂` ne
+changerait rien — si c'est vous qui avez fixé cette position, cette
+ligne affiche donc `↺` à la place, pour revenir à l'automatique. Voyez
+*Votre position de départ*.
+
 Tant que le mode Modifier est actif, appuyer sur une ligne ne déplace
 plus la carte — les lignes deviennent modifiables. Appuyez sur
 **Terminé** quand vous avez fini.
@@ -73,8 +79,9 @@ C'est voulu : il n'y a pas d'annulation après coup.
 ## Renommer
 
 En mode Modifier, appuyez sur `✎` sur une ligne, tapez le nouveau nom
-et faites **Entrée**. **Échap** annule. Le panneau vous le rappelle
-sous la case.
+et faites **Entrée**. **Échap** annule le changement de nom et vous
+laisse en mode Modifier ; faites **Échap** une seconde fois pour fermer
+le panneau. Le panneau vous le rappelle sous la case.
 
 Les noms sont les vôtres — *Maison*, *Le chalet*, *Chez maman*.
 Jusqu'à 40 caractères.
@@ -108,14 +115,19 @@ devient une ligne ordinaire, que vous pouvez renommer avec `✎`.
 > position de départ est l'un de vos lieux enregistrés — épinglée avec
 > `★`, ou choisie avec `⌂` sur une ligne enregistrée — la ligne de
 > rappel n'a plus lieu d'être et disparaît, la petite maison se
-> déplaçant sur votre ligne. Rien n'a été perdu : le même endroit est
+> déplaçant sur votre ligne — de même que le `↺` décrit plus bas,
+> lorsqu'il est affiché. Rien n'a été perdu : le même endroit est
 > simplement listé une fois au lieu de deux.
 
 **Pour revenir à l'automatique :** en mode Modifier, appuyez sur `↺`
-sur la ligne `⌂`. La station recommence à déduire votre position de la
-connexion Internet, immédiatement. Ce bouton n'apparaît que si une
-position manuelle est effectivement enregistrée — si c'est déjà
-automatique, il n'y a rien à annuler, donc il n'est pas affiché.
+sur la ligne marquée de la maison — la ligne de rappel `⌂` en tête ou,
+si votre position de départ est l'un de vos lieux enregistrés, cette
+ligne enregistrée, où `↺` remplace le bouton `⌂`. La station recommence
+à déduire votre position de la connexion Internet, immédiatement. Une
+ligne enregistrée reste dans votre liste ; seule la position de départ
+change. Ce bouton n'apparaît que si une position manuelle est
+effectivement enregistrée — si c'est déjà automatique, il n'y a rien à
+annuler, donc il n'est pas affiché.
 
 > **Vider la liste ne réinitialise pas votre position de départ.** Si
 > vous retirez tous vos lieux enregistrés, la station démarre toujours
@@ -165,6 +177,7 @@ compte comme la station elle-même.
 | Pas de bouton **Modifier** ni **Épingler ce lieu** | Vous êtes connecté depuis un autre appareil — voir ci-dessus |
 | La ligne `⌂` a disparu | Votre position de départ est maintenant l'un de vos lieux enregistrés (épinglée avec `★`, ou choisie avec `⌂` sur une ligne enregistrée) ; la maison est sur cette ligne |
 | Ça démarre toujours au mauvais endroit après avoir tout supprimé | La position de départ est indépendante de la liste — utilisez `↺` sur la ligne `⌂` |
+| Une ligne enregistrée affiche `↺` là où les autres affichent `⌂` | Cette ligne est votre position de départ, fixée par vous. `⌂` n'y changerait rien ; `↺` revient à l'automatique |
 | Appuyer sur une ligne ne fait rien | Le mode Modifier est actif. Appuyez d'abord sur **Terminé** |
 
 Les noms et les listes sont enregistrés sur la station elle-même, et

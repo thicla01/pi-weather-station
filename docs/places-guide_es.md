@@ -57,6 +57,11 @@ en cada fila:
 | `✎` | **Renombrarlo** |
 | `✕` | **Quitarlo** de la lista |
 
+Una excepción: en la fila guardada que ya *es* su ubicación de inicio
+(la que lleva la casita junto al nombre), `⌂` no cambiaría nada — así
+que, si fue usted quien fijó esa ubicación, esa fila muestra `↺` en su
+lugar, para volver a automático. Vea *Su ubicación de inicio*.
+
 Mientras el modo Modificar está activo, tocar una fila ya no mueve el
 mapa — las filas pasan a ser editables. Toque **Hecho** al terminar.
 
@@ -67,8 +72,9 @@ otra cosa, se cancela solo. Es a propósito: no hay deshacer.
 ## Renombrar
 
 En modo Modificar, toque `✎` en una fila, escriba el nuevo nombre y
-pulse **Intro**. **Esc** cancela. El panel se lo recuerda debajo de la
-casilla.
+pulse **Intro**. **Esc** cancela el cambio de nombre y le deja en modo
+Modificar; pulse **Esc** una segunda vez para cerrar el panel. El panel
+se lo recuerda debajo de la casilla.
 
 Los nombres son suyos — *Casa*, *La cabaña*, *Casa de mamá*. Hasta 40
 caracteres.
@@ -101,15 +107,18 @@ puede renombrar con `✎`.
 > **¿Adónde fue la fila `⌂`?** Esto sorprende. En cuanto su ubicación
 > de inicio es uno de sus lugares guardados — anclada con `★`, o
 > elegida con `⌂` en una fila guardada — la fila de recordatorio ya no
-> hace falta y desaparece, y la casita se traslada a su fila guardada.
-> No se ha perdido nada: el mismo sitio aparece una vez en lugar de
-> dos.
+> hace falta y desaparece, y la casita se traslada a su fila guardada
+> — igual que el `↺` descrito más abajo, cuando aparece. No se ha
+> perdido nada: el mismo sitio aparece una vez en lugar de dos.
 
 **Para volver a automático:** en modo Modificar, toque `↺` en la fila
-`⌂`. La estación vuelve a deducir su ubicación de la conexión a
-internet, de inmediato. Este botón solo aparece si hay una ubicación
-manual realmente guardada — si ya es automática, no hay nada que
-deshacer, así que no se muestra.
+marcada con la casita — la fila de recordatorio `⌂` de arriba o, si su
+ubicación de inicio es uno de sus lugares guardados, esa fila guardada,
+donde `↺` ocupa el lugar del botón `⌂`. La estación vuelve a deducir su
+ubicación de la conexión a internet, de inmediato. Una fila guardada
+sigue en su lista; solo cambia la ubicación de inicio. Este botón solo
+aparece si hay una ubicación manual realmente guardada — si ya es
+automática, no hay nada que deshacer, así que no se muestra.
 
 > **Vaciar la lista no reinicia su ubicación de inicio.** Si quita
 > todos los lugares guardados, la estación sigue arrancando donde
@@ -155,6 +164,7 @@ principal — cuenta como la propia estación.
 | No aparece el botón **Modificar** ni **Anclar este lugar** | Está conectado desde otro dispositivo — vea más arriba |
 | La fila `⌂` ha desaparecido | Su ubicación de inicio es ahora uno de sus lugares guardados (la ancló con `★`, o eligió un lugar guardado con `⌂`); la casita está en esa fila |
 | Sigue arrancando en el sitio equivocado tras borrarlo todo | La ubicación de inicio es independiente de la lista — use `↺` en la fila `⌂` |
+| Una fila guardada muestra `↺` donde las demás muestran `⌂` | Esa fila es su ubicación de inicio, fijada por usted. `⌂` no cambiaría nada ahí; `↺` vuelve a automático |
 | Tocar una fila no hace nada | El modo Modificar está activo. Toque **Hecho** primero |
 
 Los nombres y las listas se guardan en la propia estación, no en el

@@ -56,6 +56,11 @@ on each row:
 | `✎` | **Rename** it |
 | `✕` | **Remove** it from the list |
 
+One exception: on the saved row that already *is* your starting
+location (the one with the little house next to its name), `⌂` would
+do nothing — so if you set that location yourself, that row shows `↺`
+instead, to go back to automatic. See *Your starting location*.
+
 While Edit is on, tapping a row no longer moves the map — the rows
 become editable instead. Tap **Done** when you have finished.
 
@@ -67,8 +72,9 @@ no undo.
 ## Renaming
 
 In Edit mode, tap `✎` on a row, type the new name, and press
-**Enter**. **Esc** cancels. The panel reminds you of this under the
-box.
+**Enter**. **Esc** cancels the rename and leaves you in Edit mode;
+press **Esc** a second time to close the panel. The panel reminds you
+of this under the box.
 
 Names are yours to choose — *Home*, *The cottage*, *Mum's place*.
 Up to 40 characters.
@@ -100,14 +106,18 @@ the `⌂` row. It becomes a normal row that you can rename with `✎`.
 > starting location is one of your saved places — pinned with `★`, or
 > chosen with `⌂` on a saved row — the reminder row is no longer
 > needed and disappears, and the little house moves onto your saved
-> row instead. Nothing was lost; the same place is simply listed once
+> row instead — and so does the `↺` described below, when it is
+> shown. Nothing was lost; the same place is simply listed once
 > instead of twice.
 
-**To go back to automatic:** in Edit mode, tap `↺` on the `⌂` row.
-The station goes back to working your location out from the internet
-connection, straight away. This button only appears if a manual
-location is actually set — if it is already automatic, there is
-nothing to undo, so it is not shown.
+**To go back to automatic:** in Edit mode, tap `↺` on the row marked
+with the house — the `⌂` reminder row at the top or, if your starting
+location is one of your saved places, that saved row, where `↺` takes
+the place of the `⌂` button. The station goes back to working your
+location out from the internet connection, straight away. A saved row
+stays in your list; only the starting location changes. This button
+only appears if a manual location is actually set — if it is already
+automatic, there is nothing to undo, so it is not shown.
 
 > **Emptying the list does not reset your starting location.** If you
 > remove every saved place, the station still starts where you told it
@@ -152,6 +162,7 @@ main documentation — it counts as the station itself.
 | No **Edit** or **Pin this place** button | You are connected from another device — see above |
 | The `⌂` row disappeared | Your starting location is now one of your saved places (you pinned it with `★`, or chose a saved place with `⌂`); the house mark is on that row |
 | It still starts in the wrong place after deleting everything | The starting location is separate from the list — use `↺` on the `⌂` row |
+| One saved row shows `↺` where the others show `⌂` | That row is your starting location, set by hand. `⌂` would change nothing there; `↺` goes back to automatic |
 | Tapping a row does nothing | Edit mode is on. Tap **Done** first |
 
 Names and lists are stored on the station itself, not in the browser,

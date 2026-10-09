@@ -66,6 +66,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   while failing. The list is now uncapped, with 5xx then 4xx rows on top and the rest in the
   server's order (`orderServicesForDisplay`). `test/debugServicesList.test.js` runs the shipped
   helper against the real server registry, and `docs/kpi-definitions.md` now documents the list.
+- **Pressing Esc while renaming a saved place now cancels only the rename — the Places panel
+  stays open in Edit mode.** The keystroke that cancelled the rename also bubbled to the popover
+  shell's document-level Esc listener, which closed the whole panel and dropped Edit mode. The
+  rename field now marks Esc as handled (`preventDefault()`), and `DetailsPopover` skips an Esc
+  that a descendant has handled. A second Esc closes the panel as before; other popovers are unaffected.
+- **"↺ back to automatic" is now offered when your starting location is one of your saved
+  places.** ↺ only appeared on the ⌂ pseudo-row, which is hidden as soon as a saved place carries the
+  house badge (promoted with ⌂, or pinned with ★). A manual home like that could only be undone
+  from Settings or by deleting the place. In Edit mode the badged row now reads `↺ ✎ ✕` while a manual
+  default is stored: ↺ takes the slot of a ⌂ that would do nothing there, so the row keeps three
+  44 px actions, and no new strings were needed. Places guides (EN/FR/ES) and
+  `docs/favorite-locations-design.md` updated.
 
 ### Documentation
 - **A `☑` in the localization glossary now stays on the exact wording it validated.**
