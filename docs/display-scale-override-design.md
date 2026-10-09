@@ -1,9 +1,9 @@
 # Display-Scale Override (UI) — Low-Level Design
 
-**Status:** Design **approved 2026-06-24** (§10 decisions settled). Phase 1 cleared to build.
+**Status:** Design **approved 2026-06-24** (§10 decisions settled). ✅ **Shipped 2026-06-24** — Phase 1 picker in PR 269 (layout fix PR 270), Phase 2 relaunch button in PR 271, systemd-scope fix in PR 274. This is now the as-built design of record: the §2–§4 pre-build design is kept as written — its file line references and the §2.5 export list are pre-build — with the main as-built deviations noted inline; `docs/api.md` is authoritative for endpoint shapes.
 **Date:** 2026-06-24
 **Branch:** standalone small PR off `master` (orthogonal to v3.2/v3.3 rail work).
-**Scope:** Expose the existing kiosk `DISPLAY_SCALE` override in the advanced Settings UI, so a screen whose EDID misreports its physical size (and therefore gets the wrong — usually `1.0` — auto-scale) can be corrected without SSH. Touches: server (new controller + route), client (Settings control + state), docs. **No launcher change** (`start-server`/`detect-display-scale.sh` already honour the override).
+**Scope:** Expose the existing kiosk `DISPLAY_SCALE` override in the Settings UI (as built: section "Configuration & API keys" → "Location & hardware", next to the Brightness slider — not the Advanced section), so a screen whose EDID misreports its physical size (and therefore gets the wrong — usually `1.0` — auto-scale) can be corrected without SSH. Touches: server (new controller + route), client (Settings control + state), docs. **No launcher change** (`start-server`/`detect-display-scale.sh` already honour the override).
 
 ---
 
@@ -27,7 +27,7 @@ The override variable `DISPLAY_SCALE` already exists end-to-end (`browser.conf` 
 - `Auto` **never goes below 1 and never shrinks** — no detection / baseline density / a downward-lying EDID all resolve to an effective **1.0** (safe no-op).
 - The override is **bidirectional insurance**: it fixes "Auto stayed at 1.0 but I need 1.25" (the 133C case) *and* the pathological "Auto wrongly enlarged because the EDID under-reported its size" (→ pick `Off`).
 - This is a **kiosk (physical-screen) setting, in the brightness category — NOT a per-viewer preference.** Read is open; write is `localhostOnly`. A remote LAN/VPN client (real IP) cannot change it (same as every settings write and as `POST /api/brightness`); only localhost / SSH-tunnel / RPi-Connect can, and it tunes **the Pi's screen**. `--force-device-scale-factor` is a launch flag on the Pi's Chromium — never served over HTTP — so a remote viewer's own browser is unaffected (renders at its own DPR). (Exception: RPi-Connect *screen-sharing* mirrors the Pi framebuffer, so it shows the scaled kiosk — because it literally is the Pi's screen.)
-- **Applies on the next kiosk relaunch** (device-scale-factor is a launch flag; it cannot be changed on a running page). Phase 1 surfaces this clearly; an in-UI "relaunch kiosk" action is deferred to Phase 2 (§7).
+- **Applies on the next kiosk relaunch** (device-scale-factor is a launch flag; it cannot be changed on a running page). Phase 1 surfaces this clearly; an in-UI "relaunch kiosk" action is deferred to Phase 2 (§7). *(Superseded: Phase 2 shipped the same day, see §7.)*
 
 ---
 
@@ -51,6 +51,8 @@ const DETECT_TIMEOUT_MS = 3_000;                        // wlr-randr is ~50 ms; 
 // UI choices, in browser.conf terms. "auto" = remove the line; "off" = force 1.0.
 const SCALE_CHOICES = ["auto", "off", "1.25", "1.5", "1.75", "2"];
 ```
+
+> *As-built note (2026-10-08):* `MAX_SCALE` is **`2.0`** in `server/displayScaleCtrl.js` — the UI ceiling (§10.2, maintainer decision 2026-06-24); only `detect-display-scale.sh` keeps its own `3.0` cap. So `validateScale` (and therefore `POST`) rejects anything above 2.0, e.g. `2.25`.
 
 ### 2.2 Read side
 
@@ -86,6 +88,8 @@ const SCALE_CHOICES = ["auto", "off", "1.25", "1.5", "1.75", "2"];
   4. Preserve all other lines (`BROWSER_CMD`, `BROWSER_FAMILY`, `KIOSK_REMOTE_DEBUG`, …) verbatim.
   5. Atomic write: tmp file + `fs.renameSync` (as `settingsCtrl` does). Preserve existing mode (no secrets in `browser.conf`; do **not** force 0600 — leave as-is).
 - Response: the new state from §2.3 plus `applied:false, appliesOnRestart:true` so the client can show the "takes effect on relaunch" note. Errors: `503` no browser.conf, `400` bad value, `500` write-failed (shape mirrors `setBrightness`).
+
+> *As-built note (2026-10-08):* the numeric range is `(1, 2.0]` (§2.1 note). `POST` returns only `{ available: true, override: <normalized>, appliesOnRestart: true }` — no `applied` (the running-kiosk scale is reported by `GET` only, §7). Errors: `503 no-browser-conf`, `400 invalid-scale` (+ `choices`), `500 read-failed` / `write-failed`; an unreadable `browser.conf` is a `500 read-failed`, with no fall-back to an install.sh template (step 1).
 
 ### 2.5 `module.exports`
 
@@ -125,6 +129,8 @@ Add a control in the existing display area of the ambient `SettingsPanel`, next 
 - **"Applies on relaunch" note:** a one-line helper under the control, shown only when the selected value differs from what's currently *applied* to the running kiosk — e.g. *"Prend effet au redémarrage du kiosque."* (Phase 1 has no live signal of the *applied* flag, so show the note whenever `override` was just changed this session.)
 - **Remote read-only:** when the client is not localhost, render the control **disabled** with a hint *"Réglable seulement depuis le kiosque."* Reuse the same client-side localhost check that gates the Debug-panel button (verify the exact helper during build — `client/src/…` debug-button gating). Belt-and-suspenders: the `POST` is `localhostOnly` server-side regardless.
 
+> *As-built note (2026-10-08):* shipped as a full-width `Seg` (segmented control) with plain segments **Auto / 100 % / 125 % / 150 % / 175 % / 200 %** (`off` renders as "100 %"). The hint line under the picker, shown to every local client, always carries the "applies on relaunch" wording (*"… effet au prochain redémarrage du kiosque."*); PR 270 moved the detected percent out of the Auto label into it (*"Auto détecte N % sur cet écran. …"*). A remote client sees *"Réglable seulement depuis le kiosque."* instead. The conditional part of the designed note became the conditional **"Relancer le kiosque pour appliquer"** button (§7).
+
 ---
 
 ## 5. Launcher — no change
@@ -145,7 +151,7 @@ So writing `DISPLAY_SCALE="1.25"` into `browser.conf` is sufficient and takes ef
 | macOS dev / headless (no `browser.conf`) | `available:false` → control hidden; `POST` → `503`. |
 | Detector script missing / no Wayland session | `autoDetected:null`, `ppi:null` → UI shows "Auto (détecté : 100 %)". |
 | `browser.conf` has a hand-added `DISPLAY_SCALE` | `readOverride()` surfaces it; the dropdown reflects it; a save replaces it. |
-| Value not in the snap grid (legacy/hand-set, e.g. `1.3`) | Read: shown as a synthesized "Custom (130 %)" option so we don't silently misrepresent it; Write: only grid values offered. |
+| Value not in the snap grid (legacy/hand-set, e.g. `1.3`) | Read: shown as a synthesized "Custom (130 %)" option so we don't silently misrepresent it; Write: only grid values offered. *As built: the Custom option was designed but not built — the picker renders only the `SCALE_CHOICES` segments, so a hand-set `1.3` shows no active segment (the launcher still applies it); selecting any segment replaces it.* |
 | Firefox kiosk | Identical — `start-server` applies the override via the profile pref; no controller difference. |
 | Remote (non-local) client | Reads state (control visible, disabled); `POST` blocked `localhostOnly` (`403`). |
 
@@ -174,16 +180,20 @@ Via the `__test` export (pattern: `brightnessCtrl.__test`):
 - `validateScale` — accept `auto`/`off`/grid values; reject `0.5`, `4`, `"big"`, `1.3` (non-grid).
 - `rewriteBrowserConf` — replaces an existing line; adds when absent; **removes** on `auto`; preserves `BROWSER_CMD`/`BROWSER_FAMILY`/other lines; idempotent.
 
+> *As-built note (2026-10-08):* Phase 2 added `parseAppliedFromPs` cases (applied factor read off the kiosk process; Chromium kiosk with no flag → `"1"`; no Chromium kiosk found → `null`).
+
 ---
 
 ## 9. Docs checklist (per CLAUDE.md "Before committing")
 
-- [ ] `docs/api.md` — `GET`/`POST /api/display-scale` (shape, middleware, `available` semantics).
-- [ ] `CLAUDE.md` — add `displayScaleCtrl.js` to the server architecture list; note that **the server now manages the `DISPLAY_SCALE=` line in `browser.conf`** (previously install.sh-only); cross-ref the `DISPLAY_SCALE` kiosk-scale section.
-- [ ] `CHANGELOG.md` — under the next version (`feat(ui): set kiosk display scale from Settings`).
-- [ ] `ROADMAP.md` — note Phase 2 "relaunch kiosk from UI" as a tracked follow-up.
-- [ ] Build green: `cd client && npm run prod` (zero errors); `npm test`.
-- [ ] JSDoc + PropTypes on the new component; complete JSDoc on the controller handlers.
+*Amended 2026-10-08:* all items done at ship time (PRs 269–271 + 274).
+
+- [x] `docs/api.md` — `GET`/`POST /api/display-scale` (shape, middleware, `available` semantics).
+- [x] `CLAUDE.md` — add `displayScaleCtrl.js` to the server architecture list; note that **the server now manages the `DISPLAY_SCALE=` line in `browser.conf`** (previously install.sh-only); cross-ref the `DISPLAY_SCALE` kiosk-scale section.
+- [x] `CHANGELOG.md` — under the next version (`feat(ui): set kiosk display scale from Settings`).
+- [x] `ROADMAP.md` — note Phase 2 "relaunch kiosk from UI" as a tracked follow-up. *(Phase 2 then shipped; ROADMAP records it as shipped Jun 2026.)*
+- [x] Build green: `cd client && npm run prod` (zero errors); `npm test`.
+- [x] JSDoc + PropTypes on the new component; complete JSDoc on the controller handlers. *(The picker's internal helpers, e.g. `RelaunchButton`, fall under `SettingsPanel`'s documented file-level `react/prop-types` exception.)*
 
 ---
 
@@ -191,5 +201,5 @@ Via the `__test` export (pattern: `brightnessCtrl.__test`):
 
 1. **Hook placement** — ✅ dedicated `useDisplayScale` (§3).
 2. **Choice ceiling** — ✅ stop the dropdown at `200 %`. Choices: `Auto / 100 % (off) / 125 / 150 / 175 / 200`.
-3. **Relaunch** — ✅ Phase 2, deferred (§7). The apply mechanism is the **user-level kiosk relaunch (no sudo)**, NOT `systemctl --user restart pi-weather-server` (that bounces the server, not the browser) and not necessarily `sudo reboot`. Phase 1 ships the "takes effect on relaunch" note only.
+3. **Relaunch** — ✅ Phase 2, deferred (§7). The apply mechanism is the **user-level kiosk relaunch (no sudo)**, NOT `systemctl --user restart pi-weather-server` (that bounces the server, not the browser) and not necessarily `sudo reboot`. Phase 1 ships the "takes effect on relaunch" note only. *(Superseded: Phase 2 shipped the same day, see §7.)*
 4. **Version** — ✅ standalone small PR off `master` (orthogonal to the v3.2/v3.3 rail work).

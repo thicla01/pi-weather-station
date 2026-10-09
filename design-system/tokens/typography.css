@@ -16,7 +16,7 @@
 
   --fw-regular: 400; /* @kind font */  /* body copy */
   --fw-medium: 500;  /* @kind font */  /* labels, captions, most values — the workhorse */
-  --fw-bold: 700;    /* @kind font */  /* hero temperature (desktop), popover values, emphasis */
+  --fw-bold: 700;    /* @kind font */  /* popover values + titles, forecast-column temps, active chart tab, emphasis (NOT the hero temperature — Mono 500) */
   --fw-mono: 500;    /* @kind font */  /* Geist Mono ships Medium ONLY: numerals, badges, section titles */
 
   /* Size ladder — DOCUMENTATION tokens. The codebase writes literal px per
@@ -47,10 +47,13 @@
   --tracking-chip: 0.12em;     /* SeverityChip uppercase mono */
   --tracking-numeral: -1px;    /* large mono numerals (−1.5px at 56px, −0.5px at 30px) */
 
-  /* Text-density preference S / M / L (client/src/ui/fontSize.js). Applied as
-     `zoom` on the SCROLLABLE subtrees only (rail, hero slot, dock) — never on
-     the map. Map-overlay text scales with calc(base * var(--c-font-scale)).
-     Settings / Debug overlays run one notch larger (× 1.15 boost). */
+  /* Text-density preference S / M / L (client/src/ui/fontSize.js). In the layouts,
+     applied as `zoom` on the `.rail` subtree only (LayoutPi + LayoutDesktop) — never on
+     the map, the desktop hero slot or the dock. Map-overlay text and the
+     desktop hero slot's small text scale with calc(base * var(--c-font-scale)).
+     Settings / Debug overlays (outside `.ambientRoot`) get their own inline
+     `zoom`, one notch larger (× 1.15 boost; Debug stays at zoom 1 at
+     max-height 520). */
   --c-font-scale: 1;        /* @kind font */
   --c-font-scale-s: 0.85;   /* @kind font */
   --c-font-scale-l: 1.15;   /* @kind font */

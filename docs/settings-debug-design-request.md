@@ -12,7 +12,8 @@
 > July 2026 along with the rest of the legacy v2 tree. The file paths in "Reference materials" no
 > longer exist on disk; the live panels are `ambient/SettingsPanel/index.js` and
 > `ambient/DebugPanel/index.js`. Likewise `experimentalUiC`, described below as an upcoming flag,
-> shipped in v2.18 and was removed in July 2026. Use `docs/ui-layout_en.md` for the current UI.
+> was introduced in v2.14.0 (opt-in preview), made the default in v2.18 and removed in July 2026.
+> Use `docs/ui-layout_en.md` for the current UI.
 
 ---
 

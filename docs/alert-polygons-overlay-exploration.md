@@ -41,7 +41,11 @@ This decision simplifies a few things:
 | NWS | `https://api.weather.gov/alerts/active` (sans `?point=`) | 500-2000 active alerts depending on season, **5-20 MB** payload |
 | NWS zones | `affectedZones` URLs for zone-based alerts (Red Flag, Heat Adv, etc.) | Worst case: 500 alerts × 3 zones = 1500 zone fetches. Mitigated by the existing 24 h zone cache (commit `ce23f03`) — after first fill, the ~800 stable NWS forecast + fire zones serve 99 % of subsequent lookups for free. |
 
+**Note 2026-10-08:** the ECCC row above is a 2026-05-28 snapshot and no longer matches the code. Since the 2026-07-09 perf audit, `server/govAlertSources/eccc.js` no longer fetches the national feed: it requests a `bbox=` snapped to the query point's 1° grid cell (sized for the 100 km nearby-alerts radius, cached 5 min per cell) and runs the point-in-polygon / radius culls locally on what comes back — see the header of that file. A continental view would therefore need its own national ECCC fetch. That same audit measured the national feed at ~840 features / ~10 MB of JSON per refresh, against the ~50 / ~200 KB above. Alert counts are seasonal, so re-measure before relying on the ~50× ratio of §3.2 — ECCC may need the §3.3 #3-#4 trimming and simplification too, not only the #6 region dedup.
+
 ### 3.2 Why the ~50× disproportion ECCC vs NWS
+
+*(2026-05-28 figures — see the 2026-10-08 note under §3.1.)*
 
 The raw factor (200 KB vs 5-20 MB) is not "the US is 8× bigger than Canada" — it's a product of several smaller multipliers that compose:
 
@@ -63,7 +67,7 @@ Le résultat compose : (×10-40 alertes) × (×2-5 verbosity per feature) expliq
 - son propre polygone (= frontière administrative de la région, déjà simplifiée et stable)
 - **`headline` et `description` identiques** à celles des régions voisines déclenchées par le même phénomène
 
-Phase 4d masque cette duplication parce que `findAlertsForPoint` filtre point-in-polygon avant émission — l'utilisateur ne voit que sa propre région. Mais une vue continentale exposerait la mosaïque : l'orage de Montréal apparaîtrait comme 5-10 polygones aux arêtes droites et coins anguleux (frontières administratives), pas comme un polygone fluide épousant la cellule orageuse comme le ferait NWS.
+Phase 4d masque cette duplication parce que `tryAlerts` (`server/govAlertSources/eccc.js`) filtre point-in-polygon avant émission — l'utilisateur ne voit que sa propre région. Mais une vue continentale exposerait la mosaïque : l'orage de Montréal apparaîtrait comme 5-10 polygones aux arêtes droites et coins anguleux (frontières administratives), pas comme un polygone fluide épousant la cellule orageuse comme le ferait NWS.
 
 NWS direct-polygon (Tornado Warning, Severe Thunderstorm Warning, Flash Flood Warning) suit le pattern inverse : **une cellule orageuse = une CAP entry = un polygone**, dessiné autour du phénomène, traversant les frontières de comté sans s'en soucier. NWS zone-based (Heat Adv, Red Flag, Coastal Flood) regroupe N zones dans un même `affectedZones[]` — donc une CAP entry → un polygone composite (MultiPolygon après résolution).
 
@@ -80,7 +84,7 @@ La cible matérielle (Pi 4, 1-4 GB RAM, GPU modeste) interdit le pattern "fetch 
    S'empile sur le filtre event. Élimine définitivement le tier jaune (qu'on cachait déjà par défaut dans l'UX proposée §5).
 
 3. **Trim serveur des champs inutiles — gain ~40-60 % additionnel**
-   Garder uniquement : `id`, `event` (key i18n), `severity`, `headline`, `expires`, `geometry`, `affectedZones`. Drop : `description`, `instruction`, `parameters`, `references`, `replacedBy`, `eventCode`, `web`, `senderName`. **Le client peut re-fetch `description` complet seulement quand le user tape un polygone** — pattern lazy déjà utilisé pour les détails ECCC dans `AlertBanner`.
+   Garder uniquement : `id`, `event` (key i18n), `severity`, `headline`, `expires`, `geometry`, `affectedZones`. Drop : `description`, `instruction`, `parameters`, `references`, `replacedBy`, `eventCode`, `web`, `senderName`. **Le client peut re-fetch `description` complet seulement quand le user tape un polygone** — nouveau pattern à créer : aujourd'hui `description_en/fr` est livré inline dans le payload `/api/weather-alerts` (le repli du détail d'alerte est purement UI, pas réseau).
 
 4. **`turf.simplify(tolerance: 0.01)` côté serveur — gain ~50-80 % sur la portion geometry**
    Polygones CAP bruts simplifiés une fois à l'arrivée, stockés simplifiés en cache RAM. Le client ne reçoit jamais la version brute.
@@ -190,7 +194,7 @@ If priorities shift later (e.g. someone is using the kiosk specifically as a sev
 ## 9. Related references
 
 - `docs/eccc-radar.md` — sister exploration on swapping RainViewer for ECCC WMS radar (Phase A shipped, Phase B deferred). Useful precedent for "Mode A / Mode B with one radar source at a time".
-- `ROADMAP.md` line 140 — `🚨 Critical-tier severe-alert takeover overlay` — different feature (full-screen takeover for tornado / evacuation), but shares the polygon-data path.
+- `ROADMAP.md` § `🚨 Critical-tier severe-alert takeover overlay` — different feature (full-screen takeover for tornado / evacuation), but shares the polygon-data path.
 - `ROADMAP.md` § MeteoAlarm — third source candidate, would slot into this overlay as a fourth tier of fetch.
 - Commit `ce23f03` — NWS `affectedZones` resolution + 24 h zone cache. The infrastructure this exploration would build on top of.
 - Commit `765da0b` — Phase 4d single-polygon overlay. The visual pattern to replicate at scale.

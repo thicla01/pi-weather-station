@@ -6,7 +6,9 @@
   --c-dock-height: 52px;
   --c-edge-gap: 16px;
 
-  /* Pi 7" (800–1279 px): grid `1fr 300px` (rail 340px ≥ 1280px), dock row below */
+  /* Pi 7" (800–1279 px): grid `1fr 300px`, dock row below. (LayoutPi/styles.css
+     also carries a `1fr 340px` rule at ≥ 1280px — dead: LayoutDesktop takes over
+     at 1280, so LayoutPi never renders that wide.) */
   --pi-rail-width: 300px;
   --pi-frame-gap: 10px;              /* v3.2 framed layout: map · rail · dock as inset cards; MIN drops to 0 */
   --pi-map-radius: 14px;
@@ -17,7 +19,7 @@
   --bp-desktop-min: 1280px;
   --bp-wide-min: 1600px;
   --gate-short-screen: 520px;        /* max-height: compact Settings/Debug, radar-legend auto-hide */
-  --gate-priority-views: 540px;      /* max-height: Pi 3-state rail (ui/piLayout.js) — separate threshold ON PURPOSE */
+  --gate-priority-views: 540px;      /* max-height: Pi v3.3 priority views (ui/piLayout.js priorityViewsEnabled) — separate threshold ON PURPOSE; MIN/MID/MAX run on every LayoutPi */
   --gate-dock-collapse: 600px;       /* max-width + portrait: secondary dock buttons hide */
 
   /* Dock ↔ ControlButtons re-skin contract (BottomDock/styles.css) */

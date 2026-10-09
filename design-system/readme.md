@@ -18,7 +18,7 @@ This bundle is **extracted from the running codebase**, not from mockups. Palett
 - **`guidelines/`** — 9 foundation cards: palettes, severity tiers, category qualifiers & moon, hybrid levels, type scale & weights, shape & spacing, radar & map chrome, viewports, kiosk rules.
 - **`SKILL.md`** — Agent-Skills-compatible entry point.
 - **`components/ambient/`** — 7 specimen cards built from the production CSS (badges & chips, rail slabs, alert surfaces, hero, dock & squares, popovers & QR, forecast slab) + 5 React ports of the true primitives, each `.jsx` + `.d.ts` + `.prompt.md`: `SourceBadge`, `SeverityChip`, `ConfidencePill`, `MoonGlyph` (with `moonLitPath`), `MetricCell`. The ports use inline styles on the role tokens so they render standalone; the codebase keeps CSS Modules.
-- **`ui_kits/screens/`** — 5 anatomies at real pixel size, tagged `@dsCard group="Screens"`: Pi 7″ 800×480 in **MID** (split, calm), **MIN** (radar owns the screen + FloatingMiniBanner) and **MAX** (forecast-forward, 190 px map thumbnail); desktop 1280×800 (hero band + rail 320 + dock, watch active); mobile portrait 390×844. Shared recipes in `screens.css`, glyphs in `sprite.svg`, notes in the kit's `README.md`. The rails overflow on purpose — they scroll on the real screens.
+- **`ui_kits/screens/`** — 5 anatomies at real pixel size, tagged `@dsCard group="Screens"`: Pi 7″ 800×480 in **MID** (split, calm — the v3.2 stacked rail that taller Pi panels show; the 7″ itself now opens on the v3.3 priority glance, see the kit's `README.md`), **MIN** (radar owns the screen + FloatingMiniBanner) and **MAX** (forecast-forward, 190 px map thumbnail); desktop 1280×800 (hero band + rail 320 + dock, watch active); mobile portrait 390×844. Shared recipes in `screens.css`, glyphs in `sprite.svg`, notes in the kit's `README.md`. The rails overflow on purpose — they scroll on the real screens.
 
 ---
 
@@ -37,24 +37,24 @@ Dispatcher: `useTimeOfDay()` in `client/src/ui/hybrid.js`. The iOS PWA paints `<
 
 **nightRed rules.** Every severity and category tier collapses to the red family, `advisory` too. The *word* (chip label, qualifier, badge) carries the tier; colour only says "alert". Text `#d05050` ≈ 5.1:1 and dim `#b84848` ≈ 4:1 on the card surface (WCAG AA). A component is finished only when it reads in all four palettes.
 
-**Hybrid levels** (`themes/hybrid.css`). The worst active government-alert severity sets `data-hybrid`: moderate → `light`, severe / extreme → `full`. Three knobs move at once: surface .85 → .96, hairline → `borderHybrid`, and a left strip `box-shadow: inset 3px 0 0 var(--c-strip-color)` (amber for light, red for full; 4 px on the clock and hero slabs). No per-component logic.
+**Hybrid levels** (`themes/hybrid.css`). The worst active government-alert severity sets `data-hybrid`: moderate → `light`, severe / extreme → `full`. Three knobs move at once: surface .85 → .96, hairline → `borderHybrid`, and a left strip `box-shadow: inset 3px 0 0 var(--c-strip-color)` (amber for light, red for full; 4 px on the clock and hero slabs). No per-component logic — a slab only opts into the strip in CSS (see the slab recipe).
 
 ---
 
 ## TYPE — Geist, four faces, no exceptions
 
-- **Faces:** Geist **400** (body) · **500** (labels, captions, most values — the workhorse) · **700** (desktop hero temperature, popover values, emphasis) · Geist Mono **500** (every numeral, badge, section title). Self-hosted woff2, `font-display: swap`. **No 600, no italics, no synthesized weights** — `test/fontWeightGuards.test.js` fails the build on any other weight (43 rules had drifted by 2026-09; fixed in PR 353).
+- **Faces:** Geist **400** (body) · **500** (labels, captions, most values — the workhorse) · **700** (popover titles and values, the hourly and daily-high forecast-cell temperatures, the active metric tab, emphasis) · Geist Mono **500** (every numeral, badge, section title). Hero temperatures (desktop 72 px / 88 ≥ 1600, mobile 56 px, Pi 39 px) and the clocks are Geist Mono 500, never 700. Self-hosted woff2, `font-display: swap`. **No 600, no italics, no synthesized weights** — `test/fontWeightGuards.test.js` fails the build on any other weight (43 rules had drifted by 2026-09; fixed in PR 353).
 - **Stacks:** `"Geist", system-ui, -apple-system, sans-serif` and `"Geist Mono", ui-monospace, "SF Mono", Menlo, monospace`.
 - **Ladder (observed, px before density):** 9 · 10 · 11 · 12 · 13 · 14 · 16 · 18 · 22 · 30 · 39 · 40 · 44 · 56 · 72 · 88. Named uses: desktop hero temperature 72 (88 ≥ 1600), desktop clock 44 (56 ≥ 1600), Pi hero temperature 39, Pi clock 30, mobile hero 56, metric tile value 22, NowcastLine 14, body 12–13, badges 11, mono eyebrows 10 (tracked .8 px, uppercase), SeverityChip 9.5 (tracked .12 em).
-- **Hierarchy** comes from size, weight, tracking and uppercase mono eyebrows — never from a fifth weight. Large numerals track tight (−1 px at 40, −1.5 px at 56/72). **Tabular numerals** wherever a value updates live.
-- **Text density S / M / L** = 0.85 / 1 / 1.15 (`--c-font-scale`), applied as `zoom` on the scrollable subtrees (rail, hero slot, dock) — **never on the map**; map-overlay text uses `calc(base * var(--c-font-scale))`. Settings and Debug overlays run one notch larger (× 1.15).
+- **Hierarchy** comes from size, weight, tracking and uppercase mono eyebrows — never from a fifth weight. Large numerals track tight (−1 px at 39 / 40 / 44 and on the 56 px desktop clock ≥ 1600, −1.5 px at 56 on mobile, −2 px at 72 / 88). **Tabular numerals** wherever a value updates live.
+- **Text density S / M / L** = 0.85 / 1 / 1.15 (`--c-font-scale`), applied as `zoom` on the rail subtree only (LayoutPi and LayoutDesktop `.rail`) — **never on the map**; the desktop hero slot, the dock and the mobile scroll column are not zoomed. HeroBand's micro text and the map-overlay text follow the preference through `calc(base * var(--c-font-scale))` instead. Settings and Debug overlays run one notch larger (× 1.15).
 
 ---
 
 ## SURFACES & SHAPE
 
-- **The slab recipe** (hero, clock, forecast, AI summary, metric cells, air card, alert head): `background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 10px; padding: 12px 14px; box-shadow: inset 4px 0 0 var(--c-strip-color, transparent)`. Cells use radius 8 and a 3 px strip; the dock and the framed Pi map use 14.
-- **Radii:** 3 (source badge) · 4 · 6 (NowcastLine, popover rows) · 8 (cells, mini cards) · 10 (slabs, radar legend, Leaflet bar) · 14 (dock, map frame) · pill (chips, period pills).
+- **The slab recipe** (the clock and the Pi / mobile hero): `background: var(--c-surface); border: 1px solid var(--c-border); border-radius: 10px; padding: 12px 14px; box-shadow: inset 4px 0 0 var(--c-strip-color, transparent)`. Variants: the desktop hero and clock cards use radius 12 and add `0 8px 24px rgba(0,0,0,.25)`; metric cells, the air card and the indoor block use radius 8 and a 3 px strip; the forecast (ChartTabs) and AI-summary slabs are radius 10 with no hybrid strip; the alert head is radius 8 with its own tier-coloured `::before` strip. The dock and the framed Pi map use 14.
+- **Radii:** 3 (source badge) · 4 · 6 (NowcastLine, popover rows) · 8 (cells, mini cards, alert head) · 10 (rail slabs, radar legend, Leaflet bar) · 12 (desktop hero / clock cards, AlertView, radar timeline) · 14 (dock, map frame) · pill (chips, period pills).
 - **Elevation:** floating cards `0 1px 2px rgba(0,0,0,.08), 0 6px 16px rgba(0,0,0,.12)`; overlays `0 4px 16px rgba(0,0,0,.35)`. **Glass:** `backdrop-filter: blur(8px)` on the dock and map chrome, `blur(6px)` on the AI slab, the maximized chart slab and the control buttons — always with the `-webkit-` twin.
 - **Interaction feedback:** `:active { background: var(--c-accent-soft); transform: scale(.985) }` and `:focus-visible { outline: 2px dashed var(--c-text); outline-offset: -2px }`. **Hover paints nothing** (see rules). Buttons are reset to `font: inherit; background: transparent; border: 0; -webkit-tap-highlight-color: transparent` inside the root.
 - **Dock contract:** the dock re-skins the shared control buttons through `--ctrl-btn-*`; press flash removed, `--ctrl-btn-down: var(--c-accent-soft)` is the only accent signal (= toggle is ON). Icons 24 px in a 52 px bar. Leaflet zoom / focus buttons are 40 × 40 (36 on mobile), radius 10, palette-tinted, no hover.
@@ -66,10 +66,10 @@ Dispatcher: `useTimeOfDay()` in `client/src/ui/hybrid.js`. The iOS PWA paints `<
 | Viewport | Layout | Anatomy |
 |---|---|---|
 | **< 800 px** | `LayoutMobile` | one scroll column, pull-to-refresh, radar as a maximizable card, hero 56 px |
-| **800–1279 px** (the 7″ kiosk is 800×480) | `LayoutPi` | grid `1fr 300px` (340 ≥ 1280) + dock 52; framed 10 px gutters; rail states **MIN** (radar full-bleed, floating mini-banner) · **MID** (split: hero, nowcast line, alert card, metrics 2×2, forecast) · **MAX** (forecast-forward, map thumbnail) |
+| **800–1279 px** (the 7″ kiosk is 800×480) | `LayoutPi` | grid `1fr 300px` + dock 52; framed 10 px gutters; rail states **MIN** (radar full-bleed, floating mini-banner) · **MID** (split: alert stack, compact clock, hero, nowcast line, air card; metrics 2×2 + indoor on the stacked rail only — in the Conditions view on the ≤ 540 px priority glance) · **MAX** (forecast-forward: map thumbnail, ChartTabs fills the rail) |
 | **≥ 1280 px** | `LayoutDesktop` | full-bleed map, floating hero band (hero card + clock card sharing a hairline), right rail 320 (360 ≥ 1600; `min(60vw, 960px)` while a slab is maximized), dock 52, edge gap 16 |
 
-Height gates: **≤ 520 px** compact Settings / Debug and radar-legend auto-hide; **≤ 540 px** the Pi three-state rail (a separate threshold on purpose); **≤ 600 px + portrait** hides secondary dock buttons. Priority views (alert / conditions / AI as full-rail surfaces) are the v3.3 opt-in on short screens.
+Height gates: **≤ 520 px** compact Settings / Debug and radar-legend auto-hide; **≤ 540 px** (CSS viewport height) switches LayoutPi's MID rail to the v3.3 priority-views glance automatically, whose alert / conditions entry points open full-rail views (a separate threshold on purpose; `localStorage.forcePriorityViews = "on"` forces it on taller viewports). The MIN / MID / MAX states exist on every Pi viewport, and the AI view opens from the dock on every Pi panel. Width gate: **≤ 600 px + portrait** hides secondary dock buttons.
 
 ---
 
@@ -81,24 +81,24 @@ Height gates: **≤ 520 px** compact Settings / Debug and radar-legend auto-hide
 4. **External links = QR code only.** The kiosk browser has no chrome and no way back; a text link is a one-way trap. Point to stable vendor landing pages, never deep links with IDs or coordinates. (Exception: the localhost-only Debug panel.)
 5. **The map is never zoomed** by the text-density preference; Leaflet stays at native resolution.
 6. **Everything renders in four palettes**; nightRed never relies on colour alone.
-7. **Reading first.** A government-alert detail is collapsed by default; expanded, it may take ~65 vh — the user chose to read.
+7. **Reading first.** A government-alert detail is collapsed by default; expanded, it lays out at full natural height (no cap) and the rail (or the mobile column) scrolls — the user chose to read. On the ≤ 540 px priority glance the alert card opens the full-rail AlertView instead.
 
 ## RULES — Alerts & status (honest about origin)
 
-- **Every alert banner carries a leading source badge**: `ECCC` · `NWS` (official feeds), `RADAR` (local pixel analysis), `AIR` (air-quality health band, paired with the index's own badge AQHI / IQA / AQI). `FCST` tags the forecast-tab reason chip. **`TEST` is a qualifier, never a source** — a neutral *outlined* pill next to the source badge plus a "TEST ·" title prefix; never amber (amber turns red in nightRed and would fake an emergency).
+- **Every alert banner carries a leading source badge**: `ECCC` · `NWS` (official feeds), `RADAR` (local pixel analysis), `AIR` (air-quality health band: a tier-tinted category pill styled like the SeverityChip, followed by the index's own source badge AQHI / IQA / AQI). `FCST` tags the forecast-tab reason chip. **`TEST` is a qualifier, never a source** — a neutral *outlined* pill next to the source badge plus a "TEST ·" title prefix; never amber (amber turns red in nightRed and would fake an emergency).
 - **Tier colour = CAP severity, not the alert type**: minor → yellow / `sev-low`, moderate → `warn` / `sev-med`, severe & extreme → `danger` / `sev-high`. The chip word is the parsed product type (Watch, Warning, Veille, Avert.). One alert, four colours — one per palette.
-- A new banner-producing source gets a short uppercase tag (3–5 chars) that says where the data comes from — never `LOCAL` or `AUTO`. All badges share one visual (`SourceBadge`); reuse it, don't fork it.
+- A new banner-producing source gets a short uppercase tag (3–5 chars) that says where the data comes from — never `LOCAL` or `AUTO`. Source badges (ECCC, NWS, RADAR, FCST, AQHI / IQA / AQI) share one visual (`SourceBadge`); reuse it, don't fork it.
 - Radar: the RainViewer precipitation scale is the tiles' own colour scheme and is identical in all four palettes; alert polygons use `--rc-alert-*` (red-family steps in nightRed); the 50 km analysis ring is `--map-circle`. NWS alert bodies stay in English on purpose.
 
 ## ICONOGRAPHY
 
 - **No emoji.** Platform emoji differ across macOS, Pi Chromium and Firefox and ignore the palette. Glyphs are inline SVG on `currentColor`; the moon is a parametric SVG — dark disc + bright lit side in every palette (the emoji convention; the light-disc silhouette field-tested as confusing).
-- Severity chip = triangle SVG (outlined for low / med, filled for high) + uppercase mono word. Category pills = dot + word. Status markers are shapes, never font glyphs.
-- Weather condition icons are Iconify SVGs sized by `font-size` (24 px hero, 18 px on the Pi hero, 16 px in metric tiles), coloured `--c-accent`.
+- Severity chip = outlined triangle SVG (same shape for every tier; colour comes from the `--sev-*` tier) + uppercase mono word. Category pills = dot + word. Status markers are shapes, never font glyphs.
+- Weather condition icons are Iconify SVGs sized by `font-size` (30 px desktop hero / 38 ≥ 1600, 24 px mobile hero, 18 px Pi hero, 16 px metric tiles), coloured `--c-accent`.
 
 ## COPY & I18N
 
-- Trilingual **EN / FR / ES**; every kiosk-visible string exists in all three. French is Québec French (« Prévisions », « Ressenti », « Avert. »). Sentence case everywhere; UPPERCASE only for mono eyebrows, source badges and the day-of-week eyebrow above the desktop clock.
+- Trilingual **EN / FR / ES**; every kiosk-visible string exists in all three. French is Québec French (« Prévisions », « Ressenti », « Avert. »). Sentence case everywhere; UPPERCASE only for mono eyebrows, micro labels (metric-tile and popover labels and their qualifiers), source badges, severity / AIR chips and the day-of-week eyebrow above the desktop clock.
 - Mockups use plausible real scenarios (Montréal, Québec, Winslow AZ Red Flag Warning), show the calm **and** the alert states, and never lorem ipsum. Units follow the user's preference (°C/°F, km/h, mm, km) — never hard-code one.
 
 ---
@@ -106,7 +106,7 @@ Height gates: **≤ 520 px** compact Settings / Debug and radar-legend auto-hide
 ## What is normative vs illustrative in a handoff
 
 - **Normative:** the palette tokens, `--sev-*`, `--mx-cat-*`, `--rc-*` / `--map-*`, the tier colours, the source badges, the four faces and weights, the radii, the three-viewport grammar, the kiosk rules above.
-- **Illustrative:** micro-type sizes drawn for a 720 px mock device (the codebase re-bases on `--c-font-scale` and sits ~1–1.5 px above), exact paddings, safe-area values (`top: max(90px, calc(env(safe-area-inset-top) + 44px))` in code), the pin colour (the code uses the target icon, not a blue pin), any option the code does not expose.
+- **Illustrative:** micro-type sizes drawn for a 720 px mock device (the codebase re-bases on `--c-font-scale` and sits ~1–1.5 px above), exact paddings, safe-area values (the code pads with `max(12px, env(safe-area-inset-top))`-style expressions), the pin (the code keeps Leaflet's default blue pin at 0.65 opacity in day / dusk / night and swaps to the palette-aware target icon only in nightRed), any option the code does not expose.
 - **Codebase wins.** When a mock invents a setting, a source, a style or a fifth weight, it is dropped at port time — cross every enumerated list with the real `SettingsPanel` and the server whitelist.
 
 ---

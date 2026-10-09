@@ -9,7 +9,7 @@
 **Trois layouts existants,** choisis par la largeur du viewport (`AmbientLayers`) :
 
 - `LayoutMobile` — `< 800 px` : une colonne défilante (horloge · alerte · hero · air · 2×2 · carte radar · prévisions · IA), dock portrait en bas
-- `LayoutPi` — `800–1279 px` : le kiosque 7″. Grille `1fr 300px` (carte · rail) + dock, gouttières encadrées de 10 px, et **trois états du rail** — MIN (le radar prend l'écran), MID (split, défaut), MAX (prévisions en avant, la carte devient une vignette de 190 px)
+- `LayoutPi` — `800–1279 px` : le kiosque 7″. Grille `1fr 300px` (carte · rail) + dock, gouttières encadrées de 10 px, et **trois états du rail** — MIN (le radar prend l'écran), MID (split, défaut), MAX (prévisions en avant, la carte devient une vignette de 190 px) — plus une vue IA plein rail ouverte depuis le dock. Sur un viewport de ≤ 540 px de haut (le 7″ en 800×480), le modèle des vues prioritaires v3.3 s'applique automatiquement : le coup d'œil MID déplace le 2×2 et l'intérieur dans une vue Conditions plein rail (ouverte depuis le hero), et la carte d'alerte ouvre une vue Alerte plein rail
 - `LayoutDesktop` — `≥ 1280 px` : carte pleine page, bandeau héros flottant, rail 320, dock
 
 **iPhone Duo = une nouvelle cible,** pas forcément un layout parti de zéro. La consigne d'Apple est explicite : *un layout compact pour l'écran extérieur, un layout large pour l'écran intérieur, et le layout s'étend d'une pose à l'autre* — pas de layout par pose, pas de réarrangement brutal quand l'appareil se plie.
@@ -64,7 +64,7 @@ Deux layouts et une transition, dans cet ordre.
 
 Pars de `pi-7in-mid`. Place la coupure **sur la charnière** : carte sur une moitié, rail sur l'autre, avec entre les deux une gouttière de charnière assez large pour survivre à la pose livre (partiellement plié) — propose une valeur et nomme-la comme jeton (p. ex. `--hinge-gutter`). Puis réponds aux trois états :
 
-- **MID** — quel côté reçoit la carte ? (Apple : les contrôles du côté de la caméra ; dans les figures des HIG, la caméra est sur le bord extérieur de la moitié droite.) Que contient le rail à ≈ 445 px de large et ≈ 570 px de haut une fois les barres de Safari retirées — la pile MID (alerte · horloge · hero · NowcastLine · air · 2×2 · intérieur) fait ≈ 520 px sur le 7″ ; quelque chose change-t-il ?
+- **MID** — quel côté reçoit la carte ? (Apple : les contrôles du côté de la caméra ; dans les figures des HIG, la caméra est sur le bord extérieur de la moitié droite.) Que contient le rail à ≈ 445 px de large et ≈ 570 px de haut une fois les barres de Safari retirées ? À ≈ 570–626 px, le Duo est au-dessus du seuil actuel de 540 px (encore à l'étude) : il reçoit donc la pile MID complète que dessine l'anatomie `pi-7in-mid` (alerte · horloge · hero · NowcastLine · air · 2×2 · intérieur) ; le vrai 7″ (800×480) n'affiche que le coup d'œil prioritaire (alerte · horloge · hero · NowcastLine · air). Quelque chose change-t-il ?
 - **MIN** — le radar prend l'écran : la carte peut-elle traverser la pliure quand c'est complètement ouvert (nano-texture, panneau unique) — ou doit-elle rester sur une moitié avec la chronologie sur l'autre ? Argumente.
 - **MAX** — prévisions en avant sur un écran déjà coupé en deux : prévisions sur une moitié et vignette de carte sur l'autre (la vignette grandit), ou la vignette actuelle de 190 px ?
 

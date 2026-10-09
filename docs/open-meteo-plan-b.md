@@ -13,7 +13,7 @@ This doc captures a proof-of-concept evaluation of [Open-Meteo](https://open-met
 
 ## Live PoC endpoint
 
-A side-by-side comparison adapter ships in [`server/openMeteoCtrl.js`](../server/openMeteoCtrl.js) and is mounted at `GET /api/weather/openmeteo?lat=...&lon=...&tz=...`. The response is shaped identically to the three Tomorrow.io proxy endpoints (`data.timelines[0].intervals[]`) so a client can compare values directly without re-normalising:
+A side-by-side comparison adapter ships in [`server/openMeteoCtrl.js`](../server/openMeteoCtrl.js) and is mounted at `GET /api/weather/openmeteo?lat=...&lon=...&tz=...`. The response envelope is shaped identically to the three Tomorrow.io proxy endpoints (`data.timelines[0].intervals[]`) so a client can compare values directly without re-normalising (the field set lags the Tomorrow.io proxy — see the field mapping and the migration estimate below):
 
 ```bash
 # Tomorrow.io (existing)
@@ -58,10 +58,15 @@ EOF
 | `weatherCodeMax`             | `daily.weather_code` (mapped)              | ✓ |
 | `weatherCodeDay`             | derived from `hourly.weather_code[noon]`   | Open-Meteo doesn't split day/night codes; adapter samples 13:00 local |
 | `weatherCodeNight`           | derived from `hourly.weather_code[01:00]`  | Adapter samples 01:00 local |
+| `windGust`                   | `wind_gusts_10m` (current / hourly)        | **Not mapped** — requested by the Tomorrow.io proxy since the PoC (Gust tile, Vent tab) |
+| `visibility`                 | `visibility` (hourly variable, metres)     | **Not mapped** — requested since the PoC (Visibility tile) |
+| `windDirection`              | `hourly.wind_direction_10m` / `daily.wind_direction_10m_dominant` | **Not mapped** — requested since the PoC (Vent-tab direction arrows) |
+| `windGustMax`                | `daily.wind_gusts_10m_max`                 | **Not mapped** — requested since the PoC (daily Vent tab) |
+| `moonriseTime` / `moonsetTime` | — (no Open-Meteo equivalent known)       | **Not mapped** — moon popover; would need a local computation or another source |
 
 ## Bonus fields from Open-Meteo we don't currently use
 
-- `current.is_day` — boolean, would let us drop the `useTimeOfDay` solar-position dance for dusk/night palette.
+- `current.is_day` — boolean; could drive the planned solar-aware dusk/night palette (`useTimeOfDay()` currently has no solar input — see ROADMAP "Solar-driven palette transitions") and replace the sunrise-sunset.org times behind the dark-mode auto switch.
 - `current.wind_direction_10m` — wind compass, currently absent.
 - `daily.sunrise` / `daily.sunset` — bundled per day, would retire sunrise-sunset.org.
 - `daily.uv_index_max` — max UV per day for the 5-day forecast cards.
@@ -128,16 +133,17 @@ Worth re-running the longitudinal comparison during a more dynamic weather episo
 
 | Task | Effort |
 |------|--------|
-| Adapter shape parity (done) | shipped in `openMeteoCtrl.js` |
+| Adapter envelope shape parity (done) | shipped in `openMeteoCtrl.js` |
+| Map the fields the Tomorrow.io proxy has requested since the PoC — current `windGust` / `visibility`, hourly `windGust` / `windDirection`, daily `windGustMax` / `windDirection`, plus `moonriseTime` / `moonsetTime` (no Open-Meteo equivalent known — compute locally) | ~1-2 h |
 | Refactor server to merge 3 endpoints into 1 internal call | ~1 h |
 | Rewrite `client/src/ui/weatherCodes.js` to use WMO directly (drop the mapping layer) | ~3 h |
 | Update `aiSummaryCtrl.js` references (a few `temperatureApparent` / `precipitationProbability` lookups) | ~30 min |
 | Decommission sunrise-sunset.org call (move to `daily.sunrise/sunset`) | ~1 h |
-| Update `serviceStatus` critical-services list (Open-Meteo replaces 3 Tomorrow.io entries) | ~15 min |
+| Update the `CRITICAL_SERVICES` set in `healthCtrl.js` and the `Tomorrow.io (current\|hourly\|daily)` service labels `proxyCtrl.js` records in `serviceStatus` (Open-Meteo replaces those 3 entries; Mapbox / LocationIQ stay) | ~15 min |
 | Settings UI cleanup (remove `weatherApiKey`, add "data source" picker if we keep both as fallbacks) | ~1-2 h |
 | Test on the 7-Pi fleet | ~30 min |
 | Docs (CLAUDE.md, api.md, ui-layout) | ~30 min |
-| **Total** | **~7-9 h** |
+| **Total** | **~8-11 h** |
 
 ## Recommendation
 

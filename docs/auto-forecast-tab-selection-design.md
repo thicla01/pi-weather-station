@@ -33,7 +33,7 @@ Hard contracts (each is a test, not a guideline):
 
 - **Null-on-calm.** When nothing notable fires, return `null` → keep the user's persisted tab. Never snap back to *Temp*, never rotate by time-of-day.
 - **Metric only, never period.** The 24h/5d period toggle stays 100% manual — period is a reading preference, metric is a hazard signal.
-- **Never mutate a visible tab under an active reader.** Covered by the idle-stage gate (§6).
+- **Never mutate a visible tab under an active reader.** Covered by the idle-stage gate (§6) — *as built (Phase 2, B2): the card-scoped active-reader gate that superseded it, see the §6 amendment.*
 - **Opt-in.** Default OFF; the user consciously enables automation (§7).
 
 The skeptical "smart-default-at-load-only" alternative was rejected: alerts arrive mid-idle, not at boot, so a load-time-only default would almost never fire when it matters. The advocate "free-running live switch" was rejected for the reader-disruption risk. The reconciled design is **live switching, aggressively gated** — see §6.
@@ -53,9 +53,9 @@ The "4 tabs" are the segmented control `METRICS = ["temp", "wind", "precip", "gr
 | Confidence buckets | `confidenceBucket()` (`ui/hybrid.js`, high ≥ 70 / mid ≥ 40) |
 | Precip detection | `isCurrentlyPrecipitating()` (`ui/alertLogic.js`, weatherCode 4000–8000) |
 | Eligible gov tiers | `ELIGIBLE_GOV_TIERS = ["red","orange"]` (`ui/alertLogic.js`) |
-| Source-badge styling | `styles.sourceBadge` |
+| Source-badge styling | `styles.sourceBadge` *(as built: the reason chip renders the shared `ambient/SourceBadge` component; the v2 `sourceBadge` class was removed with the legacy tree in PR 299)* |
 
-**Genuinely new work:** (1) a pure `selectAutoTab()` reducer + its regression test; (2) a thin `useAutoTabSelector` hook subscribing to the three existing contexts; (3) two new `ambient.chartTabs.*` localStorage keys + a settings toggle; (4) a "reason chip" in the `ChartTabs` header; (5) `ChartTabs` accepting an externally-driven metric set. **No new server endpoint, no new fetch, no new field on the wire.**
+**Genuinely new work:** (1) a pure `selectAutoTab()` reducer + its regression test; (2) a thin `useAutoTabSelector` hook subscribing to the three existing contexts; (3) two new localStorage keys (as built: the `autoSelectTab` opt-in key + `ambient.chartTabs.manualHold`) + a settings toggle; (4) a "reason chip" in the `ChartTabs` header; (5) `ChartTabs` accepting an externally-driven metric set. **No new server endpoint, no new fetch, no new field on the wire.**
 
 ## 4. Signal priority hierarchy
 
@@ -64,10 +64,12 @@ Highest wins, first match returns. Mirrors the app's own SHOW gates, so it needs
 1. **NEW severe/extreme gov alert** (`severity ∈ {severe, extreme}`, id/composite-key unseen at hold time). The **only** signal that punctures a manual hold, the dwell floor, *and* stage-0 inhibit. Rationale: "never blind the user to a new warning" (already the `FloatingMiniBanner` principle).
 2. **Active eligible gov alert** (`govAlerts[0]`, tier red/orange via `ELIGIBLE_GOV_TIERS`, already severity-sorted server-side). If the banner shows a red/orange gov alert, the tab MUST agree. Badge: ECCC or NWS. Outranks radar because an official alert is a human-vetted forecast.
 3. **Radar nowcast** (`getRadarAlertState() != null` AND `confidenceBucket >= mid`). Always → **Precip** (radar only ever measures hydrometeors; routing it elsewhere would violate the "honest about origin" badge rule). Outranks bare forecast because an echo on the doorstep with an "approaching" trend is a nowcast the Tomorrow.io numbers lack. Badge: RADAR.
-4. **Forecast threshold** (Tomorrow.io current + next-6h hourly + daily). Real but lower-urgency. Evaluated Wind → Precip → Temp (most dangerous metric wins ties). Badge: FCST.
+4. **Forecast threshold** (Tomorrow.io current + next-6h hourly; as built, daily data is not read). Real but lower-urgency. Evaluated Wind → Precip → Temp (most dangerous metric wins ties). Badge: FCST.
 5. **Calm** — nothing fired → `null` → keep the user's last tab.
 
 **Tie rule:** two equally-ranked gov alerts mapping to *different* tabs (e.g. Wind Warning + Flood Warning) → **do nothing**, fall through to the last tab and let the banner cycle carry the urgency. An arbitrary-looking pick erodes trust faster than no pick.
+
+> *Amended 2026-10-08:* the tie rule is **not implemented**. The reducer takes the first red/orange alert of the server's severity-sorted list (`topEligibleGovAlert()`) and `pickHazardTab()` switches to that alert's tab without checking for an equally-ranked alert mapping to a different tab, so a tie resolves to the first alert's tab. No test covers a tie. Open follow-up.
 
 ## 5. Thresholds
 
@@ -81,13 +83,13 @@ All comparisons in **native units** (°C, m/s, mm, mm/h, 0–100%) — the reduc
 | Gov ~ heat/cold/frost/chill/arctic | Temp | tier red/orange | n/a | 2 | ECCC/NWS |
 | Gov red/orange, event unmappable (fog, special statement) | (null — no guess) | tier red/orange | n/a | 2 | — |
 | Radar `getRadarAlertState() != null` | Precip | inner/outer maxSev ≥ 2 AND conf ≥ 40 | enter sev≥2 & conf≥40 / exit sev<2 OR conf<40 | 3 | RADAR |
-| Forecast gust (`windGust` / `windGustMax`) | Wind | ≥ 25.0 m/s (90 km/h) | 25.0 / 20.8 | 4 | FCST |
+| Forecast gust (`windGust`, max over next-6h hourly; `windGustMax` not read as built) | Wind | ≥ 25.0 m/s (90 km/h) | 25.0 / 20.8 | 4 | FCST |
 | Forecast sustained (`windSpeed`) | Wind | ≥ 19.4 m/s (70 km/h) | 19.4 / 16.7 | 4 | FCST |
 | Forecast precip prob, max over next 6h | Precip | ≥ 70% | 70 / 55 | 4 | FCST |
 | Forecast precip rate (`precipitationIntensity`) | Precip | ≥ 7.6 mm/h | 7.6 / 4.0 | 4 | FCST |
 | Active hazardous code now (`weatherCode`) | Precip | 8000 (thunder) or 6000–6201 (freezing) | true / code clears | 4 | FCST |
-| Forecast heat (`temperatureApparent`) | Temp | ≥ 32 °C | 32 / 29 | 4 | FCST |
-| Forecast cold (`temperatureApparent`) | Temp | ≤ −25 °C | −25 / −20 | 4 | FCST |
+| Current apparent heat (`temperatureApparent`, current only — not in `HOURLY_FIELDS`) | Temp | ≥ 32 °C | 32 / 29 | 4 | FCST |
+| Current apparent cold (`temperatureApparent`, current only — not in `HOURLY_FIELDS`) | Temp | ≤ −25 °C | −25 / −20 | 4 | FCST |
 | Nothing fired (calm) | (null) | — | — | 5 | none |
 
 **Anchors:** gust 25 m/s = ECCC severe-thunderstorm / wind-warning gust criterion; sustained 19.4 m/s = ECCC wind warning; precip-prob 70% = high-confidence wet window; rate 7.6 mm/h = NWS heavy-rain rate; apparent-temp `[-25, 32] °C` = ECCC extreme-cold / heat-event territory. Use `temperatureApparent` (feels-like) — the field that drives human comfort, not raw temperature.
@@ -97,6 +99,8 @@ All comparisons in **native units** (°C, m/s, mm, mm/h, 0–100%) — the reduc
 **Deliberately NO yellow/advisory trigger by default.** Keeping the bar high (orange+ / active precip / severe alert) is what prevents the trust-eroding over-escalation that trains users to disable the feature.
 
 ## 6. Idle-stage gate (the reader-protection guarantee)
+
+> *Amended 2026-10-08 — superseded in Phase 2 (B2, PR 254):* `sleepStage` no longer gates switching. The only active-reader inhibit is recent `pointerdown` / `pointermove` / `wheel` / `touchstart` on the forecast card (`slabRef`, stamped in `ChartTabs`) within `CARD_ACTIVE_MS` = 60 s, and only on touch devices (`navigator.maxTouchPoints > 0` → `env.touchCapable`); a non-touch display is never inhibited. So on a touchscreen a stage-0 switch is allowed once the card has been untouched for 60 s. The stage-0 hint chip was not built. `sleepStage` is used only to clear the manual hold on a stage-2 → stage-0 wake (§8). Quiet hours (`nightRed` palette → `env.nightQuiet`) let through only a NEW severe/extreme gov alert (the Pri-1 puncture), not every red-tier alert. The code comments that cite "LLD §13" for this gate (`useAutoTabSelector.js`, `autoTabSelector.js`, `ChartTabs`) mean this B2 refinement (see the Phase 2 decisions note at the top), not §13 below. The original stage table is kept as design history.
 
 | Idle stage (`sleepStage` in `SystemContext`) | Behaviour |
 |---|---|
@@ -130,11 +134,11 @@ The `SettingsPanel` has three sections on an explicit **local → server gradien
 
 **Decision: the toggle lives in Section 1 (`local` — Préférences locales), NOT Avancé.**
 
-1. **Storage model demands it.** Auto-select is a per-device preference (`ambient.chartTabs.*` localStorage) — each screen of the fleet decides for itself. That is exactly what `local` is for. The Advanced section holds shared `settings.json` values gated `disabled={remote}`; putting a localStorage pref there would contradict the panel's organizing principle (it must stay enabled remotely and per-device).
-2. **Direct precedent.** The two closest analogs — *Show advisory alerts* (`SettingsPanel/index.js:388`) and *Show alert radius ring* (`:429`, was `:406` before the July 2026 edits to that file) — are per-device alert-behaviour toggles that already live in `local`. Auto-select is the same species; it belongs beside its siblings.
+1. **Storage model demands it.** Auto-select is a per-device preference (`autoSelectTab` in `localStorage`) — each screen of the fleet decides for itself. That is exactly what `local` is for. The Advanced section holds shared `settings.json` values gated `disabled={remote}`; putting a localStorage pref there would contradict the panel's organizing principle (it must stay enabled remotely and per-device).
+2. **Direct precedent.** The two closest analogs — *Show advisory alerts* and *Show alert radius ring* (the `showAdvisoryAlerts` / `showAlertRing` Toggles in `SectionLocalPrefs`, `SettingsPanel/index.js`) — are per-device alert-behaviour toggles that already live in `local`. Auto-select is the same species; it belongs beside its siblings.
 3. **"The user has the right to choose" → it must be findable,** not buried in Advanced (which is for the technical, rarely-touched: extended radius, sampling points).
 
-**Default: OFF (opt-in).** It changes a previously 100%-user-driven behaviour, so the user consciously enables it (the conservative "Pixel Weather" baseline). Key named positively — `ambient.chartTabs.autoSelect` (`"1"` = enabled), **not** `…Disabled` — so the polarity matches an opt-in.
+**Default: OFF (opt-in).** It changes a previously 100%-user-driven behaviour, so the user consciously enables it (the conservative "Pixel Weather" baseline). Key named positively — localStorage `autoSelectTab` (JSON `true` = enabled; `AUTO_SELECT_TAB_STORAGE_KEY` in `AppContext.js`), **not** `…Disabled` — so the polarity matches an opt-in.
 
 > **Honest trade-off:** opt-in means most owners never discover it and never benefit on a display nobody configures. The playbook: opt-in for the field-test and initial GA → once the trial is proven calm (~4 weeks, no flapping / wrong-tab), the maintainer *may* flip the default to ON (the toggle then reads as an opt-out). The toggle stays in the same place; only the default polarity evolves.
 
@@ -159,12 +163,14 @@ Manual primacy with a single-punctured lock — the only honest answer to the ov
 - A human tap on a metric tab sets `ambient.chartTabs.manualHold = Date.now()` (new per-device key, epoch ms). While `now - manualHold < HOLD_MS`, all auto-switching is inhibited. **HOLD_MS = 20 min** — long enough to read a chart and step away, expiring *before* stage-2 deep idle (10 + 20 = 30 min) so the kiosk returns to autonomous behaviour for the next passer-by.
 - The lock also clears on a screensaver wake crossing **stage-2 → stage-0** (a genuinely new session). Returning to stage 0 from stage 1 does **not** clear it (same person, still mid-read).
 - Persist only the **tab choice** to the existing `ambient.chartTabs.hourlyMetric` / `dailyMetric` keys. Do **not** persist the `manualHold` timestamp — a reload restores the view without resurrecting a zombie lock.
+  *(Amended 2026-10-08: as built, the `manualHold` timestamp **is** persisted — `ambient.chartTabs.manualHold`, read back on every evaluation — so a reload within `HOLD_MS` keeps the hold. It still cannot become a permanent zombie lock: it lapses after `HOLD_MS` and is cleared on a stage-2 → stage-0 wake.)*
 - **The one puncture:** a gov alert with `severity ∈ {severe, extreme}` whose id (or composite key `source+eventType+expiresAt` when id is null) was NOT in the set captured at hold time overrides the lock, the dwell floor, and stage-0; switches per the Pri-2 map; clears the lock. Radar and forecast escalation **never** puncture a manual lock. This is the minimum puncture satisfying "never hide a new extreme alert" while keeping the surprise-switch surface as small as possible.
+  *(Amended 2026-10-08: as built, the puncture overrides the lock, the dwell floor, the card-activity inhibit and quiet hours, and switches to `classifyAlertTab(alert)` — falling back to Precip when the severe event is unmappable, a deliberate puncture-only exception (the non-puncture ladder still returns null for an unmappable event, §12.1). It does **not** clear the stored manual hold; it restarts the dwell clock, so later non-puncture switches stay held until `HOLD_MS` lapses.)*
 - When `autoSelect` is OFF, even the severe-alert puncture is suppressed — the user chose a static display; the banner / `FloatingMiniBanner` still carries the warning.
 
 ## 9. Anti-flapping (four brakes, all ship in the same PR)
 
-1. **Evaluate only on data-refresh ticks** — never on `setInterval`, render, or focus. Inputs land on their own cadences (gov 10 min, radar 5 min, weather 15 min). Coalesce simultaneous async landings with a **30 s debounce** → one decision. Worst-case switch cadence is bounded by the slowest fetch, never per-second jitter.
+1. **Evaluate only on data-refresh ticks** — never on `setInterval`, render, or focus. Inputs land on their own cadences (gov 10 min, radar 5 min, current weather polled every 10 min — served from a 15-min server cache — hourly forecast 60 min). Coalesce simultaneous async landings with a **30 s debounce** → one decision. Worst-case switch cadence is bounded by the slowest fetch, never per-second jitter.
 2. **Hysteresis** (separate ENTER/EXIT bands) on every numeric trigger (see §5). A value hovering at its line cannot oscillate. For radar, gate on `confidenceBucket >= mid` (40/70), not the raw 0–100 score.
 3. **Minimum dwell** — once auto picks a tab, no further auto switch for **10 min** (matches `stage1Delay` so a switch and a screensaver transition can't race). The severe-alert puncture is the only exception.
 4. **Fresh full snapshot each tick** — recompute from the latest of all three contexts (never an individually-cached sub-signal); this is how the "gov expired but radar stale" race is absorbed. The reducer must be **partial-data-tolerant**: any missing slice (cold-start, failed fetch leg) → "that class did not fire", never "assume calm and reset to Temp".
@@ -176,7 +182,7 @@ Manual primacy with a single-punctured lock — the only honest answer to the ov
 - **Phase 0 — pure, no UI, no risk.** Write `client/src/ui/autoTabSelector.js` as a pure `selectAutoTab(signals, state, now) -> {tab, reason, sourceBadge} | null` and `test/autoTabSelector.test.js` under `node --test`. Encode the named scenarios as fixtures: severe gov alert preempts manual lock; precipProbability hovering 68–72% does **not** flap; gust at exactly 25.0 m/s enters Wind; calm holds on the persisted tab and returns null; manual-hold-active returns null; missing hourly slice routes away without crashing. Zero React, zero fleet exposure.
 - **Phase 1 — gov + forecast + quiet, deterministic, NO radar. ✅ Landed 2026-06-14.** Wired `useAutoTabSelector` to `SystemContext` (`sleepStage`), `AlertsContext` (`govAlerts`), the weather slice. Added the two localStorage keys + the `local` toggle (§7) + the reason chip in `ChartTabs` (driven by the ungated `hazardTab()` verdict so it clears when the hazard passes / the user navigates away, never lingering stale). Ships **default-OFF** via the per-device opt-in (`autoSelectTab`, default `false`) — that alone makes the feature inert until explicitly enabled per Pi. **The fleet-wide field-test flag (`experimental.autoSelect`, mirroring v2.18 `experimentalUiC`) was DEFERRED** (see §7): the opt-in already provides default-OFF safety and the maintainer controls the whole fleet, so the higher-risk shared-`buildAdvancedSubtree` surgery isn't worth it yet — add it as a small follow-up if a fleet-wide kill ever becomes valuable. Bulk of the value, none of the async-reconciliation risk.
   *(Amended 2026-07: there is no longer an `experimentalUiC` to mirror. The flag and the whole `experimental` branch of `buildAdvancedSubtree()` came out with the legacy v2 tree, so if this follow-up is ever picked up it would have to re-introduce the `advanced.experimental` sub-object, not extend an existing one. See `CHANGELOG.md` for how the v2.18 flag was wired.)*
-- **Phase 2 — add Pri-3 radar.** Only after Phase 1 is field-proven calm. Radar (5 min) vs gov (10 min) is the worst cadence mismatch and the expired-gov-while-radar-approaching race is the riskiest reconciliation — its own test pass + field-test window. The 30 s debounce + 10-min dwell are the mitigations; prove them on one Pi before the fleet.
+- **Phase 2 — add Pri-3 radar. ✅ Landed 2026-06-15 (PR 254)** — radar nowcast class + A2 red-radar override + B2 card-scoped reader gate (see the Phase 2 decisions note at the top). Original plan: only after Phase 1 is field-proven calm. Radar (5 min) vs gov (10 min) is the worst cadence mismatch and the expired-gov-while-radar-approaching race is the riskiest reconciliation — its own test pass + field-test window. The 30 s debounce + 10-min dwell are the mitigations; prove them on one Pi before the fleet.
 - **Phase 3 — flip default-ON (optional), fleet rollout.** Only if the maintainer decides to, after the field-test trigger fires (no wrong-tab / flapping report for ~4 weeks). Roll out via the SSH-curl batch loop. Keep the toggle permanently.
 
 ## 11. File touch list
@@ -197,10 +203,10 @@ Manual primacy with a single-punctured lock — the only honest answer to the ov
 1. **ECCC eventType (`alert_code`) vs NWS (`event`) — RESOLVED 2026-06-14.** No ECCC lookup table needed. Both sources expose an **English** event name in `title_en` (NWS = `p.event`, ECCC = `p.alert_name_en` — e.g. "Heat warning"), and ECCC's `alert_code` is itself a clean machine slug (verified: `alert_code: "heat"`, `alert_name_en: "Heat warning"` — `test/ecccAlertsCounter.test.js:41`). So the classifier matches keyword families against `(title_en + " " + eventType).toLowerCase()` — English for both, and the ECCC slug ("heat"/"wind") matches too. One table, both sources, no special-casing. Order TEMP → WIND → PRECIP so "wind chill" → Temp (not Wind) and "freezing rain" → Precip (not Temp). Unmatched red/orange (fog, special statement) → **null** (no guess), not a forced Precip. Implemented in `client/src/ui/autoTabSelector.js` `classifyAlertTab()`; covered by `test/autoTabSelector.test.js`.
 2. **Apparent-temp bounds `[-25, +32] °C` are fleet-domain-calibrated.** Make them `settings.json` config knobs now, or keep hardcoded with a documented assumption until a non-NE deployment exists?
 3. **Default-on vs default-off at GA.** Phase 1 shipped default-OFF via the per-device opt-in (no field-test flag — deferred, §10). The maintainer owns whether to ever flip the opt-in default to ON fleet-wide (Phase 3), and whether to add the deferred `experimental.autoSelect` fleet kill-switch before doing so.
-4. **Stage-0 behaviour in v1.** Ship the additive hint chip (tap-to-switch, CLS-safe, more respectful, more work), or simply do-nothing at stage 0 in v1 and add the chip later (safer to ship first)?
-5. **Reason-chip badge vocabulary.** Existing banner badges are ECCC/NWS/RADAR. The forecast class has no authoritative source — proposed `FCST`. Maintainer must bless the tag; document in CLAUDE.md + JSDoc (no `AUTO`/`LOCAL`).
+4. **Stage-0 behaviour in v1.** Ship the additive hint chip (tap-to-switch, CLS-safe, more respectful, more work), or simply do-nothing at stage 0 in v1 and add the chip later (safer to ship first)? **RESOLVED (Phase 2, PR 254):** the B2 card-scoped gate replaced the stage gate (§6 amendment); no hint chip was built.
+5. **Reason-chip badge vocabulary.** Existing banner badges are ECCC/NWS/RADAR. The forecast class has no authoritative source — proposed `FCST`. Maintainer must bless the tag; document in CLAUDE.md + JSDoc (no `AUTO`/`LOCAL`). **RESOLVED:** `FCST` shipped and is documented in CLAUDE.md (alert-banner source tags); the chip renders it through the shared `SourceBadge`.
 6. **HOLD_MS (20 min) and dwell (10 min)** are first-guess numbers anchored to the idle delays — confirm/tune against the dry-run would-switch-per-day count before fleet rollout.
-7. **Non-touch discriminator (§6.1).** Confirm `navigator.maxTouchPoints > 0` as the sole gate for the stage-0 inhibit, or add an explicit per-device "unattended display" flag for the touch-capable-but-hands-off case. Recommend `maxTouchPoints` alone for v1.
+7. **Non-touch discriminator (§6.1).** Confirm `navigator.maxTouchPoints > 0` as the sole gate for the stage-0 inhibit, or add an explicit per-device "unattended display" flag for the touch-capable-but-hands-off case. Recommend `maxTouchPoints` alone for v1. **RESOLVED for v1:** `navigator.maxTouchPoints > 0` alone (`env.touchCapable`) gates the reader inhibit; the explicit "unattended display" flag remains a possible future addition.
 
 ## 13. Future extension — hazard-driven card promotion on small screens (out of scope for v1)
 

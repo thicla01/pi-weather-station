@@ -1,4 +1,4 @@
-MoonGlyph — the only moon icon in the system; used in AstroMetaLine and the moon popover.
+MoonGlyph — the only moon icon in the system; used in AstroMetaLine, the moon popover and the Conditions view's SunMoonBlock.
 
 <MoonGlyph fraction={0.18} />                        {/* waxing crescent */}
 <MoonGlyph fraction={0.62} size="20px" />            {/* waning gibbous */}

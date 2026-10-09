@@ -1,5 +1,7 @@
 # Design Brief — "Nearby alerts" radius overlay
 
+> **Historical brief (2026-06-07) — feature shipped in v3.1.0** (PRs 198–201; the radius ring became its own toggle in PR 242). Kept as written. Its 7″ notes are not current: the map-edge collapse toggle had already been replaced by the RadarFocusControl, the v3 ChartTabs are always tabbed, and the 7″ now uses the v3.3 priority-views rail.
+
 **Purpose:** paste this into [Claude Design](https://claude.ai/design) to produce the visual mock for the *Nearby alerts* feature **before** any React work, per the project's design-first convention. Save the resulting mock as `docs/design-references/nearby-alerts.html`.
 
 **Feature reference:** ROADMAP.md → "🧭 Nearby alerts — configurable-radius overlay (display-only)" and `docs/nearby-alerts-overlay-proposal.md`.

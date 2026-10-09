@@ -1,5 +1,7 @@
 # Handoff — React 18 → 19 + react-leaflet 4 → 5
 
+**Status:** ✅ Executed 2026-08-10 (PR 314, released in v3.2.0). Kept as the verification record. Versions and line numbers below are as of that date; `test/react19Guards.test.js` guards both silent regressions.
+
 **Written 2026-08-10. Revised the same day after an empirical verification pass** that actually performed the migration in throwaway git worktrees. The first draft was written from code reading alone and got several load-bearing things wrong; those are corrected below and called out in "Corrections to the first draft" so nobody re-derives them.
 
 Self-contained briefing for a fresh session. Claims marked *verified* were established by running something on 2026-08-10.

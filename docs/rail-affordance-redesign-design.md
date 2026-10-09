@@ -1,8 +1,8 @@
 # Pi Rail Affordance Redesign — Low-Level Design
 
-**Status:** Design — §5 open questions **resolved by maintainer 2026-06-24**; doc is implementation-ready.
-**Date:** 2026-06-23 (resolutions applied 2026-06-24)
-**Scope:** v3 ambient tree (Pi 7" rail), affects both v3.2 (`feat/v32-radar-3-states`) and v3.3 (`forcePriorityViews=on`).
+**Status:** Shipped — PR 275 (squash `f133e6b`, 2026-06-24). §5 open questions **resolved by maintainer 2026-06-24**; the body below is the approved design, and its file:line references point at the code before PR 275. **As built** notes mark where the code diverged or a known gap remains (§2.3, §2.5, §2.6.1, §3.4).
+**Date:** 2026-06-23 (resolutions applied 2026-06-24; as-built notes added 2026-10-08)
+**Scope:** v3 ambient tree (Pi 7" rail), affects both v3.2 (`feat/v32-radar-3-states`) and v3.3 (`forcePriorityViews=on` at design time; since PR 258 v3.3 turns on automatically on the short screen — keyed on a ≤ 540 px CSS viewport since PR 285 — and the flag is the dev override).
 
 ---
 
@@ -63,6 +63,8 @@ The calm line currently chooses one of eight sky strings via `calmNowcast(code, 
 Rendered example (km): "No rain within 100 km" / "Aucune pluie sur 100 km" / "Sin lluvia en 100 km".
 Rendered example (mi): "No rain within 60 mi" / "Aucune pluie sur 60 mi" / "Sin lluvia en 60 mi".
 
+> **Known gap (as built).** The distance is always the outer-ring radius (100 km / 60 mi), but `/api/radar-risk` samples the outer ring only when `advanced.ai.extendedRadius` is on, and that setting is off by default. With it off, the analysis covers the inner ring only (≤ 50 km / 30 mi), yet the line still reads "No rain within 100 km". With radar analysis switched off (`radarAnalysisEnabled` false), the risk fields are cleared to `null` (the calm path) while the RainViewer frame list keeps refreshing, so the line keeps reading "No rain within X" with no analysis behind it. The "actual coverage" wording in §2.1 (and the §1 example) holds only with the extended radius on. Closing the gap is a code + copy change (all three locales), not a doc fix.
+
 **Design decision — what happens to the eight existing `nowcast.calm.*` sky strings.** The sky cue moves entirely to the **icon** (kept, see §2.5). The default calm **text** becomes `noRainWithin`. However, the *precipitating-but-below-alert* calm sub-states (light snow / light precip) are a case where "no rain within X" would be a lie. Recommended handling:
 
 - **Dry calm** (sky codes clear/partly/cloudy/fog/none, i.e. the helper would have returned `clearDay`…`none`): show `noRainWithin`.
@@ -105,6 +107,8 @@ The card is a single horizontal line on a 800×480 panel. Proposed left-to-right
 
 If the badge + icon + longest string ("Aucune pluie sur 100 km" + FR alarm verdicts) overflow at font-size L, the verdict text is the flex child and ellipsizes; the badge and icon stay fixed. Verify at the three font sizes (s/m/l) on the 800×480 viewport (see §6).
 
+> **As built.** The verdict does not ellipsize on one line: `.verdict` wraps to a second line under a 2-line clamp (`-webkit-line-clamp: 2`, kept from the pre-PR 275 line; it ellipsizes only past two lines), and the alarm verdicts (orange/red tiers) drop to 12 px (calm stays 14 px) so the full verdict fits the two lines. The badge and icon still stay fixed (`flex: none`).
+
 ### 2.6 Calm-icon contrast fix
 
 Root cause (grounding §4): the `.tier-calm.tier-calm` rule (`styles.css:66-70`) sets `color: var(--c-accent-soft);` (the `color` declaration itself is at `:69`), which is inherited by `.icon` via `InlineIcon`'s `currentColor` (`styles.css:82-90`). The calm tier is intentionally "quiet" (soft accent edge + surface fill so it doesn't compete with the Hero), but that makes the **icon** too faint. The verdict text is already exempt (`.verdict` hard-sets `--c-text` at `:107`).
@@ -127,6 +131,8 @@ This keeps the calm tier's quiet *edge* (border-left stays `--c-accent-soft`) wh
 - **Implementation:** expose the newest-frame timestamp on the radar state slice (see §2.2). NowcastLine computes `Date.now() - newestFrameTs > 15 * 60 * 1000` → show `radarUnavailable`. Define the threshold as a named constant (e.g. `const RADAR_STALE_MS = 15 * 60 * 1000`) at the top of the file per the constants convention. The RADAR badge + sky icon still render in the unavailable state (origin remains honest).
 
 This touches `AppContext.js` + `WeatherMap/index.js` in addition to NowcastLine — a slightly broader blast radius than the rest of Change 1, but it ships **in this PR** (the calm copy is not honest without it).
+
+> **As built — freshness source.** `radarFrameTs` is not driven by the `AppContext` polls cited above and in §5 Q2: WeatherMap sets it from its RainViewer frame-list poll (`getMapTimestamps`, every 10 min — `MAP_TIMESTAMP_REFRESH_FREQUENCY`), taking the newest `kind: "past"` frame; the 5-min `RISK_REFRESH_INTERVAL` poll feeds the risk fields (rings and verdict) and never touches `radarFrameTs`. Between two frame-list polls the newest frame keeps ageing: right after a poll it is between the publish delay *L* and *L* + 10 min old, and just before the next poll up to *L* + 20 min, with no missed RainViewer cycle. So the "a single missed cycle does not false-trigger" reasoning does not hold as built: depending on poll phase, the 15-min gate can show "Radar unavailable" for part of each poll cycle. Not yet checked on a kiosk.
 
 ### 2.7 Remove the maximize affordance
 
@@ -206,6 +212,8 @@ btnForecast = inPriorityDock
 The button is `inPriorityDock`-only (priority branch, `: null` otherwise). This aligns v3.2 with v3.3's dock-driven navigation model: in both, forecast is reached the same way (dock chart-column button → MAX). Combined with Change 1 removing the Nowcast maximize, there is exactly one forecast entry point and it is identical across both layouts.
 
 **Both docks must be updated.** Because this resolution also **relocates the existing IA button** into the new views group (§3.1, Q4), the dock structure changes in *both* the **v3.2** (`feat/v32-radar-3-states`) and **v3.3** (`forcePriorityViews=on`) docks. Verify both: the views group (IA + forecast) renders correctly, and no v2/non-priority branch regresses (the views group is priority-only; the non-priority branch keeps its `: null` fallbacks for both buttons).
+
+> **As built.** The "priority-only" gate above (and `inPriorityDock` in the §3.2 pseudo-code) was never built for the forecast button, and it contradicted §2.8, which needs the forecast button on both docks. The forecast button is gated on `inPiDock` (`piLayoutState != null`, i.e. any LayoutPi — v3.2 stacked rail and v3.3 alike) since PR 275; since 2026-10 the IA button uses the same gate (it opens `AiView` on every Pi panel when the AI is configured). The views group therefore shows on every Pi dock. Off LayoutPi the forecast button is `null` and the IA button is the localhost debug-only toggle for the inline summary, so the group renders only when one of them exists.
 
 ---
 
