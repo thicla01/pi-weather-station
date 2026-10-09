@@ -10,12 +10,12 @@ const POLL_RETRY_DELAY_MS = 2000;
 /**
  * Self-contained state + actions for the in-app update flow.
  *
- * Owns the periodic `/api/update-check` poll (6 h cadence, matches the
- * server-side cache), the update-modal lifecycle, and the post-update
- * "wait for the server to come back" polling. Loaded once in
+ * Owns the periodic `/api/update-check` poll (6 h cadence; the server
+ * caches the GitHub check for 1 h), the update-modal lifecycle, and the
+ * post-update "wait for the server to come back" polling. Loaded once in
  * `AppContext` and surfaced through it; the public context API is
  * unchanged after this extraction so consumers (`UpdateModal`,
- * `ControlButtons`, `Debug`, `ambient/DebugPanel`) keep working without
+ * `ambient/ControlButtons`, `ambient/DebugPanel`) keep working without
  * any change at the call site.
  *
  * The hook initialises `skippedSha` from `localStorage` on mount so the

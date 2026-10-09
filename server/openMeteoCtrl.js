@@ -88,8 +88,9 @@ function asEnvelope(intervals) {
 
 /**
  * Pull the `current` block from Open-Meteo into a Tomorrow.io-shaped
- * envelope. Mirrors the field set returned by `/api/weather/current`
- * — same key names so client code doesn't need to branch on source.
+ * envelope. Covers a subset of the `/api/weather/current` field set
+ * (no windGust / visibility / epaIndex), using the same key names so
+ * client code doesn't need to branch on source.
  *
  * @param {Object} src Open-Meteo `current` block + units context
  * @returns {Object} envelope or null if no payload

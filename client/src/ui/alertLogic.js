@@ -1,17 +1,26 @@
 /**
- * Pure logic for the radar-derived alert banner, kept out of
- * `ambient/AlertBanner` so the state machine can be exercised
- * directly. No React, no JSX, no DOM — safe to test under `node:test`.
+ * Pure alert logic (radar banner state machine, gov-alert tier
+ * eligibility, event product-type classification, AIR alert
+ * threshold), kept out of `ambient/AlertBanner` so the state machine
+ * can be exercised directly. No React, no JSX, no DOM — safe to test
+ * under `node:test`.
  *
- * The exports here cover three concerns:
+ * The exports here cover these concerns:
  *
+ *   - `ELIGIBLE_GOV_TIERS` / `ELIGIBLE_GOV_TIERS_WITH_ADVISORY` +
+ *     `selectEligibleGovAlerts(alerts, showAdvisory)` — which gov-alert
+ *     tiers the banner stack displays (shared via `useEligibleGovAlerts`).
  *   - `severity(level)` — risk-level → numeric tier for comparison.
+ *   - `eventProductType(name)` — NWS/ECCC event name → product type
+ *     (warning / watch / advisory / statement) for the SeverityChip.
  *   - `isCurrentlyPrecipitating(weatherCode)` — Tomorrow.io weather-code
  *     check used to disambiguate "approaching" vs "intensifying" wording
  *     when the analyzer bumps the tier.
  *   - `getRadarAlertState(...)` — the main state machine. Returns an
  *     `{ tier, i18nKey, confidence, confidenceBucket }` object or
  *     `null` when the user shouldn't see a radar-derived banner.
+ *   - `getAirAlertState(category)` — the AIR card's health-risk
+ *     threshold (normalized AQ category → red / orange tier, or `null`).
  *
  * The wording rules and softening logic are documented inline at the
  * call sites — see the comments around the `bumped` / `drifting` /
@@ -43,11 +52,12 @@ export const ELIGIBLE_GOV_TIERS_WITH_ADVISORY = ["red", "orange", "yellow"];
  * Filter a list of government alerts down to the displayable tiers.
  * Single source of truth shared — via the `useEligibleGovAlerts` hook
  * — by the AlertBanner counter + primary index, AlertDetailInline,
- * FloatingMiniBanner and AlertMiniCards, so none of them disagree on
- * what "N active alerts" means. Before this existed, the banner counter
- * counted ALL tiers while the mini-cards list only showed red/orange,
- * so a sub-threshold yellow ECCC alert inflated "1 / 2" without ever
- * appearing as a card (the Nicolet report, 2026-05-29).
+ * FloatingMiniBanner, AlertMiniCards, AlertView (v3.3) and WeatherMap,
+ * so none of them disagree on what "N active alerts" means. Before
+ * this existed, the banner counter counted ALL tiers while the
+ * mini-cards list only showed red/orange, so a sub-threshold yellow
+ * ECCC alert inflated "1 / 2" without ever appearing as a card (the
+ * Nicolet report, 2026-05-29).
  *
  * @param {Array<{tier?: string}>} alerts
  * @param {boolean} [showAdvisory] — when true, also keep the
@@ -215,7 +225,7 @@ export function getRadarAlertState(
  *
  * Threshold = the health-risk level (maintainer decision 2026-06-18,
  * "afficher lorsqu'il y a des risques pour la santé"):
- *   - "veryHigh" → red    (AQHI ≥ 10 / IQA > 100 / EPA AQI > 150)
+ *   - "veryHigh" → red    (AQHI > 10, i.e. 10+ / IQA > 100 / EPA AQI > 150)
  *   - "high"     → orange  (AQHI 7-10 — the band where the official
  *                           AQHI message tells the general population to
  *                           reduce or reschedule strenuous outdoor activity)

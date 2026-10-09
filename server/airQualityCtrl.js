@@ -3,8 +3,9 @@
 // AirNow for the US, OpenAQ for the rest of the world), picks the
 // geographically closest one, and falls back to ECCC when none of
 // them returned anything. Soft-fails to {available:false} when
-// every source is empty so the client can transparently fall back
-// to other signals (Tomorrow.io's epaIndex when configured).
+// every source is empty, so the client treats air quality as absent
+// (the AirCard AQ row shows a "—" placeholder). There is no
+// secondary AQ signal.
 //
 // Why "closest wins" instead of strict source priority: the previous
 // "first non-null wins" rule produced an effect-edge bug —
@@ -59,7 +60,8 @@ function pickClosest(candidates) {
 
 /**
  * Read the orchestrator-level options every source might need.
- * Currently just the AirNow API key — other sources ignore it.
+ * Currently the AirNow and OpenAQ API keys — other sources ignore
+ * them.
  * Centralised here so each source stays dependency-free and the
  * settings read happens at most once per request.
  *
@@ -127,7 +129,9 @@ async function getAirQuality(req, res) {
 /**
  * Pre-register every air-quality source with the service-status
  * tracker so the Debug panel shows them as "Not yet called" before
- * the first poll lands. Called from `index.js` at startup.
+ * the first poll lands. Currently unused: `index.js` pre-registers
+ * the air-quality services through its hard-coded
+ * `registerKnownServices()` list instead.
  *
  * @param {Function} registerService Callback from serviceStatus
  */

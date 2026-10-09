@@ -25,7 +25,7 @@ import styles from "./styles.css";
  *   │                                            │              │
  *   │  WeatherMap (full-bleed behind everything) │  (overlays)  │
  *   │                                            │              │
- *   │  RadarFocusControl (Leaflet topleft)       │              │
+ *   │  RadarFocusControl (top-left, under +/-)   │              │
  *   ├────────────────────────────────────────────┴──────────────┤
  *   │  BottomDock                                                │
  *   └────────────────────────────────────────────────────────────┘
@@ -37,9 +37,10 @@ import styles from "./styles.css";
  * grow the rail width and the hero font sizes so the layout reads
  * proportional on both HD monitors and larger displays.
  *
- * Focus mode (toggled by the Leaflet RadarFocusControl in WeatherMap's
- * topleft control bar, sitting under the zoom +/- buttons) hides
- * HeroBand + the right rail so the radar fills the entire viewport.
+ * Focus mode (toggled by WeatherMap's RadarFocusControl — a standalone
+ * 40 × 40 px overlay button under the Leaflet zoom +/- stack, no longer
+ * a Leaflet bar control since v3.1 Phase 3) hides HeroBand + the
+ * right rail so the radar fills the entire viewport.
  * `desktopRadarMaximized` carries the state — flipped to `false` on
  * mount and back to `null` on unmount so the focus control disappears
  * when the user switches to LayoutPi / LayoutMobile.
@@ -63,11 +64,12 @@ const LayoutDesktop = () => {
   const { desktopRadarMaximized } = useContext(SystemContext);
   const { setDesktopRadarMaximized } = useContext(AppActionsContext);
 
-  // Sentinel pattern: flip to `false` on mount so the Leaflet focus
-  // control inside WeatherMap renders, and back to `null` on unmount
+  // Sentinel pattern: flip to `false` on mount so WeatherMap's
+  // RadarFocusControl renders, and back to `null` on unmount
   // so the control disappears when the user switches to LayoutPi /
   // LayoutMobile (no orphaned button on those layouts). LayoutPi
-  // mirrors this for piRadarMaximized.
+  // mirrors this with `piLayoutState` ("mid" on mount, `null` on
+  // unmount); `piRadarMaximized` is derived from it in AppContext.
   useEffect(() => {
     setDesktopRadarMaximized(false);
     return () => setDesktopRadarMaximized(null);

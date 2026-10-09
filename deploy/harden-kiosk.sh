@@ -14,8 +14,8 @@
 #   1. Blacklists the usb-storage kernel module (no USB mass storage)
 #   2. Masks unused getty TTYs (no Ctrl+Alt+F2..F6 shell)
 #   3. Installs usbguard with an allowlist built from currently-connected USB
-#   4. Installs ufw with a restrictive outbound policy (DNS/HTTP/HTTPS/NTP out,
-#      SSH in from the local subnet only)
+#   4. Installs ufw with a restrictive outbound policy (DNS/HTTP/HTTPS/NTP out;
+#      SSH 22 and the HTTPS UI 8443 in from the local subnet only)
 #   5. Hardens sshd: key-only auth, no root login
 #
 # Re-running after plugging a new USB device (e.g. a keyboard for maintenance)

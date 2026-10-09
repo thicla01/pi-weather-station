@@ -5,10 +5,10 @@
 // Free, no API key, but a descriptive User-Agent is required by
 // policy. Out-of-bounds points return HTTP 400 ("out of bounds")
 // which we silently treat as "no coverage" rather than an error —
-// the orchestrator already filters by bbox before calling, but the
-// border zones overlap with Canada and a kiosk near, say, Niagara
-// Falls is on the Canadian side often enough that the 400 is
-// expected, not exceptional.
+// tryAlerts' own pointInUSBox gate filters most out-of-coverage
+// points before calling, but the border zones overlap with Canada
+// and a kiosk near, say, Niagara Falls is on the Canadian side
+// often enough that the 400 is expected, not exceptional.
 
 const axios = require("axios").default;
 const { recordServiceCall } = require("../serviceStatus");
@@ -141,7 +141,7 @@ async function tryAlerts(lat, lon, { showTest = false } = {}) {
   } catch (err) {
     const status = err?.response?.status;
     // 400 = "out of bounds" for points outside US coverage. Silent
-    // by design — the orchestrator's bbox check covers most cases
+    // by design — this module's pointInUSBox gate covers most cases
     // but the API is the authoritative arbiter (it knows the exact
     // boundary of every NWS region).
     if (status === 400) {

@@ -14,15 +14,16 @@
 #   bash deploy/toggle-debug.sh
 #
 # When DEBUG=true, the bug-icon button appears in ControlButtons (localhost
-# only) and the /api/debug + /api/debug/cpu-temp endpoints become reachable.
-# Remote clients never see the debug panel regardless of this toggle —
-# debugLocalhostOnly middleware enforces that on the server.
+# only). The /api/debug, /api/debug/cpu-temp and /api/debug/fan-speed
+# endpoints do not depend on this flag: they are always reachable from
+# localhost and always blocked for remote clients (debugLocalhostOnly
+# middleware), so remote clients never see the debug panel either way.
 
 set -e
 
 # --- Locate the repo --------------------------------------------------------
-# (no $REPO_DIR needed here — unlike toggle-remote.sh, this script does not
-# rewrite anything inside the repo, only the systemd drop-in and the plist.)
+# (no $REPO_DIR needed here — this script does not rewrite anything inside
+# the repo, only the systemd drop-in and the plist.)
 PLATFORM="$(uname)"
 
 OVERRIDE_DIR="$HOME/.config/systemd/user/pi-weather-server.service.d"

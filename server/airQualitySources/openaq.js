@@ -124,7 +124,7 @@ function cacheKey(lat, lon) {
 /**
  * Short, English, log-friendly age formatter for the Debug panel
  * service-status line. Client-side rendering uses the localised
- * `formatAge` helper instead (see client/src/services/conversions.js).
+ * `formatAge` helper instead (see client/src/ui/formatAge.js).
  *
  * @param {String} observedAtIso ISO 8601 timestamp
  * @returns {String} e.g. "5m", "1h 20m", "3d"

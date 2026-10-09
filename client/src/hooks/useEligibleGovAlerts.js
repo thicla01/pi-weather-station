@@ -7,11 +7,13 @@ import { selectEligibleGovAlerts } from "~/ui/alertLogic";
  * Single source of truth for "which government alerts does the v3
  * banner stack display, and which one is currently active".
  *
- * Four ambient components — AlertBanner (head + counter),
+ * The ambient alert surfaces — AlertBanner (head + counter),
  * AlertDetailInline (body), FloatingMiniBanner (collapsed-rail
- * overlay) and AlertMiniCards (other-alerts list) — must agree on
- * both the displayed alert set and the current alert. Before this
- * hook each derived it independently and they diverged:
+ * overlay), AlertMiniCards (other-alerts list) and AlertView (the
+ * v3.3 full-rail alert view) — must agree on both the displayed
+ * alert set and the current alert; WeatherMap also reads the set to
+ * clear a map-zone highlight whose alert is no longer displayable.
+ * Before this hook each derived it independently and they diverged:
  *
  *   - AlertBanner / AlertDetailInline indexed into the dismissal-
  *     filtered list of ALL tiers, so the counter and the detail body
@@ -31,7 +33,7 @@ import { selectEligibleGovAlerts } from "~/ui/alertLogic";
  *      only when the `showAdvisoryAlerts` per-device opt-in is on.
  *   3. Resolve the current alert by `govAlertIdx % length`, the same
  *      modulo every consumer used, so one govAlertIdx maps to one
- *      alert across all four surfaces. Mini-cards pass an index into
+ *      alert across every surface. Mini-cards pass an index into
  *      THIS list to `selectGovAlert`, and the bound in AppContext
  *      (`idx < govAlerts.length`) still holds because the eligible
  *      list is a subset of the raw one.

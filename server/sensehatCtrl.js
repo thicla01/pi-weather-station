@@ -92,6 +92,19 @@ function _computeIsDay(sunrise, sunset) {
  *   cloudCover        {number}       0–100 %
  *   temperature       {number|null}  °C
  *   isDay             {boolean}      true between sunrise and sunset
+ *   sunriseTs         {number|null}  sunrise, epoch ms
+ *   sunsetTs          {number|null}  sunset, epoch ms
+ *   mode              {string}       "weather" | "clock" | "radar" | "auto"
+ *   radarBrightness   {number}       0–100 %
+ *   radar             {object}       optional, radar/auto modes only —
+ *                                    { grid, litCells, radiusKm }
+ *   alert             {object}       optional, only when a red/orange gov
+ *                                    alert is active — { tier, severity,
+ *                                    source, event }. NB: `event` is read
+ *                                    from `top.event`, but normalised gov
+ *                                    alerts carry `eventType`, so it is
+ *                                    currently always absent.
+ * See docs/api.md § GET /api/sensehat for the full description.
  *
  * @param {import("express").Request}  req
  * @param {import("express").Response} res

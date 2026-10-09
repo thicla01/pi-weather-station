@@ -6,12 +6,17 @@ const path = require("path");
 
 const CACHE_TTL = 60 * 60 * 1000; // 1 hour
 
-// Deploy artefacts that install.sh copies into the user's home tree on top
-// of the in-repo files. The in-app updater pulls new code into the working
-// copy with `git pull`, but it can't (and shouldn't, on its own) overwrite
-// the installed copies — those decisions sit with the user. We hash both
-// sides and surface a list of divergent files in the update modal so the
-// user can re-run `bash deploy/install.sh` to refresh them.
+// A subset of the deploy artefacts that install.sh copies into the user's
+// home tree on top of the in-repo files. The in-app updater pulls new code
+// into the working copy with `git pull`, but it can't (and shouldn't, on its
+// own) overwrite the installed copies — those decisions sit with the user.
+// We hash both sides and surface a list of divergent files in the update
+// modal so the user can re-run `bash deploy/install.sh` to refresh them.
+// Not checked (an upstream change to these is never flagged):
+// detect-display-scale.sh in ~/.local/bin, the Sense HAT units
+// (pi-sensehat.service, pi-sensehat-clock.service), and the kiosk autostart
+// files (labwc / wayfire / lxsession / XDG .desktop — their installed path
+// varies by display server).
 //
 // Each entry is { name, deployRel, installedPath, platform }:
 //   - name: short label shown in the modal
@@ -228,7 +233,10 @@ function parseCommitLine(firstLine) {
  * Checks GitHub for the latest commit on master.
  * Result is cached for 1 hour to stay within GitHub's unauthenticated rate limit (60 req/h).
  *
- * @returns {Promise<object>} { updateAvailable, latestVersion, latestSha, localSha, checkedAt, error? }
+ * @returns {Promise<object>} { updateAvailable, latestVersion, latestSha, localSha, checkedAt,
+ *   commits, changedDeployFiles, needsManualUpgrade, error? } — commits / changedDeployFiles /
+ *   needsManualUpgrade are set on a successful check; the error fallback (network failure, no prior
+ *   result) carries `error: true` instead
  */
 async function checkForUpdate() {
   const now = Date.now();

@@ -144,6 +144,7 @@ function isFailure(entry) {
  *   {
  *     status: "green" | "yellow" | "red",
  *     issues: [ { service, status, comment, critical } ],
+ *     providerStatus: { github: { name, indicator, description } } | null,
  *     lastChecked: <ISO timestamp>
  *   }
  *

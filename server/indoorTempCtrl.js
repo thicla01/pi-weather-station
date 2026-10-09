@@ -169,7 +169,9 @@ async function initIndoorTemperature() {
 
 /**
  * Express handler for GET /api/indoor-temperature.
- * Returns the cached reading, or 404 when the feature is not enabled.
+ * Returns the cached reading; 200 + `{ enabled: false }` when the
+ * feature is disabled, and `{ enabled: true, value: null, isStale: true, … }`
+ * before the first valid poll.
  *
  * @param {Object} req
  * @param {Object} res
