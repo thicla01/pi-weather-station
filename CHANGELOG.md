@@ -32,6 +32,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   Pi panels are unchanged. Found by reading the code; reproduced at 800×480 with the preference
   on and off.
 
+### Documentation
+- **A `☑` in the localization glossary now stays on the exact wording it validated.**
+  `tools/gen-localization-glossary.js` carried a validation mark forward on the locale key, or
+  on an inline `lbl()` row's EN string alone, and never compared FR or ES. Once rows were
+  validated, a mark would have leaked to every row sharing the EN text whatever its FR/ES (a
+  tick on `controls.groupDisplay`, ES "Visualización", also ticked the two SettingsPanel
+  "Display" rows whose ES is "Pantalla"), outlived a reworded FR or ES, and been lost on a key
+  rename: in a sandbox, 5 seeded ticks came out as 13. A mark is now kept only while its row
+  shows the same EN, FR and ES, matched on the key for a locale row and on the panel for an
+  inline row (identical rows of one panel share a mark). Rewording any of the three puts the
+  row back to `☐`; a mark whose row is gone (a renamed key, a string moved to the other panel
+  or migrated to a locale key) follows its unchanged wording to the new row, never to a row
+  already listed. Each regeneration prints the marks it moved or dropped, and any box it can't
+  read as a tick (the `☑️` an emoji picker inserts counts as `☑`) instead of losing it silently.
+  The round trip is now a test, `test/localizationGlossary.test.js`, along with the three
+  failures and the comment blanking of the `lbl()` scan. Also fixed: a key missing from `fr.json` or `es.json` crashed
+  the generator with a `TypeError` instead of producing the coverage-gap table. No row had been
+  validated yet, so no mark needed migrating. Documentation tooling only; nothing a Pi runs
+  changes.
+
 ## [3.3.0] - 2026-10-08
 
 ### Fixed (post-stamp, folded in before tagging)
