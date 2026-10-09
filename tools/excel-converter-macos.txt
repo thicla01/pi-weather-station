@@ -1,44 +1,53 @@
-# Pi Weather Station — Convertisseur CSV vers Excel (macOS)
-# Utilise le script tools/debug_csv_to_excel.py
+# Pi Weather Station — CSV to Excel converter (macOS)
+# Uses the script tools/debug_csv_to_excel.py
 
-# --- Installation (une seule fois) ---
+# --- Setup (one time only) ---
 
-# 1. Copier le script depuis le Pi vers le Mac
-#    (inutile si le dépôt est cloné sur le Mac : voir « Depuis un clone » plus bas)
+# 1. Copy the script from the Pi to the Mac
+#    (not needed if the repo is cloned on the Mac: see "From a clone" below)
 scp pi@<pi-ip-address>:~/pi-weather-station/tools/debug_csv_to_excel.py ~/Desktop/
 
-# 2. Créer un environnement virtuel Python
+# 2. Create a Python virtual environment
 python3 -m venv ~/venv-excel
 
-# 3. Mettre à jour pip
+# 3. Upgrade pip
 ~/venv-excel/bin/python3 -m pip install --upgrade pip
 
-# 4. Installer openpyxl
+# 4. Install openpyxl
 ~/venv-excel/bin/pip install openpyxl
 
-# --- Utilisation ---
+# --- Usage ---
 
-# Lancer le script (prend automatiquement le dernier CSV dans ~/Downloads)
+# Run the script (automatically picks the most recent CSV in ~/Downloads)
 ~/venv-excel/bin/python3 ~/Desktop/debug_csv_to_excel.py
 
-# Le fichier .xlsx est créé dans ~/Downloads/ avec le même nom que le CSV.
-# Chaque section du panneau debug (=== TITRE ===) devient un onglet séparé dans Excel.
-# Les cellules qui commencent par =, @ ou une tabulation (ou par + / - sans
-# être un nombre) gardent l'apostrophe de tête ajoutée par l'export (protection
-# contre l'injection de formules) : c'est voulu, elles restent du texte dans Excel.
-# Seuls les marqueurs de section ('=== TITRE ===) en sont débarrassés.
+# The .xlsx file is created in ~/Downloads/ with the same name as the CSV.
+# Each Debug panel section (=== TITLE ===) becomes a separate sheet in Excel.
+# Every cell, numbers included, is written as text, so the .xlsx never
+# contains a formula, even from an export older than 2026-06-11 or a
+# hand-edited CSV.
+# Cells that start with =, @, a tab or a carriage return (or with + / -
+# without being a number) keep the leading apostrophe added by the export
+# (formula-injection protection). This is intentional: without it, such a
+# cell would become a live formula as soon as it is edited in Excel, or the
+# sheet is saved as CSV and reopened.
+# Only the section markers ('=== TITLE ===) have it removed.
 
-# --- Optionnel : spécifier les fichiers manuellement ---
+# --- Optional: specify the files manually ---
 
 ~/venv-excel/bin/python3 ~/Desktop/debug_csv_to_excel.py ~/Downloads/fichier.csv ~/Desktop/resultat.xlsx
 
-# --- Depuis un clone du dépôt sur le Mac (toujours à jour après git pull) ---
+# --- From a clone of the repo on the Mac (always current after git pull) ---
 
-# (adapter le chemin si le dépôt est cloné ailleurs que dans ~/pi-weather-station)
+# (adjust the path if the repo is cloned somewhere other than ~/pi-weather-station)
 ~/venv-excel/bin/python3 ~/pi-weather-station/tools/debug_csv_to_excel.py
 
-# --- Mise à jour ---
+# --- Updating ---
 
-# Une copie sur ~/Desktop ne se met pas à jour toute seule : refaire l'étape 1
-# après une mise à jour du dépôt. Une copie antérieure à octobre 2026 met tout
-# dans un seul onglet « Overview » avec les CSV exportés depuis le 2026-06-11.
+# A copy on ~/Desktop does not update itself: redo step 1 after the repo is
+# updated. A copy taken before 2026-10-08 puts everything in a single
+# "Overview" sheet when given a CSV exported since 2026-06-11. A copy that
+# lacks write_text can turn a data cell that starts with = (export older than
+# 2026-06-11, or a hand-edited CSV) into a live Excel formula; this prints 0
+# for such a copy:
+grep -c write_text ~/Desktop/debug_csv_to_excel.py
