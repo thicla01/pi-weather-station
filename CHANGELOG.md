@@ -297,7 +297,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   Warning with intensity-5 echoes inside the 30 mi ring -- so the layouts compare against
   each other rather than against different weather. Captured through the app itself at exact
   viewports (headless Chrome over CDP, a real map tap for the position), EN / imperial / 12 h.
-  WebP: the whole set is 2.4 MB against 2.1 MB for the one PNG it replaces. The debug frame
+  WebP: the whole set is 2.3 MB against 2.1 MB for the one PNG it replaces. The debug frame
   deliberately shows the *services* bucket only -- the server bucket prints the host name and
   the machine's LAN addresses and must never be published.
 
