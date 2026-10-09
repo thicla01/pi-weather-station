@@ -1,6 +1,6 @@
 # Pi Weather Station — Software Architecture
 
-*Last updated: 2026-05-18 — current as of v2.16.5*
+*Last updated: 2026-10-08 — current as of v3.3.0*
 
 ---
 
@@ -18,10 +18,10 @@ An always-on display mounted in a home, operated exclusively by touch with no ke
 |---|---|---|
 | **Availability** | 24/7 unattended | systemd `Restart=on-failure`; weather, geolocation, and request-counter caches survive restarts; ExecStartPre waits for DNS before launching Node |
 | **API quota efficiency** | Minimize external calls | Server-side shared cache; all clients share one set of responses |
-| **Security** | Keys never leave the Pi | All external calls proxied server-side; remote clients receive masked booleans; passwords (Homebridge) entirely stripped from remote `/settings` responses |
+| **Security** | Keys never leave the Pi | All keyed external calls proxied server-side; remote clients receive masked booleans; passwords (Homebridge) entirely stripped from remote `/settings` responses |
 | **UI responsiveness** | < 500 ms for interactions | React local state; weather data pre-cached; no blocking calls on render |
-| **Maintainability** | Deployable with `git pull` | `dist/` committed to git; in-app updater runs `npm install` between pull and restart; pre-flight checks catch the common failure modes |
-| **Touchscreen usability** | No keyboard, fat-finger friendly | Drag-to-scroll, large tap targets, adaptive layout for 480px height |
+| **Maintainability** | Deployable with `git pull` | `dist/` committed to git; in-app updater runs `npm ci --omit=dev` between pull and restart; pre-flight checks catch the common failure modes |
+| **Touchscreen usability** | No keyboard, fat-finger friendly | Native touch scrolling, large tap targets, layouts tuned for 800×480 (priority-view Pi rail at `max-height: 540px`) |
 | **Cross-distro portability** | Pi OS, Debian/Ubuntu, openSUSE, macOS | `install.sh` detects apt vs zypper, browser family, and desktop environment (labwc / wayfire / LXDE-Pi / GNOME / KDE Plasma) |
 
 ---
@@ -46,18 +46,22 @@ An always-on display mounted in a home, operated exclusively by touch with no ke
                                          │                                         │
                                          │  /api/weather/*       → shared cache    │
                                          │  /api/weather/openmeteo  (PoC adapter)  │
-                                         │  /api/tiles/*         → shared cache    │
+                                         │  /api/tiles/*         → pass-through    │
                                          │  /api/reverse-geocode                   │
                                          │  /api/sunrise-sunset  (date param)      │
                                          │  /api/weather-summary  → AI cache       │
                                          │  /api/air-quality     → orchestrator    │
                                          │  /api/weather-alerts  → gov alerts      │
+                                         │  /api/nearby-alerts   → map overlay     │
+                                         │  /api/radar-risk      → ring tiers      │
+                                         │  /api/pollen          → Open-Meteo      │
                                          │  /api/sensehat        → cache + ipapi   │
                                          │  /api/indoor-temperature → 5-min cache  │
                                          │  /api/health          → service status  │
                                          │  /api/cert.pem        → PWA cert        │
                                          │  /api/update-check    → 1-hour cache    │
                                          │  /api/update          (localhost only)  │
+                                         │  device-control POSTs (localhost only)  │
                                          │  /api/debug           (localhost only)  │
                                          │  /settings  write     (localhost only)  │
                                          └────┬────────────────────┬───────────────┘
@@ -79,9 +83,11 @@ An always-on display mounted in a home, operated exclusively by touch with no ke
 
 **North** — remote browsers connect over HTTPS when `ALLOW_REMOTE=true`; remote clients have read-only access (settings writes always restricted to localhost)
 **West** — the kiosk browser on the Pi communicates via loopback, granting exclusive access to `/api/debug`, unmasked settings, and `/api/update`
-**Center** — the Pi is the gateway for all keyed APIs; no client ever reaches Tomorrow.io / Mapbox / LocationIQ / Anthropic / Homebridge directly. RainViewer radar tiles are an exception — they're fetched by the client directly because they require no key.
+**Center** — the Pi is the gateway for all keyed APIs; no client ever reaches Tomorrow.io / Mapbox / LocationIQ / EPA AirNow / OpenAQ / Anthropic / Homebridge directly. RainViewer radar tiles and frame index (and ECCC GeoMet WMS radar when the ECCC radar source is selected) are the exception — the client fetches them directly because they require no key.
 **South-internet** — keyed external APIs reachable only from the Pi
 **South-LAN** — Homebridge sits on the same network (often a separate IoT VLAN); used by the optional indoor-temperature feature
+
+*Abridged:* the box lists the main routes; the full list — including `/api/is-local`, `/geolocation`, `/api/update-check/force` and the localhost-only device-control writes (`/api/brightness`, `/api/display-scale`, `/api/relaunch-kiosk`, the `/api/sensehat-*` setters, `/api/kiosk-location`) — is in [`docs/api.md`](docs/api.md). `/api/tiles/*` keeps no server-side cache: tiles pass straight through from Mapbox and are cached by the browser only (the `/api` `no-store` middleware exempts them). The south row shows the core services only; the server also calls NWS, ECCC (alerts + AQHI), MELCC, EPA AirNow, OpenAQ, Open-Meteo (pollen + PoC weather) and GitHub (update check), and samples RainViewer itself in `radarAnalyzerCtrl` (AI summary, `/api/radar-risk`, Sense HAT grid) — full table under *External Services* in `CLAUDE.md`.
 
 ---
 
@@ -102,7 +108,10 @@ server/index.js  ─── entry point, routes, middleware, HTTPS server
     ├── proxyCtrl.js         Proxies all outbound API calls (Tomorrow.io,
     │                        Mapbox, LocationIQ, sunrise-sunset.org).
     │                        Owns the shared in-memory weather cache
-    │                        (persisted to weather-cache.json on shutdown).
+    │                        (saved to weather-cache.json every 5 min and
+    │                        on SIGTERM/SIGINT; expired entries kept 24 h
+    │                        for stale-on-error fallback; pruned to ≤ 512
+    │                        entries on the same 5-min pass).
     │                        Cache TTLs: 15 min current / 30 min hourly / 6 h daily.
     │
     ├── aiSummaryCtrl.js     Builds a prompt from cached weather data plus
@@ -118,12 +127,34 @@ server/index.js  ─── entry point, routes, middleware, HTTPS server
     │                        × 10 distances (5 km steps from 5 to 50 km);
     │                        outer ring (32 directions × 10 distances, 5 km
     │                        steps from 55 to 100 km) is opt-in via
-    │                        advanced.ai.extendedRadius. Disabled entirely
-    │                        when advanced.ai.radarAnalysisEnabled is false.
+    │                        advanced.ai.extendedRadius.
+    │                        advanced.ai.radarAnalysisEnabled = false skips
+    │                        it for the AI summary and stops the kiosk's
+    │                        /api/radar-risk poll (the Sense HAT radar/auto
+    │                        modes still sample).
     │                        Reads tile pixels via pngjs, classifies against
-    │                        the 6-level NEXRAD palette, returns a compact
-    │                        textual grid for inclusion in the AI prompt.
+    │                        the 6-level NEXRAD palette. Exports analyzeRadar
+    │                        (compact textual grid for the AI prompt),
+    │                        getRiskLevels (/api/radar-risk ring tiers +
+    │                        trends) and buildRadarGrid (Sense HAT 8×8 grid).
     │                        Tile cache: 60 min. Analysis cache: 5 min.
+    │
+    ├── airQualityCtrl.js    Air-quality orchestrator over airQualitySources/
+    │                        (MELCC Montréal, MELCC RSQAQ, EPA AirNow,
+    │                        OpenAQ queried in parallel — closest station
+    │                        wins; ECCC AQHI as the fallback).
+    │
+    ├── govAlertsCtrl.js     Gov severe-weather alerts orchestrator over
+    │                        govAlertSources/ (NWS point query, ECCC
+    │                        point-in-polygon; nwsZones.js resolves zone-only
+    │                        NWS alerts to polygons, 24 h cache). Sources run
+    │                        in parallel; one failing never blanks the other.
+    │
+    ├── pollenCtrl.js        Pollen badge — Open-Meteo Air Quality API,
+    │                        worst case of 6 allergens.
+    │
+    ├── openMeteoCtrl.js     PoC Open-Meteo weather adapter returning the
+    │                        Tomorrow.io envelope shape (source comparison).
     │
     ├── geolocationCtrl.js   Resolves the Pi's approximate location via
     │                        ipapi.co with retry-with-backoff (5 attempts)
@@ -132,23 +163,48 @@ server/index.js  ─── entry point, routes, middleware, HTTPS server
     │                        and ipapi outages.
     │
     ├── sensehatCtrl.js      Lightweight JSON endpoint for the Sense HAT
-    │                        Python display script (weatherCode, isDay,
-    │                        sunriseTs, sunsetTs, etc.). Reads location
-    │                        from settings.json, falls back to ipapi.co
-    │                        when no custom coordinates are configured.
+    │                        display daemons (sensehat_weather.py,
+    │                        horloge.py): weatherCode, isDay, sunriseTs,
+    │                        sunsetTs, mode, radarBrightness, etc., plus an
+    │                        optional radar 8×8 grid (radar/auto modes) and
+    │                        red/orange gov alert. Location: kiosk-location
+    │                        cache → settings.json startingLat/Lon →
+    │                        ipapi.co (1 h cache).
+    │
+    ├── sensehatModeCtrl.js  Sense HAT mode / availability / LED-brightness
+    │                        endpoints; switches the pi-sensehat ↔
+    │                        pi-sensehat-clock systemd units.
+    │
+    ├── kioskLocationCtrl.js In-memory cache of the kiosk's currently-viewed
+    │                        map coordinates (POST /api/kiosk-location,
+    │                        localhost only); consumed by /api/sensehat.
     │
     ├── indoorTempCtrl.js    Polls Homebridge (homebridge-config-ui-x REST
     │                        API) every 5 minutes for the configured
     │                        sensor. Auto-relogin on JWT expiry. Range-
     │                        based defensive filtering (5..40 °C, 0..100 %,
-    │                        AirQuality 1..5). Activated only when
-    │                        settings.indoorTemperature.enabled is true.
+    │                        AirQuality 1..5). The loop always runs; each
+    │                        tick re-reads settings.indoorTemperature and
+    │                        no-ops while it is disabled, so enabling it
+    │                        needs no server restart.
+    │
+    ├── brightnessCtrl.js    GET/POST /api/brightness — screen brightness via
+    │                        sysfs backlight (Pi) or DDC/CI (monitors).
+    │
+    ├── displayScaleCtrl.js  GET/POST /api/display-scale + POST
+    │                        /api/relaunch-kiosk — manages the DISPLAY_SCALE
+    │                        line in browser.conf (kiosk device-scale
+    │                        override); relaunch spawns
+    │                        deploy/relaunch-kiosk.sh detached.
     │
     ├── debugCtrl.js         Aggregates all diagnostic data for the debug
     │                        panel: system info, KPIs, provider status,
     │                        weather + AI cache state, quota counters,
     │                        service call history, security events, logs.
     │                        Always restricted to localhost.
+    │
+    ├── healthCtrl.js        GET /api/health — red/yellow/green roll-up of
+    │                        external-service statuses (serviceStatus).
     │
     ├── serviceStatus.js     In-memory journal of the last HTTP status and
     │                        timestamp for every external API call.
@@ -158,17 +214,40 @@ server/index.js  ─── entry point, routes, middleware, HTTPS server
     │                        Compared against quota limits in the debug panel.
     │
     ├── responseTimer.js     Express middleware. Records response time for
-    │                        every route; exposes count/avg/min/max per endpoint.
+    │                        every non-static route (404s skipped); exposes
+    │                        count/avg/min/max per endpoint.
     │
-    ├── clientTracker.js     Records the IP and first-seen timestamp of each
-    │                        remote client that connects to the server.
+    ├── clientTracker.js     Records first-seen / last-seen / request count
+    │                        per remote client, keyed on the socket peer
+    │                        (never req.ip); capped at 1000 entries.
     │
-    └── updateChecker.js     Polls the GitHub commits API once per hour to
+    ├── securityHeaders.js   Baseline security-header middleware, mounted
+    │                        first (nosniff, X-Frame-Options DENY,
+    │                        no-referrer, CSP frame-ancestors 'none').
+    │
+    ├── rateLimitKey.js      Rate-limit bucket key derived from the TCP
+    │                        socket peer — never req.ip / X-Forwarded-For.
+    │
+    ├── boundedCache.js      BoundedMap + expiry-sweep primitives that cap
+    │                        the in-memory caches (OOM guard).
+    │
+    ├── singleFlight.js      Concurrency guards: single-flight (409) for
+    │                        POST /api/update, per-peer in-flight cap (429)
+    │                        for /api/nearby-alerts.
+    │
+    └── updateChecker.js     Queries the GitHub commits API on demand (result
+                             cached 1 h; the client polls every 6 h) to
                              detect newer versions on master. Returns the
-                             version string, the SHA, the list of feat/fix
-                             commits in the diff, plus two booleans:
-                             - serviceFileChanged: would the upgrade modify
-                               the systemd service file?
+                             version string, the SHA, the list of
+                             user-facing commits (feat / fix / perf / style /
+                             polish / ux / release / chore(deps)) in the
+                             diff, plus two fields:
+                             - changedDeployFiles: installed deploy
+                               artefacts (pi-weather-server.service +
+                               start-server on Linux, the launchd plist on
+                               macOS) whose SHA-256 differs from the
+                               upstream master copy (null when nothing
+                               could be compared)
                              - needsManualUpgrade: is the local SHA older
                                than the npm-install-in-update fix (v2.4.1)?
                              Both feed warnings in the UI to gate the
@@ -180,20 +259,27 @@ server/index.js  ─── entry point, routes, middleware, HTTPS server
 
 ```
 require("dns").setDefaultResultOrder("ipv4first")    ← absorb broken-IPv6 LANs
-console.log/error wrapped to prepend ISO timestamp   ← printf-style preserved
+console.log/error wrapped to prepend local timestamp ← [YYYY-MM-DD HH:MM:SS], printf-style preserved
 ```
 
 ### Middleware stack (applied in order)
 
 ```
+app.disable("x-powered-by")
+securityHeaders           ← mounted first: nosniff, X-Frame-Options DENY,
+                            no-referrer, CSP frame-ancestors 'none'
 bodyParser.json()
-express.static()          ← serves client/dist/
-responseTimerMiddleware   ← records latency for every route
-req.isLocal assignment    ← true if req.ip is 127.0.0.1 / ::1
-  └── recordClient()      ← logs remote IPs
+express.static()          ← serves client/dist/ (tiered Cache-Control)
+responseTimerMiddleware   ← records latency for every non-static route (404s skipped)
+/api Cache-Control        ← no-store on every /api/* response except /api/tiles
+trust proxy = 1           ← only when ALLOW_REMOTE (affects req.ip, which no gate reads)
+req.isLocal assignment    ← true if the SOCKET PEER (req.socket.remoteAddress) is
+                            127.0.0.1 / ::1 / ::ffff:127.0.0.1 — never req.ip, which
+                            honours X-Forwarded-For under trust proxy
+  └── recordClient(socket peer) ← logs remote peers (non-local only)
 ```
 
-Then per-route middleware: `localhostOnly`, `debugLocalhostOnly`, `apiLimiter` (120/min), `tileLimiter` (600/min).
+Then per-route middleware: `localhostOnly`, `debugLocalhostOnly`, `apiLimiter` (120/min) and `tileLimiter` (600/min) — both limiters keyed on the socket peer via `rateLimitKey.socketPeerKeyGenerator` — plus `updateGuard` (single-flight, 409 `update-in-progress` on `POST /api/update`) and `nearbyAlertsConcurrencyGuard` (max 3 in flight per remote peer, 429, local kiosk exempt, on `GET /api/nearby-alerts`).
 
 The dev-only `open(URL)` (auto-launch the default browser at startup) is gated on `process.stdout.isTTY` so it only runs when Node was started from an interactive terminal — never in service mode (where it would fight with `start-server`'s kiosk launch).
 
@@ -205,92 +291,133 @@ The React frontend (`client/src/`) uses a single global context for shared state
 
 ### Layout variants (v3 / Direction C)
 
-Since v2.14 the kiosk renders one of three responsive layouts under a shared `AmbientLayers` root. The dispatcher reads `window.matchMedia` and reflows live on viewport changes (no reload):
+Since v2.15 (Direction C introduced in v2.14 with `LayoutPi` + `LayoutDesktop`; `LayoutMobile` added in v2.15) the kiosk renders one of three responsive layouts under a shared `AmbientLayers` root. The dispatcher reads `window.matchMedia` and reflows live on viewport changes (no reload):
 
 | Width | Layout | Audience |
 |---|---|---|
 | ≤ 799 px | **LayoutMobile** | Phone portrait (375-430 px iPhone / Android) — single scrollable column, mini radar with maximize button, pull-to-refresh |
-| 800-1279 px | **LayoutPi** | 7" / 10" Pi kiosk + small windows — 2-column grid with collapsible rail |
-| ≥ 1280 px | **LayoutDesktop** | HD monitor + desktop — full-bleed map background, floating HeroBand + rail, focus-radar Leaflet control hides them for full radar view |
+| 800-1279 px | **LayoutPi** | 7" / 10" Pi kiosk + small windows — map + rail split driven by `piLayoutState`: MIN (radar only) / MID (default split) / MAX (map thumbnail, forecast fills the rail) + the full-rail `ai` view; a ≤ 540 px-high viewport (e.g. the 7" 800×480) swaps the rail for the v3.3 priority-views glance (+ `conditions` / `alert` views) — state diagram in the `LayoutPi` JSDoc |
+| ≥ 1280 px | **LayoutDesktop** | HD monitor + desktop — full-bleed map background, floating HeroBand + rail, the `RadarFocusControl` overlay button hides them for full radar view |
 
 Full layout reference (with safe-area / PWA notes) in [`docs/ui-layout_fr.md`](docs/ui-layout_fr.md) and [`_en.md`](docs/ui-layout_en.md).
 
 ### Component tree (v3)
 
 ```
-AmbientLayers              CSS-variable root — sets palette tokens (day/dusk/night/
-│                          nightRed) per useTimeOfDay(), tracks viewport breakpoints,
-│                          paints body bg in JS for iOS PWA gap coverage, applies
-│                          --c-font-scale to scrollable subtrees
-│
-├── LayoutMobile / LayoutPi / LayoutDesktop   (one renders at a time)
-│   │
-│   ├── WeatherMap                Leaflet map with RainViewer radar + Mapbox tiles
-│   │   ├── MapResizer            invalidateSize on rail/maximize/focus toggles
-│   │   ├── PanHandler            Programmatic re-centering with rail-offset math
-│   │   ├── RailOffsetTracker     Pans marker when rail width changes
-│   │   ├── MapClickHandler       Click-to-recenter with 200 ms debounce
-│   │   ├── RadarFocusControl     Overlay button under the zoom stack — hides
-│   │   │                          hero+rail on LayoutPi and LayoutDesktop
-│   │   │                          (standalone button since v3.1 Phase 3, was a
-│   │   │                           Leaflet bar control before)
-│   │   ├── RiskRing              Dashed analysis rings (one or two stacked circles
-│   │   │                          based on risk tier + theme; see geometry.js)
-│   │   ├── RadarTimeline         Bottom-of-map scrubber + playhead + speed cycler
-│   │   ├── RadarLegend           Precipitation-tier legend overlay
-│   │   └── (Leaflet Marker)      Marker uses bundled L.Icon.Default + npm Leaflet
-│   │
-│   │   Pure helpers in `WeatherMap/geometry.js`:
-│   │   - offsetLatLon, buildArrowPath, buildSamplingPoints, panWithRailOffset
-│   │   - tierForIntensity, buildRingLayers, hasVal
-│   │   - RING_RISK_STYLE / DOT_COLOR_BY_TIER / ARROW_COLOR / RADAR_GEOMETRY
-│   │     / KM_PER_UNIT / METERS_PER_UNIT / BEARING_TO_DIR_* + reverse maps
-│   │
-│   ├── HeroBand / HeroCompact / TimeBlock    Layout-specific hero surfaces
-│   ├── AlertBanner               Severe-alert pill (gov alerts)
-│   ├── AlertDetailInline         Expandable detail w/ QR (grows natural height)
-│   ├── MetricsGrid               2×2 cells — wind / humidity / UV / AQ
-│   │                             (UV + AQ icon and qualifier colour-coded per
-│   │                              CATEGORY_TEXT_COLORS in ~/ui/severity.js)
-│   ├── IndoorBlock               Homebridge indoor temp (renders null when off)
-│   ├── ChartTabs                 24 h / 5 jours tabbed forecast (Chart.js)
-│   │   ├── HourlyForecastColumns
-│   │   └── DailyForecastColumns  (minmax(0,1fr) grid + sub-799px tightening)
-│   ├── AiSummaryInline           Claude summary w/ maximize button
-│   └── BottomDock
-│       ├── ControlButtons        Recenter, marker, timeline, arrows, legend,
-│       │                         contrast, auto, nightRed, refresh, settings
-│       │                         (secondary buttons hidden ≤479px portrait
-│       │                          via data-dock-priority="secondary")
-│       └── HealthIndicator       Coloured dot + popover — polls /api/health,
-│                                 green/yellow/red, listing failing services
+App                               Root — mounts the overlays and AmbientLayers as
+│                                 siblings. SettingsPanel + DebugPanel compute
+│                                 their own palette tokens: CSS custom properties
+│                                 don't propagate to siblings (see App/index.js)
 │
 ├── SettingsPanel                 Overlay — API keys, units, language, advanced,
 │                                 PWA cert download
 ├── DebugPanel                    Overlay — services / quotas / system info
 │                                 (localhost only)
 ├── UpdateModal                   In-app updater
+│
+├── AmbientLayers                 CSS-variable root — sets palette tokens (day/dusk/
+│   │                             night/nightRed) per useTimeOfDay(), tracks viewport
+│   │                             breakpoints, paints body bg in JS for iOS PWA gap
+│   │                             coverage, applies --c-font-scale to scrollable subtrees
+│   │
+│   └── LayoutMobile / LayoutPi / LayoutDesktop   (one renders at a time)
+│       │   [Pi] = LayoutPi only · [D/M] = LayoutDesktop + LayoutMobile only.
+│       │   Per-state Pi rail: LayoutPi JSDoc + docs/ui-layout_{en,fr}.md
+│       │
+│       ├── WeatherMap                Leaflet map with RainViewer (or ECCC WMS) radar
+│       │   │                         + Mapbox tiles
+│       │   ├── MapResizer            invalidateSize on rail/maximize/focus toggles
+│       │   ├── PanHandler            Programmatic re-centering with rail-offset math
+│       │   ├── RailOffsetTracker     Pans marker when rail width changes
+│       │   ├── MapClickHandler       Click-to-recenter with 200 ms debounce
+│       │   ├── RadarFocusControl     Overlay button under the zoom stack — hides
+│       │   │                          hero+rail on LayoutPi and LayoutDesktop
+│       │   │                          (standalone button since v3.1 Phase 3, was a
+│       │   │                           Leaflet bar control before)
+│       │   ├── RiskRing              Dashed analysis rings (one or two stacked circles
+│       │   │                          based on risk tier + theme; see geometry.js)
+│       │   ├── RingLabels            On-map radius chips (50 km / 30 mi; extended
+│       │   │                          ring 100 km / 60 mi)
+│       │   ├── AlertGeometryOverlay  Gov-alert polygons
+│       │   ├── NearbyAlertsOverlay   Nearby-alerts overlay (+ survey tap popup)
+│       │   ├── RadarTimeline         Bottom-of-map scrubber + playhead + speed cycler
+│       │   ├── RadarLegend           Precipitation-tier legend overlay
+│       │   └── (Leaflet Marker)      Marker uses bundled L.Icon.Default + npm Leaflet
+│       │
+│       │   Pure helpers in `WeatherMap/geometry.js`:
+│       │   - offsetLatLon, buildArrowPath, buildSamplingPoints, panWithRailOffset
+│       │   - tierForIntensity, buildRingLayers, hasVal
+│       │   - tierColour, buildAlertPolygonLayers, buildRadiusRingOptions,
+│       │     pointInGeometry (alert-polygon + radius-ring helpers)
+│       │   - RING_RISK_STYLE / DOT_COLOR_BY_TIER / ARROW_COLOR / RADAR_GEOMETRY
+│       │     / KM_PER_UNIT / METERS_PER_UNIT / BEARING_TO_DIR_* + reverse maps
+│       │
+│       ├── FloatingMiniBanner        Gov-alert chip over the map while the radar is
+│       │                             focused (Pi MIN / Desktop) or maximized (Mobile)
+│       ├── HeroBand / HeroCompact / TimeBlock    Layout-specific hero surfaces
+│       ├── AlertBanner               Alert head — gov (NWS/ECCC) and radar-derived
+│       │                             (RADAR) alerts; on the Pi rail the radar branch
+│       │                             is suppressed (NowcastLine carries it)
+│       ├── AlertDetailInline         Expandable detail w/ QR (grows natural height)
+│       │                             (Pi: not in the priority-views glance)
+│       ├── AlertMiniCards            Other active alerts + "restore hidden alerts"
+│       │                             pill (Pi: the pill only)
+│       ├── AirAlertCard        [Pi]  AIR health-risk card (AQ category high /
+│       │                             veryHigh) — AIR alerts never use AlertBanner
+│       ├── NowcastLine         [Pi]  Status-only RADAR line, always present
+│       ├── AirCard                   AQ (+ optional pollen) rows above the grid
+│       ├── MetricsGrid               2×2 cells — wind / gust / UV / humidity
+│       │                             (extended: + pressure / visibility in the Pi
+│       │                              Conditions view); qualifiers coloured via
+│       │                              the `--mx-cat-*` palette tokens
+│       ├── IndoorBlock               Homebridge indoor temp (renders null when off)
+│       │                             (Pi priority-views glance: MetricsGrid +
+│       │                              IndoorBlock move into ConditionsView)
+│       ├── ChartTabs                 24 h / 5 days tabbed forecast (Chart.js)
+│       │   │                         (Pi: shown in the MAX state only)
+│       │   ├── HourlyForecastColumns
+│       │   └── DailyForecastColumns  (minmax(0,1fr) grid + sub-799px tightening)
+│       ├── AiSummaryInline    [D/M]  Claude summary w/ maximize button
+│       ├── AiView              [Pi]  Full-rail "ai" state, every Pi panel (fetches
+│       │                             via components/hooks/useAiSummary)
+│       ├── ConditionsView / AlertView   [Pi]  v3.3 priority views (≤ 540 px
+│       │                                      height only)
+│       └── BottomDock
+│           ├── ControlButtons        Map: recenter, places, marker, timeline†,
+│           │   │                     arrows, legend†, nearby alerts (+ radar rings
+│           │   │                     when local + DEBUG); Views: AI view + forecast
+│           │   │                     (Pi dock only; elsewhere a local-debug
+│           │   │                     AI-summary hide toggle); Display: contrast,
+│           │   │                     auto, nightRed; System: refresh, settings
+│           │   │                     (+ debug when local + DEBUG, update when
+│           │   │                     available). † RainViewer source only.
+│           │   │                     Secondary buttons hidden ≤600px portrait
+│           │   │                     via data-dock-priority="secondary"
+│           │   └── PlacesPopover     Favorite locations (mounted while open)
+│           └── HealthIndicator       Coloured dot + popover — polls /api/health,
+│                                     green/yellow/red, listing failing services
+│
 └── ScreenSaver                   Sleep-mode stage 1 (clock) + stage 2 (anti-burn-in dot)
 ```
 
-The legacy v2 component tree (`InfoPanel` / `CurrentWeather` / `Clock` / `WeatherInfo` / `UvAqiBadges` / `Settings` / `Debug` / …) was **deleted in 2026-07**, together with the `experimentalUiC` flag that used to select it. The tree above is therefore the whole client — there is no second UI path. Six directories sit under `client/src/components/` outside `ambient/`, and v3 consumes all of them:
+The legacy v2 component tree (`InfoPanel` / `CurrentWeather` / `Clock` / `WeatherInfo` / `UvAqiBadges` / `Settings` / `Debug` / …) was **deleted in 2026-07**, together with the `experimentalUiC` flag that used to select it. The tree above is therefore the whole client at the surface level (leaf primitives such as `SourceBadge` or `DetailsPopover` are omitted) — there is no second UI path. Six directories sit under `client/src/components/` outside `ambient/`, and v3 consumes all of them:
 
 | Directory | Role in v3 |
 |---|---|
-| `App/` | Root layout — mounts `AmbientLayers`, `UpdateModal`, `ScreenSaver` |
+| `App/` | Root — mounts `AmbientLayers` plus the sibling overlays `SettingsPanel`, `DebugPanel`, `UpdateModal`, `ScreenSaver` |
 | `AmbientLayers/` | Palette / breakpoint dispatcher, picks the layout variant |
 | `WeatherMap/` | Leaflet radar map + its overlays and `geometry.js` helpers |
 | `LocationName/` | Reverse-geocoded place name, imported by `HeroBand` / `HeroCompact` |
 | `UpdateModal/` | In-app updater UX |
 | `ScreenSaver/` | Sleep-mode stages 1 and 2 |
 
-Plus two hook directories: `components/hooks/` (`useAiSummary`) and `~/hooks/` (`useUpdateChecker`, `useScreenSaver`, `useUiPreferences`, `useIdleDetection`, `useDismissedAlerts`, `useAutoTabSelector`, `useDisplayScale`, `useEligibleGovAlerts`, `useSenseHatMode`).
+Plus two hook directories: `components/hooks/` (`useAiSummary`) and `~/hooks/` (`useUpdateChecker`, `useScreenSaver`, `useUiPreferences`, `useIdleDetection`, `useDismissedAlerts`, `useAutoTabSelector`, `useDisplayScale`, `useEligibleGovAlerts`, `useSenseHatMode`, `useFavoriteLocations`).
 
 > ⚠️ Naming trap for anyone reading pre-July commits: `ambient/AlertBanner` is a **different, live** component from the deleted `components/AlertBanner`. Same for `ambient/AiSummaryInline`, `ambient/IndoorBlock`, `ambient/SettingsPanel` and `ambient/DebugPanel` — those are the v3 surfaces and were never removed.
 
 ### State management
 
-All shared state lives in `AppContext.js` (React Context + `useState`). Components read from context and call setter functions exposed by the context value. As of v2.18, three coherent clusters have been extracted into dedicated hooks under `~/hooks/` — AppContext composes them via `useUpdateChecker()` / `useScreenSaver()` / `useUiPreferences()` and re-exports their returns through the context, so consumers don't see any difference at the call site. The value is additionally published through seven sliced contexts — `AppActionsContext`, `SystemContext`, `LocationContext`, `UiPrefsContext`, `WeatherDataContext`, `AlertsContext`, `RadarStateContext` — so a component subscribes only to the slice it reads (most of the v3 `ambient/` tree uses these; the original catch-all `AppContext` export remains and is still what 13 components import when they need several slices at once).
+All shared state lives in `AppContext.js` (React Context + `useState`). Components read from context and call setter functions exposed by the context value. As of v2.18, three coherent clusters have been extracted into dedicated hooks under `~/hooks/` — AppContext composes them via `useUpdateChecker()` / `useScreenSaver()` / `useUiPreferences()` and re-exports their returns through the context, so consumers don't see any difference at the call site. Since then `useDisplayScale`, `useSenseHatMode`, `useIdleDetection` and `useFavoriteLocations` have joined the same way, so AppContext now composes seven hooks. The value is additionally published through seven sliced contexts — `AppActionsContext`, `SystemContext`, `LocationContext`, `UiPrefsContext`, `WeatherDataContext`, `AlertsContext`, `RadarStateContext` — so a component subscribes only to the slice it reads (most of the v3 `ambient/` tree uses these; the original catch-all `AppContext` export remains and is still what about a dozen components import when they need several slices at once).
 
 ```
 AppContext
@@ -298,14 +425,17 @@ AppContext
   │                                 anthropicApiKey, customLat, customLon
   │
   ├── Weather data                  currentWeatherData, hourlyWeatherData,
-  │                                 dailyWeatherData, sunriseSunset, mapGeo
+  │                                 dailyWeatherData, sunriseSunsetToday /
+  │                                 sunriseSunsetTomorrow, mapGeo
   │
-  ├── Feature availability          aiSummaryAvailable (gates radar circle),
+  ├── Feature availability          aiSummaryAvailable (dims the neutral radar
+  │                                 ring via `aiOff`; the rings themselves are
+  │                                 gated on `radarAnalysisEnabled`),
   │                                 isLocal, debugEnabled, isSystemd
   │
   ├── useUiPreferences hook         tempUnit, speedUnit, lengthUnit,
-  │   (localStorage-backed,         distanceUnit, clockTime, fontSize +
-  │    first-launch locale seed)    save* helpers
+  │   (localStorage-backed,         distanceUnit, pressureUnit, clockTime,
+  │    first-launch locale seed)    fontSize + save* helpers
   │
   ├── useScreenSaver hook           brightnessPercent + setBrightnessLive
   │   (brightness + sleep mode)     sleepEnabled, sleepStage1Delay,
@@ -319,6 +449,21 @@ AppContext
   │                                 updateErrorMessage, serverPlatform,
   │                                 isSystemd, refreshUpdateCheck,
   │                                 triggerUpdate, saveSkippedSha
+  │
+  ├── useDisplayScale hook          displayScaleAvailable, displayScaleOverride,
+  │   (kiosk device-scale           displayScaleAuto, displayScaleApplied,
+  │    override)                    displayScalePpi, displayScaleChoices,
+  │                                 saveDisplayScale, relaunchKiosk
+  │
+  ├── useSenseHatMode hook          senseHatAvailable, senseHatMode,
+  │   (Sense HAT display mode)      senseHatClockBrightness,
+  │                                 senseHatRadarBrightness + their setters
+  │
+  ├── useIdleDetection hook         sleepStage (0 / 1 / 2), fed by the
+  │   (idle watcher)                useScreenSaver sleep settings
+  │
+  ├── useFavoriteLocations hook     favorites, pin / remove / rename /
+  │   (Places, settings.json)       hydrate, canPin*, maxFavorites
   │
   ├── UI preferences (inline)       darkMode, mouseHide,
   │                                 hideRadarLegend, radarSource
@@ -339,23 +484,24 @@ AppContext
                                     (centralised in v2.18.1)
 ```
 
-> ⚠️ `AppContext.js` is ~2630 lines — further hook extractions (useLocation, useWeatherData) are tracked in `ROADMAP.md` as past the diminishing-returns line. The current arrangement is a workable middle ground: the three highest-value clusters live in their own hooks, the rest stays inline. (The v2-tree deletion in 2026-07 removed the `experimental` branch of the PATCH chain along with `saveAdvancedExperimentalFlag()`; it did not shrink the file materially, because the state the v3 tree needs was never the v2 tree's.)
+> ⚠️ `AppContext.js` is ~2900 lines — further hook extractions (useLocation, useWeatherData) are tracked in `ROADMAP.md` as past the diminishing-returns line. The current arrangement is a workable middle ground: seven clusters (update checker, screen saver, UI prefs, display scale, Sense HAT mode, idle detection, favorites) live in their own hooks, the rest stays inline. (The v2-tree deletion in 2026-07 removed the `experimental` branch of the PATCH chain along with `saveAdvancedExperimentalFlag()`; it did not shrink the file materially, because the state the v3 tree needs was never the v2 tree's.)
 
 ### Responsive adaptations
 
-Detected via `window.matchMedia` listeners that flip layouts and feature toggles live (no reload).
+Detected two ways, both live (no reload): `window.matchMedia` listeners where JS has to branch (the layout dispatch in `AmbientLayers`, the WeatherMap legend / timeline gates), and plain CSS `@media` queries for styling-only changes (the panels' compact grids, the `LayoutMobile` landscape mapCard, the dock's portrait row). The 540 px row below is the exception — read per render, not watched.
 
 | Trigger | Effect |
 |---|---|
 | `width ≤ 799 px` | Switch to `LayoutMobile` (single column, mini radar with maximize button, pull-to-refresh) |
-| `width 800-1279 px` | `LayoutPi` (2-column grid with collapsible rail) |
-| `width ≥ 1280 px` | `LayoutDesktop` (full-bleed map + floating panels + focus-radar control) |
-| `max-height ≤ 520 px` | SettingsPanel + DebugPanel switch to compact 2-column layouts; mobile mapCard maxi switches to landscape proportions. ChartTabs and the rail-collapse chevron are **always on** in `LayoutPi` / `LayoutDesktop` (no height gate). |
-| `(max-width: 479px) and (orientation: portrait)` | Dock hides `data-dock-priority="secondary"` buttons (auto / nightRed / timeline / arrows / legend) — essentials only |
+| `width 800-1279 px` | `LayoutPi` (map + rail split; `piLayoutState` MIN / MID / MAX + the `ai` view) |
+| `width ≥ 1280 px` | `LayoutDesktop` (full-bleed map + floating panels + `RadarFocusControl` overlay button) |
+| `max-height ≤ 520 px` | SettingsPanel + DebugPanel switch to compact 2-column layouts; WeatherMap collapses the radar legend to its (i) chip where the map can't spare the room (timeline open, or the Pi MID pane) and uses the compact timeline; on `LayoutMobile` in landscape the mini mapCard shrinks to 160 px. ChartTabs has no height gate. |
+| `max-height ≤ 540 px` (read per render by `priorityViewsEnabled()` in `ui/piLayout.js`, not a live listener; also forceable via the `forcePriorityViews` localStorage key) | `LayoutPi` switches to the v3.3 priority-views glance rail (+ `conditions` / `alert` full-rail views). Deliberately a **separate threshold** from 520 — don't unify the two queries |
+| `(max-width: 600px) and (orientation: portrait)` (was 479 px) | Dock hides `data-dock-priority="secondary"` buttons (timeline / arrows / legend / nearby alerts / auto / nightRed; timeline + legend stay while the mobile radar is maximized) — essentials only. Group spacing tightens further at ≤ 479 px |
 
 ### Font size zoom model
 
-`zoom: var(--c-font-scale)` (S=0.85, M=1.0, L=1.15) is applied to the scrollable rail only — `.rail` in `LayoutPi` and `LayoutDesktop`. Two boundaries were established by trial:
+Within the layouts, `zoom: var(--c-font-scale)` (S=0.85, M=1.0, L=1.15) is applied to the scrollable rail only — `.rail` in `LayoutPi` and `LayoutDesktop`. Two boundaries were established by trial:
 
 - **Not the `AmbientLayers` root.** It broke positioning of `position: absolute` children, because `100dvh` references inside the layout no longer matched the zoomed root.
 - **Not `LayoutDesktop`'s `heroSlot`.** Phase 7 polish briefly zoomed it too, but `zoom` expands a box visually without updating the layout engine's geometry: at scale 1.15 the slot painted ~968 px wide while its declared width stayed 842, the (also zoomed) rail marched left, and the clock got clipped by a ~150 px overlap. The hero is large enough at native size, so it stays unzoomed; `heroSlot`'s `right` offset instead multiplies `--c-rail-width` by `--c-font-scale` so the gap to the rail holds at every preference.
@@ -371,6 +517,8 @@ Scoping to the rail keeps the map at native resolution while the user's text-den
 
 `LayoutDesktop`'s `heroSlot` sits in the second group and additionally multiplies `--c-rail-width` by `--c-font-scale` in its `right` offset, so it always ends before the (zoomed) rail's visual left edge.
 
+The `SettingsPanel` and `DebugPanel` overlays sit outside both groups: they render outside `.ambientRoot`, so they never see `--c-font-scale`, and each sets its own `zoom: resolvePanelFontSizeZoom(fontSize)` on its root — one notch (×1.15) above the main UI scale; `DebugPanel` drops it to 1 at ≤ 520 px height.
+
 ---
 
 ## 5. Key data flows
@@ -383,17 +531,26 @@ boot
   → ExecStartPre loops `getent hosts ipapi.co` until DNS resolves (max 60 s)
   → npm start → node ./server/index.js
   → DNS preference set to ipv4first
-  → SSL cert loaded (or auto-generated on first run)
+  → TLS cert checked at every start (unless SKIP_CERT_AUTOGEN=true): root CA
+      generated if missing / hostname changed; leaf re-signed if missing,
+      expiring, or its CN / SAN no longer match (no cert → HTTP :8080 on
+      127.0.0.1 only)
   → HTTPS :8443 listens
   → initIndoorTemperature() schedules the 5-min Homebridge poll
   → start-server (from autostart) detects port open
   → reads ~/.config/pi-weather-station/browser.conf for browser choice
   → launches Chromium / Firefox in kiosk mode → https://localhost:8443
   → React app loads from dist/
-  → AppContext: loadStoredData() ← localStorage (units, dark mode, font size)
-  → AppContext: getCustomLatLon() ← settings.json via GET /settings
-  → AppContext: getBrowserGeo() ← navigator.geolocation (or IP fallback via /geolocation)
-  → AppContext: checkIsLocal() ← GET /api/is-local
+  → AppContext first render: useUiPreferences hydrates (lazy useState initializer)
+      ← localStorage (units, clock, font size; first-launch locale seed)
+  → App mount effect calls the AppContext actions, in order:
+      → getCustomLatLon() ← settings.json via GET /settings
+      → getBrowserGeo() ← startingLat/startingLon from GET /settings, else
+          GET /geolocation (server-side ipapi.co lookup, 30-day disk cache) —
+          navigator.geolocation is not used
+      → loadStoredData() ← localStorage (dark mode / auto, map zoom, marker,
+          radar source, alert toggles, …)
+      → checkIsLocal() ← GET /api/is-local
   → AppContext mount effect: getWeatherApiKey() + getReverseGeoApiKey() ← GET /settings
       (context-level on purpose — see the note below)
   → AppContext weather-poll effect (gated on `weatherApiKey && mapGeo`)
@@ -406,7 +563,9 @@ boot
       On LayoutPi the summary is not inline: ambient/AiView mounts on demand
       when the user opens the IA view, and fetches via components/hooks/useAiSummary
   → ambient/IndoorBlock mounts → GET /api/indoor-temperature
-  → UpdateModal opens automatically when GET /api/update-check returns updateAvailable=true
+  → useUpdateChecker polls GET /api/update-check (on mount + every 6 h); when
+      updateAvailable (and not the skipped SHA) the dock shows an update
+      button — tapping it (localhost only) opens UpdateModal
 ```
 
 > The API-key fetch and the weather poll both live in `AppContext`, not in a
@@ -481,41 +640,51 @@ Client: GET /api/weather-summary?lat=…&lon=…&lang=fr&localHour=14&…
 
 ```
 At server startup (initIndoorTemperature):
-  → reads settings.indoorTemperature → if not enabled, returns
-  → schedules pollOnce() every 5 min and runs it once immediately
+  → runs pollOnce() once and schedules it every 5 min, unconditionally; each
+      tick re-reads settings.indoorTemperature and no-ops (clearing the cache)
+      while disabled — enabling it needs no restart
 
 pollOnce():
   → fetchAccessoriesWithRetry(homebridgeUrl, username, password)
       → if no token or token expired, login (POST /api/auth/login)
       → GET /api/accessories with Bearer token
       → on 401, force re-login + retry once
-  → filter accessories matching the configured serviceName
+  → keep accessories whose serviceName equals the configured
+      indoorTemperature.sensorName
   → pick valid temperature, humidity, AirQuality (range-checked)
   → update in-memory cache { value, humidity, airQuality, lastUpdatedMs }
   → recordServiceCall("Homebridge", 200, "OK")
 
 Client: GET /api/indoor-temperature
-  → returns the cache (fresh or stale-marked) or 404 when feature is off
+  → returns 200 with the cache (isStale after 30 min; value: null before the
+      first reading), or 200 { enabled: false } when the feature is off
 ```
 
 ### One-click update (modern flow, v2.6.2+)
 
 ```
 User taps Update button (localhost only)
-  → POST /api/update
+  → POST /api/update   (single-flight guard: concurrent run → 409 "update-in-progress")
   → server pre-flight checks:
       - git symbolic-ref --short HEAD       (detects detached HEAD)
       - assert current branch == "master"   (detects wrong-branch)
-      - git status --porcelain              (detects local changes)
+      - (preparation, not a check) silently reverts package-lock.json,
+        client/package-lock.json and client/dist — auto-generated artefacts
+      - git status --porcelain --untracked-files=no   (detects local changes)
       - any failure → 409 with { reason, message } → modal renders the
         message in a red bordered box and stays on the failed state
-  → git pull --ff-only (timeout 30 s)
-  → npm install --omit=dev --no-audit --no-fund (timeout 180 s)
-  → res.json({ ok: true })
-  → setTimeout 500 ms → systemctl --user restart pi-weather-server
-                       (or process.exit on macOS / dev mode)
-  → client polls GET /api/is-local until the server responds
-  → page reloads automatically
+  → git pull --ff-only (timeout 90 s; timeout → 504 "pull-timeout",
+      root-owned files → 409 "permission-denied", other → 500 "pull-failed")
+  → npm ci --omit=dev --no-audit --no-fund (timeout 180 s; failure → 500
+      "npm-install-failed")
+  → res.json({ ok: true, isSystemd })
+  → after 500 ms: under systemd (INVOCATION_ID set) → systemctl --user restart
+      pi-weather-server (restart failure → shutdown()); otherwise → shutdown()
+      (cache saved, counters flushed, process exits — the updater issues no
+      restart; on a macOS launchd install, KeepAlive relaunches the server)
+  → client (isSystemd from /api/update-check): under systemd, polls
+      GET /api/is-local until the server responds, then reloads the page;
+      otherwise the modal shows the "stopped" state (no polling)
 ```
 
 When the local install is older than v2.4.1, /api/update-check returns
@@ -533,18 +702,32 @@ as the only viable recipe.
 ~/.config/systemd/user/
   └── pi-weather-server.service          Main unit (with ExecStartPre)
   └── pi-weather-server.service.d/
-        ├── override.conf                Log redirect, ALLOW_REMOTE, DEBUG
-        └── nvm.conf                     Bullseye 32-bit only — sources nvm
+        ├── override.conf                Log redirect + DEBUG
+        ├── local.conf                   ALLOW_REMOTE=true (install.sh /
+        │                                toggle-remote.sh; absent when
+        │                                remote access is off)
+        └── nvm.conf                     Only when node comes from nvm (e.g.
+                                         32-bit Bullseye) — sources nvm.sh
+                                         before npm start
   └── pi-sensehat.service                Optional — Sense HAT LED display
+  └── pi-sensehat-clock.service          Optional — Sense HAT clock (parked;
+                                         switched with pi-sensehat via
+                                         /api/sensehat-mode)
 
 ~/.local/bin/
   └── start-server                       Waits for server, launches the
                                          configured browser in kiosk mode
                                          (reads browser.conf for the choice).
+  └── detect-display-scale.sh            Per-panel auto-scale (physical PPI),
+                                         called by start-server
 
 ~/.config/pi-weather-station/
   └── browser.conf                       BROWSER_CMD, BROWSER_FAMILY
-                                         (chromium-family or firefox)
+                                         (chromium or firefox); optional
+                                         DISPLAY_SCALE (auto | <number> |
+                                         off — also written from Settings →
+                                         Advanced) and KIOSK_REMOTE_DEBUG
+                                         (off by default; diagnostics only)
 
 Display server / desktop autostart (one of):
   ~/.config/labwc/autostart              Trixie / Debian 13
@@ -559,17 +742,20 @@ Display server / desktop autostart (one of):
 
 ```
 ~/Library/LaunchAgents/
-  └── com.pi-weather-station.plist       launchd user agent (kept in sync
-                                         by install.sh; opens the URL in
-                                         the default browser via launchd
-                                         when the user logs in)
+  └── com.pi-weather-station.plist       launchd user agent (written by
+                                         install.sh from the deploy/
+                                         template): starts the server
+                                         (npm start) at login and keeps it
+                                         alive; logs to <repo>/server.log.
+                                         No browser is launched — open
+                                         https://localhost:8443 manually.
 ```
 
 ### Update flows on the target
 
 ```bash
 # In-app: from the kiosk's update modal — handled by /api/update
-# (git pull + npm install + restart) when local is v2.4.1+.
+# (git pull + npm ci --omit=dev + restart) when local is v2.4.1+.
 
 # Manual (recommended for v2.3.x → v2.6.x or any release that changes
 # the systemd service file):
@@ -590,6 +776,8 @@ cd ~/pi-weather-station && git pull && bash deploy/install.sh
 
 **Consequences:** Adds a server hop for every data fetch. Acceptable given the LAN context and 15–360 min cache TTLs.
 
+**Amended 2026-10-08:** the browser-direct exception is wider than RainViewer tiles — it covers the keyless radar sources: RainViewer tiles plus its frame index (`weather-maps.json`), and the ECCC GeoMet WMS radar layer (`geo.weather.gc.ca`) when the ECCC radar source is selected. Every *keyed* call is still proxied, so the decision stands.
+
 ---
 
 ### ADR-02 — `dist/` committed to git
@@ -608,7 +796,7 @@ cd ~/pi-weather-station && git pull && bash deploy/install.sh
 
 **Rationale:** Appropriate for the project's size at the time. A single context is simple to reason about and avoids prop drilling across the component tree.
 
-**Consequences:** `AppContext.js` grew large and became a known technical debt item. **Superseded in part:** the provider was since split into focused contexts so consumers subscribe to one slice instead of the whole value — `AppContext.js` now exports `AppActionsContext`, `SystemContext`, `LocationContext`, `UiPrefsContext`, `WeatherDataContext`, `AlertsContext` and `RadarStateContext` alongside the original catch-all `AppContext`. The *file* is still one module (~2630 lines) — what was split is the context surface, not the source file. Remaining extraction ideas (`useLocation`, `useWeatherData`) are tracked in `ROADMAP.md` as past the diminishing-returns line.
+**Consequences:** `AppContext.js` grew large and became a known technical debt item. **Superseded in part:** the provider was since split into focused contexts so consumers subscribe to one slice instead of the whole value — `AppContext.js` now exports `AppActionsContext`, `SystemContext`, `LocationContext`, `UiPrefsContext`, `WeatherDataContext`, `AlertsContext` and `RadarStateContext` alongside the original catch-all `AppContext`. The *file* is still one module (~2900 lines) — what was split is the context surface, not the source file. Remaining extraction ideas (`useLocation`, `useWeatherData`) are tracked in `ROADMAP.md` as past the diminishing-returns line.
 
 ---
 
@@ -620,7 +808,7 @@ cd ~/pi-weather-station && git pull && bash deploy/install.sh
 
 **Consequences (as originally shipped on the v2 `InfoPanel`):** two compensations were required — `height: calc(100dvh / zoom)` to prevent grey areas or hidden controls, and a counter-zoom (`zoom: 1/parentZoom`) on chart wrappers so Chart.js measured the container in its natural coordinate space. *Both are gone as of 2026-07:* they were properties of the v2 panel, which was a full-height flex column with `zoom` on its outermost box. The v3 rail is absolutely positioned with explicit `top`/`bottom`, so its height is constrained independently of `zoom` and neither compensation is needed — `grep`ping for `100dvh / zoom` or a counter-zoom in `client/src/` now returns nothing.
 
-**Container, then and now:** the original context was the v2 `InfoPanel` container *(historical — that component was deleted in 2026-07)*. Since v3 the decision is unchanged but the container moved: `zoom` is applied to the scrollable rail only — `.rail` in `LayoutPi` / `LayoutDesktop`. Applying it to the `AmbientLayers` root broke `position: absolute` children (`100dvh` references no longer matched the zoomed root), and applying it to `LayoutDesktop`'s `heroSlot` clipped the clock (zoom grows the painted box without updating layout geometry). See "Font size zoom model" in section 4 for both rejected placements.
+**Container, then and now:** the original context was the v2 `InfoPanel` container *(historical — that component was deleted in 2026-07)*. Since v3 the decision is unchanged but the container moved: within the layouts, `zoom` is applied to the scrollable rail only — `.rail` in `LayoutPi` / `LayoutDesktop` (the `SettingsPanel` / `DebugPanel` overlays, rendered outside `.ambientRoot`, apply their own boosted `zoom` via `resolvePanelFontSizeZoom`). Applying it to the `AmbientLayers` root broke `position: absolute` children (`100dvh` references no longer matched the zoomed root), and applying it to `LayoutDesktop`'s `heroSlot` clipped the clock (zoom grows the painted box without updating layout geometry). See "Font size zoom model" in section 4 for both rejected placements.
 
 ---
 
@@ -642,6 +830,8 @@ cd ~/pi-weather-station && git pull && bash deploy/install.sh
 
 **Consequences:** Browsers show a security warning on first visit. Users must accept the exception once. For remote access with a valid certificate, the Pi's IP must be included as a SAN — `install.sh` handles this automatically. Firefox kiosks use a dedicated named profile (managed by Firefox itself, snap-friendly) so the acceptance persists across launches.
 
+**Superseded in part (v2.17.0, 2026-05-22):** the single self-signed certificate became a two-cert chain — a locally generated root CA (10-year validity, served by `/api/cert.pem` so users trust it once per device, see [`docs/pwa-trust-cert_en.md`](docs/pwa-trust-cert_en.md)) signing an 825-day leaf. `install.sh` no longer generates a certificate; the server checks both at every start (unless `SKIP_CERT_AUTOGEN=true`) and re-signs the leaf when its CN, expiry or SAN no longer match — the SAN covers every LAN IPv4 address plus the hostname and `<hostname>.local`. An IP change re-signs only the leaf, so existing trust holds; a hostname change also regenerates the CA (its CN carries the hostname), so clients must trust it again. If no certificate can be produced, the server falls back to cleartext HTTP on :8080 bound to 127.0.0.1 only — never the LAN.
+
 ---
 
 ### ADR-07 — `ExecStartPre` waits for DNS before launching Node
@@ -662,6 +852,8 @@ cd ~/pi-weather-station && git pull && bash deploy/install.sh
 
 **Consequences:** The endpoint is now more conservative — it refuses to do destructive work on a misconfigured repo, and surfaces what the user needs to fix. Adds ~3 s for the npm install step on idempotent runs. The modal disables the auto button entirely when the local install is too old to be safely upgraded that way (`needsManualUpgrade`).
 
+**Superseded in part:** the install step became `npm ci --omit=dev --no-audit --no-fund` in v2.13.0 (2026-05-11, commit `c05b774`), so dependencies install strictly from the lockfile, which is never rewritten — `npm ci` rebuilds `node_modules` from scratch, so the "~3 s" above no longer describes it. Since the same release, the lockfiles and `client/dist` are also silently discarded before the local-changes check; the `git pull` timeout went from 30 s to 90 s (504 `pull-timeout` on expiry) in v2.19.0 (2026-06-02, commit `cec11e9`). Current flow: "One-click update" in section 5.
+
 ---
 
 ### ADR-09 — Browser choice persisted in `~/.config/pi-weather-station/browser.conf`
@@ -678,11 +870,7 @@ cd ~/pi-weather-station && git pull && bash deploy/install.sh
 
 | Limitation | Impact | Tracked in |
 |---|---|---|
-| No automated tests | Regressions not caught automatically | ROADMAP.md |
+| No React render tests (server + pure client logic are covered by `npm test` in CI) | UI regressions are caught only by manual or browser checks | ROADMAP.md |
 | `AppContext.js` too large | Growing harder to navigate | ROADMAP.md |
-| Service file customizations live in the main unit, not a drop-in | The in-app updater can't safely overwrite the service file when it changes upstream | ROADMAP.md |
-| Debug panel rows for `vcgencmd` show empty on x86 | Pi-specific monitoring fields are blank on Ubuntu/openSUSE deployments | ROADMAP.md |
-| No offline mode | Blank panel on internet outage (geolocation cache helps, but live weather doesn't) | ROADMAP.md |
-| Self-signed certificate | Browser warning on first visit | — (by design) |
-| `eslint-disable-line` suppressions | Hidden assumptions in hooks | ROADMAP.md |
-| Version history in both readme.md and CHANGELOG.md | Manual sync required | ROADMAP.md |
+| No offline mode | No client-side offline cache (service worker): during an internet outage the panel depends on the server's stale-on-error weather cache (up to 24 h past expiry, persisted in `weather-cache.json`); with no cached entry for the location the panel is blank | ROADMAP.md |
+| Self-signed local root CA | Browser warning until the CA is trusted once per device | — (by design) |

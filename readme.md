@@ -57,16 +57,16 @@ Every v3 capture below is the **same location at the same hour** — Mont Belvie
 | [![Phone layout](docs/screenshots/v3-phone-radar.webp)](docs/screenshots/v3-phone-radar.webp) | [![nightRed palette on the Pi kiosk](docs/screenshots/v3-pi7-nightred.webp)](docs/screenshots/v3-pi7-nightred.webp) |
 | A single scrollable column, scrolled here to the mini radar card and its maximize button, with the precipitation forecast below. | `nightRed` — the melatonin-friendly palette for a bedroom or hallway kiosk. Radar intensity keeps its own colours so the map stays readable. |
 
-The dark **dusk** palette (the default when dark mode is on outside the night window) is [`v3-desktop-dusk.webp`](docs/screenshots/v3-desktop-dusk.webp).
+The dark **dusk** palette (used whenever dark mode is on and the night-vision red palette is off) is [`v3-desktop-dusk.webp`](docs/screenshots/v3-desktop-dusk.webp).
 
 ### What the station shows
 
-- **Indoor sensors block** — temperature / humidity / air quality from Homebridge, displayed next to the clock.
+- **Indoor sensors block** — temperature / humidity / air quality from Homebridge, shown with the outdoor metrics, under the metrics grid.
 - **AI-generated weather summary** powered by Claude, with a radar-movement paragraph describing nearby precipitation.
 - **Severe-weather alert banner** — fed by NWS (US) and ECCC (Canada) plus a local radar-derived tier. Every banner carries a leading `RADAR` / `ECCC` / `NWS` source badge so the origin is unambiguous; RADAR banners get an optional confidence pill (green / amber / red), and a tap cycles through multiple active government alerts.
 - **Gov-alert detail section** — collapsible block under the banner with the alert's full description and a QR code that opens the upstream alerts page on the user's phone (kiosk-safe: no risk of getting trapped on an external page).
-- **Direction-arrow overlay** on the map (optional, toggled from a button near the zoom controls) — shows per-bearing motion of nearby precipitation bands.
-- **UV and AQI badges** chained across multiple government sources (MELCC for Quebec, AirNow for the US, OpenAQ as a global fallback, ECCC AQHI Canada-wide).
+- **Direction-arrow overlay** on the map (optional, toggled from a button in the bottom dock; needs the radar analysis rings on) — shows per-bearing motion of nearby precipitation bands.
+- **Air quality and UV** — the air card shows the closest air-quality station across MELCC (Quebec), AirNow (US) and OpenAQ (global), with ECCC AQHI as the Canada-wide fallback, plus an optional pollen row (Open-Meteo); UV comes from Tomorrow.io's current conditions, as a tile in the metrics grid.
 - **Light / dark map styles**, user-selectable from settings.
 - **Hardware screen-brightness control** on supported displays.
 - **Opt-in sleep mode / screensaver** with a melatonin-friendly red night palette.
@@ -114,7 +114,7 @@ Government air-quality and severe-weather data is pulled from public endpoints t
 - **Air quality** — [Environment Canada AQHI](https://api.weather.gc.ca/) for Canada-wide coverage, [MELCC RSQA](https://donnees.montreal.ca/dataset/rsqa-indice-qualite-air) for the Island of Montreal, and [MELCC RSQAQ](https://www.environnement.gouv.qc.ca/air/iqa/) for the rest of Quebec.
 - **Severe-weather alerts** — [Environment Canada](https://api.weather.gc.ca/collections/weather-alerts) for Canadian alerts (NWS for US alerts uses a public User-Agent only, no key).
 
-These public sources are used as automatic fallbacks: the air-quality block prefers a configured AirNow / OpenAQ key when available and falls back to the government feeds based on the user's location; alert banners pull from NWS or ECCC depending on whether the user's point falls inside a US or Canadian alert polygon.
+These public sources are combined automatically: the air-quality block queries MELCC (Montréal + rest of Quebec), AirNow and OpenAQ (the latter two only when their key is configured) in parallel and shows the geographically closest station, with ECCC AQHI as the Canada-wide fallback when none of them has coverage; alert banners pull from NWS or ECCC depending on whether the user's point falls inside a US or Canadian alert polygon.
 
 See the **original v1** in action in [this video](https://www.youtube.com/watch?v=dvM6cyqYSw8) by [@elewin](https://github.com/elewin), the author of the original project this fork is based on. The video predates everything shown above (no AI summary, no alert banner, no QR-coded alert detail, etc.) but gives a feel for the kiosk concept and the touchscreen interaction model that this fork built on.
 
@@ -124,13 +124,13 @@ See the **original v1** in action in [this video](https://www.youtube.com/watch?
 
 For day-to-day updates, the in-app updater handles `git pull`, `npm ci`, and the service restart automatically. The flow:
 
-1. When a new release is available on GitHub, the **update icon** in the bottom dock (the control-button row at the bottom of the screen) shows a small red notification badge.
-2. Tapping the icon opens a modal listing the new commits since the installed version, with an **Update** button at the bottom.
+1. When new user-facing commits (features, fixes, dependency bumps and the like — not docs-only pushes) land on `master` on GitHub, an **update icon** with a small orange notification badge appears in the bottom dock (the control-button row at the bottom of the screen).
+2. On the kiosk itself (localhost), tapping the icon opens a modal listing the user-facing commits since the installed version, with **Skip this version** and **Update** buttons at the bottom. Remote clients only get a notice: the update can only be triggered from the device (or through an SSH tunnel).
 3. The Update button triggers the upgrade and restarts the service. The kiosk reloads to the new version automatically.
 
-If your installed version is too old for the in-app updater to handle (released before the updater learned to run `npm install`, i.e. older than v2.4.1), the modal detects it and shows a one-time `bash deploy/install.sh` recipe to bootstrap before normal updates resume.
+If your installed version is too old for the in-app updater to handle (released before the updater learned to run `npm install`, i.e. older than v2.4.1), the modal detects it and shows a one-time `bash deploy/install.sh` recipe to bootstrap before normal updates resume. The same recipe (and a disabled Update button) appears whenever an update changes an installed launcher or service file (`start-server`, `pi-weather-server.service`, or the macOS launchd plist), which `git pull` alone can't refresh.
 
-The Debug panel (localhost-only, see further below) has a separate **Check for update** button that forces a fresh fetch from GitHub when you don't want to wait for the 1-hour update-check cache to expire — useful right after a release lands and you want to confirm the device sees it.
+The Debug panel (localhost-only, see further below) has a separate **Check for updates** button that forces a fresh fetch from GitHub when you don't want to wait for the 1-hour update-check cache to expire — useful right after a release lands and you want to confirm the device sees it.
 
 # Version history
 
@@ -169,7 +169,7 @@ for tagged releases.
 
 > **Hardware:** runs on any Raspberry Pi from the **3B (1 GB)** up — tested continuously on a fleet of Pi 3B, Pi 4B, Pi 5, and CM5 units (plus regular Debian/Ubuntu, openSUSE, and macOS machines). The Pi 3B / 3B+ is the practical floor: validated by a months-long endurance bench on the current version (longest uninterrupted run 20+ days, zero software failures — the July 2026 performance work that made this comfortable cut server memory from ~158 to ~92 MB and background traffic by 64 %, see [PR 294](https://github.com/thicla01/pi-weather-station/pull/294)). Two things matter on a 1 GB board: run **v3.2.0 or later**, and **power the Pi directly** through its own power input with a proper supply (official 5.1 V / 2.5 A) — never through the official touchscreen's board via the GPIO pins, which drops enough voltage under load to cause freeze-then-watchdog-reboot cycles ([issue 284](https://github.com/thicla01/pi-weather-station/issues/284)).
 
-> **Node.js requirement:** Node.js 18 or later is required to **run** the server. `install.sh` installs Node.js 22 on all supported platforms — via [nvm](https://github.com/nvm-sh/nvm) on Bullseye 32-bit (`armv7l`, where NodeSource has no packages), and via NodeSource on Bullseye 64-bit (`aarch64`), Bookworm (Debian 12), and Trixie (Debian 13). **Building** the client (`npm run prod` — only needed with `--rebuild-client` or for development, since the bundle ships pre-built in `client/dist/`) requires Node `^22.18 || >=24.11` (Babel 8 toolchain).
+> **Node.js requirement:** Node.js 18 or later is required to **run** the server. When Node.js is missing or older than 18, `install.sh` offers to install it — Node.js 22 via [nvm](https://github.com/nvm-sh/nvm) on Bullseye 32-bit (`armv7l` / `armv6l`, where NodeSource has no packages), via NodeSource on Bullseye 64-bit (`aarch64`), Bookworm (Debian 12), Trixie (Debian 13) and other Debian / Ubuntu releases, and via zypper (`nodejs22`) on openSUSE; on macOS it installs Homebrew's current `node` (Homebrew must already be installed). **Building** the client (`npm run prod` — only needed with `--rebuild-client` or for development, since the bundle ships pre-built in `client/dist/`) requires Node `^22.18 || >=24.11` (Babel 8 toolchain).
 
 > **API keys:** If you use the automated install (Option 1), the script will offer to configure your API keys automatically. For a manual setup, copy the example settings file and edit it:
 
@@ -188,6 +188,8 @@ Now point your browser to `https://localhost:8443` and put it in full screen mod
 ## Running on startup
 
 Three options are available in the `deploy/` folder. **Option 1 is recommended** for most users.
+
+> **Clone location:** on Linux, clone the repository into your home directory (`cd ~` before `git clone`) — the systemd units (`pi-weather-server`, `pi-sensehat`, `pi-sensehat-clock`) and `start-weather` expect the checkout at `~/pi-weather-station`. On macOS the launchd agent adapts to wherever you cloned.
 
 > **Which display server am I using?** Run the following command to find out:
 > ```bash
@@ -208,15 +210,17 @@ bash deploy/install.sh
 ```
 
 It will:
-- Check for Node.js (v18 minimum) and offer to install Node.js 22 if missing or outdated — via nvm on Bullseye 32-bit, via NodeSource on all other platforms
+- Sync the checkout with `git pull --ff-only` on `master` (the script stops if that fails); any branch other than a `feat/*` / `fix/*` development branch, which is left as is, is switched to `master` first. Local edits to the auto-generated npm lockfiles and `client/dist/` are reset beforehand — harmless, nobody hand-edits them. It also checks that `curl` and `git` are installed
+- Check for Node.js (v18 minimum) and offer to install it if missing or outdated — Node.js 22 via nvm on Bullseye 32-bit, via NodeSource on other Debian / Ubuntu / Pi OS systems, and via zypper on openSUSE; Homebrew's current `node` on macOS (Homebrew must already be installed)
 - Optionally configure your API keys and create `settings.json`
 - Optionally enable remote access from other machines on the network (see [Access from another machine](#access-from-another-machine))
 - Optionally enable the debug panel (see [Debug panel](#debug-panel))
 - Install server dependencies (`npm ci`); the React bundle ships pre-built in `client/dist/`, so the client only rebuilds if `--rebuild-client` is passed or `bundle.min.js` is missing
 - Vulnerability scanning + automatic security PRs are handled by Dependabot on GitHub (see `.github/dependabot.yml`); merged PRs propagate to every Pi via the in-app updater's `npm ci`
-- Configure and start the systemd service with log redirection to `~/.local/state/pi-weather-station/server.log` (a persistent path — `/tmp` is a tmpfs on Trixie; installs older than 2026-06 used `/tmp/weather-server.log` until `install.sh` is re-run)
+- Configure and start the systemd service with log redirection to `~/.local/state/pi-weather-station/server.log` (a persistent path — `/tmp` is a tmpfs on Trixie; installs older than 2026-06 used `/tmp/weather-server.log` until `install.sh` is re-run) — on macOS, a launchd agent logging to `<repo>/server.log` instead, with no log rotation and no kiosk / autostart steps
 - Install log rotation (`/etc/logrotate.d/weather-server`, generated from the `deploy/logrotate-weather-server` template with your user and log path) — daily rotation, 7 days history, 10 MB cap, compressed
-- Optionally enable kiosk mode — deploy `~/.local/bin/start-server` and configure your display server's autostart to launch Chromium in fullscreen automatically (default: yes). When declined, the server still starts via systemd but no autostart is configured
+- Optionally enable kiosk mode (default: yes) — pick the kiosk browser from those installed (saved to `~/.config/pi-weather-station/browser.conf`), report the panel's display auto-scale, and configure your display server's autostart (labwc / wayfire / LXDE-pi, or an XDG `.desktop` entry on GNOME, KDE and other desktops) to launch `~/.local/bin/start-server` in fullscreen. `start-server` is installed either way; when kiosk mode is declined, the server still starts via systemd but no autostart is configured
+- Optionally (*Advanced features*, default: no) set up a Sense HAT LED display, indoor temperature from Homebridge, and touchscreen brightness control on official DSI screens — the latter adds `dtoverlay=rpi-backlight` to the Pi's `config.txt` (with a backup) and a udev rule
 - Offer to reboot to launch the application automatically (default: yes)
 
 Each prompt shows the default choice in uppercase — pressing Enter accepts the default.
@@ -228,6 +232,7 @@ Starts the server automatically at boot, independent of the graphical session. R
 ```bash
 git clone https://github.com/thicla01/pi-weather-station.git
 cd pi-weather-station
+mkdir -p ~/.config/systemd/user
 cp deploy/pi-weather-server.service ~/.config/systemd/user/
 npm install
 cd client && npm install && npm run prod && cd ..
@@ -251,6 +256,8 @@ loginctl enable-linger $USER
 mkdir -p ~/.local/bin
 cp deploy/start-server ~/.local/bin/start-server
 chmod +x ~/.local/bin/start-server
+cp deploy/detect-display-scale.sh ~/.local/bin/detect-display-scale.sh
+chmod +x ~/.local/bin/detect-display-scale.sh
 ```
 
 > **Bullseye 32-bit with nvm:** If you installed Node.js via nvm (see Node.js requirement above), systemd does not load the shell profile where nvm is initialized. Create an additional drop-in to source nvm explicitly — replace `~/.config/nvm` with `~/.nvm` if that is where nvm was installed:
@@ -263,12 +270,23 @@ chmod +x ~/.local/bin/start-server
 > systemctl --user daemon-reload
 > ```
 
-Then configure your display server's autostart to launch `start-server`. This script waits for the server to be ready, automatically detects whether it started on port 8443 (HTTPS) or 8080 (HTTP), and automatically detects the Chromium binary (`chromium` on Bookworm/Trixie, `chromium-browser` on Bullseye).
+Then configure your display server's autostart to launch `start-server`. This script waits up to 5 minutes for the server, automatically detects whether it started on port 8443 (HTTPS) or 8080 (HTTP), and launches the browser named in `~/.config/pi-weather-station/browser.conf` — or, when that file is absent, the first of `chromium`, `chromium-browser` (Bullseye), `google-chrome` or `firefox` it finds. With `detect-display-scale.sh` installed next to it in `~/.local/bin`, it also applies the panel's display auto-scale.
 
-**labwc** (default on Trixie/Debian 13):
+`browser.conf` is optional for launching, but the Settings panel's **Display scale** control (under *Location & hardware*) only appears when it exists. To create it (use `chromium-browser` on Bullseye, or `firefox` for both values with Firefox):
 
 ```bash
-cp deploy/autostart ~/.config/labwc/autostart
+mkdir -p ~/.config/pi-weather-station
+cat > ~/.config/pi-weather-station/browser.conf << 'EOF'
+BROWSER_CMD="chromium"
+BROWSER_FAMILY="chromium"
+#DISPLAY_SCALE=auto
+EOF
+```
+
+**labwc** (default on Trixie/Debian 13) — append, so any existing autostart entries are kept:
+
+```bash
+mkdir -p ~/.config/labwc && cat deploy/autostart >> ~/.config/labwc/autostart
 ```
 
 **wayfire** (default on Bookworm/Debian 12) — add to `~/.config/wayfire.ini` under the `[autostart]` section:
@@ -281,9 +299,25 @@ start-server = start-server
 **X11/LXDE** (default on Bullseye/Debian 11) — if `~/.config/lxsession/LXDE-pi/autostart` does not exist yet, copy the system default first to preserve the desktop entries, then append `start-server`:
 
 ```bash
+mkdir -p ~/.config/lxsession/LXDE-pi
 [ ! -f ~/.config/lxsession/LXDE-pi/autostart ] && \
   cp /etc/xdg/lxsession/LXDE-pi/autostart ~/.config/lxsession/LXDE-pi/autostart
 echo "@start-server" >> ~/.config/lxsession/LXDE-pi/autostart
+```
+
+**GNOME / KDE Plasma / other XDG desktops** — create an XDG autostart entry (the unquoted `EOF` expands `$HOME` to an absolute path, since `.desktop` files do not expand variables themselves):
+
+```bash
+mkdir -p ~/.config/autostart
+cat > ~/.config/autostart/pi-weather-station.desktop << EOF
+[Desktop Entry]
+Type=Application
+Name=Pi Weather Station Kiosk
+Comment=Launches the weather station in fullscreen at login
+Exec=$HOME/.local/bin/start-server
+Terminal=false
+X-GNOME-Autostart-enabled=true
+EOF
 ```
 
 View logs with:
@@ -300,7 +334,7 @@ sudo reboot
 
 ### Option 3 — autostart script (without systemd)
 
-Copy the provided script to `~/.local/bin/` and call it from your compositor's autostart:
+Requires the repository at `~/pi-weather-station` (see the clone-location note above — the script `cd`s there and runs `npm start`) with its server dependencies installed (`npm ci`). Copy the provided script to `~/.local/bin/` and call it from your compositor's autostart:
 
 ```bash
 mkdir -p ~/.local/bin
@@ -313,7 +347,7 @@ sed -e '/^[[:space:]]*#/d' -e '/^$/d' \
     deploy/logrotate-weather-server | sudo tee /etc/logrotate.d/weather-server >/dev/null
 ```
 
-This script starts the Node.js server, waits for it to be ready, automatically detects whether it started on port 8443 (HTTPS) or 8080 (HTTP), and automatically detects the Chromium binary (`chromium` on Bookworm/Trixie, `chromium-browser` on Bullseye).
+This script starts the Node.js server, waits for it to be ready, automatically detects whether it started on port 8443 (HTTPS) or 8080 (HTTP), and automatically detects the Chromium binary (`chromium` on Bookworm/Trixie, `chromium-browser` on Bullseye). It always launches Chromium: it does not read `browser.conf` and applies no display auto-scale — use Option 1 or 2 for Firefox or a high-density panel.
 
 **labwc** (default on Trixie/Debian 13) — add to `~/.config/labwc/autostart`:
 
@@ -331,6 +365,7 @@ weather = start-weather
 **X11/LXDE** (default on Bullseye/Debian 11) — if `~/.config/lxsession/LXDE-pi/autostart` does not exist yet, copy the system default first to preserve the desktop entries, then append `start-weather`:
 
 ```bash
+mkdir -p ~/.config/lxsession/LXDE-pi
 [ ! -f ~/.config/lxsession/LXDE-pi/autostart ] && \
   cp /etc/xdg/lxsession/LXDE-pi/autostart ~/.config/lxsession/LXDE-pi/autostart
 echo "@start-weather" >> ~/.config/lxsession/LXDE-pi/autostart
@@ -357,22 +392,33 @@ If your Raspberry Pi has a [Sense HAT](https://www.raspberrypi.com/products/sens
 - Sun travels an east-to-west arc throughout the day, shifting from yellow at noon to red near the horizon
 - Sunset glow (4 red pixels) appears on the horizon as the sun sets
 - Brightness automatically reduced at night
+- Four display modes, selectable in Settings → Advanced → Sense HAT: **Weather** (the glyphs above), **Radar** (an 8×8 top-down grid of the 50 km radar zone — 100 km with the extended radius), **Auto** (precipitation overhead, then incoming radar echoes, then the sky), and **Clock** (a separate `pi-sensehat-clock` service)
+- Active red/orange government alerts override every mode with a pulsing full-matrix colour
+- Clock and radar LED brightness adjustable from Settings
 
 **Installation:**
 
-The `deploy/install.sh` script asks whether a Sense HAT is present and handles the setup automatically. For a manual install:
+The `deploy/install.sh` script asks whether a Sense HAT is present (under its optional *Advanced features* prompt) and handles the setup automatically. For a manual install:
 
 ```bash
 sudo apt-get install sense-hat
+mkdir -p ~/.config/systemd/user
 cp deploy/pi-sensehat.service ~/.config/systemd/user/
+# The clock unit stays parked (not enabled) — the Settings mode toggle starts it:
+cp deploy/pi-sensehat-clock.service ~/.config/systemd/user/
+systemctl --user daemon-reload
 systemctl --user enable --now pi-sensehat
 ```
 
-**Test mode** — cycles through all 12 states for 15 seconds each:
+**Test mode** — cycles through all 12 states for 15 seconds each (Ctrl-C to exit). The script refuses to run while the `pi-sensehat` service is active, so stop it first and start it again when you are done (in Clock mode, stop and restart `pi-sensehat-clock` instead):
 
 ```bash
+systemctl --user stop pi-sensehat
 python3 ~/pi-weather-station/tools/sensehat_weather.py --test
+systemctl --user start pi-sensehat
 ```
+
+To show a single state continuously, pass `--state <slug>` instead of `--test` (e.g. `--state fog`; `--help` lists the slugs).
 
 **View logs:**
 
@@ -380,9 +426,9 @@ python3 ~/pi-weather-station/tools/sensehat_weather.py --test
 journalctl --user -u pi-sensehat -n 50
 ```
 
-> **Important:** the script takes exclusive control of the Sense HAT LED matrix. Disable any other program writing to the HAT (clock display, demos, etc.) before enabling the service.
+> **Important:** the script takes exclusive control of the Sense HAT LED matrix. Disable any third-party program writing to the HAT (demos, other clock displays, etc.) before enabling the service — the bundled weather and clock daemons hand the matrix over to each other automatically when you switch modes.
 
-> **Orientation:** edit the `ROTATION` constant in `tools/sensehat_weather.py` if the display appears rotated. On a Pi 4B with USB-C/HDMI pointing up, use `ROTATION = 180`.
+> **Orientation:** if the display appears rotated, edit the `ROTATION` constant in `tools/sensehat_weather.py` and, for Clock mode, `ROTATION_DEGREES` in `tools/horloge.py`. Both default to `180`, which suits a Pi 4B with USB-C/HDMI pointing up.
 
 ## Uninstall
 
@@ -392,11 +438,13 @@ To remove the Pi Weather Station service, scripts, and configurations:
 bash deploy/uninstall.sh
 ```
 
-The script will automatically remove the systemd service, `~/.local/bin/start-server`, `~/.local/bin/start-weather`, and the display server's autostart configuration. It will then ask whether to also remove:
+The script will automatically remove the systemd service (with its drop-ins) and the Sense HAT units (`pi-sensehat`, `pi-sensehat-clock`) — the launchd agent on macOS — plus `~/.local/bin/start-server`, `~/.local/bin/start-weather`, the display server's autostart configuration, the brightness udev rule and `/etc/logrotate.d/weather-server` (both via `sudo`), and `~/.config/pi-weather-station/` (kiosk browser choice and any display-scale override). It also deletes the runtime artefacts — every server log (rotated copies included), the weather and geolocation caches, and the API request counters — so save the log first if you still need it. It will then ask whether to also remove:
 
-- `settings.json` (contains your API keys) — kept by default
-- SSL certificates (`server/cert.pem`, `server/key.pem`) — kept by default
+- systemd lingering for your user, when enabled — kept by default (other user services may rely on it)
+- `settings.json` (contains your API keys) — kept by default. A `settings.json.bak` left by an earlier `install.sh` reconfiguration holds the same keys and is not covered by this prompt — delete it by hand, or remove the project directory
+- SSL certificates (`server/cert.pem`, `server/key.pem`) — kept by default. The root CA (`server/ca-cert.pem`, `server/ca-key.pem`, `server/ca-cert.srl`) is not covered by this prompt — delete it by hand, or remove the project directory. Devices that installed the CA keep trusting it until you remove it from each of them (see [`docs/pwa-trust-cert_en.md`](docs/pwa-trust-cert_en.md) for where it was installed)
 - `node_modules` directories — removed by default
+- nvm, on Bullseye only — kept by default
 - The entire project directory — kept by default (requires explicit confirmation)
 
 ## Access from another machine
@@ -404,7 +452,7 @@ The script will automatically remove the systemd service, `~/.local/bin/start-se
 By default the server only accepts connections from `localhost` (127.0.0.1).
 
 When remote access is enabled (`ALLOW_REMOTE=true`), the following applies:
-- All upstream API calls are **proxied through the server** — keys are never visible in client-side request URLs or third-party server logs. Remote clients receive only a boolean (configured / not configured) from `GET /settings` — actual key values are never sent over the network. Proxied upstreams include: weather (Tomorrow.io), map tiles (Mapbox), reverse geocoding (LocationIQ), AI summary (Anthropic), air quality (EPA AirNow, OpenAQ, MELCC RSQA, RSQAQ, ECCC AQHI), severe-weather alerts (NWS for US, ECCC for Canada), radar tiles (RainViewer), sunrise/sunset (Sunrise-Sunset.org), and default geolocation (ipapi.co).
+- All upstream API calls are **proxied through the server** — keys are never visible in client-side request URLs or third-party server logs. Remote clients receive only a boolean (configured / not configured) from `GET /settings` — actual key values are never sent over the network. Proxied upstreams include: weather (Tomorrow.io), map tiles (Mapbox), reverse geocoding (LocationIQ), AI summary (Anthropic), air quality (EPA AirNow, OpenAQ, MELCC RSQA, RSQAQ, ECCC AQHI), severe-weather alerts (NWS for US, ECCC for Canada), pollen (Open-Meteo), sunrise/sunset (Sunrise-Sunset.org), and default geolocation (ipapi.co). Radar imagery is the exception: it needs no key, so each browser fetches it directly — RainViewer tiles and frame index, or the ECCC GeoMet WMS layer when that radar source is selected — which means remote viewers' IPs reach the radar provider. The server contacts RainViewer only for its own radar analysis.
 - Unit and display preferences (temperature, speed, clock format, etc.) work from any device.
 - Settings writes (API keys, coordinates) are **always restricted to the Pi itself**. To change settings remotely, use an SSH tunnel instead (see below).
 
@@ -417,18 +465,18 @@ When remote access is enabled (`ALLOW_REMOTE=true`), the following applies:
 ### Option 1 — Automated (recommended)
 
 If you used `deploy/install.sh`, remote access can be configured automatically during installation. The script will:
-- Ask for your Pi's IP address (auto-detected)
-- Generate an SSL certificate that includes the Pi's IP as a Subject Alternative Name (SAN) — browsers will show a one-time security warning on first visit, which you can safely accept
+- Ask for your Pi's IP address (auto-detected), used for the `https://<ip>:8443` URL shown at the end
+- Remind you that the server generates its SSL certificate itself on first start — a private root CA + a leaf whose Subject Alternative Name (SAN) covers every active LAN IPv4 and the hostname (see **SSL certificate** below). Browsers will show a one-time security warning on first visit, which you can safely accept (or trust the CA once: [`docs/pwa-trust-cert_en.md`](docs/pwa-trust-cert_en.md))
 - Enable `ALLOW_REMOTE=true` in the systemd service
 - Remote users are always restricted to read-only access (settings writes are always localhost-only)
 
-> **Toggling remote access after installation:** use `deploy/toggle-remote.sh` to flip the switch on or off without re-walking through the full install.sh flow. The script reads the current state, asks to confirm the inverse action, regenerates the SSL certificate with your LAN IP (when enabling), reloads the service manager, and restarts the server. Works on Linux (systemd) and macOS (launchd).
+> **Toggling remote access after installation:** use `deploy/toggle-remote.sh` to flip the switch on or off without re-walking through the full install.sh flow. The script reads the current state, asks to confirm the inverse action, writes or removes the `ALLOW_REMOTE` setting, reloads the service manager, and restarts the server. Works on Linux (systemd) and macOS (launchd).
 >
 > ```bash
 > bash deploy/toggle-remote.sh
 > ```
 
-> **Note:** If your Pi's IP address changes, the SSL certificate will no longer be valid for remote connections. Re-run `bash deploy/toggle-remote.sh` (or `bash deploy/install.sh`) to regenerate it. To avoid this, assign a static IP to your Pi.
+> **Note:** If your Pi's IP address changes, just restart the server (`systemctl --user restart pi-weather-server`, or reboot) — it re-signs the certificate for the new IP with the same root CA (see **SSL certificate** below). Don't re-run `toggle-remote.sh` for this — when remote access is already enabled, it offers to *disable* it. Assigning a static IP to your Pi still keeps remote URLs and bookmarks stable.
 
 ### Option 2 — Manual
 
@@ -446,14 +494,15 @@ systemctl --user daemon-reload
 systemctl --user restart pi-weather-server
 ```
 
-Or just run `bash deploy/toggle-remote.sh` which does the above plus regenerates the SSL certificate with your LAN IP as a Subject Alternative Name.
+Or just run `bash deploy/toggle-remote.sh`, which writes or removes that drop-in for you.
 
 > Settings writes are always restricted to the Pi itself. To change settings remotely, use an SSH tunnel.
 
-**With the autostart script** — edit `~/.local/bin/start-weather` and uncomment:
+**With the autostart script** — edit `~/.local/bin/start-weather`, comment out the default `npm start` line and uncomment the `ALLOW_REMOTE=true` line:
 
 ```bash
-ALLOW_REMOTE=true /usr/bin/npm start &
+# npm start >> "$LOG_FILE" 2>&1 &
+ALLOW_REMOTE=true npm start >> "$LOG_FILE" 2>&1 &
 ```
 
 **Manually:**
@@ -468,19 +517,26 @@ The server will now serve the app across your network on port 8443 (HTTPS).
 
 ## Debug panel
 
-A debug panel is available on the Pi when `DEBUG=true` is set server-side. It shows:
+A debug panel is available on the Pi when `DEBUG=true` is set server-side. Its content is split into five sections — **Server**, **Client**, **Services**, **Storage** and **About** — that you pin from the panel's side rail and that stack on screen (the choice is remembered per browser; Server alone on first open), under a toolbar with the last refresh time and a **Refresh** button. It shows:
 
-- **Header** — application name, version, Git commit hash, and active branch (if not `master`); hardware model, OS version, network URL(s), and internet connectivity status (`ONLINE` / `OFFLINE` + latency)
-- **Server KPIs** — process uptime, heap memory (used/total) and RSS, weather cache hit rate, and a per-endpoint response time table (count, avg, min, max)
-- **Client KPIs** — page load time, live FPS, JS heap size (Chromium only), and a per-endpoint summary of all `/api/*` calls recorded by the browser since page load
-- **Provider status** — live operational status fetched from each provider's status page (Tomorrow.io, Mapbox, ipapi.co, LocationIQ), cached 30 minutes
-- **Services** — last HTTP status, last successful call, and timestamp for each external API (Tomorrow.io, Mapbox, LocationIQ, ipapi.co, sunrise-sunset.org, Anthropic Claude, Homebridge, RainViewer, MELCC RSQA Montréal + RSQAQ provincial, Environment Canada AQHI, EPA AirNow, OpenAQ, NWS + ECCC severe-weather alerts). The public `/api/health` endpoint summarises this into a green/yellow/red dot visible in the BottomDock — see the HealthIndicator section in [`docs/ui-layout_fr.md`](docs/ui-layout_fr.md).
-- **Quotas** — hourly, daily, and monthly request counters per service and endpoint, with colour-coded thresholds
-- **Cache** — current in-memory weather cache entries with remaining TTL
-- **Radar snapshots** — last 10 AI-summary radar payloads with the input/output pair (the compressed `radarText` block fed to Claude and the resulting summary), source (`fast-path`, `claude`, or `claude-refusal` / `claude-empty` when Claude declined or returned no text, with an empty summary), timestamp, lang, lat/lon. Each entry has a per-snapshot **Copy** button (plain-text dump to clipboard for sharing) and a section-level **Export JSON** button (full payload archive, including each Claude call's `stopReason` and token `usage`, which the panel itself doesn't display yet). When the radar block was missing from a Claude prompt (RainViewer 502, no frames, etc.), the snapshot records the actual reason inline so post-mortems are self-contained
-- **Logs** — last 100 lines of the server log (`~/.local/state/pi-weather-station/server.log` on Linux — legacy installs: `/tmp/weather-server.log` —, `<repo>/server.log` on macOS — see [`docs/logs.md`](docs/logs.md) for why `journalctl` is not the place to look)
-- **Security events** — blocked requests (write attempts from remote clients)
-- **Vulnerability scan** — links to the repo's public list of dependency-related PRs on GitHub (open + closed, both security and weekly version updates), the public-facing equivalent of Dependabot's alerts dashboard since `npm audit` was retired from `install.sh`. The URL is built per-fork so a downstream fork lands on its own PR list automatically
+- **Server**
+  - **Connectivity** — a card leading the section: online / offline (fast, slow or degraded network) with the TCP and HTTPS latencies to the probe host
+  - **Server config** — version · Git commit, hostname, hardware model, OS version, Sense HAT, active branch, init system, the `DEBUG` / `ALLOW_REMOTE` flags, and the network URL(s)
+  - **Server KPIs** — uptime, heap used/total, RSS, live CPU temperature and fan RPM (refreshed every 5 s), weather cache hits and hit rate, a power-status row on a Raspberry Pi (under-voltage / throttling), and per-endpoint response times (count, avg; top 10)
+  - **Logs** — last 100 lines of the server log (`~/.local/state/pi-weather-station/server.log` on Linux — legacy installs: `/tmp/weather-server.log` —, `<repo>/server.log` on macOS — see [`docs/logs.md`](docs/logs.md) for why `journalctl` is not the place to look)
+- **Client**
+  - **Client KPIs** — page load time, live FPS, JS heap size (Chromium only), and a per-endpoint summary of all `/api/*` calls recorded by the browser since page load
+  - **Security events** — blocked requests (write attempts from remote clients)
+- **Services**
+  - **Provider status** — live operational status fetched from each provider's status page (Tomorrow.io, Mapbox, ipapi.co, LocationIQ, Anthropic Claude, GitHub Git Operations, plus an API ping of RainViewer, whose status page can't be read), cached 30 minutes
+  - **Services** — last HTTP status, last successful call, and timestamp for each external API (Tomorrow.io, Mapbox, LocationIQ, ipapi.co, sunrise-sunset.org, Anthropic Claude, Homebridge, RainViewer, MELCC RSQA Montréal + RSQAQ provincial, Environment Canada AQHI, EPA AirNow, OpenAQ, NWS + ECCC severe-weather alerts). The public `/api/health` endpoint summarises this into a green/yellow/red dot visible in the BottomDock — see the HealthIndicator section in [`docs/ui-layout_fr.md`](docs/ui-layout_fr.md).
+  - **Quotas** — hourly, daily, and monthly request counters per service and endpoint, with colour-coded thresholds
+- **Storage**
+  - **Cache** — current in-memory weather cache entries with remaining TTL
+  - **Radar snapshots** — last 10 AI-summary radar payloads with the input/output pair (the compressed `radarText` block fed to Claude and the resulting summary), source (`fast-path`, `claude`, or `claude-refusal` / `claude-empty` when Claude declined or returned no text, with an empty summary), timestamp, lang, lat/lon. Each entry has a per-snapshot **Copy** button (plain-text dump to clipboard for sharing) and a section-level **Export JSON** button (full payload archive, including each Claude call's `stopReason` and token `usage`, which the panel itself doesn't display yet). When the radar block was missing from a Claude prompt (RainViewer 502, no frames, etc.), the snapshot records the actual reason inline so post-mortems are self-contained
+- **About**
+  - **Build and updates** — name, version, commit, branch; the update check (with an **Install update…** button when one is available); the **Check for updates** and **Export CSV** (`weather-station-debug-*.csv`) actions
+  - **Vulnerability scan** — links to the repo's public list of dependency-related PRs on GitHub (open + closed, both security and weekly version updates), the public-facing equivalent of Dependabot's alerts dashboard since `npm audit` was retired from `install.sh`. The URL is built per-fork so a downstream fork lands on its own PR list automatically
 
 The debug button (bug icon) appears in the control bar only when `DEBUG=true` and only when the app is accessed from the Pi itself.
 
@@ -496,7 +552,7 @@ The debug button (bug icon) appears in the control bar only when `DEBUG=true` an
 nano ~/.config/systemd/user/pi-weather-server.service.d/override.conf
 ```
 
-Remove the `#` in front of `# Environment=DEBUG=true`, then reload and restart:
+Remove the `#` in front of `# Environment=DEBUG=true` (an Option 2 `override.conf` has no such line: add `Environment=DEBUG=true` under `[Service]`, or just run `bash deploy/toggle-debug.sh`), then reload and restart:
 
 ```bash
 systemctl --user daemon-reload
@@ -526,22 +582,23 @@ DEBUG=true npm start
 
 # Environment variables
 
-These variables are set in the systemd service drop-in (`~/.config/systemd/user/pi-weather-server.service.d/override.conf`) or exported before `npm start`.
+On Linux these variables are set in systemd drop-ins under `~/.config/systemd/user/pi-weather-server.service.d/`: `ALLOW_REMOTE` in `local.conf` (managed by `install.sh` / `deploy/toggle-remote.sh`), `DEBUG` in `override.conf` (managed by `install.sh` / `deploy/toggle-debug.sh`), and `SKIP_CERT_AUTOGEN` in a drop-in of its own (see its guide below). On macOS they live in the `EnvironmentVariables` dict of `~/Library/LaunchAgents/com.pi-weather-station.plist`. They can also be exported before `npm start`.
 
 | Variable | Values | Default | Description |
 |---|---|:---:|---|
 | `ALLOW_REMOTE` | `true` / `false` | `false` | Allow connections from other devices on the network. When `false`, the server only accepts connections from `localhost`. |
-| `DEBUG` | `true` / `false` | `false` | Enable the debug panel and the `/api/debug` endpoint. Both remain restricted to localhost regardless of this flag. |
+| `DEBUG` | `true` / `false` | `false` | Show the debug-only controls on localhost: the Debug panel button and the radar-rings toggle in the dock (plus the AI-summary show/hide toggle outside the Pi layout). The `/api/debug*` endpoints are always served to localhost callers and refused to remote ones, whatever this flag says. |
+| `SKIP_CERT_AUTOGEN` | `true` / `false` | `false` | Bring-your-own certificate: use `server/cert.pem` + `server/key.pem` (+ an optional `server/ca-cert.pem`) as-is and never auto-generate or re-sign them. If either file is missing, the server falls back to HTTP on `127.0.0.1:8080` only (remote access down). See [`docs/ssl-custom-cert_en.md`](docs/ssl-custom-cert_en.md). |
 
-No other environment variables are used by the server. API keys and user preferences are stored in `settings.json`, not in the environment.
+No other environment variables configure the server. The kiosk launcher (`start-server`) additionally reads `DISPLAY_SCALE` and `KIOSK_REMOTE_DEBUG` from `~/.config/pi-weather-station/browser.conf` (or the environment); `KIOSK_REMOTE_DEBUG=true` opens the Chromium DevTools port `:9222`, for diagnostics only. API keys and server-side preferences are stored in `settings.json`, not in the environment; per-device UI preferences (language, units, clock, font size, hide mouse pointer) live in the browser's `localStorage`.
 
 # Settings
 
 - Your API keys are saved locally (in plain text) to `settings.json`.
-- The server will attempt to get your default location via [ipapi.co](https://ipapi.co/) (requires internet access), but if it cannot or you wish to choose a different default location, enter the latitude and longitude under `Custom Latitude` and `Custom Longitude` in settings, which can be accessed by tapping the gear button in the bottom dock (the control-button row along the bottom of the screen).
-- To hide the mouse cursor when using a touch screen, set `Hide Mouse` to `On`.
-- To adjust text size in the information rail, use the **Font Size** toggle (S / M / L). The setting is saved in `localStorage` and takes effect immediately.
-- To enable AI weather summaries, enter your [Anthropic API key](https://console.anthropic.com/) in the `Anthropic API Key` field. This feature is optional — the app works fully without it. Summaries are generated by Claude Haiku, cached 15 minutes server-side, and adapt to the time of day (morning, evening, or night forecast in the second paragraph). Supported languages: English, French, Spanish. For the full local-vs-Anthropic data flow, caching layers, and model-upgrade procedure, see [docs/ai-summary.md](docs/ai-summary.md).
+- The server will attempt to get your default location via [ipapi.co](https://ipapi.co/) (requires internet access), but if it cannot or you wish to choose a different default location, enter the latitude and longitude in the `Latitude` / `Longitude` override fields under Settings → Configuration & API keys → Location & hardware. Settings can be accessed by tapping the gear button in the bottom dock (the control-button row along the bottom of the screen).
+- To hide the mouse cursor when using a touch screen, turn on `Hide mouse pointer` (Settings → Local preferences).
+- To adjust text size in the information rail, use the **Font size** toggle (S / M / L, under Settings → Local preferences). The setting is saved in `localStorage` and takes effect immediately.
+- To enable AI weather summaries, enter your [Anthropic API key](https://console.anthropic.com/) in the `Anthropic` row of the API keys list (Settings → Configuration & API keys). This feature is optional — the app works fully without it. Summaries are generated by Claude Haiku, cached 15 minutes server-side, and adapt to the time of day (morning, evening, or night forecast in the second paragraph). Supported languages: English, French, Spanish. For the full local-vs-Anthropic data flow, caching layers, and model-upgrade procedure, see [docs/ai-summary.md](docs/ai-summary.md).
 
 # Contributors
 
