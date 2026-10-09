@@ -191,14 +191,16 @@ MapClickHandler.propTypes = {
 
 
 /**
- * Read the visible rail's pixel width once on mount + whenever the
- * radar focus-mode flags toggle. Queries the DOM directly
- * because the value lives in CSS variables on `.ambientRoot` and on
- * the rail's actual rendered bounding rect (the `--c-rail-width`
- * value differs between LayoutDesktop and LayoutPi, and is bumped
- * to 360 px on wide displays via a media query). Returns 0 when
- * there's no rail overlaying the map (radar focus mode, a layout
- * where the rail sits in its own grid column, no ambientRoot).
+ * Measure how much of the map the overlaying rail (x) and HeroBand (y)
+ * cover, on mount, whenever the radar focus-mode flags toggle, and on
+ * every window resize. Queries the DOM directly: it reads the rendered
+ * `getBoundingClientRect()` of the rail (`.ambientRoot aside`) and of
+ * the `[data-ambient-hero]` slot, rather than any CSS variable (the
+ * rail width differs between layouts and is bumped to 360 px on wide
+ * displays via a media query, so only the rendered rect is reliable).
+ * Returns `{x: 0, y: 0}` when nothing overlays the map (radar focus
+ * mode, a layout where the rail sits in its own grid column, no
+ * ambientRoot).
  *
  * The 1-frame timeout is load-bearing for the initial measurement:
  * WeatherMap mounts inside the rail-bearing layout, so the rail's
@@ -206,7 +208,9 @@ MapClickHandler.propTypes = {
  * pass runs. Deferring by a frame lets the browser commit the
  * stylesheet before we measure.
  *
- * @returns {Number} rail width in pixels (0 if no offset needed)
+ * @returns {{x: Number, y: Number}} pixels of the map covered by the
+ *   rail (x) and the HeroBand (y) — non-zero on LayoutDesktop only; the
+ *   frozen ZERO_RAIL_OFFSET in focus mode
  */
 function useRailOffset() {
   const { desktopRadarMaximized, piRadarMaximized } = useContext(SystemContext);
@@ -242,7 +246,7 @@ function useRailOffset() {
     };
     const handle = requestAnimationFrame(measure);
     // Re-measure on viewport size changes — LayoutDesktop bumps rail
-    // width from 320 → 360 px above 1900 px wide via a media query,
+    // width from 320 → 360 px at ≥ 1600 px wide via a media query,
     // and the HeroBand's height can shift if its content reflows.
     window.addEventListener("resize", measure);
     return () => {
@@ -503,7 +507,7 @@ ZoomAnchorOffset.propTypes = {
 
 /**
  * Phase 4d (2026-05-28): GeoJSON overlay for the alert zone the user
- * picked via the AlertBanner's "Voir sur la carte" button. Renders a
+ * picked via AlertDetailInline's "Voir sur la carte" button. Renders a
  * tier-coloured polygon (red / orange / yellow) and zoom-to-fits when
  * `highlightedAlertId` changes. Clears entirely when the id is null
  * or when no matching alert with geometry is found.
@@ -899,9 +903,10 @@ const WeatherMap = ({ zoom, dark }) => {
   // spare the room (see the RadarLegend render below) and switches the
   // timeline to its compact copy. Same media query (max-height: 520px)
   // used by the ambient SettingsPanel / DebugPanel for their compact
-  // modes. NOTE: `ui/piLayout.js` gates the Pi 3-state rail on
-  // (max-height: 540px) — a deliberately separate threshold; don't
-  // unify the two.
+  // modes. NOTE: `ui/piLayout.js` gates the v3.3 priority-views model
+  // (`priorityViewsEnabled`; the MIN/MID/MAX states run on every
+  // LayoutPi regardless) on (max-height: 540px) — a deliberately
+  // separate threshold; don't unify the two.
   const SMALL_SCREEN_MQ = "(max-height: 520px)";
   const [isSmallScreen, setIsSmallScreen] = useState(
     () => typeof window !== "undefined" && window.matchMedia(SMALL_SCREEN_MQ).matches
@@ -1563,7 +1568,7 @@ const WeatherMap = ({ zoom, dark }) => {
             })
           : null}
         {/* Phase 4d (2026-05-28): polygon overlay of the alert zone
-          * the user picked via the AlertBanner "Voir sur la carte"
+          * the user picked via AlertDetailInline's "Voir sur la carte"
           * button. Renders nothing when highlightedAlertId is null
           * or the matching alert has no geometry. The component
           * fitBounds-zooms on mount via useMap so the polygon is

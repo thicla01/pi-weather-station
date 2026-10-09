@@ -50,8 +50,8 @@ async function getStations() {
  * Sort ECCC stations by distance to (lat, lon) and keep only those
  * within STATION_MAX_KM. Some stations are defunct (Montreal's EHHUN
  * for example sits in the published list but returns zero current
- * observations); the orchestrator iterates through candidates until
- * one returns a value.
+ * observations); tryAqi walks the nearest MAX_CANDIDATES stations
+ * until one returns a value.
  *
  * @param {Array} stations Station features from the OGC API
  * @param {Number} lat

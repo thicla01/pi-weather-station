@@ -31,8 +31,8 @@ const PROVIDER_STATUS_APIS = [
   // but the result is what the kiosk owner cares about. The latency reading
   // also surfaces slow-but-up situations (>3 s response time → minor).
   { name: "RainViewer",      type: "api-ping",             url: "https://api.rainviewer.com/public/weather-maps.json" },
-  // GitHub is not an upstream we call directly from the runtime
-  // (no `recordServiceCall` ever fires for it), so the only health
+  // GitHub is called from the runtime (updateChecker's API check,
+  // cached 1 h) but never through `recordServiceCall`, so the only health
   // signal we have for it is the statuspage. We track "Git
   // Operations" specifically because that's the component that
   // affects the in-app updater (`POST /api/update` runs a real
@@ -531,7 +531,7 @@ const MAX_SECURITY_EVENTS = 50;
 const LOG_LINES = 100;
 
 /**
- * Log a blocked request event (REMOTE_SECURITY)
+ * Log a request blocked by the localhostOnly gate
  *
  * @param {String} ip
  * @param {String} method
@@ -663,6 +663,7 @@ function getFanSpeed(req, res) {
 // `fetchProviderStatus` is also imported by `healthCtrl` so the dock
 // popover can surface GitHub's `Git Operations` indicator alongside
 // the local serviceStatus issues — the only upstream we don't have a
-// `recordServiceCall` for (we never hit GitHub from runtime — the
-// updater's `git pull` is a one-shot child process).
+// `recordServiceCall` for (updateChecker's GitHub API check, cached
+// 1 h, never goes through `recordServiceCall`, and the updater's
+// `git pull` is a one-shot child process).
 module.exports = { getDebugInfo, getCpuTemp, getFanSpeed, logSecurityEvent, initServerInfo, fetchProviderStatus };

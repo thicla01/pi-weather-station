@@ -244,9 +244,11 @@ function normalize(feature) {
 /**
  * Return active ECCC alerts whose polygon contains (lat, lon).
  * Empty array when the point is outside Canada or no alert covers
- * it; null only on upstream failure so the orchestrator can keep
- * the previous list rather than blanking the banner on a transient
- * error.
+ * it; null only on upstream failure (getFeed has already recorded it
+ * in serviceStatus), so a caller can tell "no alert" from "feed down".
+ * The orchestrator does not use that distinction today: it drops null
+ * and merges the other sources, so a transient ECCC failure yields no
+ * Canadian alerts until the next successful poll.
  *
  * @param {Number} lat
  * @param {Number} lon

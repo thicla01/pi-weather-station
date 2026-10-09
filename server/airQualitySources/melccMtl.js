@@ -7,9 +7,10 @@
 // excludes the island of Montreal — by intergovernmental agreement,
 // the city runs its own station network and publishes the data
 // itself. So this source covers Montreal island specifically; the
-// orchestrator runs it before RSQAQ so a Montreal marker gets its
-// closest local reading instead of a south-shore station like
-// Longueuil.
+// orchestrator queries it in parallel with RSQAQ and the
+// closest-station rule gives a Montreal marker its local reading
+// instead of a south-shore station like Longueuil (declaration
+// order only breaks distance ties).
 //
 // CSV shape: one row per (station, pollutant, hour) — the IQA for a
 // station at a given hour is the MAX across pollutants per the

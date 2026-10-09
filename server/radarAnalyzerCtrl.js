@@ -65,8 +65,10 @@ const TARGET_OFFSETS_MIN = [0, -15, -45];   // now, 15 min ago, 45 min ago
 // improves both the per-sample dot overlay's spatial fidelity and the
 // trend-detection signal-to-noise ratio.
 //
-// Must stay in sync with client/src/components/WeatherMap/index.js so the
-// dots rendered on the map land on the points the analyzer actually reads.
+// Must stay in sync with client/src/components/WeatherMap/geometry.js so
+// the dots rendered on the map land on the points the analyzer actually
+// reads. test/radarGeometry.test.js locks the shared direction and
+// risk-level tables against this file, but NOT these distance tables.
 const KM_PER_UNIT = { km: 1, mi: 1.609344 };
 const RADAR_GEOMETRY = {
   km: {
@@ -697,7 +699,7 @@ async function analyzeRadar(lat, lon, options = {}) {
 
 // Tier-bump table. Used by trend-aware risk colouring (v2): when a
 // precipitation band on a given ring is moving inward fast enough to
-// reach the user within ~30 minutes, the ring's tier is bumped one
+// reach the user within ~60 minutes, the ring's tier is bumped one
 // notch — operational meteorology treats imminence as part of the
 // warning, not just raw intensity. Red stays red (already max).
 const TIER_BUMP = { calm: "yellow", yellow: "orange", orange: "red", red: "red" };
@@ -714,6 +716,9 @@ const TIER_BUMP = { calm: "yellow", yellow: "orange", orange: "red", red: "red" 
  *         band 50 km out approaching at ~50 km/h had ETA 57 min and was
  *         classified "stable", letting a weak dispersing band on the
  *         opposite bearing dictate the ring summary).
+ *       "drifting" — inward shift above the same threshold, but the
+ *         projected arrival is 60 minutes or more (movement detected, no
+ *         clear ETA).
  *       "leaving" — strongest-intensity sample shifted outward by more
  *         than the same threshold.
  *       "stable" — neither (drift below the threshold, or no signal in
@@ -880,8 +885,8 @@ function computePerDirectionTrends(framesSamples, unit, ring) {
  *   - magnitude (positive km/mi) — absolute inward shift over the trend
  *     window. Arrow length scales with this so a 30 km/h band reads
  *     visually heavier than a 5 km drift.
- *   - trend ("approaching" | "leaving") — drives arrow direction (toward
- *     centre vs away from it).
+ *   - trend ("approaching" | "drifting" | "leaving") — drives arrow
+ *     direction (toward centre vs away from it).
  *   - confidence (0-100) — drives arrow opacity so the user sees how
  *     sure the analyzer is about each direction.
  *
@@ -957,7 +962,7 @@ function computeTrendConfidence({ trend, inwardShift, threshold, peakNow, peakOl
  * Collapse a per-direction trend map into a single ring-level label
  * weighted by intensity. The dominant direction (highest peakIntensityNow)
  * dictates the ring's trend — same band that drives the displayed tier.
- * Tie-breaker on equal intensity: approaching > leaving > stable.
+ * Tie-breaker on equal intensity: approaching > drifting > leaving > stable.
  *
  * Why intensity-weighted? Before May 2026 the rule was "any approaching
  * wins, then any leaving wins, else stable". This let a weak dispersing
@@ -1042,7 +1047,7 @@ function trendDistribution(perDirMap) {
  * sampling rings around a location. Reuses the same sampling pipeline as
  * analyzeRadar — and now also reuses its 3-frame sequence (now / -15 min /
  * -45 min) so the tier can be bumped one notch when a band is moving
- * inward fast enough to reach the user within ~30 min ("trend-aware
+ * inward fast enough to reach the user within ~60 min ("trend-aware
  * risk colouring", roadmap v2).
  *
  * Returns an object the WeatherMap consumes to colour its dashed circles.
@@ -1059,8 +1064,8 @@ function trendDistribution(perDirMap) {
  * @param {String}  [options.distanceUnit] "km" (default) or "mi" — selects
  *   the geometry table so the same radii are sampled the client draws
  * @returns {Promise<{
- *   inner: { level: String, maxIntensity: Number, trend: String, samples: Array },
- *   outer: { level: String, maxIntensity: Number, trend: String, samples: Array } | null,
+ *   inner: { level: String, maxIntensity: Number, trend: String, trendConfidence: Number, bumped: Boolean, samples: Array, directionVectors: Array },
+ *   outer: { level: String, maxIntensity: Number, trend: String, trendConfidence: Number, bumped: Boolean, samples: Array, directionVectors: Array } | null,
  *   timestamp: Number
  * } | null>} null when RainViewer is unreachable
  */
@@ -1299,8 +1304,9 @@ const RADAR_GRID_SIZE = 8;
  *   The latest-frame samples from getRiskLevels (inner + outer concatenated).
  *   `distance` is in display units; the centre sample has direction "C".
  * @param {Object} [options]
- * @param {String} [options.unit] "km" or "mi" — converts `distance` to km for
- *   the radius normalisation (the grid is unit-agnostic once normalised).
+ * @param {String} [options.distanceUnit] "km" or "mi" — converts `distance`
+ *   to km for the radius normalisation (the grid is unit-agnostic once
+ *   normalised).
  * @param {Number} [options.size] Grid edge length in pixels (default 8).
  * @returns {{grid: Number[], size: Number, radiusKm: Number, litCells: Number}}
  *   `grid` is a row-major flat array of length size² holding intensities 0-6

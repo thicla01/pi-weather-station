@@ -159,12 +159,12 @@ const WEATHER_CACHE_TTL = {
  * corresponding cached entries — no need to manually rm the disk
  * cache after an upgrade that changes the request shape.
  *
- *   - Current adds uvIndex + epaIndex on top of the common subset
- *     because they're real-time read-outs in the InfoPanel, not
- *     values we chart over time.
+ *   - Current adds uvIndex (a real-time read-out in MetricsGrid, not
+ *     a value we chart over time) and epaIndex (requested but
+ *     currently unused by the client) on top of the common subset.
  *   - Daily includes the Max/Min variants used by the v3 5-day
  *     column strip (DailyForecastColumns) on top of the avg fields
- *     the v2 Chart.js DailyChart still consumes.
+ *     the v3 MetricChart consumes.
  */
 const CURRENT_FIELDS = [
   "temperature", "temperatureApparent", "humidity", "windSpeed", "precipitationIntensity",
@@ -560,7 +560,7 @@ async function reverseGeocode(req, res) {
  *
  * @param {Object} req
  * @param {Object} req.params
- * @param {String} req.params.style  Mapbox style (dark-v10 or light-v10)
+ * @param {String} req.params.style  Mapbox style — one of ALLOWED_STYLES or a CUSTOM_STYLES key
  * @param {String} req.params.z      Zoom level
  * @param {String} req.params.x      Tile x coordinate
  * @param {String} req.params.y      Tile y coordinate

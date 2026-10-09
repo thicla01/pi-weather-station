@@ -29,7 +29,10 @@ export const AppContext = createContext();
  * (the get* / save* / toggle* / cycle* / select* / update* / check* /
  * load* / trigger* / refresh* helpers, the raw setState setters, the
  * debounced set*Live setters, setMapPosition / resetMapPosition,
- * saveSettingsToJson, and the setDarkMode alias of setDarkModeManual).
+ * saveSettingsToJson, and the setDarkMode alias of setDarkModeManual)
+ * EXCEPT the favorite-location actions (isFavoritePinned, pinFavorite,
+ * removeFavorite, renameFavorite, setFavoriteAsDefault,
+ * resetDefaultLocation), which live in the Location slice.
  * Update cadence: effectively
  * never — all members are identity-stable (step 2a), so the slice
  * identity survives every data refresh. The only re-mints left are
@@ -44,8 +47,9 @@ export const AppActionsContext = createContext(null);
  * System slice — field domain: server/platform facts (API key values,
  * isLocal, remoteSecurityEnabled, debugEnabled, serverPlatform,
  * isSystemd), brightness + sleep + Sense HAT hardware
- * state, in-app updater state, and global panel/layout flags (settings
- * + debug menus, the radar-maximized sentinels).
+ * state, kiosk display-scale state (useDisplayScale), in-app updater
+ * state, and global panel/layout flags (settings + debug menus, the
+ * radar-maximized sentinels, the piLayoutState enum + piScrubberOpen).
  * Update cadence: a burst at boot while settings, /api/is-local and
  * /api/update-check resolve, then rare — user panel toggles, the
  * periodic update check, brightness slider drags, sleep-stage flips.
@@ -54,10 +58,15 @@ export const SystemContext = createContext(null);
 
 /**
  * Location slice — field domain: the geographic position of record
- * (mapGeo, browserGeo, customLat/customLon, panToCoords) and its
- * derived lookups (mapTimezone, reverseGeoResult). Update cadence:
- * once at boot, then only when the user pans the map or moves the
- * marker.
+ * (mapGeo, browserGeo, customLat/customLon, panToCoords), its derived
+ * lookups (mapTimezone, reverseGeoResult, the captured homeLabel), and
+ * the favorite-locations list with its actions (useFavoriteLocations:
+ * favorites, canPinFavorite / canPinHomeFavorite / maxFavorites,
+ * isFavoritePinned, and the pin / remove / rename / set-as-default /
+ * reset functions).
+ * Update cadence: once at boot, then only when the user pans the map,
+ * moves the marker, pins / removes / renames a favorite, or changes /
+ * resets the default location.
  */
 export const LocationContext = createContext(null);
 
@@ -456,8 +465,8 @@ export function AppContextProvider({ children }) {
   const [darkMode, setDarkMode] = useState(true);
   // When darkModeAuto is on, an interval flips darkMode at sunrise /
   // sunset based on AppContext's sunriseTime / sunsetTime. Manual taps
-  // on the dark/light toggle below disable auto mode (override pattern:
-  // user wins). Persisted in localStorage; default OFF so existing
+  // on the dark/light toggle no longer disable auto mode (since
+  // v2.14.72 — see setDarkModeManual). Persisted in localStorage; default OFF so existing
   // installs aren't surprised by sudden theme switches.
   const [darkModeAuto, setDarkModeAuto] = useState(false);
   const [currentWeatherData, setCurrentWeatherData] = useState(null);
@@ -674,7 +683,7 @@ export function AppContextProvider({ children }) {
   const [govAlertExpanded, setGovAlertExpanded] = useState(false);
   // Phase 4d (2026-05-28): id of the alert whose `geometry` is
   // currently overlaid on the radar via a Leaflet GeoJSON layer.
-  // Null = no overlay. Set by the AlertBanner's "Voir sur la carte"
+  // Null = no overlay. Set by AlertDetailInline's "Voir sur la carte"
   // button (which also triggers a fitBounds on the WeatherMap so
   // the user actually sees the zone). Persists until the user taps
   // the button again to clear, or until a new alert replaces the
@@ -989,7 +998,7 @@ export function AppContextProvider({ children }) {
    * (the auto button is visibly ON, and toggling contrast shouldn't
    * silently turn it off — the user can see auto's state at a glance
    * and disable it explicitly if they want). The auto interval will
-   * re-flip the manual choice at the next sunrise / sunset boundary
+   * re-flip the manual choice on its next check (within a minute)
    * if auto is still on; that's the trade-off the user accepted by
    * leaving auto enabled.
    *
@@ -2349,10 +2358,12 @@ export function AppContextProvider({ children }) {
   }, [mapGeo, pollenEnabled]);
 
   // Auto dark/light at sunrise / sunset. Runs only when the user opted
-  // in via Settings AND we have valid sunrise/sunset timestamps. Checks
+  // in via the dock auto toggle AND we have valid sunrise/sunset timestamps. Checks
   // every minute (cheap — no network), plus immediately on mount/toggle.
-  // Manual taps on the dark/light button disable auto via the
-  // setDarkModeManual wrapper, so the user always wins.
+  // Since v2.14.72 a manual tap on the dark/light button does NOT
+  // disable auto (setDarkModeManual leaves it on), so while auto stays
+  // on, the next check (within a minute) re-applies the sun-based mode;
+  // to keep a manual choice the user turns auto off via its dock toggle.
   useEffect(() => {
     if (!darkModeAuto || !sunriseTime || !sunsetTime) return undefined;
     const apply = () => {

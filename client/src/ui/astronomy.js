@@ -7,8 +7,11 @@
  *
  * Sources:
  *   - Moon phase: synodic month elapsed since a known new moon
- *     reference, accurate to ±1 hour over a few centuries (the
- *     synodic period drifts < 1 s/century).
+ *     reference — a linear MEAN-phase model with no periodic
+ *     corrections. The mean synodic period itself is stable (drifts
+ *     < 1 s/century), but true phases wander from the mean by RMS
+ *     ~8.5 h, worst case ~17.5 h (see nextNewMoon) — ample for the
+ *     once-a-day glyph, not for exact phase dates.
  *   - Solstice/equinox: Meeus, *Astronomical Algorithms*, chapter 27
  *     (mean Julian-date polynomial for each of the four events).
  *     Accurate to ~minutes over the year-3000 timespan, which is

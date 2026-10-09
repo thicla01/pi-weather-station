@@ -27,7 +27,7 @@ import styles from "./styles.css";
  * Structure (top to bottom × left to right):
  *   ┌──────────────────────────────┬────────────────────────┐
  *   │ FloatingMiniBanner (overlay) │  AlertBanner           │
- *   │ RadarFocusControl (Leaflet,  │  AlertDetailInline †   │
+ *   │ RadarFocusControl (overlay,  │  AlertDetailInline †   │
  *   │  top-left under +/-)         │  AlertMiniCards        │
  *   │  WeatherMap (full-bleed)     │  AirAlertCard          │
  *   │                              │  TimeBlock             │
@@ -80,10 +80,8 @@ import styles from "./styles.css";
  * doesn't silently hide a severe alert. Tapping the mini-banner exits
  * focus mode (full UI returns; cycle controls become reachable again).
  *
- * RadarTimeline extraction is deferred — the scrubber currently
- * inlined inside `WeatherMap` already renders correctly inside the
- * map cell. Lifting it into its own ambient component is a Phase 10
- * cleanup item; functionally it's already where it should be.
+ * The radar scrubber is `WeatherMap/RadarTimeline` (rendered by
+ * WeatherMap inside the map cell); no ambient-level wrapper is needed.
  *
  * @returns {JSX.Element} Pi layout
  */
@@ -104,8 +102,9 @@ const LayoutPi = () => {
   // move there); off, it's the v3.2 stacked rail (unchanged).
   const priority = priorityViewsEnabled();
 
-  // Sentinel pattern: flip to `false` on mount so WeatherMap renders
-  // the Leaflet focus control for this layout, and back to `null` on
+  // Sentinel pattern: set `piLayoutState` to "mid" on mount (so the
+  // derived piRadarMaximized is false and WeatherMap renders its
+  // RadarFocusControl for this layout), and back to `null` on
   // unmount so the control disappears when the user switches to
   // LayoutDesktop / LayoutMobile (no orphan button on those layouts).
   // Mirrors what LayoutDesktop already does for desktopRadarMaximized.

@@ -163,7 +163,8 @@ export default function useAutoTabSelector(activeMetric, cardActivityRef) {
   }, [autoSelectTab]);
 
   // Evaluate on data-refresh ticks (currentWeatherData / hourlyWeatherData /
-  // govAlerts / sleepStage landings), debounced. NEVER on a setInterval.
+  // govAlerts / radar verdict landings, plus autoSelectTab / palette /
+  // activeMetric changes), debounced. NEVER on a setInterval.
   useEffect(() => {
     // Seed the known-severe set on first run so a pre-existing alert at
     // mount doesn't false-puncture an (absent) manual hold.

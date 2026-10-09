@@ -49,7 +49,12 @@ import styles from "./styles.css";
  *     severity chip + source + ellipsized title); the multi-alert counter
  *     becomes a **tap-to-cycle** control, replacing the `AlertMiniCards`
  *     stack (dropped from the Pi rail). Tapping the row still toggles
- *     `AlertDetailInline`.
+ *     `AlertDetailInline` (v3.2 stacked rail).
+ *   - **v3.3 priority views** (`priorityViewsEnabled()`, opt-in / short
+ *     7"): the gov card is instead a **2-line** compact card (tags + ⤢ on
+ *     row 1, title + "1 / N" cycle counter on row 2); tapping ⤢ opens the
+ *     full `AlertView` (`piLayoutState = "alert"`) rather than toggling
+ *     `AlertDetailInline`, which LayoutPi does not mount in that model.
  *   - The **radar branch is suppressed** — `NowcastLine` is the always-
  *     present radar surface on Pi, so rendering it here too would double
  *     the same verdict. Desktop / mobile are unchanged on both points.

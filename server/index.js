@@ -137,8 +137,9 @@ const DEBUG = process.env.DEBUG === "true";
 // When true, the server uses cert.pem / key.pem / ca-cert.pem as-is and
 // never auto-generates anything — for users who supply their own cert
 // (Let's Encrypt, internal CA, mkcert). If cert.pem or key.pem is
-// missing, boot fails loudly rather than silently falling back to a
-// self-signed chain. See docs/ssl-custom-cert_{en,fr}.md.
+// missing, the server logs a loud error and refuses to auto-generate
+// a self-signed chain; it falls back to loopback-only HTTP on :8080
+// (remote access down) instead. See docs/ssl-custom-cert_{en,fr}.md.
 const SKIP_CERT_AUTOGEN = process.env.SKIP_CERT_AUTOGEN === "true";
 const app = express();
 
@@ -307,8 +308,11 @@ const sslOptions = (() => {
 
   // Bring-your-own-cert short-circuit: skip every auto-regen check
   // (and every openssl invocation that backs them) and use the files
-  // on disk as-is. Missing cert/key here is a hard failure — the user
-  // has explicitly opted out of the fallback by setting the env var.
+  // on disk as-is. Missing/unreadable cert/key here is NOT regenerated —
+  // the user has explicitly opted out of auto-generation by setting the
+  // env var — so we log an error and return null, and the server falls
+  // back to loopback-only cleartext HTTP on :8080 (see the HTTP fallback
+  // in the `else` branch of `if (sslOptions)` below; remote access stays down).
   if (SKIP_CERT_AUTOGEN) {
     console.log("SKIP_CERT_AUTOGEN=true — using existing certificate files as-is, no auto-regeneration");
     if (!fs.existsSync(certPath) || !fs.existsSync(keyPath)) {
@@ -543,11 +547,12 @@ const isLocalhostIp = (ip) => ip === "127.0.0.1" || ip === "::1" || ip === "::ff
 // SECURITY GATE — derive "is this request local?" from the raw TCP
 // socket peer, NEVER from req.ip.
 //
-// req.ip honors `trust proxy` (set to 1 when ALLOW_REMOTE, line ~493)
-// and therefore the client-supplied `X-Forwarded-For` header. A direct
-// remote/LAN client can send `X-Forwarded-For: 127.0.0.1` and Express
-// resolves req.ip to 127.0.0.1 — impersonating localhost and bypassing
-// every localhostOnly gate (and unmasking GET /settings). Confirmed
+// req.ip honors `trust proxy` (set to 1 when ALLOW_REMOTE, see the
+// `trust proxy` line above) and therefore the client-supplied
+// `X-Forwarded-For` header. A direct remote/LAN client can send
+// `X-Forwarded-For: 127.0.0.1` and Express resolves req.ip to
+// 127.0.0.1 — impersonating localhost and bypassing every
+// localhostOnly gate (and unmasking GET /settings). Confirmed
 // with a faithful repro 2026-05-29: socket peer 192.168.x.x + that
 // header → req.ip 127.0.0.1 → full API keys + Homebridge creds returned.
 //
@@ -661,7 +666,7 @@ app.get("/settings", getSettings);
 //      device owner — physically at the Pi or via SSH tunnel — should be
 //      able to dial those up.
 // If you're tempted to relax this for "harmless preferences", remember the
-// AdvancedSettings UI already shows the section read-only on remote with a
+// ambient SettingsPanel already shows the section read-only on remote with a
 // notice pointing the user to the SSH-tunnel workflow.
 app.post("/settings", localhostOnly, createSettingsFile);
 app.put("/settings", localhostOnly, replaceSettings);
@@ -1017,9 +1022,10 @@ app.post("/api/brightness", localhostOnly, setBrightness);
 // Kiosk display-scale override — read open (the client needs to know whether
 // to render the control + what Auto resolves to), write localhost-only. Like
 // brightness, this tunes the Pi's PHYSICAL kiosk screen (it manages the
-// DISPLAY_SCALE line in browser.conf, applied as the browser's
-// --force-device-scale-factor on the next kiosk relaunch), so a remote
-// client has no business changing it. Used to correct the auto-detected
+// DISPLAY_SCALE line in browser.conf, applied as Chromium's
+// --force-device-scale-factor (or Firefox's layout.css.devicePixelRatio
+// profile pref) on the next kiosk relaunch), so a remote client has no
+// business changing it. Used to correct the auto-detected
 // scale when a panel's EDID misreports its physical size.
 app.get("/api/display-scale", apiLimiter, getDisplayScale);
 app.post("/api/display-scale", localhostOnly, setDisplayScale);

@@ -25,8 +25,10 @@ const CACHE_FILE = path.join(__dirname, "geolocation-cache.json");
 const CACHE_MAX_AGE_MS = 30 * 24 * 60 * 60 * 1000; // 30 days
 const FETCH_TIMEOUT_MS = 10 * 1000;
 
-// Retry policy. Total worst-case wait: ~31 seconds across 5 attempts
-// (1, 2, 4, 8, 16 seconds between tries — capped at MAX_DELAY_MS).
+// Retry policy. Back-off between 5 attempts: 1, 2, 4, 8 seconds
+// (15 s total), plus up to FETCH_TIMEOUT_MS (10 s) per attempt, so
+// ~65 s worst case. MAX_DELAY_MS (16 s) is never reached at
+// MAX_ATTEMPTS = 5.
 const MAX_ATTEMPTS    = 5;
 const INITIAL_DELAY_MS = 1000;
 const MAX_DELAY_MS    = 16 * 1000;

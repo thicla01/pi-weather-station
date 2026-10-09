@@ -673,7 +673,11 @@ function getPeriod(localHour) {
 /**
  * GET /api/weather-summary
  * Returns an AI-generated natural language weather summary.
- * Returns 503 if the Anthropic API key is not configured (feature is optional).
+ * Returns 503 if the Anthropic API key is not configured or there is no
+ * weather data to summarise (feature is optional). The handler also reads
+ * tempUnit / speedUnit / distanceUnit / localHour / ts18 / ts21 /
+ * ts05tomorrow and can answer 400 / 429 / 500 / 502 — see docs/api.md
+ * § GET /api/weather-summary for the full parameter and status list.
  *
  * @param {Object} req
  * @param {Object} req.query

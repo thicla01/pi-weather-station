@@ -1,15 +1,15 @@
 // Pollen badge — fetches the Open-Meteo Air Quality API (free, no key)
 // for the six standard pollen allergens (alder / birch / grass / mugwort
 // / olive / ragweed) and returns a normalised worst-case payload that
-// the client's MetricsGrid uses as a 5th cell (opt-in per install).
+// the client's AirCard renders as its pollen row (opt-in per install).
 //
 // Source: https://open-meteo.com/en/docs/air-quality-api
 // Coverage: effectively EUROPE-ONLY — the pollen variables come from
 // the CAMS European model; outside its domain the API returns null for
 // every allergen (verified live 2026-06-10: Montréal and NYC both null
 // in mid grass season). The controller answers {available:false} and
-// the client hides the cell, so non-European installs simply never see
-// the pollen tile even with the opt-in enabled.
+// the client hides the pollen row, so non-European installs simply
+// never see it even with the opt-in enabled.
 //
 // Category bucketing: pollen has no universal scale. Allergen-specific
 // clinical thresholds vary widely (grass low ≤30 grains/m³, tree low
@@ -34,9 +34,9 @@ const ALLERGENS = [
 
 /**
  * Approximate generic pollen-tier mapping. Aligned with the UV / AQ
- * 4-tier vocabulary already wired through CATEGORY_COLORS on the
- * client. Pollen-specific clinical scales would refine these but
- * the cross-allergen averaging done downstream means a single
+ * 4-tier vocabulary (low / moderate / high / veryHigh) the client
+ * already uses. Pollen-specific clinical scales would refine these but
+ * the cross-allergen worst-case pick done downstream means a single
  * threshold set is the right level of precision for a glance badge.
  *
  * @param {number|null|undefined} value grains/m³
@@ -57,7 +57,7 @@ const TIER_RANK = { low: 1, moderate: 2, high: 3, veryHigh: 4 };
  *
  * Returns the current per-allergen pollen values for the given
  * coords, plus an aggregated "worst-case" category and value used
- * to colour the MetricsGrid Pollen cell. The detail popover shows
+ * to colour the AirCard pollen row. The detail popover shows
  * the full per-allergen breakdown.
  *
  * Response shape:
@@ -73,7 +73,7 @@ const TIER_RANK = { low: 1, moderate: 2, high: 3, veryHigh: 4 };
  *
  * When the upstream returns no data (out-of-coverage region) we
  * still return 200 with `available: false` so the client can hide
- * the cell silently without a devtools error.
+ * the row silently without a devtools error.
  *
  * @param {import("express").Request} req
  * @param {import("express").Response} res

@@ -30,8 +30,9 @@ const ZONE_CACHE_TTL_MS = 24 * 60 * 60 * 1000;
 // degraded link, failing fast lets the parent Promise.all complete
 // without blocking the whole alert payload on one slow zone.
 const ZONE_FETCH_TIMEOUT_MS = 5000;
-// NWS requires a User-Agent on all requests; mirror what nws.js
-// sends so any rate-limit / contact policy applies uniformly.
+// NWS requires a User-Agent on all requests; use the same contact
+// (this repo's URL) as nws.js so any rate-limit / contact policy
+// applies uniformly.
 const USER_AGENT = "pi-weather-station (https://github.com/thicla01/pi-weather-station)";
 
 // Map<zoneUrl, { geometry, expiresAt }>
@@ -133,8 +134,8 @@ async function getZoneGeometry(url) {
 }
 
 /**
- * Clear the in-memory zone cache. Intended for tests and the debug
- * "force refresh" path; not called during normal operation.
+ * Clear the in-memory zone cache. Intended for tests; not called
+ * during normal operation.
  */
 function clearZoneCache() {
   _zoneCache.clear();

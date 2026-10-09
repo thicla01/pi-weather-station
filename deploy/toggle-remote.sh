@@ -3,9 +3,11 @@
 #
 # Toggles ALLOW_REMOTE on/off on the running install. Reads the current state
 # from the systemd unit (Linux) or the launchd plist (macOS), asks the user to
-# confirm the inverse action, and applies it: edits the env var, regenerates
-# the SSL certificate with the LAN IP as a Subject Alternative Name (when
-# enabling), reloads the service manager, and restarts the server.
+# confirm the inverse action, and applies it: edits the env var, reloads the
+# service manager, and restarts the server. It does not touch the TLS
+# certificate itself: the server's auto-generated leaf already lists every
+# LAN IPv4 as a Subject Alternative Name (independent of ALLOW_REMOTE) and
+# re-signs itself on restart if the network changed.
 #
 # This is the focused equivalent of re-running deploy/install.sh just for the
 # remote-access section — useful after the initial install when you want to
@@ -96,7 +98,7 @@ else
     TARGET="enabled"
 fi
 
-# --- Detect IP and regenerate certificate (only when enabling) --------------
+# --- Detect IP for the summary (only when enabling; no cert work here) ------
 REMOTE_IP=""
 if [ "$TARGET" = "enabled" ]; then
     if [ "$PLATFORM" = "Darwin" ]; then

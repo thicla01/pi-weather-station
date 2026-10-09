@@ -97,8 +97,8 @@ export function useHybridMode() {
 }
 
 /**
- * React hook — resolves the active palette key from local solar
- * position + the user's nightMode preference.
+ * React hook — resolves the active palette key from the `darkMode`
+ * preference + the user's nightMode preference (no solar position read).
  *
  * Today this returns a single key based on `darkMode` + `nightMode`
  * because solar-position wiring lives in Phase 5 (sleep mode integration).

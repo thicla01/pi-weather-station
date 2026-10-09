@@ -9,28 +9,31 @@ const BRIGHTNESS_SAVE_DEBOUNCE_MS = 250;
  * Owns:
  * - `brightness*` triplet — fetched once on mount from `/api/brightness`,
  *   exposes the current percent + the device's min floor + whether the
- *   backlight is even controllable on this hardware (HDMI monitors,
- *   x86 dev boxes, etc. expose `available: false`).
+ *   screen brightness is controllable on this hardware (a sysfs
+ *   backlight, or DDC/CI on an EDATEC ED-MONITOR via `ed-ddc-server`;
+ *   other HDMI monitors, x86 dev boxes, etc. expose `available: false`).
  * - `setBrightnessLive` — debounced setter for the slider. Local state
  *   flips immediately so the thumb tracks the cursor smoothly; the
- *   sysfs write is debounced 250 ms (faster than the radar opacity
- *   slider's 500 ms because users expect dimming to react quickly).
+ *   active backend's write (sysfs or ed-ddc-server) is debounced 250 ms
+ *   (faster than the radar opacity slider's 500 ms because users expect
+ *   dimming to react quickly).
  * - The six sleep-mode preference values (`sleepEnabled`, `sleepStage1*`,
  *   `sleepStage2*`, `sleepNightMode`) — exposed with their raw setters so
  *   `saveAdvancedSleepFlag` in AppContext can still flip them
  *   optimistically before the PATCH. The save chain stays in AppContext
  *   because it rebuilds the full `advanced.*` tree (which spans ai +
- *   display + sleep + experimental + pollen); pulling it in here would
- *   require either parameter-passing every other branch's current value,
- *   or duplicating the assembly. Tracked as a follow-up — extracting
- *   `buildAdvancedSubtree()` is a separate refactor.
+ *   display + sleep + pollen + alerts, assembled by AppContext's
+ *   `buildAdvancedSubtree()`, centralised 2026-05-23); pulling it in
+ *   here would require either parameter-passing every other branch's
+ *   current value, or duplicating the assembly.
  *
  * @returns {object} brightness + sleep state with their raw setters
  */
 export function useScreenSaver() {
   // Display brightness — null until the server reports its state. If the
-  // server reports `available: false` (HDMI monitor without backlight
-  // overlay), brightnessAvailable stays false and the slider is hidden.
+  // server reports `available: false` (no sysfs backlight and no
+  // ed-ddc-server DDC/CI monitor, e.g. a generic HDMI monitor),
+  // brightnessAvailable stays false and the slider is hidden.
   const [brightnessPercent, setBrightnessPercent] = useState(null);
   const [brightnessAvailable, setBrightnessAvailable] = useState(false);
   const [brightnessMinPercent, setBrightnessMinPercent] = useState(10);
@@ -49,7 +52,8 @@ export function useScreenSaver() {
   const [sleepNightMode, setSleepNightMode] = useState(true);
 
   // Initial fetch — server tells us whether the device exposes a
-  // backlight (sysfs path), the current value, and the floor.
+  // brightness backend (sysfs backlight or ed-ddc-server DDC/CI), the
+  // current value, and the floor.
   useEffect(() => {
     axios.get("/api/brightness").then((res) => {
       if (res.data?.available) {

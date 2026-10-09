@@ -128,8 +128,9 @@ async function getWeatherAlerts(req, res) {
  * Collect active government alerts whose polygon comes within `radiusKm`
  * of (lat, lon), for the "nearby alerts" display-only overlay. Unlike
  * getActiveAlertsAt (point-in-polygon at the exact spot), this fetches
- * broadly — NWS by the state(s) the circle spans, ECCC's whole national
- * feed — then culls to the circle with circleIntersectsPolygon.
+ * broadly — NWS by the state(s) the circle spans, ECCC by the cached bbox
+ * feed for the circle's 1° grid cell (sized to cover the 100 km max
+ * radius) — then culls to the circle with circleIntersectsPolygon.
  *
  * Alerts with no polygon (a handful of zone-only NWS alerts whose zone
  * geometry couldn't be resolved) can't be circle-tested or drawn, so they

@@ -10,7 +10,9 @@
 // file) and the original (from the client source), applies the same
 // mechanical normalization to both, and asserts textual equality.
 //
-// Covered pairs (the five files audited in quality-audit lot D):
+// Covered pairs (the five files audited in quality-audit lot D, plus
+// radarGeometry, registered the day it was created — must match PAIRS):
+//   test/radarGeometry.test.js ↔ client/src/components/WeatherMap/geometry.js
 //   test/conversions.test.js  ↔ client/src/services/conversions.js
 //   test/alertParser.test.js  ↔ client/src/ui/alertParser.js
 //   test/alertLogic.test.js   ↔ client/src/ui/alertLogic.js (+ hybrid.js)
@@ -70,8 +72,8 @@ const EXPECTED_CHECK_COUNT = 40;
 /**
  * The six copy-carrying test files and how to find their copies.
  *
- * Marker-delimited files (`conversions`, `alertParser`, `moonLitPath`)
- * need no `sourceFile`/`copiedNames`: the source path comes from the
+ * Marker-delimited files (`radarGeometry`, `conversions`, `alertParser`,
+ * `moonLitPath`) need no `sourceFile`/`copiedNames`: the source path comes from the
  * start marker and the copied declarations are auto-discovered inside
  * the block. `alertLogic` and `uiHybrid` predate the marker convention
  * and embed their copies inline, so their pairs are spelled out.

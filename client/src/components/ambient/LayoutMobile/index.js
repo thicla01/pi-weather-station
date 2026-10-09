@@ -23,20 +23,22 @@ import styles from "./styles.css";
  * Third layout alongside `LayoutPi` (800-1279px) and `LayoutDesktop`
  * (≥1280px). Triggered for viewports < 800 px wide — in practice
  * 375-430 px portrait phones. Reuses every Direction C primitive
- * (`cTokens`, `MapBg`, `HeroCompact`, `MetricsGrid`, `AlertBanner`,
+ * (the design package's `cTokens` → `ui/tokens` palettes, `MapBg` →
+ * `WeatherMap`, plus `HeroCompact`, `MetricsGrid`, `AlertBanner`,
  * `ChartTabs`, `AiSummaryInline`) — no new tokens introduced.
  *
  * Structure (single scrollable column):
  *   ┌──────────────────────────────┐
- *   │ TimeBlock                    │  ◀ clock + sunrise/sunset
+ *   │ TimeBlock                    │  ◀ date + clock (+ seasonal countdown)
  *   │ AlertBanner                  │  ◀ government alert (when active)
- *   │ HeroCompact                  │  ◀ location, big temp, condition
  *   │ AlertDetailInline            │  ◀ expanded alert (tap to open)
+ *   │ AlertMiniCards               │  ◀ other alerts + restore pill
+ *   │ HeroCompact                  │  ◀ location, big temp, condition
  *   │ AirCard                      │  ◀ AQI + pollen rows
- *   │ MetricsGrid                  │  ◀ wind / humid / UV / pressure tiles
+ *   │ MetricsGrid                  │  ◀ wind / gust / UV / humidity tiles
  *   │ IndoorBlock                  │  ◀ Homebridge temps (when configured)
  *   │ Radar mini (~220 px) [⛶]    │  ◀ small inset map; maximize toggle
- *   │ ChartTabs                    │  ◀ 24h hourly chart
+ *   │ ChartTabs                    │  ◀ forecast tabs (24 h / 5 days)
  *   │ AiSummaryInline              │  ◀ Claude-generated summary
  *   │ Footer hint                  │  ◀ "settings live on the Pi"
  *   ├──────────────────────────────┤
@@ -54,9 +56,11 @@ import styles from "./styles.css";
  *
  * **Radar maximize** (v2.15.2): the mini radar card carries a
  * maximize toggle in its top-right corner. Tapping it promotes the
- * card to `position: absolute; inset: 12px` so the radar fills the
- * scroll container — at which point the radar timeline scrubber and
- * the precipitation legend (both inside `WeatherMap`) become readable.
+ * card to a `position: absolute` overlay (full-bleed since the v3.1
+ * Phase 3 follow-up: top = safe-area inset, left / right / bottom 0,
+ * no radius) so the radar fills the scroll container — at which point
+ * the radar timeline scrubber and the precipitation legend (both
+ * inside `WeatherMap`) become readable.
  * In mini mode (220 px tall) those overlays would crowd the small
  * tile area; CSS in this module hides them while the card is mini.
  * Same affordance language ChartTabs and AiSummaryInline use.

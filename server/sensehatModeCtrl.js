@@ -3,13 +3,15 @@
 /**
  * sensehatModeCtrl.js
  *
- * Two endpoints + a boot hook for the Sense HAT display-mode toggle.
+ * Display-mode + LED-brightness endpoints and a boot hook for the
+ * Sense HAT display.
  *
  *   GET  /api/sensehat-available
- *     Probes once whether the host has a Sense HAT — runs
- *     `python3 -c "import sense_hat"` and caches the result. Returns
- *     `{available: boolean}`. Used by the v3 SettingsPanel to hide
- *     the toggle on the 6 Pis in the fleet that don't have the HAT.
+ *     Detects once whether the Sense HAT hardware is present (sysfs
+ *     LED-matrix framebuffer scan, see detectSenseHatHardware) and
+ *     caches the result. Returns `{available: boolean}`. Used by the
+ *     v3 SettingsPanel to hide the toggle on the 6 Pis in the fleet
+ *     that don't have the HAT.
  *
  *   GET  /api/sensehat-mode
  *     Returns the current mode `{mode: "weather"|"clock"|"radar"|"auto"}`.
@@ -26,6 +28,16 @@
  *     the systemctl state. Locked behind `localhostOnly` because
  *     systemctl --user starts a process on the kiosk; we don't want
  *     a remote client to be able to flip the Sense HAT display.
+ *
+ *   GET  /api/sensehat-clock-brightness
+ *   POST /api/sensehat-clock-brightness  body: {brightness: 0-100}
+ *     Read / persist the clock daemon's LED brightness (POST restarts
+ *     pi-sensehat-clock.service when it's active). POST is localhostOnly.
+ *
+ *   GET  /api/sensehat-radar-brightness
+ *   POST /api/sensehat-radar-brightness  body: {brightness: 0-100}
+ *     Read / persist the radar-grid LED brightness (no restart — the
+ *     weather daemon re-reads it live). POST is localhostOnly.
  *
  *   applySenseHatModeOnBoot()
  *     Called once from server/index.js after settingsCtrl is ready.

@@ -6,27 +6,6 @@ import axios from "axios";
 // share the weather daemon and differ only in the render personality.
 const VALID_MODES = ["weather", "clock", "radar", "auto"];
 
-/**
- * Self-contained state for the Sense HAT display-mode toggle.
- *
- * Two probes at mount:
- *   - GET /api/sensehat-available — sets `available` once. The
- *     v3 SettingsPanel uses this flag to hide the toggle on the
- *     fleet's Pis that don't have a Sense HAT (6 of 7 as of
- *     2026-05).
- *   - GET /api/sensehat-mode — initial `mode`. Falls back to
- *     "weather" on any error so the UI doesn't render an empty
- *     segmented control.
- *
- * `saveMode(newMode)` POSTs the new value. The server-side
- * handler is responsible for persisting to settings.json AND
- * flipping the systemd services; on success it returns the new
- * mode, on error it returns a structured 4xx/5xx. We update the
- * local state optimistically and roll back on failure so the
- * toggle never lies about what the server actually has.
- *
- * @returns {object} { senseHatAvailable, senseHatMode, saveSenseHatMode }
- */
 // Debounce window for clock-brightness writes. Same rationale as the
 // radar-opacity sliders elsewhere — local state flips immediately as
 // the user drags so the UI is responsive, but the POST to the server
@@ -39,9 +18,28 @@ const VALID_MODES = ["weather", "clock", "radar", "auto"];
 const BRIGHTNESS_SAVE_DEBOUNCE_MS = 1500;
 
 /**
- * Hook owning the Sense HAT toggle + clock brightness state. Returns
- * `senseHatAvailable`, `senseHatMode`, `saveSenseHatMode(mode)`,
- * `senseHatClockBrightness`, `setSenseHatClockBrightnessLive(percent)`.
+ * Hook owning the Sense HAT display-mode toggle + clock / radar
+ * brightness state. Returns `senseHatAvailable`, `senseHatMode`,
+ * `saveSenseHatMode(mode)`, `senseHatClockBrightness`,
+ * `setSenseHatClockBrightnessLive(percent)`, `senseHatRadarBrightness`,
+ * `setSenseHatRadarBrightnessLive(percent)`.
+ *
+ * Four GETs at mount (each keeps its default on error):
+ *   - /api/sensehat-available — sets `available` once. The
+ *     v3 SettingsPanel uses this flag to hide the toggle on the
+ *     fleet's Pis that don't have a Sense HAT (6 of 7 as of
+ *     2026-05).
+ *   - /api/sensehat-mode — initial `mode`. Stays at "weather" on
+ *     any error so the UI doesn't render an empty segmented control.
+ *   - /api/sensehat-clock-brightness and
+ *     /api/sensehat-radar-brightness — the two slider values.
+ *
+ * `saveSenseHatMode(newMode)` POSTs the new value. The server-side
+ * handler is responsible for persisting to settings.json AND
+ * flipping the systemd services; on success it returns the new
+ * mode, on error it returns a structured 4xx/5xx. We update the
+ * local state optimistically and roll back on failure so the
+ * toggle never lies about what the server actually has.
  *
  * @returns {{
  *   senseHatAvailable: boolean,
@@ -122,7 +120,8 @@ export function useSenseHatMode() {
   // Debounced live setter for the clock-brightness slider. UI state
   // flips on every drag tick, but the POST (which restarts the
   // systemd unit) only fires after the user pauses dragging for
-  // ~500 ms — avoids restart-storming the service.
+  // BRIGHTNESS_SAVE_DEBOUNCE_MS (1.5 s) — avoids restart-storming the
+  // service.
   const brightnessSaveTimerRef = useRef(null);
   const setClockBrightnessLive = useCallback((v) => {
     setClockBrightness(v);
@@ -136,10 +135,10 @@ export function useSenseHatMode() {
     }, BRIGHTNESS_SAVE_DEBOUNCE_MS);
   }, []);
 
-  // Same debounced-save pattern for the radar night-brightness slider.
-  // The weather daemon picks up the new value the next time it polls
-  // /api/sensehat, but the POST also restarts pi-sensehat.service so the
-  // change is visible immediately rather than up to a poll-interval later.
+  // Same debounced-save pattern for the radar brightness slider. The
+  // POST only persists the value (no service restart); the weather
+  // daemon re-reads radarBrightness from settings.json on a ~1 s
+  // cadence, so the change shows almost immediately.
   const radarBrightnessSaveTimerRef = useRef(null);
   const setRadarBrightnessLive = useCallback((v) => {
     setRadarBrightness(v);

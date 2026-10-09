@@ -1,8 +1,8 @@
 [Unit]
 Description=Pi Weather Station — Sense HAT Clock Display
-# No dependency on pi-weather-server.service — the clock daemon talks
-# directly to the Sense HAT hardware and the system clock; it doesn't
-# need the weather server to be up.
+# No hard dependency on pi-weather-server.service — the clock renders
+# from the system clock alone; it polls /api/sensehat only for the
+# gov-alert override and degrades gracefully when the server is down.
 After=network.target
 
 [Service]

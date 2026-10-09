@@ -69,9 +69,11 @@ function readStoredView(key, max) {
  * maintainer-chosen replacement for the old always-paired charts.
  *
  * Maximize: on LayoutDesktop / LayoutMobile it keeps the v2.14.39
- * mechanics — the slab promotes to `position: absolute; inset: 12px`
- * over its rail and emits `data-chart-maximized="true"` (the layout
- * widens the rail via `:has()`). On LayoutPi (v3.2) the expand button
+ * in-rail mechanics, re-pinned to the rail top with natural height
+ * since v2.14.55 — the slab promotes to `position: absolute` (left /
+ * right 12 px, `bottom: auto`, z-index 5) over its rail and emits
+ * `data-chart-maximized="true"` (the layout widens the rail via
+ * `:has()`). On LayoutPi (v3.2) the expand button
  * instead drives the shell MAX state (`piLayoutState`): the map shrinks
  * to a thumbnail and the rail goes full-width. Either way the grid
  * metric densifies (8 → 24 cells) and the chart area grows.
