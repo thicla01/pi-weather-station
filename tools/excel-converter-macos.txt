@@ -4,6 +4,7 @@
 # --- Installation (une seule fois) ---
 
 # 1. Copier le script depuis le Pi vers le Mac
+#    (inutile si le dépôt est cloné sur le Mac : voir « Depuis un clone » plus bas)
 scp pi@<pi-ip-address>:~/pi-weather-station/tools/debug_csv_to_excel.py ~/Desktop/
 
 # 2. Créer un environnement virtuel Python
@@ -21,8 +22,23 @@ python3 -m venv ~/venv-excel
 ~/venv-excel/bin/python3 ~/Desktop/debug_csv_to_excel.py
 
 # Le fichier .xlsx est créé dans ~/Downloads/ avec le même nom que le CSV.
-# Chaque section du panneau debug devient un onglet séparé dans Excel.
+# Chaque section du panneau debug (=== TITRE ===) devient un onglet séparé dans Excel.
+# Les cellules qui commencent par =, @ ou une tabulation (ou par + / - sans
+# être un nombre) gardent l'apostrophe de tête ajoutée par l'export (protection
+# contre l'injection de formules) : c'est voulu, elles restent du texte dans Excel.
+# Seuls les marqueurs de section ('=== TITRE ===) en sont débarrassés.
 
 # --- Optionnel : spécifier les fichiers manuellement ---
 
 ~/venv-excel/bin/python3 ~/Desktop/debug_csv_to_excel.py ~/Downloads/fichier.csv ~/Desktop/resultat.xlsx
+
+# --- Depuis un clone du dépôt sur le Mac (toujours à jour après git pull) ---
+
+# (adapter le chemin si le dépôt est cloné ailleurs que dans ~/pi-weather-station)
+~/venv-excel/bin/python3 ~/pi-weather-station/tools/debug_csv_to_excel.py
+
+# --- Mise à jour ---
+
+# Une copie sur ~/Desktop ne se met pas à jour toute seule : refaire l'étape 1
+# après une mise à jour du dépôt. Une copie antérieure à octobre 2026 met tout
+# dans un seul onglet « Overview » avec les CSV exportés depuis le 2026-06-11.
