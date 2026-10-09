@@ -14,7 +14,16 @@ The kiosk browser is chosen interactively by `install.sh` (Chromium, Chrome, Bra
 
 ## 📣 Highlights — October 2026
 
-Release 3.3.0 just landed (full details in [CHANGELOG.md](./CHANGELOG.md) and on the [Releases](https://github.com/thicla01/pi-weather-station/releases) page):
+Releases 3.3.0 and 3.3.1 just landed (full details in [CHANGELOG.md](./CHANGELOG.md) and on the [Releases](https://github.com/thicla01/pi-weather-station/releases) page).
+
+**3.3.1: a smoother, lighter radar**
+
+- **The radar timeline plays smoothly.** The frames around the one on screen now stay loaded, so playing or scrubbing the loop no longer blanks the map between frames, a stutter most visible on wide screens. Firefox, as a kiosk or a remote viewer, also stops re-blurring the moving radar under every overlay. Both ideas come from [@Aryeh95](https://github.com/Aryeh95)'s [Sweep](https://github.com/Aryeh95/Sweep) fork. Thank you!
+- **One kiosk can no longer lock the others out of the radar.** RainViewer limits tile requests per public IP, so every kiosk behind the same router shares one budget. A refused radar tile is now held and retried after RainViewer's one-minute window, instead of being requested again on every loop pass, which had kept the whole network over the limit while a wide kiosk played the loop.
+- **A lighter bundle.** Production builds no longer ship the CSS comments: 225 KB less (−11.5 %) for every kiosk and phone to download and parse.
+- **Kiosk fixes.** The map stays centred after leaving the fullscreen radar on a slow Pi, dock toasts sit above the tapped button again, the 7" radar legend stays compact over the scrubber, and a brief weather-data gap no longer hides the AI summary.
+
+**3.3.0**
 
 - **The AI summary runs on Claude Haiku 5.5.** `claude-haiku-5-5` with adaptive thinking at low effort, at an estimated 25–30 % of the previous per-call cost (less still without the radar paragraph). A refused or empty reply is never cached, so the last summary stays on screen and the next poll retries. The AI view now opens from the dock on every Pi panel, the 10.1" kiosks included.
 - **Places refinements.** Pinning the kiosk's own default location no longer costs a favorite slot (7 places when one of them is the default, 6 otherwise), renaming is no longer hidden on touchscreen kiosks (typing the name still takes a keyboard), and a `↺` in the Places popover returns the default location to IP geolocation without a trip to Settings. User guide: [`docs/places-guide_en.md`](docs/places-guide_en.md) ([FR](docs/places-guide_fr.md) · [ES](docs/places-guide_es.md)).
@@ -606,6 +615,7 @@ No other environment variables configure the server. The kiosk launcher (`start-
 
 - [@elewin](https://github.com/elewin) — Original author. Tile-rendering fixes on both the Mapbox basemap and the RainViewer radar overlay (`tileSize=512` + `zoomOffset=-1` + `maxNativeZoom=8`) were cherry-picked from his upstream [PR #76](https://github.com/elewin/pi-weather-station/pull/76) and [PR #77](https://github.com/elewin/pi-weather-station/pull/77).
 - [@aevans1987](https://github.com/aevans1987)
+- [@Aryeh95](https://github.com/Aryeh95) — Author of the [Sweep](https://github.com/Aryeh95/Sweep) fork. The smooth radar timeline of 3.3.1 adapts its technique of keeping radar frames mounted and flipping their opacity (commits [`7e27e15`](https://github.com/Aryeh95/Sweep/commit/7e27e1535814fc5b45e3838a860523b61de0434c) and [`2b0d0d1`](https://github.com/Aryeh95/Sweep/commit/2b0d0d1decd78ad7deb3c0d345cc5a21f21d32a1)), and the Firefox backdrop-blur cut-off comes from commit [`c0e2ed4`](https://github.com/Aryeh95/Sweep/commit/c0e2ed443c900d55d1f6789be96774d80ce3a446).
 - [@dagent23](https://github.com/dagent23)
 - [@klamer](https://github.com/klamer)
 - [Claude Code](https://claude.ai/code) (Anthropic) — AI pair programmer
