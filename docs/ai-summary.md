@@ -48,7 +48,7 @@ Anthropic API key to function.
 | Feature | What it does | LLM involvement |
 |---|---|---|
 | **AlertBanner** (red/orange banner above the current weather) | Picks one of `alert.redNear` / `redApproaching` / `redIntensifying` / `redLeaving` / `orangeNear` / etc. based on the radar-derived risk tier and trend, OR surfaces a government alert from NWS / ECCC. Every banner carries a leading source badge (`RADAR` / `NWS` / `ECCC`) so the user can distinguish locally-derived alerts from authoritative government feeds. Pure local computation + i18n key lookup. | **None.** Server-side `getRiskLevels` reads the same RainViewer tiles the AI analyzer reads (shared `tileCache`), classifies them into a tier, computes the trend, and returns it as JSON. The client picks the wording. |
-| **Inner / outer dashed circles on the map** (50 km / 100 km) | Same data as the AlertBanner. The circle colour follows the same risk tier. When no Anthropic key is configured, the calm-tier circle is rendered with reduced opacity and a sparser dash pattern to signal "analysis zone present, AI narrative absent" — coloured tiers stay loud regardless. The subdued style applies from boot on every layout, Pi included: the client reads key availability from its startup `GET /settings`, not from a summary request. The one exception is a remote client whose key is still the `"key"` placeholder, which the masked settings read can't reveal; see [Settings that affect the AI summary](#settings-that-affect-the-ai-summary). | **None.** Client just renders Leaflet circles with the colour coming from `/api/radar-risk`. |
+| **Inner / outer dashed circles on the map** (50 km / 100 km) | Same data as the AlertBanner. The circle colour follows the same risk tier. When no Anthropic key is configured, the calm-tier circle is rendered with reduced opacity and a sparser dash pattern to signal "analysis zone present, AI narrative absent" — coloured tiers stay loud regardless. The subdued style applies from boot on every layout, Pi included, and on remote clients too: the client reads key availability from its startup `GET /settings`, not from a summary request; see [Settings that affect the AI summary](#settings-that-affect-the-ai-summary). | **None.** Client just renders Leaflet circles with the colour coming from `/api/radar-risk`. |
 | **Radar tile colours themselves** | RainViewer-encoded intensity, no post-processing. | **None.** Pure CDN tiles. |
 | **Government weather alerts** (frost advisory, severe thunderstorm watch, etc.) | Polled every 10 min from the NWS (api.weather.gov GeoJSON) and Environment Canada (api.weather.gc.ca JSON) alert APIs. | **None.** The Pi pulls the official feed, parses, and shows the title verbatim. |
 | **Forecast charts** (24 h / 5 day) | Tomorrow.io payload rendered via Chart.js. | **None.** |
@@ -220,8 +220,13 @@ paragraph" becomes "the second paragraph" automatically, so Claude's
 output stays coherent regardless of which inputs are missing.
 
 When **all three sections fail to produce content**, the controller
-returns 503 immediately without calling Claude. The client uses that
-to hide the AI banner gracefully rather than show a perpetual spinner.
+returns 502 `{ "reason": "no-weather-data" }` immediately without
+calling Claude. That is a data gap (typically Tomorrow.io failing while
+the shared caches are cold and there is no radar block), not a missing
+feature: the client keeps the summary it already shows (the Pi AI view
+shows "AI summary unavailable" when it has none yet) and retries at the
+next poll. It used to be a 503, which the clients read as "no API key",
+so a gap hid the AI summary on a keyed install until a reload.
 
 ---
 
@@ -389,13 +394,14 @@ too.
   Anthropic Console cost dashboard (re-baseline it after a model
   change: price, token counts and thinking all move at once).
 - **Failure modes.** API error → 500; refused or empty reply → 502;
-  remote caller over the billed-call ceiling → 429 (the local kiosk is
-  exempt). 503 is reserved for "no API key" and "no weather data at
-  all", and is never returned for a failed call. Both clients keep an
-  already-displayed summary on screen (the Pi AI view shows "AI
-  summary unavailable" when it has none yet) and try again at the next
-  15-minute poll; the SDK itself retries a transient failure once
-  (`CLAUDE_MAX_RETRIES`).
+  no weather data at all → 502 `reason: "no-weather-data"` (no call
+  made); remote caller over the billed-call ceiling → 429 (the local
+  kiosk is exempt). 503 is reserved for "no API key"
+  (`reason: "no-key"`), and is never returned for a failed call. Both
+  clients keep an already-displayed summary on screen (the Pi AI view
+  shows "AI summary unavailable" when it has none yet) and try again at
+  the next 15-minute poll; the SDK itself retries a transient failure
+  once (`CLAUDE_MAX_RETRIES`).
 
 ---
 
@@ -523,14 +529,16 @@ Advanced → AI · radar analysis**:
 The **API key** (`anthropicApiKey`) lives at the top level of
 `settings.json`, not under `advanced`. When it's missing, empty, or still
 the `"key"` placeholder from `settings.example.json`, the endpoint returns
-503 without calling Claude — and the client normally knows before it ever
-asks. The startup `GET /settings` read that every layout already makes
-carries the key (the raw value for the local kiosk, a `true`/`false`
-mask for a remote client), and AppContext clears `aiSummaryAvailable`
-from it (`isAnthropicKeyConfigured`, the exact negation of the server's
-503 test). That read lands before the map is first positioned, so before
-any summary request could fire; from then on, with no summary request at
-all:
+503 `{ "reason": "no-key" }` without calling Claude — and the client
+normally knows before it ever asks. The startup `GET /settings` read that
+every layout already makes carries the key (the raw value for the local
+kiosk, a `true`/`false` mask for a remote client — and the mask applies
+the same rule, `settingsCtrl.isApiKeyConfigured`, so the placeholder
+reads `false` there too), and AppContext clears `aiSummaryAvailable` from
+it (`isAnthropicKeyConfigured`, the exact negation of the server's no-key
+test). That read lands before the map is first positioned, so before any
+summary request could fire; from then on, local or remote, with no
+summary request at all:
 
 - **Pi** (`LayoutPi`): the dock's IA button is not shown, so the AI view
   can't be opened onto a "Generating summary…" that ends in "AI summary
@@ -541,18 +549,17 @@ all:
 - **Every layout**: the dashed analysis-zone circles take the subdued
   calm-tier style (see the notes under the behaviour matrix below).
 
-The 503 remains the authoritative fallback: whichever surface fetches
-(`AiSummaryInline`, or `useAiSummary` behind the Pi AI view) switches
-`aiSummaryAvailable` off on a 503 (either body — the "No weather data
-available" 503 does it too), and the settings read never switches it
-back on. That covers the one case the settings read can't see — a
-remote client, whose masked `true` doesn't distinguish the `"key"`
-placeholder from a real key: it hides the feature after its first
-summary request, as before. On a remote client served `LayoutPi`, that
-first request is the first AI-view open, so until then the IA button
-shows and the circles keep full contrast. Saving the key in **Settings**
-(a localhost-only write) re-derives availability from the value just
-written: adding a key brings the IA button, the slab and the
+The no-key 503 remains the authoritative fallback: whichever surface
+fetches (`AiSummaryInline`, or `useAiSummary` behind the Pi AI view)
+switches `aiSummaryAvailable` off on it (`isAiSummaryKeyMissing`), and
+the settings read never switches it back on. That covers what the
+settings read can't see: a `settings.json` edited after boot, or a boot
+read that failed. Only that 503 does it — a 503 without a `reason` too,
+since that comes from a server older than the field — while every other
+failure, the "no weather data" 502 included, is transient: the surface
+keeps what it shows and the next poll retries. Saving the key in
+**Settings** (a localhost-only write) re-derives availability from the
+value just written: adding a key brings the IA button, the slab and the
 full-contrast circles back without a reload, and clearing it hides them.
 
 ---

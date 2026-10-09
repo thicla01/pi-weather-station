@@ -10,7 +10,7 @@ Pi Weather Station is designed to run on a local network (Raspberry Pi + 7" touc
 
 All outbound API calls that carry a key (Tomorrow.io, Mapbox, LocationIQ, Anthropic, EPA AirNow, OpenAQ) are **proxied through the Express server**, as are keyless ones such as sunrise-sunset.org — the only direct browser fetches are the keyless radar layers (see [Transport security](#transport-security)). API keys are stored in `settings.json` on the Pi and are never included in client-side request URLs — they are invisible in the browser's network inspector and in third-party server logs.
 
-Remote clients receive a masked `GET /settings`: the response is first projected through the settings whitelist (default-deny, so an unknown key never passes), the API-key fields become booleans (`true` = configured), and the `indoorTemperature` block (Homebridge URL and credentials) is removed entirely. Non-secret settings — the starting coordinates, `advanced` and `favorites` — are returned as-is. Full values are only returned when the request's TCP socket peer is the Pi itself (`localhost`, which includes an SSH tunnel).
+Remote clients receive a masked `GET /settings`: the response is first projected through the settings whitelist (default-deny, so an unknown key never passes), the API-key fields become booleans (`true` = configured, i.e. the server would use the key — an `anthropicApiKey` still set to the `"key"` placeholder therefore reads `false`), and the `indoorTemperature` block (Homebridge URL and credentials) is removed entirely. Non-secret settings — the starting coordinates, `advanced` and `favorites` — are returned as-is. Full values are only returned when the request's TCP socket peer is the Pi itself (`localhost`, which includes an SSH tunnel).
 
 ---
 

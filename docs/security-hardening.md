@@ -223,7 +223,8 @@ bill against their API key**.
   A remote client cannot change `advanced.ai.*` even if `ALLOW_REMOTE=true`.
 - `GET /settings` is allowed remote, but the response masks API key fields
   to booleans so a remote viewer can confirm the key is configured without
-  reading it.
+  reading it (an Anthropic key left at the `"key"` placeholder reads
+  `false`, matching the AI summary's no-key 503).
 - The Settings UI shows the Advanced section to remote clients in read-only
   mode (dimmed, controls disabled); the notice directing the user to open
   an SSH tunnel for actual changes appears in the Configuration & API keys

@@ -598,7 +598,9 @@ User clicks map
 ```
 Client: GET /api/weather-summary?lat=…&lon=…&lang=fr&localHour=14&…
   → aiSummaryCtrl reads anthropicApiKey via settingsCtrl.getSettingsData()
-      → 503 if absent
+      → 503 { reason: "no-key" } if missing, empty or the "key" placeholder
+        (settingsCtrl.isApiKeyConfigured — the same rule the remote
+        GET /settings mask uses)
   → checks summaryCache (key: lat/lon/lang/localHour period + unit prefs) → miss
   → in-flight coalescing (inflightSummaries): a concurrent miss on the same key
       awaits the build already running and mirrors its status/body — one radar
@@ -617,7 +619,9 @@ Client: GET /api/weather-summary?lat=…&lon=…&lang=fr&localHour=14&…
       code, precip probability < 20 % now and for the coming period, and no
       radar return → templated summary, NO Claude call; cached 15 min,
       recordServiceCall(…, 200, "calm-day fast path (no LLM call)") → returns
-  → no current, period or radar data at all → 503 "No weather data available"
+  → no current, period or radar data at all → 502 { reason: "no-weather-data" }
+      (transient: the clients keep what they show and retry at the next
+      poll; only the no-key 503 hides the feature)
   → builds 1/2/3-paragraph prompt depending on which data is available
   → billed-call ceiling (reserveClaudeCall), remote peers only — the local kiosk
       is exempt: past 10 billed calls/min process-wide or 4/min per socket peer
