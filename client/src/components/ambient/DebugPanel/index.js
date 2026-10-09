@@ -537,6 +537,40 @@ const httpStatusKind = (status) => {
   return "neutral";
 };
 
+// Sort rank of each `httpStatusKind` in the "Recent service calls" list:
+// failing services first (5xx, then 4xx); every other kind — ok, and
+// neutral (pre-registered, not called yet) — shares the last rank.
+const SERVICE_KIND_RANK = { err: 0, warn: 1 };
+const SERVICE_KIND_RANK_OTHER = 2;
+
+/**
+ * Display order of the `/api/debug` `services` map for the Services
+ * bucket. Nothing is dropped: the server pre-registers its whole
+ * upstream inventory at startup (`registerKnownServices` in
+ * server/index.js) precisely so a service that was never called, or
+ * died silently, still has a row — so unlike the capped lists elsewhere
+ * in the panel (response times, API calls, remote clients, security
+ * events — 10 rows each), this one is never capped. Failing services
+ * float to the top (5xx before 4xx, the buckets `httpStatusKind` paints
+ * red / amber) so a broken source is the first thing under the provider
+ * list on the 7" kiosk instead of a scroll away. Within a rank the
+ * server's order is kept (`Array.prototype.sort` is stable since
+ * ES2019): the registration order groups services by domain and matches
+ * the CSV export's SERVICES section.
+ *
+ * @param {object|null|undefined} services — `{ [name]: { status,
+ *   comment, lastCall, ... } }` as served by `/api/debug`; `status` is
+ *   the last HTTP status (a number) or `null` when not called yet.
+ *   A missing map reads as empty.
+ * @returns {Array<[string, object]>} every `[name, info]` pair, failures
+ *   first, otherwise in the map's insertion order; `[]` for an empty or
+ *   missing map.
+ */
+const orderServicesForDisplay = (services) =>
+  Object.entries(services || {}).sort(([, a], [, b]) =>
+    (SERVICE_KIND_RANK[httpStatusKind(a?.status)] ?? SERVICE_KIND_RANK_OTHER)
+    - (SERVICE_KIND_RANK[httpStatusKind(b?.status)] ?? SERVICE_KIND_RANK_OTHER));
+
 /* Static bucket spec — IDs are used for localStorage persistence
  * and don't need to be translated. The localised display label is
  * resolved at render time via `bucketLabel(lang, bucket.id)`. The
@@ -1273,12 +1307,29 @@ const BucketClient = ({ data, lang, gridTwoWide }) => {
   );
 };
 
+/**
+ * Services bucket — upstream provider statuspages, the last recorded
+ * call of every server-side service, and the per-service quota tables.
+ *
+ * @param {object} props
+ * @param {object} props.data — payload from `/api/debug`; reads
+ *   `providerStatus`, `services` and `counters`, each optional (a
+ *   missing one renders its localised empty note).
+ * @param {"en"|"fr"|"es"} props.lang — 2-letter UI language (anything
+ *   else falls back to English)
+ * @returns {JSX.Element} the bucket. The service-call list shows every
+ *   service the server knows about (see `orderServicesForDisplay`), not
+ *   a capped slice. It gets no internal scroll box either (unlike the
+ *   unbounded log tail): the inventory is bounded (~20 names) and the
+ *   pane already scrolls, so a nested scroller would only add a second
+ *   swipe target on the touch kiosk.
+ */
 const BucketServices = ({ data, lang }) => {
   const providers = data.providerStatus?.providers || [];
   const fetchedAt = data.providerStatus?.fetchedAt
     ? new Date(data.providerStatus.fetchedAt).toLocaleTimeString()
     : null;
-  const services = data.services || {};
+  const serviceRows = orderServicesForDisplay(data.services);
   const counters = data.counters || {};
   const counterEntries = Object.entries(counters);
   return (
@@ -1308,11 +1359,11 @@ const BucketServices = ({ data, lang }) => {
       )}
 
       <SectionTitle title={lbl(lang, "Recent service calls", "Appels de service récents", "Llamadas de servicio recientes")} gap />
-      {Object.keys(services).length === 0 ? (
+      {serviceRows.length === 0 ? (
         <div className={styles.emptyNote}>{lbl(lang, "No service activity yet.", "Aucune activité de service.", "Sin actividad de servicio.")}</div>
       ) : (
         <div className={styles.list}>
-          {Object.entries(services).slice(0, 10).map(([name, info]) => (
+          {serviceRows.map(([name, info]) => (
             <div key={name} className={styles.row}>
               <Tag kind={httpStatusKind(info?.status)}>
                 {String(info?.status || "?").toUpperCase()}

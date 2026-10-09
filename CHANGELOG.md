@@ -58,6 +58,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   rather than its terse `alert_code` (`RFW`), falling back to `eventType`. LED rendering is
   unchanged (both daemons key their transitions on `tier`). Pinned for both sources by
   `test/sensehatAlert.test.js`, which runs each source's real normaliser.
+- **The Debug panel's "Recent service calls" list now shows every upstream service, failing ones
+  first.** The list rendered only the first 10 entries of the `/api/debug` `services` map, while
+  the server pre-registers 19 services at startup (`registerKnownServices`) so each one has a row
+  even before its first call. In registration order, Homebridge, ECCC AQHI, both MELCC sources,
+  AirNow, OpenAQ, the NWS and ECCC alert feeds and Open-Meteo pollen were always cut off, even
+  while failing. The list is now uncapped, with 5xx then 4xx rows on top and the rest in the
+  server's order (`orderServicesForDisplay`). `test/debugServicesList.test.js` runs the shipped
+  helper against the real server registry, and `docs/kpi-definitions.md` now documents the list.
 
 ### Documentation
 - **A `☑` in the localization glossary now stays on the exact wording it validated.**
