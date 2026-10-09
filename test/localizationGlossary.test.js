@@ -14,17 +14,21 @@
 // The targeted cases render a small in-memory fixture modelled on the real
 // rows that exposed each failure, so editing a real string can't break them;
 // the round trips render the real locale files and panels (read-only).
-// Nothing is written to disk. The scanner helpers that feed the inline table
-// (`readString`, `blankComments`, `extractLbl`) are covered at the end.
+// Nothing is written to disk. One test does depend on the repo state, on
+// purpose: it fails `npm test` when docs/localization-glossary.md is stale,
+// the job `--check` had while nothing ran it. The scanner helpers that feed
+// the inline table (`readString`, `blankComments`, `extractLbl`) are covered
+// at the end.
 //
 // Run: `npm test` or `node --test test/localizationGlossary.test.js`.
 
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
+const fs = require("node:fs");
 const path = require("node:path");
 
 const { __test } = require("../tools/gen-localization-glossary");
-const { readString, blankComments, extractLbl, parseGlossary, loadSources, renderGlossary, isStale } = __test;
+const { readString, blankComments, extractLbl, parseGlossary, loadSources, renderGlossary, staleness } = __test;
 
 const DATE = "2026-10-08";
 const REAL = loadSources(path.join(__dirname, ".."));
@@ -399,14 +403,36 @@ test("a key listed twice (say, after a merge conflict) keeps the stronger mark",
   assert.deepEqual(ticked(render(src, tickLast).text), ["charts.pillAvg"]);
 });
 
-test("--check ignores the generation date and nothing else", () => {
+test("--check ignores the date, line endings and the inline line numbers, and nothing else", () => {
   const src = fixture();
   const base = render(src).text;
   const otherDay = renderGlossary(src, "", "2027-01-31").text;
   assert.notEqual(otherDay, base);
-  assert.equal(isStale(base, otherDay), false);
-  assert.equal(isStale(base, tick(base, key("charts.pillAvg"))), true);
-  assert.equal(isStale(base, base.replace("| Précip |", "| Précip. |")), true);
+  assert.equal(staleness(base, otherDay), null);
+  assert.equal(staleness(base.replace(/\n/g, "\r\n"), base), null);
+  // Code moved in a panel, no string touched: every `:<line>` shifts.
+  const moved = fixture();
+  for (const p of moved.panels) for (const r of p.rows) r.line += 3;
+  assert.notEqual(render(moved).text, base);
+  assert.equal(staleness(base, render(moved).text), null);
+
+  assert.match(staleness(base, tick(base, key("charts.pillAvg"))), /^line \d+\n {2}on disk: {5}\| ☐ \| avg /);
+  assert.match(staleness(base, base.replace("| Précip |", "| Précip. |")), /regenerated: .*\| Précip\. \|/);
+  // Reordered rows are a real change, and so is a line added at the end.
+  const reordered = fixture();
+  reordered.panels[0].rows.reverse();
+  assert.notEqual(staleness(base, render(reordered).text), null);
+  assert.match(staleness(base, `${base}\nextra`), /on disk: {5}\(end of file\)/);
+});
+
+// ── The committed glossary ─────────────────────────────────────────────
+
+test("docs/localization-glossary.md is up to date with the locale files and panels", () => {
+  // The drift check CI never ran: the file sat stale for seven weeks in 2026.
+  // Same comparison as `--check`, so `:<line>` refs that drifted are fine.
+  const committed = fs.readFileSync(path.join(__dirname, "..", "docs", "localization-glossary.md"), "utf8");
+  const diff = staleness(committed, render(REAL, committed).text);
+  assert.equal(diff, null, `stale glossary, run: node tools/gen-localization-glossary.js\nfirst difference at ${diff}`);
 });
 
 test("a string moved to the other panel, or migrated to a locale key, keeps its tick", () => {

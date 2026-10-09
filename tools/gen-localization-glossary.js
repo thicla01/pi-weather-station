@@ -42,6 +42,10 @@
  *
  * Usage:  node tools/gen-localization-glossary.js
  *         node tools/gen-localization-glossary.js --check   (exit 1 if stale)
+ *
+ * `npm test` makes the same comparison as `--check` (see `staleness`), so a
+ * stale glossary fails CI too: it sat stale for seven weeks in 2026 while
+ * nothing ran the check.
  */
 
 const fs = require("fs");
@@ -627,16 +631,34 @@ function renderGlossary({ en, fr, es, panels }, previous, today) {
   };
 }
 
-/** Tell whether the regenerated text differs from the file on disk in
- * anything but the generation date, which is what `--check` reports.
+/** Compare the glossary on disk with a regeneration, the way `--check` and
+ * the drift test in `test/localizationGlossary.test.js` do.
+ *
+ * Ignored: the generation date, line endings, and the `:<line>` refs of the
+ * inline tables. A panel edit that only moves code shifts most of those refs;
+ * failing every such change for it would make the check noise, so the refs
+ * catch up at the next regeneration instead. Everything else (a string, a
+ * tick, the order of rows, the counts) must match.
  *
  * @param {string} previous the glossary on disk
  * @param {string} text the regenerated glossary
- * @returns {boolean} true when the file is stale
+ * @returns {string|null} null when the file is up to date; otherwise the first
+ *   differing line, as on disk and as regenerated
  */
-function isStale(previous, text) {
-  const strip = (t) => t.replace(/^\*\*Generated\*\* by .* on \d{4}-\d{2}-\d{2}\./m, "");
-  return strip(previous) !== strip(text);
+function staleness(previous, text) {
+  const normalize = (t) => t
+    .replace(/\r\n/g, "\n")
+    .replace(/^\*\*Generated\*\* by .* on \d{4}-\d{2}-\d{2}\./m, "**Generated**")
+    .replace(/ `:\d+` \|$/gm, " `:…` |")
+    .split("\n");
+  const disk = normalize(previous);
+  const fresh = normalize(text);
+  const at = disk.length > fresh.length
+    ? disk.findIndex((line, i) => line !== fresh[i])
+    : fresh.findIndex((line, i) => line !== disk[i]);
+  if (at === -1) return null;
+  const show = (line) => (line === undefined ? "(end of file)" : line);
+  return `line ${at + 1}\n  on disk:     ${show(disk[at])}\n  regenerated: ${show(fresh[at])}`;
 }
 
 function main() {
@@ -654,8 +676,9 @@ function main() {
   const { text, stats } = renderGlossary(loadSources(ROOT), previous, today);
 
   if (check) {
-    if (isStale(previous, text)) {
-      console.error("localization glossary is stale — run: node tools/gen-localization-glossary.js");
+    const diff = staleness(previous, text);
+    if (diff) {
+      console.error(`localization glossary is stale — run: node tools/gen-localization-glossary.js\nfirst difference at ${diff}`);
       process.exit(1);
     }
     console.log("localization glossary is up to date");
@@ -680,7 +703,7 @@ function main() {
 }
 
 module.exports = {
-  __test: { readString, blankComments, extractLbl, parseGlossary, carryMarks, loadSources, renderGlossary, isStale },
+  __test: { readString, blankComments, extractLbl, parseGlossary, carryMarks, loadSources, renderGlossary, staleness },
 };
 
 if (require.main === module) main();

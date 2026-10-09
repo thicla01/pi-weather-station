@@ -51,6 +51,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   the generator with a `TypeError` instead of producing the coverage-gap table. No row had been
   validated yet, so no mark needed migrating. Documentation tooling only; nothing a Pi runs
   changes.
+- **`npm test` now fails when `docs/localization-glossary.md` is stale.** Nothing ran
+  `node tools/gen-localization-glossary.js --check`, so the file sat stale for seven weeks before
+  `75da230` regenerated it. A drift test in `test/localizationGlossary.test.js` makes the same
+  comparison, locally and in CI, without a new workflow step, and a stale file now names its first
+  differing line. Both ignore the `:<line>` refs of the inline `lbl()` tables, which shift with
+  almost every `SettingsPanel` / `DebugPanel` edit: a change that only moves code no longer needs a
+  regeneration, and the refs catch up at the next one.
 
 ## [3.3.0] - 2026-10-08
 
