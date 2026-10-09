@@ -21,7 +21,11 @@ It is opened from the **bookmark icon** in the bottom bar.
 There is no search box. You save **the place you are currently
 looking at**, which on a touchscreen is faster than typing anyway.
 
-1. Move the map to the place you want — drag it, or tap it.
+1. Tap the map on the place you want — if it is off-screen, drag the
+   map first, but dragging only moves the view: the location, and the
+   city name at the top, change when you tap. If nearby alerts are
+   shown on the map and you tap inside one of their areas, a box opens
+   instead: tap **Re-center here**.
 2. Tap the **city name** at the top of the screen. A panel opens with
    the details of that location.
 3. At the bottom of that panel, tap **Pin this place**.
@@ -92,11 +96,12 @@ is not really a saved place — it is a reminder of where the station
 starts. Turn it into a real one first: in Edit mode, tap the `★` on
 the `⌂` row. It becomes a normal row that you can rename with `✎`.
 
-> **Where did the `⌂` row go?** This surprises people. Once you pin
-> your starting location, it *becomes* one of your saved places — so
-> the reminder row is no longer needed and disappears, and the little
-> house moves onto your saved row instead. Nothing was lost; the same
-> place is simply listed once instead of twice.
+> **Where did the `⌂` row go?** This surprises people. Once your
+> starting location is one of your saved places — pinned with `★`, or
+> chosen with `⌂` on a saved row — the reminder row is no longer
+> needed and disappears, and the little house moves onto your saved
+> row instead. Nothing was lost; the same place is simply listed once
+> instead of twice.
 
 **To go back to automatic:** in Edit mode, tap `↺` on the `⌂` row.
 The station goes back to working your location out from the internet
@@ -115,17 +120,19 @@ nothing to undo, so it is not shown.
 
 The reason is the size of the panel: it fits seven rows on the 7-inch
 screen without scrolling, and the `⌂` row takes one of them. Pin your
-starting location and that row is no longer needed, which frees the
-slot for a real place.
+starting location and that row is no longer needed: the starting
+location takes the slot itself, so it costs no extra room — but it
+does not make room for another place.
 
 At the limit, **Pin this place** is greyed out with *"List full"*.
-Remove one you no longer use, and it comes back.
+Remove one you no longer use, and it comes back. (In Edit mode, the
+`★` on the `⌂` row still works at the limit.)
 
 ## From a phone or another computer
 
 If you open the station from another device on your network, you can
 **see the list and tap rows to move the map**, but the **Edit** button
-is not there.
+is not there, and neither is **Pin this place**.
 
 That is intentional. Changes are only accepted from the station
 itself, so nobody else on the network can alter your settings. To make
@@ -138,12 +145,12 @@ main documentation — it counts as the station itself.
 
 | What you see | What is happening |
 |---|---|
-| A place is named after the region only, like *Texas* | The map data has no town for that exact point, so only the wider area came through. Rename it to whatever suits you |
+| A place is named after the region only, like *Texas*, or by its coordinates | The map data has no town or county for that exact point (or no address at all), so only the wider area — or the raw position — came through. Rename it to whatever suits you |
 | The name is right but you would prefer your own | Edit → `✎`. Names are free text |
-| *"List full"* on the pin button | You are at the limit. Remove one, or pin your starting location to free a slot |
+| *"List full"* on the pin button | You are at the limit. Remove a place you no longer use |
 | The `✎` opens a box you cannot type into | No keyboard attached — see *Renaming* |
-| No **Edit** button | You are connected from another device — see above |
-| The `⌂` row disappeared | You pinned it; the house mark is now on your saved row |
+| No **Edit** or **Pin this place** button | You are connected from another device — see above |
+| The `⌂` row disappeared | Your starting location is now one of your saved places (you pinned it with `★`, or chose a saved place with `⌂`); the house mark is on that row |
 | It still starts in the wrong place after deleting everything | The starting location is separate from the list — use `↺` on the `⌂` row |
 | Tapping a row does nothing | Edit mode is on. Tap **Done** first |
 

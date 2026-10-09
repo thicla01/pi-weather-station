@@ -24,8 +24,12 @@ Il n'y a pas de champ de recherche. Vous enregistrez **l'endroit que
 vous êtes en train de regarder**, ce qui, sur un écran tactile, va
 plus vite que de taper.
 
-1. Amenez la carte sur l'endroit voulu — en la faisant glisser, ou en
-   appuyant dessus.
+1. Appuyez sur la carte à l'endroit voulu — s'il est hors de l'écran,
+   faites d'abord glisser la carte, mais la faire glisser ne déplace
+   que la vue : la position, et le nom de la ville en haut, changent
+   quand vous appuyez. Si les alertes à proximité sont affichées sur la
+   carte et que vous appuyez dans l'une de leurs zones, une bulle
+   s'ouvre plutôt : appuyez sur **Recentrer ici**.
 2. Appuyez sur le **nom de la ville**, en haut de l'écran. Un panneau
    s'ouvre avec les détails de cet endroit.
 3. Tout en bas de ce panneau, appuyez sur **Épingler ce lieu**.
@@ -100,12 +104,12 @@ de l'endroit où la station démarre. Transformez-la d'abord en vrai
 lieu : en mode Modifier, appuyez sur le `★` de la ligne `⌂`. Elle
 devient une ligne ordinaire, que vous pouvez renommer avec `✎`.
 
-> **Où est passée la ligne `⌂` ?** Cela surprend. Une fois votre
-> position de départ épinglée, elle *devient* l'un de vos lieux
-> enregistrés — la ligne de rappel n'a donc plus lieu d'être et
-> disparaît, la petite maison se déplaçant sur votre ligne. Rien n'a
-> été perdu : le même endroit est simplement listé une fois au lieu de
-> deux.
+> **Où est passée la ligne `⌂` ?** Cela surprend. Dès que votre
+> position de départ est l'un de vos lieux enregistrés — épinglée avec
+> `★`, ou choisie avec `⌂` sur une ligne enregistrée — la ligne de
+> rappel n'a plus lieu d'être et disparaît, la petite maison se
+> déplaçant sur votre ligne. Rien n'a été perdu : le même endroit est
+> simplement listé une fois au lieu de deux.
 
 **Pour revenir à l'automatique :** en mode Modifier, appuyez sur `↺`
 sur la ligne `⌂`. La station recommence à déduire votre position de la
@@ -126,16 +130,21 @@ automatique, il n'y a rien à annuler, donc il n'est pas affiché.
 La raison tient à la taille du panneau : il affiche sept lignes sur
 l'écran de 7 pouces sans avoir à faire défiler, et la ligne `⌂` en
 occupe une. Épinglez votre position de départ et cette ligne n'a plus
-lieu d'être, ce qui libère la place pour un vrai lieu.
+lieu d'être : la position de départ prend elle-même cette place, sans
+coûter de ligne de plus — mais cela ne fait pas de place pour un autre
+lieu.
 
 À la limite, **Épingler ce lieu** est grisé avec *« Liste pleine »*.
 Retirez-en un dont vous ne vous servez plus, et il redevient actif.
+(En mode Modifier, le `★` de la ligne `⌂` reste utilisable à la
+limite.)
 
 ## Depuis un téléphone ou un autre ordinateur
 
 Si vous ouvrez la station depuis un autre appareil de votre réseau,
 vous pouvez **voir la liste et appuyer sur les lignes pour déplacer la
-carte**, mais le bouton **Modifier** n'y est pas.
+carte**, mais le bouton **Modifier** n'y est pas, pas plus que
+**Épingler ce lieu**.
 
 C'est intentionnel. Les modifications ne sont acceptées que depuis la
 station elle-même, pour que personne d'autre sur le réseau ne puisse
@@ -149,12 +158,12 @@ compte comme la station elle-même.
 
 | Ce que vous voyez | Ce qui se passe |
 |---|---|
-| Un lieu porte seulement le nom de la région, comme *Texas* | Les données cartographiques n'ont pas de municipalité pour ce point précis ; seule la zone plus large est remontée. Renommez-le comme bon vous semble |
+| Un lieu porte seulement le nom de la région, comme *Texas*, ou ses coordonnées | Les données cartographiques n'ont ni municipalité ni comté pour ce point précis (ou aucune adresse du tout) ; seule la zone plus large — ou la position brute — est remontée. Renommez-le comme bon vous semble |
 | Le nom est correct mais vous en préférez un autre | Modifier → `✎`. Les noms sont libres |
-| *« Liste pleine »* sur le bouton d'épinglage | Vous êtes à la limite. Retirez-en un, ou épinglez votre position de départ pour libérer une place |
+| *« Liste pleine »* sur le bouton d'épinglage | Vous êtes à la limite. Retirez un lieu dont vous ne vous servez plus |
 | Le `✎` ouvre une case où l'on ne peut pas taper | Aucun clavier branché — voir *Renommer* |
-| Pas de bouton **Modifier** | Vous êtes connecté depuis un autre appareil — voir ci-dessus |
-| La ligne `⌂` a disparu | Vous l'avez épinglée ; la maison est maintenant sur votre ligne enregistrée |
+| Pas de bouton **Modifier** ni **Épingler ce lieu** | Vous êtes connecté depuis un autre appareil — voir ci-dessus |
+| La ligne `⌂` a disparu | Votre position de départ est maintenant l'un de vos lieux enregistrés (épinglée avec `★`, ou choisie avec `⌂` sur une ligne enregistrée) ; la maison est sur cette ligne |
 | Ça démarre toujours au mauvais endroit après avoir tout supprimé | La position de départ est indépendante de la liste — utilisez `↺` sur la ligne `⌂` |
 | Appuyer sur une ligne ne fait rien | Le mode Modifier est actif. Appuyez d'abord sur **Terminé** |
 

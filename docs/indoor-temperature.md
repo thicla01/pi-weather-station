@@ -6,11 +6,11 @@ the sensor exposes them) from a Homebridge instance via the
 information rail (`client/src/components/ambient/IndoorBlock/`, mounted by
 `LayoutPi`, `LayoutDesktop` and `LayoutMobile`).
 
-The feature is opt-in: it polls nothing and renders nothing unless an
-`indoorTemperature` block is configured in `settings.json`. The interactive
-prompt in `deploy/install.sh` (under "Advanced features") writes the block
-for you — after you supply the Homebridge URL, username and password, the
-script queries `/api/accessories`, lists every service exposing
+The feature is opt-in: it never contacts Homebridge and renders nothing
+unless an `indoorTemperature` block is configured in `settings.json`. The
+interactive prompt in `deploy/install.sh` (under "Advanced features") writes
+the block for you — after you supply the Homebridge URL, username and
+password, the script queries `/api/accessories`, lists every service exposing
 temperature, humidity, or air quality (grouped by `serviceName` so a single
 Dyson appears as one entry), and prompts you to pick one by number. The
 manual setup below is for users editing `settings.json` directly, or for
@@ -32,7 +32,8 @@ fallback when the script cannot reach Homebridge.
 }
 ```
 
-After editing, restart the server:
+After editing, restart the server to apply the change immediately
+(otherwise the next 5-minute poll picks it up):
 
 ```bash
 systemctl --user restart pi-weather-server
@@ -40,9 +41,9 @@ systemctl --user restart pi-weather-server
 
 | Field | Required | Notes |
 |---|---|---|
-| `enabled` | yes | Master toggle. When `false` or absent, the polling loop never starts and `/api/indoor-temperature` returns 404. |
+| `enabled` | yes | Master toggle. When `false` or absent, each server poll tick is a no-op (no Homebridge request) and `/api/indoor-temperature` returns `200 { "enabled": false }`. Settings are re-read on every tick, so the server picks up an enablement within one poll interval (≤ 5 min), or at once on restart; a kiosk that last saw the feature disabled shows it at its next 10-minute re-check (or on reload). |
 | `homebridgeUrl` | yes | Base URL of your Homebridge UI, no trailing slash. Example: `http://192.168.x.y:8581`. |
-| `username` / `password` | yes | Homebridge UI credentials. The server logs in once at startup and refreshes the JWT automatically. |
+| `username` / `password` | yes | Homebridge UI credentials. The server logs in on the first poll that runs while the feature is enabled (at startup, or within one poll interval of enabling it), then logs in again automatically when a poll finds the JWT within a minute of its expiry (or already past it), or when Homebridge rejects it (401). |
 | `sensorName` | yes | Exact `serviceName` of the accessory exposed via Homebridge. Find it with the curl command below. |
 
 ## Finding sensor names
@@ -67,9 +68,12 @@ under the same name.
 ## Behaviour and defensive logic
 
 - The server polls `/api/accessories` every 5 minutes
-- Values outside `5°C..40°C` or `0%..100%` are rejected — keeps the last
-  good reading instead of replacing it with garbage (e.g. a fan briefly
-  returning `0°C` after a network glitch)
+- Temperatures outside `5°C..40°C` are rejected: when no service under the
+  sensor name reports a valid temperature, the last good reading is kept
+  instead of being replaced with garbage (e.g. a fan briefly returning
+  `0°C` after a network glitch). Humidity outside `0%..100%` (or
+  `AirQuality` outside 1..5) is stored as `null` for that reading, so the
+  UI hides that line until a valid value returns
 - `AirQuality` is read from any service named like the configured sensor
   (typical for Dyson air purifiers, which expose an `AirQualitySensor`
   service alongside their temperature/humidity ones). HomeKit values are
@@ -79,7 +83,10 @@ under the same name.
   when Homebridge restarts)
 - Readings older than 30 minutes are flagged `isStale: true` in the API
   response; the UI dims the readout in that case
-- The client polls `/api/indoor-temperature` every 60 seconds
+- The client polls `/api/indoor-temperature` every 60 seconds while the
+  feature is enabled; when the server answers `enabled: false` it backs off
+  to a 10-minute re-check (so a later enablement is still noticed without a
+  kiosk reload)
 
 ## Endpoint reference
 
@@ -97,7 +104,11 @@ under the same name.
 }
 ```
 
-Returns `404 { "enabled": false }` when the feature is not configured.
+Returns `200 { "enabled": false }` when the feature is not enabled (it
+returned `404` before v2.17.0). While enabled but before the first valid
+reading, it returns `enabled: true` with `value`, `humidity`, `airQuality`
+and `lastUpdated` set to `null` (`sensorName` is still filled in) and
+`isStale: true`.
 
 ## Security note
 
@@ -112,8 +123,10 @@ and restart the server.
 ## Removing the feature
 
 Delete the `indoorTemperature` block from `settings.json` (or set
-`enabled: false`) and restart the server. The polling loop never starts,
-the endpoint returns 404, and the UI component renders nothing.
+`enabled: false`) and restart the server (or wait for the next 5-minute
+poll). The server's poll ticks become no-ops (no Homebridge requests; the
+cached reading is dropped), the endpoint returns `200 { "enabled": false }`,
+and the UI component renders nothing.
 
 ## Migrating from the experimental POC
 

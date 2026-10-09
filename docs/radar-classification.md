@@ -24,6 +24,7 @@ RainViewer tile (PNG)
   intensity 0–6
         │
         │  ④ RISK_LEVELS — server tier mapping
+        │     (2nd-highest sample, trend bump)
         ▼
   "calm" | "yellow" | "orange" | "red"
         │
@@ -32,10 +33,15 @@ RainViewer tile (PNG)
    stroke / fill colour on the map
 ```
 
-All five steps live in two files: `server/radarAnalyzerCtrl.js`
-(steps ① – ④) and `client/src/components/WeatherMap/index.js`
-(step ⑤). The `RISK_LEVELS` array on the server and the matching
-`tierForIntensity` helper on the client must stay in lockstep.
+Steps ① – ④ live in `server/radarAnalyzerCtrl.js`. Step ⑤'s
+palettes and helpers (`RING_RISK_STYLE`, `DOT_COLOR_BY_TIER`,
+`tierForIntensity`, `buildRingLayers`) live in
+`client/src/components/WeatherMap/geometry.js`; `RiskRing.js` draws
+the rings and `index.js` draws the dots. The `RISK_LEVELS` array on
+the server and the matching `tierForIntensity` helper on the client
+must stay in lockstep — `test/radarGeometry.test.js` checks the
+server table against a verbatim copy of the client helper, so a
+change to `geometry.js` must also be made in that copy.
 
 ## ① Tile coordinates
 
@@ -88,7 +94,8 @@ register the band's intensity even when the exact target pixel landed
 in an anti-aliased edge or a 1-pixel transparent gap — this is the
 fix for the "black dot in a clearly rainy zone" bug we hit before
 v2.11.x. Cost is 9 reads per probe instead of 1; spatial dilution is
-±1 pixel ≈ ±100 m at zoom 7, well below the geometry's 5-km step.
+±1 pixel ≈ ±0.4–0.6 km at zoom 7 / 512-px tiles (≈ 611 m/px at the
+equator × cos(lat)), still below the geometry's 5-km step.
 
 ## ④ Intensity → risk tier (server-side)
 
@@ -106,11 +113,18 @@ So:
 | 5         | red    | very heavy                           |
 | 6         | red    | extreme                              |
 
-The dashed circles' tier is the **max** over all sample points on the
-ring (worst-case approach — emergency-management practice). Per-point
-dots use each point's own intensity instead, so the dot palette and
-the ring tier can disagree (a single severe sample is enough to flip
-the whole ring red).
+The ring tier is decided in `getRiskLevels` from the **2nd-highest**
+sample on the ring (`TIER_HYSTERESIS_N = 2`), not the single max, so
+one rogue pixel can't escalate a ring. Samples in directions trending
+"leaving" count one intensity lower (`effectiveIntensityFor`). The
+tier is then bumped one notch (`TIER_BUMP`, red stays red) when the
+ring trend is "approaching" and the tier intensity is
+≥ `BUMP_MIN_INTENSITY` (2), using the 3-frame sequence now / −15 /
+−45 min. `maxIntensity` is kept for diagnostics, and `bumped` is
+returned per ring. Per-point dots use each point's own raw
+latest-frame intensity, so the dot palette and the ring tier can
+disagree in both directions (a lone severe dot on a yellow ring, or a
+bumped red ring with no red dot).
 
 ## ⑤ Tier → display colour (client-side)
 
@@ -127,8 +141,15 @@ Two palettes:
 Both palettes share `#f0e600` / `#f08200` / `#e60000` for yellow /
 orange / red — same as the radar tile colours, so the overlays speak
 the same visual language as the underlying radar. The dark-mode calm
-neutral (`#a8a097`) was tuned away from near-white so it doesn't read
-as "alarm" against the dark basemap.
+**ring** neutral (`#a8a097`) was tuned away from near-white so it
+doesn't read as "alarm" against the dark basemap; calm dots stay
+`#3a3938` (light) / `#f6f6f4` (dark).
+
+`RING_RISK_STYLE` also has a third `nightRed` entry that stays in the
+red family (`#a82828` / `#8c1818` / `#6b0808`, weights 4 / 5 / 7,
+dashed `6 6` → `4 4` → solid). Calm rings are `#3a3938` (light) /
+`#a8a097` (dark) / `#c04848` (nightRed), drawn at opacity 0.35 with
+dash `"3 9"` when the AI summary is off.
 
 ## Known limitations
 
@@ -138,20 +159,25 @@ as "alarm" against the dark basemap.
 - **No precipitation type.** RainViewer tiles encode intensity, not
   type — we can't tell rain from snow from hail. The AI summary's
   weather-code reasoning compensates indirectly.
-- **No movement / trend.** Risk colour reflects "right now" only.
-  Approaching cells get the same tier as cells already past their
-  peak. The `getRiskLevels` controller fetches just the latest frame,
-  while `analyzeRadar` (used by the AI summary) already pulls 3
-  frames — v2 of the risk colouring would extend that to bump the
-  tier on positive radial gradient ("orange that's heading inward
-  becomes red"). See `ROADMAP.md` → "Trend-aware radar-risk
-  colouring (v2)".
+- **Coarse trend awareness.** Before May 2026 the risk colour was
+  latest-frame only. Since then `getRiskLevels` samples the same
+  3-frame sequence as `analyzeRadar` (now / −15 / −45 min) and bumps
+  a ring one tier when the ring trend is "approaching" and its tier
+  intensity is ≥ 2. A direction counts as approaching when its
+  strongest sample (≥ 2 at both ends of the window) has shifted inward
+  ≥ 5 km / 3 mi (inner ring) or ≥ 8 km / 5 mi (outer ring) and
+  projected arrival is < 60 min; the ring takes the trend of its most
+  intense direction, and samples in "leaving" directions count one
+  level lower. These thresholds and `TIER_HYSTERESIS_N = 2` are
+  empirical — see `ROADMAP.md` → "✅ Trend-aware radar-risk
+  colouring — shipped May 2026" and `test/radarTrend.test.js`.
 - **No spatial smoothing.** The 3×3 max handles anti-aliasing edges
   but not larger gaps. A 5×5 window would smooth more aggressively
-  at the cost of further spatial dilution (±2 px ≈ ±200 m).
-- **Worst-case can over-report.** A single bright pixel anywhere on
-  the ring promotes the whole ring tier — by design, but worth
-  recording as the trade-off.
+  at the cost of further spatial dilution (±2 px ≈ ±0.8–1.2 km).
+- **Worst-case can still over-report.** The 3×3 max lets one bright
+  pixel near a probe set that sample's intensity; with
+  `TIER_HYSTERESIS_N = 2`, two such samples on a ring are enough to
+  promote its tier.
 
 ## Possible improvements (revisit before changing)
 

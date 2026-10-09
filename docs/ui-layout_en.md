@@ -13,8 +13,8 @@ The v3 interface selects a layout automatically based on screen size:
 | Condition | Layout |
 |-----------|--------|
 | `width ≤ 799 px` (portrait phones 375-430 px) | **LayoutMobile** |
-| `800 ≤ width ≤ 1279 px` (e.g. official Pi 7" at 800×480) | **LayoutPi** |
-| `width ≥ 1280 px` (HD monitor, 10" Pi, desktop) | **LayoutDesktop** |
+| `800 ≤ width ≤ 1279 px` (e.g. official Pi 7" at 800×480, 10.1" Pi auto-scaled to 1024×640 CSS px) | **LayoutPi** |
+| `width ≥ 1280 px` (HD monitor, desktop, a 1280×800 10.1" Pi with display scaling off) | **LayoutDesktop** |
 
 Transitions are watched live via `matchMedia('change')` — orientation flips and window resizes swap layouts without a reload.
 
@@ -27,19 +27,21 @@ Variant A "Compagnon nomade" from the design package. Single scrollable column t
 ```
 ┌──────────────────────────────┐
 │ TimeBlock                    │  ◀ clock (date · time)
-│ AlertBanner                  │  ◀ government alert (when active)
+│ AlertBanner                  │  ◀ gov alert, else RADAR alert (when active)
 │ AlertDetailInline            │  ◀ expanded alert (tap to open)
+│ AlertMiniCards               │  ◀ other active alerts + restore pill (when any)
 │ HeroCompact                  │  ◀ location · big temp · condition ·
 │                              │    feels-like · sun/moon meta-line
 │ AirCard                      │  ◀ AQI + pollen rows (pills)
 │ MetricsGrid                  │  ◀ wind / gust / UV / humidity tiles
 │ IndoorBlock                  │  ◀ Homebridge temps (when configured)
 │ Radar mini (~220 px) [⛶]    │  ◀ small inset map; maximize toggle
-│ ChartTabs                    │  ◀ 24 h hourly chart
+│ ChartTabs                    │  ◀ forecast (24 h / 5 days)
 │ AiSummaryInline              │  ◀ Claude-generated summary
 │ Footer hint                  │  ◀ "settings live on the Pi"
 ├──────────────────────────────┤
-│ BottomDock                   │  ◀ palette + marker + recenter + refresh
+│ BottomDock                   │  ◀ recenter · places · marker · contrast ·
+│                              │    refresh · settings · health dot (portrait)
 └──────────────────────────────┘
 ```
 
@@ -63,7 +65,7 @@ Variant A "Compagnon nomade" from the design package. Single scrollable column t
 
 - **Off-page area** : `100dvh < physical height` in standalone on notched iPhone; `body` and `<html>` are painted with the palette colour via a `useEffect` in `AmbientLayers` so the iOS-reserved zone doesn't show a black bar under the dock.
 - **nightRed palette** : uses `#270c0c` (effective composite surface) instead of `palette.bg` (`#100404`) so the off-page area doesn't read as plain black against the brighter red dock.
-- **Safe-area top** : SettingsPanel adds `padding-top: max(14px, env(safe-area-inset-top))` on its header so the close button (×, 44×44) isn't under the Dynamic Island. DebugPanel no longer has a header (Phase 7): the rail (left) and the persistent toolbar (right) each absorb their portion of the top safe-area.
+- **Safe-area top** : neither SettingsPanel (Phase 6) nor DebugPanel (Phase 7) has a header any more; in both, the rail (left) absorbs the top + left insets and the content side (right — SettingsPanel's content pane, DebugPanel's persistent toolbar) the top + right insets. SettingsPanel's exit is the terminal "Close" action at the end of the rail (no floating × button). On a phone (≤ 600 px wide) that rail becomes a top tab bar that absorbs the top, left and right insets on its own.
 
 ---
 
@@ -94,13 +96,14 @@ The diagram below details the stacked **MID** rail (v3.2 order, top to bottom �
 │                          │ AirAlertCard (AIR, only  │
 │                          │  when AQ ≥ high)         │
 │                          ├──────────────────────────┤
-│   WeatherMap             │ TimeBlock compact        │
-│   (framed 14 px card,    │ (clock · date · sunset)  │
-│    Leaflet + RainViewer  ├──────────────────────────┤
-│    radar tiles)          │ HeroCompact (place ·     │
+│   WeatherMap             │ TimeBlock compact (clock │
+│   (framed 14 px card,    │  · date · next sunrise / │
+│    Leaflet + RainViewer  │  sunset)                 │
+│    radar tiles)          ├──────────────────────────┤
+│                          │ HeroCompact (place ·     │
 │                          │  temp · condition ·      │
 │                          │  feels-like; no astro    │
-│                          │  line on the 7")         │
+│                          │  line on the Pi)         │
 │                          ├──────────────────────────┤
 │                          │ NowcastLine (RADAR ·     │
 │                          │  verdict · confidence)   │
@@ -111,7 +114,7 @@ The diagram below details the stacked **MID** rail (v3.2 order, top to bottom �
 │                          ├──────────────────────────┤
 │                          │ MetricsGrid 2×2 (wind ·  │
 │                          │  gust · UV · humidity)   │
-│ (i) legend chip          ├──────────────────────────┤
+│ legend card              ├──────────────────────────┤
 │ [timeline bar]           │ IndoorBlock (Homebridge, │
 │             attribution  │  when configured)        │
 └──────────────────────────┴──────────────────────────┤
@@ -120,7 +123,7 @@ The diagram below details the stacked **MID** rail (v3.2 order, top to bottom �
 └─────────────────────────────────────────────────────┘
 ```
 
-*Rows in the alert stack, the AirAlertCard and the IndoorBlock only render when they have something to show; the rail scrolls when the stack is taller than the 480 px screen.*
+*Rows in the alert stack, the AirAlertCard and the IndoorBlock only render when they have something to show; the rail scrolls when the stack is taller than the viewport (this rail runs on the taller panels, e.g. the 10.1" at 1024×640 CSS px; the 7" uses the priority glance below instead).*
 
 ### Priority views (v3.3 — short viewport)
 
@@ -150,8 +153,9 @@ On a height-starved viewport the stacked rail above does not fit — on the 7" a
 │                          │ AirAlertCard (AIR, only  │
 │   WeatherMap             │  when AQ ≥ high)         │
 │   (framed 14 px card,    ├──────────────────────────┤
-│    Leaflet + RainViewer  │ TimeBlock compact        │
-│    radar tiles)          │ (clock · date · sunset)  │
+│    Leaflet + RainViewer  │ TimeBlock compact (clock │
+│    radar tiles)          │  · date · next sunrise / │
+│                          │  sunset)                 │
 │                          ├──────────────────────────┤
 │ no timeline bar on the   │ HeroCompact (place ·     │
 │ glance: the dock's       │  temp · condition; no    │
@@ -217,7 +221,7 @@ In the priority model the radar timeline never renders on the half-width glance 
 
 ### Compact-overlay adaptations (`max-height ≤ 520 px` — official 7" display 800×480)
 
-These trigger only on short viewports (the 7" Pi screen and similar). 10"-class 1024×600 displays do NOT hit these — they get the same layout but in standard density.
+These trigger only on short viewports (the 7" Pi screen and similar). 10"-class 1024×600 displays at display scale 1 (what auto-scale picks for them) do NOT hit these — they get the same layout but in standard density. The gate is the CSS viewport, so a 1024×600 panel the kiosk display scale squeezes to ≤ 520 CSS px tall does hit them (e.g. a 7" one auto-scaled to 1.25 → 819×480, see *Gate* above).
 
 - **SettingsPanel grid4** — Advanced section grids switch to 2 columns, giving sliders and toggles enough room (fixes overflow on radar-opacity sliders and AI toggle sub-text).
 - **DebugPanel compact mode** — Smaller font zoom + tighter row gaps so the 800×480 viewport can show more KPI / service data without scrolling.
@@ -250,12 +254,12 @@ The map fills the entire viewport as a full-bleed background. The HeroBand, righ
 │ │ Hero card (P2 pyramid)      │ Clock     │ │  Right    │
 │ │  place (micro) · 72px temp  │ card      │ │  Rail     │
 │ │  + condition + feels-like   │  date     │ │           │
-│ │  sun/moon meta-line         │  time     │ │ - Air     │
-│ └─────────────────────────────┴───────────┘ │ - Metrics │
-│ [+][-] [focus]  (under the zoom stack)      │ - Alerts  │
-│  WeatherMap                                 │ - Charts  │
-│  (full-bleed — radar visible through slabs) │ - AI sum. │
-│                                             │           │
+│ │  sun/moon meta-line         │  time     │ │ - Alerts  │
+│ └─────────────────────────────┴───────────┘ │ - Air     │
+│ [+][-] [focus]  (under the zoom stack)      │ - Metrics │
+│  WeatherMap                                 │ - Indoor  │
+│  (full-bleed — radar visible through slabs) │ - Charts  │
+│                                             │ - AI sum. │
 │                                             │           │
 ├─────────────────────────────────────────────┴───────────┤
 │  BottomDock (ControlButtons)                             │
@@ -276,13 +280,14 @@ The band has a `max-width: 1600 px` cap — at ultra-wide viewports (2560 px+) i
 Width: `320 px` (default) · `360 px` at ≥ 1600 px. Zooms with the user's font-size preference (`--c-font-scale`).
 
 Components (top to bottom):
-1. **AlertBanner** — government severe-weather alert pill (hidden when no active alert)
+1. **AlertBanner** — the government severe-weather alert (NWS / ECCC badge) or, when none is active, the radar-derived alert (RADAR badge); hidden when neither applies
 2. **AlertDetailInline** — expanded alert text (hidden when collapsed)
-3. **AirCard** — air-quality rows: AQI (value + label as one **dotted-underlined** term, tap the row → detail popover) + opt-in pollen (worst allergen + label, same dotted underline; hidden when the setting is off or out of coverage), each with its category pill. The dotted underline replaced the old chevron (rail-affordance redesign 2026-06-24) — the house popover signal, matching the city-name / moon underlines; the whole row stays the tap surface. In nightRed the pills collapse to red — the word carries the tier.
-4. **MetricsGrid** — strict 2×2 grid: wind speed · wind gust · UV index (qualifier, tappable cell + chevron) · humidity — the same 2×2 on every layout since v3.2. Surface pressure (dropped from the 2×2 in v3.2) and visibility appear only in ConditionsView's extended six-tile grid (see *Priority views (v3.3)* above).
-5. **IndoorBlock** — Homebridge indoor temperature / humidity / air quality (hidden if not configured)
-6. **ChartTabs** — 24-hour and 5-day forecast tabs with Recharts graphs
-7. **AiSummaryInline** — Claude AI weather summary; expandable to fill the rail (↑ button)
+3. **AlertMiniCards** — the other active gov alerts as severity-sorted mini-cards (tap → make it the primary alert) plus a "Restore N hidden alerts" pill (hidden when there is nothing to show)
+4. **AirCard** — air-quality rows: AQI (value + label as one **dotted-underlined** term, tap the row → detail popover) + opt-in pollen (worst allergen + label, same dotted underline; hidden when the setting is off or out of coverage), each with its category pill. The dotted underline replaced the old chevron (rail-affordance redesign 2026-06-24) — the house popover signal, matching the city-name / moon underlines; the whole row stays the tap surface. In nightRed the pills collapse to red — the word carries the tier.
+5. **MetricsGrid** — strict 2×2 grid: wind speed · wind gust · UV index (qualifier, tappable cell + chevron) · humidity — the same 2×2 on every layout since v3.2. Surface pressure (dropped from the 2×2 in v3.2) and visibility appear only in ConditionsView's extended six-tile grid (see *Priority views (v3.3)* above).
+6. **IndoorBlock** — Homebridge indoor temperature / humidity / air quality (hidden if not configured)
+7. **ChartTabs** — the "Forecast" panel (24 h / 5 days period pills; Temp · Wind · Precip · Hours/Days tabs), charts drawn with Chart.js via react-chartjs-2 — see *Always-on adaptations* under LayoutPi
+8. **AiSummaryInline** — Claude AI weather summary; expandable to fill the rail (↑ button)
 
 ### Radar focus (LayoutDesktop)
 
@@ -292,9 +297,11 @@ The radar focus square under the zoom stack (top-left) enters focus mode: the He
 
 ## BottomDock
 
-Spans the full viewport width at the bottom of all three layouts (Mobile / Pi / Desktop). Contains the **ControlButtons** row. Height: 52 px. Icons: 24 px.
+Sits at the bottom of all three layouts: full viewport width on Mobile and Desktop; on LayoutPi inset in the grid gutter, and hidden in MIN and in every full-rail view. Contains the **ControlButtons** groups plus, on the right edge, the **HealthIndicator** status chip ("Services · OK / Degraded / Critical / Offline" — the text label shows only at ≥ 1280 px, below that width the coloured dot stands alone; tap → the "Service health" popover listing the services in trouble). Height: 52 px. Icons: 24 px.
 
 ### ControlButtons (left → right, typical configuration)
+
+The buttons are split into four labelled groups separated by hairlines: **Map** (Location arrow → Radar rings), **Views** (AI, Forecast — the group only appears when it holds a button, i.e. on LayoutPi or with the debug AI toggle), **Display** (Contrast, Auto, Moon) and **System** (Refresh → Update).
 
 | Icon | Action | Visibility condition |
 |------|--------|---------------------|
@@ -302,17 +309,23 @@ Spans the full viewport width at the bottom of all three layouts (Mobile / Pi / 
 | 🔖 Bookmark | Open "Places" — a `⌂` home row (the default position; not stored, not counted against the cap, hidden when a favorite already sits on those coordinates) above the favorite-locations list (max 6, or 7 when one of them is the default itself — the budget is 7 rows, and a pinned home takes the pseudo-row's slot; home always listed first): tapping a row moves the map there and leaves the zoom untouched; Edit mode exposes set-as-default (⌂), rename (a text field stating its Enter/Esc contract inline — offered on every local client, since the browser cannot tell whether a keyboard is attached; without one it simply cannot be filled and blurring commits nothing), remove (two-tap confirm) and, on the home row, a ★ pin action that converts the default into a stored — hence renamable — favorite plus a ↺ reset that drops a manual override and returns to IP geolocation (shown only when an override is stored) | Always |
 | 📍 / 📍off | Toggle location marker | Always |
 | 〜 Timeline | Show / hide radar timeline scrubber | RainViewer source only |
-| ↗ Direction arrows | Show / hide precipitation direction arrows | Radar analysis enabled |
-| ☰ Legend | Show / hide radar colour legend | RainViewer + timestamps loaded |
+| ↗ Direction arrows | Show / hide precipitation direction arrows | Always (dimmed, with a hint toast, while radar analysis is off) |
+| ☰ Legend | Show / hide radar colour legend | RainViewer source only |
+| ⚠ Nearby alerts | Show / hide the nearby gov-alert polygons on the map; while on and alerts are in range, a count badge in the worst tier's colour | Always |
+| ◌ Radar rings | Toggle the radar analysis rings (`radarAnalysisEnabled`) | Localhost + `DEBUG=true` only |
+| ✦ AI (sparkle) | LayoutPi: open the full-rail AiView · Mobile / Desktop: show / hide the inline AI summary | LayoutPi: unless the server answered that no Anthropic key is configured (HTTP 503) · Mobile / Desktop: same, plus localhost + `DEBUG=true` |
+| 📊 Forecast | Open the maximized forecast (MAX) | LayoutPi only |
 | ◑ Contrast | Toggle dark / light mode | Always |
 | ⏰ Auto | Auto dark/light at sunrise/sunset | Always |
 | 🌙 Moon (red) | Toggle the nightRed palette | Always |
 | 🔄 Refresh | Reload the app (`window.location.reload()`) | Always — useful in PWA standalone without an address bar |
 | ⚙ Settings | Open Settings panel | Always |
 | 🐛 Debug | Open Debug panel | Localhost + `DEBUG=true` only |
-| ⬆ Update | Open update modal | When a new release is available |
+| ⬆ Update | Open update modal | When a new release is available — localhost opens the modal; a remote client gets a disabled button whose tap shows a notice toast |
 
-Button appearance adapts to the Direction C palette via CSS custom properties: transparent backgrounds (dock surface shows through), `--c-border-hybrid` dividers, `--c-accent-soft` on press/active.
+On a portrait viewport ≤ 600 px wide (phones) the dock hides the buttons flagged secondary — Timeline, Direction arrows, Legend, Nearby alerts, Auto and Moon — so the essentials stay tappable; Timeline and Legend come back while the mobile radar card is maximized. While that card is in mini mode, Timeline, Legend and Nearby alerts are greyed out and a tap shows a hint toast instead.
+
+Button appearance adapts to the Direction C palette via CSS custom properties: transparent backgrounds (dock surface shows through), `--c-border-hybrid` dividers, no press flash (`--ctrl-btn-active: transparent`); `--c-accent-soft` marks only a toggle that is ON (`.buttonDown`).
 
 ---
 
@@ -323,7 +336,7 @@ All floating controls over the Leaflet map follow the Claude Design Phase 3 v2.1
 - **Zoom +/−** — top-left, 40 × 40 px (36 px on mobile), palette-tinted surface, `:active` accent feedback only (no hover on kiosk surfaces). Localized tooltips.
 - **Radar focus (fullscreen)** — standalone 40 × 40 px button below the zoom stack (top 110 px; 100 px on LayoutPi). Four-corner-bracket SVG pair (outward = focus, inward = restore — the same pair as the mobile card's maximize toggle). Hides HeroBand + the rail; each toggle confirms with a short toast. Active state = solid accent.
 - **Timeline bar** — full-width bottom bar (rail-aware right inset). Header: play/pause · step ±1 · speed (1×/2×/4×) · timestamp + "now-tag" chip (never a bare relative offset; forecast frames flip to a dashed "Forecast · +N min" chip) · frame-count sub-line · conditional return-to-now pill · source chip ("RainViewer · 10 min", cadence derived from the live frame spacing; warn-tinted when the last frame-list refresh failed). Track: past fill, a labelled "Now" marker at the past→nowcast boundary, a hatched **scrubbable** future zone, and runtime-derived tick labels (−2 h … +30 min). The scrub surface is still the native range input (invisible, full-width) — the field-hardened pointer-capture handling and keyboard accessibility carry over.
-- **Legend** — bottom-left card with three sections: *Analysis radii* (unit-aware; outer ring only when extended radius is on), *Precipitation* (the real RainViewer colour-scheme-6 six-segment bar — identical in all four palettes, nightRed included), *Nearby alerts* (tier key + honest in-radius count). On short screens (≤ 520 px height) it collapses to an "(i) Legend" chip wherever the map can't spare the room: with the timeline bar on screen, and on LayoutPi's narrow MID map (the 7" glance, where the card — ~190 px tall with the alerts section, ~215 px at font size L — would cover half the map's height and part of the analysis rings). The fullscreen MIN radar without the scrubber keeps the card. The chip is keyed on the timeline actually displayed, never on the persisted `radarTimelineVisible` pref, which does not drive the v3.3 MIN scrubber. The chip — and the mobile strip's (i) — open the full legend as an overlay (scrim + ✕ + Escape). On the mobile layout the card is replaced by a compact full-width strip above the bottom edge.
+- **Legend** — bottom-left card with up to three sections: *Analysis radii* (only when radar analysis is on; unit-aware; outer ring only when extended radius is on), *Precipitation* (always; the real RainViewer colour-scheme-6 six-segment bar — identical in all four palettes, nightRed included), *Nearby alerts* (only when the nearby-alerts overlay is on; tier key + honest in-radius count). On short screens (≤ 520 px height) it collapses to an "(i) Legend" chip wherever the map can't spare the room: with the timeline bar on screen, and on LayoutPi's narrow MID map (the 7" glance, where the card — ~190 px tall with the alerts section, ~215 px at font size L — would cover half the map's height and part of the analysis rings). The fullscreen MIN radar without the scrubber keeps the card. The chip is keyed on the timeline actually displayed, never on the persisted `radarTimelineVisible` pref, which does not drive the v3.3 MIN scrubber. The chip — and the mobile strip's (i) — open the full legend as an overlay (scrim + ✕ + Escape). On the mobile layout the card is replaced by a compact full-width strip above the bottom edge.
 - **On-map radius chips** — "50 km" / "100 km" labels at the rings' south-east intersection (unit-aware; hidden on mobile and past zoom 13, same gate as the rings).
 - **Attribution** — flush bottom-right, hugging the dock edge in every state (legal requirement — visible everywhere, including the mobile mini-card); slimmed to fit the 16 px corridor under the timeline bar / legend strip.
 - New radar-scoped CSS tokens (`--rc-*`, `--map-*`) live in `WeatherMap/styles.css`, switched per palette via `data-palette` (deliberately not added to `ui/tokens.js`). In nightRed the alert-tier tokens collapse to the red family while the precipitation scale keeps the true tile colours.
@@ -332,7 +345,7 @@ All floating controls over the Leaflet map follow the Claude Design Phase 3 v2.1
 
 ## Overlays
 
-All overlays render as `position: fixed; inset: 0; z-index 5000+` and mirror the active Direction C palette via inline CSS variables (they render outside `AmbientLayers`).
+SettingsPanel and DebugPanel render as `position: fixed; inset: 0; z-index 5000` and mirror the active Direction C palette via inline CSS variables (they render outside `AmbientLayers`). UpdateModal is a 300 px panel that slides up at the bottom right (z-index 4999), themed with its own dark / light / nightRed classes.
 
 | Overlay | Trigger | Remote access |
 |---------|---------|---------------|
@@ -342,16 +355,16 @@ All overlays render as `position: fixed; inset: 0; z-index 5000+` and mirror the
 
 ---
 
-## Palette / time-of-day modes
+## Palette modes
 
-The Direction C palette adapts automatically based on time of day (`useTimeOfDay()`):
+The Direction C palette is picked by `useTimeOfDay()` from two toggles, not from the clock: `day` when dark mode is off, `dusk` when dark mode is on, and `nightRed` when dark mode and the night-red preference (dock 🌙 button / `advanced.sleep.nightMode`) are both on. The `night` palette is defined in `ui/tokens.js` but nothing selects it yet — solar-driven day → dusk → night transitions are planned in [`ROADMAP.md`](../ROADMAP.md) (*Solar-driven palette transitions*). The only time-based switch today is the ⏰ Auto button, which flips dark mode at sunrise / sunset (day ↔ dusk).
 
-| Mode | Time window | Key colours |
-|------|-------------|-------------|
-| **day** | After sunrise | Warm cream bg `#f4f0e8`, dark text, amber accent |
-| **dusk** | ± 90 min around sunrise/sunset | Deep warm-grey bg `#1c1a17`, amber accent |
-| **night** | Between dusk and nightRed window | Near-black bg `#0e0c0a`, copper accent |
-| **nightRed** | Late night (night-vision / sleep mode) | Very dark red bg `#100404`, all text and accent in red tones |
+| Mode | Selected when | Key colours |
+|------|---------------|-------------|
+| **day** | Dark mode off | Warm cream bg `#f4f0e8`, dark text, amber accent |
+| **dusk** | Dark mode on (manual, or ⏰ Auto between sunset and sunrise) | Deep warm-grey bg `#1c1a17`, amber accent |
+| **night** | Defined, not selected by any code path yet | Near-black bg `#0e0c0a`, copper accent |
+| **nightRed** | Dark mode + night-red toggle on (night-vision / sleep mode) | Very dark red bg `#100404`, all text and accent in red tones |
 
 `nightRed` uses `text: #d05050` (~5:1 contrast) and `textDim: #b84848` (~4:1 contrast) against the dark card surface — readable for both bold and non-bold text.
 
@@ -361,11 +374,11 @@ The Direction C palette adapts automatically based on time of day (`useTimeOfDay
 
 The app can be installed to a phone's home screen via the browser's "Add to Home Screen" function. Once installed it launches in standalone mode (no browser chrome) and inherits the `apple-touch-icon.png` (opaque 180×180 PNG) and `manifest.json` (192 + 512 icons).
 
-### Self-signed TLS certificate
+### TLS certificate (on-device root CA)
 
-The server generates a self-signed cert on first boot (CN: `Pi Weather Station - <hostname>`, SAN including `localhost`, `127.0.0.1`, the detected LAN IP and the `.local` hostname). For iOS to accept the cert in PWA mode:
+On first boot the server creates its own root CA (`ca-cert.pem`, CN: `Pi Weather Station CA - <hostname>`) and a server certificate signed by it (`cert.pem`, CN: `Pi Weather Station - <hostname>`, SAN including `localhost`, `127.0.0.1`, every LAN IPv4, the hostname and its `.local` variant); the server certificate is regenerated automatically when it nears expiry or no longer covers the current hostname / IPs. For iOS to accept it in PWA mode, install the root CA:
 
-1. Download the `.pem` from Settings → "Trust this Pi on this device" (endpoint `/api/cert.pem`, MIME `application/x-x509-ca-cert`).
+1. Download the `.pem` from Settings → "Trust this Pi on this device" (endpoint `/api/cert.pem`, which serves the root CA `ca-cert.pem` as `application/x-x509-ca-cert`).
 2. Install the iOS profile (Settings → Downloaded profile).
 3. Enable full trust: Settings → General → About → Certificate Trust Settings.
 
