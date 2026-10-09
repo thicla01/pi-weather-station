@@ -7,13 +7,15 @@
 //
 // Same constraint as the other client-ESM tests in this repo (alertParser):
 // Node's CJS loader can't `require()` the ESM source, so the pure function is
-// re-implemented VERBATIM here. If `eventProductType` drifts, these fail and
-// remind us to sync. Run: `npm test`.
+// re-implemented VERBATIM here. The copy is registered in
+// test/verbatimSync.test.js, which fails on any drift from the source (not
+// only drift that changes a behaviour asserted below) — resync this block from
+// alertLogic.js when it does. Run: `npm test`.
 
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 
-// ---------- verbatim copy from client/src/ui/alertLogic.js ----------
+// ---------- start of verbatim copy from client/src/ui/alertLogic.js ----------
 function eventProductType(name) {
   const s = String(name || "").toLowerCase();
   if (/\bwarning\b/.test(s)) return "warning";
@@ -22,7 +24,7 @@ function eventProductType(name) {
   if (/\bstatement\b/.test(s)) return "statement";
   return null;
 }
-// ---------- end verbatim copy ----------
+// ---------- end of verbatim copy ----------
 
 test("eventProductType: NWS English event names", () => {
   // THE bug: a Heat Advisory is an advisory, never a watch.
