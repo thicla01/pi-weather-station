@@ -29,6 +29,10 @@ const REMOVE_CONFIRM_MS = 4000;
  * browser cannot answer the latter. The input states its Enter/Esc contract
  * inline instead, and on a keyboard-less kiosk it simply cannot be filled —
  * blurring commits nothing, since the draft still equals the current label.
+ * Esc in the field cancels the rename ONLY: it is marked consumed
+ * (`preventDefault`), which the DetailsPopover shell's Esc-to-close
+ * listener honours, so the panel stays open in Edit mode and a second Esc
+ * closes it.
  *
  * @param {object} props
  * @param {boolean} props.open whether the popover is visible
@@ -130,12 +134,19 @@ const PlacesPopover = ({ open, onClose, triggerRef = null, onNotify = null }) =>
   // already in.
   const hasManualDefault = !!customLat && !!customLon;
 
-  // Escape hatch back to automatic geolocation. It lives on the home row
-  // because that is where "home" is displayed, and because the default can
-  // become an orphan: deleting the favorite that carried the ⌂ badge
-  // deliberately does NOT clear the stored coordinates (silently discarding a
-  // chosen setting would be worse), so the pseudo-row reappears pointing at a
-  // place with nothing left to explain it.
+  // Escape hatch back to automatic geolocation. It lives on whichever row
+  // represents home — the pseudo-row, or the ⌂-badged favorite once home is
+  // a stored place — because that is where "home" is displayed. The two are
+  // mutually exclusive (the badged favorite suppresses the pseudo-row), so
+  // exactly one ↺ is offered whenever an override is stored. Offering it on
+  // the pseudo-row only left a home chosen with ⌂ on a saved row, or pinned
+  // with ★, with no way back to automatic short of deleting the favorite or
+  // a trip to Settings.
+  //
+  // The default can also become an orphan: deleting the favorite that
+  // carried the ⌂ badge deliberately does NOT clear the stored coordinates
+  // (silently discarding a chosen setting would be worse), so the pseudo-row
+  // reappears pointing at a place with nothing left to explain it.
   //
   // Deliberately NOT a post-deletion prompt: that would push one outcome,
   // while two are equally legitimate — reset to automatic, or promote another
@@ -208,8 +219,35 @@ const PlacesPopover = ({ open, onClose, triggerRef = null, onNotify = null }) =>
     renameFavorite(f.id, next).then((ok) => setFailed(!ok));
   };
 
+  // Esc cancels the rename and nothing else. `preventDefault` marks the
+  // keystroke consumed: DetailsPopover's document-level Esc-to-close
+  // listener runs AFTER this handler (React listens on the portal container,
+  // `document.body`, below `document`) and skips a defaultPrevented event —
+  // without it the same Esc also unmounted the whole panel and dropped Edit
+  // mode. Deliberately not `stopPropagation`: that would hide the keystroke
+  // from useIdleDetection's window listener too. The input's unmount does
+  // not commit through `onBlur` — React suspends event dispatch during the
+  // commit that removes the focused node.
+  const handleRenameKeyDown = (e, f) => {
+    if (e.key === "Enter") commitRename(f);
+    if (e.key === "Escape") {
+      e.preventDefault();
+      setRenamingId(null);
+      setDraftLabel("");
+    }
+  };
+
   const renderRow = (f) => {
     const renaming = renamingId === f.id;
+    const isHome = isDefault(f);
+    // On the ⌂-badged row the "set as default" slot would be a no-op while
+    // an override is stored — this row already IS that override — so it
+    // carries the ↺ instead. Keeps every stored row at three 44 px actions
+    // (docs/favorite-locations-design.md §8 Layout and geometry) rather than
+    // squeezing the label for a fourth.
+    // With no override stored (a favorite sitting on the IP-derived home),
+    // ⌂ stays: it is the one action that freezes that home as manual.
+    const offerReset = isHome && hasManualDefault;
     const rowClass = [
       styles.row,
       isCurrent(f) ? styles.rowCurrent : "",
@@ -237,10 +275,7 @@ const PlacesPopover = ({ open, onClose, triggerRef = null, onNotify = null }) =>
               aria-describedby={`${f.id}-rename-hint`}
               onChange={(e) => setDraftLabel(e.target.value)}
               onBlur={() => commitRename(f)}
-              onKeyDown={(e) => {
-                if (e.key === "Enter") commitRename(f);
-                if (e.key === "Escape") { setRenamingId(null); setDraftLabel(""); }
-              }}
+              onKeyDown={(e) => handleRenameKeyDown(e, f)}
             />
             <span className={styles.renameHint} id={`${f.id}-rename-hint`}>
               {t("favorites.renameHint")}
@@ -254,22 +289,34 @@ const PlacesPopover = ({ open, onClose, triggerRef = null, onNotify = null }) =>
             disabled={editing}
             title={f.label}
           >
-            {isDefault(f) ? <span className={styles.homeBadge} aria-hidden="true">⌂</span> : null}
+            {isHome ? <span className={styles.homeBadge} aria-hidden="true">⌂</span> : null}
             <span className={styles.labelText}>{f.label}</span>
           </button>
         )}
 
         {editing && !renaming ? (
           <div className={styles.rowActions}>
-            <button
-              type="button"
-              className={styles.action}
-              onClick={() => handleSetDefault(f)}
-              title={t("favorites.setDefault")}
-              aria-label={t("favorites.setDefault")}
-            >
-              ⌂
-            </button>
+            {offerReset ? (
+              <button
+                type="button"
+                className={styles.action}
+                onClick={handleResetHome}
+                title={t("favorites.resetHome")}
+                aria-label={t("favorites.resetHome")}
+              >
+                ↺
+              </button>
+            ) : (
+              <button
+                type="button"
+                className={styles.action}
+                onClick={() => handleSetDefault(f)}
+                title={t("favorites.setDefault")}
+                aria-label={t("favorites.setDefault")}
+              >
+                ⌂
+              </button>
+            )}
             <button
               type="button"
               className={styles.action}

@@ -6,6 +6,10 @@ accumulated on top of it during the 2026-08-16/17 field cycle. The original docu
 recoverable at `git show ee4df8b:docs/favorite-locations-design.md`.
 *Amended 2026-10-08:* a doc-drift pass against the code at `dffb408` — factual corrections only,
 no behaviour change; the two decision rationales it corrected are logged in §10.1.
+*Amended 2026-10-08, behaviour:* Esc in the rename field now cancels the rename without closing the
+panel (§7.3, INV-12); `↺` is now also offered on the `⌂`-badged favorite, so a home that is a stored
+place has a way back to automatic (§7.5, INV-13); and the `PATCH /setting` create-file branch is
+sanitized like the update branch (§5.1, INV-2).
 **Audience:** whoever changes this code next. Dev-facing, English only.
 **Scope:** the v3 ambient tree (all layouts), the `favorites` key in `settings.json`, one
 value-level sanitizer on the server. No external service, no API key.
@@ -54,18 +58,28 @@ gestures:
 | **Pick** | **Places** dock button (Map group) → `PlacesPopover` | Tap a row → `setMapPosition()`; everything downstream follows |
 | **Promote** | `⌂` on a row, Edit mode | Writes `startingLat`/`startingLon`; that row gets the `⌂` badge |
 | **Pin home** | `★` on the `⌂` home row, Edit mode | Converts the default into a stored favorite — which makes it renamable |
-| **Reset to automatic** | `↺` on the `⌂` home row, Edit mode | Clears the override, re-derives home from IP geolocation immediately |
+| **Reset to automatic** | `↺` on whichever row is home — the `⌂` pseudo-row, or the `⌂`-badged favorite — Edit mode, only while a manual override is stored | Clears the override, re-derives home from IP geolocation immediately |
 
 ```
 ┌─ PLACES ────────────────────────── ✕ ┐
-│ ⌂  Montréal, Québec          ★   ↺  │  ← home; pseudo-row, or a badged favorite
+│ ⌂  Montréal, Québec          ★   ↺  │  ← home as the pseudo-row (not stored)
 │ ─────────────────────────────────── │     ★ pin it · ↺ back to automatic
 │ ●  Chalet — Saint-Donat      ⌂ ✎ ✕  │  ← ● = currently displayed
 │    Écurie — Saint-Esprit     ⌂ ✎ ✕  │     ⌂ set as default · ✎ rename · ✕ remove
 │    Québec, QC                ⌂ ✎ ✕  │
 │                            Done     │
 └─────────────────────────────────────┘
+
+Once home is a stored favorite (pinned with ★, or promoted with ⌂), the
+pseudo-row is suppressed and the badged favorite leads the list as an
+ordinary stored row (no separator):
+
+│ ⌂  Montréal, Québec          ↺ ✎ ✕  │  ← ↺ takes the ⌂ slot — a no-op there —
+│    Chalet — Saint-Donat      ⌂ ✎ ✕  │     while a manual override is stored (§7.5)
 ```
+
+Home is therefore always one row, in one of two representations, and — while a manual override is
+stored — `↺` rides on whichever one is showing.
 
 **The row budget is the capacity rule** (§3): `rows = favorites.length + (home pinned ? 0 : 1) ≤ 7`.
 
@@ -94,7 +108,9 @@ the right gesture on a 7" touchscreen with no keyboard (§13).
 | `client/src/ui/placeLabel.js` | Reverse-geocode → human label, shared by three surfaces |
 | `client/src/AppContext.js` | `locationSlice`; the actions that touch geo state |
 | `server/settingsCtrl.js` | `ALLOWED_KEYS`, `sanitizeFavorites`, the sanitizer seams |
-| `test/favorites.test.js`, `test/placeLabel.test.js` | 21 + 12 assertions (§12) |
+| `test/favorites.test.js`, `test/placeLabel.test.js` | 25 + 12 tests (§12) |
+| `test/settingsCtrl.test.js` | The `setSetting` handler end to end, create branch included (INV-2) |
+| `test/placesPopoverContracts.test.js` | Text-level guards for the Esc and `↺` contracts (INV-12, INV-13) |
 
 ---
 
@@ -106,7 +122,7 @@ standing between you and a regression is this list.
 | # | Invariant | Enforced at | Pinned by |
 |---|---|---|---|
 | **INV-1** | Coordinates are stored `round4` on **both** sides. A cache-key contract, not cosmetics (§4.2) | `useFavoriteLocations.js` `round4`; `settingsCtrl.js` `round4` | `favorites.test.js` |
-| **INV-2** | `sanitizeValue` runs on **both** `sanitizeSettings` *and* `setSetting` — PATCH never calls the former (§5.1) | `settingsCtrl.js` | `favorites.test.js` (the seam is exported for this) |
+| **INV-2** | `sanitizeValue` runs on **both** `sanitizeSettings` *and* `setSetting` — PATCH never calls the former — and on **every** `setSetting` write, including the branch that **creates** `settings.json` (§5.1) | `settingsCtrl.js` (`setSetting` → `applyPatch`, the one place the handler computes what it persists) | The call site: `settingsCtrl.test.js` (the handler driven end to end against a temp file, create and update branches, plus a create-vs-update equality guard) and `favorites.test.js` (handler-level PATCH cases). The pure seam: `favorites.test.js` (`sanitizeValue` is exported for this) |
 | **INV-3** | The server sanitizer is **the only real validation on the write path** (and on the remote read path, §5.2): React 19 runs no `propTypes` on function components, so a malformed favorite produces no warning anywhere | `settingsCtrl.js` `sanitizeFavorites` | — (do not thin it out; §6.4) |
 | **INV-4** | `browserGeo` is the single definition of "home", for the pseudo-row *and* the `⌂` badge. Never `customLat`/`customLon` (§7.2) | `PlacesPopover` `homeCoords` | Not pinned — field-verified |
 | **INV-5** | Selecting a favorite **pans and never sets zoom** (§10 D-05) | `PlacesPopover` `handleSelect` | Not pinned — field-verified |
@@ -116,6 +132,8 @@ standing between you and a regression is this list.
 | **INV-9** | Every write is `PATCH /setting` under `localhostOnly`. The client's `isLocal` gate is **cosmetic**; the server is the boundary (§5.5) | `server/index.js`; `PlacesPopover` | — |
 | **INV-10** | An empty rename commit **reverts**, never writes — an empty save would silently delete the favorite (§7.3) | `useFavoriteLocations.js` `rename`; `PlacesPopover` `commitRename` | Not pinned |
 | **INV-11** | `remove` **no-ops on a vanished id**, so a two-tap confirm racing a concurrent edit cannot delete whatever row shifted into place | `useFavoriteLocations.js` `remove` | Not pinned |
+| **INV-12** | Esc in the rename field cancels the rename **only**: the field calls `preventDefault()` (never `stopPropagation()`), and `DetailsPopover`'s Esc-to-close listener skips a `defaultPrevented` event (§7.3) | `PlacesPopover` `handleRenameKeyDown`; `DetailsPopover` `onKey` | `placesPopoverContracts.test.js` — text-level; the behaviour itself is browser-verified |
+| **INV-13** | `↺` rides on **whichever row represents home** — the pseudo-row, or the `⌂`-badged favorite in place of its no-op `⌂` — gated on a stored override (both `startingLat` and `startingLon`) (§7.5) | `PlacesPopover` `hasManualDefault`, `renderRow` `offerReset` | `placesPopoverContracts.test.js` — text-level |
 
 ---
 
@@ -181,9 +199,14 @@ scroll-and-hunt. All three constraints land in the same place, which is why the 
 
 An 8-row state is reachable through the shipped UI, not only by hand-editing: hold 7 favorites
 (home pinned), then move the default to a place that is none of them — hand-typed coordinates, or
-`↺` when the pinned home was a manual override. The pseudo-row reappears above 7 rows and the
+`↺` on the `⌂`-badged favorite (offered only while that home is a manual override) when the
+IP-derived home it falls back to is none of the 7. The pseudo-row reappears above 7 rows and the
 popover scrolls ~39 px. Gracefully, since PR 328; nothing clips. Moving the default to another
-*favorite*, or `↺` when the pinned home already is the IP-derived one, stays safe.
+*favorite*, or `↺` when the IP-derived home lands on one of the stored favorites, stays safe.
+
+`↺` is deliberately **not** gated on this budget. A reset is configuration, not a pin: refusing it
+would trap the user in a manual override to protect a display property, and whether the fallback
+home coincides with a stored favorite is only known after `GET /geolocation` answers.
 
 ### 3.4 At the cap
 
@@ -274,6 +297,15 @@ a `sanitizeSettings` hook alone left *the most-used write path* able to persist 
 `sanitizeValue` is therefore applied from `setSetting` as well, and is exported so it can be
 tested as its own seam. This was caught by an end-to-end `curl`; a unit test of the pure helper
 cannot see it.
+
+**The seam inside the seam.** `setSetting` has two branches — update an existing file, or create
+`settings.json` when none exists — and until 2026-10-08 only the update branch called
+`sanitizeValue`: the create branch wrote `{ [key]: val }` raw, so the `PATCH` that *created* the
+file could still persist an unvalidated `favorites`. Both branches now go through one `applyPatch`
+(creation is patching `{}`), and `test/settingsCtrl.test.js` drives the real handler against a
+temp file to pin the call site — including a guard that the create and update branches store the
+same value. Same lesson as the original seam: only a test of the handler, not of the helper, can
+see it.
 
 **Coercion uses `toNumber`, not `Number()`.** `Number(null)`, `Number("")`, `Number(false)` and
 `Number([])` are all `0` — a finite, in-range coordinate — so an entry carrying `lon: null` would
@@ -498,7 +530,8 @@ one place is the redundant-affordance problem the rail redesign spent a session 
 **The home row is pinnable** (`★`, Edit mode, localhost-gated; disabled only once 7 favorites are
 stored, with `favorites.full` as a tooltip — §3.4). Pinning converts home into a stored favorite:
 suppression hides the pseudo-row, the badge migrates, and the stored row becomes renamable and
-removable through the existing flow — one tap, and no parallel persistence for a home label. The
+removable through the existing flow — one tap, and no parallel persistence for a home label. If
+that home was a manual override, the badged row also inherits the `↺` (§7.5). The
 label falls back to the rounded coordinates when the boot geocode never resolved, because the
 server drops label-less entries and the affordance must not depend on `homeLabel`.
 
@@ -514,7 +547,8 @@ teleport "my home" from the top of the list to the bottom just because it change
 **Transient state resets on close.** `ControlButtons` mounts `PlacesPopover` only while it is open,
 so every close path (✕, backdrop, Esc, the dock button) unmounts it and resets Edit mode, the armed
 remove, the rename draft and the error line by construction. An always-mounted popover would bring
-that state back on reopen.
+that state back on reopen. (Esc pressed *in the rename field* is not a close path: it cancels the
+rename only — §7.3, INV-12.)
 
 **Empty state.** Keep the dock button visible and render a one-line explainer — "Open a place on
 the map, tap its name, then *Pin this place*." A hidden button is an undiscoverable feature. (Since
@@ -565,6 +599,30 @@ one.
 
 An empty or whitespace-only commit **reverts** (INV-10). The `id` is stable across a rename.
 
+**Esc cancels the rename, not the panel** (INV-12). The contract under the field says *Esc to
+cancel*, and the panel stays open in Edit mode; a second Esc then closes it like any other popover.
+Until 2026-10-08 the same keystroke did both: the input's `onKeyDown` cancelled the rename, then
+the keydown bubbled on to `DetailsPopover`'s **document-level** Esc listener, which called
+`onClose` — unmounting the panel and dropping Edit mode, so "cancel this edit" read as "throw me out
+of the list".
+
+The fix is a contract on the shell, not a special case in it: a descendant that gives Esc a local
+meaning calls `e.preventDefault()`, and `DetailsPopover` skips a `defaultPrevented` Esc. It works
+because React's listeners sit on the root container and, for a portal, on the portal container
+(`document.body`) — both below `document` in the bubble path — so the child's handler has always
+run by the time the shell's listener sees the event (verified in Chromium against React 19.3: first
+Esc removes only the field, second Esc closes). Every other `DetailsPopover` consumer is unaffected:
+none calls `preventDefault` on an Esc keydown.
+
+- **`stopPropagation()` was the obvious alternative and is rejected.** It would also work for the
+  shell, but it hides the keystroke from every later listener — including `useIdleDetection`'s
+  `window` keydown listener, so typing Esc would stop counting as activity for the screen saver —
+  and it leaves the shell's behaviour depending on a contract the shell itself never states.
+- **Unmounting the field does not commit through `onBlur`.** Esc clears the rename state, the input
+  is removed, and any blur the browser fires for the removed node lands while React has event
+  dispatch suspended for the commit — so the typed draft is discarded, not saved (checked in the
+  same Chromium run: no `onBlur` reached the handler).
+
 ### 7.4 Deletion — two-tap arm, no undo
 
 Removal is `PATCH /setting` with the whole array minus the entry. The house pattern for a
@@ -596,10 +654,37 @@ reappears in its place so the default stays visible. The way *out* is §7.5.
 
 ### 7.5 Reset to automatic
 
-`↺` on the home row, Edit mode, shown **only when a manual override is actually stored** (both
-`startingLat` and `startingLon` present — otherwise the default is already IP-derived and there is
-nothing to undo). One tap clears both keys and re-derives `browserGeo` immediately: no Settings
-trip, no reload, no reboot.
+`↺` on **whichever row represents home** (INV-13), Edit mode, shown **only when a manual override
+is actually stored** (both `startingLat` and `startingLon` present — otherwise the default is
+already IP-derived and there is nothing to undo). One tap clears both keys and re-derives
+`browserGeo` immediately: no Settings trip, no reload, no reboot. Neither placement moves the map.
+
+| Home is shown as | `↺` placement | Rule |
+|---|---|---|
+| the `⌂` **pseudo-row** | beside `★` | `editing && isLocal && hasManualDefault` |
+| the `⌂`-**badged favorite** (pinned with `★`, promoted with `⌂`, or hand-typed coordinates that match one) | **in place of** that row's `⌂` action → `↺ ✎ ✕` | `isDefault(f) && hasManualDefault`, Edit mode |
+| the badged favorite, **no** override stored (it sits on the IP-derived home) | none — the row keeps `⌂`, the one action that freezes that home as manual | — |
+
+The two representations are mutually exclusive (the badged favorite suppresses the pseudo-row), so
+exactly one `↺` is offered whenever an override is stored, and none otherwise.
+
+**Why `↺` replaces `⌂` rather than joining it.** On the badged row, while an override is stored,
+`⌂` is a no-op: it re-writes the very coordinates that row already is (at the badge's 4-decimal
+precision — a hand-typed override with more decimals would merely be re-rounded). Swapping it
+keeps every stored row at three 44 px actions — the 132 px measured in §8 Layout and geometry —
+instead of a fourth that would squeeze the label column from ~180 px to ~134 px on that row alone.
+The slot keeps one meaning: *change how this row relates to home*.
+
+**The gap this closed (2026-10-08).** `↺` used to render on the pseudo-row only. Once home was a
+stored place — chosen with `⌂` on a saved row, or pinned with `★` while manual — the pseudo-row was
+suppressed and no `↺` existed anywhere in Places: the only ways back to automatic were deleting the
+favorite (which orphans the default and brings the pseudo-row back) or Settings → Latitude/Longitude
+→ Auto. The §1 diagram and the user guide had described the reachable version all along.
+
+**Not gated on the row budget.** After a reset from the badged row, the favorite stays stored and the
+pseudo-row returns for the IP-derived home unless that home lands on a stored favorite — at 7
+favorites that is the §3.3 8-row scroll, accepted rather than prevented (§3.3 says why). The former
+home also returns to its insertion position: home-first ordering (INV-6) follows the badge.
 
 **The field report behind it:** with every favorite deleted, the kiosk kept booting at a place
 nothing on screen explained, and recovering meant knowing to go to Settings → Latitude/Longitude →
@@ -608,7 +693,7 @@ Auto → save → reload.
 **Why an affordance and not a prompt after deletion.** A follow-up prompt when the badged favorite
 is deleted was the obvious fix, and it was rejected for the right reason: it pushes *one* outcome
 when *two* are equally legitimate — reset to automatic, or promote a different favorite with the
-`⌂` already on every row. Putting the reset where "home" is displayed leaves the user choosing
+`⌂` already on every other row. Putting the reset where "home" is displayed leaves the user choosing
 between affordances instead of answering a leading question, and it costs no new state machine: the
 pseudo-row already reappears when the badged favorite is deleted, so the orphaned default was
 visible all along. Only the way out was missing.
@@ -709,9 +794,11 @@ the height budget, so the three cannot drift apart again.
 | Label column | ~180 px, desktop only | **180 px, on the 7" as well** |
 
 Ellipsis confirmed at that width: `Sainte-Brigide-dIberville, Quebec` reports `scrollWidth 204`
-against `clientWidth 160` and truncates; `Montreal, Quebec` (109 px) does not. The home row carries
-at most two of its own actions (`★`, and `↺` when an override is stored), so it is never the
-binding case.
+against `clientWidth 160` and truncates; `Montreal, Quebec` (109 px) does not. Every stored row
+carries exactly three actions — on the `⌂`-badged row `↺` *replaces* `⌂` while an override is
+stored rather than joining it (§7.5) — and the home pseudo-row at most two (`★`, and `↺` when an
+override is stored), so the three-action row stays the binding case. A fourth action on any row
+would take the label column to ~134 px.
 
 > **The `min-width: 0` trap** is the load-bearing survivor of the original budget paragraph. In Edit
 > mode the row is `flex`; the label needs `min-width: 0` plus `text-overflow: ellipsis`. Without
@@ -759,12 +846,13 @@ Never hand-edit it; `--check` exits 1 when it is stale.
 | **D-06** | Rename **ungated** on any local client | `maxTouchPoints === 0`; `(any-hover) and (any-pointer: fine)`; `keyboardSeen` — all proxies for a question the platform cannot answer — §7.3 |
 | **D-07** | Two-tap arm for delete, no undo | An undo needs a new interactive, timed surface (the dock toast is non-interactive) plus a deferred-delete path; swipe collides with map/rail dragging — §7.4 *(rationale corrected 2026-10-08 — §10.1)* |
 | **D-08** | The `⌂` home row is a **pseudo-row** | Auto-seeding the stored list: spends a slot, writes unasked, kills the empty state, moves itself, labels with raw coordinates — §7.2 |
-| **D-09** | `↺` reset affordance on the home row | A post-deletion prompt pushes one outcome when two are legitimate — §7.5 |
+| **D-09** | `↺` reset affordance on whichever row represents home — the pseudo-row, or the `⌂` slot of the badged favorite | A post-deletion prompt pushes one outcome when two are legitimate; a fourth action on the badged row squeezes its label to ~134 px for a `⌂` that is a no-op there — §7.5 *(extended to the badged favorite 2026-10-08)* |
 | **D-10** | `favorites` reaches remote clients **unmasked** | Hiding it empties the Places list for direct LAN/VPN viewers (SSH-tunnel and RPi Connect sessions are local and unaffected); opt-out recipe recorded instead — §5.4 *(rationale corrected 2026-10-08 — §10.1)* |
 | **D-11** | Icon `carbon/bookmark` | `location-star` draws a map pin next to the existing marker toggle — two pin glyphs read as one control — §7.6 |
 | **D-12** | Dock button visible even when the list is empty | Hiding it makes the feature undiscoverable — §7.2 |
 | **D-13** | Label frozen at pin time; `id` stable across rename | A live label would re-write storage on every geocode refresh |
 | **D-14** | Coordinates rounded to 4 decimals | Storing the live map centre mints a new cache key per visit — §4.2 |
+| **D-15** | A nested control consumes Esc with `preventDefault()`; `DetailsPopover` skips a `defaultPrevented` Esc | `stopPropagation()` in the rename field: also hides the keystroke from `useIdleDetection`'s `window` listener, and leaves the shell relying on a contract it never states — §7.3 |
 
 **The two reversals, and why they are not re-reversible.**
 
@@ -791,6 +879,8 @@ Never hand-edit it; `--check` exits 1 when it is stale.
 | "Per-favorite zoom is a viewing preference" | It is an artefact of the pinning gesture | D-05 |
 | "An undo toast from the popover hits the `backdrop-filter` stacking trap" | `DetailsPopover` carries no `filter`/`backdrop-filter`/`transform`, and the popover already reaches the dock toast through `onNotify`; the real cost is that this toast is non-interactive | §7.4, D-07 |
 | "Hiding `favorites` breaks the SSH-tunnel workflow" | SSH-tunnel and RPi Connect sessions terminate at loopback, are treated as local and always get the unmasked file | §5.4, D-10 |
+| "`↺` lives on the home row" (meaning the pseudo-row) | Home has two representations, and the `⌂`-badged favorite suppresses the pseudo-row — so a stored home had no `↺` at all | §7.5, INV-13 |
+| "`sanitizeValue` runs on `setSetting`" (read as: on every PATCH) | It ran on the update branch only; the branch that created `settings.json` wrote the value raw | §5.1, INV-2 |
 
 ---
 
@@ -802,11 +892,15 @@ Never hand-edit it; `--check` exits 1 when it is stale.
 | Places popover opens tiny and clipped | `fitViewport` budget derived from `portalPos.top`, negative at a bottom-anchored trigger | §8 |
 | Footer clipped by ~13 px | The fixed 420 px portal cap, before `fitViewport` | §8 |
 | Rename hidden on a client that has a keyboard | The removed device gate — verify the deployed build | §7.3 |
+| Esc while renaming closes the whole Places panel and drops Edit mode | `DetailsPopover`'s document Esc listener not skipping a `defaultPrevented` event, or the rename field not calling `preventDefault()` | §7.3, INV-12 |
+| A manual default is stored but Places offers no `↺` | `↺` keyed on the pseudo-row only — a `⌂`-badged favorite suppresses it | §7.5, INV-13 |
+| `↺` shows on the badged row although the default is automatic | `hasManualDefault` gate dropped from the stored-row branch | §7.5 |
 | Edit mode / armed delete / half-typed rename survive a close | The popover mounted permanently; only the shell returned null, while the in-code comment claimed unmount-on-close | §7.2 |
 | A row renders unstyled inside the popover | Palette token missing from the portal whitelist | §7.7 |
 | A rural pin auto-labels as a bare region | County fallback missing from the label chain | §7.1 |
 | A favorite pinned to the Gulf of Guinea | `Number(null) === 0` — use `toNumber` | §5.1 |
 | `PATCH` persists a malformed shape | The sanitizer not wired into `setSetting` — `sanitizeSettings` does not cover PATCH | §5.1 |
+| Only the **first** `PATCH` on a fresh install persists a malformed shape | `setSetting`'s create-file branch bypassing `sanitizeValue` | §5.1, INV-2 |
 | Recenter goes to the old default | `browserGeo` written only at boot | §6.3 |
 | "Auto" in Settings appears to need a reboot | The `Number.isFinite(parseFloat(lat))` guard skipping the cleared branch | §6.3 |
 | Marker drifts after selecting a place | `setZoom` bypassing `panWithRailOffset`'s pixel offset | D-05 |
@@ -817,24 +911,33 @@ Never hand-edit it; `--check` exits 1 when it is stale.
 
 ## 12. Verification — what is pinned, and what is not
 
-**Mechanically pinned.** `test/favorites.test.js` (21 assertions): non-array → `[]`; non-object
+**Mechanically pinned.** `test/favorites.test.js` (25 tests): non-array → `[]`; non-object
 entries dropped; entries rebuilt so unknown properties cannot ride along; non-finite and
 out-of-range coordinates; exact range boundaries; numeric-string coercion; `round4` and the
 4-decimal cache-key contract; empty and non-string labels; trim and truncate at 40; id synthesis
 and the 64-char cap; truncation at `MAX_FAVORITES` preserving order; `MAX_FAVORITES` being the
 7-row budget rather than the 6-place UX cap; the cap counting *valid* entries; a stored `zoom`
 always dropped (the inverted guard against re-introducing it); `sanitizeValue` as the PATCH seam;
-`sanitizeSettings` on the POST/PUT path; garbage degrading to `[]`; opaque sub-objects untouched;
-`maskForRemote` still returning `favorites` (D-10, pinned so a refactor cannot flip it); and
-`ALLOWED_KEYS` containing `favorites`. `test/placeLabel.test.js` adds 12, including **both
-directions** of the county fallback. `test/react19Guards.test.js` covers the two failure modes that
-are silent at build time.
+the real `setSetting` handler sanitizing `favorites` on **both** branches — creating
+`settings.json` and patching an existing one (INV-2); `sanitizeSettings` on the POST/PUT path;
+garbage degrading to `[]`; opaque sub-objects untouched; `maskForRemote` still returning
+`favorites` (D-10, pinned so a refactor cannot flip it); `ALLOWED_KEYS` containing `favorites`; and
+a Settings-panel `PUT /settings` keeping a stored list its body omits. `test/settingsCtrl.test.js`
+drives `setSetting` end to end against a temp file — HTTP 201 + `0600` on creation, the sanitizer on
+the create path, and a create-vs-update equality guard so the two branches cannot drift apart again.
+`test/placeLabel.test.js` adds 12, including **both directions** of the county fallback.
+`test/react19Guards.test.js` covers the two failure modes that are silent at build time.
+`test/placesPopoverContracts.test.js` adds three **text-level** guards for INV-12 and INV-13 — that
+`DetailsPopover`'s Esc listener checks `defaultPrevented`, that the rename field's Esc branch calls
+`preventDefault()` and never `stopPropagation()`, and that `renderRow` offers `↺` gated on
+`isDefault` and `hasManualDefault`. They pin the source shape, not the behaviour.
 
 **Not pinned — and this is the part people misread.** There is no client-side test harness
 (tech-debt D2 — `ROADMAP.md` → Technical debt › Automated tests). Every interaction behaviour in
 §7 and every geometry claim in §8 — the two-tap arm, mode exclusivity, rename blur semantics,
-home-row suppression, the row budget on screen — is verified only by browser sessions and one
-field test. A green suite says nothing about the popover.
+home-row suppression, the Esc and `↺` behaviour behind the text guards above, the row budget on
+screen — is verified only by browser sessions and field tests. A green suite says nothing about the
+popover.
 
 **Build gate:** `cd client && npm run prod` with zero errors, `npm test`, and
 `node tools/gen-localization-glossary.js --check` — redundant since 2026-10, when `npm test` began
@@ -883,10 +986,16 @@ exists.
    and nothing was written.
 4. `↺` on the home row clears the override and Recenter lands on the IP-derived location, with **no
    reload**.
-5. Alternate between two favorites inside 15 minutes and confirm a `[cache] HIT  current:` line
+5. Promote a saved place with `⌂`: in Edit mode that badged row now reads `↺ ✎ ✕` and no pseudo-row
+   is shown. Tap `↺` — the override clears, the badge leaves the row (unless the IP-derived home is
+   that same place), the pseudo-row returns, and Recenter lands on the IP-derived location. With no
+   override stored, a badged row reads `⌂ ✎ ✕` and no `↺` appears anywhere.
+6. With a keyboard (SSH tunnel or a plugged-in USB keyboard): `✎`, type, **Esc** — the label is
+   unchanged and the panel is **still open in Edit mode**; a second **Esc** closes it.
+7. Alternate between two favorites inside 15 minutes and confirm a `[cache] HIT  current:` line
    (two spaces after `HIT`) in `server.log`, e.g.
    `grep -E '\[cache\] HIT +current:' ~/.local/state/pi-weather-station/server.log`.
-6. Palette pass — day and nightRed — on the Edit-mode row with all three actions.
+8. Palette pass — day and nightRed — on the Edit-mode row with all three actions, `↺ ✎ ✕` included.
 
 ---
 

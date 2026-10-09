@@ -29,13 +29,18 @@ const MARGIN = 8;
  * already at the right side of the screen, and the
  * `max-width: 320px` keeps it readable on the smaller cells.
  *
- * Dismissal: backdrop click + Esc key + tap on the close icon.
+ * Dismissal: backdrop click + Esc key + tap on the close icon. An Esc
+ * keydown that a descendant has already handled — signalled by calling
+ * `e.preventDefault()` on it — is left alone, so a nested control can
+ * give Esc a local meaning (the Places rename field cancels the edit and
+ * the popover stays open; a second Esc then closes it as usual).
  *
  * @param {object} props
  * @param {boolean} props.open Whether the popover is visible
  * @param {() => void} props.onClose Invoked on every dismissal path —
- *   pointerdown outside both the popover and the trigger, the Esc key,
- *   and the close button. The first two call it with no arguments; the
+ *   pointerdown outside both the popover and the trigger, an Esc keydown
+ *   no descendant has consumed (`defaultPrevented` false), and the close
+ *   button. The first two call it with no arguments; the
  *   close button is bound straight to `onClick`, so React hands it a
  *   SyntheticMouseEvent. Callers ignore the argument, hence the
  *   zero-arity type. The component never
@@ -151,9 +156,22 @@ const DetailsPopover = ({ open, onClose, title, anchor = "right", triggerRef = n
 
   // Esc to close. Re-bound each time `open` flips so we don't keep
   // a listener attached when the popover isn't visible.
+  //
+  // An Esc a descendant has already consumed is NOT a dismissal: a nested
+  // control that gives Esc its own meaning (the Places rename field, where
+  // it cancels the edit) calls `e.preventDefault()`, and this listener
+  // skips it. React's listeners sit on the root container — and, for a
+  // portal, on `document.body`, its container — both below `document` in
+  // the bubble path, so the child's handler has always run by the time
+  // this one sees the event. The child must NOT `stopPropagation()`
+  // instead: that would also hide the keystroke from the window-level
+  // activity listener in useIdleDetection.
   useEffect(() => {
     if (!open) return undefined;
-    const onKey = (e) => { if (e.key === "Escape") onClose(); };
+    const onKey = (e) => {
+      if (e.key !== "Escape" || e.defaultPrevented) return;
+      onClose();
+    };
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [open, onClose]);
