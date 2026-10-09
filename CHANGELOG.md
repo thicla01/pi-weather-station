@@ -26,6 +26,50 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   now resolves against the viewport, as its coordinates assume. Chromium is unchanged. Idea
   ported from [@Aryeh95](https://github.com/Aryeh95)'s [Sweep](https://github.com/Aryeh95/Sweep)
   fork, commit [`c0e2ed4`](https://github.com/Aryeh95/Sweep/commit/c0e2ed443c900d55d1f6789be96774d80ce3a446).
+- **The radar timeline no longer blanks between frames.** Each play or scrub step used to swap
+  the single RainViewer `TileLayer`'s `url`, so Leaflet dropped and re-created every visible tile
+  for the new frame. The map flashed empty between frames and storms popped in and out instead
+  of moving, worst on wide viewports (the stutter logged in the ROADMAP on a 13.3" panel).
+  `WeatherMap` now keeps several frames mounted as separate layers, so a step flips `opacity`
+  onto a layer that has already loaded. `client/src/ui/radarFrameStack.js` picks the frames. While the timeline is closed,
+  open but paused on "now", or on the Pi's MAX view, only the displayed frame is mounted, as
+  before. While it plays or is parked off "now", the displayed frame and two frames on each side
+  are mounted, in a fixed set of five layer slots. In playback and frame-by-frame scrubbing, each
+  step lands on a frame loaded two steps earlier and hands the slot of the frame leaving the
+  window to the one entering it: a hidden layer changes url, and no layer is created or destroyed
+  (only opening or closing the window does).
+  The network and tile work per step thus stay those of the old url swap (one frame, from the
+  browser cache after the first pass). A first version created and destroyed one layer per step;
+  on the RPi-3B it used about 20 points more CPU than the url swap during 4× playback. A
+  headless-Chrome benchmark (800×480, 4×, 60 s, two runs per build) traced that to a second,
+  forced layout per step (a new Leaflet layer reads `offsetWidth` when it creates its zoom
+  level) and ~35 % more main-thread time. The number of mounted layers had no measurable effect (3 or
+  5). With the slots, the same benchmark measures the url swap's one layout per step, ~11 % more
+  main-thread time, and ~9 % less renderer + GPU time overall. The first step off "now" and a jump (a tap on the track) still
+  land on a frame that isn't loaded, as before, and mount up to five frames at once, the
+  displayed one first. The fork this comes from mounts every frame. A fixed window was chosen
+  because every mounted layer, hidden or not, fetches tiles on each pan, zoom or resize, and
+  RainViewer rate-limits per public IP (500 requests/min, 300 in a burst, shared by the kiosks
+  behind one router and their servers' radar analysis). The Pi 3B also has 1 GB. Leaflet never
+  retries a failed tile while its layer stays mounted, so a failed radar tile is now retried
+  after 5 s and again after 30 s. A pinch also skips the intermediate zoom levels
+  (`updateWhenZooming: false`).
+
+  Measured at 1024×640 (4 tiles per frame, 13 frames) at 4× speed:
+  - always exactly 5 layers and one visible, and no layer created during steady playback;
+  - the displayed frame fully loaded at every sample (240 with the first version, 393 with the
+    slots);
+  - a displayed frame whose 4 tiles were forced to 404 was whole again within 8.5 s, without
+    moving;
+  - a zoom with the window active creates 20 tiles (5 layers × 4), against 4 before.
+
+  Also checked on the 7" priority-view scrubber (MIN); the ECCC radar source is untouched. New
+  `test/radarFrameStack.test.js` (15 tests). Technique adapted from
+  [@Aryeh95](https://github.com/Aryeh95)'s [Sweep](https://github.com/Aryeh95/Sweep) fork,
+  commits [`7e27e15`](https://github.com/Aryeh95/Sweep/commit/7e27e1535814fc5b45e3838a860523b61de0434c)
+  (frames mounted, playback flips opacity) and
+  [`2b0d0d1`](https://github.com/Aryeh95/Sweep/commit/2b0d0d1decd78ad7deb3c0d345cc5a21f21d32a1)
+  (frames loaded on play, not on opening the timeline).
 
 ### Fixed
 - **Leaving the fullscreen radar no longer leaves the map off-centre on a slow Pi.** Leaflet
