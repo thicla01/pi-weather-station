@@ -858,11 +858,11 @@ cd ~/pi-weather-station && git pull && bash deploy/install.sh
 
 ### ADR-09 — Browser choice persisted in `~/.config/pi-weather-station/browser.conf`
 
-**Decision:** `install.sh` detects all installed browsers (Chromium-family and Firefox), prompts the user to pick one, and persists the choice. `start-server` reads this file at launch and uses family-specific kiosk flags.
+**Decision:** `install.sh` detects the supported browsers installed — the Chromium family (Chromium, Google Chrome, Brave, Microsoft Edge) and Firefox / Firefox ESR — marks the system default (`xdg-settings`), prompts the user to pick one, and persists the choice (`BROWSER_CMD` + `BROWSER_FAMILY`). `start-server` reads this file at launch and uses family-specific kiosk flags.
 
 **Rationale:** Different distributions ship different browsers as the default. Hard-coding Chromium in `start-server` works for Pi OS but breaks on Ubuntu (Firefox-only) and openSUSE (Firefox-default). Two browser families need different kiosk flags: Chromium-based use `--kiosk --noerrdialogs ...`; Firefox uses `-P <named-profile>` so the self-signed-cert acceptance persists, and to stay compatible with the snap-confined Firefox on Ubuntu where arbitrary `--profile <path>` doesn't work.
 
-**Consequences:** The browser choice survives upgrades. Users can switch by re-running `install.sh` or editing the conf file directly. `start-server` falls back to auto-detecting Chromium when the conf file is absent (backward compatible with installs that pre-date this feature).
+**Consequences:** The browser choice survives upgrades. Users can switch by re-running `install.sh` or editing the conf file directly. When the conf file is absent, `start-server` falls back to the first of `chromium`, `chromium-browser`, `google-chrome` or `firefox` it finds (backward compatible with installs that pre-date this feature). The supported executable names live in three lists that must move in lockstep — `KNOWN_BROWSERS` (what the installer offers) and `classify_browser_family` in `install.sh`, and `start-server`'s family case — and drift between them fails silently: Brave was classified in both scripts from the start but missing from `KNOWN_BROWSERS`, so the installer never offered it until 2026-10. `test/kioskBrowserLists.test.js` now parses the three lists (plus `start-server`'s per-browser profile-lock cleanup) and fails when an offered name is unclassified, is classified differently by the two scripts, or (Chromium family) has no lock cleanup; it also pins Brave in the offered list.
 
 ---
 

@@ -31,6 +31,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   The fullscreen radar without the scrubber shows the full card. Desktop, mobile and the taller
   Pi panels are unchanged. Found by reading the code; reproduced at 800×480 with the preference
   on and off.
+- **`install.sh` now offers Brave as a kiosk browser.** The installer's list of browsers to
+  detect and offer (`KNOWN_BROWSERS`) never included `brave-browser`, although its own family
+  classifier and `start-server` have handled Brave since the browser-choice release (2026-04)
+  and the readme and CLAUDE.md said it was offered. Brave never appeared in the menu, and on a
+  Brave-only machine the installer printed "No supported browser found" and turned kiosk mode
+  off. Brave is now offered (after Chrome, before Edge), named in that message, and gets the
+  "(system default)" marker: its `.desktop` file launches `brave-browser-stable`, now reported
+  as the `brave-browser` name `start-server` knows. New `test/kioskBrowserLists.test.js` checks
+  the offered, classified and lock-cleanup lists against each other.
 
 ### Documentation
 - **A `☑` in the localization glossary now stays on the exact wording it validated.**
