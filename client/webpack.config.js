@@ -3,6 +3,30 @@ const webpack = require("webpack");
 const HtmlWebPackPlugin = require("html-webpack-plugin");
 const ESLintPlugin = require("eslint-webpack-plugin");
 
+// Production builds only: removes the `/* … */` comments from the stylesheets
+// of the CSS-modules rule below. style-loader ships each stylesheet in
+// bundle.min.js as a JS string, which Terser never touches, so the comments
+// reached every kiosk and phone (~225 KB, ~11 % of the bundle, in 2026-10).
+// Source files and dev builds keep them; `/*! … */` is kept. Only comment
+// nodes go: no rule is reordered, merged or rewritten (unlike cssnano), so the
+// doubled `.foo.foo` selectors and cross-file order still hold. A comment
+// inside a selector or a value isn't a node and stays (none in client/src).
+// Not reached: the global stylesheets imported with an inline
+// `!style-loader!css-loader!` request (it skips module.rules) and node_modules
+// CSS (see ROADMAP).
+// `OnceExit`, not a `Comment` visitor: PostCSS runs every plugin's visitors in
+// one shared walk, so a visitor would delete the comments before autoprefixer
+// (inside postcss-preset-env) reads its control comments in its own
+// `OnceExit`. `OnceExit` hooks run in plugin order, and this one is last.
+const stripCssComments = {
+  postcssPlugin: "strip-css-comments",
+  OnceExit(root) {
+    root.walkComments((comment) => {
+      if (!comment.text.startsWith("!")) comment.remove();
+    });
+  },
+};
+
 module.exports = (env) => {
   const PRODUCTION = !!(env && env.BUILD_PRODUCTION);
   process.env.NODE_ENV = PRODUCTION ? "production" : "development";
@@ -75,7 +99,15 @@ module.exports = (env) => {
                     },
                   },
                 },
-                { loader: "postcss-loader", options: { sourceMap: !PRODUCTION, postcssOptions: { config: true } } },
+                {
+                  loader: "postcss-loader",
+                  options: {
+                    sourceMap: !PRODUCTION,
+                    // Runs after the postcss.config.js plugins (postcss-loader
+                    // appends `plugins` to the config file's list).
+                    postcssOptions: { config: true, plugins: PRODUCTION ? [stripCssComments] : [] },
+                  },
+                },
               ],
             },
           ],
