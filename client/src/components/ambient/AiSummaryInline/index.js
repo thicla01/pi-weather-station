@@ -16,9 +16,14 @@ const REFRESH_INTERVAL = 15 * 60 * 1000;
  *
  * Same fetch + refresh contract as the v2 `AiSummary`: hits
  * `/api/weather-summary` with lat/lon + unit preferences, refreshes
- * every 15 minutes, and silently hides itself when the server returns
- * 503 (Anthropic key not configured). The duplication will be
- * collapsed into a shared `useAiSummary()` hook in Phase 10 cleanup.
+ * every 15 minutes, and silently hides itself when no Anthropic key is
+ * configured. That is usually known before the first fetch — the boot
+ * settings read clears AppContext's `aiSummaryAvailable`, so the slab
+ * never calls the endpoint at all — with a 503 from the endpoint as the
+ * authoritative fallback (e.g. a remote client, whose masked settings
+ * can't reveal the "key" placeholder). The fetch logic is duplicated in
+ * `useAiSummary()` (the Pi AiView's hook) — collapsing the two is still
+ * open Phase 10 cleanup.
  *
  * Visual treatment: collapsed by default to keep the right rail
  * compact on the 7" screen, expanded shows three paragraphs. The
@@ -129,7 +134,9 @@ const AiSummaryInline = () => {
         .catch((err) => {
           if (cancelled) return;
           if (err?.response?.status === 503) {
-            // Feature gated server-side (no Anthropic key) — hide.
+            // Feature gated server-side (no Anthropic key, or no weather
+            // data at all) — hide. Authoritative over the boot settings
+            // read, which only ever turns availability off.
             setAvailable(false);
           }
           // Other errors: keep the last known summary on screen.

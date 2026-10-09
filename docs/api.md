@@ -243,7 +243,7 @@ Returns sunrise and sunset times for the given coordinates (via sunrise-sunset.o
 > See [`docs/ai-summary.md`](ai-summary.md) for the end-to-end feature reference: how the prompt is assembled locally vs what runs at Anthropic, the five-layer cache cascade, the privacy posture, and the model-upgrade procedure. The endpoint surface below is just the HTTP contract.
 
 ### `GET /api/weather-summary`
-Returns an AI-generated weather summary powered by Claude Haiku (Anthropic). Returns HTTP 503 if no Anthropic API key is configured (or there is no weather data at all to summarise) — the client silently hides the feature in that case. Every other error leaves the feature visible; see **Errors** below.
+Returns an AI-generated weather summary powered by Claude Haiku (Anthropic). Returns HTTP 503 if no Anthropic API key is configured (or there is no weather data at all to summarise) — the client silently hides the feature in that case. The client usually knows before calling: it reads key availability from its startup `GET /settings` (same rule — a missing or empty `anthropicApiKey`, or the `"key"` placeholder, counts as not configured), so this 503 is the fallback, e.g. for a remote client, whose masked settings (a bare `true`/`false`) can't reveal the placeholder. Every other error leaves the feature visible; see **Errors** below.
 
 The response can be 1, 2, or 3 paragraphs depending on what data is available:
 
