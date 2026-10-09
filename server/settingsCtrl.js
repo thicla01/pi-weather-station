@@ -2,8 +2,31 @@ const fs = require("fs");
 const path = require("path");
 
 const SETTINGS_FILE = "../settings.json";
-const FILE_PATH = path.join(`${__dirname}/${SETTINGS_FILE}`);
+const DEFAULT_FILE_PATH = path.join(`${__dirname}/${SETTINGS_FILE}`);
 const ENCODING = "utf8";
+
+// The settings.json path every reader and writer below resolves AT CALL TIME
+// (the `= settingsFilePath` parameter defaults included). It is a `let` for a
+// single reason: the HTTP handlers take (req, res) and no path argument, so a
+// test can only drive one end to end — without touching the real file — by
+// pointing this at a temp path through __test.setSettingsPathForTest.
+// Production code never reassigns it.
+let settingsFilePath = DEFAULT_FILE_PATH;
+
+/**
+ * Test-only: redirect every settings reader/writer to `p`. Surfaced only
+ * through `__test`, never routed. Returns the path that was in effect so the
+ * caller can restore it in a `finally`.
+ *
+ * @param {String} p path to use as settings.json
+ * @returns {String} the previously active path
+ * @private
+ */
+function setSettingsPathForTest(p) {
+  const previous = settingsFilePath;
+  settingsFilePath = p;
+  return previous;
+}
 
 // settings.json holds the six API keys plus the indoorTemperature block
 // (Homebridge host + credentials), so it must never be world-readable.
@@ -24,7 +47,7 @@ const FILE_MODE = 0o600;
  *
  * @param {String} [filePath] path to tighten (defaults to the settings file)
  */
-function ensureSecurePermissions(filePath = FILE_PATH) {
+function ensureSecurePermissions(filePath = settingsFilePath) {
   try {
     if (fs.existsSync(filePath)) {
       fs.chmodSync(filePath, FILE_MODE);
@@ -238,7 +261,7 @@ function maskForRemote(data) {
  * @param {Function} callbacks.errorCb
  */
 function readSettingsFile({ successCb, errorCb }) {
-  fs.readFile(FILE_PATH, (err, data) => {
+  fs.readFile(settingsFilePath, (err, data) => {
     if (err) {
       errorCb(err);
     } else {
@@ -261,7 +284,7 @@ function readSettingsFile({ successCb, errorCb }) {
 function createSettingsFile(req, res) {
   const contents = sanitizeSettings(req.body);
 
-  if (fs.existsSync(FILE_PATH)) {
+  if (fs.existsSync(settingsFilePath)) {
     return res.status(409).json("settings file already exists").end();
   } else {
     writeSettingsFileCb(contents, (err) => {
@@ -282,7 +305,7 @@ function createSettingsFile(req, res) {
  * @param {Object} res
  */
 function getSettings(req, res) {
-  if (!fs.existsSync(FILE_PATH)) {
+  if (!fs.existsSync(settingsFilePath)) {
     return res.status(404).json("settings.json not found!").end();
   }
 
@@ -299,12 +322,6 @@ function getSettings(req, res) {
   });
 }
 
-/**
- * Sets a single setting. Creates a new `settings.json` file if none exists.
- *
- * @param {Object} req
- * @param {Object} res
- */
 /**
  * When PATCHing the whole `advanced` blob, splice the server-owned
  * `advanced.sensehat` sub-block back in if the incoming payload omits it.
@@ -336,6 +353,15 @@ function preserveServerOwnedAdvanced(currentSettings, key, val) {
   return val;
 }
 
+/**
+ * Sets a single setting (PATCH /setting). Merges `{ key: val }` into the
+ * stored file (HTTP 200), or creates `settings.json` with that key when none
+ * exists yet (HTTP 201). Both paths apply the same value coercion.
+ *
+ * @param {Object} req
+ * @param {Object} [req.body] `{ key, val }`
+ * @param {Object} res
+ */
 function setSetting(req, res) {
   // `req.body` is undefined when the JSON body-parser didn't match (wrong
   // content-type / empty body) — destructure defensively so a malformed
@@ -371,23 +397,32 @@ function setSetting(req, res) {
   };
 
   /**
-   * Read success callback
+   * Build the next settings object from `currentSettings` and write it. The
+   * ONLY place this handler computes what it persists — creating the file is
+   * just patching an empty object — so the create path cannot drift from the
+   * update path. (It did: the create branch used to write `{ [key]: val }`
+   * raw, so the PATCH that created settings.json could store an unvalidated
+   * `favorites`.)
    *
-   * @param {Object} currentSettings
+   * @param {Object} currentSettings parsed settings.json, or `{}` when the
+   *   file does not exist yet
+   * @param {Boolean} [newFile] true when this write creates the file
    */
-  const readSuccess = (currentSettings) => {
+  const applyPatch = (currentSettings, newFile) => {
     const newSettings = {
       ...currentSettings,
       // Value coercion has to happen HERE, not only inside sanitizeSettings:
-      // this handler writes `val` straight through and never calls it (unlike
-      // createSettingsFile / replaceSettings, which both project their whole
-      // body through sanitizeSettings). Without this line a PATCH is the one
-      // path that can plant an arbitrarily-shaped value under a whitelisted
-      // key — caught by an end-to-end curl, invisible to a unit test of the
-      // pure helper.
+      // this handler writes a single value and never projects through
+      // sanitizeSettings (unlike createSettingsFile / replaceSettings, which
+      // both run their whole body through it). Without this line a PATCH is
+      // the one path that can plant an arbitrarily-shaped value under a
+      // whitelisted key — caught by an end-to-end curl, invisible to a unit
+      // test of the pure helper. On creation preserveServerOwnedAdvanced is a
+      // no-op (`{}` holds no stored sensehat to splice back), so the value
+      // goes through sanitizeValue alone.
       [key]: sanitizeValue(key, preserveServerOwnedAdvanced(currentSettings, key, val)),
     };
-    writeContents(newSettings);
+    writeContents(newSettings, newFile);
   };
 
   /**
@@ -399,11 +434,14 @@ function setSetting(req, res) {
     return res.status(500).json(err).end();
   };
 
-  if (!fs.existsSync(FILE_PATH)) {
-    writeContents({ [key]: val }, true);
+  if (!fs.existsSync(settingsFilePath)) {
+    // No file yet: patch an empty object. writeSettingsFile creates the file
+    // 0600 from birth (FILE_MODE on the tmp file, kept by the rename), so the
+    // new file is never world-readable, even briefly.
+    applyPatch({}, true);
   } else {
     readSettingsFile({
-      successCb: readSuccess,
+      successCb: (currentSettings) => applyPatch(currentSettings, false),
       errorCb: readError,
     });
   }
@@ -414,7 +452,7 @@ function replaceSettings(req, res) {
   if (!body) {
     return res.status(400).json("You must provide settings contents").end();
   }
-  const fileExists = fs.existsSync(FILE_PATH);
+  const fileExists = fs.existsSync(settingsFilePath);
   const sanitized = sanitizeSettings(body);
 
   // Preserve top-level subtrees that aren't in the body. The v2
@@ -450,7 +488,7 @@ function replaceSettings(req, res) {
   // Read existing settings to merge with. Defensive on parse errors —
   // if the file is corrupt we fall back to body-only rather than
   // crash the save.
-  fs.readFile(FILE_PATH, ENCODING, (err, data) => {
+  fs.readFile(settingsFilePath, ENCODING, (err, data) => {
     if (err) return finalize({});
     try {
       return finalize(JSON.parse(data));
@@ -520,7 +558,7 @@ function deleteSetting(req, res) {
  */
 function getSettingsData() {
   return new Promise((resolve, reject) => {
-    if (!fs.existsSync(FILE_PATH)) {
+    if (!fs.existsSync(settingsFilePath)) {
       return reject(new Error("settings.json not found"));
     }
     readSettingsFile({ successCb: resolve, errorCb: reject });
@@ -585,7 +623,7 @@ function serializeWrite(task) {
  * @returns {Promise<void>}
  */
 let tmpWriteSeq = 0;
-async function writeSettingsFile(obj, filePath = FILE_PATH) {
+async function writeSettingsFile(obj, filePath = settingsFilePath) {
   tmpWriteSeq += 1;
   const tmpPath = `${filePath}.${process.pid}.${tmpWriteSeq}.tmp`;
   try {
@@ -617,7 +655,7 @@ async function writeSettingsFile(obj, filePath = FILE_PATH) {
  *
  * @param {String} [filePath] settings path (injectable for unit tests)
  */
-function sweepOrphanSettingsTmp(filePath = FILE_PATH) {
+function sweepOrphanSettingsTmp(filePath = settingsFilePath) {
   const dir = path.dirname(filePath);
   const base = path.basename(filePath);
   let entries;
@@ -726,6 +764,7 @@ module.exports = {
     serializeWrite,
     writeSettingsFile,
     sweepOrphanSettingsTmp,
+    setSettingsPathForTest,
     FILE_MODE,
     ALLOWED_KEYS,
     API_KEY_FIELDS,
