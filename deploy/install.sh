@@ -502,8 +502,9 @@ fi
 # launch time. Two browser families are supported:
 #
 #   - Chromium-based: chromium, chromium-browser, google-chrome,
-#     google-chrome-stable, microsoft-edge, microsoft-edge-stable.
-#     All accept the same kiosk flags (`--kiosk URL` etc.).
+#     google-chrome-stable, brave-browser, microsoft-edge,
+#     microsoft-edge-stable. All accept the same kiosk flags (`--kiosk URL`
+#     etc.).
 #   - Firefox: needs `--kiosk URL` and a dedicated profile to remember the
 #     self-signed-cert acceptance across launches.
 #
@@ -539,25 +540,44 @@ classify_browser_family() {
 
 # Look up the system's default browser via xdg-settings (Linux). Returns the
 # resolved executable name (e.g. "firefox") or empty if it can't be found.
+#
+# Brave's .desktop entry launches /usr/bin/brave-browser-stable, but the menu
+# below offers only `brave-browser` (which the same package also installs) —
+# the one Brave name start-server knows (family fallback + its
+# ~/.config/BraveSoftware lock cleanup). Report that name, otherwise the
+# "(system default)" marker would never land on the Brave entry. Chrome and
+# Edge need no mapping: both of their names are in KNOWN_BROWSERS.
 detect_default_browser() {
     if ! command -v xdg-settings >/dev/null 2>&1; then return; fi
     local desktop_file
     desktop_file=$(xdg-settings get default-web-browser 2>/dev/null || true)
     [ -z "$desktop_file" ] && return
-    local exec_line
+    local exec_line exe_name
     for d in /usr/share/applications "$HOME/.local/share/applications"; do
         if [ -f "$d/$desktop_file" ]; then
             exec_line=$(grep -m1 '^Exec=' "$d/$desktop_file" | cut -d= -f2- | awk '{print $1}')
-            [ -n "$exec_line" ] && basename "$exec_line" && return
+            if [ -n "$exec_line" ]; then
+                exe_name=$(basename "$exec_line")
+                [ "$exe_name" = "brave-browser-stable" ] && exe_name="brave-browser"
+                echo "$exe_name"
+                return
+            fi
         fi
     done
 }
 
 if [ "$KIOSK_MODE" = "yes" ]; then
-    # Build the list of installed browsers (in preferred order)
+    # Build the list of installed browsers (in preferred order). Every name
+    # here must also be in classify_browser_family above (and in
+    # start-server's matching case): an unclassified pick is written to
+    # browser.conf with an empty BROWSER_FAMILY, and start-server then exits
+    # with "unknown browser family" — a dark kiosk. Conversely, a name
+    # classified but missing here is never offered (Brave, until 2026-10).
+    # test/kioskBrowserLists.test.js checks these lists against each other.
     KNOWN_BROWSERS=(
         chromium chromium-browser google-chrome google-chrome-stable
-        microsoft-edge microsoft-edge-stable firefox firefox-esr
+        brave-browser microsoft-edge microsoft-edge-stable
+        firefox firefox-esr
     )
     INSTALLED_BROWSERS=()
     for b in "${KNOWN_BROWSERS[@]}"; do
@@ -570,7 +590,7 @@ if [ "$KIOSK_MODE" = "yes" ]; then
 
     if [ ${#INSTALLED_BROWSERS[@]} -eq 0 ]; then
         echo ""
-        echo "   No supported browser found (chromium, chrome, edge, firefox)."
+        echo "   No supported browser found (chromium, chrome, brave, edge, firefox)."
         echo "   Kiosk mode requires one of these. Install one and re-run install.sh."
         echo "   Disabling kiosk mode for now."
         KIOSK_MODE="no"
