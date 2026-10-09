@@ -131,6 +131,32 @@ const SHOW_ALERT_RING_STORAGE_KEY = "showAlertRing";
 const HIDE_RADAR_LEGEND_STORAGE_KEY = "hideRadarLegend";
 const RADAR_SOURCE_STORAGE_KEY = "radarSource";
 const RADAR_SOURCE_VALUES = ["rainviewer", "eccc"];
+// The unfilled-key placeholder settings.example.json ships for every API key.
+// aiSummaryCtrl's /api/weather-summary treats it exactly like a missing key.
+const ANTHROPIC_KEY_PLACEHOLDER = "key";
+
+/**
+ * Whether a `GET /settings` `anthropicApiKey` value means "an Anthropic key is
+ * configured" — the exact negation of aiSummaryCtrl's 503 gate
+ * (`!anthropicApiKey || anthropicApiKey === "key"`), so the client can learn
+ * the AI summary's availability from the boot settings read instead of
+ * waiting for (or paying for) a `/api/weather-summary` round trip.
+ *
+ * Handles both shapes the read returns: the raw string for the local kiosk,
+ * and the `maskForRemote` boolean for a remote client. A remote client cannot
+ * see the placeholder (the mask turns `"key"` into `true`), so for that one
+ * case this answers "configured" and the 503 from the summary endpoint — still
+ * the authoritative signal — flips availability off on the first fetch.
+ * Deliberately NOT stricter than the server (no trimming): hiding the feature
+ * for a value the server would still try to use would mask a real key error.
+ *
+ * @param {string|boolean|null|undefined} value `anthropicApiKey` as read from
+ *   `GET /settings` (or as just written by the Settings panel)
+ * @returns {boolean} true when the server would attempt the Claude call
+ */
+function isAnthropicKeyConfigured(value) {
+  return Boolean(value) && value !== ANTHROPIC_KEY_PLACEHOLDER;
+}
 
 /**
  * App context provider.
@@ -303,9 +329,20 @@ export function AppContextProvider({ children }) {
     return () => clearTimeout(t);
   }, [mapGeo]);
   // Whether the AI weather summary feature is operational on this Pi.
-  // Starts true (optimistic) and is flipped to false when the server returns
-  // 503 (no Anthropic API key configured). Used by WeatherMap to conditionally
-  // show the 50 km radar-analysis circle around mapGeo.
+  // Starts true (optimistic) and is flipped to false by either of two signals:
+  //   1. the boot settings read (getCustomLatLon) when `anthropicApiKey` is
+  //      missing / empty / the "key" placeholder — `isAnthropicKeyConfigured`.
+  //      This is what lets LayoutPi know up front: its AiView (the only
+  //      `/api/weather-summary` caller on a Pi) is lazy-mounted, so without it
+  //      the IA dock button and the full-contrast radar rings stayed up until
+  //      the user tapped the button and hit the 503.
+  //   2. a 503 from `/api/weather-summary` (useAiSummary / AiSummaryInline) —
+  //      the authoritative fallback, e.g. for a remote client, whose masked
+  //      settings read can't tell the placeholder from a real key.
+  // A Settings-panel save re-derives it from the key just written, so adding
+  // a key re-enables the feature (and removing it disables it) without a
+  // reload. Read by the dock's IA button, the AI summary surfaces, and
+  // WeatherMap (RiskRing `aiOff` = the subdued calm-tier ring style).
   const [aiSummaryAvailable, setAiSummaryAvailable] = useState(true);
   // v2.14.74: user-controlled AI summary visibility. `aiSummaryAvailable`
   // tracks whether the server has an Anthropic key configured (server-
@@ -1192,6 +1229,14 @@ export function AppContextProvider({ children }) {
             if (res.anthropicApiKey) {
               setAnthropicApiKey(res.anthropicApiKey);
             }
+            // AI availability from the same read — no Anthropic call. One-way
+            // (downgrade only): the state already starts optimistic, and a
+            // read must never re-enable what a 503 has switched off (the 503
+            // stays authoritative). Before this, the Pi only found out on the
+            // first AiView open, since nothing else there calls the endpoint.
+            if (!isAnthropicKeyConfigured(res.anthropicApiKey)) {
+              setAiSummaryAvailable(false);
+            }
             if (res.airNowApiKey) {
               setAirNowApiKey(res.airNowApiKey);
             }
@@ -1784,6 +1829,15 @@ export function AppContextProvider({ children }) {
           setWeatherApiKey(weatherKey);
           setReverseGeoApiKey(geoKey);
           setAnthropicApiKey(anthropicKey);
+          // Two-way here, unlike the boot read: the server now holds exactly
+          // this value, so a key just added re-enables the AI summary (IA
+          // button, full-contrast rings, desktop slab refetch) and a key just
+          // cleared disables it — no reload either way. If the server still
+          // answers 503, the summary hooks flip it back off. Skipped when the
+          // caller omitted the key: PUT /settings then keeps the stored one.
+          if (anthropicKey !== undefined) {
+            setAiSummaryAvailable(isAnthropicKeyConfigured(anthropicKey));
+          }
           setAirNowApiKey(airNowKey);
           setOpenAqApiKey(openAqKey);
           setCustomLat(lat);

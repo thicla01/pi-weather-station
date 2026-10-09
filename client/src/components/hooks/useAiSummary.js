@@ -15,6 +15,14 @@ const REFRESH_INTERVAL = 15 * 60 * 1000;
  * lazily (on the user opening the IA view) means the paid Anthropic call fires
  * on demand, not as background overhead.
  *
+ * `available` is AppContext's `aiSummaryAvailable`. It is normally settled
+ * before this hook ever mounts — the boot settings read clears it when no
+ * Anthropic key is configured, which also hides the dock's IA button — so the
+ * 503 handling below is the authoritative fallback (a remote client whose
+ * masked settings can't reveal the "key" placeholder, a settings.json edited
+ * after boot, or the server's "no weather data at all" 503), not the primary
+ * way the client learns there is no key.
+ *
  * @returns {{ summary: string|null, available: boolean, lang: "en"|"fr"|"es",
  *   period: "evening"|"overnight"|"tomorrow"|null, errored: boolean }} the raw
  *   summary, the availability flag, the resolved language, the forecast-paragraph
@@ -90,7 +98,9 @@ export default function useAiSummary() {
         })
         .catch((err) => {
           if (cancelled) return;
-          // 503 = no Anthropic key server-side → mark unavailable. Any other
+          // 503 = no Anthropic key (or no weather data at all) server-side →
+          // mark unavailable; authoritative over the boot settings read, which
+          // never re-enables what this switched off. Any other
           // error (500 / network / timeout) flags `errored` so AiView falls back
           // from the loading caption to "unavailable" when nothing is shown yet;
           // an already-displayed summary stays on screen.

@@ -48,7 +48,7 @@ Anthropic API key to function.
 | Feature | What it does | LLM involvement |
 |---|---|---|
 | **AlertBanner** (red/orange banner above the current weather) | Picks one of `alert.redNear` / `redApproaching` / `redIntensifying` / `redLeaving` / `orangeNear` / etc. based on the radar-derived risk tier and trend, OR surfaces a government alert from NWS / ECCC. Every banner carries a leading source badge (`RADAR` / `NWS` / `ECCC`) so the user can distinguish locally-derived alerts from authoritative government feeds. Pure local computation + i18n key lookup. | **None.** Server-side `getRiskLevels` reads the same RainViewer tiles the AI analyzer reads (shared `tileCache`), classifies them into a tier, computes the trend, and returns it as JSON. The client picks the wording. |
-| **Inner / outer dashed circles on the map** (50 km / 100 km) | Same data as the AlertBanner. The circle colour follows the same risk tier. When no Anthropic key is configured, the calm-tier circle is rendered with reduced opacity and a sparser dash pattern to signal "analysis zone present, AI narrative absent" — coloured tiers stay loud regardless. | **None.** Client just renders Leaflet circles with the colour coming from `/api/radar-risk`. |
+| **Inner / outer dashed circles on the map** (50 km / 100 km) | Same data as the AlertBanner. The circle colour follows the same risk tier. When no Anthropic key is configured, the calm-tier circle is rendered with reduced opacity and a sparser dash pattern to signal "analysis zone present, AI narrative absent" — coloured tiers stay loud regardless. The subdued style applies from boot on every layout, Pi included: the client reads key availability from its startup `GET /settings`, not from a summary request. The one exception is a remote client whose key is still the `"key"` placeholder, which the masked settings read can't reveal; see [Settings that affect the AI summary](#settings-that-affect-the-ai-summary). | **None.** Client just renders Leaflet circles with the colour coming from `/api/radar-risk`. |
 | **Radar tile colours themselves** | RainViewer-encoded intensity, no post-processing. | **None.** Pure CDN tiles. |
 | **Government weather alerts** (frost advisory, severe thunderstorm watch, etc.) | Polled every 10 min from the NWS (api.weather.gov GeoJSON) and Environment Canada (api.weather.gc.ca JSON) alert APIs. | **None.** The Pi pulls the official feed, parses, and shows the title verbatim. |
 | **Forecast charts** (24 h / 5 day) | Tomorrow.io payload rendered via Chart.js. | **None.** |
@@ -521,9 +521,39 @@ Advanced → AI · radar analysis**:
 | `calmDayFastPath` | `true` | When enabled, the server skips the Claude call on calm days (no active precipitation, current and period precipitation probabilities below 20 %, AND the radar snapshot, if one was obtained, is fully clear) and returns a localised templated summary instead. The template renders three paragraphs to mirror the Claude path's structure: current conditions, period forecast (`evening` / `overnight` / `tomorrow` window), and a confident radar "nothing to report within {distance}" (dropped when radar analysis is off). Saves one Claude call per cache window per location whenever conditions are quiet: under a tenth of a cent per skipped call on Haiku 5.5, but also the call's latency and its failure modes. Claude is still invoked the moment any of the four gates trip — including when Tomorrow.io says calm but radar shows precipitation, so the summary never contradicts what's visible on the map. Disable to always invoke Claude regardless of conditions. |
 
 The **API key** (`anthropicApiKey`) lives at the top level of
-`settings.json`, not under `advanced`. When it's missing or blank, the
-endpoint returns 503 and the client hides the AI block entirely — no
-spinner, no error, just no banner.
+`settings.json`, not under `advanced`. When it's missing, empty, or still
+the `"key"` placeholder from `settings.example.json`, the endpoint returns
+503 without calling Claude — and the client normally knows before it ever
+asks. The startup `GET /settings` read that every layout already makes
+carries the key (the raw value for the local kiosk, a `true`/`false`
+mask for a remote client), and AppContext clears `aiSummaryAvailable`
+from it (`isAnthropicKeyConfigured`, the exact negation of the server's
+503 test). That read lands before the map is first positioned, so before
+any summary request could fire; from then on, with no summary request at
+all:
+
+- **Pi** (`LayoutPi`): the dock's IA button is not shown, so the AI view
+  can't be opened onto a "Generating summary…" that ends in "AI summary
+  unavailable".
+- **Desktop / mobile**: the `AI SUMMARY` slab stays hidden and never
+  fetches — no spinner, no error, just no slab — and the debug-only dock
+  toggle that hides it is not shown either.
+- **Every layout**: the dashed analysis-zone circles take the subdued
+  calm-tier style (see the notes under the behaviour matrix below).
+
+The 503 remains the authoritative fallback: whichever surface fetches
+(`AiSummaryInline`, or `useAiSummary` behind the Pi AI view) switches
+`aiSummaryAvailable` off on a 503 (either body — the "No weather data
+available" 503 does it too), and the settings read never switches it
+back on. That covers the one case the settings read can't see — a
+remote client, whose masked `true` doesn't distinguish the `"key"`
+placeholder from a real key: it hides the feature after its first
+summary request, as before. On a remote client served `LayoutPi`, that
+first request is the first AI-view open, so until then the IA button
+shows and the circles keep full contrast. Saving the key in **Settings**
+(a localhost-only write) re-derives availability from the value just
+written: adding a key brings the IA button, the slab and the
+full-contrast circles back without a reload, and clearing it hides them.
 
 ---
 
@@ -610,9 +640,11 @@ The AI summary makes outbound calls to up to three third parties:
 The AI portion can be **disabled in three different shapes** — pick the
 one that matches your concern:
 
-1. **No AI at all** — leave `anthropicApiKey` empty. The endpoint returns
-   503, the client hides the AI summary banner entirely, no Anthropic
-   call ever happens. The deterministic surfaces (rain-alert banner,
+1. **No AI at all** — leave `anthropicApiKey` empty. The client sees the
+   empty key in its startup settings read and hides every AI surface (the
+   Pi dock's IA button, the desktop / mobile slab) without requesting a
+   summary; the endpoint would answer 503 anyway. No Anthropic call ever
+   happens. The deterministic surfaces (rain-alert banner,
    dashed analysis-zone circles in their subdued styling, government
    alerts) keep working from local computation.
 2. **AI for current conditions / forecast period only — no radar

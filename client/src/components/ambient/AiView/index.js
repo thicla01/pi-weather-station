@@ -95,7 +95,12 @@ function splitSummary(summary, t, period) {
  * overhead. Presents the summary's three paragraphs as labelled sections titled
  * by their real period — Now / [this evening|overnight|tomorrow] / Radar
  * analysis — with a loading state for the first fetch and an "unavailable"
- * fallback when the key is missing or a fetch fails.
+ * fallback when a fetch fails or the server answers 503. A missing key is
+ * normally caught before the view can open: the boot settings read clears
+ * `aiSummaryAvailable`, which hides the dock's IA button. A keyless
+ * "unavailable" therefore shows only when the 503 is the first signal (a
+ * remote client, whose masked settings can't reveal the "key" placeholder)
+ * or when the key is cleared in Settings while the view is open.
  *
  * @returns {JSX.Element} the IA view
  */

@@ -78,6 +78,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   default is stored: ↺ takes the slot of a ⌂ that would do nothing there, so the row keeps three
   44 px actions, and no new strings were needed. Places guides (EN/FR/ES) and
   `docs/favorite-locations-design.md` updated.
+- **A Pi with no Anthropic key now hides the IA dock button and shows the subdued "AI off"
+  radar rings from boot.** The client only learned that no key was configured from a 503 on
+  `/api/weather-summary`. On `LayoutPi` the only caller is the AI view, which mounts when the
+  user opens it. Until then a keyless Pi kept the IA button (tap → "Generating summary…" →
+  "AI summary unavailable") and full-contrast rings. AppContext now reads availability from
+  the `GET /settings` it already makes at startup (`isAnthropicKeyConfigured`: a missing,
+  empty or `"key"`-placeholder key, the server's 503 rule). No extra request, no Anthropic
+  call. The 503 stays the fallback for a remote client, whose masked settings can't reveal
+  the placeholder. Desktop / mobile look the same but no longer send a 503 request at boot.
+  Saving a key in Settings now brings the AI surfaces back without a reload.
+  `test/aiAvailability.test.js` checks that the client rule matches the server's 503 test and
+  that AppContext applies it.
 
 ### Documentation
 - **A `☑` in the localization glossary now stays on the exact wording it validated.**
