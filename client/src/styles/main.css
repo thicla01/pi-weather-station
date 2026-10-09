@@ -38,22 +38,22 @@ body {
  * map under each of them. Chromium does that on the GPU; Firefox's
  * WebRender pays far more for it, and does it on the CPU under software
  * compositing (about:support → Graphics → Compositing). The rule is
- * global, so it also drops the blur of surfaces over static content,
- * such as the dock itself. `data-browser` is stamped on <html> at boot
- * whenever the user agent is Firefox, kiosk or remote viewer alike
- * (client/src/index.js). Technique ported from the Sweep fork
- * (github.com/Aryeh95, commit c0e2ed4).
+ * global, so it also drops the blur of any surface over static content.
+ * `data-browser` is stamped on <html> at boot whenever the user agent is
+ * Firefox, kiosk or remote viewer alike (client/src/index.js). Technique
+ * ported from the Sweep fork (github.com/Aryeh95, commit c0e2ed4).
  *
- * Two side effects of dropping the filter, both handled:
- * - Without the blur, the radar's colours show through the 85 %-opaque
- *   calm fill (`--c-surface`) of the legend, the timeline bar and the
- *   toast. Firefox instead uses, in every palette, the 96 % fill the
- *   slabs already take in hybrid mode (any moderate-or-worse government
- *   alert); the hybrid border and strip still mark that mode.
- * - `backdrop-filter` also makes the dock the containing block of its
- *   `position: fixed` toast. Without it the toast resolves against the
- *   viewport, which is what the viewport coordinates computed in
- *   ambient/ControlButtons assume. */
+ * Without the blur, the radar's colours show through the 85 %-opaque
+ * calm fill (`--c-surface`) of the legend, the timeline bar and the
+ * toast. Firefox instead uses, in every palette, the 96 % fill the slabs
+ * already take in hybrid mode (any moderate-or-worse government alert);
+ * the hybrid border and strip still mark that mode.
+ *
+ * Dropping the filter also drops the containing block and stacking
+ * context it creates, so layout must never depend on either: a
+ * `position: fixed` descendant would resolve against a different box on
+ * Firefox than on Chromium. (The dock used to be such a containing block
+ * for its toast; it lost its own blur in 2026-10, in every browser.) */
 html[data-browser="firefox"] * {
   backdrop-filter: none !important;
   -webkit-backdrop-filter: none !important;

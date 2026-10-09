@@ -86,6 +86,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   the last frame of a transition included; the same run keeps Leaflet at 468 px and the marker
   centred. Also checked: the Pi MAX thumbnail, the desktop radar focus toggle and the mobile
   card maximize. Reported on the RPi-3B bench.
+- **Dock toasts sit right above the tapped button again on the 7" and 10.1" kiosks.** The dock
+  carried `backdrop-filter: blur(8px)`, which made it the containing block of the toast that
+  `ControlButtons` shows on every tap. The toast is `position: fixed` and its `left` / `bottom`
+  are computed in viewport coordinates, so on LayoutPi, where the dock is inset 10 px from the
+  screen edges, the toast landed 11 px right of and 11 px above the button (1 px on the
+  desktop layout). The blur itself did nothing: the dock never sits over the map, whatever the
+  layout (Pi in all six rail states, desktop with or without radar focus, mobile), so it only
+  blurred the flat page background, and it still cost a backdrop pass. The only exception is
+  mobile pull-to-refresh, which slides the radar card under the dock for the length of the
+  gesture. It is gone, in every browser. The toast is now centred on the button, 8 px above it,
+  at device scale factors 1, 1.15 and 2, and it stays above the map, the dock keeping its
+  `z-index: 1100` on the Pi and mobile layouts. The dock is no longer the toast's backdrop
+  root either, so on Chromium the toast's own frosted fill now blurs the radar behind it.
+  Firefox already had no blur, since the opt-out above.
 - **The brightness slider no longer goes dead on a kiosk that kept the EDATEC DDC tool after
   its ED monitor was removed.** `brightnessCtrl` tries the `ed-ddc-server` backend first and
   took it whenever `ed-ddc-server brightness read` exited 0 — but with no DDC/CI monitor

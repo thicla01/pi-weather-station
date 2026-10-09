@@ -363,13 +363,16 @@
   }
 }
 
-/* BottomDock cell — last child of the flex column. Lifted into the
- * root stacking context above Leaflet's panes / radar scrubber so
- * the dock's toast layer (z-index 1500 in its own internal stacking
- * context, confined there by the dock's `backdrop-filter: blur`)
- * remains visible above the map. Same fix as LayoutPi — see the
- * comment on `.layout > :last-child` in LayoutPi/styles.css for
- * the full stacking-context reasoning. */
+/* BottomDock cell — last child of the flex column. The rule makes it a
+ * stacking context and lifts it above the radar card's Leaflet panes
+ * (z-index up to 1000) and the maximized card (10). The dock's toast
+ * (`position: fixed`, z-index 1500) is painted inside that context, so
+ * this 1100 is what keeps it above the map. It also keeps the dock
+ * itself on top while pull-to-refresh slides the scroll column under
+ * it: the column is positioned (`position: relative`, plus its inline
+ * `transform` during the pull), so it would paint over a static dock.
+ * Same rule as LayoutPi — see the comment on `.layout > :last-child`
+ * in LayoutPi/styles.css. */
 .layout > :last-child {
   position: relative;
   z-index: 1100;

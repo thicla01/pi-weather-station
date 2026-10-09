@@ -1,4 +1,4 @@
-/* BottomDock — slab pinned at the bottom of the LayoutPi screen.
+/* BottomDock — slab pinned at the bottom of every ambient layout.
  *
  * The inner ControlButtons component brings its own flex layout for
  * the icons; this wrapper just gives it a uniform background, padding,
@@ -14,22 +14,23 @@
    * full-bleed strip. */
   border: 1px solid var(--c-border);
   border-radius: 14px;
-  /* `backdrop-filter: blur` homogenises the dock background by blurring
-   * the map / radar tiles that show through the surface's 15 % alpha.
-   * Without it, bright radar pixels (yellow / blue precipitation behind
-   * the dock) create variable-luminance patches under the text — the
-   * font's sub-pixel anti-aliasing then has to blend against a moving
-   * target and the group labels read as soft / blurry in palettes
-   * where the radar contrasts strongly with the dock surface (night
-   * dock is dark warm grey, the radar's blue/yellow patches pop
-   * through visibly). Day's cream surface and night-red's saturated
-   * red both absorb the radar's colour cast enough that this issue
-   * doesn't surface in those modes — but the blur is harmless there
-   * (radar still shows the geographic content, just frosted under the
-   * dock). Same pattern the synthesis design uses on the radar slider
-   * and hero overlays. */
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
+  /* No `backdrop-filter` here, on purpose. The dock never sits over the
+   * map: LayoutPi gives it its own grid row under the map cell (and
+   * slides it out below the screen edge in MIN and the full-rail views),
+   * LayoutDesktop insets the map by `--c-dock-height` above it, and
+   * LayoutMobile stacks it under the scroll column, which clips the radar
+   * card. All that shows through the surface's 15 % alpha is the flat
+   * `--c-bg` of the layout. The only exception is LayoutMobile's
+   * pull-to-refresh, which slides the scroll column, radar card
+   * included, under the dock for the length of the gesture. So the
+   * `blur(8px)` this rule carried from v3.1 Phase 1 until 2026-10 blurred
+   * a solid colour, yet still cost a backdrop pass. It also made the dock
+   * the containing block of the ControlButtons toast, which is
+   * `position: fixed` and placed in viewport coordinates, so on LayoutPi
+   * the toast landed 11 px right of and 11 px above the tapped button.
+   * Any `filter`, `backdrop-filter`, `transform`, `perspective`,
+   * `will-change` of those or `contain` added here would re-anchor the
+   * toast the same way. */
   /* v2.16.5: reverted v2.16.2's safe-area-bottom padding. In iOS
    * PWA standalone, `100dvh` < physical screen height, so the
    * extra padding extended into a zone that the page doesn't
