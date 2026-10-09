@@ -162,7 +162,11 @@
  * The toast is centred on its anchor point via `translateX(-50%)`. The
  * inline `left` + `bottom` set in index.js place the anchor at the
  * centre of the tapped button, 8 px above its top edge — viewport
- * coordinates because the element is fixed. `max-width` + ellipsis
+ * coordinates because the element is fixed. That holds only while no
+ * ancestor is a containing block for fixed descendants (`transform`,
+ * `filter`, `backdrop-filter`, `perspective`, `contain`, `will-change`):
+ * the dock's old `backdrop-filter` shifted the toast by the dock's
+ * inset — see BottomDock/styles.css. `max-width` + ellipsis
  * keeps long messages contained on narrow viewports. The defaults
  * below (`left: 50%`, `bottom: 60px`) only activate in the defensive
  * "no event provided" fallback path. */
@@ -213,7 +217,11 @@
    * LayoutDesktop the dock is `position: absolute` so its descendants
    * had their own context already, masking the problem there. Still
    * below SettingsPanel / DebugPanel (5000) so an open overlay covers
-   * any stray toast that fires during overlay transitions. */
+   * any stray toast that fires during overlay transitions.
+   * The dock cell is now itself a stacking context in every
+   * layout (`.layout > :last-child`: z-index 1100 in LayoutPi /
+   * LayoutMobile, 10 in LayoutDesktop), so this value only orders the
+   * toast inside the dock; the cell's z-index places it above the map. */
   z-index: 1500;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.28);
   backdrop-filter: blur(6px);
