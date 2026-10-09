@@ -14,18 +14,11 @@
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
 
-// Same duplication pattern as `alertLogic.test.js` / `uiHybrid.test.js`
-// — the helper is re-implemented here deps-free (the source module is
-// ESM with DOM calls; the node test runner stays require-only). If
-// `exportDebugCsv.js` drifts from this copy, update both.
-const q = (val) => {
-  let s = String(val ?? "");
-  if (/^[=@\t\r]/.test(s)
-    || (/^[+-]/.test(s) && !/^[+-]?\d+(\.\d+)?([eE][+-]?\d+)?$/.test(s))) {
-    s = `'${s}`;
-  }
-  return `"${s.replace(/"/g, '""')}"`;
-};
+// The REAL helper: `exportDebugCsv.js` is authored as CommonJS (like
+// `ui/autoTabSelector.js`) so this runner can require it — no verbatim
+// copy to drift. The rest of the exporter is covered by
+// `exportDebugCsv.test.js`.
+const { q } = require("../client/src/ui/exportDebugCsv");
 
 test("q: plain strings pass through quoted, unprefixed", () => {
   assert.equal(q("hello"), '"hello"');

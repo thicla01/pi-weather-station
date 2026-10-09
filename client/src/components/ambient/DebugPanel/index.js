@@ -24,7 +24,12 @@ import { AppContext } from "~/AppContext";
 import { getPalette } from "~/ui/tokens";
 import { useTimeOfDay } from "~/ui/hybrid";
 import { resolvePanelFontSizeZoom } from "~/ui/fontSize";
-import { exportDebugCsv } from "~/ui/exportDebugCsv";
+import {
+  exportDebugCsv,
+  fpsFromTimestamps,
+  sampleFps,
+  snapshotClientMetrics,
+} from "~/ui/exportDebugCsv";
 import styles from "./styles.css";
 
 // Persists the user's pinned-bucket selection across close/reopen
@@ -48,6 +53,13 @@ const CPU_TEMP_CRIT_C = 75; // ≥ → red   (fan trip point 4)
 // Cadence of the live CPU-temp / fan poll while the Server KPI section is on
 // screen. Temperature changes slowly; 5 s matches the v2 Debug poll.
 const LIVE_SENSOR_POLL_MS = 5000;
+
+// Window over which the CSV export measures FPS at click time. The Client
+// bucket's live meter only runs while that bucket is mounted, so the export
+// takes its own one-shot sample instead (see `sampleFps`); 1 s is ~60
+// frames on a healthy kiosk — enough for a stable reading without making
+// the download feel slow.
+const CSV_EXPORT_FPS_SAMPLE_MS = 1000;
 
 /**
  * Direction C Debug panel — port of the Claude Design canvas at
@@ -1062,24 +1074,25 @@ const LogsBlock = ({ logs, lang }) => {
  * grouped by API endpoint, screen resolution + DPR, and a sliding-window
  * 2 s FPS average refreshed once per second.
  *
+ * The static part is `snapshotClientMetrics()` from `~/ui/exportDebugCsv`
+ * — the same collector the CSV export calls at click time, so the bucket
+ * and the CSV never disagree on what a KPI means.
+ *
  * Returns null fields when the API isn't available so the consumer can
  * render "—" without nested optional chains.
  *
  * @returns {{pageLoad: number|null, heap: {used: number, total: number}|null,
  *   apiCalls: Array<{endpoint: string, count: number, avgMs: number, minMs: number, maxMs: number}>,
  *   screen: {width: number, height: number, dpr: number}, fps: number|null}}
- *   `pageLoad` is `loadEventEnd` in milliseconds since navigation start,
- *   null when the browser exposes no navigation entry. `heap` is the
- *   used/total JS heap in **megabytes** (not bytes), null everywhere
- *   `performance.memory` is missing, i.e. outside Chromium. `apiCalls`
- *   has one entry per `/api/…` path — tile requests collapsed to
- *   `/:z/:x/:y`, query strings stripped — with all durations in
- *   milliseconds, sorted by descending call count and empty when nothing
- *   was fetched. `screen` is the physical screen size in CSS pixels plus
- *   `devicePixelRatio` (1 when unavailable). `fps` is the frame rate
- *   averaged over a sliding 2 s window and refreshed once a second; it
- *   stays null for roughly the first 1.5 s after mount, before the
- *   requestAnimationFrame rig has collected two timestamps.
+ *   `pageLoad`, `heap`, `apiCalls` and `screen` are the
+ *   `snapshotClientMetrics()` fields, taken once when the bucket mounts:
+ *   `pageLoad` in milliseconds (null without a navigation entry), `heap`
+ *   in **megabytes** (null outside Chromium), `apiCalls` one row per
+ *   `/api/…` path sorted by descending call count (empty when nothing was
+ *   fetched), `screen` in CSS pixels plus `devicePixelRatio`. `fps` is the
+ *   frame rate averaged over a sliding 2 s window and refreshed once a
+ *   second; it stays null for roughly the first 1.5 s after mount, before
+ *   the requestAnimationFrame rig has collected two timestamps.
  */
 const useClientMetrics = () => {
   const [fps, setFps] = useState(null);
@@ -1088,44 +1101,7 @@ const useClientMetrics = () => {
   // instead of being setState'd synchronously from the mount effect
   // (react-hooks/set-state-in-effect). The effect below only runs the
   // live-FPS rig, whose setFps calls are all asynchronous callbacks.
-  const [metrics] = useState(() => {
-    const [navEntry] = performance.getEntriesByType("navigation");
-    const pageLoad = navEntry ? Math.round(navEntry.loadEventEnd) : null;
-    const heap = performance.memory
-      ? {
-        used: Math.round(performance.memory.usedJSHeapSize / 1024 / 1024),
-        total: Math.round(performance.memory.totalJSHeapSize / 1024 / 1024),
-      }
-      : null;
-    const grouped = {};
-    performance.getEntriesByType("resource")
-      .filter((r) => r.name.includes("/api/"))
-      .forEach((r) => {
-        const { pathname } = new URL(r.name);
-        const [key] = pathname.replace(/\/[0-9]+\/[0-9]+\/[0-9]+$/, "/:z/:x/:y").split("?");
-        const ms = Math.round(r.duration);
-        if (!grouped[key]) grouped[key] = { count: 0, totalMs: 0, minMs: Infinity, maxMs: 0 };
-        grouped[key].count++;
-        grouped[key].totalMs += ms;
-        if (ms < grouped[key].minMs) grouped[key].minMs = ms;
-        if (ms > grouped[key].maxMs) grouped[key].maxMs = ms;
-      });
-    const apiCalls = Object.entries(grouped)
-      .map(([endpoint, s]) => ({
-        endpoint,
-        count: s.count,
-        avgMs: Math.round(s.totalMs / s.count),
-        minMs: s.minMs === Infinity ? 0 : s.minMs,
-        maxMs: s.maxMs,
-      }))
-      .sort((a, b) => b.count - a.count);
-    const screen = {
-      width: window.screen.width,
-      height: window.screen.height,
-      dpr: window.devicePixelRatio || 1,
-    };
-    return { pageLoad, heap, apiCalls, screen };
-  });
+  const [metrics] = useState(snapshotClientMetrics);
   const rafRef = useRef(null);
   useEffect(() => {
     const timestamps = [];
@@ -1138,10 +1114,8 @@ const useClientMetrics = () => {
       rafRef.current = requestAnimationFrame(tick);
     };
     const updateFps = () => {
-      if (timestamps.length > 1) {
-        const elapsed = timestamps[timestamps.length - 1] - timestamps[0];
-        setFps(Math.round((timestamps.length - 1) * 1000 / elapsed));
-      }
+      const next = fpsFromTimestamps(timestamps);
+      if (next != null) setFps(next);
       timeoutId = setTimeout(updateFps, 1000);
     };
     timeoutId = setTimeout(() => {
@@ -1616,6 +1590,31 @@ const RadarSnapshotsBlock = ({ snapshots, lang }) => {
   );
 };
 
+/**
+ * About bucket — the panel's housekeeping section: the "Check for
+ * updates" and "Export CSV" actions, build identity, update-check state
+ * (with the install entry point) and the Dependabot vulnerability CTA.
+ *
+ * The CSV export carries the client KPIs too: on click it measures FPS
+ * for `CSV_EXPORT_FPS_SAMPLE_MS` (`sampleFps`), then takes a fresh
+ * `snapshotClientMetrics()` and hands both to `exportDebugCsv`. Computed
+ * at click time rather than lifted from the Client bucket, because that
+ * bucket's metrics only exist while it is pinned — and lifting its live
+ * FPS meter to the panel would re-render every bucket once a second. The
+ * button stays disabled for the sample window.
+ *
+ * @param {object} props
+ * @param {object} props.data — payload from `/api/debug`; reads
+ *   `appVersion`, `updateInfo` and `vulnerabilityScanUrl`, and is passed
+ *   whole to the CSV export
+ * @param {"en"|"fr"|"es"} props.lang — 2-letter UI language (anything
+ *   else falls back to English)
+ * @param {boolean} props.gridTwoWide — widen the key/value grids
+ *   (single-column layout on a viewport ≥ 1080 px)
+ * @param {() => void} props.fetchDebug — re-runs `GET /api/debug` after
+ *   an update check so the new SHA lands in `data`
+ * @returns {JSX.Element} the bucket
+ */
 const BucketAbout = ({ data, lang, gridTwoWide, fetchDebug }) => {
   const v = data.appVersion || {};
   // Prefer live AppContext state over the /api/debug snapshot for the
@@ -1655,13 +1654,23 @@ const BucketAbout = ({ data, lang, gridTwoWide, fetchDebug }) => {
         if (typeof fetchDebug === "function") fetchDebug();
       });
   };
+  const [exportingCsv, setExportingCsv] = useState(false);
+  const onExportCsv = () => {
+    if (exportingCsv) return;
+    setExportingCsv(true);
+    sampleFps(CSV_EXPORT_FPS_SAMPLE_MS)
+      // No requestAnimationFrame → still export, with FPS "N/A".
+      .catch(() => null)
+      .then((fps) => exportDebugCsv(data, snapshotClientMetrics(), fps))
+      .catch((err) => console.warn("[DebugPanel] CSV export failed", err))
+      .finally(() => setExportingCsv(false));
+  };
   return (
     <div className={styles.bucket}>
       {/* Maintenance actions — moved here from the old persistent header
-        * (Phase 7). exportDebugCsv reads `clientMetrics` and `fps` (v2
-        * ClientKpiSection-owned, not yet ported to BucketClient); pass
-        * null so the CSV header writes "N/A" rather than crashing. The
-        * server-side sections still export with the v2 shape. */}
+        * (Phase 7). The CSV export gets the client KPIs measured at click
+        * time (see this component's JSDoc), so it no longer depends on
+        * the Client bucket being pinned. */}
       <div className={styles.metaActions}>
         <button
           type="button"
@@ -1680,7 +1689,8 @@ const BucketAbout = ({ data, lang, gridTwoWide, fetchDebug }) => {
         <button
           type="button"
           className={styles.toolButton}
-          onClick={() => exportDebugCsv(data, null, null)}
+          onClick={onExportCsv}
+          disabled={exportingCsv}
           title={lbl(lang, "Export CSV", "Exporter CSV", "Exportar CSV")}
         >
           <InlineIcon icon={downloadIcon} />

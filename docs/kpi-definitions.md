@@ -1,6 +1,6 @@
 # KPI Definitions — Pi Weather Station Debug Panel
 
-This document describes the metrics displayed in the Debug panel and exported via the CSV export feature. Client-side KPIs are currently on screen only — the CSV export receives no client metrics (see [Client KPIs](#client-kpis)).
+This document describes the metrics displayed in the Debug panel and exported via the CSV export feature (About section → **Export CSV**, `client/src/ui/exportDebugCsv.js`). The export carries the server-side sections of `/api/debug` plus the client-side KPIs, measured at the moment of the click (see [Client KPIs](#client-kpis)).
 
 ---
 
@@ -58,7 +58,7 @@ Measured server-side by the `responseTimerMiddleware`, which is mounted globally
 
 These metrics are collected browser-side using standard Web Performance APIs. Page Load and JS Heap reflect the state of the browser tab at the moment the panel's Client section is opened; FPS is live (see [Notes](#notes)).
 
-Not included in the CSV export: the current caller passes no client metrics, so Page Load and FPS export as `N/A` and the JS Heap rows and the [Client API Calls](#client-api-calls-session) section are left out.
+The CSV export carries them too, measured when **Export CSV** is clicked — whether or not the Client section is pinned: the button samples FPS for 1 s (the download follows that second), then takes a fresh snapshot of Page Load, JS Heap, Screen and the [Client API Calls](#client-api-calls-session) with the same collector the Client section uses (`snapshotClientMetrics`). A reading the browser can't provide exports as `N/A` (Page Load, FPS — e.g. FPS in a hidden tab, which paints no frames) or is left out (the JS Heap rows outside Chromium).
 
 | KPI | Unit | Definition |
 |---|---|---|
@@ -66,6 +66,7 @@ Not included in the CSV export: the current caller passes no client metrics, so 
 | **FPS** | frames/s | Frames per second from a `requestAnimationFrame` loop, averaged over a sliding 2 s window and refreshed every second. Reflects rendering smoothness. Values below 30 fps indicate that the UI is struggling (heavy CSS animations, slow device). |
 | **JS Heap Used** | MB | JavaScript heap memory currently occupied by live objects in the browser tab, from `performance.memory.usedJSHeapSize`. Only available in Chromium-based browsers (Chromium on Pi, Chrome, Edge). |
 | **JS Heap Total** | MB | Total JavaScript heap allocated for the tab, from `performance.memory.totalJSHeapSize`. Always ≥ JS Heap Used. |
+| **Screen** | CSS px | `screen.width × screen.height` plus `devicePixelRatio` (1 when unavailable). The panel shows `W×H @DPR×` (the DPR only when ≠ 1); the CSV splits it into `Screen (CSS px)` and `Device Pixel Ratio` rows. |
 
 ### Color thresholds — FPS
 
@@ -79,7 +80,7 @@ Not included in the CSV export: the current caller passes no client metrics, so 
 
 ## Client API Calls (Session)
 
-Collected from the browser's Resource Timing API (`performance.getEntriesByType("resource")`) as a snapshot when the Client section opens; the panel lists the 10 most-called endpoints. Covers the `/api/` requests still held in the browser's resource-timing buffer — a browser-defined default (typically 250 entries) shared with map tiles and every other resource type, which the app never enlarges — so on a long-running kiosk only the earliest part of the session is counted.
+Collected from the browser's Resource Timing API (`performance.getEntriesByType("resource")`) as a snapshot when the Client section opens; the panel lists the 10 most-called endpoints. The CSV export takes its own snapshot at click time and includes every endpoint (`CLIENT API CALLS (SESSION)` section, omitted when no `/api/` request is in the buffer). Covers the `/api/` requests still held in the browser's resource-timing buffer — a browser-defined default (typically 250 entries) shared with map tiles and every other resource type, which the app never enlarges — so on a long-running kiosk only the earliest part of the session is counted.
 
 | Column | Unit | Definition |
 |---|---|---|
@@ -123,7 +124,7 @@ Real-time operational status fetched from each external service's public status 
 
 ## Recent Service Calls
 
-The last recorded outbound call of each server-side upstream service, from the in-memory service-status map (`server/serviceStatus.js`; cleared on server restart). Unlike the lists elsewhere in the panel that stop at 10 rows (response times, client API calls, remote clients, security events), this one is never capped: the server pre-registers its whole inventory at startup (`registerKnownServices` in `server/index.js` — Tomorrow.io ×3, Mapbox, LocationIQ, ipapi.co, sunrise-sunset.org, RainViewer ×2, Claude, Homebridge, the air-quality sources, both alert feeds and Open-Meteo pollen), so a service that has not been called yet — or never will be on this install — still has a row, and a service recorded without being pre-registered is listed too. Failing services are listed first (HTTP 5xx, then 4xx), then every other service in the server's order: startup registration order, with a service first seen later at the end. The list has no internal scroll; the panel's content pane scrolls as a whole. The CSV export's `SERVICES` section carries the same entries in the server's order (no failures-first hoist) plus each entry's last-call time.
+The last recorded outbound call of each server-side upstream service, from the in-memory service-status map (`server/serviceStatus.js`; cleared on server restart). Unlike the lists elsewhere in the panel that stop at 10 rows (response times, client API calls, remote clients, security events), this one is never capped: the server pre-registers its whole inventory at startup (`registerKnownServices` in `server/index.js` — Tomorrow.io ×3, Mapbox, LocationIQ, ipapi.co, sunrise-sunset.org, RainViewer ×2, Claude, Homebridge, the air-quality sources, both alert feeds and Open-Meteo pollen), so a service that has not been called yet — or never will be on this install — still has a row, and a service recorded without being pre-registered is listed too. Failing services are listed first (HTTP 5xx, then 4xx), then every other service in the server's order: startup registration order, with a service first seen later at the end. The list has no internal scroll; the panel's content pane scrolls as a whole. The CSV export's `SERVICES` section carries the same entries in the server's order (no failures-first hoist) plus each entry's last-call time — an empty `LAST CALL` cell (and `Not yet called` in `COMMENT`) for a service not called since the server started, never a 1970 epoch date.
 
 | Column | Definition |
 |---|---|
@@ -166,6 +167,8 @@ The server maintains an in-memory cache for weather API responses and AI summari
 
 Weather keys use 4-decimal coordinates and carry `<fieldsHash>`, an 8-hex-character signature of the requested Tomorrow.io field list (since 2.14.6): changing the field list changes the hash, so entries cached under the old field set are simply never matched again. AI summary keys use 2-decimal coordinates.
 
+The panel shows each raw key. The CSV export's `CACHE` section splits it per key shape into `TYPE` (`current` / `hourly` / `daily` / `ai-summary`), `VARIANT` (`fields <fieldsHash>` for a weather key; `<lang>/<period>/<tempUnit>/<speedUnit>/<distanceUnit>` for an AI summary), `LAT`, `LON` and `TTL (s)` (`EXPIRED` once past its TTL). A key of any other shape keeps its first segment in `TYPE` and the rest in `VARIANT`, with `LAT` / `LON` left empty.
+
 ### Cache entry fields
 
 | Field | Unit | Definition |
@@ -181,6 +184,6 @@ Weather keys use 4-decimal coordinates and carry `<fieldsHash>`, an 8-hex-charac
 - **Server vs. Client response times**: Server times measure only the Express handler duration (no network). Client times include the full round-trip (network + server). The difference approximates network latency.
 - **Cache interaction**: A client "Min" close to zero on `/api/tiles/...` indicates a browser-level cache hit (HTTP cache — tiles are cacheable); the same goes for `/api/weather-alerts` and `/api/nearby-alerts`, which are sent `Cache-Control: public, max-age=300` (unless the localhost-only test-alert toggle is on). Every other `/api/` response is sent `Cache-Control: no-store`, so its Min reflects a real round-trip (fast when the server-side cache hit).
 - **Heap metrics availability**: JS Heap (Used / Total) are Chromium-only. They will not appear in Firefox or Safari.
-- **FPS measurement**: FPS is live — averaged over a sliding 2 s window of `requestAnimationFrame` timestamps and refreshed once per second while the Client section is open (shows `…` for roughly the first 1.5 s). The other client KPIs (page load, heap, API-call roll-up) are a snapshot taken when the section opens.
+- **FPS measurement**: FPS is live — averaged over a sliding 2 s window of `requestAnimationFrame` timestamps and refreshed once per second while the Client section is open (shows `…` for roughly the first 1.5 s). The other client KPIs (page load, heap, screen, API-call roll-up) are a snapshot taken when the section opens. The CSV export measures its own: a one-shot 1 s FPS sample at click time, then a fresh snapshot of the rest.
 - **Provider status cache**: The 30-minute TTL means status changes may take up to 30 minutes to appear in the debug panel. Force a refresh by restarting the server.
 - **AI summary cache key**: The `period` segment (`morning`/`evening`/`night`) is derived from the local hour sent by the client (`localHour` query parameter), ensuring the right forecast window is included in the summary prompt. The trailing `tempUnit` / `speedUnit` / `distanceUnit` segments come from the client's unit preferences, so clients using different units never share a summary.
