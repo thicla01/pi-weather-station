@@ -127,7 +127,9 @@ journalctl --user -u pi-sensehat-clock -f
 ### Kiosk relaunch (`POST /api/relaunch-kiosk`)
 
 `deploy/relaunch-kiosk.sh` (spawned detached by `displayScaleCtrl`)
-appends the launcher's and browser's output to
+appends its own timestamped notes (the browser it resolved from
+`browser.conf`, which profile lock it cleared or left in place) and the
+launcher's and browser's output to
 `~/.local/state/pi-weather-station/kiosk.log` — the only trace left
 when a relaunched kiosk stays dark:
 

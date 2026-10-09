@@ -145,6 +145,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   no name. The title now renders as the SVG's `<title>`, which is both the accessible name and
   the same hover tooltip. This applies to the gov-alert QR (detail slab, Pi alert view) and the
   Settings trust-cert guide QR. Nothing changes on screen.
+- **`uninstall.sh` now offers to remove the private root CA key and `settings.json.bak`, and the
+  kiosk relaunch clears the lock of the browser actually configured.** Neither prompt covered
+  `server/ca-key.pem` (with `ca-cert.pem`, `ca-cert.srl` and the `*.bak` pair the custom-cert guide
+  sets aside) or the key backup; both now do, still kept by default, and `detect-display-scale.sh`
+  and `kiosk.log` are removed too. `relaunch-kiosk.sh` cleared only `~/.config/chromium`, live lock
+  or not; it now reads `browser.conf`, skips Firefox and leaves a live process's lock alone. The
+  install, toggle and hardening scripts no longer misstate certificate, `DEBUG` and firewall facts;
+  snap-packaged Brave is documented as unsupported.
 
 ### Documentation
 - **A `☑` in the localization glossary now stays on the exact wording it validated.**

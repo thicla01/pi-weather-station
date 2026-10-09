@@ -415,6 +415,33 @@ if [ -f "$REPO_DIR/settings.json" ]; then
     chmod 600 "$REPO_DIR/settings.json"
 fi
 
+# Would the server's auto-generated leaf certificate cover the address $1?
+# Mirrors collectSanEntries() in server/index.js: localhost, 127.0.0.1, the
+# hostname with and without `.local`, and every non-internal IPv4 address of
+# this machine — nothing typed at the prompt is ever added. Names compare
+# case-insensitively, as certificate name matching does. Answers "covered"
+# when the addresses can't be listed, so a failed lookup never prints a false
+# warning. (Same helper as deploy/toggle-remote.sh.)
+cert_covers() {
+    local want host addrs
+    want="$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]')"
+    host="$(hostname 2>/dev/null | tr '[:upper:]' '[:lower:]')"
+    host="${host%.local}"
+    case "$want" in
+        localhost|127.0.0.1) return 0 ;;
+    esac
+    if [ -n "$host" ] && { [ "$want" = "$host" ] || [ "$want" = "$host.local" ]; }; then
+        return 0
+    fi
+    if [[ "$PLATFORM" == "Darwin" ]]; then
+        addrs="$(ifconfig 2>/dev/null | awk '$1 == "inet" { print $2 }')"
+    else
+        addrs="$(hostname -I 2>/dev/null | tr ' ' '\n')"
+    fi
+    [ -z "$addrs" ] && return 0
+    printf '%s\n' "$addrs" | grep -qxF -- "$want"
+}
+
 # --- Remote network access + SSL cert ---
 # Re-runs default to the CURRENT state instead of an unconditional "no":
 # install.sh is the documented way to add features later (Sense HAT,
@@ -460,10 +487,19 @@ if [ "$REMOTE_ANSWER" = "yes" ]; then
     REMOTE_IP=${CUSTOM_IP:-$DETECTED_IP}
     echo ""
     echo ">> The server will auto-generate its SSL certificate on first start,"
-    echo "   covering every active LAN interface (including $REMOTE_IP)."
+    echo "   covering localhost, this machine's hostname (and .local) and every"
+    echo "   IPv4 address assigned to it."
     echo "   If the Pi's IP changes later, the server detects the SAN mismatch"
     echo "   on restart and re-signs the leaf cert — the root CA is preserved,"
     echo "   so clients that already trust this Pi stay trusted."
+    if ! cert_covers "$REMOTE_IP"; then
+        echo ""
+        echo "   WARNING: $REMOTE_IP is not an address of this machine, so the"
+        echo "   auto-generated certificate does NOT cover it (the value above only"
+        echo "   sets the URL shown at the end). Browsers reaching the station"
+        echo "   through it — e.g. a router port-forward or VPN address — will report"
+        echo "   a name mismatch even on devices that trust the CA."
+    fi
 else
     ALLOW_REMOTE="no"
 fi
@@ -504,7 +540,8 @@ fi
 #   - Chromium-based: chromium, chromium-browser, google-chrome,
 #     google-chrome-stable, brave-browser, microsoft-edge,
 #     microsoft-edge-stable. All accept the same kiosk flags (`--kiosk URL`
-#     etc.).
+#     etc.). Snap-packaged Brave (`brave`) is not offered — see the note
+#     printed after browser detection below.
 #   - Firefox: needs `--kiosk URL` and a dedicated profile to remember the
 #     self-signed-cert acceptance across launches.
 #
@@ -585,6 +622,20 @@ if [ "$KIOSK_MODE" = "yes" ]; then
             INSTALLED_BROWSERS+=("$b")
         fi
     done
+
+    # Snap-packaged Brave installs its command as `brave` and is deliberately
+    # NOT offered: start-server's hostname-change lock cleanup only knows the
+    # APT package's ~/.config/BraveSoftware profile, while the snap keeps its
+    # profile inside its confinement under ~/snap/brave/. Chromium reclaims a
+    # lock left by a dead process on the same host by itself, but not one
+    # stamped with a previous hostname — so after a hostname change a snap
+    # Brave kiosk would stay dark, silently. Say so instead of leaving Brave
+    # mysteriously absent from the menu (see readme, "Option 1").
+    if command -v brave >/dev/null 2>&1 && ! command -v brave-browser >/dev/null 2>&1; then
+        echo ""
+        echo "   Note: snap-packaged Brave (\`brave\`) is not supported as a kiosk browser."
+        echo "   Install Brave from its APT repository (command \`brave-browser\`) to use it."
+    fi
 
     DEFAULT_BROWSER=$(detect_default_browser || true)
 

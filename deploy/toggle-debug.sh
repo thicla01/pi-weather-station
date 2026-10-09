@@ -13,8 +13,10 @@
 # Usage:
 #   bash deploy/toggle-debug.sh
 #
-# When DEBUG=true, the bug-icon button appears in ControlButtons (localhost
-# only). The /api/debug, /api/debug/cpu-temp and /api/debug/fan-speed
+# When DEBUG=true, the bug-icon (debug panel) and dashed-rings buttons appear
+# in ControlButtons — plus, on the desktop/mobile layouts, the AI-summary
+# show/hide toggle — for local clients only (the kiosk itself or an SSH
+# tunnel). The /api/debug, /api/debug/cpu-temp and /api/debug/fan-speed
 # endpoints do not depend on this flag: they are always reachable from
 # localhost and always blocked for remote clients (debugLocalhostOnly
 # middleware), so remote clients never see the debug panel either way.
@@ -140,18 +142,24 @@ if [ "$TARGET" = "enabled" ]; then
     echo "==============================================================="
     echo "  Debug mode ENABLED"
     echo "==============================================================="
-    echo "  - Bug-icon button now appears in ControlButtons (localhost"
-    echo "    only — remote clients never see it)."
-    echo "  - /api/debug and /api/debug/cpu-temp endpoints reachable"
-    echo "    from localhost; debugLocalhostOnly middleware blocks remote."
+    echo "  - The bug-icon (debug panel) and dashed-rings buttons now appear"
+    echo "    in ControlButtons (plus the AI-summary show/hide toggle on the"
+    echo "    desktop/mobile layouts) — for local clients only (the kiosk"
+    echo "    itself or an SSH tunnel), never for remote ones."
+    echo "  - DEBUG only reveals those buttons. The /api/debug,"
+    echo "    /api/debug/cpu-temp and /api/debug/fan-speed endpoints are"
+    echo "    localhost-only whatever this setting (debugLocalhostOnly)."
     echo "  - Server logs: ~/.local/state/pi-weather-station/server.log on Linux"
     echo "==============================================================="
 else
     echo "==============================================================="
     echo "  Debug mode DISABLED"
     echo "==============================================================="
-    echo "  The bug icon disappears from ControlButtons. Server logs"
-    echo "  on Linux remain redirected to ~/.local/state/pi-weather-station/"
+    echo "  The debug-only buttons (bug icon, dashed rings, and the AI-summary"
+    echo "  toggle on desktop/mobile) disappear from ControlButtons. The"
+    echo "  /api/debug* endpoints stay reachable from localhost (they never"
+    echo "  depended on DEBUG). Server logs on Linux"
+    echo "  remain redirected to ~/.local/state/pi-weather-station/"
     echo "  server.log via override.conf (legacy installs: /tmp/weather-server.log)"
     echo "==============================================================="
 fi

@@ -10,7 +10,7 @@ A full-stack weather display application originally designed for the Raspberry P
 | openSUSE Leap 16+ (KDE Plasma) | systemd + XDG `~/.config/autostart` | Chromium-family or Firefox |
 | macOS | launchd | — (window mode) |
 
-The kiosk browser is chosen interactively by `install.sh` (Chromium, Chrome, Brave, Edge, or Firefox) and persisted in `~/.config/pi-weather-station/browser.conf`. Snap-confined Firefox is supported via a named profile (`-P pi-weather-station`).
+The kiosk browser is chosen interactively by `install.sh` (Chromium, Chrome, Brave, Edge, or Firefox) and persisted in `~/.config/pi-weather-station/browser.conf`. Snap-confined Firefox is supported via a named profile (`-P pi-weather-station`); snap-packaged Brave is not — install Brave from its APT repository instead (see **Option 1** under [Running on startup](#running-on-startup)).
 
 ## 📣 Highlights — October 2026
 
@@ -225,6 +225,8 @@ It will:
 
 Each prompt shows the default choice in uppercase — pressing Enter accepts the default.
 
+> **Brave: APT package only.** The installer offers Brave under its APT command, `brave-browser`; snap-packaged Brave (command `brave`) is not offered, and the installer prints a note when it finds one. Why: after a hostname change, a Chromium-family browser refuses a profile lock still stamped with the old name and, in kiosk mode, fails silently. `start-server` clears such a lock, but only in the profile folders it knows — for Brave, the APT package's `~/.config/BraveSoftware/Brave-Browser`, not the snap's, which lives inside its confinement under `~/snap/brave/`. A snap Brave kiosk could stay dark after a hostname change. To use Brave as the kiosk browser, install it from [its APT repository](https://brave.com/linux/).
+
 ### Option 2 — systemd (manual)
 
 Starts the server automatically at boot, independent of the graphical session. Restarts automatically on failure.
@@ -438,11 +440,11 @@ To remove the Pi Weather Station service, scripts, and configurations:
 bash deploy/uninstall.sh
 ```
 
-The script will automatically remove the systemd service (with its drop-ins) and the Sense HAT units (`pi-sensehat`, `pi-sensehat-clock`) — the launchd agent on macOS — plus `~/.local/bin/start-server`, `~/.local/bin/start-weather`, the display server's autostart configuration, the brightness udev rule and `/etc/logrotate.d/weather-server` (both via `sudo`), and `~/.config/pi-weather-station/` (kiosk browser choice and any display-scale override). It also deletes the runtime artefacts — every server log (rotated copies included), the weather and geolocation caches, and the API request counters — so save the log first if you still need it. It will then ask whether to also remove:
+The script will automatically remove the systemd service (with its drop-ins) and the Sense HAT units (`pi-sensehat`, `pi-sensehat-clock`) — the launchd agent on macOS — plus `~/.local/bin/start-server`, `~/.local/bin/detect-display-scale.sh`, `~/.local/bin/start-weather`, the display server's autostart configuration, the brightness udev rule and `/etc/logrotate.d/weather-server` (both via `sudo`), and `~/.config/pi-weather-station/` (kiosk browser choice and any display-scale override). It also deletes the runtime artefacts — every server log (rotated copies included), the kiosk relaunch log, the weather and geolocation caches, the API request counters, and any temporary settings copy left by an interrupted write — so save the logs first if you still need them. It will then ask whether to also remove:
 
 - systemd lingering for your user, when enabled — kept by default (other user services may rely on it)
-- `settings.json` (contains your API keys) — kept by default. A `settings.json.bak` left by an earlier `install.sh` reconfiguration holds the same keys and is not covered by this prompt — delete it by hand, or remove the project directory
-- SSL certificates (`server/cert.pem`, `server/key.pem`) — kept by default. The root CA (`server/ca-cert.pem`, `server/ca-key.pem`, `server/ca-cert.srl`) is not covered by this prompt — delete it by hand, or remove the project directory. Devices that installed the CA keep trusting it until you remove it from each of them (see [`docs/pwa-trust-cert_en.md`](docs/pwa-trust-cert_en.md) for where it was installed)
+- `settings.json` and its `settings.json.bak` backup from an earlier `install.sh` reconfiguration (both contain your API keys) — kept by default
+- SSL certificates and the private root CA (`server/cert.pem`, `server/key.pem`, `server/ca-cert.pem`, `server/ca-key.pem`, `server/ca-cert.srl`, plus the `ca-cert.pem.bak` / `ca-key.pem.bak` copies that [docs/ssl-custom-cert_en.md](docs/ssl-custom-cert_en.md) has you set aside when you bring your own certificate) — kept by default, so a reinstall re-signs with the same CA and your devices stay trusted. Removing them takes the CA's private key off the disk. Devices that installed the CA keep trusting it until you remove it from each of them (see [`docs/pwa-trust-cert_en.md`](docs/pwa-trust-cert_en.md) for where it was installed)
 - `node_modules` directories — removed by default
 - nvm, on Bullseye only — kept by default
 - The entire project directory — kept by default (requires explicit confirmation)
