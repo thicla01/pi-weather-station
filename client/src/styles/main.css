@@ -32,8 +32,9 @@ body {
  *
  * The surfaces that float over the radar map carry `backdrop-filter:
  * blur()`: the legend card / "(i)" chip / mobile strip / sheet, the
- * timeline bar, the dock's toast and, on the desktop layout (where the
- * rail overlays the map), the maximized AI-summary and forecast slabs.
+ * timeline bar and the dock's toast. The maximized AI-summary and
+ * forecast slabs, which float over the map on the desktop layout, have
+ * none in any browser: their `--c-bg` fill is opaque.
  * Every frame of a pan, a zoom or a radar-loop step re-blurs the moving
  * map under each of them. Chromium does that on the GPU; Firefox's
  * WebRender pays far more for it, and does it on the CPU under software

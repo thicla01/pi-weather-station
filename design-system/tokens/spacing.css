@@ -30,7 +30,7 @@
 
   /* Glass — always paired with -webkit-backdrop-filter */
   --glass-blur: 8px;       /* dock, radar legend, timeline bar, map chrome */
-  --glass-blur-soft: 6px;  /* AI summary slab, maximized chart slab, control buttons */
+  --glass-blur-soft: 6px;  /* dock toast (the maximized AI / chart slabs: none, opaque --c-bg fill) */
 
   /* Touch */
   --hit-target: 44px;      /* minimum tappable box, even when the visual is 28px */
