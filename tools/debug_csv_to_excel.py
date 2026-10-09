@@ -3,6 +3,12 @@
 Pi Weather Station — Debug CSV to Excel converter
 Splits each === SECTION === from the debug CSV export into a separate sheet.
 
+Handles both marker shapes the Debug panel has produced: the bare
+`=== TITLE ===` of exports made before 2026-06-11, and the `'=== TITLE ===`
+written since the CSV formula-injection guard (q() in
+client/src/ui/exportDebugCsv.js) started prefixing every cell that begins
+with "=" with one apostrophe.
+
 Usage:
     python3 debug_csv_to_excel.py [input.csv] [output.xlsx]
 
@@ -66,12 +72,37 @@ def auto_width(ws):
 
 # ---------- Parsing ----------
 
+SECTION_DELIM = "==="
+# The single apostrophe exportDebugCsv.js's formula-injection guard puts in
+# front of any cell that starts with "=" — so in front of every section marker.
+GUARD_PREFIX = "'"
+
+
+def unguard_marker(cell):
+    """
+    Undo the export guard on a section-marker candidate: drop ONE leading
+    apostrophe, and only when it sits directly in front of "===" (the exact
+    shape the guard gives a marker). Any other cell is returned unchanged.
+
+    Deliberately not applied to data cells: openpyxl stores any string that
+    starts with "=" as a formula, so un-guarding them would re-open in the
+    .xlsx the very injection the guard closes in the CSV. Their apostrophe
+    stays, exactly as the CSV carries it.
+    """
+    if cell.startswith(GUARD_PREFIX + SECTION_DELIM):
+        return cell[len(GUARD_PREFIX):]
+    return cell
+
+
 def is_section_marker(row):
-    return row and row[0].startswith("===") and row[0].endswith("===")
+    if not row:
+        return False
+    cell = unguard_marker(row[0])
+    return cell.startswith(SECTION_DELIM) and cell.endswith(SECTION_DELIM)
 
 
 def section_name(row):
-    return row[0].strip("= ").strip()
+    return unguard_marker(row[0]).strip("= ").strip()
 
 
 def parse_csv(path):
