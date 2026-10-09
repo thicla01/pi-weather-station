@@ -3,7 +3,7 @@
 Ce guide explique comment installer le certificat TLS du Pi en tant que racine de confiance sur un appareil personnel. Il fait disparaître l'avertissement « Non sécurisé » du navigateur et — surtout — corrige le problème de **l'icône PWA iOS sur l'écran d'accueil** (sans confiance, iOS rejette le téléchargement en arrière-plan de `apple-touch-icon` et affiche à la place un glyphe générique « première lettre du titre de la page »).
 
 > **Pourquoi est-ce nécessaire ?**
-> Le Pi sert HTTPS avec un certificat auto-signé (aucune autorité de certification externe). Les navigateurs et les systèmes d'exploitation traitent par défaut les certificats auto-signés comme non fiables. Pour le navigateur du Pi lui-même, le certificat est généré par le Pi et reconnu automatiquement ; pour tout autre appareil sur le LAN (votre téléphone, un portable, une tablette), la chaîne de certification ne se valide pas et les chemins OS de récupération sécurisée dont dépendent certaines fonctions (installation PWA, service workers, notifications push) refusent de fonctionner.
+> Le Pi sert HTTPS avec un certificat auto-signé (aucune autorité de certification externe). Les navigateurs et les systèmes d'exploitation traitent par défaut les certificats auto-signés comme non fiables. Le navigateur du kiosque n'a rien à installer : un kiosque de la famille Chromium est lancé avec `--ignore-certificate-errors`, et un kiosque Firefox vous demande une seule fois, au premier lancement, d'accepter le certificat (son profil dédié retient ce choix). Pour tout autre appareil sur le LAN (votre téléphone, un portable, une tablette), la chaîne de certification ne se valide pas et les chemins OS de récupération sécurisée dont dépendent certaines fonctions (installation PWA, service workers, notifications push) refusent de fonctionner.
 >
 > La solution est une installation **unique, par appareil** du certificat du Pi en tant que racine de confiance. Après cela, l'OS traite le Pi comme une origine vérifiée — même effet qu'un vrai certificat Let's Encrypt, sans domaine public.
 
@@ -11,15 +11,17 @@ Ce guide explique comment installer le certificat TLS du Pi en tant que racine d
 
 ## Chemin rapide : depuis le panneau Paramètres de l'app
 
+> **Prérequis :** l'accès distant doit être activé sur le Pi (`ALLOW_REMOTE=true`) — par défaut, le serveur n'écoute que sur `127.0.0.1` et les autres appareils ne peuvent pas joindre le port 8443. Voir la section [Access from another machine](../readme.md#access-from-another-machine) du readme (question de `deploy/install.sh` ou `deploy/toggle-remote.sh`).
+
 L'installation la plus rapide. Fonctionne sur iOS, Android, macOS, Windows et Linux :
 
 1. Sur l'appareil à configurer, ouvrez l'URL du kiosque (p. ex. `https://<ip-du-pi>:8443`) et tapez sur **Continuer** malgré l'avertissement de sécurité du navigateur. (C'est précisément cet avertissement que ce guide fait disparaître — mais pour l'instant il faut l'accepter une fois pour charger la page.)
 2. Ouvrez **Paramètres** dans l'app (icône engrenage dans le dock du bas).
 3. Section 1 (Préférences locales) → descendez jusqu'au bloc **« Faire confiance à ce Pi sur cet appareil »** en bas.
-4. Tapez sur **Télécharger le certificat**. Le fichier `pi-weather-cert.pem` est enregistré sur votre appareil.
+4. Tapez sur **Télécharger le cert**. Le fichier `pi-weather-cert.pem` est enregistré sur votre appareil.
 5. Poursuivez avec les étapes spécifiques à la plateforme ci-dessous.
 
-Le lien « Télécharger le certificat » pointe vers `/api/cert.pem` qui sert le fichier avec `Content-Type: application/x-x509-ca-cert` — iOS, Android et macOS reconnaissent tous ce type MIME et proposent d'installer le certificat en tant que profil / racine système.
+Le lien « Télécharger le cert » pointe vers `/api/cert.pem` qui sert le fichier avec `Content-Type: application/x-x509-ca-cert` — iOS, Android et macOS reconnaissent tous ce type MIME et proposent d'installer le certificat en tant que profil / racine système.
 
 ---
 
@@ -30,7 +32,7 @@ Le lien « Télécharger le certificat » pointe vers `/api/cert.pem` qui sert l
 2. Tapez **Installer** en haut à droite. Saisissez le code de l'appareil.
 3. Confirmez tout avertissement « ce profil n'est pas signé par une AC reconnue » — c'est justement le but (le Pi est l'AC).
 4. **Réglages → Général → Information → Réglages de confiance des certificats**.
-5. Trouvez l'entrée pour votre Pi (nommée d'après le nom d'hôte du Pi ou `localhost`) et **activez le commutateur**.
+5. Trouvez l'entrée pour votre Pi (nommée `Pi Weather Station CA - <nom d'hôte>`, ou simplement `Pi Weather Station CA` si le Pi n'a pas de nom d'hôte utilisable) et **activez le commutateur**.
 6. Confirmez la boîte de dialogue « Avertissement ». Terminé.
 
 Une fois la confiance activée :
@@ -77,7 +79,7 @@ Après l'installation :
 
 1. Double-cliquez sur le `pi-weather-cert.pem` téléchargé — **Trousseau d'accès** s'ouvre.
 2. Confirmez l'ajout au trousseau **Système** (ou **login**, si vous ne voulez la confiance que pour votre utilisateur).
-3. Trouvez le certificat dans la liste. Il porte le nom d'hôte du Pi ou `localhost`.
+3. Trouvez le certificat dans la liste. Il est nommé `Pi Weather Station CA - <nom d'hôte>` (ou `Pi Weather Station CA`).
 4. Double-cliquez dessus. Dans la section **Confiance**, définissez **« Lors de l'utilisation de ce certificat »** sur **« Toujours approuver »**.
 5. Fermez la fenêtre — macOS demandera votre mot de passe pour mettre à jour le paramètre de confiance.
 
@@ -106,7 +108,7 @@ Firefox a son propre magasin de confiance indépendant de Windows.
 3. Sélectionnez `pi-weather-cert.pem`.
 4. Cochez **« Confirmer cette AC pour identifier des sites Web »**. Cliquez sur **OK**.
 
-> **Si Firefox 150+ refuse d'importer le certificat en tant qu'autorité** avec `MOZILLA_PKIX_ERROR_CA_CERT_USED_AS_END_ENTITY` : ton Pi roule encore le code de génération de certificat antérieur à v2.16.x qui utilisait un seul cert auto-signé comme racine ET cert serveur. Tire la dernière version du code serveur, puis force la régénération (efface `server/cert.pem` + `server/key.pem` et redémarre). Le serveur génère maintenant une vraie chaîne AC racine + leaf que Firefox accepte. Voir la section « Quand refaire cette opération » en bas pour le reste de l'histoire.
+> **Si Firefox 150+ refuse d'importer le certificat en tant qu'autorité** avec `MOZILLA_PKIX_ERROR_CA_CERT_USED_AS_END_ENTITY` : ton Pi roule encore le code de génération de certificat antérieur à v2.17.0 qui utilisait un seul cert auto-signé comme racine ET cert serveur. Tire la dernière version du code serveur, puis force la régénération (efface `server/cert.pem` + `server/key.pem` et redémarre). Le serveur génère maintenant une vraie chaîne AC racine + leaf que Firefox accepte. Voir la section « Quand refaire cette opération » en bas pour le reste de l'histoire.
 
 ---
 
@@ -130,14 +132,14 @@ Firefox a sa propre base ; utilisez soit l'interface Firefox (voir la section Wi
 
 ## Quand refaire cette opération
 
-Depuis le refactor en chaîne de certificats v2.16.x, le Pi utilise **deux** certificats qui travaillent ensemble :
+Depuis le refactor en chaîne de certificats v2.17.0, le Pi utilise **deux** certificats qui travaillent ensemble :
 
 - **AC racine** (`ca-cert.pem`) — celui que tu installes dans le magasin de confiance. **Validité 10 ans**, CN `Pi Weather Station CA - <hostname>`. Le kiosque ne le régénère que si le hostname change — en pratique, jamais. C'est ce que sert `/api/cert.pem` et la seule chose à installer sur chaque appareil.
-- **Cert serveur (leaf)** (`cert.pem`) — celui que le Pi présente dans la poignée de main TLS. **Validité 825 jours**, CN `Pi Weather Station - <hostname>`, signé par l'AC racine. Régénération automatique quand l'expiration < 30 jours ou que la configuration LAN change (nouvelle IP, nouveau hostname). Comme le leaf est signé par l'AC à laquelle tu fais déjà confiance, la rotation du leaf est **transparente** — aucune re-confiance par appareil nécessaire.
+- **Cert serveur (leaf)** (`cert.pem`) — celui que le Pi présente dans la poignée de main TLS. **Validité 825 jours**, CN `Pi Weather Station - <hostname>`, signé par l'AC racine. Re-signé au prochain démarrage du serveur quand l'expiration < 30 jours ou que les IP LAN du Pi changent. Comme le leaf est signé par l'AC à laquelle tu fais déjà confiance, cette rotation est **transparente** — aucune re-confiance par appareil nécessaire. Exception : un changement de hostname régénère aussi l'AC racine (voir ci-dessus), et il faut alors refaire la confiance sur chaque appareil.
 
 Concrètement : installe l'AC une fois par appareil. Le leaf peut tourner en arrière-plan sans casser ta confiance. La fenêtre de 10 ans de l'AC rend cela essentiellement « set and forget » pour la durée de vie du Pi.
 
-### Anciens installs à un seul certificat (pré-v2.16.x)
+### Anciens installs à un seul certificat (pré-v2.17.0)
 
 Les installs qui ont roulé une version antérieure du serveur utilisaient un seul certificat qui était à la fois racine et leaf (le pattern « racine auto-signée qui sert aussi de cert serveur »). Le serveur détecte ce format au démarrage et force une régénération complète avec la nouvelle chaîne. Après ça :
 - Tous les appareils déjà trustés afficheront « Non sécurisé » parce que l'identité du certificat a changé.

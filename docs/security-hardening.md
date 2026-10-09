@@ -138,6 +138,11 @@ The local subnet is auto-detected from the Pi's primary interface. If you
 SSH in from a different subnet, either add your workstation's IP manually
 after the script runs, or run the script from the console.
 
+If you use the Homebridge indoor-temperature integration, its port (usually
+`8581`) is not on the outbound allowlist, so indoor readings stop once the
+firewall is enabled. Allow it after the script runs, e.g.
+`sudo ufw allow out to <homebridge-ip> port 8581 proto tcp`.
+
 Undo: `sudo ufw disable`
 
 ### 5. SSH hardening
@@ -164,6 +169,9 @@ After rebooting:
 ```bash
 # usb-storage should not be loaded
 lsmod | grep usb_storage   # expect empty output
+
+# unused virtual terminals masked (repeat for tty3..tty6)
+systemctl is-enabled getty@tty2.service   # expect: masked
 
 # usbguard active
 systemctl status usbguard
@@ -199,6 +207,7 @@ next poll retries it). The size and behavior of that call is controlled by
 | `radarAnalysisEnabled` | Adds a third paragraph fed by RainViewer samples — larger prompt, larger response |
 | `extendedRadius` | Adds the outer-ring samples (161 → 481 points fed to the prompt) — meaningfully larger context |
 | `showSamplingPoints` | Purely client-side rendering; no billing impact |
+| `calmDayFastPath` | On (default): calm days skip the Claude call and serve a localised template (gates in [api.md](api.md)). Turning it off makes every cache miss a billed call |
 
 The per-toggle impact is small — a whole call cost well under a cent even
 on Haiku 4.5, and on Haiku 5.5 it is ≈ $0.0001 without radar to ≈ $0.0011
@@ -216,9 +225,10 @@ bill against their API key**.
   to booleans so a remote viewer can confirm the key is configured without
   reading it.
 - The Settings UI shows the Advanced section to remote clients in read-only
-  mode (toggles dimmed, click-blocked) with a notice directing the user to
-  open an SSH tunnel for actual changes. The UI lock is cosmetic — the
-  server-side `localhostOnly` is the real enforcement.
+  mode (dimmed, controls disabled); the notice directing the user to open
+  an SSH tunnel for actual changes appears in the Configuration & API keys
+  section. The UI lock is cosmetic — the server-side `localhostOnly` is the
+  real enforcement.
 - **Billed-call ceiling.** The settings lock bounds what each call costs;
   this bounds how many calls a remote client can make. `aiSummaryCtrl`
   reserves a slot before every Claude call that a remote request triggers:
@@ -278,12 +288,16 @@ is `localhostOnly`.
 
 ## TLS / SSL — using your own certificate
 
-The server generates a self-signed certificate on first launch (Pi name
-+ `localhost` + LAN IP as SAN when `ALLOW_REMOTE=true`). For a real
-deployment, you usually want a certificate signed by an authority your
-clients already trust (Let's Encrypt, your corporate CA, mkcert for
-LAN-only). The substitution is straightforward — replace
-`server/cert.pem` and `server/key.pem`, restart the service. Full
+The server generates a self-signed root CA plus a leaf certificate signed
+by it, and re-checks the chain at every start (leaf SAN: `localhost`,
+`127.0.0.1`, every LAN IPv4, and `<hostname>` / `<hostname>.local`,
+whether or not `ALLOW_REMOTE` is set — see "Certificate architecture" in
+the guide linked below). For a real deployment, you usually want a
+certificate signed by an authority your clients already trust (Let's
+Encrypt, your corporate CA, mkcert for LAN-only). The substitution is
+straightforward — replace `server/cert.pem` and `server/key.pem`, set
+`SKIP_CERT_AUTOGEN=true` in the service environment (otherwise the server
+overwrites them on the next start), and restart the service. Full
 procedure, conversion from PKCS#12, and the auto-regeneration caveat
 are documented in [docs/ssl-custom-cert_en.md](ssl-custom-cert_en.md) (French version: [ssl-custom-cert_fr.md](ssl-custom-cert_fr.md)).
 
