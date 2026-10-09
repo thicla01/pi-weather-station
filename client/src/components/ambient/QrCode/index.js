@@ -20,12 +20,25 @@ import styles from "./styles.css";
  *      kiosk-hostile — use QR codes only, never raw `<a>` elements."
  *      Centralising the wrapper makes it easier to land that
  *      convention as a single import.
+ *   4. Accessible name. qrcode.react 4.2.0 always renders
+ *      `<svg role="img">` and turns its `title` prop into a `<title>`
+ *      child, which is the SVG's accessible name (SVG-AAM) and its
+ *      native hover tooltip. Without it the QR is a nameless image.
+ *      Deliberately NOT doubled with `aria-label` (it would win the
+ *      name and demote `<title>` to the accessible description, so the
+ *      same text would be announced twice), and the wrapper div
+ *      carries no `title` of its own (a generic div gets no reliable
+ *      accessible name from `title`; it only duplicated the tooltip).
  *
  * @param {object} props
  * @param {string} props.value — URL (or any text) to encode
  * @param {number} [props.size] — pixel size; defaults to 96
- * @param {string} [props.title] — accessible title for screen readers
- * @returns {JSX.Element} QR SVG wrapped in a flex container
+ * @param {string} props.title — accessible name, rendered as the SVG's
+ *   `<title>` (screen-reader name + hover tooltip). Required: React 19
+ *   no longer runs PropTypes, so `test/kioskExternalLinks.test.js`
+ *   checks statically that every `<QrCode>` passes one
+ * @returns {JSX.Element} QR SVG (`role="img"`, named by `title`)
+ *   wrapped in a flex container
  */
 const QrCode = ({ value, size = 96, title }) => {
   const { darkMode } = useContext(AppContext);
@@ -41,7 +54,7 @@ const QrCode = ({ value, size = 96, title }) => {
   const fgColor = isDark ? palette.accent : palette.text;
 
   return (
-    <div className={styles.wrap} title={title}>
+    <div className={styles.wrap}>
       <QRCodeSVG
         value={value}
         size={size}
@@ -49,6 +62,7 @@ const QrCode = ({ value, size = 96, title }) => {
         fgColor={fgColor}
         marginSize={1}
         level="M"
+        title={title}
       />
     </div>
   );
@@ -57,7 +71,7 @@ const QrCode = ({ value, size = 96, title }) => {
 QrCode.propTypes = {
   value: PropTypes.string.isRequired,
   size: PropTypes.number,
-  title: PropTypes.string,
+  title: PropTypes.string.isRequired,
 };
 
 export default QrCode;
