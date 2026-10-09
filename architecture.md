@@ -327,7 +327,8 @@ App                               Root — mounts the overlays and AmbientLayers
 │       │
 │       ├── WeatherMap                Leaflet map with RainViewer (or ECCC WMS) radar
 │       │   │                         + Mapbox tiles
-│       │   ├── MapResizer            invalidateSize on rail/maximize/focus toggles
+│       │   ├── MapResizer            invalidateSize on every container resize
+│       │   │                          (ResizeObserver) + mobile maximize recenter
 │       │   ├── PanHandler            Programmatic re-centering with rail-offset math
 │       │   ├── RailOffsetTracker     Pans marker when rail width changes
 │       │   ├── MapClickHandler       Click-to-recenter with 200 ms debounce

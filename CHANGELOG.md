@@ -28,6 +28,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   fork, commit [`c0e2ed4`](https://github.com/Aryeh95/Sweep/commit/c0e2ed443c900d55d1f6789be96774d80ce3a446).
 
 ### Fixed
+- **Leaving the fullscreen radar no longer leaves the map off-centre on a slow Pi.** Leaflet
+  caches the map's size and uses it for every pan and for the recenter button. `MapResizer`
+  re-read it 50 ms and 250 ms after a layout flag changed, but a CSS transition only gets its
+  start time at the next rendered frame. On a Pi 3B, leaving the fullscreen radar scrubber (MIN)
+  for the split view (MID) could land both reads before the 200 ms grid transition had run:
+  Leaflet kept the fullscreen width while the map had shrunk to its column,
+  so the map's centre sat to the right of the visible centre and the recenter button kept it
+  there. Reproduced in Chrome with the CPU throttled ×20 and the timeline playing, on the current
+  release (Leaflet 798 px
+  wide for a 468 px map, the marker 166 px right of centre after recentering). A
+  `ResizeObserver` on the map container now calls `invalidateSize` on every real size change,
+  the last frame of a transition included; the same run keeps Leaflet at 468 px and the marker
+  centred. Also checked: the Pi MAX thumbnail, the desktop radar focus toggle and the mobile
+  card maximize. Reported on the RPi-3B bench.
 - **The brightness slider no longer goes dead on a kiosk that kept the EDATEC DDC tool after
   its ED monitor was removed.** `brightnessCtrl` tries the `ed-ddc-server` backend first and
   took it whenever `ed-ddc-server brightness read` exited 0 — but with no DDC/CI monitor

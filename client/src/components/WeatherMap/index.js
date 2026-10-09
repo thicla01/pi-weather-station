@@ -1349,9 +1349,6 @@ const WeatherMap = ({ zoom, dark }) => {
         <ZoomAnchorOffset railOffset={railOffset} />
         <MapResizer
           mobileRadarMaximized={mobileRadarMaximized}
-          desktopRadarMaximized={desktopRadarMaximized}
-          piRadarMaximized={piRadarMaximized}
-          piLayoutState={piLayoutState}
           latitude={latitude}
           longitude={longitude}
           zoom={zoom}
