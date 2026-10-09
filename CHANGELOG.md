@@ -7,6 +7,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+## [3.3.1] - 2026-10-09
+
 ### Performance
 - **Firefox no longer blurs the radar under the overlays.** The surfaces that float over the
   moving map carry `backdrop-filter: blur()`: the radar legend (card, "(i)" chip, mobile strip,
