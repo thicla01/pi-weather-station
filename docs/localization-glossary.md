@@ -2,13 +2,17 @@
 
 <!-- GENERATED FILE — do not edit by hand.
      Regenerate with: node tools/gen-localization-glossary.js
-     Validation marks (☑) in the first column ARE preserved across runs. -->
+     Validation marks (☑) in the first column are carried forward while a row's wording is unchanged. -->
 
 **Generated** by `tools/gen-localization-glossary.js` on 2026-10-08. Re-run it after
 touching a locale file or an inline `lbl()` string — every row below is derived, so a
 hand edit will be overwritten. The one exception is the **Validé** column: it is human
-review state and the generator carries existing `☑` marks forward, matching on the key
-(locale rows) or on the EN string (inline rows).
+review state, and the generator carries each `☑` forward only while the row still shows
+the EN, FR and ES the reviewer confirmed — matched on the key for locale rows, and on the
+panel for inline rows, which have no key (identical rows of one panel share a mark).
+Rewording any of the three puts the row back to `☐`. A mark whose row is gone — a renamed
+key, a string moved to another file — follows its unchanged wording to the new row, never
+to a row that was already listed.
 
 Replace `☐` with `☑` when a native speaker has confirmed the FR and ES wording of a row.
 
