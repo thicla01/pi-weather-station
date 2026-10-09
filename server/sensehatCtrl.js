@@ -70,6 +70,36 @@ function _weatherFromCache(lat, lon) {
 }
 
 /**
+ * Pick the gov alert the Sense HAT should pulse for and project it onto
+ * the `alert` field of the /api/sensehat response.
+ *
+ * `event` comes from the normalised `title_en`, not `eventType`: both
+ * sources guarantee a non-empty `title_en`, and it's the short English
+ * name the LED daemons log — NWS sets it to CAP `event` ("Tornado
+ * Warning"), ECCC to the capitalised `alert_name_en` ("Rainfall
+ * warning"). ECCC's `eventType` is the raw `alert_code`, a terse
+ * upstream code ("RFW", "SFW" on the live feed), so it is only
+ * the fallback.
+ * (Normalised alerts have no `event` property — reading `top.event`
+ * made the field vanish from the JSON; see test/sensehatAlert.test.js.)
+ *
+ * @param {Array<object>} alerts Normalised gov alerts, most severe first
+ *   (the order `govAlertsCtrl.getActiveAlertsAt` returns).
+ * @returns {{tier: string, severity: string, source: string, event: string}|undefined}
+ *   The response field, or undefined when no red/orange alert is active.
+ */
+function _buildAlertField(alerts) {
+  const top = alerts.find((a) => SENSEHAT_ALERT_TIERS.has(a.tier));
+  if (!top) return undefined;
+  return {
+    tier:     top.tier,                       // "red" | "orange"
+    severity: top.severity,                   // "extreme" | "severe" | "moderate"
+    source:   top.source,                     // "ECCC" | "NWS"
+    event:    top.title_en || top.eventType,  // short English name, e.g. "Tornado Warning"
+  };
+}
+
+/**
  * Determine whether the current time is between sunrise and sunset.
  *
  * @param {string} sunrise ISO 8601 UTC string
@@ -100,10 +130,9 @@ function _computeIsDay(sunrise, sunset) {
  *                                    { grid, litCells, radiusKm }
  *   alert             {object}       optional, only when a red/orange gov
  *                                    alert is active — { tier, severity,
- *                                    source, event }. NB: `event` is read
- *                                    from `top.event`, but normalised gov
- *                                    alerts carry `eventType`, so it is
- *                                    currently always absent.
+ *                                    source, event }; `event` is the
+ *                                    alert's English title (see
+ *                                    _buildAlertField).
  * See docs/api.md § GET /api/sensehat for the full description.
  *
  * @param {import("express").Request}  req
@@ -238,16 +267,7 @@ async function getSenseHatData(req, res) {
   // and the script keeps rendering weather.
   let alertField;
   try {
-    const alerts = await getActiveAlertsAt(lat, lon);
-    const top = alerts.find((a) => SENSEHAT_ALERT_TIERS.has(a.tier));
-    if (top) {
-      alertField = {
-        tier:     top.tier,     // "red" | "orange"
-        severity: top.severity, // "extreme" | "severe" | "moderate"
-        source:   top.source,   // "ECCC" | "NWS"
-        event:    top.event,    // short event name e.g. "Tornado Warning"
-      };
-    }
+    alertField = _buildAlertField(await getActiveAlertsAt(lat, lon));
   } catch {
     // Upstream errored — leave alertField undefined, no override.
   }
@@ -292,6 +312,7 @@ async function getSenseHatData(req, res) {
 module.exports = {
   getSenseHatData,
   // Exported for regression testing only — guards the shared-cache key
-  // contract with proxyCtrl (see test/sensehatWeatherKey.test.js).
-  __test: { _weatherFromCache },
+  // contract with proxyCtrl (see test/sensehatWeatherKey.test.js) and the
+  // alert-field projection (see test/sensehatAlert.test.js).
+  __test: { _weatherFromCache, _buildAlertField },
 };
