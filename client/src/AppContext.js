@@ -431,8 +431,8 @@ export function AppContextProvider({ children }) {
   // desktop/mobile setting (the regression LayoutMobile already guards). Set
   // by the dock timeline button on entering MIN; cleared on leaving MIN.
   const [piScrubberOpen, setPiScrubberOpen] = useState(false);
-  // Back-compat shim for the still-boolean Leaflet-side consumers (WeatherMap
-  // focus gate + MapResizer): they read `piRadarMaximized` (MIN ⇔ true) and
+  // Back-compat shim for the still-boolean Leaflet-side consumers (WeatherMap's
+  // RadarFocusControl gate + useRailOffset): they read `piRadarMaximized` (MIN ⇔ true) and
   // call `setPiRadarMaximized(bool)`. Both are projected onto the enum so
   // those files can migrate independently rather than all in one commit.
   const piRadarMaximized = piLayoutState == null ? null : piLayoutState === "min";

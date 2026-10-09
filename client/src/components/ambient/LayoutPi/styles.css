@@ -17,8 +17,8 @@
  * MapContainer, not a Leaflet control; not rendered in the full-rail
  * views, where the map is only a thumbnail). Width transitions on the
  * grid template column drive the change; WeatherMap's MapResizer
- * reacts to the shared `piRadarMaximized` / `piLayoutState` flags and
- * re-fits the Leaflet canvas afterward.
+ * observes the map container (ResizeObserver) and re-fits the Leaflet
+ * canvas on every frame of it, the last one included.
  *
  * The legacy right-edge chevron that previously drove this collapse
  * was removed in the 2026-05-28 v3.1 consolidation — see LayoutPi/
