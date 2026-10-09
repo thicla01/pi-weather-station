@@ -318,7 +318,8 @@ App                               Root — mounts the overlays and AmbientLayers
 ├── AmbientLayers                 CSS-variable root — sets palette tokens (day/dusk/
 │   │                             night/nightRed) per useTimeOfDay(), tracks viewport
 │   │                             breakpoints, paints body bg in JS for iOS PWA gap
-│   │                             coverage, applies --c-font-scale to scrollable subtrees
+│   │                             coverage, exposes --c-font-scale (zoom on the
+│   │                             Pi/Desktop .rail only)
 │   │
 │   └── LayoutMobile / LayoutPi / LayoutDesktop   (one renders at a time)
 │       │   [Pi] = LayoutPi only · [D/M] = LayoutDesktop + LayoutMobile only.
