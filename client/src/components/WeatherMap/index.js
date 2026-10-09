@@ -60,6 +60,7 @@ import SourceBadge from "~/components/ambient/SourceBadge";
 import SeverityChip from "~/components/ambient/SeverityChip";
 import { useTimeOfDay } from "~/ui/hybrid";
 import { isPiMaxView, priorityViewsEnabled } from "~/ui/piLayout";
+import { NO_SLOTS, assignSlots, framesToMount } from "~/ui/radarFrameStack";
 import { useTranslation } from "react-i18next";
 import debounce from "debounce";
 import axios from "axios";
@@ -169,6 +170,42 @@ const LOCATION_MARKER_ICON = buildLocationMarkerIcon();
 
 // Mapbox basemaps served via the server proxy (keeps the API key off the client).
 const MAPBOX_ATTRIBUTION = '© <a href="https://www.mapbox.com/feedback/">Mapbox</a>';
+
+/**
+ * Tile URL template of one RainViewer frame: 512 px tiles, colour scheme
+ * 6, smoothed, with snow.
+ *
+ * @param {string} path - Frame path from the RainViewer index (e.g. "/v2/radar/<id>").
+ * @returns {string} Leaflet tile URL template.
+ */
+const rainViewerTileUrl = (path) => `https://tilecache.rainviewer.com${path}/512/{z}/{x}/{y}/6/1_1.png`;
+
+// Delays before each retry of a radar tile that failed to load.
+const RADAR_TILE_RETRY_DELAYS_MS = Object.freeze([5_000, 30_000]);
+
+// Leaflet marks a tile that failed (a RainViewer 429 under the per-IP
+// limit, a Wi-Fi blip) as done and never requests it again while its
+// layer stays mounted. The single url-swapped layer used to rebuild every
+// tile on each step, which retried it; the kept-mounted frame layers need
+// an explicit retry. Each failed tile is retried at most twice, with the
+// exact URL that failed: rebuilding it from the layer (getTileUrl) would
+// use the layer's current zoom and unwrapped world coordinates, which are
+// wrong after a zoom or on a wrapped world copy. The timer is not tied to
+// a component: it does nothing once the tile has left the document (layer
+// removed, tile pruned) or Leaflet has pointed it elsewhere (a removed
+// tile gets an empty-image src). Frozen module constant, so react-leaflet
+// binds it once per layer.
+const RADAR_TILE_EVENTS = Object.freeze({
+  tileerror: ({ tile }) => {
+    const url = tile.getAttribute("src");
+    const attempt = Number(tile.dataset.retries || 0);
+    if (!url || attempt >= RADAR_TILE_RETRY_DELAYS_MS.length) return;
+    tile.dataset.retries = String(attempt + 1);
+    setTimeout(() => {
+      if (tile.isConnected && tile.getAttribute("src") === url) tile.src = url;
+    }, RADAR_TILE_RETRY_DELAYS_MS[attempt]);
+  },
+});
 
 
 /**
@@ -896,6 +933,10 @@ const WeatherMap = ({ zoom, dark }) => {
   // 1-2 s to react. RadarTimeline is rendered by us and receives the
   // index via props, so context buys nothing.
   const [radarFrameIdx, setRadarFrameIdx] = useState(-1);
+  // Radar layer slots: the RainViewer frame each mounted TileLayer shows
+  // (ui/radarFrameStack.js assignSlots), adjusted during render below,
+  // next to `timelineShown`.
+  const [radarSlots, setRadarSlots] = useState(NO_SLOTS);
   const animationIntervalRef = useRef(null);
 
   // Short-screen detection (the 7" kiosk, height ≤ 520 px): collapses
@@ -1039,7 +1080,7 @@ const WeatherMap = ({ zoom, dark }) => {
   // The displayed frame is a pure derivation of the resolved index —
   // formerly `mapTimestamp` state kept in sync by an effect
   // (react-hooks/set-state-in-effect); its only consumer is the radar
-  // tile URL below.
+  // frame window below (which mounted layer is visible).
   const mapTimestamp = mapTimestamps ? mapTimestamps[currentMapTimestampIdx] : null;
 
   // Poll /api/radar-risk every 5 min (and on mapGeo / config changes) to
@@ -1301,6 +1342,43 @@ const WeatherMap = ({ zoom, dark }) => {
       : (radarTimelineVisible && !isPiMaxView(piLayoutState)));
   const legendShown = Boolean(mapTimestamps) && radarSource === "rainviewer" && !hideRadarLegend;
 
+  // Radar frame window (RainViewer only — the ECCC WMS layer has no
+  // timeline). Each timeline step used to swap the single radar
+  // TileLayer's `url`, so Leaflet dropped and re-created every visible
+  // tile: the map blanked between frames, worst on wide viewports. Now
+  // the mounted frames live in fixed layer slots: a step flips `opacity`
+  // onto an already-loaded layer and retargets one hidden layer's url.
+  // While the timeline is on screen and either
+  // playing or parked off "now" (the newest past frame, lastPastIdx), the
+  // displayed frame and two frames on each side are mounted (displayed
+  // first), so in playback and step-by-step scrubbing the frame a step
+  // lands on has loaded a couple of steps earlier; the first step off
+  // "now" and a jump land on a cold frame, as before. Otherwise (bar
+  // closed, open but paused on "now", Pi MAX) only the displayed frame is
+  // mounted, as before. Why a window and not every frame (per-IP rate
+  // limit, view-change cost, Leaflet's no-retry tiles, Pi 3B memory):
+  // ui/radarFrameStack.js. Technique adapted from the Sweep fork
+  // (github.com/Aryeh95, commits 7e27e15 and 2b0d0d1). The window is a
+  // pure derivation of the resolved playhead; its frames are then placed
+  // in fixed layer slots (assignSlots), so a step retargets a hidden
+  // layer instead of destroying one and creating another. The slots are
+  // local state, adjusted during render like the playhead above:
+  // assignSlots returns the same array when nothing changed, so this
+  // converges in one extra render. Not in a pass that has just queued a
+  // playhead snap (timeline engaged / disengaged, first frame list): that
+  // pass still resolves the old playhead and is re-run with the snapped
+  // one, and assignSlots depends on what it was given before, so writing
+  // the stale window could move the loaded "now" layer to another slot.
+  const radarWindowActive = timelineShown
+    && (animateWeatherMap || currentMapTimestampIdx !== lastPastIdx);
+  const radarFrames = framesToMount(mapTimestamps, currentMapTimestampIdx, radarWindowActive);
+  const nextRadarSlots = assignSlots(radarSlots, radarFrames.map((f) => f.path));
+  const playheadSnapPending = timelineEngaged !== prevTimelineEngaged
+    || (Boolean(mapTimestamps) && radarFrameIdx < 0);
+  if (nextRadarSlots !== radarSlots && !playheadSnapPending) {
+    setRadarSlots(nextRadarSlots);
+  }
+
   return (
     <div className={`${styles.mapWrapper} ${timelineShown ? styles.withTimeline : ""} ${legendShown ? styles.withLegend : ""}`}>
       <MapContainer
@@ -1429,11 +1507,25 @@ const WeatherMap = ({ zoom, dark }) => {
              * basemap keeps zooming up to z=18; only radar disappears. */
             maxZoom={12}
           />
-        ) : mapTimestamp ? (
+        ) : nextRadarSlots.map((path, slot) => (path ? (
+          /* One layer per slot (see `nextRadarSlots` above). The slot
+           * key keeps each Leaflet layer alive across steps: a frame
+           * keeps its slot while it stays in the window, a slot whose
+           * frame left gets the entering frame's url, and only the
+           * displayed frame is opaque. A url change goes through
+           * Leaflet's setUrl → redraw, which during a pinch uses the
+           * fractional zoom until the gesture ends — the old url swap
+           * did the same on the visible layer. */
           <TileLayer
+            key={`rainviewer-slot-${slot}`}
+            /* Same string on every frame layer: Leaflet's attribution
+             * control counts duplicates and shows it once. */
             attribution='<a href="https://www.rainviewer.com/">RainViewer</a>'
-            url={`https://tilecache.rainviewer.com${mapTimestamp.path}/512/{z}/{x}/{y}/6/1_1.png`}
-            opacity={dark ? radarOpacityDark : radarOpacityLight}
+            url={rainViewerTileUrl(path)}
+            eventHandlers={RADAR_TILE_EVENTS}
+            opacity={path === mapTimestamp.path
+              ? (dark ? radarOpacityDark : radarOpacityLight)
+              : 0}
             tileSize={512}
             zoomOffset={-1}
             maxNativeZoom={8}
@@ -1448,17 +1540,21 @@ const WeatherMap = ({ zoom, dark }) => {
              * keep up with. The basemap below keeps zooming up to
              * 18; only the radar overlay disappears past z=12. */
             maxZoom={12}
-            /* `updateWhenIdle: true` defers tile re-rendering until
-             * the user finishes panning / zooming — easier on
-             * Safari iOS's GPU than the default continuous redraw
-             * on every move event. Side benefit: lower CPU on the
-             * Pi kiosk too. */
+            /* `updateWhenIdle: true` defers tile loading until the
+             * user finishes panning (no load on every move event) —
+             * easier on Safari iOS's GPU than the default continuous
+             * redraw. Side benefit: lower CPU on the Pi kiosk too. */
             updateWhenIdle={true}
+            /* `updateWhenZooming: false`: a pinch (or flyTo) fetches
+             * only the zoom level it ends on, not every integer level
+             * it crosses — a cost paid once per mounted frame. */
+            updateWhenZooming={false}
             /* keepBuffer matched to the basemap (2, default) so the
-             * cache footprint stays bounded. */
+             * cache footprint stays bounded — per layer, so it also
+             * caps what each hidden frame keeps off-screen. */
             keepBuffer={2}
           />
-        ) : null}
+        ) : null))}
         {markerIsVisible && markerPosition ? (
           /* v2.14.65: custom target icon only in nightRed mode. In every
            * other palette the default Leaflet blue teardrop pin stays —

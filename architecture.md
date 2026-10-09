@@ -326,7 +326,9 @@ App                               Root — mounts the overlays and AmbientLayers
 │       │   Per-state Pi rail: LayoutPi JSDoc + docs/ui-layout_{en,fr}.md
 │       │
 │       ├── WeatherMap                Leaflet map with RainViewer (or ECCC WMS) radar
-│       │   │                         + Mapbox tiles
+│       │   │                         + Mapbox tiles; RainViewer TileLayers in fixed
+│       │   │                         slots, a step flips opacity (frame window:
+│       │   │                         ui/radarFrameStack.js)
 │       │   ├── MapResizer            invalidateSize on every container resize
 │       │   │                          (ResizeObserver) + mobile maximize recenter
 │       │   ├── PanHandler            Programmatic re-centering with rail-offset math
@@ -353,6 +355,22 @@ App                               Root — mounts the overlays and AmbientLayers
 │       │     pointInGeometry (alert-polygon + radius-ring helpers)
 │       │   - RING_RISK_STYLE / DOT_COLOR_BY_TIER / ARROW_COLOR / RADAR_GEOMETRY
 │       │     / KM_PER_UNIT / METERS_PER_UNIT / BEARING_TO_DIR_* + reverse maps
+│       │
+│       │   Radar frame window in `ui/radarFrameStack.js` (CommonJS, tested):
+│       │   - framesToMount, assignSlots, RADAR_PRELOAD_REACH. While the timeline
+│       │     plays or is parked off "now", the displayed frame ±2 are mounted
+│       │     (5 layers at most, displayed first), in fixed layer slots: a step
+│       │     retargets the hidden slot of the frame leaving the window (url
+│       │     change) instead of creating/destroying a layer. Each step lands
+│       │     on a frame loaded two steps earlier, with the url swap's network
+│       │     and tile work per step (the first step off "now" and jumps still
+│       │     land cold);
+│       │     otherwise the displayed frame only. Bounded rather than every
+│       │     frame: each mounted layer fetches on every pan / zoom / resize,
+│       │     RainViewer rate-limits per public IP (500 req/min, 300 burst), and
+│       │     the Pi 3B has 1 GB. Failed radar tiles get two delayed retries
+│       │     (`RADAR_TILE_EVENTS` in WeatherMap/index.js): Leaflet never
+│       │     re-requests one while its layer stays mounted.
 │       │
 │       ├── FloatingMiniBanner        Gov-alert chip over the map while the radar is
 │       │                             focused (Pi MIN / Desktop) or maximized (Mobile)
