@@ -80,6 +80,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   whose word fell back to one derived from severity (a moderate frost advisory read « Veille »);
   it now gets the alert's event name, like every other chip, and prints the real type
   (« Avis »). The new `test/radarLegendTiers.test.js` keeps both in place.
+- **French alert titles lead with the hazard beside the severity chip.** ECCC's French names put
+  the product type first (« Avertissement de pluie verglaçante », « Veille d'orages violents »,
+  « Avis de gel ») while the chip next to the title already prints it (« AVERT. » on the Pi
+  card). With two alerts the one-line Pi card cut the hazard off: « Avertissement de pluie
+  ver… » read as a rainfall warning, and the winter- and tropical-storm warnings were both
+  « Avertissement de tempête… ». Beside a chip that prints the same word, the title now drops
+  the prefix: « Pluie verglaçante », « Orages violents », « Gel ». That covers the alert card
+  (Pi and desktop/mobile), the Pi alert view's header, the mini-cards and the map's polygon
+  popup. The full name stays where the type shows nowhere else: the floating mini-banner (its
+  chip is an icon), the extreme alert view's red band (no chip) and the alert view's "Also
+  active" chips. Titles without the « <type> de … » form (« Bulletin météorologique
+  spécial »), English, Spanish and NWS titles are unchanged, and so are the server payload and
+  the Sense HAT. The rule lives in `shortAlertTitle` (`client/src/ui/alertTitle.js`, tested by
+  the new `test/alertTitle.test.js`); the chip's product type, severity fallback included,
+  moves to `chipProductType` in `ui/alertLogic.js` so a title only drops the word its chip shows.
 
 ## [3.3.1] - 2026-10-09
 

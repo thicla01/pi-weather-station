@@ -61,6 +61,8 @@ import SeverityChip from "~/components/ambient/SeverityChip";
 import { useTimeOfDay } from "~/ui/hybrid";
 import { isPiMaxView, priorityViewsEnabled } from "~/ui/piLayout";
 import { NO_SLOTS, assignSlots, framesToMount } from "~/ui/radarFrameStack";
+import { chipProductType } from "~/ui/alertLogic";
+import { shortAlertTitle } from "~/ui/alertTitle";
 import { useTranslation } from "react-i18next";
 import debounce from "debounce";
 import axios from "axios";
@@ -660,8 +662,9 @@ NearbyAlertsOverlay.propTypes = {
 
 /**
  * Content of the nearby-alerts tap popup (Phase 3b). Shows the subject of
- * each alert the tap landed in — source badge + severity chip + title —
- * and a single "Re-center here" action. Overlapping alerts are listed
+ * each alert the tap landed in — source badge + severity chip + title (a
+ * French ECCC title without the product prefix the chip prints) — and a
+ * single "Re-center here" action. Overlapping alerts are listed
  * worst-first (already server-sorted) under a count header. Deliberately
  * lightweight: the full description comes from re-centring, which moves
  * the location to the tapped point and re-activates the point-based
@@ -681,17 +684,25 @@ const SurveyAlertContent = ({ alerts = NO_ALERTS, onRecenter }) => {
         <div className={styles.surveyHead}>{t("radar.nearbyHere", { count: alerts.length })}</div>
       ) : null}
       <div className={styles.surveyList}>
-        {alerts.map((a) => (
-          <div key={a.id} className={styles.surveyRow}>
-            <SourceBadge source={a.source} />
-            {/* eventName gives the chip the alert's real product word, as on
-              * every other SeverityChip; without it the word fell back to
-              * one derived from severity, so a moderate frost advisory
-              * read "Veille" (watch). The colour stays the severity tier. */}
-            <SeverityChip severity={a.severity} eventName={a.title_en} />
-            <span className={styles.surveyTitle}>{(lang === "fr" ? a.title_fr : a.title_en) || a.eventType}</span>
-          </div>
-        ))}
+        {alerts.map((a) => {
+          // The chip prints its word, so a French ECCC title drops the
+          // product prefix it repeats (ui/alertTitle.js).
+          const title = shortAlertTitle(
+            (lang === "fr" ? a.title_fr : a.title_en) || a.eventType,
+            { lang, productType: chipProductType(a.title_en, a.severity) },
+          );
+          return (
+            <div key={a.id} className={styles.surveyRow}>
+              <SourceBadge source={a.source} />
+              {/* eventName gives the chip the alert's real product word, as on
+                * every other SeverityChip; without it the word fell back to
+                * one derived from severity, so a moderate frost advisory
+                * read "Veille" (watch). The colour stays the severity tier. */}
+              <SeverityChip severity={a.severity} eventName={a.title_en} />
+              <span className={styles.surveyTitle}>{title}</span>
+            </div>
+          );
+        })}
       </div>
       <button type="button" className={styles.surveyRecenter} onClick={onRecenter}>
         {t("controls.recenterHere")}

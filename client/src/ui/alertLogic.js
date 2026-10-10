@@ -13,6 +13,9 @@
  *   - `severity(level)` — risk-level → numeric tier for comparison.
  *   - `eventProductType(name)` — NWS/ECCC event name → product type
  *     (warning / watch / advisory / statement) for the SeverityChip.
+ *   - `chipProductType(name, severity)` — the product type the chip
+ *     actually prints (parsed, else severity-derived), shared with the
+ *     titles shortened beside it (ui/alertTitle.js).
  *   - `isCurrentlyPrecipitating(weatherCode)` — Tomorrow.io weather-code
  *     check used to disambiguate "approaching" vs "intensifying" wording
  *     when the analyzer bumps the tier.
@@ -105,6 +108,41 @@ export function eventProductType(name) {
   if (/\badvisory\b/.test(s)) return "advisory";
   if (/\bstatement\b/.test(s)) return "statement";
   return null;
+}
+
+/**
+ * Fallback product type when the event name carries none (rare — e.g. an
+ * ECCC payload exposing only a slug). Derives a sensible word from
+ * severity, mirroring the SeverityChip's pre-2026-06 behaviour.
+ *
+ * @param {string} severity — normalized severity ("minor" | "moderate" |
+ *   "severe" | "extreme")
+ * @returns {string} the product-type slug ("advisory" | "watch" | "warning")
+ */
+function severityFallbackWord(severity) {
+  switch (severity) {
+    case "minor":    return "advisory";
+    case "moderate": return "watch";
+    case "severe":   return "warning";
+    case "extreme":  return "warning";
+    default:         return "advisory";
+  }
+}
+
+/**
+ * The product type a SeverityChip prints for an alert: the one parsed from
+ * its English event name, else the severity-derived fallback. Shared by the
+ * chip and by the alert titles shortened beside it (`shortAlertTitle` in
+ * ui/alertTitle.js), so a title only ever drops the product word the chip
+ * next to it actually shows.
+ *
+ * @param {?string} eventName — the English event name (alert.title_en)
+ * @param {string} severity — normalized severity
+ * @returns {string} the product-type slug ("warning" | "watch" | "advisory" |
+ *   "statement")
+ */
+export function chipProductType(eventName, severity) {
+  return eventProductType(eventName) || severityFallbackWord(severity);
 }
 
 /**

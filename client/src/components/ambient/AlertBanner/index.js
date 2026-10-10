@@ -22,7 +22,9 @@ import useEligibleGovAlerts from "~/hooks/useEligibleGovAlerts";
 import {
   isCurrentlyPrecipitating,
   getRadarAlertState,
+  chipProductType,
 } from "~/ui/alertLogic";
+import { shortAlertTitle } from "~/ui/alertTitle";
 import { priorityViewsEnabled } from "~/ui/piLayout";
 import styles from "./styles.css";
 
@@ -71,6 +73,12 @@ import styles from "./styles.css";
  * kept (the gate hid it, not a downgrade) so the authentic render is visible.
  * The RADAR branch is never a test alert.
  *
+ * **French gov titles** lead with the hazard: the product prefix ECCC puts
+ * first (« Avertissement de », « Veille d' », « Avis de ») is dropped
+ * because the SeverityChip beside the title already prints that word
+ * (`shortAlertTitle`, ui/alertTitle.js). English / Spanish / NWS titles are
+ * shown as received.
+ *
  * Returns `null` when there is no eligible alert — same SHOW gate
  * as v3.0.
  *
@@ -111,7 +119,15 @@ const AlertBanner = () => {
 
   if (currentAlert) {
     const lang = (i18n.language || "en").slice(0, 2);
-    const baseTitle = lang === "fr" ? currentAlert.title_fr : currentAlert.title_en;
+    // Every gov branch below prints the SeverityChip WITH its word (full, or
+    // « AVERT. » on the Pi card), so a French ECCC title drops the product
+    // prefix the chip already shows and leads with the hazard: « Pluie
+    // verglaçante », not « Avertissement de pluie ver… » once the one-line
+    // Pi card ellipsizes it (ui/alertTitle.js).
+    const baseTitle = shortAlertTitle(
+      lang === "fr" ? currentAlert.title_fr : currentAlert.title_en,
+      { lang, productType: chipProductType(currentAlert.title_en, currentAlert.severity) },
+    );
     // Test/exercise alerts (revealed via the localhost-only "Show test alerts"
     // toggle) are marked two ways for ZERO ambiguity: a neutral TEST badge
     // beside the source badge, AND a "TEST ·" title prefix so the word leads

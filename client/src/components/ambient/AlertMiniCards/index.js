@@ -7,6 +7,8 @@ import { AppActionsContext, SystemContext } from "~/AppContext";
 import SeverityChip from "~/components/ambient/SeverityChip";
 import useDismissedAlerts from "~/hooks/useDismissedAlerts";
 import useEligibleGovAlerts from "~/hooks/useEligibleGovAlerts";
+import { chipProductType } from "~/ui/alertLogic";
+import { shortAlertTitle } from "~/ui/alertTitle";
 import styles from "./styles.css";
 
 // Severity-to-rank table for the descending sort in the component
@@ -29,7 +31,8 @@ const SEVERITY_RANK = {
  * severity descending. Each mini-card carries:
  *
  *   - A `SeverityChip` (icon + tier label)
- *   - The alert's title (localized, single-line, ellipsis)
+ *   - The alert's title (localized, single-line, ellipsis; a French ECCC
+ *     title drops the product prefix the chip prints — `shortAlertTitle`)
  *   - A chevron pointing right ("tap to open")
  *   - A tier-coloured left border (mirrors the primary card's
  *     severity strip)
@@ -109,7 +112,12 @@ const AlertMiniCards = () => {
       {hasMiniCards && (
         <ul className={styles.list}>
           {ranked.map(({ alert, eligibleIdx }) => {
-            const title = lang === "fr" ? alert.title_fr : alert.title_en;
+            // The chip below prints its word, so a French ECCC title drops
+            // the product prefix it repeats (ui/alertTitle.js).
+            const title = shortAlertTitle(
+              lang === "fr" ? alert.title_fr : alert.title_en,
+              { lang, productType: chipProductType(alert.title_en, alert.severity) },
+            );
             return (
               <li
                 key={alert.id || `${eligibleIdx}-${alert.title_en}`}
