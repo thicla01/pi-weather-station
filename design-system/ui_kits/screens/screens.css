@@ -85,9 +85,9 @@ body{font-family:var(--font-sans);background:var(--c-bg);color:var(--c-text)}
 .banner .cyc svg{width:12px;height:12px}
 .fmb{position:absolute;display:flex;align-items:center;gap:8px;max-width:360px;padding:8px 12px 8px 16px;background-color:var(--c-surface-hybrid);border:1px solid var(--c-border-hybrid);border-radius:6px;font-size:13px;font-weight:500;overflow:hidden}
 .fmb::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background-color:var(--c-danger)}
-.fmb .t{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fmb .t{flex:1;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis}
 .fmb .c{font-family:var(--font-mono);font-weight:500;font-size:10px;letter-spacing:.06em;color:var(--c-text-dim)}
-.fmb svg{width:14px;height:14px;color:var(--c-text-dim);flex:none}
+.fmb>svg{width:14px;height:14px;color:var(--c-text-dim);flex:none}
 /* clock */
 .tb{background-color:var(--c-surface);border:1px solid var(--c-border);border-radius:10px;padding:12px 14px;box-shadow:inset 4px 0 0 var(--c-strip-color,transparent);flex:none}
 .tb .date{font-size:11px;font-weight:500;letter-spacing:.8px;color:var(--c-text-dim);margin-bottom:2px}
