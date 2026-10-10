@@ -7,6 +7,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed
+- **The radar map now credits OpenStreetMap.** Every Mapbox style the app offers (streets-v12,
+  light, dark) draws OpenStreetMap data, and Mapbox's attribution terms ask for
+  "© OpenStreetMap" next to "© Mapbox". The strip now reads "Leaflet | © Mapbox,
+  © OpenStreetMap, RainViewer". The new credit is plain text, not a link, so a tap can't strand
+  the chrome-less kiosk on an external page (the QR-only rule). New `test/mapAttribution.test.js`
+  locks in each map source's credits and fails if a stylesheet hides the strip.
+
 ## [3.3.1] - 2026-10-09
 
 ### Performance

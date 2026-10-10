@@ -387,13 +387,13 @@
   bottom: 122px;
 }
 
-/* Attribution strip (legal requirement — Mapbox + RainViewer). Flush
- * bottom-right, hugging the dock edge in every state (maintainer
- * preference — replaces the mock's above-the-bar slot and the earlier
- * per-combo offsets): the timeline bar and the legend strip both
- * anchor at bottom: 16px, leaving a permanent 16 px corridor at the
- * map's bottom edge that the slimmed attribution fits into. Right
- * inset stays rail-aware on LayoutDesktop. */
+/* Attribution strip (legal requirement — Mapbox + OpenStreetMap +
+ * RainViewer). Flush bottom-right, hugging the dock edge in every
+ * state (maintainer preference — replaces the mock's above-the-bar
+ * slot and the earlier per-combo offsets): the timeline bar and the
+ * legend strip both anchor at bottom: 16px, leaving a permanent 16 px
+ * corridor at the map's bottom edge that the slimmed attribution fits
+ * into. Right inset stays rail-aware on LayoutDesktop. */
 .map-wrapper :global(.leaflet-bottom.leaflet-right) {
   right: var(--c-rail-visible-width, 0px);
   bottom: 0;
