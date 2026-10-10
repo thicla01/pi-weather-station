@@ -132,7 +132,7 @@ const AirCard = ({ suppressAqRow = false }) => {
                   <span>
                     {aqhiInfo.stationName}
                     {aqhiInfo.stationDistanceKm != null
-                      ? ` (${aqhiInfo.stationDistanceKm} km)`
+                      ? ` (${aqhiInfo.stationDistanceKm}\u00a0km)`
                       : ""}
                   </span>
                 </div>

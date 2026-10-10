@@ -127,7 +127,8 @@
   line-height: 1.2;
   letter-spacing: 0.3px;
   color: var(--c-text-dim);
-  text-transform: capitalize;
+  /* No `text-transform: capitalize` — it upper-cased every word ("Ven. 9
+   * Octobre"); index.js capitalises the first letter only. */
   white-space: nowrap;
 }
 /* Next sun event — sunset (daytime) or sunrise (overnight); the icon swaps

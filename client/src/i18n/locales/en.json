@@ -104,7 +104,7 @@
   "nowcast": {
     "aria": "Radar status: {{verdict}}",
     "calm": {
-      "noRainWithin": "No rain within {{distance}} {{unit}}",
+      "noRainWithin": "No rain within {{distance}}\u00a0{{unit}}",
       "radarUnavailable": "Radar unavailable",
       "clearDay": "Clear and sunny",
       "clearNight": "Clear night",
@@ -350,7 +350,7 @@
     "hideDirectionArrows": "Hide direction arrows",
     "directionArrowsNeedRings": "Enable radar rings first to use direction arrows",
     "nearbyTitle": "Nearby alerts",
-    "nearbyWithin": "{{count}} within {{radius}} {{unit}}",
+    "nearbyWithin": "{{count}} within {{radius}}\u00a0{{unit}}",
     "nearbyNotMapped": "+{{count}} not mapped",
     "nearbyHere": "{{count}} alerts here",
     "timeline": {

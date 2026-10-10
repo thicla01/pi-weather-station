@@ -7,6 +7,7 @@ import sunriseIcon from "@iconify/icons-wi/sunrise";
 import { UiPrefsContext, LocationContext, WeatherDataContext } from "~/AppContext";
 import { isDaylight } from "~/ui/weatherCodes";
 import SeasonsTrigger, { seasonCountdownLabel } from "~/components/ambient/Seasons";
+import { capitalizeFirst } from "~/services/formatting";
 import styles from "./styles.css";
 
 const I18N_LOCALE = { en: "en-US", fr: "fr-FR", es: "es-ES" };
@@ -119,12 +120,18 @@ const TimeBlock = ({ compact = false }) => {
   // top, the next sun event below. The sun reading lives here (it left the
   // hero with the lean redesign); the date keeps the Saisons trigger.
   if (compact) {
-    const dateShort = new Intl.DateTimeFormat(locale, {
-      weekday: "short",
-      month: "long",
-      day: "numeric",
-      timeZone: mapTimezone,
-    }).format(now);
+    // Only the first letter is upper-cased ("Ven. 9 octobre", "Vie, 9 de
+    // octubre"): CSS `text-transform: capitalize` also capitalised the month
+    // and the Spanish "de", which French and Spanish write in lower case.
+    const dateShort = capitalizeFirst(
+      new Intl.DateTimeFormat(locale, {
+        weekday: "short",
+        month: "long",
+        day: "numeric",
+        timeZone: mapTimezone,
+      }).format(now),
+      locale
+    );
     // Sun line shows the NEXT solar event: sunset while it's daytime, sunrise
     // overnight (after sunset / before sunrise). Both times arrive together in
     // the weather payload; overnight the sunrise time is today's — a ~1 min

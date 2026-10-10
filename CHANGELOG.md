@@ -14,6 +14,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   © OpenStreetMap, RainViewer". The new credit is plain text, not a link, so a tap can't strand
   the chrome-less kiosk on an external page (the QR-only rule). New `test/mapAttribution.test.js`
   locks in each map source's credits and fails if a stylesheet hides the strip.
+- **A distance no longer leaves its unit alone on the next line.** In the 7" rail the French
+  radar verdict wrapped as "Aucune pluie sur 100" / "km". The value and the unit are now joined
+  by a no-break space (U+00A0) in the radar verdict and the legend's nearby-alert count (EN, FR,
+  ES), the legend's ring radii and the air-quality station distance. New
+  `test/localeUnitSpacing.test.js` keeps the locale strings from slipping back to a plain space.
+- **The Pi glance's date no longer capitalises the month.** The compact date used CSS
+  `text-transform: capitalize`, which upper-cases every word: "Ven. 9 Octobre", "Vie, 9 De
+  Octubre". Only the first letter is capitalised now ("Ven. 9 octobre", "Vie, 9 de octubre"),
+  by a locale-aware `capitalizeFirst` in `services/formatting.js` (CommonJS, tested by the new
+  `test/formatting.test.js`). It replaces the unused `capitalizeFirstLetter`. English is
+  unchanged.
 
 ## [3.3.1] - 2026-10-09
 

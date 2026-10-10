@@ -132,7 +132,7 @@ const AirAlertCard = ({ alert }) => {
             <span className={styles.detailLabel}>{t("metrics.detailStation")}</span>
             <span>
               {aqhiInfo.stationName}
-              {aqhiInfo.stationDistanceKm != null ? ` (${aqhiInfo.stationDistanceKm} km)` : ""}
+              {aqhiInfo.stationDistanceKm != null ? ` (${aqhiInfo.stationDistanceKm}\u00a0km)` : ""}
             </span>
           </div>
         ) : null}
