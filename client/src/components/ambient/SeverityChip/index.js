@@ -1,7 +1,7 @@
 import React from "react";
 import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
-import { eventProductType } from "~/ui/alertLogic";
+import { chipProductType } from "~/ui/alertLogic";
 import styles from "./styles.css";
 
 /**
@@ -29,24 +29,6 @@ function severityToColourTier(severity) {
 }
 
 /**
- * Fallback WORD when the event name carries no recognizable product type
- * (rare — e.g. an ECCC payload exposing only a slug). Derives a sensible
- * word from severity, mirroring the pre-2026-06 behaviour.
- *
- * @param {string} severity - normalized severity
- * @returns {"advisory"|"watch"|"warning"} product-type word slug
- */
-function severityFallbackWord(severity) {
-  switch (severity) {
-    case "minor":    return "advisory";
-    case "moderate": return "watch";
-    case "severe":   return "warning";
-    case "extreme":  return "warning";
-    default:         return "advisory";
-  }
-}
-
-/**
  * Severity chip — triangle icon + uppercase label, palette-coloured by the
  * alert's COLOUR tier (from severity), with the WORD reflecting the actual
  * NWS / ECCC PRODUCT TYPE (Warning / Watch / Advisory / Statement) parsed
@@ -68,7 +50,9 @@ function severityFallbackWord(severity) {
  * @param {string} [props.eventName] - the alert's English event name
  *   (`title_en` / `eventType`); drives the product-type word. Default "".
  * @param {boolean} [props.compact] - When true, render label-less for tight
- *   spaces (mini-card list). Default false — full icon + label.
+ *   spaces (FloatingMiniBanner). A title beside an icon-only chip keeps its
+ *   French product prefix: don't pass it through shortAlertTitle
+ *   (ui/alertTitle.js). Default false — full icon + label.
  * @param {boolean} [props.abbreviated] - When true, render the icon + the
  *   SHORT product word (e.g. FR "Avert." for Avertissement). Used by the
  *   v3.2 compact Pi alert card, where the full word ("AVERTISSEMENT" ≈
@@ -79,7 +63,9 @@ function severityFallbackWord(severity) {
 const SeverityChip = ({ severity, eventName = "", compact = false, abbreviated = false }) => {
   const { t } = useTranslation();
   const colourTier = severityToColourTier(severity);
-  const word = eventProductType(eventName) || severityFallbackWord(severity);
+  // Parsed product type, else a severity-derived word — the same resolution
+  // the titles beside the chip use to drop a repeated prefix (alertTitle.js).
+  const word = chipProductType(eventName, severity);
   const wordCap = word.charAt(0).toUpperCase() + word.slice(1);
   const labelKey = `alert.severity${wordCap}`;
   // Abbreviated mode swaps in the short product word for the label while

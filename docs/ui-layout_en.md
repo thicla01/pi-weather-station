@@ -176,7 +176,7 @@ On a height-starved viewport the stacked rail above does not fit — on the 7" a
 └─────────────────────────────────────────────────────┘
 ```
 
-- **Alert card** — the compact gov card takes two lines: severity chip · source badge · ⤢, then the title on its own line beside the `1 / N` cycle counter. The ⤢ and the counter are its two tap zones; the ⤢ opens **AlertView**, and the inline `AlertDetailInline` expansion is dropped.
+- **Alert card** — the compact gov card takes two lines: severity chip · source badge · ⤢, then the title on its own line beside the `1 / N` cycle counter. The ⤢ and the counter are its two tap zones; the ⤢ opens **AlertView**, and the inline `AlertDetailInline` expansion is dropped. In French the title leads with the hazard: the product prefix of ECCC's names, which the chip already prints, is dropped (« Pluie verglaçante » beside « AVERT. », not « Avertissement de pluie verglaçante »); AlertView's header, the alert card of the stacked rail and of LayoutDesktop / LayoutMobile, the mini-cards and the map's polygon popup do the same beside their chip.
 - **HeroCompact** — place · temperature · condition. The feels-like line moves to ConditionsView (the sun/moon line is already hidden on the Pi rail); the corner ⤢ opens **ConditionsView** without adding card height.
 - **MetricsGrid and IndoorBlock** leave the glance — both live in ConditionsView.
 - **Unchanged from the stacked rail** — the restore pill (AlertMiniCards), the AirAlertCard, the slim TimeBlock, the status-only NowcastLine and the AirCard (its AQI row still yields to the AirAlertCard). As on the stacked rail, the forecast chart and the AI prose are not in the glance: both open as full-rail views from the dock.

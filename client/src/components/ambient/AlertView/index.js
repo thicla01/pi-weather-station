@@ -7,6 +7,8 @@ import timeIcon from "@iconify/icons-carbon/time";
 import { RestoreIcon } from "~/components/WeatherMap/icons";
 import { AppActionsContext, SystemContext } from "~/AppContext";
 import { parseAlertText } from "~/ui/alertParser";
+import { chipProductType } from "~/ui/alertLogic";
+import { shortAlertTitle } from "~/ui/alertTitle";
 import useEligibleGovAlerts from "~/hooks/useEligibleGovAlerts";
 import useDismissedAlerts from "~/hooks/useDismissedAlerts";
 import SeverityChip from "~/components/ambient/SeverityChip";
@@ -28,7 +30,9 @@ const DOT_CLASS = { red: "dotRed", orange: "dotOrange", yellow: "dotYellow" };
  *   - a header carrying the severity treatment (the gradation: `extreme`
  *     gets a solid red band — "when lives are at stake, drop the
  *     subtleties"; everything else keeps the tinted SeverityChip), the
- *     source badge, the title and a close → back-to-glance;
+ *     source badge, the title and a close → back-to-glance. Beside the
+ *     chip a French ECCC title drops the product prefix the chip prints
+ *     (`shortAlertTitle`); the chip-less extreme band keeps it;
  *   - an "Aussi actives" selector listing the OTHER eligible gov alerts as
  *     severity-dotted chips (tap → `selectGovAlert` swaps which is primary);
  *   - the structured detail body, reusing `AlertDetailInline`'s exported
@@ -74,9 +78,18 @@ const AlertView = () => {
   // alert card only reaches when an alert is active — but guard anyway.
   if (!currentAlert) return null;
 
-  const title = lang === "fr" ? currentAlert.title_fr : (currentAlert.title_en || currentAlert.title_fr);
   const source = currentAlert.source || "ECCC";
   const extreme = currentAlert.severity === "extreme";
+  const fullTitle = lang === "fr" ? currentAlert.title_fr : (currentAlert.title_en || currentAlert.title_fr);
+  // Beside the tinted SeverityChip (full word, e.g. « AVERTISSEMENT ») the
+  // French ECCC title drops the product prefix the chip already prints and
+  // leads with the hazard, as on the glance card the user just tapped — the
+  // one-line header ellipsizes, and chip + hazard still read as the full
+  // name. The extreme band has no chip (big icon instead), so there the
+  // prefix is the only place the product type appears: keep the full title.
+  const title = extreme
+    ? fullTitle
+    : shortAlertTitle(fullTitle, { lang, productType: chipProductType(currentAlert.title_en, currentAlert.severity) });
   const linkHref = (SOURCE_LINKS[source] && SOURCE_LINKS[source][lang]) || SOURCE_LINKS.ECCC[lang];
   const others = eligibleGovAlerts
     .map((alert, eligibleIdx) => ({ alert, eligibleIdx }))
@@ -127,6 +140,8 @@ const AlertView = () => {
                 aria-label={t("alert.selectAlertAria")}
               >
                 <span className={`${styles.dot} ${styles[DOT_CLASS[alert.tier]] || ""}`} aria-hidden="true" />
+                {/* Full title: the severity dot prints no product word, so
+                  * the prefix is the only place this alert's type shows. */}
                 {lang === "fr" ? alert.title_fr : (alert.title_en || alert.title_fr)}
               </button>
             ))}

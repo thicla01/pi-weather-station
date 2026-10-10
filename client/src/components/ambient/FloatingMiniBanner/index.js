@@ -53,6 +53,10 @@ const FloatingMiniBanner = ({ onExpand, placement = "topRight" }) => {
   if (!currentAlert) return null;
 
   const lang = (i18n.language || "en").slice(0, 2);
+  // Full title, French product prefix included: this chip is icon-only
+  // (`compact`), so « Avertissement de … » is the only place the product
+  // type shows. The surfaces whose chip prints the word drop it instead
+  // (shortAlertTitle, ui/alertTitle.js).
   const title = lang === "fr" ? currentAlert.title_fr : currentAlert.title_en;
 
   return (

@@ -1,12 +1,15 @@
-// Regression tests for `eventProductType` in `client/src/ui/alertLogic.js`.
+// Regression tests for `eventProductType` and `chipProductType` in
+// `client/src/ui/alertLogic.js`.
 //
 // This locks the 2026-06-14 fix: the SeverityChip word must reflect the actual
 // NWS/ECCC PRODUCT TYPE (Warning/Watch/Advisory/Statement), not the CAP
 // severity — so a Heat *Advisory* (severity Moderate) reads "Avis", never
-// "Veille" (watch).
+// "Veille" (watch). `chipProductType` (2026-10) is the word the chip prints,
+// parsed or severity-derived; the French titles beside the chip drop that
+// same word (test/alertTitle.test.js).
 //
 // Same constraint as the other client-ESM tests in this repo (alertParser):
-// Node's CJS loader can't `require()` the ESM source, so the pure function is
+// Node's CJS loader can't `require()` the ESM source, so the pure functions are
 // re-implemented VERBATIM here. The copy is registered in
 // test/verbatimSync.test.js, which fails on any drift from the source (not
 // only drift that changes a behaviour asserted below) — resync this block from
@@ -23,6 +26,20 @@ function eventProductType(name) {
   if (/\badvisory\b/.test(s)) return "advisory";
   if (/\bstatement\b/.test(s)) return "statement";
   return null;
+}
+
+function severityFallbackWord(severity) {
+  switch (severity) {
+    case "minor":    return "advisory";
+    case "moderate": return "watch";
+    case "severe":   return "warning";
+    case "extreme":  return "warning";
+    default:         return "advisory";
+  }
+}
+
+function chipProductType(eventName, severity) {
+  return eventProductType(eventName) || severityFallbackWord(severity);
 }
 // ---------- end of verbatim copy ----------
 
@@ -55,4 +72,21 @@ test("eventProductType: unrecognized / empty → null (caller falls back to seve
   assert.equal(eventProductType(undefined), null);
   // a bare ECCC slug with no product word
   assert.equal(eventProductType("heat"), null);
+});
+
+test("chipProductType: the parsed product type wins over severity", () => {
+  // A moderate Frost advisory prints "Avis", not the moderate fallback "Veille".
+  assert.equal(chipProductType("Frost advisory", "moderate"), "advisory");
+  assert.equal(chipProductType("Freezing rain warning", "moderate"), "warning");
+  assert.equal(chipProductType("Severe thunderstorm watch", "severe"), "watch");
+  assert.equal(chipProductType("Special weather statement", "minor"), "statement");
+});
+
+test("chipProductType: no product word → severity-derived word", () => {
+  assert.equal(chipProductType("heat", "minor"), "advisory");
+  assert.equal(chipProductType("heat", "moderate"), "watch");
+  assert.equal(chipProductType("heat", "severe"), "warning");
+  assert.equal(chipProductType("heat", "extreme"), "warning");
+  assert.equal(chipProductType("", "unknown"), "advisory");
+  assert.equal(chipProductType(undefined, undefined), "advisory");
 });
