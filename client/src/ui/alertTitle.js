@@ -15,6 +15,10 @@
 // the Spanish UI shows the English title), and neither do NWS titles,
 // whose `title_fr` is the English event name.
 //
+// The module also holds `alertDisplayTitle`, the one title every alert
+// surface prints: the short title above, then, for an NWS test/exercise
+// alert, the « TEST · » prefix CLAUDE.md requires beside the TEST badge.
+//
 // CommonJS on purpose (like ui/airQualityDisplay.js): webpack accepts it
 // next to the ESM tree, and `test/alertTitle.test.js` runs the real module
 // under `node --test`. Its one import, services/formatting.js, is
@@ -46,6 +50,13 @@ const FR_PRODUCT_WORDS = Object.freeze({
 // contractions « du » and « des ». An article after « de » (« de la »,
 // « de l' ») stays with the hazard.
 const FR_LINK = "(?:de\\s+|d['’]\\s*|du\\s+|des\\s+)";
+
+// The TEST qualifier's label when the caller passes none: the value of
+// the `alert.testTag` locale key in all three languages.
+const DEFAULT_TEST_LABEL = "TEST";
+
+// Between the TEST qualifier and the title: « TEST · Tornado Warning ».
+const TEST_PREFIX_SEPARATOR = " · ";
 
 // One anchored pattern per product type, built once. Group 1 is the
 // hazard. The whitespace after the product word means « Avisé de … »
@@ -101,7 +112,46 @@ function shortAlertTitle(title, { lang, productType } = {}) {
   return capitalizeFirst(hazard, CAPITALIZE_LOCALE);
 }
 
+/**
+ * The alert title an alert surface prints. Shortens it first, exactly as
+ * `shortAlertTitle` does (pass `productType` only beside a chip that
+ * prints its word; omit it and the title stays whole), THEN, for a
+ * test/exercise alert (an NWS alert with CAP status other than `Actual`,
+ * which only the localhost-only "Show test alerts" toggle reveals), puts
+ * the TEST qualifier in front: « TEST · Tornado Warning ». The order
+ * matters twice: the prefix in front would stop a French title from
+ * matching « Avertissement de … », and it must lead the shortened title
+ * so a one-line card's ellipsis can never cut it. A test alert with no
+ * title prints the qualifier alone.
+ *
+ * Surfaces that print a SourceBadge also render the neutral TEST badge
+ * beside it (`<SourceBadge source={testLabel} variant="test" />`); the
+ * prefix is what marks the surfaces that have no badge (mini-cards, the
+ * alert view's "Also active" chips) and keeps the word on screen when a
+ * narrow card ellipsizes.
+ *
+ * @param {?string} title the alert title in the UI language (`title_fr`
+ *   in French)
+ * @param {object} [options]
+ * @param {?string} [options.lang] UI language as i18next reports it
+ * @param {?string} [options.productType] the product type the chip beside
+ *   the title prints (see `shortAlertTitle`); omit to keep the title whole
+ * @param {?boolean} [options.isTest] the alert's `isTest` flag (set by the
+ *   server's NWS source)
+ * @param {?string} [options.testLabel] the qualifier's text, from the
+ *   `alert.testTag` locale key; defaults to "TEST"
+ * @returns {?string} the title to display
+ */
+function alertDisplayTitle(title, { lang, productType, isTest, testLabel } = {}) {
+  const short = shortAlertTitle(title, { lang, productType });
+  if (!isTest) return short;
+  const label = typeof testLabel === "string" && testLabel !== "" ? testLabel : DEFAULT_TEST_LABEL;
+  if (typeof short !== "string" || short.trim() === "") return label;
+  return `${label}${TEST_PREFIX_SEPARATOR}${short}`;
+}
+
 module.exports = {
   FR_PRODUCT_WORDS,
   shortAlertTitle,
+  alertDisplayTitle,
 };

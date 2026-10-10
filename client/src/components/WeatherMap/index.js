@@ -62,7 +62,7 @@ import { useTimeOfDay } from "~/ui/hybrid";
 import { isPiMaxView, priorityViewsEnabled } from "~/ui/piLayout";
 import { NO_SLOTS, assignSlots, framesToMount } from "~/ui/radarFrameStack";
 import { chipProductType } from "~/ui/alertLogic";
-import { shortAlertTitle } from "~/ui/alertTitle";
+import { alertDisplayTitle } from "~/ui/alertTitle";
 import { useTranslation } from "react-i18next";
 import debounce from "debounce";
 import axios from "axios";
@@ -664,7 +664,10 @@ NearbyAlertsOverlay.propTypes = {
  * Content of the nearby-alerts tap popup (Phase 3b). Shows the subject of
  * each alert the tap landed in — source badge + severity chip + title (a
  * French ECCC title without the product prefix the chip prints) — and a
- * single "Re-center here" action. Overlapping alerts are listed
+ * single "Re-center here" action. A test/exercise NWS alert (the nearby
+ * fetch carries `showTest=1` when the localhost-only "Show test alerts"
+ * toggle is on) adds the neutral `TEST` qualifier beside its source badge
+ * and a « TEST · » title prefix, as on the alert banner. Overlapping alerts are listed
  * worst-first (already server-sorted) under a count header. Deliberately
  * lightweight: the full description comes from re-centring, which moves
  * the location to the tapped point and re-activates the point-based
@@ -678,6 +681,7 @@ NearbyAlertsOverlay.propTypes = {
 const SurveyAlertContent = ({ alerts = NO_ALERTS, onRecenter }) => {
   const { t, i18n } = useTranslation();
   const lang = (i18n.language || "en").slice(0, 2);
+  const testLabel = t("alert.testTag", { defaultValue: "TEST" });
   return (
     <div className={styles.surveyPopup}>
       {alerts.length > 1 ? (
@@ -686,14 +690,21 @@ const SurveyAlertContent = ({ alerts = NO_ALERTS, onRecenter }) => {
       <div className={styles.surveyList}>
         {alerts.map((a) => {
           // The chip prints its word, so a French ECCC title drops the
-          // product prefix it repeats (ui/alertTitle.js).
-          const title = shortAlertTitle(
+          // product prefix it repeats; a test alert's « TEST · » goes on
+          // after that (ui/alertTitle.js).
+          const title = alertDisplayTitle(
             (lang === "fr" ? a.title_fr : a.title_en) || a.eventType,
-            { lang, productType: chipProductType(a.title_en, a.severity) },
+            {
+              lang,
+              productType: chipProductType(a.title_en, a.severity),
+              isTest: a.isTest,
+              testLabel,
+            },
           );
           return (
             <div key={a.id} className={styles.surveyRow}>
               <SourceBadge source={a.source} />
+              {a.isTest ? <SourceBadge source={testLabel} variant="test" /> : null}
               {/* eventName gives the chip the alert's real product word, as on
                 * every other SeverityChip; without it the word fell back to
                 * one derived from severity, so a moderate frost advisory

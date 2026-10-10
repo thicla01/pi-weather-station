@@ -81,7 +81,11 @@ function readStoredView(key, max) {
  * When the user opts in (Settings → "Auto-select forecast tab"),
  * `useAutoTabSelector` may command the active metric from current hazards;
  * a small source-badge reason chip in the header marks an auto-switch, and
- * any manual tap holds the user's choice. Period is never auto-driven.
+ * any manual tap holds the user's choice. Period is never auto-driven. When
+ * the switch came from a test/exercise NWS alert (revealed only by the
+ * localhost-only "Show test alerts" toggle), the chip adds the neutral
+ * outlined TEST qualifier after the source badge, as every gov-alert
+ * surface does.
  *
  * @returns {JSX.Element} forecast slab
  */
@@ -162,7 +166,7 @@ const ChartTabs = () => {
   // alerts / radar / forecast); we apply it here without ever touching
   // `period`. A user gesture stamps a manual hold the hook honours; the
   // cardActivityRef feeds the touch active-reader inhibit (LLD §13).
-  const { commandedMetric, autoSwitchSource, stampManualHold } = useAutoTabSelector(metric, cardActivityRef);
+  const { commandedMetric, autoSwitchSource, autoSwitchIsTest, stampManualHold } = useAutoTabSelector(metric, cardActivityRef);
   // A newly-commanded metric is applied DURING RENDER via the documented
   // adjust-on-change pattern (both metric states are local to this
   // component), replacing the former effect (react-hooks/set-state-in-
@@ -256,6 +260,7 @@ const ChartTabs = () => {
             aria-label={`${t("charts.autoSelected", { defaultValue: "Auto-selected" })}: ${metricLabel(commandedMetric)}`}
           >
             <SourceBadge source={autoSwitchSource} />
+            {autoSwitchIsTest ? <SourceBadge source={t("alert.testTag", { defaultValue: "TEST" })} variant="test" /> : null}
             <span className={styles.reasonChipLabel}>{metricLabel(commandedMetric)}</span>
           </span>
         ) : null}

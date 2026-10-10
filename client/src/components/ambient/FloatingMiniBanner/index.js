@@ -5,7 +5,7 @@ import SourceBadge from "~/components/ambient/SourceBadge";
 import SeverityChip from "~/components/ambient/SeverityChip";
 import useEligibleGovAlerts from "~/hooks/useEligibleGovAlerts";
 import { chipProductType } from "~/ui/alertLogic";
-import { shortAlertTitle } from "~/ui/alertTitle";
+import { alertDisplayTitle } from "~/ui/alertTitle";
 import styles from "./styles.css";
 
 /**
@@ -29,9 +29,17 @@ import styles from "./styles.css";
  * alerts are active, and a trailing chevron (P4 audit follow-up,
  * 2026-06-11). The chip prints its word, so a French ECCC title leads
  * with the hazard, as on the other alert surfaces: « Pluie verglaçante »,
- * not « Avertissement de pluie verglaçante » (`shortAlertTitle`,
- * ui/alertTitle.js). A title too long for one line wraps to a second
- * one rather than being cut (styles.css `.title`). The
+ * not « Avertissement de pluie verglaçante » (`alertDisplayTitle` →
+ * `shortAlertTitle`, ui/alertTitle.js). A title too long for one line wraps to a second
+ * one rather than being cut (styles.css `.title`).
+ *
+ * A test/exercise alert (`currentAlert.isTest`: an NWS alert with CAP
+ * status ≠ `Actual`, shown only through the localhost-only "Show test
+ * alerts" toggle) is marked as on AlertBanner: the neutral outlined `TEST`
+ * qualifier (`SourceBadge variant="test"`) right after the source badge,
+ * and a « TEST · » prefix in front of the shortened title
+ * (`alertDisplayTitle`), so the word still leads when the title wraps or
+ * is clamped. The severity strip keeps the alert's real tier. The
  * `belowControls` placement drops the banner under a 44 px control row
  * instead — LayoutMobile's maximized card already has its restore
  * button in the top-right corner and the Leaflet zoom stack at the
@@ -51,7 +59,7 @@ import styles from "./styles.css";
  * @returns {JSX.Element|null} mini-banner, or null when no alert is eligible
  */
 const FloatingMiniBanner = ({ onExpand, placement = "topRight" }) => {
-  const { i18n } = useTranslation();
+  const { t, i18n } = useTranslation();
   // Same eligible-alert derivation as AlertBanner — shared hook so the
   // collapsed-rail overlay shows the exact alert the full banner would,
   // dismissal filter included (this overlay previously skipped it).
@@ -60,14 +68,21 @@ const FloatingMiniBanner = ({ onExpand, placement = "topRight" }) => {
   if (!currentAlert) return null;
 
   const lang = (i18n.language || "en").slice(0, 2);
+  const testLabel = t("alert.testTag", { defaultValue: "TEST" });
   // The abbreviated chip below prints the product type (« AVERT. »), so a
   // French ECCC title drops the prefix that repeats it and leads with the
   // hazard. Kept whole beside the chip, « Avertissement de pluie
   // verglaçante » would read « Avertissement de plu… » in the 360 px
-  // banner with two alerts.
-  const title = shortAlertTitle(
+  // banner with two alerts. A test alert's « TEST · » goes on after that
+  // shortening, as on AlertBanner.
+  const title = alertDisplayTitle(
     lang === "fr" ? currentAlert.title_fr : currentAlert.title_en,
-    { lang, productType: chipProductType(currentAlert.title_en, currentAlert.severity) },
+    {
+      lang,
+      productType: chipProductType(currentAlert.title_en, currentAlert.severity),
+      isTest: currentAlert.isTest,
+      testLabel,
+    },
   );
 
   return (
@@ -77,6 +92,7 @@ const FloatingMiniBanner = ({ onExpand, placement = "topRight" }) => {
       onClick={onExpand}
     >
       <SourceBadge source={currentAlert.source} />
+      {currentAlert.isTest ? <SourceBadge source={testLabel} variant="test" /> : null}
       <SeverityChip severity={currentAlert.severity} eventName={currentAlert.title_en} abbreviated />
       <span className={styles.title}>{title}</span>
       {eligibleGovAlerts.length > 1 ? (

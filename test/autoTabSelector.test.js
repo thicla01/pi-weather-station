@@ -444,6 +444,42 @@ test("hazardTab: ungated live verdict — gov/forecast/calm", () => {
   assert.equal(hazardTab({ govAlerts: [], forecast: {} }, TABS.GRID), null);
 });
 
+test("isTest: a test/exercise gov alert flags the decision and the verdict (TEST chip)", () => {
+  // An NWS alert with CAP status ≠ Actual (revealed only by the localhost
+  // "Show test alerts" toggle) still drives the tab, but the reason chip
+  // must add the TEST qualifier — so the flag rides on both outputs.
+  const testAlert = govAlert({ isTest: true });
+  // The priority ladder (the alert already known, so no puncture)…
+  const ladder = selectAutoTab(
+    { govAlerts: [testAlert], env: env() },
+    baseState({ knownSevereAlertKeys: [alertKey(testAlert)] }),
+    NOW,
+  );
+  assert.equal(ladder.reason.puncture, undefined);
+  assert.equal(ladder.sourceBadge, "NWS");
+  assert.equal(ladder.isTest, true);
+  // …and the severe puncture (a new red alert past a manual hold).
+  const punct = selectAutoTab(
+    { govAlerts: [testAlert], env: env() },
+    baseState({ manualHoldAt: NOW - 1000, knownSevereAlertKeys: [] }),
+    NOW,
+  );
+  assert.equal(punct.reason.puncture, true);
+  assert.equal(punct.isTest, true);
+  assert.equal(hazardTab({ govAlerts: [testAlert] }, TABS.GRID).isTest, true);
+
+  // A real alert, the radar and the forecast are never flagged.
+  assert.equal(selectAutoTab({ govAlerts: [govAlert()], env: env() }, baseState(), NOW).isTest, false);
+  assert.equal(hazardTab({ govAlerts: [govAlert()] }, TABS.GRID).isTest, false);
+  assert.equal(hazardTab({ forecast: { maxPrecipProb: 85 } }, TABS.GRID).isTest, false);
+  const radar = hazardTab(
+    { radarAlertState: { tier: "orange", confidenceBucket: "mid", approaching: false } },
+    TABS.GRID,
+  );
+  assert.equal(radar.sourceBadge, "RADAR");
+  assert.equal(radar.isTest, false);
+});
+
 test("hazardTab: verdict is gate-independent (fires even when a switch would be held)", () => {
   // No env / no gates passed in — hazardTab reflects the weather only, so a
   // standing chip stays lit while a hazard persists even under a manual hold.
