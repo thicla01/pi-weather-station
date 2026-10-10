@@ -7,7 +7,7 @@
   --c-text-dim: #6d655a;                    /* secondary / metadata ink */
   --c-accent: #b85a18;                      /* brand accent — warm amber family across palettes */
   --c-accent-soft: rgba(184, 90, 24, 0.18); /* tints, outlines, badge fill, ON-toggle signal */
-  --c-surface: rgba(255, 250, 240, 0.85);   /* translucent slab fill (calm) — the radar shows through */
+  --c-surface: rgba(255, 250, 240, 0.85);   /* translucent slab fill (calm) — the radar shows through only where a slab floats over the map (desktop hero band + rail, map chrome); Pi rail cards sit on opaque --c-bg */
   --c-surface-hybrid: rgba(255, 250, 240, 0.96); /* slab fill during a moderate+ alert */
   --c-border: rgba(42, 38, 32, 0.16);       /* hairline — lifted from .10: dark-on-cream reads fainter */
   --c-border-hybrid: rgba(42, 38, 32, 0.18);

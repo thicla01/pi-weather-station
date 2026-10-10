@@ -244,7 +244,7 @@ Ces ajustements ne se déclenchent que sur les viewports courts (l'écran Pi 7" 
 
 ## LayoutDesktop — moniteur HD / bureau (≥ 1280 px de large)
 
-La carte occupe tout le viewport en arrière-plan pleine saignée. Le HeroBand, le rail droit et le BottomDock sont des dalles translucides flottant au-dessus du radar.
+La carte occupe le viewport au-dessus du BottomDock en arrière-plan pleine saignée (`.mapArea` est inséré `0 0 var(--c-dock-height) 0`). Le HeroBand et le rail droit sont des dalles translucides (`--c-surface`, 85 %, sans flou d'arrière-plan) flottant au-dessus du radar ; le BottomDock se trouve sous la carte, jamais par-dessus, et n'a pas de flou non plus.
 
 ```
 ┌─────────────────────────────────────────────┬───────────┐

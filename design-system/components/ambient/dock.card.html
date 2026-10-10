@@ -4,9 +4,9 @@
   body{margin:0;font-family:var(--font-sans);background:#fff}
   section{background:var(--c-bg);color:var(--c-text);padding:12px 14px;display:flex;flex-direction:column;gap:8px}
   .name{font-family:var(--font-mono);font-weight:500;font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--c-text-dim)}
-  .mapbg{background:var(--c-bg) linear-gradient(100deg,transparent 0 55%,rgba(240,230,0,.25) 55% 68%,rgba(240,130,0,.22) 68% 78%,transparent 78%)}
-  /* BottomDock/styles.css */
-  .dock{background-color:var(--c-surface);border:1px solid var(--c-border);border-radius:14px;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px);padding:8px 14px;display:flex;align-items:center;min-height:52px;color:var(--c-text);--ctrl-btn-down:var(--c-accent-soft)}
+  /* BottomDock/styles.css — no backdrop-filter (removed 2026-10): the dock never sits over the map,
+     so it is shown here on the layout's flat --c-bg, which is all its 85 % surface ever lets through */
+  .dock{background-color:var(--c-surface);border:1px solid var(--c-border);border-radius:14px;padding:8px 14px;display:flex;align-items:center;min-height:52px;color:var(--c-text);--ctrl-btn-down:var(--c-accent-soft)}
   /* ControlButtons/styles.css — grouped mode */
   .group{display:flex;align-items:center;gap:2px;padding:0 6px;position:relative}
   .group+.group::before{content:"";position:absolute;left:0;top:8px;bottom:8px;width:1px;background:var(--c-border-hybrid);opacity:.7}
@@ -15,6 +15,7 @@
   .b svg{width:24px;height:24px}
   .b.down{background:var(--ctrl-btn-down)}
   .b.dis{opacity:.35}
+  .b.moon svg{color:#c44040} /* night-red toggle: MOON_COLOR in every palette (ControlButtons) */
   .ub{position:absolute;top:6px;right:6px;width:7px;height:7px;border-radius:50%;background:#f97316}
   .cnt{position:absolute;top:1px;right:1px;min-width:15px;height:15px;padding:0 3px;border-radius:999px;display:flex;align-items:center;justify-content:center;font-size:9px;font-weight:700;line-height:1;box-shadow:0 0 0 1.5px rgba(0,0,0,.3);background:#ee7710;color:#fff}
   /* HealthIndicator chip */
@@ -48,22 +49,22 @@
 <symbol id="expand" viewBox="0 0 24 24"><path d="M4 9 V 4 H 9 M 15 4 H 20 V 9 M 20 15 V 20 H 15 M 9 20 H 4 V 15" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
 <symbol id="restore" viewBox="0 0 24 24"><path d="M9 4 V 9 H 4 M 20 9 H 15 V 4 M 15 20 V 15 H 20 M 4 15 H 9 V 20" fill="none" stroke="currentColor" stroke-width="1.8"/></symbol>
 </svg>
-<section class="mapbg"><div class="name">BottomDock · desktop labels shown (hidden ≤ 980 px) · day</div>
+<section><div class="name">BottomDock · desktop labels shown (hidden ≤ 980 px) · no blur, sits on --c-bg · day</div>
   <div class="dock">
     <div class="group"><span class="gl">Map</span><span class="b"><svg><use href="#target"/></svg></span><span class="b"><svg><use href="#bookmark"/></svg></span><span class="b down"><svg><use href="#timeline"/></svg></span><span class="b dis"><svg><use href="#legend"/></svg></span><span class="b down"><svg><use href="#warn"/></svg><span class="cnt">2</span></span></div>
     <div class="group"><span class="gl">Views</span><span class="b"><svg><use href="#sparkle"/></svg></span><span class="b"><svg><use href="#chart"/></svg></span></div>
-    <div class="group"><span class="gl">Display</span><span class="b"><svg><use href="#contrast"/></svg></span><span class="b"><svg><use href="#moonI"/></svg></span></div>
+    <div class="group"><span class="gl">Display</span><span class="b"><svg><use href="#contrast"/></svg></span><span class="b moon"><svg><use href="#moonI"/></svg></span></div>
     <div class="group"><span class="gl">System</span><span class="b"><svg><use href="#renew"/></svg></span><span class="b"><svg><use href="#upgrade"/></svg><span class="ub"></span></span><span class="b"><svg><use href="#gear"/></svg></span></div>
-    <span class="chipwrap"><span class="chip"><span class="ci"><svg><use href="#check"/></svg></span>Tout va bien</span></span>
+    <span class="chipwrap"><span class="chip"><span class="ci"><svg><use href="#check"/></svg></span>Services · OK</span></span>
   </div>
 </section>
-<section class="mapbg" data-theme="dusk"><div class="name">dusk · toggle ON = accent-soft, the dock's only accent signal · no press flash, no hover paint</div>
+<section data-theme="dusk"><div class="name">dusk · toggle ON = accent-soft, the dock's only accent signal · no press flash, no hover paint</div>
   <div class="dock">
     <div class="group"><span class="gl">Map</span><span class="b"><svg><use href="#target"/></svg></span><span class="b"><svg><use href="#bookmark"/></svg></span><span class="b down"><svg><use href="#timeline"/></svg></span><span class="b"><svg><use href="#legend"/></svg></span><span class="b"><svg><use href="#warn"/></svg></span></div>
     <div class="group"><span class="gl">Views</span><span class="b down"><svg><use href="#sparkle"/></svg></span><span class="b"><svg><use href="#chart"/></svg></span></div>
-    <div class="group"><span class="gl">Display</span><span class="b"><svg><use href="#contrast"/></svg></span><span class="b down"><svg><use href="#moonI"/></svg></span></div>
+    <div class="group"><span class="gl">Display</span><span class="b"><svg><use href="#contrast"/></svg></span><span class="b down moon"><svg><use href="#moonI"/></svg></span></div>
     <div class="group"><span class="gl">System</span><span class="b"><svg><use href="#renew"/></svg></span><span class="b"><svg><use href="#gear"/></svg></span></div>
-    <span class="chipwrap"><span class="chip"><span class="ci" style="background:#ee7710"><svg><use href="#warn"/></svg></span>2 dégradés</span></span>
+    <span class="chipwrap"><span class="chip"><span class="ci" style="background:#ee7710"><svg><use href="#warn"/></svg></span>Services · Dégradé</span></span>
   </div>
   <div class="sqrow"><span class="sq"><svg><use href="#expand"/></svg></span><span class="sq"><svg><use href="#restore"/></svg></span>RailSquareButton 28 px · expand / restore brackets<span class="ab"><svg><use href="#expand"/></svg></span>ChartTabs action: 44 px hit, 28 px visible</div>
 </section>

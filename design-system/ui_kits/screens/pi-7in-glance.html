@@ -1,0 +1,46 @@
+<!-- @dsCard group="Screens" viewport="800x480" name="Pi 7″ · MID · v3.3 priority glance" subtitle="800×480 · what the 7″ actually shows in MID (≤ 540 px CSS height): framed radar + (i) legend chip, no timeline · rail: compact clock · hero ⤢ (no feels-like) · RADAR nowcast · air · priority dock · day, calm" -->
+<!DOCTYPE html><html lang="fr"><head><meta charset="utf-8"><link rel="stylesheet" href="../../styles.css"><link rel="stylesheet" href="screens.css">
+<style>
+  /* LayoutPi/styles.css: grid `1fr 300px` × `1fr auto`, framed 10 px gutters, map as a 14 px card */
+  .screen{width:800px;height:480px;display:grid;grid-template-columns:1fr 300px;grid-template-rows:1fr auto;gap:10px;padding:10px}
+  .map{position:relative;border:1px solid var(--c-border);border-radius:14px;overflow:hidden}
+  /* .rail > .midPanel: a transparent column of cards on the layout's opaque --c-bg */
+  .rail{display:flex;flex-direction:column;gap:10px;overflow:hidden;min-height:0}
+  .dock{grid-column:1/-1}
+</style></head><body>
+<!-- v3.3 priority glance — LayoutPi's MID when priorityViewsEnabled() is true, i.e. a CSS viewport
+     ≤ 540 px tall (ui/piLayout.js): the 7″ at 800×480, or a panel the display scale squeezes to the
+     same height. Calm state: the alert stack (AlertBanner compact card · AlertMiniCards restore
+     pill · AirAlertCard) renders nothing until an eligible alert is active, then leads the rail.
+     Map: the legend is the "(i)" chip (≤ 520 px and MID); there is NO timeline in MID — the dock's
+     timeline button opens the scrubber on the fullscreen radar (MIN) through the ephemeral
+     piScrubberOpen flag, so it never reads ON here. Rail: no 2×2, no indoor, no feels-like — they
+     live in the Conditions view the hero's ⤢ opens. -->
+<div class="screen">
+  <div class="map radar">
+    <span class="ring" style="width:220px;height:220px;left:calc(50% - 110px);top:calc(50% - 110px)"><span class="lab">50 km</span></span>
+    <span class="marker" style="left:50%;top:50%"></span>
+    <div class="zoom" style="top:16px;left:16px"><span>+</span><span>−</span></div>
+    <div class="focus" style="top:100px;left:16px"><svg><use href="sprite.svg#expand"/></svg></div>
+    <div class="lchip" style="left:16px;bottom:16px"><i>i</i><span class="bar"><i style="background:var(--rc-tile-1)"></i><i style="background:var(--rc-tile-2)"></i><i style="background:var(--rc-tile-3)"></i><i style="background:var(--rc-tile-4)"></i><i style="background:var(--rc-tile-5)"></i><i style="background:var(--rc-tile-6)"></i></span>Légende</div>
+    <span class="attrib">© Mapbox © OpenStreetMap · RainViewer</span>
+  </div>
+  <aside class="rail">
+    <div class="tb compact"><div><span class="time">10:37</span></div><div class="m"><span class="date"><u>jeu. 10 septembre</u></span><span class="sun"><svg><use href="sprite.svg#sunset"/></svg>19:12</span></div></div>
+    <div class="hc pi withMax"><span class="mx"><svg><use href="sprite.svg#expand"/></svg></span><div class="place"><svg><use href="sprite.svg#pin"/></svg><u>Montréal, QC</u></div><div class="focal"><div class="tbk"><span class="tv">14</span><span class="tu">°C</span></div><div class="cc"><svg class="ci"><use href="sprite.svg#cloudsun"/></svg><div class="ct">Partiellement nuageux</div></div></div></div>
+    <div class="nc calm"><span class="badge">Radar</span><svg class="sky"><use href="sprite.svg#cloudsun"/></svg><span class="verdict">Aucune pluie sur 100 km</span></div>
+    <div class="air pi"><div class="r"><span class="vg"><span class="v">3</span><span class="l">AQHI</span></span><span class="pill cg"><i></i>Risque faible</span></div><div class="r"><span class="vg"><span class="vt">Herbe à poux</span><span class="l">Pollen</span></span><span class="pill cb"><i></i>Élevé</span></div></div>
+  </aside>
+  <!-- Priority dock (ControlButtons with inPriorityDock), labels hidden ≤ 980 px:
+       Map: recenter · places · marker · timeline (opens MIN + scrubber, never ON) · direction arrows ·
+       legend (ON) · nearby alerts — Views: AI view · forecast (MAX) — Display: contrast · auto ·
+       night-red — System: refresh · settings — health disc. Hidden in MIN and in every full-rail view. -->
+  <div class="dock narrow">
+    <div class="group"><span class="b"><svg><use href="sprite.svg#target"/></svg></span><span class="b"><svg><use href="sprite.svg#bookmark"/></svg></span><span class="b"><svg><use href="sprite.svg#pinFill"/></svg></span><span class="b"><svg><use href="sprite.svg#timeline"/></svg></span><span class="b"><svg><use href="sprite.svg#wind"/></svg></span><span class="b down"><svg><use href="sprite.svg#legend"/></svg></span><span class="b"><svg><use href="sprite.svg#warn"/></svg></span></div>
+    <div class="group"><span class="b"><svg><use href="sprite.svg#sparkle"/></svg></span><span class="b"><svg><use href="sprite.svg#chart"/></svg></span></div>
+    <div class="group"><span class="b"><svg><use href="sprite.svg#contrast"/></svg></span><span class="b"><svg><use href="sprite.svg#auto"/></svg></span><span class="b moon"><svg><use href="sprite.svg#moonI"/></svg></span></div>
+    <div class="group"><span class="b"><svg><use href="sprite.svg#renew"/></svg></span><span class="b"><svg><use href="sprite.svg#gear"/></svg></span></div>
+    <span class="hchip icon"><i><svg><use href="sprite.svg#check"/></svg></i></span>
+  </div>
+</div>
+</body></html>

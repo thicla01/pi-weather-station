@@ -1,6 +1,7 @@
 /* Layout tokens — LayoutDesktop / LayoutPi / BottomDock. */
 :root {
-  /* Desktop (≥ 1280 px): full-bleed map, floating hero band + right rail + dock */
+  /* Desktop (≥ 1280 px): full-bleed map inset above the dock (bottom = --c-dock-height),
+     floating hero band + right rail over it; the dock sits below the map, never over it */
   --c-rail-width: 320px;             /* 360px ≥ 1600px; min(60vw, 960px) while a slab is maximized */
   --c-rail-visible-width: var(--c-rail-width); /* 0px in radar-focus mode */
   --c-dock-height: 52px;
