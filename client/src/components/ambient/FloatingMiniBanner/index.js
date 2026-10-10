@@ -4,6 +4,8 @@ import { useTranslation } from "react-i18next";
 import SourceBadge from "~/components/ambient/SourceBadge";
 import SeverityChip from "~/components/ambient/SeverityChip";
 import useEligibleGovAlerts from "~/hooks/useEligibleGovAlerts";
+import { chipProductType } from "~/ui/alertLogic";
+import { shortAlertTitle } from "~/ui/alertTitle";
 import styles from "./styles.css";
 
 /**
@@ -20,24 +22,29 @@ import styles from "./styles.css";
  * full layout, then collapsing the rail, still shows the same alert
  * here.
  *
- * Visual treatment: floating chip pinned to the top-right of the map
+ * Visual treatment: floating banner pinned to the top-right of the map
  * area, with the active palette's surface + left severity strip,
- * a compact SeverityChip, a "1 / N" counter when several alerts are
- * active, and a trailing chevron — pixel-parity with the Synthèse's
- * compact alert card (P4 audit follow-up, 2026-06-11). The
- * `belowControls` placement drops the chip under a 44 px control row
+ * the source badge, the abbreviated SeverityChip (« AVERT. », the Pi
+ * compact alert card's chip), the title, a "1 / N" counter when several
+ * alerts are active, and a trailing chevron (P4 audit follow-up,
+ * 2026-06-11). The chip prints its word, so a French ECCC title leads
+ * with the hazard, as on the other alert surfaces: « Pluie verglaçante »,
+ * not « Avertissement de pluie verglaçante » (`shortAlertTitle`,
+ * ui/alertTitle.js). A title too long for one line wraps to a second
+ * one rather than being cut (styles.css `.title`). The
+ * `belowControls` placement drops the banner under a 44 px control row
  * instead — LayoutMobile's maximized card already has its restore
  * button in the top-right corner and the Leaflet zoom stack at the
- * top-left. Tapping the chip exits the full-screen map state
+ * top-left. Tapping the banner exits the full-screen map state
  * (signalled via `onExpand`); the cycle controls aren't exposed here
  * on purpose — restoring the layout gives the user the full UI.
  *
  * @param {object} props
- * @param {() => void} props.onExpand — called when the banner is tapped. Bound
- *   directly to `onClick`, so React passes a SyntheticMouseEvent; the type is
- *   zero-arity because callers ignore it.
- *   parent exits the full-screen map state (un-collapses the rail /
- *   restores the mobile radar card)
+ * @param {() => void} props.onExpand — called when the banner is tapped;
+ *   the parent exits the full-screen map state (un-collapses the rail /
+ *   restores the mobile radar card). Bound directly to `onClick`, so React
+ *   passes a SyntheticMouseEvent; the type is zero-arity because callers
+ *   ignore it.
  * @param {string} [props.placement] — `"topRight"` (default, rail
  *   layouts) or `"belowControls"` (mobile maximized card: right-aligned
  *   under the restore button, clear of the zoom stack)
@@ -53,11 +60,15 @@ const FloatingMiniBanner = ({ onExpand, placement = "topRight" }) => {
   if (!currentAlert) return null;
 
   const lang = (i18n.language || "en").slice(0, 2);
-  // Full title, French product prefix included: this chip is icon-only
-  // (`compact`), so « Avertissement de … » is the only place the product
-  // type shows. The surfaces whose chip prints the word drop it instead
-  // (shortAlertTitle, ui/alertTitle.js).
-  const title = lang === "fr" ? currentAlert.title_fr : currentAlert.title_en;
+  // The abbreviated chip below prints the product type (« AVERT. »), so a
+  // French ECCC title drops the prefix that repeats it and leads with the
+  // hazard. Kept whole beside the chip, « Avertissement de pluie
+  // verglaçante » would read « Avertissement de plu… » in the 360 px
+  // banner with two alerts.
+  const title = shortAlertTitle(
+    lang === "fr" ? currentAlert.title_fr : currentAlert.title_en,
+    { lang, productType: chipProductType(currentAlert.title_en, currentAlert.severity) },
+  );
 
   return (
     <button
@@ -66,7 +77,7 @@ const FloatingMiniBanner = ({ onExpand, placement = "topRight" }) => {
       onClick={onExpand}
     >
       <SourceBadge source={currentAlert.source} />
-      <SeverityChip severity={currentAlert.severity} eventName={currentAlert.title_en} compact />
+      <SeverityChip severity={currentAlert.severity} eventName={currentAlert.title_en} abbreviated />
       <span className={styles.title}>{title}</span>
       {eligibleGovAlerts.length > 1 ? (
         <span className={styles.counter}>{safeIdx + 1} / {eligibleGovAlerts.length}</span>

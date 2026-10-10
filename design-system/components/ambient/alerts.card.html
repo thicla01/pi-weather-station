@@ -7,7 +7,7 @@
   .name{font-family:var(--font-mono);font-weight:500;font-size:10px;letter-spacing:.8px;text-transform:uppercase;color:var(--c-text-dim)}
   .badge{display:inline-block;background-color:var(--c-accent-soft);color:var(--c-text);font-family:var(--font-mono);font-size:11px;font-weight:500;letter-spacing:.6px;text-transform:uppercase;padding:2px 7px;border-radius:3px;vertical-align:1px}
   .chip{display:inline-flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:9.5px;font-weight:500;letter-spacing:.12em;text-transform:uppercase;padding:4px 9px 4px 7px;border-radius:999px;border:1px solid;white-space:nowrap}
-  .chip svg{width:11px;height:11px}.chip.compact{padding:4px 7px;gap:0}
+  .chip svg{width:11px;height:11px}.chip.abbrev{gap:4px;letter-spacing:.04em;padding:4px 7px 4px 6px}.chip.abbrev svg{width:10px;height:10px}
   .tier-med{color:var(--sev-med-ink);background:var(--sev-med-bg);border-color:var(--sev-med-border)}
   .tier-high{color:var(--sev-high-ink);background:var(--sev-high-bg);border-color:var(--sev-high-border)}
   .tier-low{color:var(--sev-low-ink);background:var(--sev-low-bg);border-color:var(--sev-low-border)}
@@ -36,9 +36,9 @@
   .reading .sep{color:var(--c-text-dim);white-space:pre}
   .reading .lvl{font-weight:500;font-size:13px;color:var(--tint-ink)}
   /* FloatingMiniBanner/styles.css */
-  .fmb{position:relative;display:flex;align-items:center;gap:8px;max-width:360px;padding:8px 12px 8px 16px;background-color:var(--c-surface-hybrid);border:1px solid var(--c-border-hybrid);border-radius:6px;font-size:13px;font-weight:500;overflow:hidden;align-self:flex-end}
+  .fmb{position:relative;box-sizing:border-box;display:flex;align-items:center;gap:8px;max-width:360px;padding:8px 12px 8px 16px;background-color:var(--c-surface-hybrid);border:1px solid var(--c-border-hybrid);border-radius:6px;font-size:13px;font-weight:500;overflow:hidden;align-self:flex-end}
   .fmb::before{content:"";position:absolute;inset:0 auto 0 0;width:4px;background-color:var(--c-warn)}
-  .fmb .t{flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .fmb .t{flex:1;white-space:normal;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;text-overflow:ellipsis}
   .fmb .c{font-family:var(--font-mono);font-weight:500;font-size:10px;letter-spacing:.06em;color:var(--c-text-dim)}
   /* AlertMiniCards/styles.css */
   .list{display:flex;flex-direction:column;gap:6px}
@@ -55,7 +55,7 @@
     <div class="cap">AirAlertCard · AIR + index badge · value · level</div>
     <div class="aac"><div class="r"><span class="airBadge"><svg><use href="#gust"/></svg>Air</span><span class="badge">AQHI</span><span class="reading"><span class="v">7</span><span class="sep"> · </span><span class="lvl">High</span></span></div></div>
     <div class="cap">FloatingMiniBanner · map states where the rail is hidden</div>
-    <div class="fmb"><span class="t">Wind warning — Laurentides</span><span class="c">2 / 3</span><svg class="chevron"><use href="#right"/></svg></div>
+    <div class="fmb"><span class="badge">ECCC</span><span class="chip abbrev tier-med"><svg><use href="#tri"/></svg>Warning</span><span class="t">Wind warning — Laurentides</span><span class="c">2 / 3</span><svg class="chevron"><use href="#right"/></svg></div>
     <div class="cap">AlertMiniCards · the other active alerts</div>
     <div class="list"><div class="mini"><span class="chip tier-med"><svg><use href="#tri"/></svg>Warning</span><span class="t">Wind warning — Laurentides</span><svg class="chevron"><use href="#right"/></svg></div><div class="mini yellow"><span class="chip tier-low"><svg><use href="#tri"/></svg>Advisory</span><span class="t">Frost advisory — Lanaudière</span><svg class="chevron"><use href="#right"/></svg></div></div>
   </section>
@@ -65,7 +65,7 @@
     <div class="cap">AirAlertCard</div>
     <div class="aac"><div class="r"><span class="airBadge"><svg><use href="#gust"/></svg>Air</span><span class="badge">IQA</span><span class="reading"><span class="v">58</span><span class="sep"> · </span><span class="lvl">Mauvais</span></span></div></div>
     <div class="cap">FloatingMiniBanner</div>
-    <div class="fmb"><span class="t">Avertissement de vent — Laurentides</span><span class="c">2 / 3</span><svg class="chevron"><use href="#right"/></svg></div>
+    <div class="fmb"><span class="badge">ECCC</span><span class="chip abbrev tier-med"><svg><use href="#tri"/></svg>Avert.</span><span class="t">Vent — Laurentides</span><span class="c">2 / 3</span><svg class="chevron"><use href="#right"/></svg></div>
     <div class="cap">AlertMiniCards</div>
     <div class="list"><div class="mini"><span class="chip tier-med"><svg><use href="#tri"/></svg>Avertissement</span><span class="t">Vent — Laurentides</span><svg class="chevron"><use href="#right"/></svg></div><div class="mini yellow"><span class="chip tier-low"><svg><use href="#tri"/></svg>Avis</span><span class="t">Gel — Lanaudière</span><svg class="chevron"><use href="#right"/></svg></div></div>
   </section>

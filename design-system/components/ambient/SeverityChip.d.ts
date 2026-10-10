@@ -8,9 +8,9 @@ export interface SeverityChipProps {
   severity: "minor" | "moderate" | "severe" | "extreme";
   /** The localized product-type word: "Warning" / "Watch" / "Advisory" / "Avertissement" / "Veille" / "Avis". */
   label: string;
-  /** Icon only (FloatingMiniBanner); the title beside it keeps its French product prefix. */
+  /** Icon only — no app surface uses it since the FloatingMiniBanner moved to `abbreviated`; a title beside it keeps its French product prefix. */
   compact?: boolean;
-  /** Short word ("Avert.") with tighter spacing — the Pi compact alert card. */
+  /** Short word ("Avert.") with tighter spacing — the Pi compact alert card and the FloatingMiniBanner. */
   abbreviated?: boolean;
 }
 export function SeverityChip(props: SeverityChipProps): JSX.Element;

@@ -87,14 +87,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   ver… » read as a rainfall warning, and the winter- and tropical-storm warnings were both
   « Avertissement de tempête… ». Beside a chip that prints the same word, the title now drops
   the prefix: « Pluie verglaçante », « Orages violents », « Gel ». That covers the alert card
-  (Pi and desktop/mobile), the Pi alert view's header, the mini-cards and the map's polygon
-  popup. The full name stays where the type shows nowhere else: the floating mini-banner (its
-  chip is an icon), the extreme alert view's red band (no chip) and the alert view's "Also
-  active" chips. Titles without the « <type> de … » form (« Bulletin météorologique
+  (Pi and desktop/mobile), the Pi alert view's header, the mini-cards, the map's polygon popup
+  and the floating mini-banner over the full-screen radar, whose icon-only chip now prints the
+  Pi card's abbreviated word (« AVERT. », « VEILLE », « AVIS »). The full name stays where the
+  type shows nowhere else: the extreme alert view's red band (no chip) and the alert view's
+  "Also active" chips. Titles without the « <type> de … » form (« Bulletin météorologique
   spécial »), English, Spanish and NWS titles are unchanged, and so are the server payload and
   the Sense HAT. The rule lives in `shortAlertTitle` (`client/src/ui/alertTitle.js`, tested by
   the new `test/alertTitle.test.js`); the chip's product type, severity fallback included,
   moves to `chipProductType` in `ui/alertLogic.js` so a title only drops the word its chip shows.
+  In English and Spanish the mini-banner's chip prints WARNING / ADVERT., which leaves its title
+  less room; a long title now wraps to a second line instead of being cut ("Severe
+  thunderstorm warning" at 800×480, "Snow squall warning" with two alerts on a phone).
 
 ## [3.3.1] - 2026-10-09
 

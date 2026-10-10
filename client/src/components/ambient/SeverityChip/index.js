@@ -49,14 +49,17 @@ function severityToColourTier(severity) {
  * @param {string} props.severity - "minor" | "moderate" | "severe" | "extreme"
  * @param {string} [props.eventName] - the alert's English event name
  *   (`title_en` / `eventType`); drives the product-type word. Default "".
- * @param {boolean} [props.compact] - When true, render label-less for tight
- *   spaces (FloatingMiniBanner). A title beside an icon-only chip keeps its
- *   French product prefix: don't pass it through shortAlertTitle
- *   (ui/alertTitle.js). Default false — full icon + label.
+ * @param {boolean} [props.compact] - When true, render label-less (icon
+ *   only) for tight spaces. No surface uses it since 2026-10: the
+ *   FloatingMiniBanner, its last user, moved to `abbreviated`. A title
+ *   beside an icon-only chip keeps its French product prefix: don't pass it
+ *   through shortAlertTitle (ui/alertTitle.js). Default false — full icon +
+ *   label.
  * @param {boolean} [props.abbreviated] - When true, render the icon + the
  *   SHORT product word (e.g. FR "Avert." for Avertissement). Used by the
  *   v3.2 compact Pi alert card, where the full word ("AVERTISSEMENT" ≈
- *   140 px) squeezes the one-row title to nothing. The full word stays on
+ *   140 px) squeezes the one-row title to nothing, and by the
+ *   FloatingMiniBanner over the full-screen radar. The full word stays on
  *   the `title` tooltip. Ignored when `compact` (icon-only) is set.
  * @returns {JSX.Element} the chip
  */
