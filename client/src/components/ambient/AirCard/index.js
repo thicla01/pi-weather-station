@@ -1,8 +1,9 @@
 import React, { useContext, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
-import { WeatherDataContext } from "~/AppContext";
+import { WeatherDataContext, UiPrefsContext } from "~/AppContext";
 import { formatAge } from "~/ui/formatAge";
+import { formatDistanceKm } from "~/components/WeatherMap/geometry";
 import DetailsPopover from "~/components/ambient/DetailsPopover";
 import styles from "./styles.css";
 
@@ -48,7 +49,8 @@ const TIER_CLASS = {
  * Each row is a full-surface tap target opening the same
  * `DetailsPopover` content the old MetricsGrid cells used — plus,
  * for pollen, the per-allergen tier word and a `—` placeholder for
- * null allergens (no invented "none" tier).
+ * null allergens (no invented "none" tier). The AQ popover's station
+ * distance follows the distance-unit preference (`UiPrefsContext`).
  *
  * @param {object} props
  * @param {boolean} [props.suppressAqRow] — v3.2 Pi MID: when the air-quality
@@ -60,6 +62,7 @@ const TIER_CLASS = {
  */
 const AirCard = ({ suppressAqRow = false }) => {
   const { aqhiInfo, pollenInfo } = useContext(WeatherDataContext);
+  const { distanceUnit } = useContext(UiPrefsContext);
   const { t, i18n } = useTranslation();
   const [openKey, setOpenKey] = useState(null);
   const aqRowRef = useRef(null);
@@ -132,7 +135,7 @@ const AirCard = ({ suppressAqRow = false }) => {
                   <span>
                     {aqhiInfo.stationName}
                     {aqhiInfo.stationDistanceKm != null
-                      ? ` (${aqhiInfo.stationDistanceKm}\u00a0km)`
+                      ? ` (${formatDistanceKm(aqhiInfo.stationDistanceKm, distanceUnit)})`
                       : ""}
                   </span>
                 </div>

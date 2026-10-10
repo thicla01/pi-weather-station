@@ -3,8 +3,9 @@ import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
 import windGusts from "@iconify/icons-carbon/wind-gusts";
-import { WeatherDataContext } from "~/AppContext";
+import { WeatherDataContext, UiPrefsContext } from "~/AppContext";
 import { formatAge } from "~/ui/formatAge";
+import { formatDistanceKm } from "~/components/WeatherMap/geometry";
 import SourceBadge from "~/components/ambient/SourceBadge";
 import DetailsPopover from "~/components/ambient/DetailsPopover";
 import styles from "./styles.css";
@@ -59,7 +60,8 @@ function scaleLabel(scale, t) {
  * Rendered only inside LayoutPi (the 7" MID rail); the caller computes the
  * alert state once and passes it so the inline AirCard's AQ row can be
  * suppressed in the same render (no duplicate AQHI reading). Returns null
- * when there is no alert-level reading.
+ * when there is no alert-level reading. The popover's station distance
+ * follows the distance-unit preference (`UiPrefsContext`).
  *
  * @param {object} props
  * @param {{tier: "orange"|"red", category: string}} props.alert — the
@@ -68,6 +70,7 @@ function scaleLabel(scale, t) {
  */
 const AirAlertCard = ({ alert }) => {
   const { aqhiInfo } = useContext(WeatherDataContext);
+  const { distanceUnit } = useContext(UiPrefsContext);
   const { t, i18n } = useTranslation();
   const [open, setOpen] = useState(false);
   const cardRef = useRef(null);
@@ -132,7 +135,9 @@ const AirAlertCard = ({ alert }) => {
             <span className={styles.detailLabel}>{t("metrics.detailStation")}</span>
             <span>
               {aqhiInfo.stationName}
-              {aqhiInfo.stationDistanceKm != null ? ` (${aqhiInfo.stationDistanceKm}\u00a0km)` : ""}
+              {aqhiInfo.stationDistanceKm != null
+                ? ` (${formatDistanceKm(aqhiInfo.stationDistanceKm, distanceUnit)})`
+                : ""}
             </span>
           </div>
         ) : null}

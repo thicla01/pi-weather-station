@@ -16,11 +16,11 @@
 //      via lookup rather than per-component branching.
 //
 //   3. Pure helpers — small standalone functions: `tierForIntensity`,
-//      `buildRingLayers`, `buildArrowPath`, `buildSamplingPoints`,
-//      `panWithRailOffset`, `hasVal`. None take React state, none
-//      mutate anything outside their return value (or — in
-//      panWithRailOffset's case — the Leaflet map argument the caller
-//      passes in).
+//      `formatDistanceKm`, `buildRingLayers`, `buildArrowPath`,
+//      `buildSamplingPoints`, `panWithRailOffset`, `hasVal`. None take
+//      React state, none mutate anything outside their return value
+//      (or — in panWithRailOffset's case — the Leaflet map argument the
+//      caller passes in).
 
 // ─── Sampling geometry ──────────────────────────────────────────────
 
@@ -174,6 +174,23 @@ export function tierForIntensity(intensity) {
   if (intensity >= 5) return "red";
   if (intensity >= 4) return "orange";
   return "yellow";
+}
+
+/**
+ * A distance known in km, shown in the viewer's distance unit: rounded to a
+ * whole number and joined to its unit by a no-break space ("12 km", "7 mi"),
+ * so a narrow line never strands the unit. Whole units because the km
+ * values it gets are whole already (the air-quality station distance is
+ * rounded server-side), and a decimal would claim precision they don't have.
+ *
+ * @param {number} km - distance in kilometres
+ * @param {string} unit - the `distanceUnit` preference, "km" or "mi"
+ *   (anything else reads as km)
+ * @returns {string} the rounded distance and its unit label
+ */
+export function formatDistanceKm(km, unit) {
+  const label = unit === "mi" ? "mi" : "km";
+  return `${Math.round(km / KM_PER_UNIT[label])}\u00a0${label}`;
 }
 
 /**

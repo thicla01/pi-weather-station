@@ -42,6 +42,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   too, so the two hedged verdicts keep the same verb; it fitted with under 2 px to spare. Every
   `alert.*` verdict now fits two lines in English, French and Spanish, the tightest with 4 px to
   spare. The desktop and mobile radar banners use the same strings.
+- **The air-quality station distance follows the distance unit.** The station line of the
+  air-quality popover (inline air card and AIR alert card) always read in km, "(12 km)", even
+  with miles selected. It now follows the distance setting, in whole miles like the whole km it
+  starts from ("(7 mi)"). A shared `formatDistanceKm` in `WeatherMap/geometry.js` reuses
+  `KM_PER_UNIT` and keeps the no-break space before the unit; `test/radarGeometry.test.js`
+  covers it.
 
 ## [3.3.1] - 2026-10-09
 
