@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import { WeatherDataContext, UiPrefsContext } from "~/AppContext";
 import { formatAge } from "~/ui/formatAge";
 import { formatDistanceKm } from "~/components/WeatherMap/geometry";
+import { aqScaleLabelKey, formatAqValue } from "~/ui/airQualityDisplay";
 import DetailsPopover from "~/components/ambient/DetailsPopover";
 import styles from "./styles.css";
 
@@ -68,14 +69,14 @@ const AirCard = ({ suppressAqRow = false }) => {
   const aqRowRef = useRef(null);
   const pollenRowRef = useRef(null);
 
-  const aqi = aqhiInfo?.value;
+  // Printed reading: the AQHI arrives as ECCC's whole number and reads
+  // "10+" above 10 (ui/airQualityDisplay.js).
+  const aqi = formatAqValue(aqhiInfo?.value, aqhiInfo?.scale);
   const aqiCategory = aqhiInfo?.category;
   // Scale label doubles as the row's mono label — one label, fixing
-  // the F5 "IQA · IQA" unit/label duplication the old cell had.
-  const aqiScaleLabel = aqhiInfo?.scale === "iqa" ? "IQA"
-    : aqhiInfo?.scale === "aqhi" ? "AQHI"
-      : aqhiInfo?.scale === "epa" ? "AQI"
-        : t("metrics.aqi");
+  // the F5 "IQA · IQA" unit/label duplication the old cell had. From the
+  // locale files: the AQHI is "CAS" in French.
+  const aqiScaleLabel = t(aqScaleLabelKey(aqhiInfo?.scale));
   const aqQualifier = aqiCategory ? t(`badges.aqiLevel.${aqiCategory}`) : null;
 
   const pollenCategory = pollenInfo?.category;

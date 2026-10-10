@@ -6,11 +6,20 @@
 // API key, official Canadian source. Runs after the MELCC sources in
 // the orchestrator so Quebec markers get observations from the
 // provincial / municipal networks before falling back here.
+//
+// The value is rounded HERE, at normalisation, not in the client: the
+// observation feed carries two decimals (1.22) while ECCC publishes the
+// index as a whole number, and Health Canada's risk bands are defined
+// on that whole number. Rounding before `categoryForAqhi` keeps the
+// shown number and its category in step (a raw 3.6 is "4 — moderate",
+// as on weather.gc.ca), and every consumer of /api/air-quality (inline
+// card, AIR alert card, Debug panel) gets the published value. See
+// `roundAqhi` in ./_shared.js.
 
 const axios = require("axios").default;
 const { recordServiceCall } = require("../serviceStatus");
 const { increment } = require("../requestCounter");
-const { TIMEOUT_MS, haversineKm, categoryForAqhi } = require("./_shared");
+const { TIMEOUT_MS, haversineKm, roundAqhi, categoryForAqhi } = require("./_shared");
 
 const SERVICE_NAME = "Environment Canada (AQHI)";
 const ECCC_BASE = "https://api.weather.gc.ca/collections";
@@ -163,7 +172,10 @@ async function tryAqi(lat, lon) {
     }
     if (!result) continue;
 
-    const { value, kind } = result;
+    const { kind } = result;
+    // Published whole number first, then the category from it (see the
+    // file header).
+    const value = roundAqhi(result.value);
     const category = categoryForAqhi(value);
     if (value == null || category == null) continue;
 
@@ -177,7 +189,7 @@ async function tryAqi(lat, lon) {
       stationDistanceKm: Math.round(distanceKm),
     };
     obsCache.set(stationId, { payload, expiresAt: Date.now() + OBS_TTL_MS });
-    recordServiceCall(SERVICE_NAME, 200, `${stationId} aqhi=${value} (${kind}, ${Math.round(distanceKm)} km)`);
+    recordServiceCall(SERVICE_NAME, 200, `${stationId} aqhi=${result.value}→${value} (${kind}, ${Math.round(distanceKm)} km)`);
     increment("eccc", "aqhi");
     return payload;
   }

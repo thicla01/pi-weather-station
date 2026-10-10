@@ -48,6 +48,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   starts from ("(7 mi)"). A shared `formatDistanceKm` in `WeatherMap/geometry.js` reuses
   `KM_PER_UNIT` and keeps the no-break space before the unit; `test/radarGeometry.test.js`
   covers it.
+- **The AQHI is shown as a whole number, and is called CAS in French.** Where Environment
+  Canada's index is the air-quality source (the fallback outside Quebec and the US), the air
+  card read "1.22 AQHI": ECCC's observation feed carries two decimals, but ECCC publishes the
+  index as a whole number on a 1 to 10+ scale (weather.gc.ca shows a feed value of 2.52 as "3").
+  The server now rounds it to the nearest integer, with a floor of 1, and computes the risk
+  category from the rounded number, the one Health Canada's bands apply to (a raw 3.6 is shown
+  "4", moderate risk, no longer "low"). Above 10 the card prints "10+", as ECCC does. In French
+  the index takes its ECCC name, « cote air santé » (CAS): the air card and its detail popover
+  read "1 CAS", and the AIR alert card's index badge reads "CAS". English and Spanish keep
+  "AQHI" (Canada publishes no Spanish name). IQA and AQI are unchanged. The labels come from new
+  `metrics.aqScale.*` locale keys through `client/src/ui/airQualityDisplay.js`, shared by both
+  cards; `test/airQuality.test.js` and the new `test/airQualityDisplay.test.js` cover the
+  rounding, the "10+" print and the labels.
 
 ## [3.3.1] - 2026-10-09
 

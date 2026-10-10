@@ -26,9 +26,36 @@ function haversineKm(lat1, lon1, lat2, lon2) {
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
+// Bottom of the published AQHI scale ("1 to 10+", canada.ca).
+const AQHI_MIN = 1;
+
+/**
+ * Round a raw AQHI to the whole number ECCC publishes. The observation
+ * feed (`aqhi-observations-realtime`) carries two decimals ("aqhi":
+ * 1.22), but the index is a 1–10+ scale of whole numbers: weather.gc.ca
+ * shows Saskatoon's 1.76 as "2", Estevan's 2.52 as "3" and Buffalo
+ * Narrows' 1.17 as "1" — nearest integer, not truncation or ceiling
+ * (checked 2026-10-10 against the feed's latest hour, 05:00 UTC).
+ * Values under the scale's floor of 1 are reported as 1.
+ * Values above 10 are kept as numbers (the client prints them "10+").
+ *
+ * Call it BEFORE `categoryForAqhi`: Health Canada's risk bands
+ * (1-3, 4-6, 7-10, 10+) are defined on the published integer, so a raw
+ * 3.6 is shown "4" and must read "moderate", not "low".
+ *
+ * @param {Number} value raw AQHI from the feed
+ * @returns {Number|null} the published whole-number AQHI, or null when
+ *   the input isn't a number
+ */
+function roundAqhi(value) {
+  if (value == null || isNaN(value)) return null;
+  return Math.max(AQHI_MIN, Math.round(value));
+}
+
 /**
  * Map a Health Canada AQHI value (1–10+) to one of the four risk
- * categories the badge knows how to colour.
+ * categories the badge knows how to colour. Pass the published,
+ * rounded value (`roundAqhi`), never the raw feed value.
  *
  * @param {Number} value AQHI value
  * @returns {"low" | "moderate" | "high" | "veryHigh" | null}
@@ -251,6 +278,7 @@ function categoryForEpaAqi(value) {
 module.exports = {
   TIMEOUT_MS,
   haversineKm,
+  roundAqhi,
   categoryForAqhi,
   categoryForIqa,
   categoryForEpaAqi,

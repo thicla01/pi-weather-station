@@ -14,6 +14,7 @@ const assert = require("node:assert/strict");
 
 const {
   haversineKm,
+  roundAqhi,
   categoryForAqhi,
   categoryForIqa,
   categoryForEpaAqi,
@@ -174,6 +175,43 @@ test("categoryForAqhi: boundaries per the Health Canada scale", () => {
   assert.equal(categoryForAqhi(10.1), "veryHigh");
   assert.equal(categoryForAqhi(null), null);
   assert.equal(categoryForAqhi(NaN), null);
+});
+
+// === roundAqhi (ECCC publishes the AQHI as a whole number) ===
+
+test("roundAqhi: nearest whole number, as weather.gc.ca shows the feed's decimals", () => {
+  // Feed value → number shown on weather.gc.ca's Saskatchewan summary for
+  // the same hour (2026-10-10, 05:00 UTC). 2.52 → 3 rules out truncation,
+  // 1.17 → 1 rules out a ceiling.
+  assert.equal(roundAqhi(1.76), 2); // Saskatoon
+  assert.equal(roundAqhi(2.22), 2); // Regina
+  assert.equal(roundAqhi(2.61), 3); // Swift Current
+  assert.equal(roundAqhi(2.52), 3); // Estevan
+  assert.equal(roundAqhi(1.17), 1); // Buffalo Narrows
+  assert.equal(roundAqhi(1.92), 2); // Prince Albert
+  // The review capture: Charlottetown's "1.22 AQHI".
+  assert.equal(roundAqhi(1.22), 1);
+});
+
+test("roundAqhi: floor of 1, values above 10 kept as numbers, non-numbers → null", () => {
+  assert.equal(roundAqhi(0.3), 1);
+  assert.equal(roundAqhi(0), 1);
+  assert.equal(roundAqhi(10.4), 10);
+  assert.equal(roundAqhi(10.5), 11);
+  assert.equal(roundAqhi(36.2), 36);
+  assert.equal(roundAqhi(null), null);
+  assert.equal(roundAqhi(undefined), null);
+  assert.equal(roundAqhi(NaN), null);
+});
+
+test("AQHI category follows the rounded value (Health Canada bands are on the whole number)", () => {
+  // A raw 3.6 is published "4", so it reads moderate, not low; a raw 10.4
+  // is published "10" (high), a raw 10.5 "10+" (very high).
+  assert.equal(categoryForAqhi(roundAqhi(3.6)), "moderate");
+  assert.equal(categoryForAqhi(roundAqhi(3.4)), "low");
+  assert.equal(categoryForAqhi(roundAqhi(6.5)), "high");
+  assert.equal(categoryForAqhi(roundAqhi(10.4)), "high");
+  assert.equal(categoryForAqhi(roundAqhi(10.5)), "veryHigh");
 });
 
 // === categoryForIqa (Quebec MELCC scale, "Mauvais" split at 100) ===

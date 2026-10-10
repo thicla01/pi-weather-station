@@ -141,6 +141,11 @@
     "humidity": "Humedad",
     "uv": "UV",
     "aqi": "ICA",
+    "aqScale": {
+      "aqhi": "AQHI",
+      "iqa": "IQA",
+      "epa": "AQI"
+    },
     "pressure": "Presión",
     "visibility": "Visibilidad",
     "detailValue": "Valor",
