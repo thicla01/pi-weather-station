@@ -97,7 +97,7 @@ body{font-family:var(--font-sans);background:var(--c-bg);color:var(--c-text)}
 .tb.compact{display:flex;align-items:center;gap:11px;padding:9px 14px}
 .tb.compact .time{font-size:30px;letter-spacing:-.5px}.tb.compact .ampm{font-size:13px;margin-left:5px;vertical-align:6px}
 .tb.compact .m{margin-left:auto;display:flex;flex-direction:column;align-items:flex-end;gap:3px}
-.tb.compact .m .date{margin:0;line-height:1.2;letter-spacing:.3px;white-space:nowrap;text-transform:capitalize}
+.tb.compact .m .date{margin:0;line-height:1.2;letter-spacing:.3px;white-space:nowrap}
 .tb.compact .m .date u{text-decoration:none;border-bottom:1px dotted var(--c-text-dim);border-radius:3px;padding:1px 2px 0;margin:0 -2px}
 .tb.compact .m .sun{display:inline-flex;align-items:center;gap:4px;font-family:var(--font-mono);font-size:11px;color:var(--c-text-dim);white-space:nowrap}
 .tb.compact .m .sun svg{width:16px;height:16px;color:var(--c-accent)}
