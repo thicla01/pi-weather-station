@@ -92,13 +92,30 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   Pi card's abbreviated word (« AVERT. », « VEILLE », « AVIS »). The full name stays where the
   type shows nowhere else: the extreme alert view's red band (no chip) and the alert view's
   "Also active" chips. Titles without the « <type> de … » form (« Bulletin météorologique
-  spécial »), English, Spanish and NWS titles are unchanged, and so are the server payload and
-  the Sense HAT. The rule lives in `shortAlertTitle` (`client/src/ui/alertTitle.js`, tested by
-  the new `test/alertTitle.test.js`); the chip's product type, severity fallback included,
+  spécial ») and NWS titles are unchanged in French (English and Spanish: see the next entry),
+  and so are the server payload and the Sense HAT. The rule lives in `shortAlertTitle`
+  (`client/src/ui/alertTitle.js`, tested by the new `test/alertTitle.test.js`); the chip's product type, severity fallback included,
   moves to `chipProductType` in `ui/alertLogic.js` so a title only drops the word its chip shows.
   In English and Spanish the mini-banner's chip prints WARNING / ADVERT., which leaves its title
-  less room; a long title now wraps to a second line instead of being cut ("Severe
-  thunderstorm warning" at 800×480, "Snow squall warning" with two alerts on a phone).
+  less room; a long title now wraps to a second line instead of being cut.
+- **English and Spanish alert titles drop the trailing product word beside the severity chip.**
+  The English names put the product type last, NWS's in Title Case ("Heavy Freezing Spray
+  Warning", "Flood Watch") and ECCC's in sentence case ("Snowfall warning", "Frost advisory"),
+  while the chip next to the title already prints it (WARNING, or « ADVERT. » in the Spanish UI,
+  which shows the English title). With two alerts the one-line Pi card cut the first to "Heavy
+  Freezing Spray Warn…". Beside a chip that prints the same word, the title now drops it: "Heavy
+  Freezing Spray", "Flood", "Snowfall", "Frost", on the same surfaces as the French titles above,
+  and the hazard keeps its capitalisation. Only "Warning", "Watch" or "Advisory" as the title's
+  last word is dropped. A statement keeps its word ("Special Weather Statement" would read
+  "Special Weather"), as do the few hazards too generic to stand alone (ECCC "Weather warning",
+  NWS "Special Marine Warning", "Hydrologic Advisory"), a title that names another product type
+  than the chip, or
+  whose product word is followed by anything else; nothing is dropped when nothing would remain.
+  The extreme alert view's red band and the "Also active" chips keep the full title, as in
+  French, and a test alert reads "TEST · Heavy Freezing Spray". French UIs are unchanged, NWS
+  titles included. The rule joins the French one in `shortAlertTitle`
+  (`client/src/ui/alertTitle.js`); `test/alertTitle.test.js` covers it, and checks the dropped
+  words against the English chip's labels.
 - **An NWS test alert is marked TEST on every alert surface, not only the alert card.** A test
   or exercise alert (CAP status other than "Actual"), which only the localhost-only "Show test
   alerts" toggle reveals, carried the neutral outlined TEST badge and the "TEST ·" title prefix

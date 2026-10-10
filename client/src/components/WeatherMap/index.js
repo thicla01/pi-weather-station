@@ -662,8 +662,9 @@ NearbyAlertsOverlay.propTypes = {
 
 /**
  * Content of the nearby-alerts tap popup (Phase 3b). Shows the subject of
- * each alert the tap landed in — source badge + severity chip + title (a
- * French ECCC title without the product prefix the chip prints) — and a
+ * each alert the tap landed in — source badge + severity chip + title
+ * (without the product word the chip prints: a French ECCC prefix, an
+ * English trailing word) — and a
  * single "Re-center here" action. A test/exercise NWS alert (the nearby
  * fetch carries `showTest=1` when the localhost-only "Show test alerts"
  * toggle is on) adds the neutral `TEST` qualifier beside its source badge
@@ -689,9 +690,9 @@ const SurveyAlertContent = ({ alerts = NO_ALERTS, onRecenter }) => {
       ) : null}
       <div className={styles.surveyList}>
         {alerts.map((a) => {
-          // The chip prints its word, so a French ECCC title drops the
-          // product prefix it repeats; a test alert's « TEST · » goes on
-          // after that (ui/alertTitle.js).
+          // The chip prints its word, so the title drops the one it
+          // repeats (a French ECCC prefix, an English trailing word); a
+          // test alert's « TEST · » goes on after that (ui/alertTitle.js).
           const title = alertDisplayTitle(
             (lang === "fr" ? a.title_fr : a.title_en) || a.eventType,
             {
