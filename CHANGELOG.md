@@ -115,6 +115,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   prints a source badge without the TEST one, or prints the TEST badge outside an `isTest` guard.
   Remote clients and the Sense HAT never receive test alerts, so nothing changes for them.
 
+### Documentation
+- **Raspberry Pi 3 (and older): don't rotate the screen in software.** On boards whose GPU has no MMU, Raspberry Pi OS runs the labwc compositor with a software renderer. A 180° screen rotation then forces it to recompose every frame on the CPU, instead of handing the browser's frame straight to the display. Measured on a Pi 3B with the official 7" touchscreen: the radar loop drops from about 59 to 5 frames per second, and labwc uses 96 % of a core instead of 1 %. New guide [`docs/pi3-screen-rotation.md`](docs/pi3-screen-rotation.md) (check, fix, power-cable tip), linked from the readme's hardware note. Pi 4 / Pi 5 are not affected.
+
 ## [3.3.1] - 2026-10-09
 
 ### Performance
