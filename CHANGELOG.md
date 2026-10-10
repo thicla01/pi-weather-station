@@ -34,6 +34,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   91 px at size L for long dates up to 126 px, and 130 px at size M, too close to rely on, while
   English, French and every 24-hour clock fit the long month with room to spare and keep it. An
   ellipsis keeps any date that still can't fit inside the card.
+- **Four radar verdicts are no longer cut off on the Pi glance.** At font size L the radar line
+  shows two lines of about 152 px, and four verdicts needed a third, so they ended in "…":
+  "Précipitations fortes/sévères en mouvement autour de vous" now reads "… en mouvement près de
+  vous", and "Heavy/Severe precipitation appears to be moving away" now reads "… seems to be
+  moving away". The English "appears to be approaching" pair becomes "seems to be approaching"
+  too, so the two hedged verdicts keep the same verb; it fitted with under 2 px to spare. Every
+  `alert.*` verdict now fits two lines in English, French and Spanish, the tightest with 4 px to
+  spare. The desktop and mobile radar banners use the same strings.
 
 ## [3.3.1] - 2026-10-09
 
