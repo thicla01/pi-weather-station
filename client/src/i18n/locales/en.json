@@ -358,6 +358,9 @@
     "nearbyWithin": "{{count}} within {{radius}}\u00a0{{unit}}",
     "nearbyNotMapped": "+{{count}} not mapped",
     "nearbyHere": "{{count}} alerts here",
+    "nearbyTierSevere": "Severe",
+    "nearbyTierModerate": "Moderate",
+    "nearbyTierMinor": "Minor",
     "timeline": {
       "now": "now",
       "speedAria": "Cycle radar animation speed",

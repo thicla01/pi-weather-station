@@ -684,7 +684,11 @@ const SurveyAlertContent = ({ alerts = NO_ALERTS, onRecenter }) => {
         {alerts.map((a) => (
           <div key={a.id} className={styles.surveyRow}>
             <SourceBadge source={a.source} />
-            <SeverityChip severity={a.severity} />
+            {/* eventName gives the chip the alert's real product word, as on
+              * every other SeverityChip; without it the word fell back to
+              * one derived from severity, so a moderate frost advisory
+              * read "Veille" (watch). The colour stays the severity tier. */}
+            <SeverityChip severity={a.severity} eventName={a.title_en} />
             <span className={styles.surveyTitle}>{(lang === "fr" ? a.title_fr : a.title_en) || a.eventType}</span>
           </div>
         ))}

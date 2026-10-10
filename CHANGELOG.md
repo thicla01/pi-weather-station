@@ -69,6 +69,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   height. The detail popovers of the air card and the AIR alert card take the same neutral
   title, which named an index too (« IQA » above a French AQHI reading). The `metrics.aqi`
   locale key becomes `metrics.airQuality`.
+- **The radar legend names the alert tiers by severity.** The nearby-alerts key labelled the
+  three polygon colours with alert types, "Warning / Watch / Advisory" (« Avertissement / Veille /
+  Avis »), but the colour is the alert's severity: red for severe or extreme, orange for
+  moderate, yellow for minor. The orange tier holds advisories and warnings as well as watches:
+  on 10 October ECCC rated every frost advisory (57) and snowfall warning (39) in its feed
+  "Moderate", so they all sat under « Veille ». The key now reads "Severe / Moderate / Minor"
+  (« Sévère / Modérée / Mineure », "Severa / Moderada / Menor"), from new `radar.nearbyTier*`
+  locale keys. The tap popup on a nearby-alert polygon had the same slip on its severity chip,
+  whose word fell back to one derived from severity (a moderate frost advisory read « Veille »);
+  it now gets the alert's event name, like every other chip, and prints the real type
+  (« Avis »). The new `test/radarLegendTiers.test.js` keeps both in place.
 
 ## [3.3.1] - 2026-10-09
 

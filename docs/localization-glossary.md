@@ -20,7 +20,7 @@ Replace `☐` with `☑` when a native speaker has confirmed the FR and ES wordi
 
 | Source | Rows | Notes |
 |---|---|---|
-| `client/src/i18n/locales/{en,fr,es}.json` | 407 translated + 21 identical | Every kiosk-visible surface. 428 leaf keys total. |
+| `client/src/i18n/locales/{en,fr,es}.json` | 410 translated + 21 identical | Every kiosk-visible surface. 431 leaf keys total. |
 | `client/src/components/ambient/SettingsPanel/index.js` | 110 (+5 non-literal, not listed) | Settings overlay — the user-facing configuration surface. |
 | `client/src/components/ambient/DebugPanel/index.js` | 81 | Debug overlay — localhost-only, reached from a desktop browser or an SSH tunnel. |
 
@@ -446,6 +446,9 @@ reported here as a gap table, so an empty check means the three files are aligne
 | ☐ | Light | Léger | Ligero | `radar.light` |
 | ☐ | {{count}} alerts here | {{count}} alertes ici | {{count}} alertas aquí | `radar.nearbyHere` |
 | ☐ | +{{count}} not mapped | +{{count}} non cartographiée(s) | +{{count}} no mapeada(s) | `radar.nearbyNotMapped` |
+| ☐ | Minor | Mineure | Menor | `radar.nearbyTierMinor` |
+| ☐ | Moderate | Modérée | Moderada | `radar.nearbyTierModerate` |
+| ☐ | Severe | Sévère | Severa | `radar.nearbyTierSevere` |
 | ☐ | Nearby alerts | Alertes à proximité | Alertas cercanas | `radar.nearbyTitle` |
 | ☐ | {{count}} within {{radius}} {{unit}} | {{count}} dans {{radius}} {{unit}} | {{count}} en {{radius}} {{unit}} | `radar.nearbyWithin` |
 | ☐ | Show direction arrows | Afficher les flèches de direction | Mostrar flechas de dirección | `radar.showDirectionArrows` |
