@@ -25,6 +25,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   by a locale-aware `capitalizeFirst` in `services/formatting.js` (CommonJS, tested by the new
   `test/formatting.test.js`). It replaces the unused `capitalizeFirstLetter`. English is
   unchanged.
+- **The Spanish 12-hour clock stays on one line on the Pi glance.** Chrome writes the Spanish
+  marker "p. m." with an ordinary space, so it split, "m." dropping under the time, and the
+  compact clock card grew from 54 to 80 px. The marker no longer breaks. The wider time then
+  pushed long Spanish dates past the card's right edge ("Dom, 20 de septiembre", by 20 px at font
+  size L), so in Spanish with the 12-hour clock the date now abbreviates the month ("Dom, 20
+  sept"), whatever the date and the font size. That is the only tight case: Spanish 12 h leaves
+  91 px at size L for long dates up to 126 px, and 130 px at size M, too close to rely on, while
+  English, French and every 24-hour clock fit the long month with room to spare and keep it. An
+  ellipsis keeps any date that still can't fit inside the card.
 
 ## [3.3.1] - 2026-10-09
 
