@@ -230,17 +230,31 @@ function forecastTab(fc, currentTab) {
 }
 
 /**
+ * Whether a verdict's reason is a test/exercise gov alert (`isTest`: an NWS
+ * alert with CAP status ≠ "Actual", which reaches the client only through
+ * the localhost-only "Show test alerts" toggle). The reason chip then adds
+ * the neutral TEST qualifier beside the source badge, as every other
+ * gov-alert surface does (CLAUDE.md, "Alert banners").
+ *
+ * @param {?object} reason a verdict's reason ({ badge, alert?, … })
+ * @returns {boolean} true when the reason is a test gov alert
+ */
+function reasonIsTest(reason) {
+  return !!(reason && reason.alert && reason.alert.isTest);
+}
+
+/**
  * Build a decision, or null when the chosen tab is already showing (no
  * visible switch needed).
  *
  * @param {String} tab the target tab
  * @param {object} reason { badge, …trigger detail }
  * @param {?String} currentTab the tab currently shown
- * @returns {?{tab: String, sourceBadge: String, reason: Object}} decision or null
+ * @returns {?{tab: String, sourceBadge: String, isTest: boolean, reason: Object}} decision or null
  */
 function commit(tab, reason, currentTab) {
   if (!tab || tab === currentTab) return null;
-  return { tab, sourceBadge: reason.badge, reason };
+  return { tab, sourceBadge: reason.badge, isTest: reasonIsTest(reason), reason };
 }
 
 /**
@@ -253,7 +267,7 @@ function commit(tab, reason, currentTab) {
  * @param {object} signals { govAlerts, radarAlertState, forecast, env }
  * @param {object} state { currentTab, manualHoldAt, lastAutoSwitchAt, knownSevereAlertKeys }
  * @param {Number} now epoch ms
- * @returns {?{tab: String, sourceBadge: String, reason: Object}} decision or null
+ * @returns {?{tab: String, sourceBadge: String, isTest: boolean, reason: Object}} decision or null
  */
 function selectAutoTab(signals, state, now) {
   const s = signals || {};
@@ -304,11 +318,11 @@ function selectAutoTab(signals, state, now) {
  *
  * @param {object} signals { govAlerts, radarAlertState, forecast }
  * @param {?String} currentTab the active tab (for forecast hysteresis)
- * @returns {?{tab: String, sourceBadge: String}} the live verdict, or null
+ * @returns {?{tab: String, sourceBadge: String, isTest: boolean}} the live verdict, or null
  */
 function hazardTab(signals, currentTab) {
   const pick = pickHazardTab(signals, currentTab);
-  return pick ? { tab: pick.tab, sourceBadge: pick.sourceBadge } : null;
+  return pick ? { tab: pick.tab, sourceBadge: pick.sourceBadge, isTest: reasonIsTest(pick.reason) } : null;
 }
 
 /**

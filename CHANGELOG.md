@@ -99,6 +99,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   In English and Spanish the mini-banner's chip prints WARNING / ADVERT., which leaves its title
   less room; a long title now wraps to a second line instead of being cut ("Severe
   thunderstorm warning" at 800×480, "Snow squall warning" with two alerts on a phone).
+- **An NWS test alert is marked TEST on every alert surface, not only the alert card.** A test
+  or exercise alert (CAP status other than "Actual"), which only the localhost-only "Show test
+  alerts" toggle reveals, carried the neutral outlined TEST badge and the "TEST ·" title prefix
+  on the alert card alone. The floating mini-banner over the full-screen radar, the Pi alert
+  view's header, the nearby-alert polygon popup on the map, the mini-cards and the alert view's
+  "Also active" chips showed it like a real alert, and so did the forecast panel's reason chip
+  when "Auto-select forecast tab" let such an alert pick the tab (a lone NWS badge). They now mark
+  it too: the TEST badge beside the source badge where there is one, and the prefix on every
+  title, put in front after the French title is shortened (« TEST · Pluie verglaçante ») so a cut
+  title never loses it. On the extreme alert view's red band the badge turns white so it stays
+  legible, and it is never coloured. The title now comes from one helper, `alertDisplayTitle` in
+  `client/src/ui/alertTitle.js` (covered by `test/alertTitle.test.js`); the new
+  `test/alertTestQualifier.test.js` fails if a component shows a gov-alert title without it,
+  prints a source badge without the TEST one, or prints the TEST badge outside an `isTest` guard.
+  Remote clients and the Sense HAT never receive test alerts, so nothing changes for them.
 
 ## [3.3.1] - 2026-10-09
 

@@ -24,7 +24,7 @@ import {
   getRadarAlertState,
   chipProductType,
 } from "~/ui/alertLogic";
-import { shortAlertTitle } from "~/ui/alertTitle";
+import { alertDisplayTitle } from "~/ui/alertTitle";
 import { priorityViewsEnabled } from "~/ui/piLayout";
 import styles from "./styles.css";
 
@@ -69,9 +69,10 @@ import styles from "./styles.css";
  * toggle (server-gated, see `govAlertsCtrl`). When present it's marked
  * unambiguously in all three gov branches: a neutral outlined `TEST` badge
  * (`SourceBadge variant="test"`, the `TEST` qualifier — see CLAUDE.md) beside
- * the source badge, plus a "TEST ·" title prefix. The real severity tier is
- * kept (the gate hid it, not a downgrade) so the authentic render is visible.
- * The RADAR branch is never a test alert.
+ * the source badge, plus a "TEST ·" title prefix (`alertDisplayTitle`,
+ * ui/alertTitle.js, shared with every other gov-alert surface). The real
+ * severity tier is kept (the gate hid it, not a downgrade) so the authentic
+ * render is visible. The RADAR branch is never a test alert.
  *
  * **French gov titles** lead with the hazard: the product prefix ECCC puts
  * first (« Avertissement de », « Veille d' », « Avis de ») is dropped
@@ -119,15 +120,6 @@ const AlertBanner = () => {
 
   if (currentAlert) {
     const lang = (i18n.language || "en").slice(0, 2);
-    // Every gov branch below prints the SeverityChip WITH its word (full, or
-    // « AVERT. » on the Pi card), so a French ECCC title drops the product
-    // prefix the chip already shows and leads with the hazard: « Pluie
-    // verglaçante », not « Avertissement de pluie ver… » once the one-line
-    // Pi card ellipsizes it (ui/alertTitle.js).
-    const baseTitle = shortAlertTitle(
-      lang === "fr" ? currentAlert.title_fr : currentAlert.title_en,
-      { lang, productType: chipProductType(currentAlert.title_en, currentAlert.severity) },
-    );
     // Test/exercise alerts (revealed via the localhost-only "Show test alerts"
     // toggle) are marked two ways for ZERO ambiguity: a neutral TEST badge
     // beside the source badge, AND a "TEST ·" title prefix so the word leads
@@ -135,7 +127,21 @@ const AlertBanner = () => {
     // kept (it's the gate that hid the alert, not a downgrade) so the
     // maintainer still sees how a genuine Extreme/etc. actually renders.
     const testLabel = t("alert.testTag", { defaultValue: "TEST" });
-    const title = currentAlert.isTest ? `${testLabel} · ${baseTitle}` : baseTitle;
+    // Every gov branch below prints the SeverityChip WITH its word (full, or
+    // « AVERT. » on the Pi card), so a French ECCC title drops the product
+    // prefix the chip already shows and leads with the hazard: « Pluie
+    // verglaçante », not « Avertissement de pluie ver… » once the one-line
+    // Pi card ellipsizes it. The TEST prefix goes on after that shortening
+    // (alertDisplayTitle, ui/alertTitle.js).
+    const title = alertDisplayTitle(
+      lang === "fr" ? currentAlert.title_fr : currentAlert.title_en,
+      {
+        lang,
+        productType: chipProductType(currentAlert.title_en, currentAlert.severity),
+        isTest: currentAlert.isTest,
+        testLabel,
+      },
+    );
     const testBadge = currentAlert.isTest
       ? <SourceBadge source={testLabel} variant="test" />
       : null;

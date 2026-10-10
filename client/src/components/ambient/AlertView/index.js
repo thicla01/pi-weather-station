@@ -8,7 +8,7 @@ import { RestoreIcon } from "~/components/WeatherMap/icons";
 import { AppActionsContext, SystemContext } from "~/AppContext";
 import { parseAlertText } from "~/ui/alertParser";
 import { chipProductType } from "~/ui/alertLogic";
-import { shortAlertTitle } from "~/ui/alertTitle";
+import { alertDisplayTitle } from "~/ui/alertTitle";
 import useEligibleGovAlerts from "~/hooks/useEligibleGovAlerts";
 import useDismissedAlerts from "~/hooks/useDismissedAlerts";
 import SeverityChip from "~/components/ambient/SeverityChip";
@@ -32,9 +32,13 @@ const DOT_CLASS = { red: "dotRed", orange: "dotOrange", yellow: "dotYellow" };
  *     subtleties"; everything else keeps the tinted SeverityChip), the
  *     source badge, the title and a close → back-to-glance. Beside the
  *     chip a French ECCC title drops the product prefix the chip prints
- *     (`shortAlertTitle`); the chip-less extreme band keeps it;
+ *     (`alertDisplayTitle`); the chip-less extreme band keeps it. A
+ *     test/exercise alert (`isTest`, revealed only by the localhost-only
+ *     "Show test alerts" toggle) gets the neutral `TEST` qualifier beside
+ *     the source badge and a « TEST · » title prefix, as on the glance card;
  *   - an "Aussi actives" selector listing the OTHER eligible gov alerts as
- *     severity-dotted chips (tap → `selectGovAlert` swaps which is primary);
+ *     severity-dotted chips (tap → `selectGovAlert` swaps which is primary;
+ *     a test alert's chip reads « TEST · … »);
  *   - the structured detail body, reusing `AlertDetailInline`'s exported
  *     `SectionBlock` renderer (Où / Danger / Observation / Source / Impact…)
  *     so the parse + layout stay in one place;
@@ -80,6 +84,7 @@ const AlertView = () => {
 
   const source = currentAlert.source || "ECCC";
   const extreme = currentAlert.severity === "extreme";
+  const testLabel = t("alert.testTag", { defaultValue: "TEST" });
   const fullTitle = lang === "fr" ? currentAlert.title_fr : (currentAlert.title_en || currentAlert.title_fr);
   // Beside the tinted SeverityChip (full word, e.g. « AVERTISSEMENT ») the
   // French ECCC title drops the product prefix the chip already prints and
@@ -87,9 +92,22 @@ const AlertView = () => {
   // one-line header ellipsizes, and chip + hazard still read as the full
   // name. The extreme band has no chip (big icon instead), so there the
   // prefix is the only place the product type appears: keep the full title.
-  const title = extreme
-    ? fullTitle
-    : shortAlertTitle(fullTitle, { lang, productType: chipProductType(currentAlert.title_en, currentAlert.severity) });
+  // A test alert's « TEST · » goes in front either way, after the shortening,
+  // so the ellipsis can't cut it (ui/alertTitle.js).
+  const title = alertDisplayTitle(fullTitle, {
+    lang,
+    productType: extreme ? null : chipProductType(currentAlert.title_en, currentAlert.severity),
+    isTest: currentAlert.isTest,
+    testLabel,
+  });
+  // The neutral TEST qualifier beside the source badge (CLAUDE.md → "Alert
+  // banners — always identify the source"). The wrapper lets the extreme red
+  // band re-skin it white (styles.css `.testQualifier`).
+  const testBadge = currentAlert.isTest ? (
+    <span className={styles.testQualifier}>
+      <SourceBadge source={testLabel} variant="test" />
+    </span>
+  ) : null;
   const linkHref = (SOURCE_LINKS[source] && SOURCE_LINKS[source][lang]) || SOURCE_LINKS.ECCC[lang];
   const others = eligibleGovAlerts
     .map((alert, eligibleIdx) => ({ alert, eligibleIdx }))
@@ -108,6 +126,7 @@ const AlertView = () => {
           )}
           <span className={styles.title}>{title}</span>
           {extreme ? <span className={styles.srcWhite}>{source}</span> : <SourceBadge source={source} />}
+          {testBadge}
           <RailSquareButton
             icon={RestoreIcon}
             onClick={back}
@@ -141,8 +160,13 @@ const AlertView = () => {
               >
                 <span className={`${styles.dot} ${styles[DOT_CLASS[alert.tier]] || ""}`} aria-hidden="true" />
                 {/* Full title: the severity dot prints no product word, so
-                  * the prefix is the only place this alert's type shows. */}
-                {lang === "fr" ? alert.title_fr : (alert.title_en || alert.title_fr)}
+                  * the prefix is the only place this alert's type shows (no
+                  * productType). A test alert still leads with « TEST · »,
+                  * the chip's only TEST mark. */}
+                {alertDisplayTitle(
+                  lang === "fr" ? alert.title_fr : (alert.title_en || alert.title_fr),
+                  { isTest: alert.isTest, testLabel },
+                )}
               </button>
             ))}
           </div>

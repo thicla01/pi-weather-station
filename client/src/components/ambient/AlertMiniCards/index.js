@@ -8,7 +8,7 @@ import SeverityChip from "~/components/ambient/SeverityChip";
 import useDismissedAlerts from "~/hooks/useDismissedAlerts";
 import useEligibleGovAlerts from "~/hooks/useEligibleGovAlerts";
 import { chipProductType } from "~/ui/alertLogic";
-import { shortAlertTitle } from "~/ui/alertTitle";
+import { alertDisplayTitle } from "~/ui/alertTitle";
 import styles from "./styles.css";
 
 // Severity-to-rank table for the descending sort in the component
@@ -32,7 +32,9 @@ const SEVERITY_RANK = {
  *
  *   - A `SeverityChip` (icon + tier label)
  *   - The alert's title (localized, single-line, ellipsis; a French ECCC
- *     title drops the product prefix the chip prints — `shortAlertTitle`)
+ *     title drops the product prefix the chip prints, and a test/exercise
+ *     alert's title leads with « TEST · » — `alertDisplayTitle`. The card
+ *     has no source badge, so that prefix is its TEST mark)
  *   - A chevron pointing right ("tap to open")
  *   - A tier-coloured left border (mirrors the primary card's
  *     severity strip)
@@ -68,6 +70,7 @@ const AlertMiniCards = () => {
   const { t, i18n } = useTranslation();
   const { restoreAll, dismissedCount } = useDismissedAlerts();
   const lang = (i18n.language || "en").slice(0, 2);
+  const testLabel = t("alert.testTag", { defaultValue: "TEST" });
   // On Pi the cycle counter owns multi-alert navigation, so the mini-card
   // list is dropped — only the restore pill below survives here.
   const isPi = piLayoutState != null;
@@ -113,10 +116,17 @@ const AlertMiniCards = () => {
         <ul className={styles.list}>
           {ranked.map(({ alert, eligibleIdx }) => {
             // The chip below prints its word, so a French ECCC title drops
-            // the product prefix it repeats (ui/alertTitle.js).
-            const title = shortAlertTitle(
+            // the product prefix it repeats; a test alert then gets its
+            // « TEST · » prefix, the only TEST mark on this badge-less card
+            // (ui/alertTitle.js).
+            const title = alertDisplayTitle(
               lang === "fr" ? alert.title_fr : alert.title_en,
-              { lang, productType: chipProductType(alert.title_en, alert.severity) },
+              {
+                lang,
+                productType: chipProductType(alert.title_en, alert.severity),
+                isTest: alert.isTest,
+                testLabel,
+              },
             );
             return (
               <li

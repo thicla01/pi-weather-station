@@ -53,7 +53,7 @@ The "4 tabs" are the segmented control `METRICS = ["temp", "wind", "precip", "gr
 | Confidence buckets | `confidenceBucket()` (`ui/hybrid.js`, high ≥ 70 / mid ≥ 40) |
 | Precip detection | `isCurrentlyPrecipitating()` (`ui/alertLogic.js`, weatherCode 4000–8000) |
 | Eligible gov tiers | `ELIGIBLE_GOV_TIERS = ["red","orange"]` (`ui/alertLogic.js`) |
-| Source-badge styling | `styles.sourceBadge` *(as built: the reason chip renders the shared `ambient/SourceBadge` component; the v2 `sourceBadge` class was removed with the legacy tree in PR 299)* |
+| Source-badge styling | `styles.sourceBadge` *(as built: the reason chip renders the shared `ambient/SourceBadge` component; the v2 `sourceBadge` class was removed with the legacy tree in PR 299; when the switch came from an NWS test/exercise alert — `isTest`, revealed only by the localhost-only "Show test alerts" toggle — the decision and `hazardTab()` verdict carry `isTest: true` and the chip adds the neutral outlined `TEST` qualifier, `SourceBadge variant="test"`, after the source badge)* |
 
 **Genuinely new work:** (1) a pure `selectAutoTab()` reducer + its regression test; (2) a thin `useAutoTabSelector` hook subscribing to the three existing contexts; (3) two new localStorage keys (as built: the `autoSelectTab` opt-in key + `ambient.chartTabs.manualHold`) + a settings toggle; (4) a "reason chip" in the `ChartTabs` header; (5) `ChartTabs` accepting an externally-driven metric set. **No new server endpoint, no new fetch, no new field on the wire.**
 

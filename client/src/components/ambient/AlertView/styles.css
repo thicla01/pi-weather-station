@@ -72,6 +72,24 @@
   flex: none;
 }
 
+/* TEST qualifier (a test/exercise NWS alert, revealed by the localhost-only
+ * "Show test alerts" toggle): SourceBadge's neutral outlined `test` variant,
+ * wrapped so it keeps its width beside the ellipsized title. */
+.testQualifier {
+  flex: none;
+  display: inline-flex;
+}
+
+/* On the extreme red band the badge's dim outline (--c-text-dim) all but
+ * vanishes into --c-danger (about 1.3:1 in the day palette, less in
+ * night-red), so it takes the band's white chrome, like .srcWhite and the
+ * minimize square. White on the band is still neutral: never a warn fill.
+ * (0,3,1) beats SourceBadge's `.test` (0,1,0) whatever the bundle order. */
+.header.extreme .testQualifier > span {
+  color: #fff;
+  border-color: rgba(255, 255, 255, 0.55);
+}
+
 /* Minimize square — RailSquareButton owns the bordered-surface box; here we
  * only re-skin it for the EXTREME red band, where the default
  * --c-surface-hybrid fill would read as a hole. White-outlined to match the

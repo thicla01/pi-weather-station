@@ -6,8 +6,11 @@
 // The French titles below are ECCC `alert_name_fr` values as the server
 // serves them (`capitalizeFirst` in server/govAlertSources/_shared.js):
 // the ones measured on the 7" kiosk in October 2026 and ECCC's other
-// names. The last test checks the components: every one that prints a
-// worded chip (full or abbreviated) shortens its title. Run: `npm test`.
+// names. The `alertDisplayTitle` tests check the TEST qualifier goes on
+// after the shortening. The last test checks the components: every one
+// that prints a worded chip (full or abbreviated) shortens its title.
+// `test/alertTestQualifier.test.js` checks they all mark test alerts.
+// Run: `npm test`.
 
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
@@ -17,6 +20,7 @@ const path = require("node:path");
 const {
   FR_PRODUCT_WORDS,
   shortAlertTitle,
+  alertDisplayTitle,
 } = require("../client/src/ui/alertTitle");
 
 const FR = { lang: "fr" };
@@ -222,10 +226,73 @@ test("each stripped word is the word the French chip prints", () => {
   assert.ok(Object.isFrozen(FR_PRODUCT_WORDS));
 });
 
+test("alertDisplayTitle: the TEST prefix goes on AFTER the shortening", () => {
+  const opts = { lang: "fr", productType: "warning", isTest: true, testLabel: "TEST" };
+  // Shortened first, then prefixed: the hazard follows the qualifier.
+  assert.equal(alertDisplayTitle("Avertissement de pluie verglaçante", opts), "TEST · Pluie verglaçante");
+  assert.equal(alertDisplayTitle("Veille d'orages violents", { ...opts, productType: "watch" }), "TEST · Orages violents");
+  // The other order would have blocked the match and kept the product word.
+  assert.notEqual(
+    alertDisplayTitle("Avertissement de pluie", opts),
+    shortAlertTitle("TEST · Avertissement de pluie", opts),
+  );
+  // NWS titles are never shortened; English ones only take the prefix.
+  assert.equal(
+    alertDisplayTitle("Tornado Warning", { lang: "en", productType: "warning", isTest: true, testLabel: "TEST" }),
+    "TEST · Tornado Warning",
+  );
+  assert.equal(alertDisplayTitle("Tornado Warning", { ...opts }), "TEST · Tornado Warning");
+});
+
+test("alertDisplayTitle: a real alert is shortened exactly like shortAlertTitle", () => {
+  for (const isTest of [false, undefined, null, 0]) {
+    assert.equal(
+      alertDisplayTitle("Avertissement de pluie", { lang: "fr", productType: "warning", isTest, testLabel: "TEST" }),
+      "Pluie",
+    );
+    assert.equal(alertDisplayTitle("Tornado Warning", { lang: "en", productType: "warning", isTest }), "Tornado Warning");
+  }
+  // No productType (the extreme band, the "Also active" chips): whole title.
+  assert.equal(alertDisplayTitle("Avertissement de pluie", { lang: "fr" }), "Avertissement de pluie");
+  assert.equal(
+    alertDisplayTitle("Avertissement de pluie", { lang: "fr", isTest: true, testLabel: "TEST" }),
+    "TEST · Avertissement de pluie",
+  );
+  assert.equal(alertDisplayTitle("Avertissement de pluie"), "Avertissement de pluie");
+  assert.equal(alertDisplayTitle(undefined), undefined);
+  assert.equal(alertDisplayTitle(null), null);
+});
+
+test("alertDisplayTitle: label fallback and a test alert without a title", () => {
+  // No label passed (or an empty one) → "TEST", the alert.testTag value.
+  assert.equal(alertDisplayTitle("Tornado Warning", { isTest: true }), "TEST · Tornado Warning");
+  assert.equal(alertDisplayTitle("Tornado Warning", { isTest: true, testLabel: "" }), "TEST · Tornado Warning");
+  assert.equal(alertDisplayTitle("Tornado Warning", { isTest: true, testLabel: "ESSAI" }), "ESSAI · Tornado Warning");
+  // Never "TEST · undefined": the qualifier alone.
+  assert.equal(alertDisplayTitle(undefined, { isTest: true, testLabel: "TEST" }), "TEST");
+  assert.equal(alertDisplayTitle(null, { isTest: true }), "TEST");
+  assert.equal(alertDisplayTitle("", { isTest: true }), "TEST");
+  assert.equal(alertDisplayTitle("   ", { isTest: true }), "TEST");
+});
+
+test("alertDisplayTitle's default label is the alert.testTag value in every locale", () => {
+  for (const lang of ["en", "fr", "es"]) {
+    const strings = JSON.parse(fs.readFileSync(
+      path.join(__dirname, `../client/src/i18n/locales/${lang}.json`), "utf8",
+    ));
+    assert.equal(
+      alertDisplayTitle("X", { isTest: true }),
+      `${strings.alert.testTag} · X`,
+      `${lang}: alert.testTag`,
+    );
+  }
+});
+
 test("every component that prints a worded SeverityChip shortens the title beside it", () => {
   // A chip that prints its word, full or `abbreviated` (« AVERT. »),
   // repeats the French prefix, so its component must pass the title
-  // through shortAlertTitle. Only an icon-only `compact` chip leaves the
+  // through shortAlertTitle, directly or through alertDisplayTitle with a
+  // productType. Only an icon-only `compact` chip leaves the
   // title whole; no surface has used one since the FloatingMiniBanner
   // moved to `abbreviated` (2026-10).
   const clientSrc = path.join(__dirname, "../client/src");
@@ -241,7 +308,9 @@ test("every component that prints a worded SeverityChip shortens the title besid
       if (!chips.some((chip) => !/\bcompact\b/.test(chip))) continue;
       const rel = path.relative(clientSrc, full).split(path.sep).join("/");
       worded.push(rel);
-      if (!/\bshortAlertTitle\(/.test(src)) offenders.push(rel);
+      const shortens = /\bshortAlertTitle\(/.test(src)
+        || /\balertDisplayTitle\([\s\S]*?\bproductType\b/.test(src);
+      if (!shortens) offenders.push(rel);
     }
   };
   walk(clientSrc);

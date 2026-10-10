@@ -23,6 +23,10 @@ const MANUAL_HOLD_KEY = "ambient.chartTabs.manualHold";
 // async payloads landing together produce one decision (LLD §9, brake 1).
 const EVAL_DEBOUNCE_MS = 30 * 1000;
 
+// No standing command: the user's tab is left alone and no chip shows.
+// Frozen and shared so a repeated clear is a no-op state update.
+const NO_COMMAND = Object.freeze({ metric: null, source: null, isTest: false });
+
 /**
  * Read the manual-hold timestamp (epoch ms) from localStorage, or null.
  *
@@ -58,9 +62,11 @@ function readManualHold() {
  *   period's tab — "temp" | "wind" | "precip" | "grid")
  * @param {?{current: Number}} cardActivityRef a ref whose `.current` holds the
  *   epoch ms of the last interaction with the forecast card (touch inhibit)
- * @returns {{commandedMetric: ?String, autoSwitchSource: ?String, stampManualHold: (function(): void)}}
+ * @returns {{commandedMetric: ?String, autoSwitchSource: ?String, autoSwitchIsTest: boolean, stampManualHold: (function(): void)}}
  *   the commanded metric (null = leave the user's tab), the source badge for
- *   the reason chip, and a callback to stamp the manual hold on a user tap
+ *   the reason chip, whether that source is a test/exercise gov alert (the
+ *   chip then adds the TEST qualifier), and a callback to stamp the manual
+ *   hold on a user tap
  */
 export default function useAutoTabSelector(activeMetric, cardActivityRef) {
   const ui = useContext(UiPrefsContext);
@@ -108,8 +114,9 @@ export default function useAutoTabSelector(activeMetric, cardActivityRef) {
   }, [innerRisk, outerRisk, innerTrend, outerTrend, innerBumped, outerBumped, innerConf, outerConf]);
 
   // The metric the hook is currently commanding (null = leave the user's
-  // tab; the null-on-calm contract). Source is the badge for the chip.
-  const [commanded, setCommanded] = useState({ metric: null, source: null });
+  // tab; the null-on-calm contract). Source is the badge for the chip;
+  // isTest flags a test/exercise gov alert as that source.
+  const [commanded, setCommanded] = useState(NO_COMMAND);
 
   const lastAutoSwitchAtRef = useRef(null);
   const knownSevereRef = useRef(null); // null = not yet seeded
@@ -136,7 +143,7 @@ export default function useAutoTabSelector(activeMetric, cardActivityRef) {
     } catch {
       /* ignore */
     }
-    setCommanded({ metric: null, source: null });
+    setCommanded(NO_COMMAND);
   }, []);
 
   // Turning the feature off clears any standing command — applied DURING
@@ -149,7 +156,7 @@ export default function useAutoTabSelector(activeMetric, cardActivityRef) {
   if (autoSelectTab !== prevAutoSelectTab) {
     setPrevAutoSelectTab(autoSelectTab);
     if (!autoSelectTab) {
-      setCommanded({ metric: null, source: null });
+      setCommanded(NO_COMMAND);
     }
   }
   // Turning the feature back on resets the dwell floor + known-severe seed
@@ -203,15 +210,18 @@ export default function useAutoTabSelector(activeMetric, cardActivityRef) {
       const verdict = hazardTab(signals, activeMetric);
       if (decision) {
         lastAutoSwitchAtRef.current = now;
-        setCommanded({ metric: decision.tab, source: decision.sourceBadge });
+        setCommanded({ metric: decision.tab, source: decision.sourceBadge, isTest: decision.isTest });
       } else {
         setCommanded((prev) => {
           if (!prev.metric) return prev;
           // The commanded tab is no longer the live verdict (calm, or the
           // hazard moved to another tab) → drop it so the chip clears.
-          if (!verdict || verdict.tab !== prev.metric) return { metric: null, source: null };
-          // Same tab, different source now justifies it → keep the badge honest.
-          if (verdict.sourceBadge !== prev.source) return { metric: prev.metric, source: verdict.sourceBadge };
+          if (!verdict || verdict.tab !== prev.metric) return NO_COMMAND;
+          // Same tab, different source now justifies it (or the same source,
+          // test ↔ real alert) → keep the badge honest.
+          if (verdict.sourceBadge !== prev.source || verdict.isTest !== prev.isTest) {
+            return { metric: prev.metric, source: verdict.sourceBadge, isTest: verdict.isTest };
+          }
           return prev;
         });
       }
@@ -234,6 +244,7 @@ export default function useAutoTabSelector(activeMetric, cardActivityRef) {
   return {
     commandedMetric: commanded.metric,
     autoSwitchSource: commanded.source,
+    autoSwitchIsTest: commanded.isTest,
     stampManualHold,
   };
 }
