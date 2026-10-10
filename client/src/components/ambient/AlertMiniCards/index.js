@@ -31,10 +31,11 @@ const SEVERITY_RANK = {
  * severity descending. Each mini-card carries:
  *
  *   - A `SeverityChip` (icon + tier label)
- *   - The alert's title (localized, single-line, ellipsis; a French ECCC
- *     title drops the product prefix the chip prints, and a test/exercise
- *     alert's title leads with « TEST · » — `alertDisplayTitle`. The card
- *     has no source badge, so that prefix is its TEST mark)
+ *   - The alert's title (localized, single-line, ellipsis; it drops the
+ *     product word the chip prints — a French ECCC title's prefix, an
+ *     English title's trailing word — and a test/exercise alert's title
+ *     leads with « TEST · » — `alertDisplayTitle`. The card has no source
+ *     badge, so that prefix is its TEST mark)
  *   - A chevron pointing right ("tap to open")
  *   - A tier-coloured left border (mirrors the primary card's
  *     severity strip)
@@ -115,10 +116,10 @@ const AlertMiniCards = () => {
       {hasMiniCards && (
         <ul className={styles.list}>
           {ranked.map(({ alert, eligibleIdx }) => {
-            // The chip below prints its word, so a French ECCC title drops
-            // the product prefix it repeats; a test alert then gets its
-            // « TEST · » prefix, the only TEST mark on this badge-less card
-            // (ui/alertTitle.js).
+            // The chip below prints its word, so the title drops the one it
+            // repeats (a French ECCC prefix, an English trailing word); a
+            // test alert then gets its « TEST · » prefix, the only TEST mark
+            // on this badge-less card (ui/alertTitle.js).
             const title = alertDisplayTitle(
               lang === "fr" ? alert.title_fr : alert.title_en,
               {

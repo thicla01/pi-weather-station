@@ -14,8 +14,9 @@
 //
 //   - every localized gov-alert title (`title_fr`) a component reads goes
 //     through `alertDisplayTitle` (ui/alertTitle.js), and every call passes
-//     the alert's `isTest`, so the prefix is applied after the French
-//     shortening and never built by hand;
+//     the alert's `isTest`, so the prefix is applied after the title is
+//     shortened (French prefix, English trailing word) and never built
+//     by hand;
 //   - a component that also prints a SourceBadge renders the TEST badge,
 //     and only behind the alert's `isTest`;
 //   - the auto-tab reason chip (ChartTabs), whose source badge can name a

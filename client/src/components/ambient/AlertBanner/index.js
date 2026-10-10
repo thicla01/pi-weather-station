@@ -74,11 +74,14 @@ import styles from "./styles.css";
  * severity tier is kept (the gate hid it, not a downgrade) so the authentic
  * render is visible. The RADAR branch is never a test alert.
  *
- * **French gov titles** lead with the hazard: the product prefix ECCC puts
- * first (« Avertissement de », « Veille d' », « Avis de ») is dropped
- * because the SeverityChip beside the title already prints that word
- * (`shortAlertTitle`, ui/alertTitle.js). English / Spanish / NWS titles are
- * shown as received.
+ * **Gov titles drop the product word the chip prints.** In French they
+ * lead with the hazard: the product prefix ECCC puts first (« Avertissement
+ * de », « Veille d' », « Avis de ») is dropped because the SeverityChip
+ * beside the title already prints that word. In English and Spanish (both
+ * show the English title) a trailing "Warning" / "Watch" / "Advisory" is
+ * dropped the same way ("Heavy Freezing Spray Warning" → "Heavy Freezing
+ * Spray"); a statement keeps its word (`shortAlertTitle`,
+ * ui/alertTitle.js). NWS titles in a French UI are shown as received.
  *
  * Returns `null` when there is no eligible alert — same SHOW gate
  * as v3.0.
@@ -131,7 +134,9 @@ const AlertBanner = () => {
     // « AVERT. » on the Pi card), so a French ECCC title drops the product
     // prefix the chip already shows and leads with the hazard: « Pluie
     // verglaçante », not « Avertissement de pluie ver… » once the one-line
-    // Pi card ellipsizes it. The TEST prefix goes on after that shortening
+    // Pi card ellipsizes it. An English title (the Spanish UI's too) drops
+    // the trailing word instead: "Heavy Freezing Spray", not "Heavy
+    // Freezing Spray Warn…". The TEST prefix goes on after that shortening
     // (alertDisplayTitle, ui/alertTitle.js).
     const title = alertDisplayTitle(
       lang === "fr" ? currentAlert.title_fr : currentAlert.title_en,

@@ -31,8 +31,9 @@ const DOT_CLASS = { red: "dotRed", orange: "dotOrange", yellow: "dotYellow" };
  *     gets a solid red band — "when lives are at stake, drop the
  *     subtleties"; everything else keeps the tinted SeverityChip), the
  *     source badge, the title and a close → back-to-glance. Beside the
- *     chip a French ECCC title drops the product prefix the chip prints
- *     (`alertDisplayTitle`); the chip-less extreme band keeps it. A
+ *     chip the title drops the product word the chip prints (a French
+ *     ECCC prefix, an English trailing word — `alertDisplayTitle`); the
+ *     chip-less extreme band keeps it. A
  *     test/exercise alert (`isTest`, revealed only by the localhost-only
  *     "Show test alerts" toggle) gets the neutral `TEST` qualifier beside
  *     the source badge and a « TEST · » title prefix, as on the glance card;
@@ -88,10 +89,11 @@ const AlertView = () => {
   const fullTitle = lang === "fr" ? currentAlert.title_fr : (currentAlert.title_en || currentAlert.title_fr);
   // Beside the tinted SeverityChip (full word, e.g. « AVERTISSEMENT ») the
   // French ECCC title drops the product prefix the chip already prints and
-  // leads with the hazard, as on the glance card the user just tapped — the
+  // leads with the hazard, and an English title (the Spanish UI's too) its
+  // trailing word, as on the glance card the user just tapped — the
   // one-line header ellipsizes, and chip + hazard still read as the full
   // name. The extreme band has no chip (big icon instead), so there the
-  // prefix is the only place the product type appears: keep the full title.
+  // title is the only place the product type appears: keep it whole.
   // A test alert's « TEST · » goes in front either way, after the shortening,
   // so the ellipsis can't cut it (ui/alertTitle.js).
   const title = alertDisplayTitle(fullTitle, {
@@ -160,8 +162,8 @@ const AlertView = () => {
               >
                 <span className={`${styles.dot} ${styles[DOT_CLASS[alert.tier]] || ""}`} aria-hidden="true" />
                 {/* Full title: the severity dot prints no product word, so
-                  * the prefix is the only place this alert's type shows (no
-                  * productType). A test alert still leads with « TEST · »,
+                  * the title (its French prefix, its English trailing word)
+                  * is the only place this alert's type shows (no productType). A test alert still leads with « TEST · »,
                   * the chip's only TEST mark. */}
                 {alertDisplayTitle(
                   lang === "fr" ? alert.title_fr : (alert.title_en || alert.title_fr),

@@ -27,11 +27,12 @@ import styles from "./styles.css";
  * the source badge, the abbreviated SeverityChip (« AVERT. », the Pi
  * compact alert card's chip), the title, a "1 / N" counter when several
  * alerts are active, and a trailing chevron (P4 audit follow-up,
- * 2026-06-11). The chip prints its word, so a French ECCC title leads
- * with the hazard, as on the other alert surfaces: « Pluie verglaçante »,
- * not « Avertissement de pluie verglaçante » (`alertDisplayTitle` →
- * `shortAlertTitle`, ui/alertTitle.js). A title too long for one line wraps to a second
- * one rather than being cut (styles.css `.title`).
+ * 2026-06-11). The chip prints its word, so the title drops it, as on the
+ * other alert surfaces: « Pluie verglaçante », not « Avertissement de pluie
+ * verglaçante », and "Heavy Freezing Spray", not "Heavy Freezing Spray
+ * Warning" (`alertDisplayTitle` → `shortAlertTitle`, ui/alertTitle.js).
+ * A title too long for one line wraps to a second one rather than being
+ * cut (styles.css `.title`).
  *
  * A test/exercise alert (`currentAlert.isTest`: an NWS alert with CAP
  * status ≠ `Actual`, shown only through the localhost-only "Show test
@@ -73,8 +74,9 @@ const FloatingMiniBanner = ({ onExpand, placement = "topRight" }) => {
   // French ECCC title drops the prefix that repeats it and leads with the
   // hazard. Kept whole beside the chip, « Avertissement de pluie
   // verglaçante » would read « Avertissement de plu… » in the 360 px
-  // banner with two alerts. A test alert's « TEST · » goes on after that
-  // shortening, as on AlertBanner.
+  // banner with two alerts. An English title (the Spanish UI's too) drops
+  // its trailing word the same way. A test alert's « TEST · » goes on
+  // after that shortening, as on AlertBanner.
   const title = alertDisplayTitle(
     lang === "fr" ? currentAlert.title_fr : currentAlert.title_en,
     {

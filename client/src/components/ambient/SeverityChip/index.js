@@ -52,9 +52,9 @@ function severityToColourTier(severity) {
  * @param {boolean} [props.compact] - When true, render label-less (icon
  *   only) for tight spaces. No surface uses it since 2026-10: the
  *   FloatingMiniBanner, its last user, moved to `abbreviated`. A title
- *   beside an icon-only chip keeps its French product prefix: don't pass it
- *   through shortAlertTitle (ui/alertTitle.js). Default false — full icon +
- *   label.
+ *   beside an icon-only chip keeps its product word (the French prefix,
+ *   the English trailing word): don't pass it through shortAlertTitle
+ *   (ui/alertTitle.js). Default false — full icon + label.
  * @param {boolean} [props.abbreviated] - When true, render the icon + the
  *   SHORT product word (e.g. FR "Avert." for Avertissement). Used by the
  *   v3.2 compact Pi alert card, where the full word ("AVERTISSEMENT" ≈
@@ -67,7 +67,8 @@ const SeverityChip = ({ severity, eventName = "", compact = false, abbreviated =
   const { t } = useTranslation();
   const colourTier = severityToColourTier(severity);
   // Parsed product type, else a severity-derived word — the same resolution
-  // the titles beside the chip use to drop a repeated prefix (alertTitle.js).
+  // the titles beside the chip use to drop the product word they repeat
+  // (alertTitle.js).
   const word = chipProductType(eventName, severity);
   const wordCap = word.charAt(0).toUpperCase() + word.slice(1);
   const labelKey = `alert.severity${wordCap}`;

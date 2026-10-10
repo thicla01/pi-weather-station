@@ -8,7 +8,7 @@ export interface SeverityChipProps {
   severity: "minor" | "moderate" | "severe" | "extreme";
   /** The localized product-type word: "Warning" / "Watch" / "Advisory" / "Avertissement" / "Veille" / "Avis". */
   label: string;
-  /** Icon only — no app surface uses it since the FloatingMiniBanner moved to `abbreviated`; a title beside it keeps its French product prefix. */
+  /** Icon only — no app surface uses it since the FloatingMiniBanner moved to `abbreviated`; a title beside it keeps its product word (the French prefix, the English trailing word). */
   compact?: boolean;
   /** Short word ("Avert.") with tighter spacing — the Pi compact alert card and the FloatingMiniBanner. */
   abbreviated?: boolean;
