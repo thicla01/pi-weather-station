@@ -116,10 +116,20 @@
 
 /* Alarm verdicts (orange/red) run long — up to ~50 chars across EN/FR/ES
  * (e.g. "Alerte — précipitations sévères qui s'intensifient"). A notch
- * smaller (12px vs the calm 14px) so the FULL verdict fits the 2-line clamp
- * without truncation (maintainer: show the whole title). Calm verdicts are
- * short (≤ ~22 chars, one line) and keep the larger line size. Tier class
- * sits on `.line`; `.verdict` is its child. */
+ * smaller (12px vs the calm 14px) to help them into the 2-line clamp
+ * (maintainer: show the whole title). The size alone doesn't guarantee it:
+ * at font size L a verdict line holds ~152 px, and the `alert.*` strings
+ * are worded to fit two lines there. Measured 2026-10 in the 7" rail, the
+ * tightest second line has 4 px to spare (ES "…desplazándose en su zona");
+ * the old FR "…en mouvement autour de vous" and EN "…appears to be moving
+ * away" ran to a third line and were cut with "…". Re-measure at size L
+ * before lengthening a verdict.
+ *
+ * Calm verdicts keep the larger 14px. Most fit one line at size L, but
+ * some take two (FR "Aucune pluie sur 60 mi" and "…100 km", "Précipitations
+ * légères"; EN "No rain within 100 km"), which grows the line from 44 to
+ * 51 px; the clamp leaves them whole. Tier class sits on `.line`;
+ * `.verdict` is its child. */
 .tier-orange .verdict,
 .tier-red .verdict {
   font-size: 12px;

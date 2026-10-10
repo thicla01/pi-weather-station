@@ -104,7 +104,7 @@
   "nowcast": {
     "aria": "État du radar : {{verdict}}",
     "calm": {
-      "noRainWithin": "Aucune pluie sur {{distance}} {{unit}}",
+      "noRainWithin": "Aucune pluie sur {{distance}}\u00a0{{unit}}",
       "radarUnavailable": "Radar indisponible",
       "clearDay": "Soleil radieux",
       "clearNight": "Nuit claire",
@@ -290,8 +290,8 @@
     "redLeaving": "Précipitations sévères mais s'éloignent",
     "redApproachingHedged": "Précipitations sévères qui semblent s'approcher",
     "redLeavingHedged": "Précipitations sévères qui semblent s'éloigner",
-    "orangeDrifting": "Précipitations fortes en mouvement autour de vous",
-    "redDrifting": "Précipitations sévères en mouvement autour de vous",
+    "orangeDrifting": "Précipitations fortes en mouvement près de vous",
+    "redDrifting": "Précipitations sévères en mouvement près de vous",
     "severityAdvisory": "Avis",
     "severityWatch": "Veille",
     "severityWarning": "Avertissement",
@@ -350,7 +350,7 @@
     "hideDirectionArrows": "Masquer les flèches de direction",
     "directionArrowsNeedRings": "Activez d'abord les cercles radar pour utiliser les flèches",
     "nearbyTitle": "Alertes à proximité",
-    "nearbyWithin": "{{count}} dans {{radius}} {{unit}}",
+    "nearbyWithin": "{{count}} dans {{radius}}\u00a0{{unit}}",
     "nearbyNotMapped": "+{{count}} non cartographiée(s)",
     "nearbyHere": "{{count}} alertes ici",
     "timeline": {

@@ -41,6 +41,10 @@
   color: var(--c-text-dim);
   margin-left: 6px;
   vertical-align: 8px;
+  /* The marker never splits. Spanish writes it "p. m." and Chrome's Intl
+   * returns it with an ordinary space (Node's ICU uses a no-break one), so
+   * the compact clock wrapped "m." under the time and grew from 54 to 80 px. */
+  white-space: nowrap;
 }
 
 /* v2.15.6: mobile viewports (< 800 px wide — LayoutMobile path)
@@ -111,24 +115,47 @@
   gap: 11px;
   padding: 9px 14px;
 }
+/* The time keeps its full width; the meta column absorbs any shortfall. */
+.compact .time {
+  flex: none;
+}
 /* Right-aligned 2-line meta beside the big time: day/date/month on top, the
  * sun time below. Replaces the old 3-children row where the date wrapped to
- * three cramped lines. */
+ * three cramped lines. index.js picks a date that fits beside the time
+ * (`compactDateMonth`, with the measured widths); `min-width: 0` lets the
+ * column shrink to the space left anyway, so a date that still doesn't fit
+ * ends in the ellipsis below instead of spilling past the card. */
 .meta {
   margin-left: auto;
+  min-width: 0;
   display: flex;
   flex-direction: column;
   align-items: flex-end;
   gap: 3px;
 }
 .dateCompact {
+  max-width: 100%;
   font-size: 11px;
   font-weight: 500;
   line-height: 1.2;
   letter-spacing: 0.3px;
   color: var(--c-text-dim);
-  text-transform: capitalize;
+  /* No `text-transform: capitalize` — it upper-cased every word ("Ven. 9
+   * Octobre"); index.js capitalises the first letter only. */
   white-space: nowrap;
+}
+/* The ellipsis safety net. The Saisons trigger is a button (an atomic inline
+ * box, which `text-overflow` can't reach into), so the ellipsis sits on the
+ * inner `.dateText` span and the button is capped at the column's width,
+ * plus its side padding (`--trigger-pad-x`, Seasons/styles.css), which its
+ * negative margins hang outside the text. */
+.dateCompact > button {
+  max-width: calc(100% + 2 * var(--trigger-pad-x, 2px));
+}
+.dateText {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 /* Next sun event — sunset (daytime) or sunrise (overnight); the icon swaps
  * with the event. Named `.sun`, not `.sunset`, since it shows both. */

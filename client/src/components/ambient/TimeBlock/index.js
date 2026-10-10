@@ -7,9 +7,32 @@ import sunriseIcon from "@iconify/icons-wi/sunrise";
 import { UiPrefsContext, LocationContext, WeatherDataContext } from "~/AppContext";
 import { isDaylight } from "~/ui/weatherCodes";
 import SeasonsTrigger, { seasonCountdownLabel } from "~/components/ambient/Seasons";
+import { capitalizeFirst } from "~/services/formatting";
 import styles from "./styles.css";
 
 const I18N_LOCALE = { en: "en-US", fr: "fr-FR", es: "es-ES" };
+
+/**
+ * Month length of the compact (Pi glance) date: "short" for Spanish with the
+ * 12 h clock ("Dom, 20 sept"), "long" everywhere else ("Dom, 20 de
+ * septiembre", "Sam. 20 septembre", "Wed, September 20").
+ *
+ * A fixed rule from measured widths, so the spelling never changes with the
+ * day, the hour or the font size. The date gets what the 7" rail leaves
+ * beside a 2-digit time (internal px). Spanish 12 h is the only tight case:
+ * its "p. m." is 22 px wider than "PM", which leaves 91 px at font size L for
+ * long dates up to 126 px ("Dom, 20 de septiembre"; the short form tops out
+ * at 72.5 px), and 130 px at size M, too close to 126 to rely on. English
+ * and French 12 h (113 px at L for 107.5 px and 106 px) and every 24 h case
+ * (132 px at L) fit the long form with room to spare.
+ *
+ * @param {string} localeKey - UI language: "en", "fr" or "es"
+ * @param {boolean} hour12 - true with the 12 h clock
+ * @returns {"short"|"long"} the Intl.DateTimeFormat `month` option
+ */
+function compactDateMonth(localeKey, hour12) {
+  return localeKey === "es" && hour12 ? "short" : "long";
+}
 
 /**
  * Direction C time slab — date and current time (the household's
@@ -34,9 +57,11 @@ const I18N_LOCALE = { en: "en-US", fr: "fr-FR", es: "es-ES" };
  *
  * @param {object} props
  * @param {boolean} [props.compact] — slim Pi glance layout: the big time
- *   beside a right-aligned 2-line meta column — abbreviated day/date/month on
- *   top, the next sun event (sunrise/sunset) below. Drops the seasonal-
- *   countdown line; the date stays the year-round Saisons-popover trigger.
+ *   beside a right-aligned 2-line meta column — abbreviated weekday, then
+ *   day and month on top (the month spelled out except in Spanish with the
+ *   12 h clock, see `compactDateMonth`), the next sun event (sunrise/sunset)
+ *   below. Drops the seasonal-countdown line; the date stays the year-round
+ *   Saisons-popover trigger.
  * @returns {JSX.Element} time slab
  */
 const TimeBlock = ({ compact = false }) => {
@@ -119,12 +144,18 @@ const TimeBlock = ({ compact = false }) => {
   // top, the next sun event below. The sun reading lives here (it left the
   // hero with the lean redesign); the date keeps the Saisons trigger.
   if (compact) {
-    const dateShort = new Intl.DateTimeFormat(locale, {
-      weekday: "short",
-      month: "long",
-      day: "numeric",
-      timeZone: mapTimezone,
-    }).format(now);
+    // Only the first letter is upper-cased ("Ven. 9 octobre", "Vie, 9 de
+    // octubre"): CSS `text-transform: capitalize` also capitalised the month
+    // and the Spanish "de", which French and Spanish write in lower case.
+    const dateShort = capitalizeFirst(
+      new Intl.DateTimeFormat(locale, {
+        weekday: "short",
+        month: compactDateMonth(localeKey, hour12),
+        day: "numeric",
+        timeZone: mapTimezone,
+      }).format(now),
+      locale
+    );
     // Sun line shows the NEXT solar event: sunset while it's daytime, sunrise
     // overnight (after sunset / before sunrise). Both times arrive together in
     // the weather payload; overnight the sunrise time is today's — a ~1 min
@@ -146,7 +177,9 @@ const TimeBlock = ({ compact = false }) => {
          * trigger. */}
         <div className={styles.meta}>
           <div className={styles.dateCompact}>
-            <SeasonsTrigger now={now}>{dateShort}</SeasonsTrigger>
+            <SeasonsTrigger now={now}>
+              <span className={styles.dateText}>{dateShort}</span>
+            </SeasonsTrigger>
           </div>
           {sunStr ? (
             <div

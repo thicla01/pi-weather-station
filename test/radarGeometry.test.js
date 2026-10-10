@@ -72,6 +72,23 @@ function tierForIntensity(intensity) {
 }
 
 /**
+ * A distance known in km, shown in the viewer's distance unit: rounded to a
+ * whole number and joined to its unit by a no-break space ("12 km", "7 mi"),
+ * so a narrow line never strands the unit. Whole units because the km
+ * values it gets are whole already (the air-quality station distance is
+ * rounded server-side), and a decimal would claim precision they don't have.
+ *
+ * @param {number} km - distance in kilometres
+ * @param {string} unit - the `distanceUnit` preference, "km" or "mi"
+ *   (anything else reads as km)
+ * @returns {string} the rounded distance and its unit label
+ */
+function formatDistanceKm(km, unit) {
+  const label = unit === "mi" ? "mi" : "km";
+  return `${Math.round(km / KM_PER_UNIT[label])}\u00a0${label}`;
+}
+
+/**
  * Compute a destination lat/lon from a starting point, distance, and bearing.
  * Mirrors offsetLatLon in server/radarAnalyzerCtrl.js (great-circle formula).
  *
@@ -392,4 +409,23 @@ test("buildSamplingPoints: mi keys carry miles but positions use km", () => {
   // destination latitude with the spherical model.
   assertClose(n30.position[0], 45.43419534916671, "N:30 (mi) lat");
   assertClose(n30.position[1], REF_LON, "N:30 (mi) lon");
+});
+
+// formatDistanceKm — the air-quality station distance in the AQ popovers
+// (AirCard, AirAlertCard), shown in the viewer's distance unit.
+test("formatDistanceKm: km passes through, joined by a no-break space", () => {
+  assert.equal(formatDistanceKm(12, "km"), "12\u00a0km");
+  assert.equal(formatDistanceKm(0, "km"), "0\u00a0km");
+});
+
+test("formatDistanceKm: mi converts with KM_PER_UNIT and rounds to whole miles", () => {
+  assert.equal(formatDistanceKm(12, "mi"), "7\u00a0mi"); // 7.46 mi
+  assert.equal(formatDistanceKm(1, "mi"), "1\u00a0mi"); // 0.62 mi
+  assert.equal(formatDistanceKm(100, "mi"), "62\u00a0mi"); // 62.14 mi
+  assert.equal(formatDistanceKm(0, "mi"), "0\u00a0mi");
+});
+
+test("formatDistanceKm: a missing or unknown unit reads as km", () => {
+  assert.equal(formatDistanceKm(12, undefined), "12\u00a0km");
+  assert.equal(formatDistanceKm(12, "nm"), "12\u00a0km");
 });

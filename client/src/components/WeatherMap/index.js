@@ -170,7 +170,16 @@ const LOCATION_MARKER_ICON = buildLocationMarkerIcon();
 
 
 // Mapbox basemaps served via the server proxy (keeps the API key off the client).
-const MAPBOX_ATTRIBUTION = '© <a href="https://www.mapbox.com/feedback/">Mapbox</a>';
+// Every style the Settings panel offers (streets-v12, light-v10/11,
+// dark-v10/11), like the proxy's other allowed styles (navigation-day-v1, the
+// custom-light Studio style), draws on the Mapbox Streets tileset, i.e.
+// OpenStreetMap data, and Mapbox's attribution terms require "© OpenStreetMap"
+// next to "© Mapbox"
+// (docs.mapbox.com/help/dive-deeper/attribution). Plain text on purpose: a new
+// link would be one more one-way trap on the chrome-less kiosk (QR-only rule,
+// test/kioskExternalLinks.test.js); test/mapAttribution.test.js locks the
+// credits in.
+const MAPBOX_ATTRIBUTION = '© <a href="https://www.mapbox.com/feedback/">Mapbox</a>, © OpenStreetMap';
 
 /**
  * Tile URL template of one RainViewer frame: 512 px tiles, colour scheme
@@ -1427,8 +1436,8 @@ const WeatherMap = ({ zoom, dark }) => {
         {/* bottomright since v3.1 Phase 3: the timeline is now a
          * full-width bottom bar, so the strip docks above its right
          * end (offset in styles.css, rail-aware). The legal Mapbox +
-         * RainViewer attribution stays visible in every state —
-         * including the mobile mini-card. */}
+         * OpenStreetMap + RainViewer attribution stays visible in every
+         * state — including the mobile mini-card. */}
         <AttributionControl position="bottomright" />
         <TileLayer
           attribution={MAPBOX_ATTRIBUTION}

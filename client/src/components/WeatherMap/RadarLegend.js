@@ -20,6 +20,11 @@ const ALERT_TIERS = [
   { swatch: "alertTierSwatchAdv", key: "Advisory" },
 ];
 
+// No-break space (U+00A0) between a radius and its unit, so a narrow
+// legend sheet never strands "km"/"mi" on a line of its own. Written as
+// an escape because the character is invisible in source and diffs.
+const NBSP = "\u00a0";
+
 /**
  * Six-segment precipitation colour bar — the real tile palette.
  *
@@ -107,11 +112,11 @@ const RadarLegend = ({ dark, chipMode }) => {
           <div className={styles.legendCircleRow}>
             <span className={styles.legendCircleSwatch} />
             <span className={styles.legendRadii}>
-              {innerRadius} {unitLabel}
+              {innerRadius}{NBSP}{unitLabel}
               {extendedRadarRadius ? (
                 <>
                   <span className={styles.legendRadiiSep}> · </span>
-                  {outerRadius} {unitLabel}
+                  {outerRadius}{NBSP}{unitLabel}
                 </>
               ) : null}
             </span>
@@ -176,7 +181,7 @@ const RadarLegend = ({ dark, chipMode }) => {
           <span>
             {innerRadius}
             {extendedRadarRadius ? `/${outerRadius}` : ""}
-            {" "}
+            {NBSP}
             {unitLabel}
           </span>
         ) : null}

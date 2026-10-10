@@ -104,7 +104,7 @@
   "nowcast": {
     "aria": "Estado del radar: {{verdict}}",
     "calm": {
-      "noRainWithin": "Sin lluvia en {{distance}} {{unit}}",
+      "noRainWithin": "Sin lluvia en {{distance}}\u00a0{{unit}}",
       "radarUnavailable": "Radar no disponible",
       "clearDay": "Cielo despejado",
       "clearNight": "Noche despejada",
@@ -350,7 +350,7 @@
     "hideDirectionArrows": "Ocultar flechas de dirección",
     "directionArrowsNeedRings": "Active primero los círculos radar para usar las flechas",
     "nearbyTitle": "Alertas cercanas",
-    "nearbyWithin": "{{count}} en {{radius}} {{unit}}",
+    "nearbyWithin": "{{count}} en {{radius}}\u00a0{{unit}}",
     "nearbyNotMapped": "+{{count}} no mapeada(s)",
     "nearbyHere": "{{count}} alertas aquí",
     "timeline": {

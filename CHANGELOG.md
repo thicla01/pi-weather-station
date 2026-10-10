@@ -7,6 +7,48 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Fixed
+- **The radar map now credits OpenStreetMap.** Every Mapbox style the app offers (streets-v12,
+  light, dark) draws OpenStreetMap data, and Mapbox's attribution terms ask for
+  "© OpenStreetMap" next to "© Mapbox". The strip now reads "Leaflet | © Mapbox,
+  © OpenStreetMap, RainViewer". The new credit is plain text, not a link, so a tap can't strand
+  the chrome-less kiosk on an external page (the QR-only rule). New `test/mapAttribution.test.js`
+  locks in each map source's credits and fails if a stylesheet hides the strip.
+- **A distance no longer leaves its unit alone on the next line.** In the 7" rail the French
+  radar verdict wrapped as "Aucune pluie sur 100" / "km". The value and the unit are now joined
+  by a no-break space (U+00A0) in the radar verdict and the legend's nearby-alert count (EN, FR,
+  ES), the legend's ring radii and the air-quality station distance. New
+  `test/localeUnitSpacing.test.js` keeps the locale strings from slipping back to a plain space.
+- **The Pi glance's date no longer capitalises the month.** The compact date used CSS
+  `text-transform: capitalize`, which upper-cases every word: "Ven. 9 Octobre", "Vie, 9 De
+  Octubre". Only the first letter is capitalised now ("Ven. 9 octobre", "Vie, 9 de octubre"),
+  by a locale-aware `capitalizeFirst` in `services/formatting.js` (CommonJS, tested by the new
+  `test/formatting.test.js`). It replaces the unused `capitalizeFirstLetter`. English is
+  unchanged.
+- **The Spanish 12-hour clock stays on one line on the Pi glance.** Chrome writes the Spanish
+  marker "p. m." with an ordinary space, so it split, "m." dropping under the time, and the
+  compact clock card grew from 54 to 80 px. The marker no longer breaks. The wider time then
+  pushed long Spanish dates past the card's right edge ("Dom, 20 de septiembre", by 20 px at font
+  size L), so in Spanish with the 12-hour clock the date now abbreviates the month ("Dom, 20
+  sept"), whatever the date and the font size. That is the only tight case: Spanish 12 h leaves
+  91 px at size L for long dates up to 126 px, and 130 px at size M, too close to rely on, while
+  English, French and every 24-hour clock fit the long month with room to spare and keep it. An
+  ellipsis keeps any date that still can't fit inside the card.
+- **Four radar verdicts are no longer cut off on the Pi glance.** At font size L the radar line
+  shows two lines of about 152 px, and four verdicts needed a third, so they ended in "…":
+  "Précipitations fortes/sévères en mouvement autour de vous" now reads "… en mouvement près de
+  vous", and "Heavy/Severe precipitation appears to be moving away" now reads "… seems to be
+  moving away". The English "appears to be approaching" pair becomes "seems to be approaching"
+  too, so the two hedged verdicts keep the same verb; it fitted with under 2 px to spare. Every
+  `alert.*` verdict now fits two lines in English, French and Spanish, the tightest with 4 px to
+  spare. The desktop and mobile radar banners use the same strings.
+- **The air-quality station distance follows the distance unit.** The station line of the
+  air-quality popover (inline air card and AIR alert card) always read in km, "(12 km)", even
+  with miles selected. It now follows the distance setting, in whole miles like the whole km it
+  starts from ("(7 mi)"). A shared `formatDistanceKm` in `WeatherMap/geometry.js` reuses
+  `KM_PER_UNIT` and keeps the no-break space before the unit; `test/radarGeometry.test.js`
+  covers it.
+
 ## [3.3.1] - 2026-10-09
 
 ### Performance

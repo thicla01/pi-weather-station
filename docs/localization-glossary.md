@@ -4,7 +4,7 @@
      Regenerate with: node tools/gen-localization-glossary.js
      Validation marks (☑) in the first column are carried forward while a row's wording is unchanged. -->
 
-**Generated** by `tools/gen-localization-glossary.js` on 2026-10-08. Re-run it after
+**Generated** by `tools/gen-localization-glossary.js` on 2026-10-10. Re-run it after
 touching a locale file or an inline `lbl()` string — every row below is derived, so a
 hand edit will be overwritten. The one exception is the **Validé** column: it is human
 review state, and the generator carries each `☑` forward only while the row still shows
@@ -78,18 +78,18 @@ reported here as a gap table, so an empty check means the three files are aligne
 | ☐ | Just issued | Émis à l'instant | Emitido ahora | `alert.issuedJustNow` |
 | ☐ | Issued {{minutes}} min ago | Émis il y a {{minutes}} min | Emitido hace {{minutes}} min | `alert.issuedMinutesAgo` |
 | ☐ | Heavy precipitation nearby | Précipitations fortes à proximité | Precipitación fuerte en las cercanías | `alert.orangeApproaching` |
-| ☐ | Heavy precipitation appears to be approaching | Précipitations fortes qui semblent s'approcher | Precipitación fuerte parece estar acercándose | `alert.orangeApproachingHedged` |
-| ☐ | Heavy precipitation drifting around you | Précipitations fortes en mouvement autour de vous | Precipitación fuerte desplazándose en su zona | `alert.orangeDrifting` |
+| ☐ | Heavy precipitation seems to be approaching | Précipitations fortes qui semblent s'approcher | Precipitación fuerte parece estar acercándose | `alert.orangeApproachingHedged` |
+| ☐ | Heavy precipitation drifting around you | Précipitations fortes en mouvement près de vous | Precipitación fuerte desplazándose en su zona | `alert.orangeDrifting` |
 | ☐ | Heavy precipitation intensifying | Précipitations fortes qui s'intensifient | Precipitación fuerte intensificándose | `alert.orangeIntensifying` |
 | ☐ | Heavy precipitation moving away | Précipitations fortes mais s'éloignent | Precipitación fuerte alejándose | `alert.orangeLeaving` |
-| ☐ | Heavy precipitation appears to be moving away | Précipitations fortes qui semblent s'éloigner | Precipitación fuerte parece estar alejándose | `alert.orangeLeavingHedged` |
+| ☐ | Heavy precipitation seems to be moving away | Précipitations fortes qui semblent s'éloigner | Precipitación fuerte parece estar alejándose | `alert.orangeLeavingHedged` |
 | ☐ | Heavy precipitation in your area | Précipitations fortes sur votre zone | Precipitación fuerte en su zona | `alert.orangeNear` |
 | ☐ | Alert — Severe precipitation approaching | Alerte — précipitations sévères approchent | Alerta — Precipitación severa acercándose | `alert.redApproaching` |
-| ☐ | Severe precipitation appears to be approaching | Précipitations sévères qui semblent s'approcher | Precipitación severa parece estar acercándose | `alert.redApproachingHedged` |
-| ☐ | Severe precipitation drifting around you | Précipitations sévères en mouvement autour de vous | Precipitación severa desplazándose en su zona | `alert.redDrifting` |
+| ☐ | Severe precipitation seems to be approaching | Précipitations sévères qui semblent s'approcher | Precipitación severa parece estar acercándose | `alert.redApproachingHedged` |
+| ☐ | Severe precipitation drifting around you | Précipitations sévères en mouvement près de vous | Precipitación severa desplazándose en su zona | `alert.redDrifting` |
 | ☐ | Alert — Severe precipitation intensifying | Alerte — précipitations sévères qui s'intensifient | Alerta — Precipitación severa intensificándose | `alert.redIntensifying` |
 | ☐ | Severe precipitation moving away | Précipitations sévères mais s'éloignent | Precipitación severa alejándose | `alert.redLeaving` |
-| ☐ | Severe precipitation appears to be moving away | Précipitations sévères qui semblent s'éloigner | Precipitación severa parece estar alejándose | `alert.redLeavingHedged` |
+| ☐ | Severe precipitation seems to be moving away | Précipitations sévères qui semblent s'éloigner | Precipitación severa parece estar alejándose | `alert.redLeavingHedged` |
 | ☐ | Alert — Severe precipitation in your area | Alerte — précipitations sévères sur votre zone | Alerta — Precipitación severa en su zona | `alert.redNear` |
 | ☐ | Tap to show alerts you dismissed earlier | Toucher pour réafficher les alertes que vous avez masquées | Toque para volver a mostrar las alertas que ocultó | `alert.restoreDismissedAria` |
 | ☐ | Restore {{count}} hidden alert | Restaurer {{count}} alerte masquée | Restaurar {{count}} alerta oculta | `alert.restoreDismissed_one` |
@@ -694,87 +694,87 @@ Debug overlay — localhost-only, reached from a desktop browser or an SSH tunne
 
 | Validé | EN | FR | ES | Ligne |
 |--------|----|----|-----|-------|
-| ☐ | Shown | Affiché | Visible | `:293` |
-| ☐ | Update available | Mise à jour disponible | Actualización disponible | `:322` |
-| ☐ | UPD | MAJ | ACT | `:324` |
-| ☐ | Close | Fermer | Cerrar | `:354` |
-| ☐ | Updated | Actualisé | Actualizado | `:367` |
-| ☐ | ON | ACTIF | ACTIVO | `:443` |
-| ☐ | OFF | INACTIF | INACTIVO | `:444` |
-| ☐ | NONE | AUCUN | NINGUNO | `:451` |
-| ☐ | MINOR | MINEUR | MENOR | `:452` |
-| ☐ | MAJOR | MAJEUR | MAYOR | `:453` |
-| ☐ | CRITICAL | CRITIQUE | CRÍTICO | `:454` |
-| ☐ | MAINTENANCE | MAINTENANCE | MANTENIMIENTO | `:455` |
-| ☐ | Server | Serveur | Servidor | `:587` |
-| ☐ | Client | Client | Cliente | `:588` |
-| ☐ | Services | Services | Servicios | `:589` |
-| ☐ | Storage | Stockage | Almacén | `:590` |
-| ☐ | About | À propos | Acerca de | `:591` |
-| ☐ | Server config | Configuration serveur | Configuración servidor | `:825` |
-| ☐ | version | version | versión | `:827` |
-| ☐ | none | aucun | ninguno | `:831` |
-| ☐ | branch | branche | rama | `:832` |
-| ☐ | Network | Réseau | Red | `:845` |
-| ☐ | Server KPI | KPI serveur | KPI servidor | `:858` |
-| ☐ | Power status | État alimentation | Estado de alimentación | `:877` |
-| ☐ | Response times | Temps de réponse | Tiempos de respuesta | `:884` |
-| ☐ | avg | moy | prom | `:890` |
-| ☐ | Recent logs | Journaux récents | Registros recientes | `:897` |
-| ☐ | Offline — check the connection | Hors ligne — vérifiez la connexion | Sin conexión — compruebe la conexión | `:947` |
-| ☐ | Online · degraded network | En ligne · réseau dégradé | En línea · red degradada | `:949` |
-| ☐ | Online · slow network | En ligne · réseau lent | En línea · red lenta | `:951` |
-| ☐ | Online · fast network | En ligne · réseau rapide | En línea · red rápida | `:952` |
-| ☐ | No logs to show. | Aucun journal à afficher. | Sin registros para mostrar. | `:1044` |
-| ☐ | Client KPI | KPI client | KPI cliente | `:1202` |
-| ☐ | Input environment | Environnement d'entrée | Entorno de entrada | `:1224` |
-| ☐ | Current position | Position actuelle | Posición actual | `:1233` |
-| ☐ | API calls (session) | Appels API (session) | Llamadas API (sesión) | `:1257` |
-| ☐ | avg | moy | prom | `:1266` |
-| ☐ | Remote clients | Clients distants | Clientes remotos | `:1272` |
-| ☐ | No remote clients tracked yet. | Aucun client distant suivi. | Ningún cliente remoto rastreado. | `:1274` |
-| ☐ | Security events | Événements de sécurité | Eventos de seguridad | `:1291` |
-| ☐ | No security events. | Aucun événement de sécurité. | Ningún evento de seguridad. | `:1293` |
-| ☐ | BLOCKED | BLOQUÉ | BLOQUEADO | `:1298` |
-| ☐ | Provider statuspages | Statut fournisseurs | Estado de proveedores | `:1338` |
-| ☐ | last fetch | dernière requête | última consulta | `:1340` |
-| ☐ | No provider status available. | Aucun statut fournisseur disponible. | Estado del proveedor no disponible. | `:1344` |
-| ☐ | Recent service calls | Appels de service récents | Llamadas de servicio recientes | `:1361` |
-| ☐ | No service activity yet. | Aucune activité de service. | Sin actividad de servicio. | `:1363` |
-| ☐ | API quotas | Quotas API | Cuotas API | `:1380` |
-| ☐ | No quota data tracked yet. | Aucune donnée de quota suivie. | Sin datos de cuota rastreados. | `:1381` |
-| ☐ | Cache stats | Statistiques de cache | Estadísticas de caché | `:1497` |
-| ☐ | hits | succès | aciertos | `:1499` |
-| ☐ | misses | manqués | fallos | `:1500` |
-| ☐ | hit rate | taux de succès | tasa de aciertos | `:1501` |
-| ☐ | entries | entrées | entradas | `:1502` |
-| ☐ | Cache entries | Entrées de cache | Entradas de caché | `:1505` |
-| ☐ | Cache is empty. | Cache vide. | Caché vacío. | `:1507` |
-| ☐ | Radar AI snapshots | Captures radar IA | Capturas radar IA | `:1521` |
-| ☐ | No radar snapshots yet. | Aucune capture radar pour l'instant. | Sin capturas radar todavía. | `:1575` |
-| ☐ | Checking… | Vérification… | Comprobando… | `:1672` |
-| ☐ | Check for updates | Vérifier les mises à jour | Buscar actualizaciones | `:1673` |
-| ☐ | Checking… | Vérification… | Comprobando… | `:1677` |
-| ☐ | Check for updates | Vérifier les mises à jour | Buscar actualizaciones | `:1678` |
-| ☐ | Export CSV | Exporter CSV | Exportar CSV | `:1684` |
-| ☐ | Export CSV | Exporter CSV | Exportar CSV | `:1687` |
-| ☐ | About this build | À propos de cette version | Acerca de esta versión | `:1691` |
-| ☐ | name | nom | nombre | `:1693` |
-| ☐ | version | version | versión | `:1694` |
-| ☐ | branch | branche | rama | `:1696` |
-| ☐ | license | licence | licencia | `:1698` |
-| ☐ | Update check | Vérification MAJ | Comprobación actualización | `:1705` |
-| ☐ | This install is too old for the in-app updater. Run | Cette installation est trop ancienne pour la mise à jour in-app. Lancez | Esta instalación es demasiado antigua para el actualizador in-app. Ejecuta | `:1717` |
-| ☐ | on the device to upgrade. | sur l'appareil pour mettre à jour. | en el dispositivo para actualizar. | `:1723` |
-| ☐ | Install update… | Installer la mise à jour… | Instalar actualización… | `:1743` |
-| ☐ | latest ver | dernière ver | última ver | `:1752` |
-| ☐ | available | disponible | disponible | `:1753` |
-| ☐ | YES | OUI | SÍ | `:1754` |
-| ☐ | UP-TO-DATE | À JOUR | AL DÍA | `:1755` |
-| ☐ | Vulnerability scan | Analyse vulnérabilités | Análisis vulnerabilidades | `:1762` |
-| ☐ | Vulnerability scanning + automatic security PRs now live on GitHub via Dependabot — see the alerts dashboard for the live source of truth. | L'analyse des vulnérabilités et les PR de sécurité automatiques vivent maintenant sur GitHub via Dependabot — voir le tableau d'alertes pour la source en temps réel. | El análisis de vulnerabilidades y los PR de seguridad automáticos viven ahora en GitHub vía Dependabot — consulta el panel de alertas para la fuente en tiempo real. | `:1765` |
-| ☐ | Check security alerts on GitHub | Vérifier les alertes de sécurité sur GitHub | Ver las alertas de seguridad en GitHub | `:1786` |
-| ☐ | POWER OK | ALIMENTATION OK | ALIMENTACIÓN OK | `:1860` |
+| ☐ | Shown | Affiché | Visible | `:305` |
+| ☐ | Update available | Mise à jour disponible | Actualización disponible | `:334` |
+| ☐ | UPD | MAJ | ACT | `:336` |
+| ☐ | Close | Fermer | Cerrar | `:366` |
+| ☐ | Updated | Actualisé | Actualizado | `:379` |
+| ☐ | ON | ACTIF | ACTIVO | `:455` |
+| ☐ | OFF | INACTIF | INACTIVO | `:456` |
+| ☐ | NONE | AUCUN | NINGUNO | `:463` |
+| ☐ | MINOR | MINEUR | MENOR | `:464` |
+| ☐ | MAJOR | MAJEUR | MAYOR | `:465` |
+| ☐ | CRITICAL | CRITIQUE | CRÍTICO | `:466` |
+| ☐ | MAINTENANCE | MAINTENANCE | MANTENIMIENTO | `:467` |
+| ☐ | Server | Serveur | Servidor | `:599` |
+| ☐ | Client | Client | Cliente | `:600` |
+| ☐ | Services | Services | Servicios | `:601` |
+| ☐ | Storage | Stockage | Almacén | `:602` |
+| ☐ | About | À propos | Acerca de | `:603` |
+| ☐ | Server config | Configuration serveur | Configuración servidor | `:837` |
+| ☐ | version | version | versión | `:839` |
+| ☐ | none | aucun | ninguno | `:843` |
+| ☐ | branch | branche | rama | `:844` |
+| ☐ | Network | Réseau | Red | `:857` |
+| ☐ | Server KPI | KPI serveur | KPI servidor | `:870` |
+| ☐ | Power status | État alimentation | Estado de alimentación | `:889` |
+| ☐ | Response times | Temps de réponse | Tiempos de respuesta | `:896` |
+| ☐ | avg | moy | prom | `:902` |
+| ☐ | Recent logs | Journaux récents | Registros recientes | `:909` |
+| ☐ | Offline — check the connection | Hors ligne — vérifiez la connexion | Sin conexión — compruebe la conexión | `:959` |
+| ☐ | Online · degraded network | En ligne · réseau dégradé | En línea · red degradada | `:961` |
+| ☐ | Online · slow network | En ligne · réseau lent | En línea · red lenta | `:963` |
+| ☐ | Online · fast network | En ligne · réseau rapide | En línea · red rápida | `:964` |
+| ☐ | No logs to show. | Aucun journal à afficher. | Sin registros para mostrar. | `:1056` |
+| ☐ | Client KPI | KPI client | KPI cliente | `:1176` |
+| ☐ | Input environment | Environnement d'entrée | Entorno de entrada | `:1198` |
+| ☐ | Current position | Position actuelle | Posición actual | `:1207` |
+| ☐ | API calls (session) | Appels API (session) | Llamadas API (sesión) | `:1231` |
+| ☐ | avg | moy | prom | `:1240` |
+| ☐ | Remote clients | Clients distants | Clientes remotos | `:1246` |
+| ☐ | No remote clients tracked yet. | Aucun client distant suivi. | Ningún cliente remoto rastreado. | `:1248` |
+| ☐ | Security events | Événements de sécurité | Eventos de seguridad | `:1265` |
+| ☐ | No security events. | Aucun événement de sécurité. | Ningún evento de seguridad. | `:1267` |
+| ☐ | BLOCKED | BLOQUÉ | BLOQUEADO | `:1272` |
+| ☐ | Provider statuspages | Statut fournisseurs | Estado de proveedores | `:1312` |
+| ☐ | last fetch | dernière requête | última consulta | `:1314` |
+| ☐ | No provider status available. | Aucun statut fournisseur disponible. | Estado del proveedor no disponible. | `:1318` |
+| ☐ | Recent service calls | Appels de service récents | Llamadas de servicio recientes | `:1335` |
+| ☐ | No service activity yet. | Aucune activité de service. | Sin actividad de servicio. | `:1337` |
+| ☐ | API quotas | Quotas API | Cuotas API | `:1354` |
+| ☐ | No quota data tracked yet. | Aucune donnée de quota suivie. | Sin datos de cuota rastreados. | `:1355` |
+| ☐ | Cache stats | Statistiques de cache | Estadísticas de caché | `:1471` |
+| ☐ | hits | succès | aciertos | `:1473` |
+| ☐ | misses | manqués | fallos | `:1474` |
+| ☐ | hit rate | taux de succès | tasa de aciertos | `:1475` |
+| ☐ | entries | entrées | entradas | `:1476` |
+| ☐ | Cache entries | Entrées de cache | Entradas de caché | `:1479` |
+| ☐ | Cache is empty. | Cache vide. | Caché vacío. | `:1481` |
+| ☐ | Radar AI snapshots | Captures radar IA | Capturas radar IA | `:1495` |
+| ☐ | No radar snapshots yet. | Aucune capture radar pour l'instant. | Sin capturas radar todavía. | `:1549` |
+| ☐ | Checking… | Vérification… | Comprobando… | `:1681` |
+| ☐ | Check for updates | Vérifier les mises à jour | Buscar actualizaciones | `:1682` |
+| ☐ | Checking… | Vérification… | Comprobando… | `:1686` |
+| ☐ | Check for updates | Vérifier les mises à jour | Buscar actualizaciones | `:1687` |
+| ☐ | Export CSV | Exporter CSV | Exportar CSV | `:1694` |
+| ☐ | Export CSV | Exporter CSV | Exportar CSV | `:1697` |
+| ☐ | About this build | À propos de cette version | Acerca de esta versión | `:1701` |
+| ☐ | name | nom | nombre | `:1703` |
+| ☐ | version | version | versión | `:1704` |
+| ☐ | branch | branche | rama | `:1706` |
+| ☐ | license | licence | licencia | `:1708` |
+| ☐ | Update check | Vérification MAJ | Comprobación actualización | `:1715` |
+| ☐ | This install is too old for the in-app updater. Run | Cette installation est trop ancienne pour la mise à jour in-app. Lancez | Esta instalación es demasiado antigua para el actualizador in-app. Ejecuta | `:1727` |
+| ☐ | on the device to upgrade. | sur l'appareil pour mettre à jour. | en el dispositivo para actualizar. | `:1733` |
+| ☐ | Install update… | Installer la mise à jour… | Instalar actualización… | `:1753` |
+| ☐ | latest ver | dernière ver | última ver | `:1762` |
+| ☐ | available | disponible | disponible | `:1763` |
+| ☐ | YES | OUI | SÍ | `:1764` |
+| ☐ | UP-TO-DATE | À JOUR | AL DÍA | `:1765` |
+| ☐ | Vulnerability scan | Analyse vulnérabilités | Análisis vulnerabilidades | `:1772` |
+| ☐ | Vulnerability scanning + automatic security PRs now live on GitHub via Dependabot — see the alerts dashboard for the live source of truth. | L'analyse des vulnérabilités et les PR de sécurité automatiques vivent maintenant sur GitHub via Dependabot — voir le tableau d'alertes pour la source en temps réel. | El análisis de vulnerabilidades y los PR de seguridad automáticos viven ahora en GitHub vía Dependabot — consulta el panel de alertas para la fuente en tiempo real. | `:1775` |
+| ☐ | Check security alerts on GitHub | Vérifier les alertes de sécurité sur GitHub | Ver las alertas de seguridad en GitHub | `:1796` |
+| ☐ | POWER OK | ALIMENTATION OK | ALIMENTACIÓN OK | `:1870` |
 
 ---
 
