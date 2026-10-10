@@ -13,11 +13,19 @@ import styles from "./styles.css";
 const TILE_SEGMENTS = ["t1", "t2", "t3", "t4", "t5", "t6"];
 
 // Nearby-alert tier rows: swatch class (backed by --rc-alert-*, which
-// nightRed overrides to the red family) + SeverityChip i18n key.
+// nightRed overrides to the red family) + `radar.*` i18n key of the tier's
+// SEVERITY word. A polygon's colour is its tier, and the tier comes from
+// the alert's normalized CAP severity (`severityToTier` in
+// server/govAlertSources/_shared.js: severe/extreme → red, moderate →
+// orange, minor → yellow), not from its product type. So the key names a
+// severity (Severe / Moderate / Minor), never a type: the orange tier holds
+// advisories and warnings as well as watches (ECCC frost advisories and
+// snowfall warnings both carry impact "Moderate"), and used to be labelled
+// "Watch" / « Veille ». The swatch class names are historical.
 const ALERT_TIERS = [
-  { swatch: "alertTierSwatchWarn", key: "Warning" },
-  { swatch: "alertTierSwatchWatch", key: "Watch" },
-  { swatch: "alertTierSwatchAdv", key: "Advisory" },
+  { swatch: "alertTierSwatchWarn", key: "nearbyTierSevere" },
+  { swatch: "alertTierSwatchWatch", key: "nearbyTierModerate" },
+  { swatch: "alertTierSwatchAdv", key: "nearbyTierMinor" },
 ];
 
 // No-break space (U+00A0) between a radius and its unit, so a narrow
@@ -42,8 +50,9 @@ const PrecipScale = () => (
  * Radar map legend (v3.1 Phase 3, Claude Design v2.1). Three sections:
  * analysis radii (only when the analysis rings are enabled — unit- and
  * extended-radius-aware), the precipitation scale (the real 6-colour
- * tile palette), and the nearby-alert tier key + honest in-radius
- * count (only when the alert overlay is on).
+ * tile palette), and the nearby-alert tier key (named by severity,
+ * like the colours) + honest in-radius count (only when the alert
+ * overlay is on).
  *
  * Three presentations, one component:
  *  - card (default) — bottom-left, glanceable, non-interactive;
@@ -138,7 +147,7 @@ const RadarLegend = ({ dark, chipMode }) => {
             {ALERT_TIERS.map(({ swatch, key }) => (
               <span key={key} className={styles.alertTier}>
                 <i className={`${styles.alertTierSwatch} ${styles[swatch]}`} />
-                {t(`alert.severity${key}`)}
+                {t(`radar.${key}`)}
               </span>
             ))}
           </div>

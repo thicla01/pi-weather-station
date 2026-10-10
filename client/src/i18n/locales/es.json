@@ -140,7 +140,12 @@
     "gust": "Ráfagas",
     "humidity": "Humedad",
     "uv": "UV",
-    "aqi": "ICA",
+    "airQuality": "Calidad del aire",
+    "aqScale": {
+      "aqhi": "AQHI",
+      "iqa": "IQA",
+      "epa": "AQI"
+    },
     "pressure": "Presión",
     "visibility": "Visibilidad",
     "detailValue": "Valor",
@@ -353,6 +358,9 @@
     "nearbyWithin": "{{count}} en {{radius}}\u00a0{{unit}}",
     "nearbyNotMapped": "+{{count}} no mapeada(s)",
     "nearbyHere": "{{count}} alertas aquí",
+    "nearbyTierSevere": "Severa",
+    "nearbyTierModerate": "Moderada",
+    "nearbyTierMinor": "Menor",
     "timeline": {
       "now": "ahora",
       "speedAria": "Cambiar la velocidad de la animación del radar",

@@ -6,6 +6,7 @@ import windGusts from "@iconify/icons-carbon/wind-gusts";
 import { WeatherDataContext, UiPrefsContext } from "~/AppContext";
 import { formatAge } from "~/ui/formatAge";
 import { formatDistanceKm } from "~/components/WeatherMap/geometry";
+import { AQ_NEUTRAL_LABEL_KEY, aqScaleLabelKey, formatAqValue } from "~/ui/airQualityDisplay";
 import SourceBadge from "~/components/ambient/SourceBadge";
 import DetailsPopover from "~/components/ambient/DetailsPopover";
 import styles from "./styles.css";
@@ -29,31 +30,15 @@ const AQ_SOURCE_LABEL_KEY = {
 };
 
 /**
- * Resolve the scale's short badge label (IQA / AQHI / AQI). Same
- * mapping the inline AirCard row uses — the scale doubles as the
- * SourceBadge text so the user sees which authority's index it is.
- *
- * @param {?string} scale — "iqa" | "aqhi" | "epa" | other
- * @param {(key: string) => string} t — i18next translate; used only for the
- *   fallback `metrics.aqi` label when the scale is unknown
- * @returns {string} the badge text
- */
-function scaleLabel(scale, t) {
-  if (scale === "iqa") return "IQA";
-  if (scale === "aqhi") return "AQHI";
-  if (scale === "epa") return "AQI";
-  return t("metrics.aqi");
-}
-
-/**
  * AIR — air-quality alert card (v3.2 "3 états radar", new banner-producing
  * source, tag `AIR`). When air quality reaches the health-risk band
  * (`getAirAlertState(category)` ≠ null — "high" → orange, "veryHigh" → red)
  * it escalates beyond the inline AirCard reading into a top-of-rail card that
  * shares the gov AlertBanner's compact grammar: a tier-coloured left strip,
- * a tinted `AIR` badge + the index's source badge (IQA / AQHI / AQI), and the
- * reading as `value · category` in the project's existing AQ vocabulary
- * ("8 · Élevé"). Tapping the card opens a `DetailsPopover` with the station,
+ * a tinted `AIR` badge + the index's source badge (IQA / AQHI, "CAS" in
+ * French / AQI), and the reading as `value · category` in the project's
+ * existing AQ vocabulary ("8 · Élevé"). Tapping the card opens a
+ * `DetailsPopover` with the station,
  * source, dominant pollutant and observation age — the "tap for more" detail
  * that keeps the glance minimal (maintainer's space-budget direction).
  *
@@ -80,8 +65,13 @@ const AirAlertCard = ({ alert }) => {
   if (!alert || !aqhiInfo) return null;
 
   const { tier, category } = alert;
-  const { value } = aqhiInfo;
-  const scale = scaleLabel(aqhiInfo.scale, t);
+  // Same reading and index label as the inline AirCard row
+  // (ui/airQualityDisplay.js): the AQHI prints "10+" above 10, and its
+  // label is "CAS" in French. The label doubles as the SourceBadge text,
+  // so the badge names the index the way its authority does in the UI
+  // language (ECCC: AQHI / CAS) and matches the row it replaces.
+  const value = formatAqValue(aqhiInfo.value, aqhiInfo.scale);
+  const scale = t(aqScaleLabelKey(aqhiInfo.scale));
   const levelWord = t(`badges.aqiLevel.${category}`);
 
   return (
@@ -120,7 +110,7 @@ const AirAlertCard = ({ alert }) => {
       <DetailsPopover
         open={open}
         onClose={() => setOpen(false)}
-        title={t("metrics.aqi")}
+        title={t(AQ_NEUTRAL_LABEL_KEY)}
         triggerRef={cardRef}
         portal
       >

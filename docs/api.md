@@ -378,10 +378,10 @@ For each ECCC candidate, defunct stations are skipped automatically: the control
 
 | Field | Type | Description |
 |---|---|---|
-| `value` | number | Raw value in the source's native scale (AQHI 1–10+, IQA 1–100+, EPA AQI 0–500) |
+| `value` | number | Value in the source's native scale (AQHI 1–10+, IQA 1–100+, EPA AQI 0–500). The AQHI is the whole number ECCC publishes: the observation feed carries two decimals (`1.22`), the ECCC source rounds to the nearest integer with a floor of 1 (`roundAqhi`) before computing `category`; values above 10 stay numbers (e.g. `13`) and the client prints them "10+" |
 | `category` | string | `low` \| `moderate` \| `high` \| `veryHigh` — pre-normalised by the source so the client's tier-colour mapping (`ambient/AirCard` / `ambient/AirAlertCard`) is scale-agnostic |
 | `source` | string | `MELCC-Mtl` \| `MELCC-RSQAQ` \| `AirNow` \| `OpenAQ` \| `ECCC` — drives the source label in the `AirCard` / `AirAlertCard` detail popover |
-| `scale` | string | `aqhi` (Health Canada AQHI) \| `iqa` (Quebec MELCC IQA) \| `epa` (US EPA AQI, also used by OpenAQ since the source applies the EPA AQI formula to OpenAQ's raw concentrations) — drives the scale label ("AQHI" vs "IQA" vs "AQI") shown by `ambient/AirCard` / `ambient/AirAlertCard`; the value is displayed as returned |
+| `scale` | string | `aqhi` (Health Canada AQHI) \| `iqa` (Quebec MELCC IQA) \| `epa` (US EPA AQI, also used by OpenAQ since the source applies the EPA AQI formula to OpenAQ's raw concentrations) — drives the index label shown by `ambient/AirCard` / `ambient/AirAlertCard` (locale keys `metrics.aqScale.*`: "AQHI", "CAS" in French, "IQA", "AQI"); the value is displayed as returned, except an AQHI above 10, shown "10+" (`client/src/ui/airQualityDisplay.js`) |
 | `kind` | string | `observation` (live measurement, used by MELCC + OpenAQ + ECCC observation path) \| `nowcast` (AirNow's 12 h weighted average / 1 h ozone) \| `forecast` (ECCC, used when the observation pipeline is empty) |
 | `stationName` | string | Human-readable station name (or municipal address for the Montreal source, the AirNow `SiteName` for AirNow, the OpenAQ-published name for OpenAQ) |
 | `stationDistanceKm` | integer | Great-circle distance from the requested point, rounded to the nearest km |
@@ -390,7 +390,7 @@ For each ECCC candidate, defunct stations are skipped automatically: the control
 
 Category cut-points per scale:
 
-- AQHI (`scale: "aqhi"`): `low` 1-3, `moderate` 4-6, `high` 7-10, `veryHigh` >10.
+- AQHI (`scale: "aqhi"`): `low` 1-3, `moderate` 4-6, `high` 7-10, `veryHigh` >10 ("10+"), applied to the rounded value, since Health Canada defines the bands on the published whole number (a raw 3.6 is published "4", moderate).
 - IQA (`scale: "iqa"`): `low` 1-25 (Bon), `moderate` 26-50 (Acceptable), `high` 51-100, `veryHigh` >100. The official MELCC categorisation is three tiers (Bon/Acceptable/Mauvais); the badge splits Mauvais at 100 to keep the four-tier vocabulary it shares with AQHI.
 - EPA AQI (`scale: "epa"`): `low` 0-50 (Good), `moderate` 51-100 (Moderate), `high` 101-150 (Unhealthy for Sensitive Groups), `veryHigh` >150. EPA officially defines six tiers (USG / Unhealthy / Very Unhealthy / Hazardous past 150); we collapse the top three into `veryHigh` so the four-tier colour vocabulary stays consistent across sources. The 150 split is the same point at which EPA's own palette transitions from orange to red.
 
