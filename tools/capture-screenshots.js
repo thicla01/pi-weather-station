@@ -12,7 +12,7 @@
  *
  *   1. **A readiness gate.** The app paints its shell long before the weather,
  *      reverse geocode, air quality and radar analysis land. Captured too early
- *      you get raw coordinates in the hero, `—` in the AQI card and
+ *      you get raw coordinates in the hero, `—` in the air-quality card and
  *      "Cannot get 24 hour weather forecast". Every frame waits for real data
  *      and shouts REVIEW THIS FRAME if it gave up waiting.
  *   2. **Deterministic preferences.** Scenario toggles (nightRed, timeline,
@@ -347,7 +347,7 @@ async function boot(cfg, sc) {
   } catch { degraded = true; }
   for (let i = 0; i < 20; i++) {
     const ok = await evaluate(send, `(() => { const t = document.body.innerText;
-      return !/—\\s*AQI/.test(t) && !/Cannot get/.test(t); })()`);
+      return !/—\\s*AIR QUALITY/i.test(t) && !/Cannot get/.test(t); })()`);
     if (ok) break;
     await sleep(1000);
   }

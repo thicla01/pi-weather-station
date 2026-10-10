@@ -61,6 +61,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `metrics.aqScale.*` locale keys through `client/src/ui/airQualityDisplay.js`, shared by both
   cards; `test/airQuality.test.js` and the new `test/airQualityDisplay.test.js` cover the
   rounding, the "10+" print and the labels.
+- **The air-quality row no longer names the wrong index while it loads.** Before the first
+  reading, the row showed the language's generic acronym, itself an index name, then switched
+  to the source's: "— IQA" in French in Florida before "57 AQI", "— AQI" in English in Montreal
+  before "16 IQA". It now reads "— Air quality" ("Qualité de l'air", "Calidad del aire") until
+  the reading lands, and stays that way where no source covers the place, at the same row
+  height. The detail popovers of the air card and the AIR alert card take the same neutral
+  title, which named an index too (« IQA » above a French AQHI reading). The `metrics.aqi`
+  locale key becomes `metrics.airQuality`.
 
 ## [3.3.1] - 2026-10-09
 

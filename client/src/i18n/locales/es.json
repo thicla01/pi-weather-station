@@ -140,7 +140,7 @@
     "gust": "Ráfagas",
     "humidity": "Humedad",
     "uv": "UV",
-    "aqi": "ICA",
+    "airQuality": "Calidad del aire",
     "aqScale": {
       "aqhi": "AQHI",
       "iqa": "IQA",

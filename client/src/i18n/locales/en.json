@@ -140,7 +140,7 @@
     "gust": "Gust",
     "humidity": "Humidity",
     "uv": "UV",
-    "aqi": "AQI",
+    "airQuality": "Air quality",
     "aqScale": {
       "aqhi": "AQHI",
       "iqa": "IQA",

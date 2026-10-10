@@ -4,7 +4,7 @@ import { useTranslation } from "react-i18next";
 import { WeatherDataContext, UiPrefsContext } from "~/AppContext";
 import { formatAge } from "~/ui/formatAge";
 import { formatDistanceKm } from "~/components/WeatherMap/geometry";
-import { aqScaleLabelKey, formatAqValue } from "~/ui/airQualityDisplay";
+import { AQ_NEUTRAL_LABEL_KEY, aqScaleLabelKey, formatAqValue } from "~/ui/airQualityDisplay";
 import DetailsPopover from "~/components/ambient/DetailsPopover";
 import styles from "./styles.css";
 
@@ -40,8 +40,10 @@ const TIER_CLASS = {
  * above the metrics grid (v3.1 Phase 2, §3 option B).
  *
  * Row grammar: `value · MONO LABEL (dotted-underline) · category pill`. The
- * AQI row is always present (placeholder dash until the blended
- * air-quality pipeline responds); the pollen row only renders when
+ * AQI row is always present: until the blended air-quality pipeline
+ * responds (or when no source covers the place) it reads "— Air quality",
+ * a neutral label rather than an index name the source may not use, at
+ * the height of a loaded row; the pollen row only renders when
  * the opt-in setting is on AND upstream returned allergen data —
  * out-of-coverage (`null` everywhere, the North-America common case)
  * degrades to the AQI row alone, identical to the setting being off.
@@ -75,7 +77,8 @@ const AirCard = ({ suppressAqRow = false }) => {
   const aqiCategory = aqhiInfo?.category;
   // Scale label doubles as the row's mono label — one label, fixing
   // the F5 "IQA · IQA" unit/label duplication the old cell had. From the
-  // locale files: the AQHI is "CAS" in French.
+  // locale files: the AQHI is "CAS" in French. No reading → the neutral
+  // "Air quality", never another index's acronym.
   const aqiScaleLabel = t(aqScaleLabelKey(aqhiInfo?.scale));
   const aqQualifier = aqiCategory ? t(`badges.aqiLevel.${aqiCategory}`) : null;
 
@@ -118,7 +121,7 @@ const AirCard = ({ suppressAqRow = false }) => {
         <DetailsPopover
           open={openKey === "aq"}
           onClose={() => setOpenKey(null)}
-          title={t("metrics.aqi")}
+          title={t(AQ_NEUTRAL_LABEL_KEY)}
           triggerRef={aqRowRef}
           portal
         >

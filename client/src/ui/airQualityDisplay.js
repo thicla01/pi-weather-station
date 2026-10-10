@@ -21,19 +21,30 @@ const SCALE_LABEL_KEY = {
   epa: "metrics.aqScale.epa",
 };
 
-// Fallback for a scale the client doesn't know (none today; defensive).
-const FALLBACK_LABEL_KEY = "metrics.aqi";
+// Neutral label — "Air quality" — for when no index is known: before the
+// first /api/air-quality response, when no source covers the place, and
+// for a scale the client doesn't know (none today; defensive). It names
+// the subject, not an index. The language's generic acronym it replaces
+// (EN "AQI", FR "IQA", ES "ICA") is itself the name of an index (EPA's,
+// Quebec's), so the row read "— IQA" in Florida before "57 AQI" landed.
+// Also the title of both cards' detail popovers, for the same reason.
+const AQ_NEUTRAL_LABEL_KEY = "metrics.airQuality";
 
 /**
  * Locale key of the short label for an air-quality index — "AQHI" (FR
  * "CAS"), "IQA" or "AQI". Used for the AirCard row label, the AIR card's
- * index SourceBadge and the "value label — level" popover line.
+ * index SourceBadge and the "value label — level" popover line. With no
+ * known index (no reading yet, or none available) it returns the neutral
+ * "Air quality" key, so the row never names an index the source may not
+ * use and only switches from the neutral label to the real one.
  *
- * @param {?string} scale the payload's `scale` ("aqhi" | "iqa" | "epa")
- * @returns {string} an i18next key; `metrics.aqi` for an unknown scale
+ * @param {?string} scale the payload's `scale` ("aqhi" | "iqa" | "epa"),
+ *   or undefined when there is no reading
+ * @returns {string} an i18next key; `metrics.airQuality` when the scale is
+ *   missing or unknown
  */
 function aqScaleLabelKey(scale) {
-  return SCALE_LABEL_KEY[scale] || FALLBACK_LABEL_KEY;
+  return SCALE_LABEL_KEY[scale] || AQ_NEUTRAL_LABEL_KEY;
 }
 
 /**
@@ -55,6 +66,7 @@ function formatAqValue(value, scale) {
 
 module.exports = {
   AQHI_TOP,
+  AQ_NEUTRAL_LABEL_KEY,
   aqScaleLabelKey,
   formatAqValue,
 };

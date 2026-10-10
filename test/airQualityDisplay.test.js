@@ -8,7 +8,12 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 
-const { AQHI_TOP, aqScaleLabelKey, formatAqValue } = require("../client/src/ui/airQualityDisplay");
+const {
+  AQHI_TOP,
+  AQ_NEUTRAL_LABEL_KEY,
+  aqScaleLabelKey,
+  formatAqValue,
+} = require("../client/src/ui/airQualityDisplay");
 
 const LOCALES_DIR = path.join(__dirname, "..", "client", "src", "i18n", "locales");
 const locale = (lang) => JSON.parse(fs.readFileSync(path.join(LOCALES_DIR, `${lang}.json`), "utf8"));
@@ -30,12 +35,30 @@ test("formatAqValue: IQA and EPA AQI print as received; no reading → null", ()
   assert.equal(formatAqValue(undefined, undefined), null);
 });
 
-test("aqScaleLabelKey: one locale key per index, metrics.aqi for an unknown scale", () => {
+test("aqScaleLabelKey: one locale key per index", () => {
   assert.equal(aqScaleLabelKey("aqhi"), "metrics.aqScale.aqhi");
   assert.equal(aqScaleLabelKey("iqa"), "metrics.aqScale.iqa");
   assert.equal(aqScaleLabelKey("epa"), "metrics.aqScale.epa");
-  assert.equal(aqScaleLabelKey("unknown"), "metrics.aqi");
-  assert.equal(aqScaleLabelKey(undefined), "metrics.aqi");
+});
+
+test("aqScaleLabelKey: no reading yet (or an unknown scale) → the neutral label, never an index name", () => {
+  // Before the first /api/air-quality response the payload is null, so the
+  // scale is undefined. The row used to show the language's generic acronym
+  // ("— IQA" in French, "— AQI" in English), itself an index name, and flip
+  // to the source's ("57 AQI", "16 IQA") when the reading landed.
+  assert.equal(AQ_NEUTRAL_LABEL_KEY, "metrics.airQuality");
+  assert.equal(aqScaleLabelKey(undefined), AQ_NEUTRAL_LABEL_KEY);
+  assert.equal(aqScaleLabelKey(null), AQ_NEUTRAL_LABEL_KEY);
+  assert.equal(aqScaleLabelKey("unknown"), AQ_NEUTRAL_LABEL_KEY);
+});
+
+test("neutral label: names the subject in EN, FR and ES, and is not an index acronym", () => {
+  const indexLabels = new Set(["AQHI", "CAS", "IQA", "AQI", "ICA"]);
+  for (const lang of ["en", "fr", "es"]) {
+    const label = lookup(locale(lang), AQ_NEUTRAL_LABEL_KEY);
+    assert.equal(typeof label, "string", `${lang}: ${AQ_NEUTRAL_LABEL_KEY} missing`);
+    assert.ok(!indexLabels.has(label.toUpperCase()), `${lang}: "${label}" is an index name`);
+  }
 });
 
 test("index labels: every scale has a label in EN, FR and ES; the AQHI is CAS in French", () => {

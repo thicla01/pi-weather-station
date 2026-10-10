@@ -6,7 +6,7 @@ import windGusts from "@iconify/icons-carbon/wind-gusts";
 import { WeatherDataContext, UiPrefsContext } from "~/AppContext";
 import { formatAge } from "~/ui/formatAge";
 import { formatDistanceKm } from "~/components/WeatherMap/geometry";
-import { aqScaleLabelKey, formatAqValue } from "~/ui/airQualityDisplay";
+import { AQ_NEUTRAL_LABEL_KEY, aqScaleLabelKey, formatAqValue } from "~/ui/airQualityDisplay";
 import SourceBadge from "~/components/ambient/SourceBadge";
 import DetailsPopover from "~/components/ambient/DetailsPopover";
 import styles from "./styles.css";
@@ -110,7 +110,7 @@ const AirAlertCard = ({ alert }) => {
       <DetailsPopover
         open={open}
         onClose={() => setOpen(false)}
-        title={t("metrics.aqi")}
+        title={t(AQ_NEUTRAL_LABEL_KEY)}
         triggerRef={cardRef}
         portal
       >

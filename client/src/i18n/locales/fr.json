@@ -140,7 +140,7 @@
     "gust": "Rafales",
     "humidity": "Humidité",
     "uv": "UV",
-    "aqi": "IQA",
+    "airQuality": "Qualité de l'air",
     "aqScale": {
       "aqhi": "CAS",
       "iqa": "IQA",

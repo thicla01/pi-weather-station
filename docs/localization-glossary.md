@@ -392,8 +392,8 @@ reported here as a gap table, so an empty check means the three files are aligne
 
 | Validé | EN | FR | ES | Clé |
 |--------|----|----|-----|-----|
+| ☐ | Air quality | Qualité de l'air | Calidad del aire | `metrics.airQuality` |
 | ☐ | AQHI | CAS | AQHI | `metrics.aqScale.aqhi` |
-| ☐ | AQI | IQA | ICA | `metrics.aqi` |
 | ☐ | Reading age | Âge de la lecture | Antigüedad de la lectura | `metrics.detailAge` |
 | ☐ | All allergens | Tous les allergènes | Todos los alérgenos | `metrics.detailAllergens` |
 | ☐ | Reading type | Type de lecture | Tipo de lectura | `metrics.detailKind` |
