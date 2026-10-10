@@ -96,9 +96,20 @@
   outline-offset: -1px;
 }
 
+/* A long title wraps to a second line instead of being cut: the chip
+ * prints its word ("WARNING" / "ADVERT." ≈ 72 px in English and Spanish,
+ * where the icon-only chip took ≈ 25 px), which left the one-line title
+ * too little room in the 360 px banner ("Severe thunderstorm warning" at
+ * 800x480, "Snow squall warning" with two alerts on a phone). A title
+ * that fits stays on one line and the banner keeps its height; one that
+ * wraps grows it (≈ 41 → 52 px) with nothing cut. The 2-line clamp only
+ * caps a pathological upstream title. */
 .title {
   flex: 1;
-  white-space: nowrap;
+  white-space: normal;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
   overflow: hidden;
   text-overflow: ellipsis;
 }

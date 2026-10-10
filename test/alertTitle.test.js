@@ -6,7 +6,8 @@
 // The French titles below are ECCC `alert_name_fr` values as the server
 // serves them (`capitalizeFirst` in server/govAlertSources/_shared.js):
 // the ones measured on the 7" kiosk in October 2026 and ECCC's other
-// names. Run: `npm test`.
+// names. The last test checks the components: every one that prints a
+// worded chip (full or abbreviated) shortens its title. Run: `npm test`.
 
 const { test } = require("node:test");
 const assert = require("node:assert/strict");
@@ -219,4 +220,34 @@ test("each stripped word is the word the French chip prints", () => {
     assert.equal(FR_PRODUCT_WORDS[type], frLocale.alert[key].toLowerCase(), key);
   }
   assert.ok(Object.isFrozen(FR_PRODUCT_WORDS));
+});
+
+test("every component that prints a worded SeverityChip shortens the title beside it", () => {
+  // A chip that prints its word, full or `abbreviated` (« AVERT. »),
+  // repeats the French prefix, so its component must pass the title
+  // through shortAlertTitle. Only an icon-only `compact` chip leaves the
+  // title whole; no surface has used one since the FloatingMiniBanner
+  // moved to `abbreviated` (2026-10).
+  const clientSrc = path.join(__dirname, "../client/src");
+  const worded = [];
+  const offenders = [];
+  const walk = (dir) => {
+    for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
+      const full = path.join(dir, entry.name);
+      if (entry.isDirectory()) { walk(full); continue; }
+      if (!entry.name.endsWith(".js")) continue;
+      const src = fs.readFileSync(full, "utf8");
+      const chips = [...src.matchAll(/<SeverityChip\b[^>]*>/g)].map((m) => m[0]);
+      if (!chips.some((chip) => !/\bcompact\b/.test(chip))) continue;
+      const rel = path.relative(clientSrc, full).split(path.sep).join("/");
+      worded.push(rel);
+      if (!/\bshortAlertTitle\(/.test(src)) offenders.push(rel);
+    }
+  };
+  walk(clientSrc);
+  assert.deepEqual(offenders, []);
+  // The radar-focus mini banner prints the abbreviated chip and so the
+  // short French title, like the Pi alert card.
+  assert.ok(worded.includes("components/ambient/FloatingMiniBanner/index.js"), worded.join(", "));
+  assert.ok(worded.includes("components/ambient/AlertBanner/index.js"), worded.join(", "));
 });
