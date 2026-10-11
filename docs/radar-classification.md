@@ -82,8 +82,8 @@ the client radar layer's URL with one option changed (`1_0`, below):
 
 `decodeTile` refuses a tile with `OFF_PALETTE_REJECT_PIXELS` (64) or
 more painted pixels whose colour is not in the table, before it can
-read as clear sky. Real tiles have none (below), so that means one
-of:
+read as clear sky. The analyzer's `1_0` tiles have none (below), so
+that means one of:
 
 - **The "Zoom Level Not Supported" placeholder.** Past z7 RainViewer
   answers HTTP 200 with a translucent grey box and white text, none of
@@ -120,8 +120,9 @@ downloaded 2026-10-10): one RGBA value per dBZ from −10 to 95, for
 rain and for snow, no colour shared between the two (the analyzer's
 `1_0` tiles only carry the rain colours; snow stays in the lookup,
 harmlessly). On 20 zoom-7 `1_1` tiles from five continents
-(2026-10-10, 2.48 M painted pixels) every painted pixel was exactly
-one of those values: no anti-aliasing, no blending. On the
+(2026-10-10, 2.48 M painted pixels of rain and snow, no mixed
+precipitation) every painted pixel was exactly one of those values:
+no anti-aliasing, no blending. On the
 analyzer's `1_0` tiles (the two mixed-precipitation tiles of ② and a
 snowy one, 192,680 painted pixels) every pixel was a rain colour. So
 the match is an exact lookup, colour → dBZ, then dBZ → level through

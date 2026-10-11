@@ -173,10 +173,11 @@ const LEVEL_BY_RGBA = new Map(
 
 // Off-palette pixels read as clear, which is how the scheme-6 matcher went
 // on reading about half of the precipitation as clear once RainViewer's
-// tiles turned Universal Blue. Real tiles have none (0 of 2.48 M painted
-// pixels on 20 `1_1` tiles; 0 of 192,680 on the analyzer's `1_0` tiles,
-// mixed precipitation and snow included; see rainViewerPalette.js), so a
-// tile with this many means RainViewer changed its drawing: decodeTile
+// tiles turned Universal Blue. The analyzer's `1_0` tiles have none (0 of
+// 192,680 painted pixels, mixed precipitation and snow included; and 0 of
+// 2.48 M on 20 `1_1` tiles holding rain and snow but no mixed precipitation,
+// which `1_1` paints off the table; see rainViewerPalette.js), so a tile
+// with this many means RainViewer changed its drawing: decodeTile
 // refuses it, and the analysis reports the radar unavailable instead of a
 // false all-clear. 64 pixels is a 3-4 km cell core at mid-latitudes.
 const OFF_PALETTE_REJECT_PIXELS = 64;

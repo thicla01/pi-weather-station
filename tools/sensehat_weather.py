@@ -194,7 +194,7 @@ X  = STORM_BG
 # tools/radar_grid_preview.js reads this table to preview the matrix.
 RADAR_TIER_RGB = [
     (  0,   0,   0),  # 0 clear — off
-    (  0, 110, 255),  # 1 very light  (blue — see note above; legend uses cyan)
+    (  0, 110, 255),  # 1 very light  (true blue — see note above; the screen legend's tier 1 is #51c5e8)
     (  0, 200,   0),  # 2 light
     (240, 230,   0),  # 3 moderate
     (240, 130,   0),  # 4 heavy

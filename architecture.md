@@ -640,11 +640,13 @@ Client: GET /api/weather-summary?lat=…&lon=…&lang=fr&localHour=14&…
   → reads current/hourly/daily from shared weatherCache (a current-conditions
       miss triggers one non-fatal Tomorrow.io backfill)
   → calls radarAnalyzerCtrl.analyzeRadar(lat, lon)
-      → fetches the RainViewer past-frames index (analysis cached 5 min,
-        decoded tiles 60 min)
-      → for now, -15 min, -45 min: fetches matching tiles, reads pixels at
-        161 sample points (centre + 16 directions × 10 distances; 481 with
-        advanced.ai.extendedRadius), classifies intensity, formats as text
+      → fetches the RainViewer past-frames index (analysis cached 5 min)
+      → for now, -15 min, -45 min: fetches the matching tiles and classifies
+        every pixel once, at fetch, into an intensity level (the tile cache
+        keeps those level arrays, 60 min); then reads 161 sample points
+        (centre + 16 directions × 10 distances; 481 with
+        advanced.ai.extendedRadius), each the worst level in the 3×3 pixels
+        around it, and formats them as text
       → returns a compact "now: clear / -15 min: light NE / -45 min: ..." block
   → calm-day fast path (advanced.ai.calmDayFastPath, default on): benign weather
       code, precip probability < 20 % now and for the coming period, and no
