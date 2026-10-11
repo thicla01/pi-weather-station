@@ -103,10 +103,28 @@ sudo dmesg | grep -iE 'vc4|dsi|underrun|flip_done'           # no scanout errors
 cat /sys/class/backlight/*/actual_brightness                 # backlight is on (non-zero)
 ```
 
-A forced modeset (`wlr-randr --output DSI-1 --off` then `--on --mode 800x480 --transform 180`) re-trains the link, but does **not** restore the image when the ribbon is the problem.
+A forced modeset (`wlr-randr --output DSI-1 --off` then `--on --mode 800x480 --transform 180`) re-trains the link, but does **not** restore the image when the ribbon is the problem. (`--transform 180` matches a panel mounted upside down and flipped in software; use `--transform normal` otherwise. On a Pi 3 or older, that software rotation is costly: see [pi3-screen-rotation.md](pi3-screen-rotation.md).)
 
 **Fix**
 
 Same as the section above — **cold power-cycle and reseat the DSI ribbon at both ends; replace the FFC if it recurs.** A warm reboot may not fully reset the DSI PHY, so pull power for ~10 s rather than just rebooting.
 
 > **Backlight nodes:** `10-0045` is the real one (the Atmel backlight controller on i2c); `rpi_backlight` is the legacy firmware interface. A black-but-backlit panel whose `actual_brightness` on `10-0045` is non-zero rules out a brightness/screensaver cause and points squarely at the video link.
+
+## Radar animation stutters, the map lags behind your finger (Pi 3 and older)
+
+**Symptoms**
+
+- The radar animation stutters or crawls, especially at 2× or 4×.
+- Dragging the map lags behind your finger; opening a view or switching the radar focus takes a visible moment.
+- Everything is fine as long as nothing moves on screen.
+
+**Cause**
+
+On a Raspberry Pi 3 or older (Zero 2 W included), the screen is rotated in software: the panel sits upside down in its stand (or in portrait) and the OS orientation setting flips the image back. On these boards the desktop compositor then recomposes every frame on the CPU: on the bench, the radar loop dropped from about 59 to 5 frames per second. A Pi 4 or Pi 5 is not affected.
+
+Check it: `XDG_RUNTIME_DIR=/run/user/$(id -u) WAYLAND_DISPLAY=wayland-0 wlr-randr | grep Transform` prints anything other than `Transform: normal`.
+
+**Fix**
+
+Mount the screen the right way up (or use a case that holds it that way) and set the orientation back to normal. If the screen has to stay upside down, a kernel option can flip the image in hardware instead, for a touch kiosk. Steps, measurements and caveats: [pi3-screen-rotation.md](pi3-screen-rotation.md).

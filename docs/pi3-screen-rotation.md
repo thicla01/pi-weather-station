@@ -16,7 +16,9 @@ If the official 7" touchscreen (or any panel) sits upside down in its stand and 
 
 *Measured on 2026-10-10 on a Pi 3B bench running commit `1f38e04`, Chromium 152, in the kiosk itself (frame rate from the page's animation frames). Three runs: rotated, unrotated, rotated again; the two rotated runs agree within 1–4 frames/s, so the difference comes from the rotation alone.*
 
-At rest (nothing moving on screen) both orientations cost nothing. The difference shows whenever something moves: the radar loop, a pan, a transition.
+What you notice: the radar animation stutters or crawls, the map lags behind your finger when you drag it, and opening a view or switching the radar focus takes a visible moment. At rest (nothing moving on screen) both orientations cost nothing. The difference shows whenever something moves: the radar loop, a pan, a transition.
+
+The same applies to a 90° or 270° (portrait) rotation: any orientation other than normal goes through the same CPU recomposition (not measured on the bench, which only tested 180°).
 
 **Fix: mount the screen the right way up and set the orientation back to normal.** If you can't turn the screen over, a kernel option can flip the image in the display hardware instead, at no cost; it is undocumented, so read its caveats first ([Alternative](#alternative-flip-the-image-in-hardware)). Details below.
 
@@ -43,7 +45,7 @@ If the first command prints `Transform: 180` (or 90/270) and the second prints `
 
 ## Fix
 
-1. **Turn the screen the right way up** in its stand or case, for example by turning the display over so the image no longer needs flipping.
+1. **Turn the screen the right way up** in its stand or case, for example by turning the display over so the image no longer needs flipping. If you are choosing a case or stand for the official 7" touchscreen, pick one that holds the screen the right way up as designed: nothing to configure, nothing to re-check after updates, and a mouse works too. A design that holds it upside down gives itself away in its instructions, which ask you to flip the image (`lcd_rotate=2`, or a 180° rotation in the screen settings).
 2. **Set the orientation back to normal:**
    - **GUI:** Control Centre → **Screens**, select the display (**DSI-1** for the official touchscreen), and set its **Orientation** to normal. This is the same panel as the touchscreen **Mode** setting described in [troubleshooting-touchscreen.md](troubleshooting-touchscreen.md).
    - **Or** edit `~/.config/kanshi/config` and remove `transform 180` (or set `transform normal`) from the output line, then reboot.
@@ -67,7 +69,7 @@ If the screen has to stay upside down in its stand, the Pi's display controller 
 **Caveats — read before using it:**
 - **It is not documented by Raspberry Pi**, and it relies on behaviour a Raspberry Pi engineer describes as a bug ([wlroots merge request 4508](https://gitlab.freedesktop.org/wlroots/wlroots/-/merge_requests/4508), unmerged since January 2024): the compositor never resets the flip the kernel sets at boot. A future update of the desktop (wlroots, libliftoff or labwc) could undo it, putting the image back upside down or bringing the CPU cost back. **After every `apt full-upgrade`, check that the image is still upright and run the checks below.**
 - **180° only** (not 90° or 270°).
-- **The mouse cursor is not flipped**: it shows at the mirrored spot. Irrelevant on a touch-only kiosk (the cursor hides as soon as the screen is touched), but a mouse becomes unusable.
+- **A mouse plugged into the Pi becomes unusable**: the cursor is not flipped, so it shows at the mirrored spot and clicks land somewhere else than where you aim (checked on the bench). Touch works normally, and so does **Raspberry Pi Connect screen sharing**: the shared view and the physical screen stay upright, and the remote pointer shows at the right spot on both, with clicks landing where they should. If you need a local mouse, turn the screen the right way up instead.
 - Tested on the official 7" touchscreen (v1, `DSI-1`). Other displays should take the same option with their own connector name (for example `HDMI-A-1` and its mode); untested.
 
 **Steps** (on the Pi, as the kiosk user):
