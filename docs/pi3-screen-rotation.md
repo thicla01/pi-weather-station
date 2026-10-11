@@ -16,7 +16,9 @@ If the official 7" touchscreen (or any panel) sits upside down in its stand and 
 
 *Measured on 2026-10-10 on a Pi 3B bench running commit `1f38e04`, Chromium 152, in the kiosk itself (frame rate from the page's animation frames). Three runs: rotated, unrotated, rotated again; the two rotated runs agree within 1–4 frames/s, so the difference comes from the rotation alone.*
 
-At rest (nothing moving on screen) both orientations cost nothing. The difference shows whenever something moves: the radar loop, a pan, a transition.
+What you notice: the radar animation stutters or crawls, the map lags behind your finger when you drag it, and opening a view or switching the radar focus takes a visible moment. At rest (nothing moving on screen) both orientations cost nothing. The difference shows whenever something moves: the radar loop, a pan, a transition.
+
+The same applies to a 90° or 270° (portrait) rotation: any orientation other than normal goes through the same CPU recomposition (not measured on the bench, which only tested 180°).
 
 **Fix: mount the screen the right way up and set the orientation back to normal.** If you can't turn the screen over, a kernel option can flip the image in the display hardware instead, at no cost; it is undocumented, so read its caveats first ([Alternative](#alternative-flip-the-image-in-hardware)). Details below.
 
