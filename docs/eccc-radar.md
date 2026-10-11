@@ -227,14 +227,14 @@ Two paths, neither implemented today:
 | Axis | RainViewer | ECCC GeoMet |
 |---|---|---|
 | **Cadence** | ~10 min | **6 min** |
-| **History** | 10 past frames + 3 nowcast (~3 h total) | last 3 h, no nowcast |
+| **History** | 13 past frames, 10 min apart (2 h); nowcast frames used to follow (3, to +30 min), none served since at least 2026-10-10 | last 3 h, no nowcast |
 | **Coverage** | Global | North America only (bbox above) |
 | **Authority** | Commercial aggregate | Source-of-truth (Canadian government, US NOAA) |
-| **Style options** | A few numbered colour schemes (URL segment) — we pin scheme 6 because the analyzer palette (`INTENSITY_PALETTE`) and the client legend are hard-wired to it | 16 named styles (rain), 16 (snow), 2 (precip type), 6 (coverage) |
-| **Snow/rain separation** | No (intensity only) | **Yes** — distinct layers + `SfcPrecipType` classifier |
+| **Style options** | One colour scheme since (at the latest) 2026-10-10: Universal Blue (`/2/` in the URL; schemes 4, 6 and 8 now return the same tiles). The analyzer decodes pixels with its published table (`server/rainViewerPalette.js`) and the client legend shows its colours | 16 named styles (rain), 16 (snow), 2 (precip type), 6 (coverage) |
+| **Snow/rain separation** | On the map (`_1` snow option) snow and mixed precipitation have their own colours; the analyzer asks for `_0` (everything in the rain colours) and doesn't use the type | **Yes** — distinct layers + `SfcPrecipType` classifier |
 | **Format** | Pre-rendered PNG tiles via CDN | Dynamic WMS GetMap (server-side rendered) |
 | **Auth / key** | None | None |
-| **Rate limits** | Unspecified, 512×512 tile pipeline | Unspecified, dynamic render |
+| **Rate limits** | 500 requests per 60 s per public IP, burst 300 (response headers, 2026-10-09/10; shared by every kiosk behind a router), 512×512 tile pipeline | Unspecified, dynamic render |
 | **Suitable analyzer source** | **Yes (current)** — pixel-decoded intensity | TBD — Phase B work; OGC API Coverages may expose raw values |
 | **Time-dimension API for scrubbing** | RainViewer's frame URLs (`{path}/{z}/{x}/{y}`) | WMS `TIME=` parameter |
 
@@ -242,9 +242,9 @@ Two paths, neither implemented today:
 
 Captured in `ROADMAP.md` under "🇨🇦 Environment Canada radar source" — this section makes the gap between today's Phase A and the eventual Phase B concrete:
 
-- **No nowcast frames.** RainViewer ships 3 short-range forecast frames driving the timeline scrubber's amber portion. ECCC has no equivalent for radar — the time dimension's upper bound is "now". Phase B's scrubber will lose the +0..+30 min preview unless we hybrid-pull it from RainViewer.
+- **No nowcast frames.** ECCC has no radar nowcast — the time dimension's upper bound is "now". RainViewer used to ship 3 short-range forecast frames driving the timeline scrubber's amber portion, but has served none since at least 2026-10-10 (`radar.nowcast: []`), so today neither source previews past "now". If RainViewer's come back, Phase B's scrubber would lose that +0..+30 min preview unless we hybrid-pull it from RainViewer.
 
-- **Analyzer port.** The kiosk's tier/trend/AlertBanner pipeline depends on RainViewer's PNG palette being decodable pixel-by-pixel into a 0–6 intensity scale (0 = clear, 1–6 = the RainViewer colour scheme 6 levels) ([`server/radarAnalyzerCtrl.js`](../server/radarAnalyzerCtrl.js), see [`docs/radar-classification.md`](radar-classification.md)). To port to ECCC the cleanest route is **OGC API Coverages** at `api.weather.gc.ca` for raw mm/h precipitation-rate values, sampled at the kiosk's geometry. Whether that endpoint exposes per-point queries efficiently is **not yet verified** — research and a small spike are pre-requisites before Phase B starts.
+- **Analyzer port.** The kiosk's tier/trend/AlertBanner pipeline depends on RainViewer's PNG palette being decodable pixel-by-pixel into a 0–6 intensity scale (0 = clear, 1–6 = dBZ bands decoded from RainViewer's Universal Blue colours) ([`server/radarAnalyzerCtrl.js`](../server/radarAnalyzerCtrl.js), see [`docs/radar-classification.md`](radar-classification.md)). To port to ECCC the cleanest route is **OGC API Coverages** at `api.weather.gc.ca` for raw mm/h precipitation-rate values, sampled at the kiosk's geometry. Whether that endpoint exposes per-point queries efficiently is **not yet verified** — research and a small spike are pre-requisites before Phase B starts.
 
 - **Auto-source switching.** Today's setting is manual per-kiosk. Phase B should auto-default to ECCC for kiosks geolocated inside Canada (bbox check against the existing `geolocationCtrl.js` location — an ipapi.co lookup of the server's own public IP, 30-day disk cache — or the kiosk's current map coordinates; not `req.ip`, which is loopback for the kiosk itself and XFF-spoofable for remote clients), RainViewer outside.
 

@@ -42,6 +42,7 @@ const {
   isRadarClear,
   isCalmStableState,
   buildCalmDayTemplate,
+  calmDayFastPathSummary,
   getHourlyForecast,
   getPeriod,
 } = aiTest;
@@ -255,8 +256,9 @@ test("getHourlyForecast: returns null when payload, intervals, or window matches
 // === isRadarClear — truth table ===
 
 test("isRadarClear: no radar text (null/undefined/empty) counts as clear", () => {
-  // Radar absence is non-fatal by design — the fast path proceeds assuming
-  // clear; buildCalmDayTemplate then drops paragraph 3 via radarAvailable.
+  // Radar absence is non-fatal by design — the fast path may proceed on the
+  // other gates, but null means "no radar data", not "radar clear":
+  // calmDayFastPathSummary then drops paragraph 3 (tests below).
   assert.equal(isRadarClear(null), true);
   assert.equal(isRadarClear(undefined), true);
   assert.equal(isRadarClear(""), true);
@@ -431,4 +433,66 @@ test("buildCalmDayTemplate: localised radar paragraph keeps the per-language lab
     radarAvailable: true,
   });
   assert.ok(fr.includes("Analyse radar : rien à signaler dans les 50 km"), fr);
+});
+
+// === calmDayFastPathSummary — no radar all-clear without radar data ===
+
+/**
+ * The fast path's inputs on a calm evening, radar analysis on, with
+ * per-test overrides.
+ *
+ * @param {Object} [overrides] Fields to override
+ * @returns {Object} calmDayFastPathSummary options
+ */
+function calmFastPathOpts(overrides = {}) {
+  return {
+    lang: "en",
+    values: calmValues(),
+    tempUnit: "c",
+    speedUnit: "kmh",
+    distanceUnit: "km",
+    extendedRadius: false,
+    periodKind: "evening",
+    periodSummary: { avgTemp: 18, maxPrecip: 5, avgWind: 3 },
+    periodMaxPrecip: 5,
+    radarText: "now: clear (no precipitation within 50km)",
+    ...overrides,
+  };
+}
+
+// The radar paragraph's label and its "nothing to report" wording, per language.
+const RADAR_ALL_CLEAR_WORDS = {
+  en: [/Radar analysis/, /nothing to report/],
+  fr: [/Analyse radar/, /rien à signaler/],
+  es: [/Análisis radar/, /nada que señalar/],
+};
+
+test("calmDayFastPathSummary: radar enabled, every tile refused (radarText null) — no radar all-clear", () => {
+  // analyzeRadar returns null when every frame is unavailable (refused
+  // tiles, RainViewer down). The fast path still answers from the other
+  // gates, but must not claim the radar shows nothing.
+  for (const lang of ["en", "fr", "es"]) {
+    const summary = calmDayFastPathSummary(calmFastPathOpts({ lang, radarText: null }));
+    assert.ok(summary, `${lang}: the fast path still answers`);
+    assert.equal(summary.split("\n\n").length, 2, `${lang}: current + period only`);
+    for (const word of RADAR_ALL_CLEAR_WORDS[lang]) {
+      assert.doesNotMatch(summary, word, `${lang}: ${summary}`);
+    }
+  }
+});
+
+test("calmDayFastPathSummary: radar enabled with a clear snapshot still prints the radar paragraph", () => {
+  for (const lang of ["en", "fr", "es"]) {
+    const summary = calmDayFastPathSummary(calmFastPathOpts({ lang }));
+    const paragraphs = summary.split("\n\n");
+    assert.equal(paragraphs.length, 3, `${lang}: ${summary}`);
+    for (const word of RADAR_ALL_CLEAR_WORDS[lang]) assert.match(paragraphs[2], word);
+  }
+});
+
+test("calmDayFastPathSummary: an active radar zone, or a non-calm gate, is no fast path", () => {
+  const active = "now:\n  Clear within 25km.\n  Active 30km-30km:\n    N      : 30km light";
+  assert.equal(calmDayFastPathSummary(calmFastPathOpts({ radarText: active })), null);
+  assert.equal(calmDayFastPathSummary(calmFastPathOpts({ periodMaxPrecip: PRECIP_THRESHOLD })), null);
+  assert.equal(calmDayFastPathSummary(calmFastPathOpts({ periodMaxPrecip: null, radarText: null })), null);
 });

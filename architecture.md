@@ -132,12 +132,19 @@ server/index.js  ─── entry point, routes, middleware, HTTPS server
     │                        it for the AI summary and stops the kiosk's
     │                        /api/radar-risk poll (the Sense HAT radar/auto
     │                        modes still sample).
-    │                        Reads tile pixels via pngjs, classifies against
-    │                        the 6-level NEXRAD palette. Exports analyzeRadar
-    │                        (compact textual grid for the AI prompt),
-    │                        getRiskLevels (/api/radar-risk ring tiers +
-    │                        trends) and buildRadarGrid (Sense HAT 8×8 grid).
-    │                        Tile cache: 60 min. Analysis cache: 5 min.
+    │                        Reads tile pixels via pngjs, decodes each colour
+    │                        to dBZ with RainViewer's Universal Blue table,
+    │                        then to 6 levels; refuses non-radar tiles (zoom
+    │                        placeholder, unknown colours). Exports
+    │                        analyzeRadar (compact textual grid for the AI
+    │                        prompt), getRiskLevels (/api/radar-risk ring
+    │                        tiers + trends) and buildRadarGrid (Sense HAT
+    │                        8×8 grid). Tile cache: 60 min. Analysis cache:
+    │                        5 min.
+    │
+    ├── rainViewerPalette.js RainViewer's published Universal Blue colour
+    │                        table (scheme 2, rain + snow, -10 … 95 dBZ) and
+    │                        the colour → dBZ lookup the analyzer uses.
     │
     ├── airQualityCtrl.js    Air-quality orchestrator over airQualitySources/
     │                        (MELCC Montréal, MELCC RSQAQ, EPA AirNow,

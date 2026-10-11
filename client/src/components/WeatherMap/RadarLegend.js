@@ -7,9 +7,10 @@ import { RADAR_GEOMETRY } from "./geometry";
 import { CloseIcon } from "./icons";
 import styles from "./styles.css";
 
-// Tile-scale segment classes t1…t6 — backed by the --rc-tile-* tokens
-// (the EXACT RainViewer colour-scheme-6 palette the tiles ship with,
-// fixed across all four palettes — see styles.css).
+// Tile-scale segment classes t1…t6 — backed by the --rc-tile-* tokens:
+// one real colour of RainViewer's Universal Blue palette (the tiles' own)
+// per analyzer intensity level, fixed across all four palettes — see
+// styles.css.
 const TILE_SEGMENTS = ["t1", "t2", "t3", "t4", "t5", "t6"];
 
 // Nearby-alert tier rows: swatch class (backed by --rc-alert-*, which
@@ -34,7 +35,8 @@ const ALERT_TIERS = [
 const NBSP = "\u00a0";
 
 /**
- * Six-segment precipitation colour bar — the real tile palette.
+ * Six-segment precipitation colour bar — real tile colours, one per
+ * intensity level.
  *
  * @returns {JSX.Element} Scale bar
  */

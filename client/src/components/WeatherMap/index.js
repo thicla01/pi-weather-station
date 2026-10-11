@@ -185,12 +185,16 @@ const MAPBOX_ATTRIBUTION = '© <a href="https://www.mapbox.com/feedback/">Mapbox
 
 /**
  * Tile URL template of one RainViewer frame: 512 px tiles, colour scheme
- * 6, smoothed, with snow.
+ * 2 ("Universal Blue", the only one RainViewer serves since 2026-10),
+ * smoothed, with snow (and mixed precipitation) in its own colours. The
+ * server's radar analyzer requests the same scheme with snow in the rain
+ * colours (`1_0`) and decodes the pixels with that palette;
+ * test/rainViewerTiles.test.js keeps the two in step.
  *
  * @param {string} path - Frame path from the RainViewer index (e.g. "/v2/radar/<id>").
  * @returns {string} Leaflet tile URL template.
  */
-const rainViewerTileUrl = (path) => `https://tilecache.rainviewer.com${path}/512/{z}/{x}/{y}/6/1_1.png`;
+const rainViewerTileUrl = (path) => `https://tilecache.rainviewer.com${path}/512/{z}/{x}/{y}/2/1_1.png`;
 
 /**
  * Handles map click events from inside the MapContainer context
@@ -1536,17 +1540,22 @@ const WeatherMap = ({ zoom, dark }) => {
               : 0}
             tileSize={512}
             zoomOffset={-1}
+            /* Leaflet zoom 8 = z7 in the URL (zoomOffset -1), which
+             * is RainViewer's max: z8+ answers HTTP 200 with a grey
+             * "Zoom Level Not Supported" image that no tileerror
+             * catches. test/rainViewerTiles.test.js pins these four
+             * props. */
             maxNativeZoom={8}
-            /* Radar tiles disappear at z=13+. RainViewer's native
-             * zoom maxes at 8; the previous config inherited the
-             * map's maxZoom (20), so Leaflet upscaled z=8 tiles by
-             * up to 4096× via CSS transform — which crashed Safari
-             * iPad Pro M4 and earlier on extended street-level
-             * zoom. Capping at 12 keeps the radar useful (still
-             * showing 1 km resolution at city blocks) without the
-             * extreme upscale that iOS's tile compositor can't
-             * keep up with. The basemap below keeps zooming up to
-             * 18; only the radar overlay disappears past z=12. */
+            /* Radar tiles disappear at z=13+. Without a cap the
+             * layer took TileLayer's default maxZoom (18), so
+             * Leaflet stretched the z7 tiles by up to 1024× via CSS
+             * transform — which crashed Safari on an iPad Pro M4 on
+             * extended street-level zoom. Capping at 12 keeps the
+             * radar useful (still showing 1 km resolution at city
+             * blocks) without the extreme upscale that iOS's tile
+             * compositor can't keep up with. The basemap below
+             * keeps zooming up to 18; only the radar overlay
+             * disappears past z=12. */
             maxZoom={12}
             /* `updateWhenIdle: true` defers tile loading until the
              * user finishes panning (no load on every move event) —
@@ -1772,9 +1781,13 @@ WeatherMap.propTypes = {
 /**
  * Fetches the RainViewer frame index and returns past + nowcast frames as
  * a single time-ordered array, with each frame tagged `kind: "past" | "nowcast"`.
- * The nowcast frames (3 entries, every 10 min into the future) are RainViewer's
- * short-range precipitation forecast — surfacing them in the timeline lets the
- * user scrub past the present moment to see what's expected to drift in next.
+ * Past frames come every 10 min over the last 2 h (13 frames). Nowcast frames
+ * are RainViewer's short-range precipitation forecast (it used to send 3,
+ * 10 min apart); surfacing them in the timeline lets the user scrub past the
+ * present moment. RainViewer has sent none since at least 2026-10-10
+ * (`radar.nowcast: []`): the timeline then ends at "now", and the code for
+ * the forecast zone and the "never display a forecast frame as now" guard
+ * stays in place in case they come back.
  *
  * @returns {Promise<Array<{time: number, path: string, kind: "past"|"nowcast"}>>} Combined past + nowcast frames in time order.
  */

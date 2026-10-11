@@ -166,8 +166,8 @@ Today's radar layer defaults to 512 px PNG tiles from RainViewer's CDN, which wo
 **Trade-offs that make this not an obvious win:**
 - **Different protocol.** MSC publishes via WMS (`geo.weather.gc.ca/geomet`) and OGC API (`api.weather.gc.ca`), not pre-rendered tile URLs. The Leaflet side is simple (`L.tileLayer.wms()` instead of `L.tileLayer()`), but it shifts rendering load to a server-side that may have less aggressive caching than RainViewer's CDN.
 - **Custom pixel encoding.** [`server/radarAnalyzerCtrl.js`](server/radarAnalyzerCtrl.js) decodes RainViewer's intensity-encoded palette pixel-by-pixel to feed the tier/trend/AlertBanner pipeline. Migrating that to MSC requires either re-decoding their dBZ palette, or (cleaner) switching to MSC's OGC API Coverages for raw precipitation-rate values — a few hours of work, not a find-and-replace.
-- **Shorter history window.** MSC keeps ~3 hours of frames; the 45-min trend computation (now / -15 min / -45 min) fits but loses head-room compared to RainViewer's similar span.
-- **No documented nowcast.** RainViewer ships 3 short-range forecast frames (`radar.nowcast`) that drive the timeline scrubber's amber "+10 / +20 / +30 min" portion. MSC has extrapolation layers but their frame count and prediction horizon aren't documented the same way; the timeline UX would need a fallback story for ECCC users.
+- **History window.** MSC keeps ~3 hours of frames, RainViewer 2 hours (13 frames, checked 2026-10-10); the 45-min trend computation (now / -15 min / -45 min) fits in either.
+- **No documented nowcast.** RainViewer used to ship 3 short-range forecast frames (`radar.nowcast`) that drive the timeline scrubber's amber "+10 / +20 / +30 min" portion; it has sent none since at least 2026-10-10, the timeline code is kept for their return. MSC has extrapolation layers but their frame count and prediction horizon aren't documented the same way; the timeline UX would need a fallback story for ECCC users.
 - **No API key needed**, attribution required (*"Canadian radar data was provided courtesy of Environment Canada"*).
 
 **Suggested phased approach:**
@@ -557,6 +557,19 @@ Since 2026-10-09, production builds strip the comments of the CSS-module stylesh
 - (c) Leave it.
 
 With (a) or (b), Leaflet's branch can take the same production-only `postcss-loader`. Low priority.
+
+### 📋 Radar on RainViewer's Universal Blue — follow-ups (2026-10-10)
+Found while moving the radar to the Universal Blue colour scheme (PR #396; see [`docs/radar-classification.md`](docs/radar-classification.md)) and left out of it:
+- **`getRiskLevels` swallows per-frame errors.** In `server/radarAnalyzerCtrl.js`, each frame's snapshot job ends in `.catch(() => null)`, so a refused tile (the zoom placeholder, a palette change) surfaces in the Debug panel as `RainViewer (risk) → 200 — no snapshots`: the new refusal path is hidden where a maintainer looks first (the `[radar] tile … refused` log line and the AI-summary path do carry the reason).
+- **Refused tiles are never cached.** Under a persistent refusal (a palette change), every consumer poll downloads, inflates and classifies the same immutable tile again and logs the refusal again: the kiosk's ring poll every 5 min, the AI summary every 15, and the Sense HAT radar/auto modes every 60 s (`POLL_INTERVAL`). Bounded, but needless load on RainViewer's per-IP budget shared with the fleet; a short negative cache keyed by tile URL would fix it.
+- **The client keeps the rings' last colour when `/api/radar-risk` answers 503**, so a radar outage is invisible on the map (after a cold boot the rings stay neutral).
+- **Leaflet `redraw()` bypasses `maxZoom`.** In Leaflet 1.9.4, `GridLayer.redraw` picks the tile zoom with `_clampZoom` and skips the `maxZoom` test of `_setView`, so each frame URL change at map zoom ≥ 13 can redraw z7 tiles stretched up to 1024×. Read in the code, not reproduced; desktops and iPads only. Any fix needs the maintainer's approval (zoom).
+- **The legend shows neither the snow nor the mixed-precipitation colours.** The map's tiles use `1_1`: snow has its own blue ramp (`#bfffff` → `#0000ff`), so heavy snow (≥ 35 dBZ, deep blue) reads like the legend's "light" blue, and mixed precipitation an unlisted pink ramp (`#fffbfc0c` … `#ff8dafff` seen, −9 … 21 dBZ at zoom 7, up to 26 at z3; nothing known above). Maintainer's call: document it, add snow and mix swatches, or switch the map to `1_0` too (everything in rain colours, losing the distinction on the map). The analyzer already reads `1_0`, so the pink ramp can't trip its palette guard.
+- **`docs/screenshots` still show the old NEXRAD legend** (`tools/capture-screenshots.js`).
+- **The changed `--rc-tile-*` tokens need publishing** to the migrated design-system artifact ("Design System (migrated)" in Claude): the standalone Claude Design site closes in December, so the old DesignSync push is no longer the route.
+
+### 📋 Server code isn't linted in CI
+ESLint runs only inside the client build (`client/eslint.config.js`, through webpack); nothing lints `server/`, `tools/` or `test/`. In PR #396 a rewrite deleted three functions of `server/radarAnalyzerCtrl.js` that six call sites still used: every test passed and CI was green, while on a kiosk the radar analysis returned null on every call (the `ReferenceError` was caught and logged as a RainViewer failure). `no-undef` flags exactly those six calls. Add a root ESLint config for the Node code (CommonJS, Node globals, at least `no-undef` and `no-unused-vars`) and a CI step; it changes CI for the whole server tree, so check the current findings first. `test/radarAnalyzerEndToEnd.test.js` now covers that particular path.
 
 ## Perspective
 

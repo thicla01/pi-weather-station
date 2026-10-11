@@ -80,7 +80,7 @@ The dark **dusk** palette (used whenever dark mode is on and the night-vision re
 - **Hardware screen-brightness control** on supported displays.
 - **Opt-in sleep mode / screensaver** with a melatonin-friendly red night palette.
 - **Focus-radar toggle** — a small button under the map's zoom controls hides the hero and the information rail so the radar fills the viewport; tap again to bring them back. Available on the Pi kiosk and desktop layouts (the phone layout has its own maximize button on the mini radar).
-- **Radar timeline** — scrub or play through the past + nowcast RainViewer frames (1× / 2× / 4× speed) with a touch-friendly transport bar; hiding the bar always snaps the radar back to "now".
+- **Radar timeline** — scrub or play through the past two hours of RainViewer frames, plus its nowcast when RainViewer serves one (it has served none since October 2026), at 1× / 2× / 4× speed with a touch-friendly transport bar; hiding the bar always snaps the radar back to "now".
 - **Favorite locations** — pin up to 6 places (7 when one is the kiosk's own default), jump back to them from the Places popover in the dock, and promote one as the default location.
 - **Localhost-only debug panel** with KPIs, service status, quota counters, radar snapshots, and logs.
 
@@ -91,7 +91,7 @@ The dark **dusk** palette (used whenever dark mode is on and the night-vision re
 | [![Gov-alert detail expanded](docs/screenshots/v3-alert-detail.webp)](docs/screenshots/v3-alert-detail.webp) | [![QR code at the foot of an alert](docs/screenshots/v3-alert-qr.webp)](docs/screenshots/v3-alert-qr.webp) |
 | **Gov-alert detail** — the collapsible block under the banner, with affected areas and the upstream text split into its WIND / STORM SURGE sections. | **QR, never a link** — the kiosk has no browser chrome to get back from, so the upstream page is offered as a QR code to scan with a phone. |
 | [![Nearby-alert polygons on the map](docs/screenshots/v3-alerts-overlay.webp)](docs/screenshots/v3-alerts-overlay.webp) | [![Radar timeline scrubber](docs/screenshots/v3-radar-timeline.webp)](docs/screenshots/v3-radar-timeline.webp) |
-| **Nearby-alert overlay** — every active polygon around you, tinted by severity, with a count in the legend and a badge on the dock button. | **Radar timeline** — scrub or play the past frames and the nowcast, with a labelled "Now" marker at the boundary and a hatched future zone. |
+| **Nearby-alert overlay** — every active polygon around you, tinted by severity, with a count in the legend and a badge on the dock button. | **Radar timeline** — scrub or play the past frames and the nowcast, with a labelled "Now" marker at the boundary and a hatched future zone (shown when RainViewer serves a nowcast; it has served none since October 2026). |
 | [![Forecast maximized on the Pi rail](docs/screenshots/v3-forecast-max.webp)](docs/screenshots/v3-forecast-max.webp) | [![Places popover with seven rows](docs/screenshots/v3-places.webp)](docs/screenshots/v3-places.webp) |
 | **Forecast, maximized** — the map shrinks to a thumbnail and the chart takes the full rail; here the precipitation tab, hourly bars plus the probability curve. | **Favorite locations** — the home row on top, then the pinned places; this is the full budget of seven rows. |
 | [![Places edit mode](docs/screenshots/v3-places-edit.webp)](docs/screenshots/v3-places-edit.webp) | [![Settings panel](docs/screenshots/v3-settings.webp)](docs/screenshots/v3-settings.webp) |
