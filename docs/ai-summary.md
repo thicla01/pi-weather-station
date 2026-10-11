@@ -143,16 +143,21 @@ not to invent values.
    -45 min frames on later runs), by the `/api/radar-risk` computation
    that samples the same frames, and across nearby locations, so the
    cache hit rate is high.
-4. Decodes each PNG via `pngjs` (no native dependency).
+4. Decodes each PNG via `pngjs` (no native dependency) and refuses a
+   response that isn't readable radar: RainViewer's "Zoom Level Not
+   Supported" image (HTTP 200) or a tile in unknown colours. That
+   frame then counts as unavailable instead of clear.
 5. For each of **161 sampling points** (1 centre + 16 directions × 10
    distances on the inner ring 5–50 km) — or **481 points** when
    `advanced.ai.extendedRadius` is on (adds 32 directions × 10 distances
    on the outer ring 55–100 km) — converts lat/lon to pixel coordinates
    and reads the RGB value.
-6. Maps each RGB → an **intensity tier** (`clear / very light / light /
-   moderate / heavy / very heavy / extreme`) using the RainViewer palette
-   convention. A 3×3 max-pool around each probe absorbs anti-aliasing
-   edges so a single border pixel doesn't misclassify a tile boundary.
+6. Maps each RGBA → an **intensity tier** (`clear / very light / light /
+   moderate / heavy / very heavy / extreme`): the exact colour gives the
+   dBZ in RainViewer's Universal Blue palette, and dBZ bands give the
+   tier (see [`radar-classification.md`](radar-classification.md)). A
+   3×3 max-pool around each probe keeps a probe on a band's edge from
+   reading clear.
 7. Compresses the resulting grid into a compact textual format
    (`formatSnapshot`) — only non-zero samples within the active annulus
    are listed; "Clear within X km" and "Clear beyond Y km" describe the

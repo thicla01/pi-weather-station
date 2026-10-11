@@ -7,15 +7,21 @@
 // to let the model reason about precipitation movement and arrival time
 // without trying to interpret raw map images.
 //
-// Tiles are fetched from the same RainViewer endpoint the client uses for
-// the radar layer. We cache tile PNGs across requests and cache the final
-// analysis text per-location for a few minutes.
+// Tiles are fetched from the same RainViewer endpoint, colour scheme and
+// options the client uses for the radar layer. We cache classified tiles
+// across requests and cache the final analysis text per-location for a few
+// minutes.
 
 const axios = require("axios").default;
 const { PNG } = require("pngjs");
 const { recordServiceCall } = require("./serviceStatus");
 const { increment } = require("./requestCounter");
 const { BoundedMap, sweepExpired } = require("./boundedCache");
+const {
+  RAINVIEWER_COLOR_SCHEME,
+  RAINVIEWER_TILE_OPTIONS,
+  buildDbzLookup,
+} = require("./rainViewerPalette");
 
 // Analysis/risk cache freshness is two-tier (perf audit 2026-07-09).
 // The old single 5-min TTL equalled both the kiosk's risk poll period
@@ -51,7 +57,10 @@ const FETCH_TIMEOUT_MS = 8 * 1000;
 // summary degrades gracefully without the radar paragraph and the
 // poller retries on the 5-min cadence.
 const FETCH_RETRY_DELAYS_MS = [500, 1500];
-const ZOOM = 7;                             // RainViewer's max native zoom — best detail
+// RainViewer's maximum zoom — best detail. z8 and up return a "Zoom Level
+// Not Supported" PNG with HTTP 200 (decodeTile refuses it).
+// test/rainViewerTiles.test.js pins both values, like the client layer's.
+const ZOOM = 7;
 const TILE_SIZE = 512;
 const TARGET_OFFSETS_MIN = [0, -15, -45];   // now, 15 min ago, 45 min ago
 
@@ -115,36 +124,84 @@ const DIRECTION_ORDER = ["C", ...OUTER_DIRECTIONS.map((d) => d.name)];
 // has no bearing and is handled separately.
 const BEARING_BY_NAME = new Map(OUTER_DIRECTIONS.map((d) => [d.name, d.bearing]));
 
-// RainViewer color scheme 6 (NEXRAD Level III) — the same palette the client
-// already shows in the radar legend. Each entry is the canonical RGB for that
-// intensity level; pixels are matched against these by nearest-neighbour in
-// RGB space, which absorbs the anti-aliasing wiggle at level boundaries.
-const INTENSITY_PALETTE = [
-  { level: 1, label: "very light", r:   0, g: 208, b: 208 },
-  { level: 2, label: "light",      r:   0, g: 200, b:   0 },
-  { level: 3, label: "moderate",   r: 240, g: 230, b:   0 },
-  { level: 4, label: "heavy",      r: 240, g: 130, b:   0 },
-  { level: 5, label: "very heavy", r: 230, g:   0, b:   0 },
-  { level: 6, label: "extreme",    r: 120, g:   0, b: 180 },
-];
+// Pixel → intensity. RainViewer paints each pixel with the exact Universal
+// Blue colour of its reflectivity (server/rainViewerPalette.js), so a pixel's
+// colour gives its dBZ, and the dBZ gives the intensity level 0-6: level n
+// starts at DBZ_LEVEL_FLOORS[n - 1].
+//
+//   level  label        dBZ     tile colours                          ring
+//   0      clear        < 10    none, or the faintest beige            calm
+//   1      very light   10-19   beige (59-75 % opaque), pale blue      yellow
+//   2      light        20-34   blue, darkening to navy                yellow
+//   3      moderate     35-39   yellow                                 yellow
+//   4      heavy        40-44   orange                                 orange
+//   5      very heavy   45-54   red, darkening to maroon               red
+//   6      extreme      55+     pink, then white (65+), green (75+)    red
+//
+// 35, 45 and 55 dBZ are the palette's own colour jumps (navy → yellow,
+// orange → red, maroon → pink); 20 and 40 cut its continuous ramps where the
+// blue turns full and the yellow turns orange. So the rings follow the
+// tiles: orange over orange, red over red and pink. The 10 dBZ floor
+// (≈ 0.15 mm/h of rain) leaves out the faintest beige: weak echoes, drizzle
+// at most and often not precipitation at all, which several radar networks
+// don't report (real tiles pile up at exactly 10 dBZ). Snow decodes to the
+// same dBZ and goes through the same floors. Comparison with the NEXRAD-era
+// scale (scheme 6, which RainViewer no longer serves) in
+// docs/radar-classification.md.
+const DBZ_LEVEL_FLOORS = [10, 20, 35, 40, 45, 55];
 const INTENSITY_LABELS = ["clear", "very light", "light", "moderate", "heavy", "very heavy", "extreme"];
-const ALPHA_THRESHOLD = 32;       // pixels with alpha < this are considered transparent (no precipitation)
-const MAX_COLOR_DIST_SQ = 14000;  // squared RGB distance above which we still report "clear"
-                                  // (avoids pulling random anti-aliasing pixels into level 1)
+
+/**
+ * Intensity level (0-6) of a reflectivity.
+ *
+ * @param {Number} dbz Reflectivity in dBZ
+ * @returns {Number} The number of DBZ_LEVEL_FLOORS at or below `dbz`
+ */
+function dbzToIntensity(dbz) {
+  let level = 0;
+  while (level < DBZ_LEVEL_FLOORS.length && dbz >= DBZ_LEVEL_FLOORS[level]) level++;
+  return level;
+}
+
+// 0xRRGGBBAA → intensity level, for every painted Universal Blue colour
+// (rain and snow). A pixel whose colour is not a key is "off-palette".
+const LEVEL_BY_RGBA = new Map(
+  [...buildDbzLookup()].map(([rgba, dbz]) => [rgba, dbzToIntensity(dbz)]),
+);
+
+// Off-palette pixels read as clear, which is how the scheme-6 matcher went
+// on reading about half of the precipitation as clear once RainViewer's
+// tiles turned Universal Blue. Real tiles have none (0 of 2.48 M painted pixels, see
+// rainViewerPalette.js), so a tile with this many means RainViewer changed
+// its drawing: decodeTile refuses it, and the analysis reports the radar
+// unavailable instead of a false all-clear. 64 pixels is a 3-4 km cell core
+// at mid-latitudes.
+const OFF_PALETTE_REJECT_PIXELS = 64;
+
+// RainViewer's radar tiles are 8-bit RGBA PNGs (colour type 6). Past its
+// maximum zoom (z7 in the URL) it answers HTTP 200 with a "Zoom Level Not
+// Supported" image instead (a translucent grey box, white text): a 4-bit
+// palette PNG (colour type 3, 3,269 bytes on 2026-10-10). The colour type is
+// byte 25 of the file (signature, IHDR length and tag, width, height, bit
+// depth).
+const PNG_IHDR_TAG_OFFSET = 12;
+const PNG_COLOR_TYPE_OFFSET = 25;
+const PNG_COLOR_TYPE_PALETTE = 3;
 
 // In-memory caches — bounded Maps keyed by deterministic strings. The caps
 // guard against unbounded growth from coordinate-keyed entries (a remote
 // client on an ALLOW_REMOTE Pi could otherwise walk lat/lon to insert
 // without limit); a periodic sweep (below) reclaims expired-but-under-cap
-// entries. tileCache holds DECODED PNG buffers (~1 MB each at 512×512
-// RGBA), so its cap is the tightest and set in memory terms: a single Pi's
-// working set is ~12 tiles (one location × 3 time offsets × a few tiles),
-// so 48 gives ~4× headroom while bounding the adversarial ceiling to ~48 MB
-// instead of the >100 MB a looser cap would allow. analysis/risk values are
-// small text/objects, so their cap is generous.
+// entries. tileCache holds CLASSIFIED tiles (one intensity byte per pixel,
+// 256 KB at 512×512; classifyTile), so its cap is the tightest and set in
+// memory terms: a single Pi's working set is ~12 tiles (one location × 3
+// time offsets × a few tiles), so 48 gives ~4× headroom while bounding the
+// adversarial ceiling to ~12 MB. (It held the decoded RGBA, 1 MB a tile,
+// until 2026-10.) analysis/risk values are small text/objects, so their cap
+// is generous.
 const TILE_CACHE_MAX = 48;
 const ANALYSIS_CACHE_MAX = 256;
-const tileCache = new BoundedMap(TILE_CACHE_MAX);     // key "framePath:tileX:tileY" → { png, expiresAt }
+const tileCache = new BoundedMap(TILE_CACHE_MAX);     // key "framePath:tileX:tileY" → { tile, expiresAt }
 const analysisCache = new BoundedMap(ANALYSIS_CACHE_MAX); // key "lat3:lon3"        → { text, expiresAt }
 const riskCache = new BoundedMap(ANALYSIS_CACHE_MAX);    // key "lat3:lon3:ext"      → { result, expiresAt }
 
@@ -254,30 +311,86 @@ function latLonToTilePixel(lat, lon) {
 }
 
 /**
- * Map a single RGBA pixel to a discrete RainViewer intensity level (0-6).
- * Returns 0 (clear) when the pixel is transparent or far from any palette entry.
+ * Classify every pixel of a decoded tile into an intensity level (0-6),
+ * once, when the tile is fetched. The tile cache then holds one byte per
+ * pixel instead of the RGBA buffer, and each probe is an array read.
+ * Transparent and off-palette pixels are 0 (clear); both are counted.
  *
- * @param {Number} r
- * @param {Number} g
- * @param {Number} b
- * @param {Number} a
- * @returns {Number} intensity level
+ * @param {{width: Number, height: Number, data: Buffer}} png Decoded RGBA tile (pngjs)
+ * @returns {{width: Number, height: Number, levels: Uint8Array, painted: Number, offPalette: Number}}
+ *   `levels` holds one intensity per pixel, row-major. `painted` counts the
+ *   non-transparent pixels, `offPalette` those whose colour is not a
+ *   Universal Blue colour.
  */
-function pixelToIntensity(r, g, b, a) {
-  if (a < ALPHA_THRESHOLD) return 0;
-  let best = 0;
-  let bestDistSq = MAX_COLOR_DIST_SQ;
-  for (const p of INTENSITY_PALETTE) {
-    const dr = r - p.r;
-    const dg = g - p.g;
-    const db = b - p.b;
-    const distSq = dr * dr + dg * dg + db * db;
-    if (distSq < bestDistSq) {
-      bestDistSq = distSq;
-      best = p.level;
+function classifyTile(png) {
+  const { width, height, data } = png;
+  const levels = new Uint8Array(width * height);
+  // Big-endian 32-bit read of R, G, B, A = the 0xRRGGBBAA lookup key.
+  const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
+  let painted = 0;
+  let offPalette = 0;
+  // Neighbouring pixels mostly share a colour: reuse the last lookup.
+  let lastKey = -1;
+  let lastLevel = 0;
+  for (let p = 0, i = 0; p < levels.length; p++, i += 4) {
+    if (data[i + 3] === 0) continue;
+    painted++;
+    const key = view.getUint32(i);
+    if (key !== lastKey) {
+      lastKey = key;
+      lastLevel = LEVEL_BY_RGBA.get(key) ?? -1;
+    }
+    if (lastLevel < 0) offPalette++;
+    else levels[p] = lastLevel;
+  }
+  return { width, height, levels, painted, offPalette };
+}
+
+/**
+ * Whether a tile response is RainViewer's "Zoom Level Not Supported"
+ * placeholder rather than radar data: any palette-mode PNG (see
+ * PNG_COLOR_TYPE_PALETTE). Reads the PNG header only, no decode.
+ *
+ * @param {Buffer} buffer Raw response body
+ * @returns {Boolean} true for a palette-mode PNG
+ */
+function isZoomPlaceholderPng(buffer) {
+  return buffer.length > PNG_COLOR_TYPE_OFFSET
+    && buffer.toString("latin1", PNG_IHDR_TAG_OFFSET, PNG_IHDR_TAG_OFFSET + 4) === "IHDR"
+    && buffer[PNG_COLOR_TYPE_OFFSET] === PNG_COLOR_TYPE_PALETTE;
+}
+
+/**
+ * Decode and classify a fetched tile, refusing what isn't readable radar
+ * data. The error makes the caller treat the frame as unavailable rather
+ * than read the tile as clear sky: the AI summary loses that frame (its
+ * radar paragraph when no frame is left), /api/radar-risk answers 503 when
+ * no frame is left (the client keeps the rings' last colour). The reason is
+ * logged.
+ *
+ * @param {Buffer} buffer Raw PNG response body
+ * @param {String} label Tile identifier for the log line
+ * @returns {ReturnType<typeof classifyTile>} The classified tile
+ * @throws {Error} When the tile is the zoom placeholder or has
+ *   OFF_PALETTE_REJECT_PIXELS off-palette pixels or more
+ */
+function decodeTile(buffer, label) {
+  let reason = null;
+  let tile = null;
+  if (isZoomPlaceholderPng(buffer)) {
+    reason = 'RainViewer sent its "Zoom Level Not Supported" placeholder, not radar data';
+  } else {
+    tile = classifyTile(PNG.sync.read(buffer));
+    if (tile.offPalette >= OFF_PALETTE_REJECT_PIXELS) {
+      reason = `${tile.offPalette} of ${tile.painted} painted pixels are not Universal Blue colours; `
+        + "has RainViewer changed its palette? (server/rainViewerPalette.js)";
     }
   }
-  return best;
+  if (reason) {
+    console.warn(`[radar] tile ${label} refused: ${reason}`);
+    throw new Error(`radar tile refused: ${reason}`);
+  }
+  return tile;
 }
 
 /**
@@ -352,48 +465,60 @@ function findFrameNear(frames, targetMs) {
   return closest;
 }
 
+/**
+ * URL of one radar tile at the analyzer's zoom, in the Universal Blue
+ * scheme with the same options as the client's radar layer.
+ *
+ * @param {String} framePath Frame path from the RainViewer index
+ * @param {Number} tileX Tile column at ZOOM
+ * @param {Number} tileY Tile row at ZOOM
+ * @returns {String} Tile URL
+ */
+function rainViewerTileUrl(framePath, tileX, tileY) {
+  return `https://tilecache.rainviewer.com${framePath}/${TILE_SIZE}/${ZOOM}/${tileX}/${tileY}`
+    + `/${RAINVIEWER_COLOR_SCHEME}/${RAINVIEWER_TILE_OPTIONS}.png`;
+}
+
 async function fetchTile(framePath, tileX, tileY) {
-  const url = `https://tilecache.rainviewer.com${framePath}/${TILE_SIZE}/${ZOOM}/${tileX}/${tileY}/6/1_1.png`;
-  const r = await axios.get(url, {
+  const r = await axios.get(rainViewerTileUrl(framePath, tileX, tileY), {
     responseType: "arraybuffer",
     timeout: FETCH_TIMEOUT_MS,
   });
-  return PNG.sync.read(Buffer.from(r.data));
+  return decodeTile(Buffer.from(r.data), `${framePath} z${ZOOM}/${tileX}/${tileY}`);
 }
 
 async function getTile(framePath, tileX, tileY) {
   const key = `${framePath}:${tileX}:${tileY}`;
   const cached = tileCache.get(key);
-  if (cached && Date.now() < cached.expiresAt) return cached.png;
-  const png = await fetchTile(framePath, tileX, tileY);
-  tileCache.set(key, { png, expiresAt: Date.now() + TILE_CACHE_TTL });
-  return png;
+  if (cached && Date.now() < cached.expiresAt) return cached.tile;
+  const tile = await fetchTile(framePath, tileX, tileY);
+  tileCache.set(key, { tile, expiresAt: Date.now() + TILE_CACHE_TTL });
+  return tile;
 }
 
 /**
  * Read a 3×3 pixel neighbourhood around (x, y) and return the worst-case
- * intensity. Single-pixel sampling on RainViewer tiles is noisy: a probe
- * sitting between two precipitation bands, on an anti-aliased edge
- * (alpha < ALPHA_THRESHOLD), or in a tiny gap inside a band would report
- * "clear" even though the surrounding ~100 m clearly shows rain to the
- * naked eye. Sampling 3×3 (~9 reads, negligible cost) absorbs that noise
- * while only diluting spatial precision by ±1 pixel — at zoom 7 that's
- * roughly ±100 m on the ground, well below the geometry's resolution.
+ * intensity. Single-pixel sampling is noisy: a probe sitting on the edge of
+ * a band or in a one-pixel gap inside it would report "clear" even though
+ * the cells around it plainly show rain. Sampling 3×3 (9 reads, negligible
+ * cost) absorbs that noise while only diluting spatial precision by
+ * ±1 pixel — at zoom 7 that's about ±0.4-0.6 km on the ground (611 m per
+ * pixel at the equator × cos(latitude)), still below the geometry's 5 km
+ * step.
  *
- * @param {Object} png Decoded PNG buffer
+ * @param {ReturnType<typeof classifyTile>} tile Classified tile
  * @param {Number} x Centre pixel X within the tile
  * @param {Number} y Centre pixel Y within the tile
  * @returns {Number} Max intensity (0–6) across the 3×3 window
  */
-function readPixelIntensity(png, x, y) {
+function readPixelIntensity(tile, x, y) {
   let max = 0;
   for (let dy = -1; dy <= 1; dy++) {
     for (let dx = -1; dx <= 1; dx++) {
       const px = x + dx;
       const py = y + dy;
-      if (px < 0 || px >= png.width || py < 0 || py >= png.height) continue;
-      const idx = (py * png.width + px) * 4;
-      const intensity = pixelToIntensity(png.data[idx], png.data[idx + 1], png.data[idx + 2], png.data[idx + 3]);
+      if (px < 0 || px >= tile.width || py < 0 || py >= tile.height) continue;
+      const intensity = tile.levels[py * tile.width + px];
       if (intensity > max) max = intensity;
     }
   }
@@ -427,12 +552,12 @@ async function buildSnapshot(lat, lon, framePath, points) {
   // Fetch each tile once, then collect intensities
   for (const [key, pending] of tileMap.entries()) {
     const [tileXStr, tileYStr] = key.split(":");
-    const png = await getTile(framePath, parseInt(tileXStr, 10), parseInt(tileYStr, 10));
+    const tile = await getTile(framePath, parseInt(tileXStr, 10), parseInt(tileYStr, 10));
     for (const p of pending) {
       samples.push({
         direction: p.direction,
         distance: p.distance,
-        intensity: readPixelIntensity(png, p.pixelX, p.pixelY),
+        intensity: readPixelIntensity(tile, p.pixelX, p.pixelY),
       });
     }
   }
@@ -678,8 +803,11 @@ async function analyzeRadar(lat, lon, options = {}) {
       const block = formatSnapshot(samples, label, unit);
       if (block) sections.push(block);
     } catch (err) {
-      // One snapshot failed — keep going with whatever we have
-      recordServiceCall("RainViewer (analyzer)", err?.response?.status || 500, `snapshot ${label} failed`);
+      // One snapshot failed — keep going with whatever we have. An error
+      // without an HTTP response (a refused tile, a bad PNG) carries its
+      // reason into the service status, which the AI summary reports.
+      const detail = err?.response ? "" : `: ${err?.message}`;
+      recordServiceCall("RainViewer (analyzer)", err?.response?.status || 500, `snapshot ${label} failed${detail}`);
     }
   }
 
@@ -1357,29 +1485,25 @@ function buildRadarGrid(samples, options = {}) {
   return { grid, size, radiusKm, litCells };
 }
 
-/**
- * Map a radar intensity level (0-6) to its canonical RGB for the LED matrix.
- * Level 0 ("clear") is off (black). Levels 1-6 reuse INTENSITY_PALETTE — the
- * same NEXRAD-scheme-6 colours as the map tiles and per-sample dots, so the
- * matrix speaks the same colour language as the on-screen radar.
- *
- * @param {Number} level Intensity 0-6.
- * @returns {[Number, Number, Number]} RGB triple, [0,0,0] for level 0.
- */
-function intensityToRgb(level) {
-  if (!level || level <= 0) return [0, 0, 0];
-  const entry = INTENSITY_PALETTE[Math.min(level, INTENSITY_PALETTE.length) - 1];
-  return [entry.r, entry.g, entry.b];
-}
-
 module.exports = {
-  analyzeRadar, getRiskLevels, buildRadarGrid, intensityToRgb,
+  analyzeRadar, getRiskLevels, buildRadarGrid,
   // Exported for regression testing only — internal helpers, not part
-  // of the public surface. See test/radarTrend.test.js.
+  // of the public surface. See test/radarTrend.test.js,
+  // test/radarPalette.test.js and test/rainViewerTiles.test.js.
   __test: {
     computePerDirectionTrends,
     summarizeRingTrend,
     computeTrendConfidence,
+    dbzToIntensity,
+    classifyTile,
+    decodeTile,
+    isZoomPlaceholderPng,
+    readPixelIntensity,
+    rainViewerTileUrl,
+    DBZ_LEVEL_FLOORS,
+    OFF_PALETTE_REJECT_PIXELS,
+    ZOOM,
+    TILE_SIZE,
     // Cross-file contract tables — the client mirror in
     // test/radarGeometry.test.js compares its copies against THESE
     // (not against hardcoded literals), so a drift on either side

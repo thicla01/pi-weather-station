@@ -284,12 +284,14 @@ Summaries are cached 15 minutes server-side, keyed by `lat:lon:lang:period:tempU
 ### `GET /api/radar-risk`
 Returns the current "right now" radar-risk level for the inner and (optionally) outer dashed circles around the user. Drives the colour of those circles in the WeatherMap component, on top of the underlying RainViewer tile layer. Hysteretic approach: each ring's level comes from the 2nd-highest sample intensity on that ring (`TIER_HYSTERESIS_N = 2`, so a single rogue pixel can't escalate the ring). Samples in a direction trending `leaving` first count one intensity step lower (e.g. 4 → 3). That tier-deciding intensity is mapped via the table below, then raised one level when the ring is approaching (see `inner.level`). `maxIntensity` stays the raw worst-case sample, kept for diagnostics.
 
-| RainViewer intensity | Level | Hex |
-|---:|---|---|
-| 0 (no echoes)            | `calm`   | (theme-default neutral) |
-| 1–3 (very light → moderate) | `yellow` | `#f0e600` |
-| 4 (heavy)                | `orange` | `#f08200` |
-| 5–6 (very heavy / extreme)| `red`    | `#e60000` |
+| RainViewer intensity | Reflectivity | Level | Hex |
+|---:|---:|---|---|
+| 0 (no echoes)            | < 10 dBZ  | `calm`   | (theme-default neutral) |
+| 1–3 (very light → moderate) | 10–39 dBZ | `yellow` | `#f0e600` |
+| 4 (heavy)                | 40–44 dBZ | `orange` | `#f08200` |
+| 5–6 (very heavy / extreme)| ≥ 45 dBZ | `red`    | `#e60000` |
+
+Intensities 0–6 are dBZ bands decoded from the tiles' Universal Blue colours (RainViewer colour scheme 2; band table and rationale in [`radar-classification.md`](radar-classification.md)). A tile RainViewer sends that isn't readable radar (its "Zoom Level Not Supported" image, or a tile drawn in unknown colours) makes its frame unavailable rather than clear.
 
 The outer ring is sampled only when `advanced.ai.extendedRadius` is `true` (server-side gate, matches the AI summary). Result is cached server-side for 5 minutes per location, so polling at the 5-minute interval the client uses costs at most one full sample per location per cycle. Past the 5-minute soft TTL the server revalidates against the RainViewer frame index (a full recompute happens only when the frames the run would sample actually changed — RainViewer publishes every ~10 min). The underlying tile cache (60 minutes per decoded RainViewer tile; content is immutable per frame, the 48-entry LRU cap bounds memory) is shared with the AI summary's analyzer, so most polls only hit cache.
 
@@ -618,7 +620,7 @@ When no location is configured in `settings.json` (`startingLat` / `startingLon`
 
 The optional `alert` field is included when an ECCC or NWS alert of tier `red` (extreme/severe) or `orange` (moderate) is active for the resolved coordinates. Yellow-tier minor advisories are filtered out — they're routine and would just spam the LED matrix. The Sense HAT script renders a tier-coloured breathing-pulse override over the full 8×8 matrix when this field is present; the absence of the field means "no override, show weather as normal".
 
-The `mode` field echoes the persisted Sense HAT display mode (`weather` / `clock` / `radar` / `auto`) so the script can pick its render personality from the same poll. The optional `radar` field is included **only when `mode` is `radar` or `auto`** (the other modes never light the radar, so the cost is skipped). It carries a coarse top-down reprojection of precipitation around the user, built by `buildRadarGrid()` in `radarAnalyzerCtrl.js` from the same cached risk-sample pipeline as `GET /api/radar-risk`. The `grid` is a row-major 8×8 array of intensities 0–6 (north up, east right), mapped to NEXRAD scheme-6 tier colours on the matrix; `litCells` ≥ 1 means echoes are present.
+The `mode` field echoes the persisted Sense HAT display mode (`weather` / `clock` / `radar` / `auto`) so the script can pick its render personality from the same poll. The optional `radar` field is included **only when `mode` is `radar` or `auto`** (the other modes never light the radar, so the cost is skipped). It carries a coarse top-down reprojection of precipitation around the user, built by `buildRadarGrid()` in `radarAnalyzerCtrl.js` from the same cached risk-sample pipeline as `GET /api/radar-risk`. The `grid` is a row-major 8×8 array of intensities 0–6 (north up, east right) — the analyzer's levels, decoded from RainViewer's Universal Blue tiles. The script maps them to its own LED tier colours (`RADAR_TIER_RGB` in `tools/sensehat_weather.py`, tuned for legibility on the matrix, not the screen tiles' colours); `litCells` ≥ 1 means echoes are present.
 
 | Field | Type | Description |
 |---|---|---|

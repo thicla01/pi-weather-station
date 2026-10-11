@@ -183,13 +183,15 @@ X  = STORM_BG
 # intensities 0-6, reprojected from the analysis disk (north up, east right) by
 # buildRadarGrid() in radarAnalyzerCtrl.js. Index = intensity level; 0 off.
 #
-# These follow the on-screen NEXRAD-scheme-6 legend EXCEPT tier-1, which is a
-# true blue (0,110,255) instead of the legend's cyan (0,208,208). On the 8×8
-# LEDs cyan and the tier-2 green differ only in the blue channel and read as
-# the same blue-green — field-confirmed unreadable on both Sense HAT v1 and v2.
-# A true blue (less green) separates tier-1 from tier-2 at a glance. This is a
-# deliberate per-device divergence from the screen legend for LED legibility;
-# the warm tiers (3-6) are well separated already and match the legend.
+# A semantic intensity scale tuned for LED legibility, deliberately NOT the
+# screen tiles' colours. It began as the on-screen NEXRAD-scheme-6 legend with
+# tier-1 changed to a true blue (0,110,255): on the 8×8 LEDs that legend's cyan
+# (0,208,208) and the tier-2 green differed only in the blue channel and read
+# as the same blue-green — field-confirmed unreadable on both Sense HAT v1 and
+# v2. Since 2026-10 the screen shows RainViewer's Universal Blue palette
+# (scheme 2, the only one it serves), whose tiers 1 and 2 are both blues and
+# would merge on the LEDs the same way, so the field-tested colours stay.
+# tools/radar_grid_preview.js reads this table to preview the matrix.
 RADAR_TIER_RGB = [
     (  0,   0,   0),  # 0 clear — off
     (  0, 110, 255),  # 1 very light  (blue — see note above; legend uses cyan)

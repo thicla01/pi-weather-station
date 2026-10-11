@@ -8,6 +8,33 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Fixed
+- **The radar analysis reads RainViewer's colours again.** RainViewer now serves a single radar
+  colour scheme, "Universal Blue" (scheme 2): a tile asked for in scheme 6, the NEXRAD colours the
+  app requested, comes back identical (seen 2026-10-10; RainViewer gives no date). The analyzer
+  kept matching pixels to NEXRAD colours, so on 18 real tiles it read 52 % of light rain (20-34
+  dBZ, the darker blues) and every extreme core (55 dBZ and up, pink and white) as clear sky, and a
+  quarter of very heavy rain one level low. Risk rings, radar verdicts, `RADAR` alerts, the AI
+  summary's radar paragraph and the Sense HAT grid all under-reported, on every kiosk. The
+  analyzer now decodes each pixel to dBZ with RainViewer's published Universal Blue table (new
+  `server/rainViewerPalette.js`, rain and snow colours; every painted pixel of 20 real tiles
+  matches it exactly), then to the six levels at 10 / 20 / 35 / 40 / 45 / 55 dBZ: orange rings
+  start where the tiles turn orange (40 dBZ), red rings where they turn red (45). The map and the
+  analyzer both request scheme 2. The legend's precipitation bar shows Universal Blue colours, one
+  per level (`--rc-tile-*`, client and design system). Ring and dot colours stay the yellow /
+  orange / red risk colours, and the Sense HAT keeps its field-tuned LED colours. Levels,
+  rationale and the comparison with the NEXRAD-era scale are in `docs/radar-classification.md`.
+  New `test/radarPalette.test.js` checks real pixels: a storm crop holding every rain colour from
+  -10 to 60 dBZ, and a snow crop.
+- **The radar analyzer no longer reads a non-radar tile as clear sky.** A tile that comes back but
+  isn't readable radar now makes its frame unavailable, with a `[radar] tile … refused` log line
+  and the reason in the AI summary's radar-unavailable note: RainViewer's "Zoom Level Not
+  Supported" image, which it sends with HTTP 200 above zoom 7, and any tile with 64 or more pixels
+  in colours outside the table, which is how a future palette change would show. New `test/rainViewerTiles.test.js` pins the zoom, tile size, colour scheme
+  and options of the map's radar layer and of the analyzer, so a "fix" to native zoom 8 can't
+  silently load that image. Classified tiles are cached at one byte per pixel (256 KB a tile, was
+  1 MB). RainViewer has also stopped sending nowcast frames (none since at least 2026-10-10): the
+  timeline ends at "now", and the docs that promised 3 forecast frames and 3 h of history now say
+  13 frames over 2 h; the forecast-zone code stays for their return.
 - **The radar map now credits OpenStreetMap.** Every Mapbox style the app offers (streets-v12,
   light, dark) draws OpenStreetMap data, and Mapbox's attribution terms ask for
   "© OpenStreetMap" next to "© Mapbox". The strip now reads "Leaflet | © Mapbox,
