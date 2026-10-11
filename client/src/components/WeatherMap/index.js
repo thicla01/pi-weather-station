@@ -186,8 +186,9 @@ const MAPBOX_ATTRIBUTION = '© <a href="https://www.mapbox.com/feedback/">Mapbox
 /**
  * Tile URL template of one RainViewer frame: 512 px tiles, colour scheme
  * 2 ("Universal Blue", the only one RainViewer serves since 2026-10),
- * smoothed, with snow. The server's radar analyzer requests the same
- * scheme and options and decodes the pixels with that palette;
+ * smoothed, with snow (and mixed precipitation) in its own colours. The
+ * server's radar analyzer requests the same scheme with snow in the rain
+ * colours (`1_0`) and decodes the pixels with that palette;
  * test/rainViewerTiles.test.js keeps the two in step.
  *
  * @param {string} path - Frame path from the RainViewer index (e.g. "/v2/radar/<id>").

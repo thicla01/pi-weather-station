@@ -57,8 +57,8 @@ zoom 8 with `zoomOffset -1` = z7 in the URL).
 
 ## ② Tile fetch + decode
 
-Tiles are pulled from `https://tilecache.rainviewer.com…/512/{z}/{x}/{y}/2/1_1.png`,
-the same URL shape as the client's radar layer:
+Tiles are pulled from `https://tilecache.rainviewer.com…/512/{z}/{x}/{y}/2/1_0.png`,
+the client radar layer's URL with one option changed (`1_0`, below):
 
 - `/2/` selects **Universal Blue**, colour scheme 2. Since (at the
   latest) 2026-10-10 it is the only radar colour scheme RainViewer
@@ -68,9 +68,17 @@ the same URL shape as the client's radar layer:
   Level III) and matched pixels against NEXRAD colours, which
   misread the Universal Blue tiles it was getting (see "History"
   below).
-- `1_1` is `{smooth}_{snow}`: smoothed, and snow drawn in Universal
-  Blue's snow colours. With `_0` the same echoes come back in the
-  rain colours at the same dBZ (checked on a snowy tile).
+- `1_0` is `{smooth}_{snow}`: smoothed, snow **not** in its own
+  colours. The map uses `1_1`, which draws snow in Universal Blue's
+  snow colours and mixed precipitation (most likely) in a pink ramp
+  that RainViewer's table doesn't list (`#fffbfc0c` … `#ff8dafff` and
+  beyond: red at `ff`, the snow ramp's alpha steps). Seen at zoom 7
+  on 2026-10-11, thousands of pixels a tile in Alaska and the Oregon
+  Cascades, it would trip the palette-change guard below and make the
+  radar unavailable in freezing rain. With `1_0` RainViewer draws
+  rain, snow and mix in the published rain colours, same dBZ pixel
+  for pixel (0 mismatch on those tiles), so every pixel the analyzer
+  reads is in the table.
 
 `decodeTile` refuses two kinds of response before they can read as
 clear sky. The frame then counts as unavailable: the AI summary
@@ -102,11 +110,12 @@ RainViewer paints each pixel with the exact Universal Blue colour of
 its reflectivity. The table (`server/rainViewerPalette.js`) is
 RainViewer's published one (CSV linked from the colour-schemes page,
 downloaded 2026-10-10): one RGBA value per dBZ from −10 to 95, for
-rain and for snow, no colour shared between the two. On 20 zoom-7
-tiles from five continents (2026-10-10, 2.48 M painted pixels) every
-painted pixel was exactly one of those values: no anti-aliasing, no
-blending. So the match is an exact lookup, colour → dBZ, then dBZ →
-level through `DBZ_LEVEL_FLOORS`:
+rain and for snow, no colour shared between the two (the analyzer's
+`1_0` tiles only carry the rain colours; snow stays in the lookup,
+harmlessly). On 20 zoom-7 tiles from five continents (2026-10-10,
+2.48 M painted pixels) every painted pixel was exactly one of those
+values: no anti-aliasing, no blending. So the match is an exact
+lookup, colour → dBZ, then dBZ → level through `DBZ_LEVEL_FLOORS`:
 
 | Level | Label      | dBZ    | Tile colours                           | Ring tier |
 |------:|------------|--------|----------------------------------------|-----------|
@@ -118,7 +127,8 @@ level through `DBZ_LEVEL_FLOORS`:
 |     5 | very heavy | 45–54  | red, darkening to maroon               | red       |
 |     6 | extreme    | ≥ 55   | pink; white from 65, green from 75     | red       |
 
-Snow uses the same dBZ and the same floors. Why these floors:
+Snow and mixed precipitation, drawn in the rain colours, go through
+the same floors. Why these floors:
 
 - **35, 45 and 55 dBZ are the palette's own colour jumps** (navy →
   yellow, orange → red, maroon → pink). **20 and 40** cut its
@@ -254,13 +264,13 @@ dash `"3 9"` when the AI summary is off.
   the table in `server/rainViewerPalette.js` has to be redone from
   the new CSV. A change that only touched colours outside today's
   tiles would go unseen until those colours appear.
-- **Precipitation type is decoded but unused.** With the snow option
-  on, rain and snow have distinct colours, so the tiles do say which
-  is which; the analyzer maps both to dBZ and ignores the type. The
-  levels stay rain-centric: snow falls heavily at reflectivities that
-  read light for rain (moderate snow is typically 20–30 dBZ), so snow
-  tends to read a level below its impact. The AI summary's
-  weather-code reasoning compensates indirectly.
+- **No precipitation type.** The map's tiles (`1_1`) tell rain,
+  snow and mixed precipitation apart by colour; the analyzer's (`1_0`)
+  don't, on purpose (see ②). The levels stay rain-centric: snow falls
+  heavily at reflectivities that read light for rain (moderate snow is
+  typically 20–30 dBZ), so snow tends to read a level below its
+  impact. The AI summary's weather-code reasoning compensates
+  indirectly.
 - **Coarse trend awareness.** Before May 2026 the risk colour was
   latest-frame only. Since then `getRiskLevels` samples the same
   3-frame sequence as `analyzeRadar` (now / −15 / −45 min) and bumps
@@ -294,9 +304,11 @@ dash `"3 9"` when the AI summary is off.
 - **Multi-frame confidence** — use the existing 3-frame sequence to
   require an intensity to appear in ≥2 frames before counting. Would
   reduce flicker but add lag to genuine fast-moving cells.
-- **Snow-aware levels** — the decoded type (above) could feed
-  snow-specific floors, or tell the AI summary rain from snow. Needs
-  its own thresholds and live cases to tune them.
+- **Snow-aware levels** — reading the `1_1` tiles would give the
+  type (rain, snow, the unlisted pink mix) for snow-specific floors,
+  or to tell the AI summary rain from snow. Needs the pink ramp's full
+  table (only −9…26 dBZ seen so far), its own thresholds and live
+  cases to tune them.
 - **Work in dBZ** — the classifier already knows each pixel's dBZ;
   carrying it instead of the 0–6 level would let the trend logic and
   the AI prompt use the finer scale. A larger change: the trend

@@ -7,8 +7,9 @@
 // to let the model reason about precipitation movement and arrival time
 // without trying to interpret raw map images.
 //
-// Tiles are fetched from the same RainViewer endpoint, colour scheme and
-// options the client uses for the radar layer. We cache classified tiles
+// Tiles are fetched from the same RainViewer endpoint and colour scheme the
+// client uses for the radar layer, with snow and mixed precipitation drawn
+// in the rain colours (see rainViewerPalette.js). We cache classified tiles
 // across requests and cache the final analysis text per-location for a few
 // minutes.
 
@@ -19,7 +20,7 @@ const { increment } = require("./requestCounter");
 const { BoundedMap, sweepExpired } = require("./boundedCache");
 const {
   RAINVIEWER_COLOR_SCHEME,
-  RAINVIEWER_TILE_OPTIONS,
+  RAINVIEWER_ANALYZER_TILE_OPTIONS,
   buildDbzLookup,
 } = require("./rainViewerPalette");
 
@@ -144,8 +145,9 @@ const BEARING_BY_NAME = new Map(OUTER_DIRECTIONS.map((d) => [d.name, d.bearing])
 // tiles: orange over orange, red over red and pink. The 10 dBZ floor
 // (≈ 0.15 mm/h of rain) leaves out the faintest beige: weak echoes, drizzle
 // at most and often not precipitation at all, which several radar networks
-// don't report (real tiles pile up at exactly 10 dBZ). Snow decodes to the
-// same dBZ and goes through the same floors. Comparison with the NEXRAD-era
+// don't report (real tiles pile up at exactly 10 dBZ). Snow and mixed
+// precipitation come in the rain colours (the `1_0` tile option), so they
+// go through the same floors. Comparison with the NEXRAD-era
 // scale (scheme 6, which RainViewer no longer serves) in
 // docs/radar-classification.md.
 const DBZ_LEVEL_FLOORS = [10, 20, 35, 40, 45, 55];
@@ -467,7 +469,7 @@ function findFrameNear(frames, targetMs) {
 
 /**
  * URL of one radar tile at the analyzer's zoom, in the Universal Blue
- * scheme with the same options as the client's radar layer.
+ * scheme, with snow and mixed precipitation drawn in the rain colours.
  *
  * @param {String} framePath Frame path from the RainViewer index
  * @param {Number} tileX Tile column at ZOOM
@@ -476,7 +478,7 @@ function findFrameNear(frames, targetMs) {
  */
 function rainViewerTileUrl(framePath, tileX, tileY) {
   return `https://tilecache.rainviewer.com${framePath}/${TILE_SIZE}/${ZOOM}/${tileX}/${tileY}`
-    + `/${RAINVIEWER_COLOR_SCHEME}/${RAINVIEWER_TILE_OPTIONS}.png`;
+    + `/${RAINVIEWER_COLOR_SCHEME}/${RAINVIEWER_ANALYZER_TILE_OPTIONS}.png`;
 }
 
 async function fetchTile(framePath, tileX, tileY) {

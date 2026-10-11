@@ -14,6 +14,12 @@
 //     every rain colour from -10 to 60 dBZ;
 //   - snow-crop.png: 64×64 from tile 23/42 (Alberta), snow 7-23 dBZ in the
 //     snow colours (the URL's `_1` snow option).
+// and, from frame /v2/radar/07e17464c89d (2026-10-11 04:10 UTC), tile 20/45
+// (Oregon Cascades), the same 64×64 of mixed precipitation twice:
+//   - mixed-crop-snow-on.png: with `1_1`, as the map shows it — an unlisted
+//     pink ramp;
+//   - mixed-crop-snow-off.png: with `1_0`, as the analyzer reads it — the
+//     published rain colours.
 // The (x, y) → colour pairs below were read from those files; the colour →
 // dBZ pairs come from RainViewer's published table, not from our code.
 //
@@ -179,6 +185,33 @@ test("snow crop: snow colours decode on the same dBZ scale", () => {
   assert.equal(at(5, 0), 1, "snow 19 dBZ");
   assert.equal(at(0, 60), 2, "snow 20 dBZ");
   assert.equal(at(34, 62), 2, "snow 23 dBZ");
+});
+
+test("mixed precipitation: with snow colours on (`1_1`) it is a pink ramp the guard refuses", (t) => {
+  t.mock.method(console, "warn", () => {});
+  const png = PNG.sync.read(readFixture("mixed-crop-snow-on.png"));
+  const tile = radar.classifyTile(png);
+  assert.ok(tile.offPalette >= radar.OFF_PALETTE_REJECT_PIXELS, `offPalette ${tile.offPalette}`);
+  assert.equal(png.data.subarray((6 * 64 + 27) * 4, (6 * 64 + 27) * 4 + 4).toString("hex"), "ffa7c1ff");
+  assert.throws(() => radar.decodeTile(readFixture("mixed-crop-snow-on.png"), "mixed-on"), /not Universal Blue colours/);
+});
+
+test("mixed precipitation: with snow in rain colours (`1_0`, the analyzer's tiles) every pixel decodes", () => {
+  const on = PNG.sync.read(readFixture("mixed-crop-snow-on.png"));
+  const off = radar.decodeTile(readFixture("mixed-crop-snow-off.png"), "mixed-off");
+  assert.equal(off.offPalette, 0);
+  // Same echoes, same pixels: what is painted with snow on is painted with
+  // snow off (the -10 dBZ fringe aside, transparent in the snow/mix ramps).
+  let paintedOn = 0;
+  for (let p = 0; p < 64 * 64; p++) if (on.data[p * 4 + 3] > 0) paintedOn++;
+  assert.ok(off.painted >= paintedOn, `painted off ${off.painted}, on ${paintedOn}`);
+  const at = (x, y) => off.levels[y * off.width + x];
+  // [x, y, pink in the snow-on crop, dBZ of its rain colour in the snow-off crop, level]
+  for (const [x, y, pink, dbz, level] of [[25, 2, "ffdae57f", 0, 0], [27, 6, "ffa7c1ff", 14, 1], [26, 22, "ff91b2ff", 20, 2]]) {
+    const i = (y * 64 + x) * 4;
+    assert.equal(on.data.subarray(i, i + 4).toString("hex"), pink, `pink at ${x},${y}`);
+    assert.equal(at(x, y), level, `${pink} → rain ${dbz} dBZ at ${x},${y}`);
+  }
 });
 
 // ─── Palette-drift guard ────────────────────────────────────────────────

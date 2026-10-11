@@ -14,19 +14,26 @@
 // included (rain 65-74 dBZ are all white, 75-95 all green; snow 75-95 all
 // #0000ff).
 //
-// Rain and snow share the dBZ scale but not a single colour, so a pixel's
-// colour gives its dBZ without knowing the precipitation type. The snow
-// colours appear because the tile URL asks for them (`{smooth}_{snow}` =
-// `1_1`); with `1_0` the same echoes come back in the rain colours, same dBZ
-// (checked on a snowy tile, 2026-10-10).
+// Rain and snow share the dBZ scale but not a single colour. The snow
+// colours only appear when the tile URL asks for them (`{smooth}_{snow}` =
+// `1_1`, what the map shows). With them comes a third ramp the CSV doesn't
+// list: pink (#fffbfc0c … #ff8dafff and beyond, R = ff, the snow ramp's
+// alpha steps), most likely mixed precipitation, seen at zoom 7 on
+// 2026-10-11 (Alaska, Oregon Cascades: thousands of pixels a tile). With
+// `1_0` RainViewer draws rain, snow and that mix in the rain colours, same
+// dBZ pixel for pixel (checked on those tiles: 0 mismatch, 0 pixel off this
+// table). So the analyzer asks for `1_0`, and every pixel it reads is a
+// published colour; the map keeps `1_1`.
 //
 // Measured on 20 zoom-7 tiles (2026-10-10, North America, Europe, Asia,
-// Australia, South America; 2.48 M painted pixels): every painted pixel is
-// exactly one of these RGBA values. No anti-aliasing, no blending.
+// Australia, South America; 2.48 M painted pixels, no mixed precipitation
+// among them): every painted pixel is exactly one of these RGBA values. No
+// anti-aliasing, no blending.
 
 const RAINVIEWER_COLOR_SCHEME = 2;
-// `{smooth}_{snow}`: 1 = smoothed, 1 = snow drawn in the snow colours.
-const RAINVIEWER_TILE_OPTIONS = "1_1";
+// The analyzer's `{smooth}_{snow}`: smoothed, snow and mix in rain colours
+// (the map's layer uses `1_1`; test/rainViewerTiles.test.js pins both).
+const RAINVIEWER_ANALYZER_TILE_OPTIONS = "1_0";
 
 const UNIVERSAL_BLUE_MIN_DBZ = -10;
 
@@ -86,7 +93,7 @@ function buildDbzLookup() {
 
 module.exports = {
   RAINVIEWER_COLOR_SCHEME,
-  RAINVIEWER_TILE_OPTIONS,
+  RAINVIEWER_ANALYZER_TILE_OPTIONS,
   UNIVERSAL_BLUE_MIN_DBZ,
   UNIVERSAL_BLUE_RAIN,
   UNIVERSAL_BLUE_SNOW,

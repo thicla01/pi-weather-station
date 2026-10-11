@@ -10,21 +10,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ### Fixed
 - **The radar analysis reads RainViewer's colours again.** RainViewer now serves a single radar
   colour scheme, "Universal Blue" (scheme 2): a tile asked for in scheme 6, the NEXRAD colours the
-  app requested, comes back identical (seen 2026-10-10; RainViewer gives no date). The analyzer
-  kept matching pixels to NEXRAD colours, so on 18 real tiles it read 52 % of light rain (20-34
-  dBZ, the darker blues) and every extreme core (55 dBZ and up, pink and white) as clear sky, and a
-  quarter of very heavy rain one level low. Risk rings, radar verdicts, `RADAR` alerts, the AI
-  summary's radar paragraph and the Sense HAT grid all under-reported, on every kiosk. The
-  analyzer now decodes each pixel to dBZ with RainViewer's published Universal Blue table (new
-  `server/rainViewerPalette.js`, rain and snow colours; every painted pixel of 20 real tiles
-  matches it exactly), then to the six levels at 10 / 20 / 35 / 40 / 45 / 55 dBZ: orange rings
-  start where the tiles turn orange (40 dBZ), red rings where they turn red (45). The map and the
-  analyzer both request scheme 2. The legend's precipitation bar shows Universal Blue colours, one
-  per level (`--rc-tile-*`, client and design system). Ring and dot colours stay the yellow /
-  orange / red risk colours, and the Sense HAT keeps its field-tuned LED colours. Levels,
-  rationale and the comparison with the NEXRAD-era scale are in `docs/radar-classification.md`.
-  New `test/radarPalette.test.js` checks real pixels: a storm crop holding every rain colour from
-  -10 to 60 dBZ, and a snow crop.
+  app requested, comes back identical (seen 2026-10-10; RainViewer gives no date). The analyzer kept
+  matching pixels to NEXRAD colours, so on 18 real tiles it read 52 % of light rain (20-34 dBZ, the
+  darker blues) and every extreme core (55 dBZ and up, pink and white) as clear sky, and a quarter
+  of very heavy rain one level low. Risk rings, radar verdicts, `RADAR` alerts, the AI summary's
+  radar paragraph and the Sense HAT grid all under-reported, on every kiosk. The analyzer now
+  decodes each pixel to dBZ with RainViewer's published Universal Blue table (new
+  `server/rainViewerPalette.js`; every painted pixel of 20 real tiles matches it exactly), then to
+  the six levels at 10 / 20 / 35 / 40 / 45 / 55 dBZ: orange rings start where the tiles turn orange
+  (40 dBZ), red rings where they turn red (45). The map and the analyzer both request scheme 2. The
+  analyzer asks for snow and mixed precipitation in the rain colours (`1_0`): with their own colours
+  (`1_1`, what the map shows), mixed precipitation comes in a pink ramp RainViewer doesn't publish,
+  which the analyzer could not read. The legend's precipitation bar shows Universal Blue colours,
+  one per level (`--rc-tile-*`, client and design system). Ring and dot colours stay the yellow /
+  orange / red risk colours, and the Sense HAT keeps its field-tuned LED colours. Levels, rationale
+  and the comparison with the NEXRAD-era scale are in `docs/radar-classification.md`. New
+  `test/radarPalette.test.js` checks real pixels: a storm crop holding every rain colour from -10 to
+  60 dBZ, a snow crop, and one mixed-precipitation area with snow colours on and off.
 - **The radar analyzer no longer reads a non-radar tile as clear sky.** A tile that comes back but
   isn't readable radar now makes its frame unavailable, with a `[radar] tile … refused` log line
   and the reason in the AI summary's radar-unavailable note: RainViewer's "Zoom Level Not

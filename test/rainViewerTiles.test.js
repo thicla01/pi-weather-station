@@ -5,14 +5,18 @@
 // HTTP 200 with a "Zoom Level Not Supported" PNG, a translucent grey box with
 // white text (checked 2026-10-10 on z8 and z9, 3,269 bytes), which no error
 // handler sees: the browser shows the grey box, the analyzer would decode it
-// as radar. The client reaches z7
-// through Leaflet zoom 8: 512 px tiles with `zoomOffset -1`, so the URL zoom
-// is the map zoom minus one, and `maxNativeZoom 8` stops it there (map zooms
-// 9-12 stretch the z7 tile; past `maxZoom 12` the radar hides). Raising
-// `maxNativeZoom`, dropping `zoomOffset` or "fixing" the server's ZOOM to 8
-// would silently load the grey PNG, hence these pins. The colour scheme must
-// be Universal Blue (2) on both sides: the analyzer decodes pixels with that
-// table (test/radarPalette.test.js).
+// as radar. The client reaches z7 through Leaflet zoom 8: 512 px tiles with
+// `zoomOffset -1`, so the URL zoom is the map zoom minus one, and
+// `maxNativeZoom 8` stops it there (map zooms 9-12 stretch the z7 tile; past
+// `maxZoom 12` the radar hides). Raising `maxNativeZoom`, dropping
+// `zoomOffset` or "fixing" the server's ZOOM to 8 would silently load the
+// grey PNG, hence these pins. The colour scheme must be Universal Blue (2) on
+// both sides: the analyzer decodes pixels with that table
+// (test/radarPalette.test.js). The `{smooth}_{snow}` options differ on
+// purpose: the map shows `1_1` (snow and mixed precipitation in their own
+// colours), the analyzer reads `1_0` (everything in the published rain
+// colours; with `1_1` mixed precipitation is an unlisted pink ramp that the
+// palette-change guard would refuse).
 //
 // Source-level and mechanical, like test/mapAttribution.test.js. Run:
 // `npm test`.
@@ -22,7 +26,7 @@ const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
 
-const { RAINVIEWER_COLOR_SCHEME, RAINVIEWER_TILE_OPTIONS } = require("../server/rainViewerPalette");
+const { RAINVIEWER_COLOR_SCHEME, RAINVIEWER_ANALYZER_TILE_OPTIONS } = require("../server/rainViewerPalette");
 const { __test: radar } = require("../server/radarAnalyzerCtrl");
 
 const MAP_FILE = path.join(__dirname, "..", "client", "src", "components", "WeatherMap", "index.js");
@@ -56,14 +60,14 @@ function numericProp(tag, prop) {
   return m ? Number(m[1]) : null;
 }
 
-test("server: the analyzer reads z7 tiles, 512 px, Universal Blue, smoothed with snow", () => {
+test("server: the analyzer reads z7 tiles, 512 px, Universal Blue, smoothed, snow in rain colours", () => {
   assert.equal(radar.ZOOM, RAINVIEWER_MAX_URL_ZOOM);
   assert.equal(radar.TILE_SIZE, 512);
   assert.equal(RAINVIEWER_COLOR_SCHEME, 2);
-  assert.equal(RAINVIEWER_TILE_OPTIONS, "1_1");
+  assert.equal(RAINVIEWER_ANALYZER_TILE_OPTIONS, "1_0");
   assert.equal(
     radar.rainViewerTileUrl("/v2/radar/abc123", 37, 46),
-    "https://tilecache.rainviewer.com/v2/radar/abc123/512/7/37/46/2/1_1.png",
+    "https://tilecache.rainviewer.com/v2/radar/abc123/512/7/37/46/2/1_0.png",
   );
 });
 
@@ -84,13 +88,13 @@ test("client: the radar layer can't request a zoom RainViewer doesn't serve", ()
   assert.equal(maxNativeZoom + zoomOffset, RAINVIEWER_MAX_URL_ZOOM);
 });
 
-test("client: the radar tile URL matches the analyzer's size, scheme and options", () => {
+test("client: the radar tile URL has the analyzer's size and scheme, snow in its own colours", () => {
   const m = /const rainViewerTileUrl = \(path\) => `([^`]*)`;/.exec(mapSource());
   assert.ok(m, "rainViewerTileUrl template not found in WeatherMap/index.js");
   assert.equal(
     m[1],
     `https://tilecache.rainviewer.com\${path}/${radar.TILE_SIZE}/{z}/{x}/{y}`
-      + `/${RAINVIEWER_COLOR_SCHEME}/${RAINVIEWER_TILE_OPTIONS}.png`,
+      + `/${RAINVIEWER_COLOR_SCHEME}/1_1.png`,
   );
 });
 

@@ -231,7 +231,7 @@ Two paths, neither implemented today:
 | **Coverage** | Global | North America only (bbox above) |
 | **Authority** | Commercial aggregate | Source-of-truth (Canadian government, US NOAA) |
 | **Style options** | One colour scheme since (at the latest) 2026-10-10: Universal Blue (`/2/` in the URL; schemes 4, 6 and 8 now return the same tiles). The analyzer decodes pixels with its published table (`server/rainViewerPalette.js`) and the client legend shows its colours | 16 named styles (rain), 16 (snow), 2 (precip type), 6 (coverage) |
-| **Snow/rain separation** | Snow drawn in its own colours with the `_1` snow option (the analyzer decodes both to dBZ and ignores the type) | **Yes** — distinct layers + `SfcPrecipType` classifier |
+| **Snow/rain separation** | On the map (`_1` snow option) snow and mixed precipitation have their own colours; the analyzer asks for `_0` (everything in the rain colours) and doesn't use the type | **Yes** — distinct layers + `SfcPrecipType` classifier |
 | **Format** | Pre-rendered PNG tiles via CDN | Dynamic WMS GetMap (server-side rendered) |
 | **Auth / key** | None | None |
 | **Rate limits** | 500 requests per 60 s per public IP, burst 300 (response headers, 2026-10-09/10; shared by every kiosk behind a router), 512×512 tile pipeline | Unspecified, dynamic render |
