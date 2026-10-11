@@ -558,6 +558,16 @@ Since 2026-10-09, production builds strip the comments of the CSS-module stylesh
 
 With (a) or (b), Leaflet's branch can take the same production-only `postcss-loader`. Low priority.
 
+### 📋 Radar on RainViewer's Universal Blue — follow-ups (2026-10-10)
+Found while moving the radar to the Universal Blue colour scheme (PR #396; see [`docs/radar-classification.md`](docs/radar-classification.md)) and left out of it:
+- **`getRiskLevels` swallows per-frame errors.** In `server/radarAnalyzerCtrl.js`, each frame's snapshot job ends in `.catch(() => null)`, so a refused tile (the zoom placeholder, a palette change) surfaces in the Debug panel as `RainViewer (risk) → 200 — no snapshots`: the new refusal path is hidden where a maintainer looks first (the `[radar] tile … refused` log line and the AI-summary path do carry the reason).
+- **Refused tiles are never cached.** Under a persistent refusal (a palette change), every consumer poll downloads, inflates and classifies the same immutable tile again and logs the refusal again: the kiosk's ring poll every 5 min, the AI summary every 15, and the Sense HAT radar/auto modes every 60 s (`POLL_INTERVAL`). Bounded, but needless load on RainViewer's per-IP budget shared with the fleet; a short negative cache keyed by tile URL would fix it.
+- **The client keeps the rings' last colour when `/api/radar-risk` answers 503**, so a radar outage is invisible on the map (after a cold boot the rings stay neutral).
+- **Leaflet `redraw()` bypasses `maxZoom`.** In Leaflet 1.9.4, `GridLayer.redraw` picks the tile zoom with `_clampZoom` and skips the `maxZoom` test of `_setView`, so each frame URL change at map zoom ≥ 13 can redraw z7 tiles stretched up to 1024×. Read in the code, not reproduced; desktops and iPads only. Any fix needs the maintainer's approval (zoom).
+- **The legend shows neither the snow nor the mixed-precipitation colours.** The map's tiles use `1_1`: snow has its own blue ramp (`#bfffff` → `#0000ff`), so heavy snow (≥ 35 dBZ, deep blue) reads like the legend's "light" blue, and mixed precipitation an unlisted pink ramp (`#fffbfc0c` … `#ff8dafff` seen, −9 … 21 dBZ at zoom 7, up to 26 at z3; nothing known above). Maintainer's call: document it, add snow and mix swatches, or switch the map to `1_0` too (everything in rain colours, losing the distinction on the map). The analyzer already reads `1_0`, so the pink ramp can't trip its palette guard.
+- **`docs/screenshots` still show the old NEXRAD legend** (`tools/capture-screenshots.js`).
+- **The changed `--rc-tile-*` tokens need publishing** to the migrated design-system artifact ("Design System (migrated)" in Claude): the standalone Claude Design site closes in December, so the old DesignSync push is no longer the route.
+
 ## Perspective
 
 The three items I would prioritize above all others if returning to this project:

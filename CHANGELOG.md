@@ -28,15 +28,18 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `test/radarPalette.test.js` checks real pixels: a storm crop holding every rain colour from -10 to
   60 dBZ, a snow crop, and one mixed-precipitation area with snow colours on and off.
 - **The radar analyzer no longer reads a non-radar tile as clear sky.** A tile that comes back but
-  isn't readable radar now makes its frame unavailable, with a `[radar] tile … refused` log line
-  and the reason in the AI summary's radar-unavailable note: RainViewer's "Zoom Level Not
-  Supported" image, which it sends with HTTP 200 above zoom 7, and any tile with 64 or more pixels
-  in colours outside the table, which is how a future palette change would show. New `test/rainViewerTiles.test.js` pins the zoom, tile size, colour scheme
-  and options of the map's radar layer and of the analyzer, so a "fix" to native zoom 8 can't
-  silently load that image. Classified tiles are cached at one byte per pixel (256 KB a tile, was
-  1 MB). RainViewer has also stopped sending nowcast frames (none since at least 2026-10-10): the
-  timeline ends at "now", and the docs that promised 3 forecast frames and 3 h of history now say
-  13 frames over 2 h; the forecast-zone code stays for their return.
+  isn't readable radar, meaning 64 or more of its pixels are in colours outside the table, now makes
+  its frame unavailable, with a `[radar] tile … refused` log line naming the most frequent stray
+  colours and the reason in the AI summary's radar-unavailable note. That covers RainViewer's "Zoom
+  Level Not Supported" image, which it sends with HTTP 200 above zoom 7 (the log names it from its
+  header), and a future palette change; a real radar tile served as a palette PNG still decodes. New
+  `test/rainViewerTiles.test.js` pins the zoom, tile size, colour scheme and options of the map's
+  radar layer and of the analyzer, so a change that makes either of them ask RainViewer for zoom 8
+  or above (the map's Leaflet zoom 8 is already z7 in the URL) can't silently load that image.
+  Classified tiles are cached at one byte per pixel (256 KB a tile, was 1 MB). RainViewer has also
+  stopped sending nowcast frames (none since at least 2026-10-10): the timeline ends at "now", and
+  the docs that promised 3 forecast frames and 3 h of history now say 13 frames over 2 h; the
+  forecast-zone code stays for their return.
 - **The calm-day AI summary no longer says the radar shows nothing when it has no radar data.** On a
   calm day the server answers with a template instead of calling Claude, and that template ended
   with "Radar analysis: nothing to report within 50 km" whenever radar analysis was on, even when
