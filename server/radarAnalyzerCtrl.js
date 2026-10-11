@@ -419,6 +419,78 @@ function decodeTile(buffer, label) {
 }
 
 /**
+ * Fetch the latest list of past radar frames from RainViewer. Retries
+ * up to FETCH_RETRY_DELAYS_MS.length times on transient failure, with
+ * exponential backoff between attempts. Each attempt uses the standard
+ * FETCH_TIMEOUT_MS axios timeout. Throws the last error after the final
+ * attempt fails, so the caller's existing try/catch still surfaces a
+ * 500 to the Debug panel when RainViewer is genuinely unreachable.
+ *
+ * @returns {Promise<Array<{time: Number, path: String}>>}
+ */
+async function fetchRadarFrames() {
+  let lastErr = null;
+  for (let attempt = 0; attempt <= FETCH_RETRY_DELAYS_MS.length; attempt++) {
+    try {
+      const r = await axios.get("https://api.rainviewer.com/public/weather-maps.json", {
+        timeout: FETCH_TIMEOUT_MS,
+      });
+      return r.data?.radar?.past || [];
+    } catch (err) {
+      lastErr = err;
+      if (attempt < FETCH_RETRY_DELAYS_MS.length) {
+        await new Promise((resolve) => setTimeout(resolve, FETCH_RETRY_DELAYS_MS[attempt]));
+      }
+    }
+  }
+  throw lastErr;
+}
+
+/**
+ * Cache-revalidation token: the exact frames an analysis run at
+ * `nowMs` would select for the TARGET_OFFSETS_MIN offsets. While this
+ * signature is unchanged, every input to an analysis is unchanged —
+ * frame selection AND the immutable per-frame tiles. Keying on the
+ * selected set (not just the newest frame) also covers wall-clock
+ * drift: even if RainViewer publishes nothing new, the -15/-45 min
+ * targets march forward and can flip findFrameNear to a different
+ * past frame — that flips the signature and forces a recompute.
+ *
+ * @param {Array<{time: Number, path: String}>} frames
+ * @param {Number} nowMs Wall-clock reference for the offset targets
+ * @returns {String} joined frame paths, "" when frames is empty
+ */
+function frameSignature(frames, nowMs) {
+  return TARGET_OFFSETS_MIN
+    .map((offsetMin) => {
+      const f = findFrameNear(frames, nowMs + offsetMin * 60 * 1000);
+      return f ? f.path : "";
+    })
+    .join("|");
+}
+
+/**
+ * Find the past frame closest to a target timestamp.
+ *
+ * @param {Array} frames
+ * @param {Number} targetMs
+ * @returns {Object|null} closest frame, or null when input is empty
+ */
+function findFrameNear(frames, targetMs) {
+  if (!frames.length) return null;
+  let closest = frames[0];
+  let bestDelta = Math.abs(frames[0].time * 1000 - targetMs);
+  for (let i = 1; i < frames.length; i++) {
+    const d = Math.abs(frames[i].time * 1000 - targetMs);
+    if (d < bestDelta) {
+      bestDelta = d;
+      closest = frames[i];
+    }
+  }
+  return closest;
+}
+
+/**
  * URL of one radar tile at the analyzer's zoom, in the Universal Blue
  * scheme, with snow and mixed precipitation drawn in the rain colours.
  *
