@@ -132,12 +132,19 @@ server/index.js  ─── entry point, routes, middleware, HTTPS server
     │                        it for the AI summary and stops the kiosk's
     │                        /api/radar-risk poll (the Sense HAT radar/auto
     │                        modes still sample).
-    │                        Reads tile pixels via pngjs, classifies against
-    │                        the 6-level NEXRAD palette. Exports analyzeRadar
-    │                        (compact textual grid for the AI prompt),
-    │                        getRiskLevels (/api/radar-risk ring tiers +
-    │                        trends) and buildRadarGrid (Sense HAT 8×8 grid).
-    │                        Tile cache: 60 min. Analysis cache: 5 min.
+    │                        Reads tile pixels via pngjs, decodes each colour
+    │                        to dBZ with RainViewer's Universal Blue table,
+    │                        then to 6 levels; refuses non-radar tiles (zoom
+    │                        placeholder, unknown colours). Exports
+    │                        analyzeRadar (compact textual grid for the AI
+    │                        prompt), getRiskLevels (/api/radar-risk ring
+    │                        tiers + trends) and buildRadarGrid (Sense HAT
+    │                        8×8 grid). Tile cache: 60 min. Analysis cache:
+    │                        5 min.
+    │
+    ├── rainViewerPalette.js RainViewer's published Universal Blue colour
+    │                        table (scheme 2, rain + snow, -10 … 95 dBZ) and
+    │                        the colour → dBZ lookup the analyzer uses.
     │
     ├── airQualityCtrl.js    Air-quality orchestrator over airQualitySources/
     │                        (MELCC Montréal, MELCC RSQAQ, EPA AirNow,
@@ -633,11 +640,13 @@ Client: GET /api/weather-summary?lat=…&lon=…&lang=fr&localHour=14&…
   → reads current/hourly/daily from shared weatherCache (a current-conditions
       miss triggers one non-fatal Tomorrow.io backfill)
   → calls radarAnalyzerCtrl.analyzeRadar(lat, lon)
-      → fetches the RainViewer past-frames index (analysis cached 5 min,
-        decoded tiles 60 min)
-      → for now, -15 min, -45 min: fetches matching tiles, reads pixels at
-        161 sample points (centre + 16 directions × 10 distances; 481 with
-        advanced.ai.extendedRadius), classifies intensity, formats as text
+      → fetches the RainViewer past-frames index (analysis cached 5 min)
+      → for now, -15 min, -45 min: fetches the matching tiles and classifies
+        every pixel once, at fetch, into an intensity level (the tile cache
+        keeps those level arrays, 60 min); then reads 161 sample points
+        (centre + 16 directions × 10 distances; 481 with
+        advanced.ai.extendedRadius), each the worst level in the 3×3 pixels
+        around it, and formats them as text
       → returns a compact "now: clear / -15 min: light NE / -45 min: ..." block
   → calm-day fast path (advanced.ai.calmDayFastPath, default on): benign weather
       code, precip probability < 20 % now and for the coming period, and no

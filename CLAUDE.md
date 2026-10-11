@@ -23,6 +23,7 @@ pi-weather-station/
 │   ├── proxyCtrl.js      # Proxies Tomorrow.io weather (current/hourly/daily, shared cache), Mapbox tiles, LocationIQ reverse geocoding, sunrise-sunset.org — other upstreams are called from their own controllers; radar tiles (RainViewer, ECCC GeoMet) load straight from the browser
 │   ├── aiSummaryCtrl.js  # Claude AI weather summary endpoint (current + period-forecast + radar paragraphs, each only when its data is available)
 │   ├── radarAnalyzerCtrl.js # Parses RainViewer tile pixels for the 50 km zone
+│   ├── rainViewerPalette.js # RainViewer's Universal Blue colour table (scheme 2, the only one it serves) — the analyzer's colour → dBZ lookup
 │   ├── airQualityCtrl.js # Air-quality orchestrator — closest station wins across sources, ECCC AQHI fallback
 │   ├── airQualitySources/ # One module per AQ source (MELCC Mtl, MELCC RSQAQ, AirNow, OpenAQ, ECCC) + _shared.js helpers
 │   ├── govAlertsCtrl.js  # Gov severe-weather alerts orchestrator — merges sources in parallel, isolates failures

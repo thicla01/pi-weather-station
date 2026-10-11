@@ -17,7 +17,31 @@ const path = require("path");
 const fs = require("fs");
 const https = require("https");
 const { PNG } = require("pngjs");
-const { buildRadarGrid, intensityToRgb } = require(path.join(__dirname, "..", "server", "radarAnalyzerCtrl"));
+const { buildRadarGrid } = require(path.join(__dirname, "..", "server", "radarAnalyzerCtrl"));
+
+/**
+ * The LED colour of each intensity level, read from RADAR_TIER_RGB in
+ * tools/sensehat_weather.py, so the preview shows what the matrix shows.
+ *
+ * @returns {Array<[Number, Number, Number]>} RGB per level 0-6
+ */
+function loadLedTierRgb() {
+  const py = fs.readFileSync(path.join(__dirname, "sensehat_weather.py"), "utf8");
+  const block = py.match(/^RADAR_TIER_RGB = \[([\s\S]*?)^\]/m);
+  if (!block) throw new Error("RADAR_TIER_RGB not found in tools/sensehat_weather.py");
+  const rows = [...block[1].matchAll(/\(\s*(\d+),\s*(\d+),\s*(\d+)\s*\)/g)].map((m) => m.slice(1, 4).map(Number));
+  if (rows.length !== 7) throw new Error(`RADAR_TIER_RGB: expected 7 rows, found ${rows.length}`);
+  return rows;
+}
+const LED_TIER_RGB = loadLedTierRgb();
+
+/**
+ * LED colour of an intensity level.
+ *
+ * @param {Number} level Intensity 0-6
+ * @returns {[Number, Number, Number]} RGB triple, [0, 0, 0] for level 0
+ */
+const intensityToRgb = (level) => LED_TIER_RGB[Math.max(0, Math.min(6, level || 0))];
 
 const SIZE = 8;
 const COMPASS_16 = ["N", "NNE", "NE", "ENE", "E", "ESE", "SE", "SSE",

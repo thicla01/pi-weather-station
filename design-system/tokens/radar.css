@@ -3,18 +3,20 @@
    deliberately NOT part of ui/tokens.js. Two families:
      --rc-*  radar-chrome roles: tile scale, alert-tier swatches, surface-2, ink-3
      --map-* on-map paint: analysis-circle stroke + label ink
-   RainViewer tile colours are the tiles' own colour scheme 6 and NEVER
-   recolour — identical in all four palettes, nightRed included (an honest
-   legend beats palette purity). Alert tiers = what the app paints on the map
+   RainViewer tile colours are real colours of the tiles' own palette
+   (Universal Blue, scheme 2; one per analyzer intensity level, the colour
+   at the middle of the level's dBZ range) and NEVER recolour — identical
+   in all four palettes, nightRed included (an honest legend beats palette
+   purity). Alert tiers = what the app paints on the map
    (WeatherMap/geometry.js tierColour); nightRed collapses them to the red
    family with opacity steps carrying the hierarchy (warn 1 · watch .6 · adv .32). */
 :root {
-  --rc-tile-1: #00d0d0;  /* RainViewer scheme 6, segment 1 (lightest) */
-  --rc-tile-2: #00c800;
-  --rc-tile-3: #f0e600;
-  --rc-tile-4: #f08200;
-  --rc-tile-5: #e60000;
-  --rc-tile-6: #7800b4;  /* segment 6 (most intense) */
+  --rc-tile-1: #51c5e8;  /* very light, 17 dBZ (lightest) */
+  --rc-tile-2: #00699c;  /* light, 27 dBZ */
+  --rc-tile-3: #ffd200;  /* moderate, 37 dBZ */
+  --rc-tile-4: #ff9500;  /* heavy, 42 dBZ */
+  --rc-tile-5: #cd0d00;  /* very heavy, 49 dBZ */
+  --rc-tile-6: #ff81ff;  /* extreme, 59 dBZ (most intense) */
   --rc-alert-warn: #e60000;   /* severe/extreme tier polygon (CAP severity; the warn/watch/adv names are historical) */
   --rc-alert-watch: #ee7710;  /* moderate tier */
   --rc-alert-adv: #f0c000;    /* minor tier — same gold as --c-advisory */

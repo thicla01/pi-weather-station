@@ -17,8 +17,8 @@ const clock = (start = 1_000_000) => {
   let t = start;
   return { now: () => t, advance: (ms) => { t += ms; } };
 };
-const URL_A = "https://tilecache.rainviewer.com/v2/radar/a/512/6/18/22/6/1_1.png";
-const URL_B = "https://tilecache.rainviewer.com/v2/radar/b/512/6/18/22/6/1_1.png";
+const URL_A = "https://tilecache.rainviewer.com/v2/radar/a/512/6/18/22/2/1_1.png";
+const URL_B = "https://tilecache.rainviewer.com/v2/radar/b/512/6/18/22/2/1_1.png";
 
 test("the hold outlasts RainViewer's 60 s window; retries are bounded", () => {
   assert.ok(RADAR_TILE_COOLDOWN_MS > 60_000);

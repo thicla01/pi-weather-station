@@ -75,9 +75,14 @@ export const DIR_OUTER_TO_BEARING = Object.fromEntries(
 // ─── Style tables ───────────────────────────────────────────────────
 
 // Risk-level colour mapping for the dashed radar circles. The three
-// tiers match the server's RISK_LEVELS in radarAnalyzerCtrl.js. Both
-// "light" and "dark" themes use the radar-tile palette directly
-// (yellow / orange / red); `buildRingLayers` below handles the
+// tiers match the server's RISK_LEVELS in radarAnalyzerCtrl.js. The
+// colours are the app's risk vocabulary (watch yellow / warning orange
+// / severe red), not the tile palette: the tiles have been RainViewer's
+// Universal Blue since 2026-10 (blues for light rain), and these hex
+// values are the old NEXRAD-scheme tile colours they were taken from,
+// kept on purpose. The analyzer's level floors make orange and red
+// rings coincide with orange and red tiles; yellow covers everything
+// lighter, blues included. `buildRingLayers` below handles the
 // light-mode contrast trick (dark outline + bright dashed stroke on
 // top) so the bright tier colours don't drown against the cream
 // basemap. The bumped weight on the red tier makes the severe-tier
@@ -332,9 +337,9 @@ export function buildSamplingPoints(center, extended, unit) {
  * one or two layers: a single neutral stroke for calm rings (and dark-
  * mode coloured rings, where the dark basemap provides natural contrast),
  * or a darker outline + bright coloured stroke pair for light-mode
- * coloured rings. The two-layer trick lets us keep the bright radar-tile
- * palette (#f0e600 / #f08200 / #e60000) without it drowning against the
- * cream basemap — the outline does the heavy lifting on contrast.
+ * coloured rings. The two-layer trick lets us keep the bright risk
+ * colours (#f0e600 / #f08200 / #e60000) without them drowning against
+ * the cream basemap — the outline does the heavy lifting on contrast.
  *
  * Dark-mode calm uses a warm desaturated grey instead of near-white. The
  * previous #f6f6f4 read as "alarm" against the dark basemap even when

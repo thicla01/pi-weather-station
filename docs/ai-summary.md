@@ -143,16 +143,22 @@ not to invent values.
    -45 min frames on later runs), by the `/api/radar-risk` computation
    that samples the same frames, and across nearby locations, so the
    cache hit rate is high.
-4. Decodes each PNG via `pngjs` (no native dependency).
-5. For each of **161 sampling points** (1 centre + 16 directions × 10
+4. Decodes each PNG via `pngjs` (no native dependency) and refuses a
+   response that isn't readable radar: RainViewer's "Zoom Level Not
+   Supported" image (HTTP 200) or a tile in unknown colours. That
+   frame then counts as unavailable instead of clear.
+5. Classifies every pixel of an accepted tile once, at fetch: its exact
+   colour gives the dBZ in RainViewer's Universal Blue palette, and dBZ
+   bands give the **intensity tier** (`clear / very light / light /
+   moderate / heavy / very heavy / extreme`; see
+   [`radar-classification.md`](radar-classification.md)). The tile cache
+   keeps that array of tiers, not the pixels.
+6. For each of **161 sampling points** (1 centre + 16 directions × 10
    distances on the inner ring 5–50 km) — or **481 points** when
    `advanced.ai.extendedRadius` is on (adds 32 directions × 10 distances
    on the outer ring 55–100 km) — converts lat/lon to pixel coordinates
-   and reads the RGB value.
-6. Maps each RGB → an **intensity tier** (`clear / very light / light /
-   moderate / heavy / very heavy / extreme`) using the RainViewer palette
-   convention. A 3×3 max-pool around each probe absorbs anti-aliasing
-   edges so a single border pixel doesn't misclassify a tile boundary.
+   and reads the worst tier in the 3×3 pixels around it, so a probe on
+   a band's edge doesn't read clear.
 7. Compresses the resulting grid into a compact textual format
    (`formatSnapshot`) — only non-zero samples within the active annulus
    are listed; "Clear within X km" and "Clear beyond Y km" describe the
@@ -524,7 +530,7 @@ Advanced → AI · radar analysis**:
 | `radarAnalysisEnabled` | `true` | Scope knob for the LLM-narrated portion of the radar feature. When `false`: (a) the AI summary's third paragraph is skipped entirely — analyzer short-circuited server-side, no radar block in the prompt; (b) the dashed sampling-zone circles disappear from the map. On Haiku 5.5 it is a small cost lever (≈ $0.0006-0.0008 vs ≈ $0.00013 per call in the 2026-10-08 smoke test) but the main latency lever: no-radar prompts skipped thinking entirely and returned in ~1-1.5 s instead of ~4-5 s. **The rain-alert banner is unaffected** — it uses the same risk data computed locally and keeps firing for severe / heavy precipitation regardless of this setting (since v2026-05-09 — see [PR 68](https://github.com/thicla01/pi-weather-station/pull/68) for the decoupling rationale). |
 | `extendedRadius` | `false` | When `true`, samples the outer ring (32 directions × 10 distances, 55-100 km / 33-60 mi). Triples the sample count (161 → 481), more than doubles the prompt (2026-10-08 smoke test, synthetic radar: 3461 input tokens for the Spanish extended-radius prompt vs 1397-1496 for the English / French inner-ring ones), and lets Claude reason about cells further out. |
 | `showSamplingPoints` | `false` | Purely client-side render flag — no impact on the prompt. |
-| `calmDayFastPath` | `true` | When enabled, the server skips the Claude call on calm days (no active precipitation, current and period precipitation probabilities below 20 %, AND the radar snapshot, if one was obtained, is fully clear) and returns a localised templated summary instead. The template renders three paragraphs to mirror the Claude path's structure: current conditions, period forecast (`evening` / `overnight` / `tomorrow` window), and a confident radar "nothing to report within {distance}" (dropped when radar analysis is off). Saves one Claude call per cache window per location whenever conditions are quiet: under a tenth of a cent per skipped call on Haiku 5.5, but also the call's latency and its failure modes. Claude is still invoked the moment any of the four gates trip — including when Tomorrow.io says calm but radar shows precipitation, so the summary never contradicts what's visible on the map. Disable to always invoke Claude regardless of conditions. |
+| `calmDayFastPath` | `true` | When enabled, the server skips the Claude call on calm days (no active precipitation, current and period precipitation probabilities below 20 %, AND the radar snapshot, if one was obtained, is fully clear) and returns a localised templated summary instead. The template renders three paragraphs to mirror the Claude path's structure: current conditions, period forecast (`evening` / `overnight` / `tomorrow` window), and a confident radar "nothing to report within {distance}" (dropped whenever there is no radar snapshot: radar analysis off, RainViewer unreachable, or every tile refused). Saves one Claude call per cache window per location whenever conditions are quiet: under a tenth of a cent per skipped call on Haiku 5.5, but also the call's latency and its failure modes. Claude is still invoked the moment any of the four gates trip — including when Tomorrow.io says calm but radar shows precipitation, so the summary never contradicts what's visible on the map. Disable to always invoke Claude regardless of conditions. |
 
 The **API key** (`anthropicApiKey`) lives at the top level of
 `settings.json`, not under `advanced`. When it's missing, empty, or still
@@ -680,5 +686,5 @@ one that matches your concern:
 | Key + `radarAnalysisEnabled: false` | Claude (calm + fast-path on: two-paragraph template, no Claude call) | ✅ | ❌ | ❌ | ✅ |
 
 Notes:
-- The **calm-day fast path** (third row) is enabled by default via `advanced.ai.calmDayFastPath: true`. It triggers when **all four** of: (1) current weather code is in the benign range (no 4xxx-8000), (2) current precipitation probability < 20 %, (3) period forecast's max precipitation probability < 20 %, (4) the radar snapshot, if one was obtained, shows no `Active` zone — an unavailable or disabled radar block passes this gate. The current temperature must also be present and the period max must be known (a missing period forecast defers to Claude). When all four hold, the server renders a three-paragraph template (current conditions + period forecast + radar "nothing to report within 50 km / 100 km, or 30 mi / 60 mi, depending on `extendedRadius`"; the radar paragraph is dropped when radar analysis is off), no Anthropic tokens spent. The radar gate exists specifically to defend against the case where Tomorrow.io reports calm but RainViewer already shows an approaching band — in that case the fast path bails out and Claude takes over so the summary stays honest. Set `calmDayFastPath: false` to always invoke Claude regardless of conditions.
+- The **calm-day fast path** (third row) is enabled by default via `advanced.ai.calmDayFastPath: true`. It triggers when **all four** of: (1) current weather code is in the benign range (no 4xxx-8000), (2) current precipitation probability < 20 %, (3) period forecast's max precipitation probability < 20 %, (4) the radar snapshot, if one was obtained, shows no `Active` zone — an unavailable or disabled radar block passes this gate. The current temperature must also be present and the period max must be known (a missing period forecast defers to Claude). When all four hold, the server renders a three-paragraph template (current conditions + period forecast + radar "nothing to report within 50 km / 100 km, or 30 mi / 60 mi, depending on `extendedRadius`"; the radar paragraph is dropped whenever there is no radar snapshot: radar analysis off, RainViewer unreachable, or every tile refused — the template never prints a radar all-clear it has no data for), no Anthropic tokens spent. The radar gate exists specifically to defend against the case where Tomorrow.io reports calm but RainViewer already shows an approaching band — in that case the fast path bails out and Claude takes over so the summary stays honest. Set `calmDayFastPath: false` to always invoke Claude regardless of conditions.
 - The "subdued" treatment in the no-key case lowers the calm-tier ring's opacity (0.85 → 0.35) and switches to a sparser dash pattern (`6 6` → `3 9`); coloured tiers (yellow / orange / red) keep their full contrast — alerts need to stay loud regardless of AI availability.

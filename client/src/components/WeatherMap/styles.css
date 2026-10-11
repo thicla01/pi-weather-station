@@ -14,10 +14,13 @@
    *            label ink, alert-tier swatches, tile scale)
    *   --map-*  on-map paint (analysis-circle stroke + label ink)
    *
-   * RainViewer tile colours (--rc-tile-1…6) are the EXACT colour
-   * scheme 6 palette the tiles ship with (docs/radar-classification)
-   * — fixed across all four palettes, because the tiles themselves
-   * never recolour. Alert tiers match what the app paints on the map
+   * RainViewer tile colours (--rc-tile-1…6) are real colours of the
+   * Universal Blue palette the tiles ship with (scheme 2): one per
+   * analyzer intensity level, the tile colour at the middle of that
+   * level's dBZ range (level 1: of its opaque 15-19 dBZ part; level 6:
+   * of its pink 55-64 band) — see docs/radar-classification. Fixed
+   * across all four palettes, because the tiles themselves never
+   * recolour. Alert tiers match what the app paints on the map
    * (geometry.js tierColour) in day/dusk/night; nightRed overrides
    * them to the red family below (the markers are app chrome, fully
    * recolourable, unlike the tiles).
@@ -26,12 +29,12 @@
    * overrides live in the `.ambientRoot[data-palette]` blocks after
    * this rule.
    * ============================================================ */
-  --rc-tile-1: #00d0d0;
-  --rc-tile-2: #00c800;
-  --rc-tile-3: #f0e600;
-  --rc-tile-4: #f08200;
-  --rc-tile-5: #e60000;
-  --rc-tile-6: #7800b4;
+  --rc-tile-1: #51c5e8; /* very light, 17 dBZ */
+  --rc-tile-2: #00699c; /* light, 27 dBZ */
+  --rc-tile-3: #ffd200; /* moderate, 37 dBZ */
+  --rc-tile-4: #ff9500; /* heavy, 42 dBZ */
+  --rc-tile-5: #cd0d00; /* very heavy, 49 dBZ */
+  --rc-tile-6: #ff81ff; /* extreme, 59 dBZ */
   --rc-alert-warn: #e60000;
   --rc-alert-watch: #ee7710;
   --rc-alert-adv: #f0c000;
