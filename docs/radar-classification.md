@@ -80,22 +80,29 @@ the client radar layer's URL with one option changed (`1_0`, below):
   for pixel (0 mismatch on those tiles), so every pixel the analyzer
   reads is in the table.
 
-`decodeTile` refuses two kinds of response before they can read as
-clear sky. The frame then counts as unavailable: the AI summary
-loses it (and its radar paragraph when no frame is left, with the
-reason in the snapshot), `/api/radar-risk` answers 503 when no frame
-is left (the client keeps the rings' last colour), and a
-`[radar] tile … refused` line is logged:
+`decodeTile` refuses a tile with `OFF_PALETTE_REJECT_PIXELS` (64) or
+more painted pixels whose colour is not in the table, before it can
+read as clear sky. The analyzer's tiles have none (below), so that
+means one of:
 
 - **The "Zoom Level Not Supported" placeholder.** Past z7 RainViewer
-  answers HTTP 200 with a translucent grey box and white text, a
-  4-bit palette PNG (3,269 bytes) where radar tiles are 8-bit RGBA.
-  Any palette-mode PNG is refused from its header, before decoding.
-  Nothing requests z8 today; this is the safety net against a
-  "correction" of the zoom.
-- **A palette change.** A tile with `OFF_PALETTE_REJECT_PIXELS` (64)
-  or more painted pixels whose colour is not in the table. Real tiles
-  have none (below), so this means RainViewer changed how it draws.
+  answers HTTP 200 with a translucent grey box and white text, none of
+  it a Universal Blue colour. Nothing requests z8 today; this is the
+  safety net against a "correction" of the zoom. Its header (a
+  palette PNG with 4-bit indices, 3,269 bytes, where radar tiles are
+  8-bit RGBA) only names the refusal in the log: a real radar tile
+  re-encoded as a palette PNG (8-bit indices) decodes like the
+  original.
+- **A palette change.** RainViewer drawing colours its table doesn't
+  list — as its pink mixed-precipitation ramp would be with `1_1`.
+  The log line names the five most frequent strays, so a new ramp is
+  identified at once.
+
+The frame then counts as unavailable: the AI summary loses it (and
+its radar paragraph when no frame is left, with the reason in the
+snapshot), `/api/radar-risk` answers 503 when no frame is left (the
+client keeps the rings' last colour), and a `[radar] tile … refused`
+line is logged.
 
 An accepted tile is classified in one pass (`classifyTile`): every
 pixel becomes its intensity level, and the cache keeps that byte

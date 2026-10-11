@@ -173,22 +173,31 @@ const LEVEL_BY_RGBA = new Map(
 
 // Off-palette pixels read as clear, which is how the scheme-6 matcher went
 // on reading about half of the precipitation as clear once RainViewer's
-// tiles turned Universal Blue. Real tiles have none (0 of 2.48 M painted pixels, see
-// rainViewerPalette.js), so a tile with this many means RainViewer changed
-// its drawing: decodeTile refuses it, and the analysis reports the radar
-// unavailable instead of a false all-clear. 64 pixels is a 3-4 km cell core
-// at mid-latitudes.
+// tiles turned Universal Blue. The analyzer's `1_0` tiles have none (0 of
+// 2.48 M painted pixels, see rainViewerPalette.js), so a tile with this many
+// means RainViewer changed its drawing: decodeTile refuses it, and the
+// analysis reports the radar unavailable instead of a false all-clear. 64
+// pixels is a 3-4 km cell core at mid-latitudes.
 const OFF_PALETTE_REJECT_PIXELS = 64;
+// How many of a refused tile's most frequent off-palette colours the log
+// line names, so a new ramp can be identified from the log alone.
+const OFF_PALETTE_LOGGED_COLOURS = 5;
 
 // RainViewer's radar tiles are 8-bit RGBA PNGs (colour type 6). Past its
 // maximum zoom (z7 in the URL) it answers HTTP 200 with a "Zoom Level Not
-// Supported" image instead (a translucent grey box, white text): a 4-bit
-// palette PNG (colour type 3, 3,269 bytes on 2026-10-10). The colour type is
-// byte 25 of the file (signature, IHDR length and tag, width, height, bit
-// depth).
+// Supported" image instead (a translucent grey box, white text): a 512×512
+// palette PNG with 4-bit indices (colour type 3, bit depth 4, 3,269 bytes on
+// 2026-10-10). Bit depth and colour type are bytes 24 and 25 of the file
+// (after the signature, IHDR length and tag, width and height). The header
+// only names the refusal: what refuses the tile is its content, none of
+// which is a Universal Blue colour. A real radar tile re-encoded as a palette
+// PNG (a lossless CDN optimisation) needs 8-bit indices for Universal Blue's
+// ~160 colours and decodes like the RGBA original.
 const PNG_IHDR_TAG_OFFSET = 12;
+const PNG_BIT_DEPTH_OFFSET = 24;
 const PNG_COLOR_TYPE_OFFSET = 25;
 const PNG_COLOR_TYPE_PALETTE = 3;
+const ZOOM_PLACEHOLDER_BIT_DEPTH = 4;
 
 // In-memory caches — bounded Maps keyed by deterministic strings. The caps
 // guard against unbounded growth from coordinate-keyed entries (a remote
@@ -319,10 +328,11 @@ function latLonToTilePixel(lat, lon) {
  * Transparent and off-palette pixels are 0 (clear); both are counted.
  *
  * @param {{width: Number, height: Number, data: Buffer}} png Decoded RGBA tile (pngjs)
- * @returns {{width: Number, height: Number, levels: Uint8Array, painted: Number, offPalette: Number}}
+ * @returns {{width: Number, height: Number, levels: Uint8Array, painted: Number, offPalette: Number, offPaletteTop: Array<[String, Number]>}}
  *   `levels` holds one intensity per pixel, row-major. `painted` counts the
  *   non-transparent pixels, `offPalette` those whose colour is not a
- *   Universal Blue colour.
+ *   Universal Blue colour; `offPaletteTop` lists the most frequent of those
+ *   colours (RRGGBBAA hex, pixel count), most frequent first.
  */
 function classifyTile(png) {
   const { width, height, data } = png;
@@ -331,6 +341,7 @@ function classifyTile(png) {
   const view = new DataView(data.buffer, data.byteOffset, data.byteLength);
   let painted = 0;
   let offPalette = 0;
+  let offPaletteCounts = null; // colour → pixels, created on the first stray
   // Neighbouring pixels mostly share a colour: reuse the last lookup.
   let lastKey = -1;
   let lastLevel = 0;
@@ -342,129 +353,69 @@ function classifyTile(png) {
       lastKey = key;
       lastLevel = LEVEL_BY_RGBA.get(key) ?? -1;
     }
-    if (lastLevel < 0) offPalette++;
-    else levels[p] = lastLevel;
+    if (lastLevel >= 0) {
+      levels[p] = lastLevel;
+    } else {
+      offPalette++;
+      if (!offPaletteCounts) offPaletteCounts = new Map();
+      offPaletteCounts.set(key, (offPaletteCounts.get(key) || 0) + 1);
+    }
   }
-  return { width, height, levels, painted, offPalette };
+  const offPaletteTop = offPaletteCounts
+    ? [...offPaletteCounts]
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, OFF_PALETTE_LOGGED_COLOURS)
+      .map(([key, n]) => [key.toString(16).padStart(8, "0"), n])
+    : [];
+  return { width, height, levels, painted, offPalette, offPaletteTop };
 }
 
 /**
- * Whether a tile response is RainViewer's "Zoom Level Not Supported"
- * placeholder rather than radar data: any palette-mode PNG (see
- * PNG_COLOR_TYPE_PALETTE). Reads the PNG header only, no decode.
+ * Whether a tile response has the header of RainViewer's "Zoom Level Not
+ * Supported" placeholder: a palette PNG with 4-bit indices. Reads the PNG
+ * header only. Used to name a refusal, not to decide it (see decodeTile).
  *
  * @param {Buffer} buffer Raw response body
- * @returns {Boolean} true for a palette-mode PNG
+ * @returns {Boolean} true for a palette PNG with 4-bit indices
  */
 function isZoomPlaceholderPng(buffer) {
   return buffer.length > PNG_COLOR_TYPE_OFFSET
     && buffer.toString("latin1", PNG_IHDR_TAG_OFFSET, PNG_IHDR_TAG_OFFSET + 4) === "IHDR"
-    && buffer[PNG_COLOR_TYPE_OFFSET] === PNG_COLOR_TYPE_PALETTE;
+    && buffer[PNG_COLOR_TYPE_OFFSET] === PNG_COLOR_TYPE_PALETTE
+    && buffer[PNG_BIT_DEPTH_OFFSET] === ZOOM_PLACEHOLDER_BIT_DEPTH;
 }
 
 /**
  * Decode and classify a fetched tile, refusing what isn't readable radar
- * data. The error makes the caller treat the frame as unavailable rather
- * than read the tile as clear sky: the AI summary loses that frame (its
- * radar paragraph when no frame is left), /api/radar-risk answers 503 when
- * no frame is left (the client keeps the rings' last colour). The reason is
- * logged.
+ * data: a tile with OFF_PALETTE_REJECT_PIXELS off-palette pixels or more.
+ * RainViewer's "Zoom Level Not Supported" placeholder is one (none of its
+ * pixels is a Universal Blue colour), and the log line names it from its
+ * header; a palette-mode PNG of real radar decodes normally. The error makes
+ * the caller treat the frame as unavailable rather than read the tile as
+ * clear sky: the AI summary loses that frame (its radar paragraph when no
+ * frame is left), /api/radar-risk answers 503 when no frame is left (the
+ * client keeps the rings' last colour). The reason is logged.
  *
  * @param {Buffer} buffer Raw PNG response body
  * @param {String} label Tile identifier for the log line
  * @returns {ReturnType<typeof classifyTile>} The classified tile
- * @throws {Error} When the tile is the zoom placeholder or has
- *   OFF_PALETTE_REJECT_PIXELS off-palette pixels or more
+ * @throws {Error} When the tile has OFF_PALETTE_REJECT_PIXELS off-palette
+ *   pixels or more
  */
 function decodeTile(buffer, label) {
-  let reason = null;
-  let tile = null;
+  const tile = classifyTile(PNG.sync.read(buffer));
+  if (tile.offPalette < OFF_PALETTE_REJECT_PIXELS) return tile;
+  let reason;
   if (isZoomPlaceholderPng(buffer)) {
     reason = 'RainViewer sent its "Zoom Level Not Supported" placeholder, not radar data';
   } else {
-    tile = classifyTile(PNG.sync.read(buffer));
-    if (tile.offPalette >= OFF_PALETTE_REJECT_PIXELS) {
-      reason = `${tile.offPalette} of ${tile.painted} painted pixels are not Universal Blue colours; `
-        + "has RainViewer changed its palette? (server/rainViewerPalette.js)";
-    }
+    const paletteMode = buffer[PNG_COLOR_TYPE_OFFSET] === PNG_COLOR_TYPE_PALETTE ? " (palette-mode PNG)" : "";
+    const top = tile.offPaletteTop.map(([hex, n]) => `#${hex} ×${n}`).join(", ");
+    reason = `${tile.offPalette} of ${tile.painted} painted pixels${paletteMode} are not Universal Blue `
+      + `colours (most frequent: ${top}); has RainViewer changed its palette? (server/rainViewerPalette.js)`;
   }
-  if (reason) {
-    console.warn(`[radar] tile ${label} refused: ${reason}`);
-    throw new Error(`radar tile refused: ${reason}`);
-  }
-  return tile;
-}
-
-/**
- * Fetch the latest list of past radar frames from RainViewer. Retries
- * up to FETCH_RETRY_DELAYS_MS.length times on transient failure, with
- * exponential backoff between attempts. Each attempt uses the standard
- * FETCH_TIMEOUT_MS axios timeout. Throws the last error after the final
- * attempt fails, so the caller's existing try/catch still surfaces a
- * 500 to the Debug panel when RainViewer is genuinely unreachable.
- *
- * @returns {Promise<Array<{time: Number, path: String}>>}
- */
-async function fetchRadarFrames() {
-  let lastErr = null;
-  for (let attempt = 0; attempt <= FETCH_RETRY_DELAYS_MS.length; attempt++) {
-    try {
-      const r = await axios.get("https://api.rainviewer.com/public/weather-maps.json", {
-        timeout: FETCH_TIMEOUT_MS,
-      });
-      return r.data?.radar?.past || [];
-    } catch (err) {
-      lastErr = err;
-      if (attempt < FETCH_RETRY_DELAYS_MS.length) {
-        await new Promise((resolve) => setTimeout(resolve, FETCH_RETRY_DELAYS_MS[attempt]));
-      }
-    }
-  }
-  throw lastErr;
-}
-
-/**
- * Cache-revalidation token: the exact frames an analysis run at
- * `nowMs` would select for the TARGET_OFFSETS_MIN offsets. While this
- * signature is unchanged, every input to an analysis is unchanged —
- * frame selection AND the immutable per-frame tiles. Keying on the
- * selected set (not just the newest frame) also covers wall-clock
- * drift: even if RainViewer publishes nothing new, the -15/-45 min
- * targets march forward and can flip findFrameNear to a different
- * past frame — that flips the signature and forces a recompute.
- *
- * @param {Array<{time: Number, path: String}>} frames
- * @param {Number} nowMs Wall-clock reference for the offset targets
- * @returns {String} joined frame paths, "" when frames is empty
- */
-function frameSignature(frames, nowMs) {
-  return TARGET_OFFSETS_MIN
-    .map((offsetMin) => {
-      const f = findFrameNear(frames, nowMs + offsetMin * 60 * 1000);
-      return f ? f.path : "";
-    })
-    .join("|");
-}
-
-/**
- * Find the past frame closest to a target timestamp.
- *
- * @param {Array} frames
- * @param {Number} targetMs
- * @returns {Object|null} closest frame, or null when input is empty
- */
-function findFrameNear(frames, targetMs) {
-  if (!frames.length) return null;
-  let closest = frames[0];
-  let bestDelta = Math.abs(frames[0].time * 1000 - targetMs);
-  for (let i = 1; i < frames.length; i++) {
-    const d = Math.abs(frames[i].time * 1000 - targetMs);
-    if (d < bestDelta) {
-      bestDelta = d;
-      closest = frames[i];
-    }
-  }
-  return closest;
+  console.warn(`[radar] tile ${label} refused: ${reason}`);
+  throw new Error(`radar tile refused: ${reason}`);
 }
 
 /**

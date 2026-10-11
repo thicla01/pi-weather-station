@@ -242,4 +242,6 @@ test("drift guard: a tile with OFF_PALETTE_REJECT_PIXELS stray colours is refuse
   assert.throws(() => radar.decodeTile(tileWithStrays(limit), "at-limit"), /not Universal Blue colours/);
   assert.equal(warn.mock.callCount(), 1, "the refusal is logged");
   assert.match(warn.mock.calls[0].arguments[0], /\[radar\] tile at-limit refused/);
+  // The log names the stray colours, so a new ramp is identified at once.
+  assert.match(warn.mock.calls[0].arguments[0], /most frequent: #00c800ff ×64\)/);
 });

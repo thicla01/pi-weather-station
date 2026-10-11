@@ -25,13 +25,18 @@ const { test } = require("node:test");
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
+const { PNG } = require("pngjs");
 
 const { RAINVIEWER_COLOR_SCHEME, RAINVIEWER_ANALYZER_TILE_OPTIONS } = require("../server/rainViewerPalette");
 const { __test: radar } = require("../server/radarAnalyzerCtrl");
 
 const MAP_FILE = path.join(__dirname, "..", "client", "src", "components", "WeatherMap", "index.js");
-const PLACEHOLDER = path.join(__dirname, "fixtures", "rainviewer", "zoom-not-supported.png");
-const REAL_TILE = path.join(__dirname, "fixtures", "rainviewer", "storm-crop.png");
+const FIXTURES = path.join(__dirname, "fixtures", "rainviewer");
+const PLACEHOLDER = path.join(FIXTURES, "zoom-not-supported.png");
+const REAL_TILE = path.join(FIXTURES, "storm-crop.png");
+const PALETTE_TILE = path.join(FIXTURES, "storm-crop-palette.png");
+const PALETTE_OFF_PALETTE_TILE = path.join(FIXTURES, "mixed-crop-snow-on-palette.png");
+const EMPTY_TILE = path.join(FIXTURES, "empty-tile.png");
 
 // RainViewer's maximum zoom in the tile URL (weather-maps-api docs, and the
 // grey placeholder above it).
@@ -102,19 +107,64 @@ test("server: the grey 'Zoom Level Not Supported' PNG is refused, not read as ra
   const warn = t.mock.method(console, "warn", () => {});
   const placeholder = fs.readFileSync(PLACEHOLDER);
   assert.equal(placeholder.length, 3269, "fixture is the real z8 response");
+  assert.equal(placeholder[24], 4, "bit depth 4");
+  assert.equal(placeholder[25], 3, "colour type 3 (palette)");
   assert.equal(radar.isZoomPlaceholderPng(placeholder), true);
   assert.equal(radar.isZoomPlaceholderPng(fs.readFileSync(REAL_TILE)), false);
   assert.throws(() => radar.decodeTile(placeholder, "z8"), /Zoom Level Not Supported/);
   assert.equal(warn.mock.callCount(), 1);
 });
 
-test("server: the palette-drift guard would refuse the placeholder too", () => {
-  // Second line of defence if the header check ever misses: decoded, the
-  // placeholder's translucent grey box and white text are no Universal Blue
-  // colours.
-  const { PNG } = require("pngjs");
+test("server: what refuses the placeholder is its content, none of it Universal Blue", () => {
+  // The header only names the refusal; decoded, the placeholder's
+  // translucent grey box and white text are no Universal Blue colours.
   const tile = radar.classifyTile(PNG.sync.read(fs.readFileSync(PLACEHOLDER)));
   assert.ok(tile.painted > 0);
   assert.equal(tile.offPalette, tile.painted);
   assert.ok(tile.offPalette >= radar.OFF_PALETTE_REJECT_PIXELS, `offPalette ${tile.offPalette}`);
+});
+
+test("server: real radar re-encoded as a palette PNG is not the placeholder and decodes like the original", (t) => {
+  const warn = t.mock.method(console, "warn", () => {});
+  // storm-crop.png re-encoded losslessly as an 8-bit palette PNG with tRNS
+  // (72 colours), as a CDN optimiser could serve it.
+  const palette = fs.readFileSync(PALETTE_TILE);
+  assert.equal(palette[25], 3, "colour type 3 (palette)");
+  assert.equal(palette[24], 8, "bit depth 8");
+  assert.equal(radar.isZoomPlaceholderPng(palette), false);
+  const fromPalette = radar.decodeTile(palette, "palette");
+  const fromRgba = radar.decodeTile(fs.readFileSync(REAL_TILE), "rgba");
+  assert.equal(fromPalette.offPalette, 0);
+  assert.equal(fromPalette.painted, fromRgba.painted);
+  assert.deepEqual(fromPalette.levels, fromRgba.levels);
+  assert.equal(warn.mock.callCount(), 0);
+});
+
+test("server: a palette PNG of unknown colours is refused under its own name", (t) => {
+  const warn = t.mock.method(console, "warn", () => {});
+  // mixed-crop-snow-on.png (the unlisted pink ramp) as an 8-bit palette PNG.
+  const buffer = fs.readFileSync(PALETTE_OFF_PALETTE_TILE);
+  assert.equal(radar.isZoomPlaceholderPng(buffer), false);
+  assert.throws(() => radar.decodeTile(buffer, "palette-pink"), (err) => {
+    assert.match(err.message, /\(palette-mode PNG\) are not Universal Blue colours/);
+    assert.doesNotMatch(err.message, /Zoom Level Not Supported/);
+    assert.match(err.message, /most frequent: #ff[0-9a-f]{6} ×\d+/);
+    return true;
+  });
+  assert.equal(warn.mock.callCount(), 1);
+});
+
+test("server: an empty RainViewer tile reads as clear, not as unavailable", (t) => {
+  const warn = t.mock.method(console, "warn", () => {});
+  // A real 512×512 tile with no echo: 1,096 bytes, RGBA, fully transparent.
+  const empty = fs.readFileSync(EMPTY_TILE);
+  assert.equal(empty.length, 1096);
+  assert.equal(radar.isZoomPlaceholderPng(empty), false);
+  const tile = radar.decodeTile(empty, "empty");
+  assert.equal(tile.width, 512);
+  assert.equal(tile.height, 512);
+  assert.equal(tile.painted, 0);
+  assert.equal(tile.offPalette, 0);
+  assert.equal(radar.readPixelIntensity(tile, 256, 256), 0);
+  assert.equal(warn.mock.callCount(), 0);
 });
