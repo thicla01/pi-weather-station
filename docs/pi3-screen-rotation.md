@@ -96,6 +96,8 @@ sudo reboot
 
 Step 4 assumes the touchscreen is mapped to the output (`mapToOutput="DSI-1"` in `~/.config/labwc/rc.xml`), the usual setup. If your touch was flipped with `invx,invy` on the display overlay instead, skip step 4. In both cases, tap a button after the reboot: if taps land at the mirrored spot, adjust step 4. If your `rc.xml` uses `<labwc_config>` as its root element, put the `<libinput>` line inside that element instead.
 
+The step 4 line flips **every** touchscreen connected to the Pi, not only the 7" panel. If you plug in another touch display, such as a touch HDMI monitor, its taps land at the mirrored spot too (seen on the bench). Remove the `<libinput>` line, or restore the `rc.xml` backup, before switching to another touch display.
+
 **Check after the reboot:** the boot screen and the kiosk are upright and taps land where you touch. Then:
 
 ```bash
