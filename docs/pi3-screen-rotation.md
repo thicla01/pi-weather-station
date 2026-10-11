@@ -67,7 +67,7 @@ If the screen has to stay upside down in its stand, the Pi's display controller 
 **Caveats — read before using it:**
 - **It is not documented by Raspberry Pi**, and it relies on behaviour a Raspberry Pi engineer describes as a bug ([wlroots merge request 4508](https://gitlab.freedesktop.org/wlroots/wlroots/-/merge_requests/4508), unmerged since January 2024): the compositor never resets the flip the kernel sets at boot. A future update of the desktop (wlroots, libliftoff or labwc) could undo it, putting the image back upside down or bringing the CPU cost back. **After every `apt full-upgrade`, check that the image is still upright and run the checks below.**
 - **180° only** (not 90° or 270°).
-- **The mouse cursor is not flipped**: it shows at the mirrored spot. Irrelevant on a touch-only kiosk (the cursor hides as soon as the screen is touched), but a mouse becomes unusable.
+- **A mouse plugged into the Pi becomes unusable**: the cursor is not flipped, so it shows at the mirrored spot and clicks land somewhere else than where you aim (checked on the bench). Touch works normally, and so does **Raspberry Pi Connect screen sharing**: the shared view and the physical screen stay upright, and the remote pointer shows at the right spot on both, with clicks landing where they should. If you need a local mouse, turn the screen the right way up instead.
 - Tested on the official 7" touchscreen (v1, `DSI-1`). Other displays should take the same option with their own connector name (for example `HDMI-A-1` and its mode); untested.
 
 **Steps** (on the Pi, as the kiosk user):
