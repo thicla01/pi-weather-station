@@ -8,9 +8,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Fixed
-- **A page reloaded during sleep no longer leaves the screen black or dim.** Six kiosks were found
-  awake on a black screen (2026-10-11) after a kiosk relaunch during sleep stage 2, with no
-  on-screen way back: the brightness slider sits in Settings. The pre-sleep brightness lived only in
+- **A page reloaded during sleep no longer leaves the screen black or dim.** On 2026-10-11, after
+  night-time kiosk relaunches during sleep stage 2, two kiosks were found awake on a black screen
+  and four more had their backlight at 0 %, with no on-screen way back: the brightness slider sits
+  in Settings. The pre-sleep brightness lived only in
   the old page's memory, so the new page read the dark panel's 0 % as the user's setting, and every
   later wake "restored" 0; a reload during stage 1 did the same with the dim level. The pre-sleep
   value is now also kept per device in `localStorage` (`brightnessBeforeSleep`, cleared at wake),
