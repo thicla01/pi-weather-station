@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Fixed
+- **A page reloaded during sleep no longer leaves the screen black.** Six kiosks were found awake
+  on a black screen (2026-10-11) after a kiosk relaunch during sleep stage 2, with no on-screen
+  way back: the brightness slider sits in Settings. The pre-sleep brightness lived only in the old
+  page's memory, so the new page read the dark panel's 0 % as the user's setting, and every later
+  wake "restored" 0. A reading below the 10 % floor now means "panel left dark", never a choice:
+  the page relights the screen at boot to the last brightness picked with the slider, now kept per
+  device in `localStorage` (`lastUserBrightness`), or 70 % when none is stored, and sleep never
+  captures a sub-floor value to restore. A reload during stage 1 still keeps the dim level until
+  the slider is moved. New `resolveUserBrightness` in `client/src/services/brightnessRestore.js`,
+  tested in `test/brightnessRestore.test.js`.
 - **The radar analysis reads RainViewer's colours again.** RainViewer now serves a single radar
   colour scheme, "Universal Blue" (scheme 2): a tile asked for in scheme 6, the NEXRAD colours the
   app requested, comes back identical (seen 2026-10-10; RainViewer gives no date). The analyzer kept

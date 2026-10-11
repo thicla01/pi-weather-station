@@ -10,6 +10,8 @@ import UpdateModal from "~/components/UpdateModal";
 import ScreenSaver from "~/components/ScreenSaver";
 import {
   nextRestoreAction,
+  readLastUserBrightness,
+  resolveUserBrightness,
   RESTORE_MAX_ATTEMPTS,
   RESTORE_SETTLE_MS,
 } from "~/services/brightnessRestore";
@@ -71,8 +73,17 @@ const App = () => {
       // re-capture — restoring on wake puts us back to whatever was
       // active at sleep onset, which is the principle-of-least-surprise
       // behaviour.
+      //
+      // Never capture a value below the floor: a dark panel adopted
+      // across a reload would otherwise be "restored" on every wake
+      // (incident 2026-10-11). `resolveUserBrightness` swaps it for the
+      // last slider value, or the default.
       if (brightnessBeforeSleepRef.current === null) {
-        brightnessBeforeSleepRef.current = brightnessPercent;
+        brightnessBeforeSleepRef.current = resolveUserBrightness({
+          percent: brightnessPercent,
+          minPercent: brightnessMinPercent,
+          stored: readLastUserBrightness(),
+        });
       }
       axios.post("/api/brightness", { percent: sleepStage1Brightness })
         .catch(() => undefined);
