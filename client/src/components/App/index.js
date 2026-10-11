@@ -9,9 +9,11 @@ import AmbientDebugPanel from "~/components/ambient/DebugPanel";
 import UpdateModal from "~/components/UpdateModal";
 import ScreenSaver from "~/components/ScreenSaver";
 import {
-  nextRestoreAction,
-  RESTORE_MAX_ATTEMPTS,
-  RESTORE_SETTLE_MS,
+  clearBrightnessBeforeSleep,
+  readLastUserBrightness,
+  resolveUserBrightness,
+  restoreBrightnessVerified,
+  writeBrightnessBeforeSleep,
 } from "~/services/brightnessRestore";
 
 import "!style-loader!css-loader!./overrides.css";
@@ -71,8 +73,23 @@ const App = () => {
       // re-capture — restoring on wake puts us back to whatever was
       // active at sleep onset, which is the principle-of-least-surprise
       // behaviour.
+      //
+      // Never capture a value below the floor: a dark panel adopted
+      // across a reload would otherwise be "restored" on every wake
+      // (incident 2026-10-11). `resolveUserBrightness` swaps it for the
+      // last slider value, or the default.
+      //
+      // The capture is also persisted per device: the ref dies with the
+      // page, and a page reloaded before the wake (kiosk relaunch, in-app
+      // update) restores the persisted value at boot instead of adopting
+      // the dim or dark panel (`planBootBrightness` in useScreenSaver).
       if (brightnessBeforeSleepRef.current === null) {
-        brightnessBeforeSleepRef.current = brightnessPercent;
+        brightnessBeforeSleepRef.current = resolveUserBrightness({
+          percent: brightnessPercent,
+          minPercent: brightnessMinPercent,
+          stored: readLastUserBrightness(),
+        });
+        writeBrightnessBeforeSleep(brightnessBeforeSleepRef.current);
       }
       axios.post("/api/brightness", { percent: sleepStage1Brightness })
         .catch(() => undefined);
@@ -99,6 +116,9 @@ const App = () => {
     if (brightnessBeforeSleepRef.current === null) return undefined;
     const restoreTo = brightnessBeforeSleepRef.current;
     brightnessBeforeSleepRef.current = null;
+    // The wake now owns the restore; a page reloaded from here on must not
+    // restore this value again at boot.
+    clearBrightnessBeforeSleep();
 
     // Restore the pre-sleep brightness, then VERIFY it actually landed on
     // the hardware and retry a bounded number of times if the screen is
@@ -108,32 +128,20 @@ const App = () => {
     // leave the panel stuck at the stage-2 value (0 = black) with no
     // on-screen way back. Bounded by RESTORE_MAX_ATTEMPTS so a panel that
     // genuinely can't reach the target never loops forever. See
-    // `services/brightnessRestore.js`.
+    // `restoreBrightnessVerified` in `services/brightnessRestore.js`.
     let cancelled = false;
-    const settle = (ms) => new Promise((resolve) => { setTimeout(resolve, ms); });
-    (async () => {
-      for (let attempt = 1; attempt <= RESTORE_MAX_ATTEMPTS; attempt++) {
-        if (cancelled) return;
-        await axios.post("/api/brightness", { percent: restoreTo }).catch(() => undefined);
-        await settle(RESTORE_SETTLE_MS);
-        if (cancelled) return;
-        const observed = await axios.get("/api/brightness")
-          .then((res) => (res.data?.available ? res.data.percent : null))
-          .catch(() => null);
-        const action = nextRestoreAction({ target: restoreTo, observed, attemptsMade: attempt });
-        if (action === "done") return;
-        if (action === "giveup") {
-          if (typeof observed === "number") {
-            console.warn(
-              `[brightness] wake-restore gave up after ${attempt} attempt(s): ` +
-              `asked ${restoreTo}%, screen still at ${observed}%`
-            );
-          }
-          return;
-        }
-        // action === "retry" → loop and write again.
+    restoreBrightnessVerified({
+      target: restoreTo,
+      http: axios,
+      isCancelled: () => cancelled,
+    }).then(({ outcome, attempts, observed }) => {
+      if (outcome === "giveup" && typeof observed === "number") {
+        console.warn(
+          `[brightness] wake-restore gave up after ${attempts} attempt(s): ` +
+          `asked ${restoreTo}%, screen still at ${observed}%`
+        );
       }
-    })();
+    });
 
     // A new stage transition (idle again, or user interaction) cancels an
     // in-flight retry loop so we never fight the newer brightness state.
