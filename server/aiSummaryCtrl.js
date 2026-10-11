@@ -462,13 +462,20 @@ const RADAR_PARAGRAPH_LABEL_BY_LANG = {
 };
 
 /**
- * True when the formatted radar snapshot reports no active precipitation
- * within the surveyed annulus — used as an additional gate for the
- * calm-day fast path. formatSnapshot lists non-zero samples only inside
- * "Active X-Y" blocks; if no such block exists, the radar is fully clear.
+ * True when the radar doesn't stand in the way of the calm-day fast path:
+ * the formatted snapshot reports no active precipitation within the
+ * surveyed annulus, or there is no snapshot at all. formatSnapshot lists
+ * non-zero samples only inside "Active X-Y" blocks; if no such block
+ * exists, the radar is fully clear.
+ *
+ * `null` (radar analysis off, RainViewer down, every tile refused) means
+ * "no radar data", NOT "radar clear": the fast path may still run on the
+ * other gates, but nothing may then print a radar all-clear — see
+ * calmDayFastPathSummary.
  *
  * @param {String|null} radarText Output of analyzeRadar (formatSnapshot)
- * @returns {Boolean} True iff radar shows no active precipitation
+ * @returns {Boolean} True iff the snapshot shows no active precipitation,
+ *   or there is no snapshot
  */
 function isRadarClear(radarText) {
   if (!radarText) return true;
@@ -623,6 +630,24 @@ function buildCalmDayTemplate({
   // Join non-empty paragraphs with a blank line separator. Mirrors the
   // shape Claude produces (paragraphs are split client-side on \n\n).
   return [p1, p2, p3].filter(Boolean).join("\n\n");
+}
+
+/**
+ * The calm-day fast path's summary, or null when the conditions aren't
+ * calm (isCalmStableState). The radar paragraph ("nothing to report") is
+ * printed only from a radar snapshot: with none (analysis off, RainViewer
+ * down, every tile refused), the template says nothing about the radar
+ * instead of a false all-clear.
+ *
+ * @param {Object} opts buildCalmDayTemplate's options minus radarAvailable, plus:
+ * @param {Number|null} opts.periodMaxPrecip Max precipitation probability
+ *   across the forecast window, or null when unavailable
+ * @param {String|null} opts.radarText Output of analyzeRadar, or null
+ * @returns {String|null} The templated summary, or null
+ */
+function calmDayFastPathSummary({ periodMaxPrecip, radarText, ...templateOpts }) {
+  if (!isCalmStableState(templateOpts.values, periodMaxPrecip, radarText)) return null;
+  return buildCalmDayTemplate({ ...templateOpts, radarAvailable: Boolean(radarText) });
 }
 
 function getWeatherFromSharedCache(lat, lon) {
@@ -969,28 +994,30 @@ async function getWeatherSummary(req, res) {
 
   // Calm-day fast path — when current conditions are clearly benign, the
   // forecast period shows no incoming precipitation, AND the radar snapshot
-  // confirms a fully clear annulus, the LLM doesn't add useful narration
-  // over a templated rendering. Skip Claude and return a localised three-
-  // paragraph template (current conditions + period forecast + radar
-  // "nothing to report") directly. Saves one full Anthropic call per cache
-  // window on calm days. Default on, opt-out via advanced.ai.calmDayFastPath.
+  // confirms a fully clear annulus (or there is no radar snapshot), the LLM
+  // doesn't add useful narration over a templated rendering. Skip Claude
+  // and return a localised template (current conditions + period forecast
+  // + radar "nothing to report", the last only from a snapshot) directly.
+  // Saves one full Anthropic call per cache window on calm days. Default
+  // on, opt-out via advanced.ai.calmDayFastPath.
   const calmFastPathEnabled = (settings?.advanced?.ai?.calmDayFastPath) !== false;
-  if (calmFastPathEnabled && isCalmStableState(values, periodMaxPrecip, radarText)) {
-    const summary = buildCalmDayTemplate({
+  const calmSummary = calmFastPathEnabled
+    ? calmDayFastPathSummary({
       lang, values, tempUnit, speedUnit,
       distanceUnit, extendedRadius: Boolean(aiSettings.extendedRadius),
-      periodKind, periodSummary,
-      radarAvailable: radarEnabled,
-    });
-    setSummaryCache(cacheKey, { summary, periodKind, expiresAt: Date.now() + SUMMARY_CACHE_TTL });
+      periodKind, periodSummary, periodMaxPrecip, radarText,
+    })
+    : null;
+  if (calmSummary) {
+    setSummaryCache(cacheKey, { summary: calmSummary, periodKind, expiresAt: Date.now() + SUMMARY_CACHE_TTL });
     pushRadarSnapshot({
       lat, lon, lang, source: "fast-path",
       radarText: radarText || `(radar unavailable: ${radarUnavailableReason || "unknown"})`,
-      summary,
+      summary: calmSummary,
     });
     recordServiceCall("Claude (AI summary)", 200, "calm-day fast path (no LLM call)");
     // Deliberately NOT incrementing the Anthropic counter — no API call was made.
-    return settleInflight(200, { summary, period: periodKind });
+    return settleInflight(200, { summary: calmSummary, period: periodKind });
   }
 
   // If none of the three sections has any content, there's nothing for
@@ -1186,6 +1213,7 @@ module.exports = {
     isRadarClear,
     isCalmStableState,
     buildCalmDayTemplate,
+    calmDayFastPathSummary,
     getHourlyForecast,
     getPeriod,
     // Claude request / reply handling (Haiku 5.5)

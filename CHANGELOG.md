@@ -37,6 +37,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   1 MB). RainViewer has also stopped sending nowcast frames (none since at least 2026-10-10): the
   timeline ends at "now", and the docs that promised 3 forecast frames and 3 h of history now say
   13 frames over 2 h; the forecast-zone code stays for their return.
+- **The calm-day AI summary no longer says the radar shows nothing when it has no radar data.** On a
+  calm day the server answers with a template instead of calling Claude, and that template ended
+  with "Radar analysis: nothing to report within 50 km" whenever radar analysis was on, even when
+  the analyzer had returned nothing (RainViewer unreachable, or every tile refused). The radar
+  paragraph now comes only from a radar snapshot; without one the template keeps its current
+  conditions and forecast and says nothing about the radar. New `calmDayFastPathSummary` in
+  `server/aiSummaryCtrl.js`, tested in EN, FR and ES in `test/aiSummaryCalmPath.test.js`.
 - **The radar map now credits OpenStreetMap.** Every Mapbox style the app offers (streets-v12,
   light, dark) draws OpenStreetMap data, and Mapbox's attribution terms ask for
   "© OpenStreetMap" next to "© Mapbox". The strip now reads "Leaflet | © Mapbox,
