@@ -43,7 +43,7 @@ If the first command prints `Transform: 180` (or 90/270) and the second prints `
 
 ## Fix
 
-1. **Turn the screen the right way up** in its stand or case, for example by turning the display over so the image no longer needs flipping.
+1. **Turn the screen the right way up** in its stand or case, for example by turning the display over so the image no longer needs flipping. If you are choosing a case or stand for the official 7" touchscreen, pick one that holds the screen the right way up as designed: nothing to configure, nothing to re-check after updates, and a mouse works too. A design that holds it upside down gives itself away in its instructions, which ask you to flip the image (`lcd_rotate=2`, or a 180° rotation in the screen settings).
 2. **Set the orientation back to normal:**
    - **GUI:** Control Centre → **Screens**, select the display (**DSI-1** for the official touchscreen), and set its **Orientation** to normal. This is the same panel as the touchscreen **Mode** setting described in [troubleshooting-touchscreen.md](troubleshooting-touchscreen.md).
    - **Or** edit `~/.config/kanshi/config` and remove `transform 180` (or set `transform normal`) from the output line, then reboot.
