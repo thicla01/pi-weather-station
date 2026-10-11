@@ -568,6 +568,9 @@ Found while moving the radar to the Universal Blue colour scheme (PR #396; see [
 - **`docs/screenshots` still show the old NEXRAD legend** (`tools/capture-screenshots.js`).
 - **The changed `--rc-tile-*` tokens need publishing** to the migrated design-system artifact ("Design System (migrated)" in Claude): the standalone Claude Design site closes in December, so the old DesignSync push is no longer the route.
 
+### 📋 Server code isn't linted in CI
+ESLint runs only inside the client build (`client/eslint.config.js`, through webpack); nothing lints `server/`, `tools/` or `test/`. In PR #396 a rewrite deleted three functions of `server/radarAnalyzerCtrl.js` that six call sites still used: every test passed and CI was green, while on a kiosk the radar analysis returned null on every call (the `ReferenceError` was caught and logged as a RainViewer failure). `no-undef` flags exactly those six calls. Add a root ESLint config for the Node code (CommonJS, Node globals, at least `no-undef` and `no-unused-vars`) and a CI step; it changes CI for the whole server tree, so check the current findings first. `test/radarAnalyzerEndToEnd.test.js` now covers that particular path.
+
 ## Perspective
 
 The three items I would prioritize above all others if returning to this project:

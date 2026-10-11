@@ -173,11 +173,12 @@ const LEVEL_BY_RGBA = new Map(
 
 // Off-palette pixels read as clear, which is how the scheme-6 matcher went
 // on reading about half of the precipitation as clear once RainViewer's
-// tiles turned Universal Blue. The analyzer's `1_0` tiles have none (0 of
-// 2.48 M painted pixels, see rainViewerPalette.js), so a tile with this many
-// means RainViewer changed its drawing: decodeTile refuses it, and the
-// analysis reports the radar unavailable instead of a false all-clear. 64
-// pixels is a 3-4 km cell core at mid-latitudes.
+// tiles turned Universal Blue. Real tiles have none (0 of 2.48 M painted
+// pixels on 20 `1_1` tiles; 0 of 192,680 on the analyzer's `1_0` tiles,
+// mixed precipitation and snow included; see rainViewerPalette.js), so a
+// tile with this many means RainViewer changed its drawing: decodeTile
+// refuses it, and the analysis reports the radar unavailable instead of a
+// false all-clear. 64 pixels is a 3-4 km cell core at mid-latitudes.
 const OFF_PALETTE_REJECT_PIXELS = 64;
 // How many of a refused tile's most frequent off-palette colours the log
 // line names, so a new ramp can be identified from the log alone.
@@ -191,8 +192,10 @@ const OFF_PALETTE_LOGGED_COLOURS = 5;
 // (after the signature, IHDR length and tag, width and height). The header
 // only names the refusal: what refuses the tile is its content, none of
 // which is a Universal Blue colour. A real radar tile re-encoded as a palette
-// PNG (a lossless CDN optimisation) needs 8-bit indices for Universal Blue's
-// ~160 colours and decodes like the RGBA original.
+// PNG (a lossless CDN optimisation, with a per-tile palette) usually needs
+// 8-bit indices — a light-rain tile with 16 colours or fewer could get 4-bit
+// ones and its header would match, but it decodes and is accepted like the
+// RGBA original, so only a log line could ever misname it.
 const PNG_IHDR_TAG_OFFSET = 12;
 const PNG_BIT_DEPTH_OFFSET = 24;
 const PNG_COLOR_TYPE_OFFSET = 25;

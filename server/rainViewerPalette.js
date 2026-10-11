@@ -25,10 +25,12 @@
 // table). So the analyzer asks for `1_0`, and every pixel it reads is a
 // published colour; the map keeps `1_1`.
 //
-// Measured on 20 zoom-7 tiles (2026-10-10, North America, Europe, Asia,
-// Australia, South America; 2.48 M painted pixels, no mixed precipitation
-// among them): every painted pixel is exactly one of these RGBA values. No
-// anti-aliasing, no blending.
+// Measured on 20 zoom-7 `1_1` tiles (2026-10-10, North America, Europe,
+// Asia, Australia, South America; 2.48 M painted pixels, no mixed
+// precipitation among them): every painted pixel is exactly one of these
+// RGBA values. No anti-aliasing, no blending. And on the analyzer's `1_0`
+// tiles: the two mixed-precipitation tiles above plus a snowy one (Alberta,
+// 2026-10-10), 192,680 painted pixels, every one a rain colour.
 
 const RAINVIEWER_COLOR_SCHEME = 2;
 // The analyzer's `{smooth}_{snow}`: smoothed, snow and mix in rain colours

@@ -950,8 +950,10 @@ async function getWeatherSummary(req, res) {
   // decode is ~5-10 ms) so its output can feed BOTH the calm-day fast path
   // (as an additional gate to confirm no precipitation is visible on radar
   // even if Tomorrow.io's current code says calm) AND the regular Claude
-  // path's third paragraph. Any failure is non-fatal — fast path proceeds
-  // assuming clear, regular path drops the third paragraph.
+  // path's third paragraph. Any failure is non-fatal: the fast path may
+  // still run, but a missing radar means "no radar data", never "clear", so
+  // it prints no radar paragraph (calmDayFastPathSummary); the regular path
+  // drops the third paragraph.
   let radarText = null;
   // Captured reason when the radar block ends up missing from the AI
   // prompt — surfaced through the debug-panel snapshot so post-mortem

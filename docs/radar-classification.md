@@ -82,8 +82,8 @@ the client radar layer's URL with one option changed (`1_0`, below):
 
 `decodeTile` refuses a tile with `OFF_PALETTE_REJECT_PIXELS` (64) or
 more painted pixels whose colour is not in the table, before it can
-read as clear sky. The analyzer's tiles have none (below), so that
-means one of:
+read as clear sky. Real tiles have none (below), so that means one
+of:
 
 - **The "Zoom Level Not Supported" placeholder.** Past z7 RainViewer
   answers HTTP 200 with a translucent grey box and white text, none of
@@ -91,8 +91,8 @@ means one of:
   safety net against a "correction" of the zoom. Its header (a
   palette PNG with 4-bit indices, 3,269 bytes, where radar tiles are
   8-bit RGBA) only names the refusal in the log: a real radar tile
-  re-encoded as a palette PNG (8-bit indices) decodes like the
-  original.
+  re-encoded as a palette PNG (usually 8-bit indices) decodes like
+  the original.
 - **A palette change.** RainViewer drawing colours its table doesn't
   list — as its pink mixed-precipitation ramp would be with `1_1`.
   The log line names the five most frequent strays, so a new ramp is
@@ -119,10 +119,13 @@ RainViewer's published one (CSV linked from the colour-schemes page,
 downloaded 2026-10-10): one RGBA value per dBZ from −10 to 95, for
 rain and for snow, no colour shared between the two (the analyzer's
 `1_0` tiles only carry the rain colours; snow stays in the lookup,
-harmlessly). On 20 zoom-7 tiles from five continents (2026-10-10,
-2.48 M painted pixels) every painted pixel was exactly one of those
-values: no anti-aliasing, no blending. So the match is an exact
-lookup, colour → dBZ, then dBZ → level through `DBZ_LEVEL_FLOORS`:
+harmlessly). On 20 zoom-7 `1_1` tiles from five continents
+(2026-10-10, 2.48 M painted pixels) every painted pixel was exactly
+one of those values: no anti-aliasing, no blending. On the
+analyzer's `1_0` tiles (the two mixed-precipitation tiles of ② and a
+snowy one, 192,680 painted pixels) every pixel was a rain colour. So
+the match is an exact lookup, colour → dBZ, then dBZ → level through
+`DBZ_LEVEL_FLOORS`:
 
 | Level | Label      | dBZ    | Tile colours                           | Ring tier |
 |------:|------------|--------|----------------------------------------|-----------|
