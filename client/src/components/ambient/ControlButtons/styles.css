@@ -240,6 +240,22 @@
   100% { opacity: 0; transform: translate(var(--toast-tx), -2px); }
 }
 
+/* Reduced motion: show the toast still, for its whole window. The
+ * global reduced-motion rule (styles/main.css) crushes every animation
+ * to ~0.01 ms, and `forwards` then holds `toast-pop`'s last keyframe —
+ * opacity 0 — so the toast mounted already invisible and was never
+ * seen. Without an animation it renders at its resting state (opacity
+ * 1, the base `translateX(var(--toast-tx))`, edge clamp included) and
+ * disappears with no fade when `TOAST_TIMEOUT` in index.js unmounts it.
+ * Must stay after the base `.container > div.toast` rule: same
+ * specificity, so source order decides. Pinned by
+ * test/reducedMotionGuards.test.js. */
+@media (prefers-reduced-motion: reduce) {
+  .container > div.toast {
+    animation: none;
+  }
+}
+
 /* ============================================================
  * GROUPED MODE — used by the v3 BottomDock (Phase 1 of the v3.1
  * synthesis design). The flat-row CSS above is preserved for the
