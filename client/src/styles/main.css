@@ -18,7 +18,14 @@ body {
  * end state still applies but the motion is removed. Specific
  * imperative animations (Leaflet zoom-easing, RainViewer timeline
  * playback) honour this preference via JS checks; this rule
- * covers all CSS-driven transitions across the app in one shot. */
+ * covers all CSS-driven transitions across the app in one shot.
+ *
+ * Trap: "the end state still applies" includes an end state that
+ * hides the element. An animation that fades out and holds its last
+ * keyframe (`forwards` / `both` ending on `opacity: 0`) shows nothing
+ * at all here, so it needs its own reduced-motion override, e.g.
+ * `animation: none` (the dock toast in ControlButtons/styles.css).
+ * test/reducedMotionGuards.test.js fails on one without it. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;

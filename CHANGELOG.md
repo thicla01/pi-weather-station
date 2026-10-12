@@ -8,6 +8,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Fixed
+- **The dock toast shows under "reduce motion".** With the OS reduced-motion preference on (macOS /
+  iOS "Reduce motion", Android "Remove animations", Windows "Show animations" off), the short
+  confirmation shown above the dock after a tap ("Marker shown", "Radar timeline hidden", …) never
+  appeared: the global reduced-motion rule shortens every CSS animation to ~0.01 ms, and the toast's
+  fade held its last keyframe, which is fully transparent. Under reduced motion the toast now has
+  no animation: it appears at once, stays for its usual 2.5 s and disappears without a fade. Normal
+  motion is unchanged (fade and slight lift in, fade out). New `test/reducedMotionGuards.test.js`
+  fails on any CSS animation that ends hidden (`opacity: 0` / `visibility: hidden`), holds that end
+  state (`forwards` / `both`) and has no reduced-motion `animation: none` override after it in the
+  same stylesheet.
 - **A page reloaded during sleep no longer leaves the screen black or dim.** On 2026-10-11, after
   night-time kiosk relaunches during sleep stage 2, two kiosks were found awake on a black screen
   and four more had their backlight at 0 %, with no on-screen way back: the brightness slider sits
