@@ -104,11 +104,21 @@ function updateRadarTileLayer(layer, props, prevProps) {
  * shared tile cooldown, so a refused tile is not requested again while
  * RainViewer's per-IP rate limit is still saturated. Takes the same props
  * as react-leaflet's TileLayer; the ones WeatherMap passes are declared
- * below.
+ * below. `eventHandlers` is handled by react-leaflet's layer hook
+ * (createTileLayerComponent → createLayerHook → useEventHandlers), as on
+ * its own TileLayer: it `on()`s the map of Leaflet events in an effect
+ * that runs before the one adding the layer to the map, so a layer
+ * mounted with handlers can't miss its first tile events, and `off()`s
+ * them when the object changes or the layer unmounts (pass a memoised
+ * object, or every render re-binds them).
  *
  * @param {object} props - Component props.
  * @param {string} props.url - Tile URL template of the frame.
  * @param {number} [props.opacity] - Layer opacity (0 hides a preloaded frame).
+ * @param {{[event: string]: (e: object) => void}} [props.eventHandlers] - Leaflet layer
+ *   events to listen to, by name (WeatherMap's refresh hold passes
+ *   `loading` / `load` / `tileload` / `tileerror` / `tileunload` /
+ *   `tileabort` to the layer of the frame it is waiting for).
  * @returns {null} Renders nothing; the layer lives in the Leaflet map.
  */
 const RadarTileLayer = createTileLayerComponent(createRadarTileLayer, updateRadarTileLayer);
@@ -116,6 +126,7 @@ const RadarTileLayer = createTileLayerComponent(createRadarTileLayer, updateRada
 RadarTileLayer.propTypes = {
   url: PropTypes.string.isRequired,
   opacity: PropTypes.number,
+  eventHandlers: PropTypes.objectOf(PropTypes.func),
   attribution: PropTypes.string,
   tileSize: PropTypes.number,
   zoomOffset: PropTypes.number,

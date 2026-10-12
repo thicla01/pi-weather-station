@@ -382,6 +382,15 @@ App                               Root — mounts the overlays and AmbientLayers
 │       │     for 65 s (ui/radarTileCooldown.js, longer than RainViewer's 60 s
 │       │     window) and retried when the hold ends, so refused tiles can't
 │       │     keep the shared per-IP limit saturated.
+│       │   - Refresh hold: shouldHoldRadarFrame, keepsRadarHold, withHeldFrame.
+│       │     When the 10-min frame-list refresh makes a new frame the
+│       │     displayed one while the window is inactive, the frame on screen
+│       │     keeps its slot and stays visible, and the new frame loads in a
+│       │     free slot as a new layer at opacity 0. WeatherMap flips them
+│       │     250 ms after that layer's `load` with no failed tile
+│       │     outstanding, or after 70 s at most. Before, the new frame took
+│       │     the visible layer's slot (setUrl), and the radar blanked until
+│       │     its tiles arrived.
 │       │
 │       ├── FloatingMiniBanner        Gov-alert chip over the map while the radar is
 │       │                             focused (Pi MIN / Desktop) or maximized (Mobile)
