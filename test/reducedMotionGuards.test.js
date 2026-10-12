@@ -12,6 +12,9 @@
 // decides), a `@media (prefers-reduced-motion: reduce)` override of the same
 // selector that removes the animation (`animation: none` or
 // `animation-name: none`), so the element renders at its resting state.
+// The opposite pattern is equally valid and needs no override: an animation
+// declared only inside `@media (prefers-reduced-motion: no-preference)`
+// never applies under reduced motion, so the guard skips it.
 //
 // Same spirit as react19Guards.test.js: mechanical, source-level, loud.
 
@@ -22,6 +25,7 @@ const path = require("node:path");
 
 const SRC_DIR = path.join(__dirname, "..", "client", "src");
 const REDUCED_MOTION_RE = /prefers-reduced-motion\s*:\s*reduce/;
+const MOTION_SAFE_RE = /prefers-reduced-motion\s*:\s*no-preference/;
 const HOLDING_FILL_MODES = new Set(["forwards", "both"]);
 const LAST_FRAME_SELECTORS = new Set(["100%", "to"]);
 const HIDDEN_DECL_RE = /(?:^|;)\s*(?:opacity\s*:\s*0(?:\.0+)?%?\s*(?:;|$)|visibility\s*:\s*hidden)/;
@@ -86,18 +90,26 @@ const normSelector = (selector) => selector.trim().replace(/\s+/g, " ").replace(
 /**
  * Parse a comment-free stylesheet into its style rules and keyframes.
  * Recurses into `@media` / `@supports` blocks, recording whether a rule
- * sits inside a reduced-motion media query.
+ * sits inside a reduced-motion (`reduce`) or a motion-safe
+ * (`no-preference`) media query.
  *
  * @param {string} css comment-free stylesheet
  * @param {number} [start] index to start parsing at
  * @param {number} [end] index to stop parsing at
- * @param {boolean} [reducedMotion] true inside a reduced-motion media query
+ * @param {{reducedMotion: boolean, motionSafe: boolean}} [ctx] media context
+ *   inherited from the enclosing blocks
  * @param {{rules: object[], keyframes: Map<string, string>}} [out] accumulator
- * @returns {{rules: {selector: string, body: string, offset: number, reducedMotion: boolean}[], keyframes: Map<string, string>}}
+ * @returns {{rules: {selector: string, body: string, offset: number, reducedMotion: boolean, motionSafe: boolean}[], keyframes: Map<string, string>}}
  *   every style rule (normalised selector, declaration body, start offset,
- *   reduced-motion context) and every `@keyframes` body by name
+ *   reduced-motion and motion-safe context) and every `@keyframes` body by name
  */
-const parseCss = (css, start = 0, end = css.length, reducedMotion = false, out = { rules: [], keyframes: new Map() }) => {
+const parseCss = (
+  css,
+  start = 0,
+  end = css.length,
+  ctx = { reducedMotion: false, motionSafe: false },
+  out = { rules: [], keyframes: new Map() },
+) => {
   let i = start;
   while (i < end) {
     const open = css.indexOf("{", i);
@@ -109,13 +121,18 @@ const parseCss = (css, start = 0, end = css.length, reducedMotion = false, out =
     if (/^@keyframes\s/.test(prelude)) {
       out.keyframes.set(prelude.replace(/^@keyframes\s+/, "").trim(), css.slice(open + 1, close));
     } else if (/^@(media|supports)\b/.test(prelude)) {
-      parseCss(css, open + 1, close, reducedMotion || REDUCED_MOTION_RE.test(prelude), out);
+      const inner = {
+        reducedMotion: ctx.reducedMotion || REDUCED_MOTION_RE.test(prelude),
+        motionSafe: ctx.motionSafe || MOTION_SAFE_RE.test(prelude),
+      };
+      parseCss(css, open + 1, close, inner, out);
     } else if (!prelude.startsWith("@")) {
       out.rules.push({
         selector: normSelector(prelude),
         body: css.slice(open + 1, close),
         offset: preludeStart,
-        reducedMotion,
+        reducedMotion: ctx.reducedMotion,
+        motionSafe: ctx.motionSafe,
       });
     }
     i = close + 1;
@@ -185,28 +202,40 @@ const hidingAnimations = (rule, keyframes) => {
 };
 
 /**
- * Scan every stylesheet for fade-out animations and their overrides.
+ * Scan one stylesheet for fade-out animations and their overrides.
+ * Rules inside a reduced-motion query are the overrides themselves, and
+ * rules inside a motion-safe query never apply under reduced motion, so
+ * neither is scanned as a candidate.
+ *
+ * @param {string} css raw stylesheet
+ * @param {string} file path reported in each hit
+ * @returns {{file: string, selector: string, name: string, overridden: boolean}[]}
+ *   one entry per hiding, end-holding animation that can run under reduced
+ *   motion, with whether a later reduced-motion override removes it
+ */
+const scanCss = (css, file) => {
+  const { rules, keyframes } = parseCss(stripComments(css));
+  return rules
+    .filter((rule) => !rule.reducedMotion && !rule.motionSafe)
+    .flatMap((rule) =>
+      hidingAnimations(rule, keyframes).map((name) => ({
+        file,
+        selector: rule.selector,
+        name,
+        overridden: rules.some(
+          (o) => o.reducedMotion && o.selector === rule.selector && o.offset > rule.offset && ANIMATION_OFF_RE.test(o.body),
+        ),
+      })),
+    );
+};
+
+/**
+ * Scan every stylesheet under client/src.
  *
  * @returns {{file: string, selector: string, name: string, overridden: boolean}[]}
- *   one entry per hiding, end-holding animation found outside a reduced-motion
- *   query, with whether a later reduced-motion override removes it
+ *   the hits of scanCss across every file, paths relative to client/src
  */
-const scan = () =>
-  walk(SRC_DIR).flatMap((file) => {
-    const { rules, keyframes } = parseCss(stripComments(fs.readFileSync(file, "utf8")));
-    return rules
-      .filter((rule) => !rule.reducedMotion)
-      .flatMap((rule) =>
-        hidingAnimations(rule, keyframes).map((name) => ({
-          file: rel(file),
-          selector: rule.selector,
-          name,
-          overridden: rules.some(
-            (o) => o.reducedMotion && o.selector === rule.selector && o.offset > rule.offset && ANIMATION_OFF_RE.test(o.body),
-          ),
-        })),
-      );
-  });
+const scan = () => walk(SRC_DIR).flatMap((file) => scanCss(fs.readFileSync(file, "utf8"), rel(file)));
 
 test("the scan recognises the dock toast's fade-out (guards the parser itself)", () => {
   const toast = scan().find(
@@ -214,6 +243,26 @@ test("the scan recognises the dock toast's fade-out (guards the parser itself)",
   );
   assert.ok(toast, "the toast-pop animation of the dock toast is no longer detected: fix the parser or this test");
   assert.equal(toast.selector, ".container>div.toast");
+});
+
+test("the scan accepts both reduced-motion patterns and flags a bare fade-out", () => {
+  const css = `
+    @keyframes fade { from { opacity: 1; } to { opacity: 0; } }
+    .bare { animation: fade 1s forwards; }
+    .overridden { animation: fade 1s forwards; }
+    @media (prefers-reduced-motion: reduce) { .overridden { animation: none; } }
+    @media (prefers-reduced-motion: no-preference) { .safe { animation: fade 1s forwards; } }
+    @supports (display: grid) {
+      @media screen and (prefers-reduced-motion: no-preference) { .nestedSafe { animation: fade 1s both; } }
+    }
+  `;
+  assert.deepEqual(
+    scanCss(css, "fixture.css").map(({ selector, overridden }) => ({ selector, overridden })),
+    [
+      { selector: ".bare", overridden: false },
+      { selector: ".overridden", overridden: true },
+    ],
+  );
 });
 
 test("every animation that ends hidden and holds its end state is removed under reduced motion", () => {
@@ -224,7 +273,8 @@ test("every animation that ends hidden and holds its end state is removed under 
     "An animation whose last keyframe hides the element (opacity 0 / visibility hidden) and is held " +
       "(`forwards` / `both`) shows NOTHING under prefers-reduced-motion: the global rule in " +
       "styles/main.css crushes it to its end state. Add, after the base rule in the same file, " +
-      "`@media (prefers-reduced-motion: reduce) { <same selector> { animation: none; } }`.",
+      "`@media (prefers-reduced-motion: reduce) { <same selector> { animation: none; } }`, " +
+      "or declare the animation only inside `@media (prefers-reduced-motion: no-preference)`.",
   );
 });
 
