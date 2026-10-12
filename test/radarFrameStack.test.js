@@ -351,3 +351,38 @@ test("the WeatherMap passes the hold's handlers to the radar layer as a memoised
   assert.match(tag, /maxZoom=\{12\}/, "the whole tag is still before the first '/>'");
   assert.match(src, /const radarHoldHandlers = useMemo\(/);
 });
+
+test("the WeatherMap wires the hold into the slots and the layer opacity", () => {
+  // The helpers above are pure; these lines are what actually keep the old
+  // image on screen. Without the first, the unloaded new frame's layer goes to
+  // full opacity at a refresh; without the second, the new frame takes the held
+  // frame's slot through setUrl. Either brings back the blank-then-refill.
+  const fs = require("node:fs");
+  const path = require("node:path");
+  const src = fs.readFileSync(
+    path.join(__dirname, "..", "client", "src", "components", "WeatherMap", "index.js"),
+    "utf8",
+  );
+  const start = src.indexOf("<RadarTileLayer");
+  const tag = src.slice(start, src.indexOf("/>", start) + 2);
+  assert.match(
+    tag,
+    /opacity=\{path === \(radarHold \?\? /,
+    "the layer shown is the held frame while a hold lasts",
+  );
+  assert.match(
+    src,
+    /assignSlots\(radarSlots, withHeldFrame\(/,
+    "the held frame is fed to assignSlots so it keeps its slot",
+  );
+  assert.match(src, /shouldHoldRadarFrame\(\{/, "a refresh can start a hold");
+  assert.match(src, /keepsRadarHold\(\{/, "an ongoing hold is re-checked every render");
+  // The frame list seen is written with the slots, never in a pass that has
+  // just queued a playhead snap (the design's "not updated on a skipped pass").
+  const guard = src.indexOf("if (!playheadSnapPending) {");
+  assert.ok(guard >= 0, "playhead-snap guard not found");
+  const block = src.slice(guard, src.indexOf("}", guard));
+  assert.match(block, /setRadarSlots\(nextRadarSlots\)/);
+  assert.match(block, /setHeldRadarPath\(radarHold\)/);
+  assert.match(block, /setRadarFramesSeen\(mapTimestamps\)/);
+});

@@ -1276,7 +1276,9 @@ const WeatherMap = ({ zoom, dark }) => {
   // fires `load` with no failed tile outstanding. Leaflet fires `load`
   // even when tiles failed (a failed tile counts as loaded), so
   // `tileerror` records the tile, and `tileload` (a cooldown retry that
-  // succeeded) or `tileunload` (the tile pruned) forgets it. A new batch
+  // succeeded), `tileunload` (the tile pruned) or `tileabort` (a zoom
+  // change dropped the tile while its retry was in flight) forgets it.
+  // A new batch
   // of tiles (`loading`: a pan or zoom) or a new failure cancels a flip
   // already scheduled. react-leaflet attaches the handlers before it adds
   // the layer to the map, so the first `load` can't be missed. The failed
@@ -1313,6 +1315,9 @@ const WeatherMap = ({ zoom, dark }) => {
       tileunload: ({ tile }) => {
         failedTiles().delete(tile);
       },
+      tileabort: ({ tile }) => {
+        failedTiles().delete(tile);
+      },
       load: () => {
         if (failedTiles().size > 0) return;
         cancelFlip();
@@ -1334,7 +1339,9 @@ const WeatherMap = ({ zoom, dark }) => {
   // Deadline: the pending frame is shown RADAR_HOLD_DEADLINE_MS into the
   // hold whatever its state (a refused tile still waiting for its retry,
   // or no `load` at all: the zoom left the radar's range, the map has no
-  // size).
+  // size, or a zoom out and back in before the other level's tiles
+  // loaded, which Leaflet aborts without a `load` when the tiles of the
+  // level returned to are already there).
   useEffect(() => {
     if (heldRadarPath == null) return undefined;
     const timer = setTimeout(() => {
@@ -1468,17 +1475,17 @@ const WeatherMap = ({ zoom, dark }) => {
   // and not every frame (per-IP rate limit, view-change cost, Leaflet's
   // no-retry tiles, Pi 3B memory): ui/radarFrameStack.js. Technique
   // adapted from the Sweep fork (github.com/Aryeh95, commits 7e27e15 and
-  // 2b0d0d1). The window is a
-  // pure derivation of the resolved playhead; its frames are then placed
-  // in fixed layer slots (assignSlots), so a step retargets a hidden
-  // layer instead of destroying one and creating another. The slots are
-  // local state, adjusted during render like the playhead above:
-  // assignSlots returns the same array when nothing changed, so this
-  // converges in one extra render. Not in a pass that has just queued a
-  // playhead snap (timeline engaged / disengaged, first frame list): that
-  // pass still resolves the old playhead and is re-run with the snapped
-  // one, and assignSlots depends on what it was given before, so writing
-  // the stale window could move the loaded "now" layer to another slot.
+  // 2b0d0d1). The window is a pure derivation of the resolved playhead;
+  // its frames are then placed in fixed layer slots (assignSlots), so a
+  // step retargets a hidden layer instead of destroying one and creating
+  // another. The slots are local state, adjusted during render like the
+  // playhead above: assignSlots returns the same array when nothing
+  // changed, so this converges in one extra render. Not in a pass that
+  // has just queued a playhead snap (timeline engaged / disengaged, first
+  // frame list): that pass still resolves the old playhead and is re-run
+  // with the snapped one, and assignSlots depends on what it was given
+  // before, so writing the stale window could move the loaded "now" layer
+  // to another slot.
   const radarWindowActive = timelineShown
     && (animateWeatherMap || currentMapTimestampIdx !== lastPastIdx);
   const radarFrames = framesToMount(mapTimestamps, currentMapTimestampIdx, radarWindowActive);

@@ -117,8 +117,8 @@ function updateRadarTileLayer(layer, props, prevProps) {
  * @param {number} [props.opacity] - Layer opacity (0 hides a preloaded frame).
  * @param {{[event: string]: (e: object) => void}} [props.eventHandlers] - Leaflet layer
  *   events to listen to, by name (WeatherMap's refresh hold passes
- *   `loading` / `load` / `tileload` / `tileerror` / `tileunload` to the
- *   layer of the frame it is waiting for).
+ *   `loading` / `load` / `tileload` / `tileerror` / `tileunload` /
+ *   `tileabort` to the layer of the frame it is waiting for).
  * @returns {null} Renders nothing; the layer lives in the Leaflet map.
  */
 const RadarTileLayer = createTileLayerComponent(createRadarTileLayer, updateRadarTileLayer);
