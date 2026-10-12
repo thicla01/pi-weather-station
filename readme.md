@@ -14,7 +14,14 @@ The kiosk browser is chosen interactively by `install.sh` (Chromium, Chrome, Bra
 
 ## 📣 Highlights — October 2026
 
-Releases 3.3.0 and 3.3.1 just landed (full details in [CHANGELOG.md](./CHANGELOG.md) and on the [Releases](https://github.com/thicla01/pi-weather-station/releases) page).
+Releases 3.3.0, 3.3.1 and 3.3.2 just landed (full details in [CHANGELOG.md](./CHANGELOG.md) and on the [Releases](https://github.com/thicla01/pi-weather-station/releases) page).
+
+**3.3.2: radar analysis back on track, no more radar flash or black screen after sleep**
+
+- **The radar analysis reads RainViewer's colours again.** RainViewer now serves a single colour scheme, "Universal Blue", while the analysis still expected the NEXRAD colours. It read about half of light rain and the most intense storm cores as clear sky, so the risk rings, `RADAR` alerts, the AI summary's radar paragraph and the Sense HAT grid all under-reported. It now decodes each pixel with RainViewer's published colour table, and a tile that isn't readable radar no longer counts as clear sky.
+- **No more radar flash every 10 minutes.** When a new radar frame arrives, the previous image now stays on screen until the new one has fully loaded (except while the timeline is playing), instead of the map emptying and refilling tile by tile.
+- **No more black screen after a kiosk reload during sleep.** A page reloaded while the screen was dimmed or off took that level for the user's brightness and kept "restoring" it. It now restores the level from before sleep, or the last one set with the slider, or 70 %.
+- **Clearer alerts and air quality.** Alert titles drop the word the severity chip already shows (« Pluie verglaçante », "Flood"), test alerts are marked TEST on every surface, the radar legend names alert tiers by severity, and Canada's AQHI is a whole number, called CAS in French. Smaller fixes on the Pi screen's side panel (date, Spanish 12-hour clock, cut-off radar messages), for distances (no unit left alone on the next line, the air-quality station in miles when set) and the map's OpenStreetMap credit.
 
 **3.3.1: a smoother, lighter radar**
 
