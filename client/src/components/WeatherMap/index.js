@@ -60,7 +60,17 @@ import SourceBadge from "~/components/ambient/SourceBadge";
 import SeverityChip from "~/components/ambient/SeverityChip";
 import { useTimeOfDay } from "~/ui/hybrid";
 import { isPiMaxView, priorityViewsEnabled } from "~/ui/piLayout";
-import { NO_SLOTS, assignSlots, framesToMount } from "~/ui/radarFrameStack";
+import {
+  NO_SLOTS,
+  RADAR_HOLD_DEADLINE_MS,
+  RADAR_HOLD_SETTLE_MS,
+  assignSlots,
+  framesToMount,
+  keepsRadarHold,
+  onlyMountedPath,
+  shouldHoldRadarFrame,
+  withHeldFrame,
+} from "~/ui/radarFrameStack";
 import { chipProductType } from "~/ui/alertLogic";
 import { alertDisplayTitle } from "~/ui/alertTitle";
 import { useTranslation } from "react-i18next";
@@ -950,6 +960,13 @@ const WeatherMap = ({ zoom, dark }) => {
   // (ui/radarFrameStack.js assignSlots), adjusted during render below,
   // next to `timelineShown`.
   const [radarSlots, setRadarSlots] = useState(NO_SLOTS);
+  // Refresh hold (ui/radarFrameStack.js, "Refresh hold"): the RainViewer
+  // frame kept on screen while the frame a refresh made the displayed one
+  // loads in a layer of its own (null: no hold), and the frame list the
+  // hold decision last saw. Both adjusted during render below, with the
+  // slots.
+  const [heldRadarPath, setHeldRadarPath] = useState(null);
+  const [radarFramesSeen, setRadarFramesSeen] = useState(null);
   const animationIntervalRef = useRef(null);
 
   // Short-screen detection (the 7" kiosk, height ≤ 520 px): collapses
@@ -1249,6 +1266,83 @@ const WeatherMap = ({ zoom, dark }) => {
     }
   }
 
+  // ── Refresh hold: load tracking and deadline ────────────────────────
+  // The hold itself is decided during render with the slots, after the
+  // early return below (see the radar frame window comment there, and
+  // "Refresh hold" in ui/radarFrameStack.js); its hooks sit here, above
+  // that return. While a frame is held, the layer of the frame the
+  // playhead resolves to (the "pending" frame) gets these Leaflet
+  // handlers, and the hold ends RADAR_HOLD_SETTLE_MS after that layer
+  // fires `load` with no failed tile outstanding. Leaflet fires `load`
+  // even when tiles failed (a failed tile counts as loaded), so
+  // `tileerror` records the tile, and `tileload` (a cooldown retry that
+  // succeeded) or `tileunload` (the tile pruned) forgets it. A new batch
+  // of tiles (`loading`: a pan or zoom) or a new failure cancels a flip
+  // already scheduled. react-leaflet attaches the handlers before it adds
+  // the layer to the map, so the first `load` can't be missed. The failed
+  // tiles and the flip timer live in refs, touched only by the handlers
+  // and the cleanups, never during render; the set is keyed on the
+  // pending frame, so it survives a new handlers object.
+  const pendingRadarPath = heldRadarPath != null && mapTimestamp && mapTimestamp.path !== heldRadarPath
+    ? mapTimestamp.path
+    : null;
+  const radarHoldFailedTilesRef = useRef(null);
+  const radarHoldFlipTimerRef = useRef(null);
+  const radarHoldHandlers = useMemo(() => {
+    if (pendingRadarPath == null) return undefined;
+    const failedTiles = () => {
+      const entry = radarHoldFailedTilesRef.current;
+      if (entry && entry.path === pendingRadarPath) return entry.tiles;
+      const tiles = new Set();
+      radarHoldFailedTilesRef.current = { path: pendingRadarPath, tiles };
+      return tiles;
+    };
+    const cancelFlip = () => {
+      clearTimeout(radarHoldFlipTimerRef.current);
+      radarHoldFlipTimerRef.current = null;
+    };
+    return {
+      loading: cancelFlip,
+      tileerror: ({ tile }) => {
+        failedTiles().add(tile);
+        cancelFlip();
+      },
+      tileload: ({ tile }) => {
+        failedTiles().delete(tile);
+      },
+      tileunload: ({ tile }) => {
+        failedTiles().delete(tile);
+      },
+      load: () => {
+        if (failedTiles().size > 0) return;
+        cancelFlip();
+        radarHoldFlipTimerRef.current = setTimeout(() => {
+          radarHoldFlipTimerRef.current = null;
+          // Ends only the hold these handlers were made for.
+          setHeldRadarPath((held) => (held === heldRadarPath ? null : held));
+        }, RADAR_HOLD_SETTLE_MS);
+      },
+    };
+  }, [pendingRadarPath, heldRadarPath]);
+  // A new pending frame, the end of the hold or an unmount drops the
+  // scheduled flip and the failed tiles of the previous pending frame.
+  useEffect(() => () => {
+    clearTimeout(radarHoldFlipTimerRef.current);
+    radarHoldFlipTimerRef.current = null;
+    radarHoldFailedTilesRef.current = null;
+  }, [pendingRadarPath, heldRadarPath]);
+  // Deadline: the pending frame is shown RADAR_HOLD_DEADLINE_MS into the
+  // hold whatever its state (a refused tile still waiting for its retry,
+  // or no `load` at all: the zoom left the radar's range, the map has no
+  // size).
+  useEffect(() => {
+    if (heldRadarPath == null) return undefined;
+    const timer = setTimeout(() => {
+      setHeldRadarPath((held) => (held === heldRadarPath ? null : held));
+    }, RADAR_HOLD_DEADLINE_MS);
+    return () => clearTimeout(timer);
+  }, [heldRadarPath]);
+
   // ── Referentially-stable props for the react-leaflet layers ─────────
   // react-leaflet v4 compares props by reference: a fresh array/object
   // every render triggers setLatLng/setStyle on the underlying Leaflet
@@ -1368,10 +1462,13 @@ const WeatherMap = ({ zoom, dark }) => {
   // lands on has loaded a couple of steps earlier; the first step off
   // "now" and a jump land on a cold frame, as before. Otherwise (bar
   // closed, open but paused on "now", Pi MAX) only the displayed frame is
-  // mounted, as before. Why a window and not every frame (per-IP rate
-  // limit, view-change cost, Leaflet's no-retry tiles, Pi 3B memory):
-  // ui/radarFrameStack.js. Technique adapted from the Sweep fork
-  // (github.com/Aryeh95, commits 7e27e15 and 2b0d0d1). The window is a
+  // mounted, as before, except while a frame-list refresh brings in a
+  // new frame: the frame on screen is then held in its slot until the
+  // new one has loaded in another (the refresh hold, below). Why a window
+  // and not every frame (per-IP rate limit, view-change cost, Leaflet's
+  // no-retry tiles, Pi 3B memory): ui/radarFrameStack.js. Technique
+  // adapted from the Sweep fork (github.com/Aryeh95, commits 7e27e15 and
+  // 2b0d0d1). The window is a
   // pure derivation of the resolved playhead; its frames are then placed
   // in fixed layer slots (assignSlots), so a step retargets a hidden
   // layer instead of destroying one and creating another. The slots are
@@ -1385,11 +1482,43 @@ const WeatherMap = ({ zoom, dark }) => {
   const radarWindowActive = timelineShown
     && (animateWeatherMap || currentMapTimestampIdx !== lastPastIdx);
   const radarFrames = framesToMount(mapTimestamps, currentMapTimestampIdx, radarWindowActive);
-  const nextRadarSlots = assignSlots(radarSlots, radarFrames.map((f) => f.path));
+  // Refresh hold: keep the frame on screen while a frame a refresh made
+  // the displayed one loads (rule and sequence: "Refresh hold" in
+  // ui/radarFrameStack.js; load tracking and deadline: the hooks above).
+  // An ongoing hold ends here when the window turns active, the source
+  // turns ECCC or the zoom leaves the radar's range. A new hold starts
+  // only on a pass that sees a new frame list. The held frame is appended
+  // to the window so it keeps its slot, and the new frame takes a free
+  // slot as a new layer at opacity 0 instead of a url change on the
+  // visible layer. The frame shown (opacity, in the layer map below) is
+  // the held one while it lasts. Stored with the slots, and like them not
+  // in a playhead-snap pass; the frame list seen is updated in ECCC mode
+  // too, so switching back to RainViewer can't start a hold on a stale
+  // comparison.
+  const targetRadarPath = mapTimestamp ? mapTimestamp.path : null;
+  const radarHoldState = {
+    targetPath: targetRadarPath,
+    windowActive: radarWindowActive,
+    source: radarSource,
+    zoom: currentMapZoom,
+  };
+  const radarShownBefore = heldRadarPath ?? onlyMountedPath(radarSlots);
+  let radarHold = keepsRadarHold({ ...radarHoldState, held: heldRadarPath }) ? heldRadarPath : null;
+  if (shouldHoldRadarFrame({
+    ...radarHoldState,
+    framesChanged: mapTimestamps !== radarFramesSeen,
+    shownPath: radarShownBefore,
+    mountedPaths: radarSlots,
+  })) {
+    radarHold = radarShownBefore;
+  }
+  const nextRadarSlots = assignSlots(radarSlots, withHeldFrame(radarFrames.map((f) => f.path), radarHold));
   const playheadSnapPending = timelineEngaged !== prevTimelineEngaged
     || (Boolean(mapTimestamps) && radarFrameIdx < 0);
-  if (nextRadarSlots !== radarSlots && !playheadSnapPending) {
-    setRadarSlots(nextRadarSlots);
+  if (!playheadSnapPending) {
+    if (nextRadarSlots !== radarSlots) setRadarSlots(nextRadarSlots);
+    if (radarHold !== heldRadarPath) setHeldRadarPath(radarHold);
+    if (mapTimestamps !== radarFramesSeen) setRadarFramesSeen(mapTimestamps);
   }
 
   return (
@@ -1535,9 +1664,22 @@ const WeatherMap = ({ zoom, dark }) => {
              * control counts duplicates and shows it once. */
             attribution='<a href="https://www.rainviewer.com/">RainViewer</a>'
             url={rainViewerTileUrl(path)}
-            opacity={path === mapTimestamp.path
+            /* The frame shown: the held one during a refresh hold,
+             * else the displayed one. `mapTimestamp.path` is read here,
+             * in the map callback, on purpose: the React Compiler then
+             * keys this whole JSX block, the ECCC layer included, on
+             * `mapTimestamp`, a new object on every 10-min refresh, as
+             * before the hold. Hoisting the path to a string would stop
+             * the ECCC layer's accidental per-refresh redraw on a refresh
+             * without a new RainViewer frame (ROADMAP technical debt:
+             * that redraw is a separate decision). */
+            opacity={path === (radarHold ?? mapTimestamp.path)
               ? (dark ? radarOpacityDark : radarOpacityLight)
               : 0}
+            /* Refresh hold: the pending frame's layer reports its
+             * tile loads and failures (radarHoldHandlers, memoised;
+             * undefined on every other layer and without a hold). */
+            eventHandlers={path === pendingRadarPath ? radarHoldHandlers : undefined}
             tileSize={512}
             zoomOffset={-1}
             /* Leaflet zoom 8 = z7 in the URL (zoomOffset -1), which

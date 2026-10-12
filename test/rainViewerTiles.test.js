@@ -29,6 +29,7 @@ const { PNG } = require("pngjs");
 
 const { RAINVIEWER_COLOR_SCHEME, RAINVIEWER_ANALYZER_TILE_OPTIONS } = require("../server/rainViewerPalette");
 const { __test: radar } = require("../server/radarAnalyzerCtrl");
+const { RADAR_MAX_ZOOM } = require("../client/src/ui/radarFrameStack");
 
 const MAP_FILE = path.join(__dirname, "..", "client", "src", "components", "WeatherMap", "index.js");
 const FIXTURES = path.join(__dirname, "fixtures", "rainviewer");
@@ -89,6 +90,9 @@ test("client: the radar layer can't request a zoom RainViewer doesn't serve", ()
   assert.equal(zoomOffset, -1);
   assert.equal(maxNativeZoom, 8);
   assert.equal(maxZoom, 12);
+  // The refresh hold's "is the radar drawn at this zoom" check uses the
+  // same bound (ui/radarFrameStack.js).
+  assert.equal(maxZoom, RADAR_MAX_ZOOM);
   // The highest zoom the layer puts in a URL.
   assert.equal(maxNativeZoom + zoomOffset, RAINVIEWER_MAX_URL_ZOOM);
 });

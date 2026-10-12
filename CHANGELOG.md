@@ -8,6 +8,23 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Fixed
+- **The radar no longer goes blank when a new RainViewer frame arrives.** About every 10 minutes,
+  when the refreshed frame list brought a new frame, the radar disappeared and then refilled tile by
+  tile. The visible layer was switched to the new frame in place, and Leaflet removes every tile
+  before it requests the new ones, which all came from the network. It happened on every layout
+  whenever the timeline was neither playing nor parked off "now": closed, open but paused on "now",
+  or the Pi's MAX view. Now the previous image stays on screen while the new frame loads in a hidden
+  layer of its own. The two swap at once when every tile has loaded, 250 ms later so that Leaflet
+  doesn't fade the last tiles in; after 70 s they swap anyway, which leaves time for a tile
+  RainViewer refused to get its first retry, 65 s later. The hold ends early when the timeline
+  starts playing or is scrubbed, when the source switches to ECCC, or when the zoom goes past the
+  radar's range (above 12). Playback, scrubbing and the ECCC layer behave as before; the timeline's
+  time label already shows the new frame while it loads. Normally the tile requests are the same as
+  before. During the hold two RainViewer layers are mounted instead of one, for a few seconds. New
+  `withHeldFrame`, `shouldHoldRadarFrame` and `keepsRadarHold` in `client/src/ui/radarFrameStack.js`,
+  tested in `test/radarFrameStack.test.js`, and an `eventHandlers` prop on `RadarTileLayer`. Not
+  covered: a refresh that lands while playback sits on "now" still shows the new frame before it
+  has loaded.
 - **The dock toast shows under "reduce motion".** With the OS reduced-motion preference on (macOS /
   iOS "Reduce motion", Android "Remove animations", Windows "Show animations" off), the short
   confirmation shown above the dock after a tap ("Marker shown", "Radar timeline hidden", …) never
