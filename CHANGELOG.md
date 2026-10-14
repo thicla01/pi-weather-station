@@ -7,6 +7,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Performance
+- **The Chromium kiosk no longer keeps an accessibility tree for every page.** Raspberry Pi OS's
+  `rpi-chromium-mods` package adds `--force-renderer-accessibility` to every Chromium launch
+  (`/etc/chromium.d/00-rpi-vars`), so the renderer kept the accessibility tree of the whole page up
+  to date. On the kiosks that cost 14 to 36 ms in every frame that opens a view. On 2026-10-14, on
+  a Pi 4 and a Pi 3B, kiosks without the flag missed 12 to 26 % fewer frames during view switches
+  (runs interleaved: with, without, with). Screen readers need the flag, so it is removed for the
+  kiosk only. `deploy/start-server` now exports `PI_WEATHER_STATION_KIOSK=1` before it launches a
+  Chromium-family kiosk, and the new `deploy/chromium.d/99-pi-weather-station-kiosk`, which
+  `install.sh` installs in `/etc/chromium.d` (root:root 0644, via `sudo`), drops the flag from
+  `CHROMIUM_FLAGS` when that variable is set. Other flags stay, in order. A Chromium window opened
+  from the desktop keeps the flag. The file is installed only when the kiosk browser's launcher is
+  a script that sources `/etc/chromium.d` (Raspberry Pi OS and Debian `chromium`); a refused `sudo`
+  prints a warning and the install goes on. `uninstall.sh` removes it. New
+  `deploy/check-kiosk-browser-flags.sh` (read-only) prints the running kiosk browser's command line
+  and exits 0 without the flag, 1 with it, 2 when no kiosk browser runs. Tested in
+  `test/kioskChromiumFlags.test.js` (the file sourced under `sh` and `dash`, the check script on a
+  fake `/proc`). To opt out, delete the file and relaunch the kiosk.
+  **Rollout:** `start-server` changed, so the in-app updater asks for the manual recipe. Run
+  `git pull && bash deploy/install.sh` once per kiosk (`sudo` needed for `/etc/chromium.d`), then
+  reboot or relaunch the kiosk.
+
 ## [3.3.2] - 2026-10-12
 
 ### Fixed

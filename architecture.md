@@ -775,6 +775,17 @@ as the only viable recipe.
                                          Advanced) and KIOSK_REMOTE_DEBUG
                                          (off by default; diagnostics only)
 
+/etc/chromium.d/                         (root:root 0644, via sudo; only when
+                                         the kiosk browser is a Chromium
+                                         wrapper script that sources it —
+                                         Raspberry Pi OS / Debian chromium)
+  └── 99-pi-weather-station-kiosk        Drops --force-renderer-accessibility
+                                         (added by RPi OS's 00-rpi-vars) when
+                                         start-server sets
+                                         PI_WEATHER_STATION_KIOSK=1; other
+                                         Chromium launches keep it. Check
+                                         with deploy/check-kiosk-browser-flags.sh
+
 Display server / desktop autostart (one of):
   ~/.config/labwc/autostart              Trixie / Debian 13
   ~/.config/wayfire.ini [autostart]      Bookworm / Debian 12

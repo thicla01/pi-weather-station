@@ -99,6 +99,18 @@ if [[ "$PLATFORM" != "Darwin" ]]; then
             && echo "   /etc/logrotate.d/weather-server removed." \
             || echo "   Could not remove /etc/logrotate.d/weather-server (sudo refused) — remove it manually."
     fi
+
+    # Kiosk-only Chromium flag filter installed by install.sh. Inert once the
+    # kiosk is gone (it acts only under PI_WEATHER_STATION_KIOSK=1), but it is
+    # ours, in a system directory.
+    CHROMIUM_D_FILE="/etc/chromium.d/99-pi-weather-station-kiosk"
+    if [ -f "$CHROMIUM_D_FILE" ]; then
+        echo ""
+        echo ">> Removing kiosk Chromium flag filter..."
+        sudo rm -f "$CHROMIUM_D_FILE" \
+            && echo "   $CHROMIUM_D_FILE removed." \
+            || echo "   Could not remove $CHROMIUM_D_FILE (sudo refused) — remove it manually."
+    fi
 fi
 
 # --- 2. Helper scripts in ~/.local/bin (Linux only) ---
