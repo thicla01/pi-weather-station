@@ -915,8 +915,8 @@ EOF
     # Raspberry Pi OS's rpi-chromium-mods adds --force-renderer-accessibility
     # to EVERY Chromium launch (/etc/chromium.d/00-rpi-vars). The renderer
     # then keeps the accessibility tree of each page up to date: 14-36 ms in
-    # every view-opening frame on the kiosks, 12-26 % more missed frames
-    # during view switches (2026-10-14). deploy/chromium.d/99-pi-weather-station-kiosk
+    # every view-opening frame on the kiosks; dropping it cut missed frames
+    # during view switches by 12-26 % (2026-10-14). deploy/chromium.d/99-pi-weather-station-kiosk
     # removes the flag only when start-server sets PI_WEATHER_STATION_KIOSK=1,
     # so a desktop screen reader keeps it. Installed only when the kiosk
     # browser is a Chromium wrapper SCRIPT that sources /etc/chromium.d

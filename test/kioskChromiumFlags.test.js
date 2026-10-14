@@ -3,8 +3,9 @@
 // Raspberry Pi OS's rpi-chromium-mods adds that flag to EVERY Chromium launch
 // (/etc/chromium.d/00-rpi-vars). It makes each renderer keep the page's
 // accessibility tree up to date: 14-36 ms in every view-opening frame on the
-// kiosks, 12-26 % more missed frames during view switches (2026-10-14). A
-// desktop screen reader still needs it, so it is dropped for the kiosk only:
+// kiosks; dropping it cut missed frames during view switches by 12-26 %
+// (2026-10-14). A desktop screen reader still needs it, so it is dropped for
+// the kiosk only:
 //
 //  - deploy/chromium.d/99-pi-weather-station-kiosk, sourced by the Chromium
 //    wrapper's /bin/sh, filters CHROMIUM_FLAGS when PI_WEATHER_STATION_KIOSK=1;
@@ -49,8 +50,9 @@ const sq = (s) => `'${s.replace(/'/g, "'\\''")}'`;
  * @param {boolean} kiosk whether PI_WEATHER_STATION_KIOSK=1 is exported
  * @param {string} [shellOpts] options set before sourcing (e.g. "-u", "-f")
  * @param {string} [shell] the shell standing in for the wrapper's /bin/sh
- * @returns {{status: number, filterOut: string, flags: string, args: string, opts: string, leaked: string}}
- *   exit status, the filter's own output, the resulting flags, the wrapper's
+ * @returns {{status: number, stderr: string, filterOut: string, flags: string, exported: string, args: string, opts: string, leaked: string}}
+ *   exit status, stderr, the filter's own output, the resulting flags (as set
+ *   and as a child process sees them), the wrapper's
  *   "$@" afterwards, its `$-`, and any _pws_ variable left behind
  */
 const runFilter = (flags, kiosk, shellOpts = "", shell = "/bin/sh") => {
@@ -155,6 +157,10 @@ test("filter: end to end through a wrapper modelled on Raspberry Pi OS's /usr/bi
   // The wrapper's shape: reset CHROMIUM_FLAGS, source every file of the
   // directory in glob order (README and dpkg leftovers skipped), exec the
   // browser with $CHROMIUM_FLAGS "$@". `printf` stands in for the browser.
+  // The sourcing loop is the one of /usr/bin/chromium on Raspberry Pi OS
+  // Bookworm and Trixie (read on the kiosks 2026-10-14), only the directory
+  // changed; the README (sourced, it would fail) and a letter-named file
+  // like Debian's default-flags, which sorts after ours, are modelled too.
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), "pws-chromium-d-"));
   try {
     const confDir = path.join(dir, "chromium.d");
@@ -163,14 +169,21 @@ test("filter: end to end through a wrapper modelled on Raspberry Pi OS's /usr/bi
       path.join(confDir, "00-rpi-vars"),
       `export CHROMIUM_FLAGS="$CHROMIUM_FLAGS ${A11Y} --enable-remote-extensions"\n`
     );
+    fs.writeFileSync(
+      path.join(confDir, "default-flags"),
+      'export CHROMIUM_FLAGS="$CHROMIUM_FLAGS --enable-gpu-rasterization"\n'
+    );
+    fs.writeFileSync(
+      path.join(confDir, "README"),
+      "Any files placed in this directory will be sourced prior to executing chromium.\n"
+    );
     fs.copyFileSync(FILTER, path.join(confDir, "99-pi-weather-station-kiosk"));
     const wrapper = path.join(dir, "chromium");
     fs.writeFileSync(wrapper, [
       "#!/bin/sh",
       'CHROMIUM_FLAGS=""',
-      `for file in ${sq(confDir)}/*; do`,
-      '  case "$file" in */README|*.dpkg*) continue ;; esac',
-      '  [ -f "$file" ] && . "$file"',
+      `for file in ${confDir}/*; do`,
+      `  test $file = ${confDir}/README || expr $file : .*\\.dpkg > /dev/null || . $file`,
       "done",
       'exec printf "%s\\n" $CHROMIUM_FLAGS "$@"',
       "",
@@ -184,8 +197,9 @@ test("filter: end to end through a wrapper modelled on Raspberry Pi OS's /usr/bi
         assert.equal(r.stderr, "", shell);
         return r.stdout.trim().split("\n");
       };
-      assert.deepEqual(run(true), ["--enable-remote-extensions", "--kiosk", "https://localhost:8443"], shell);
-      assert.deepEqual(run(false), [A11Y, "--enable-remote-extensions", "--kiosk", "https://localhost:8443"], shell);
+      const tail = ["--enable-gpu-rasterization", "--kiosk", "https://localhost:8443"];
+      assert.deepEqual(run(true), ["--enable-remote-extensions", ...tail], shell);
+      assert.deepEqual(run(false), [A11Y, "--enable-remote-extensions", ...tail], shell);
     }
   } finally {
     fs.rmSync(dir, { recursive: true, force: true });
