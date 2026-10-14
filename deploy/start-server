@@ -179,6 +179,15 @@ case "$BROWSER_FAMILY" in
         if [ "${KIOSK_REMOTE_DEBUG:-}" = "true" ]; then
             FLAGS="$FLAGS --remote-debugging-port=9222"
         fi
+        # Marks this launch as the kiosk for /etc/chromium.d/99-pi-weather-station-kiosk
+        # (installed by install.sh from deploy/chromium.d/), which then drops
+        # --force-renderer-accessibility, added for every launch by Raspberry Pi
+        # OS's 00-rpi-vars. Keeping the accessibility tree of every page costs
+        # 14-36 ms in each frame that opens a view on a Pi. A desktop screen
+        # reader keeps the flag: other launches don't set the variable. Inert
+        # when the browser's wrapper doesn't read /etc/chromium.d or the file
+        # isn't installed.
+        export PI_WEATHER_STATION_KIOSK=1
         # shellcheck disable=SC2086
         "$BROWSER_CMD" --kiosk --noerrdialogs --disable-infobars --no-first-run \
             --ignore-certificate-errors --touch-events=enabled \

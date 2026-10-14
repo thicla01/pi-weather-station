@@ -1,0 +1,50 @@
+# Pi Weather Station — kiosk-only Chromium flag filter
+#
+# Installed by deploy/install.sh as /etc/chromium.d/99-pi-weather-station-kiosk
+# (root:root 0644). NOT executable: the Chromium wrapper (/usr/bin/chromium on
+# Raspberry Pi OS and Debian) resets CHROMIUM_FLAGS, then sources every file in
+# /etc/chromium.d in glob order and runs
+#     exec /usr/lib/chromium/chromium $CHROMIUM_FLAGS "$@"
+# so this runs inside the wrapper's own /bin/sh. The "99-" prefix makes it run
+# after Raspberry Pi OS's 00-rpi-vars (package rpi-chromium-mods), which adds
+# --force-renderer-accessibility. (Files named with a letter, such as Debian's
+# default-flags, sort after digits and so after this one: a flag one of them
+# added would survive. None of them adds this flag.)
+#
+# Why: that flag makes every renderer build and keep the accessibility tree of
+# every page. On the kiosks it cost 14-36 ms in every frame that opens a view,
+# and dropping it cut missed frames during view switches by 12-26 % (Pi 4 and
+# Pi 3B, 2026-10-14). A desktop screen reader still needs it, so this file
+# acts ONLY for the kiosk: deploy/start-server exports PI_WEATHER_STATION_KIOSK=1
+# before it launches the kiosk browser. Any other Chromium launch (desktop
+# menu, a user's terminal) leaves the variable unset and is not touched.
+#
+# Opt out: delete this file (sudo rm /etc/chromium.d/99-pi-weather-station-kiosk)
+# and relaunch the kiosk. Check the running kiosk with
+# deploy/check-kiosk-browser-flags.sh.
+#
+# Written for a sourced POSIX sh: no output, no `set --` (it would replace the
+# wrapper's "$@", i.e. the kiosk's own arguments), no `local`, globbing restored
+# as found, and only _pws_-prefixed helper variables, unset at the end. Every
+# other flag is kept, in order; only whitespace between flags is normalised,
+# which changes nothing since the wrapper word-splits CHROMIUM_FLAGS anyway.
+
+if [ "${PI_WEATHER_STATION_KIOSK:-}" = "1" ]; then
+    _pws_flags=""
+    case $- in
+        *f*) _pws_glob_was_off=1 ;;
+        *)   _pws_glob_was_off=0; set -f ;;
+    esac
+    for _pws_flag in ${CHROMIUM_FLAGS-}; do
+        case "$_pws_flag" in
+            --force-renderer-accessibility|--force-renderer-accessibility=*) ;;
+            *) _pws_flags="${_pws_flags:+$_pws_flags }$_pws_flag" ;;
+        esac
+    done
+    if [ "$_pws_glob_was_off" = "0" ]; then
+        set +f
+    fi
+    CHROMIUM_FLAGS=$_pws_flags
+    export CHROMIUM_FLAGS
+    unset _pws_flag _pws_flags _pws_glob_was_off
+fi

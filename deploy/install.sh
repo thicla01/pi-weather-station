@@ -911,6 +911,40 @@ EOF
         fi
     fi
 
+    # --- Kiosk-only Chromium flag filter (/etc/chromium.d) ---
+    # Raspberry Pi OS's rpi-chromium-mods adds --force-renderer-accessibility
+    # to EVERY Chromium launch (/etc/chromium.d/00-rpi-vars). The renderer
+    # then keeps the accessibility tree of each page up to date: 14-36 ms in
+    # every view-opening frame on the kiosks, 12-26 % more missed frames
+    # during view switches (2026-10-14). deploy/chromium.d/99-pi-weather-station-kiosk
+    # removes the flag only when start-server sets PI_WEATHER_STATION_KIOSK=1,
+    # so a desktop screen reader keeps it. Installed only when the kiosk
+    # browser is a Chromium wrapper SCRIPT that sources /etc/chromium.d
+    # (Raspberry Pi OS / Debian chromium); a binary or another launcher (Chrome,
+    # Edge, Brave, a snap) never reads the directory. Re-running install.sh
+    # updates the file; an identical copy is left alone (no sudo prompt).
+    CHROMIUM_D_SRC="$REPO_DIR/deploy/chromium.d/99-pi-weather-station-kiosk"
+    CHROMIUM_D_DEST="/etc/chromium.d/99-pi-weather-station-kiosk"
+    if [ "$KIOSK_MODE" = "yes" ] && [ "$KIOSK_BROWSER_FAMILY" = "chromium" ] && [ -d /etc/chromium.d ]; then
+        KIOSK_BROWSER_REAL=$(readlink -f "$(command -v "$KIOSK_BROWSER" 2>/dev/null)" 2>/dev/null || true)
+        if [ -n "$KIOSK_BROWSER_REAL" ] && [ "$(head -c 2 "$KIOSK_BROWSER_REAL" 2>/dev/null)" = "#!" ] \
+            && grep -qs '/etc/chromium.d' "$KIOSK_BROWSER_REAL"; then
+            echo ""
+            echo ">> Kiosk Chromium flags (drops --force-renderer-accessibility for the kiosk only)..."
+            if cmp -s "$CHROMIUM_D_SRC" "$CHROMIUM_D_DEST"; then
+                echo ">> $CHROMIUM_D_DEST already up to date."
+            # Guarded like the logrotate step: a refused sudo warns and the
+            # install carries on (the kiosk just keeps the flag).
+            elif sudo install -o root -g root -m 0644 "$CHROMIUM_D_SRC" "$CHROMIUM_D_DEST"; then
+                echo ">> $CHROMIUM_D_DEST installed — applies from the next kiosk launch (e.g. the reboot below)."
+            else
+                echo ">> WARNING: $CHROMIUM_D_DEST NOT installed (sudo refused) — the kiosk keeps --force-renderer-accessibility."
+                echo "   Install it later with:"
+                echo "     sudo install -o root -g root -m 0644 $CHROMIUM_D_SRC $CHROMIUM_D_DEST"
+            fi
+        fi
+    fi
+
     # ========================================================================
     # Phase 6 — Autostart (kiosk only)
     # ========================================================================
