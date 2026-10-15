@@ -275,10 +275,10 @@ systemctl --user enable pi-weather-server
 systemctl --user start pi-weather-server
 loginctl enable-linger $USER
 mkdir -p ~/.local/bin
-cp deploy/start-server ~/.local/bin/start-server
-chmod +x ~/.local/bin/start-server
-cp deploy/detect-display-scale.sh ~/.local/bin/detect-display-scale.sh
-chmod +x ~/.local/bin/detect-display-scale.sh
+# `install` writes a new file, so re-running this while the kiosk runs is safe
+# (a plain `cp` would rewrite the running start-server in place):
+install -m 755 deploy/start-server ~/.local/bin/start-server
+install -m 755 deploy/detect-display-scale.sh ~/.local/bin/detect-display-scale.sh
 ```
 
 > **Bullseye 32-bit with nvm:** If you installed Node.js via nvm (see Node.js requirement above), systemd does not load the shell profile where nvm is initialized. Create an additional drop-in to source nvm explicitly — replace `~/.config/nvm` with `~/.nvm` if that is where nvm was installed:
@@ -359,8 +359,9 @@ Requires the repository at `~/pi-weather-station` (see the clone-location note a
 
 ```bash
 mkdir -p ~/.local/bin
-cp deploy/start-weather ~/.local/bin/start-weather
-chmod +x ~/.local/bin/start-weather
+# `install` writes a new file, so re-running this while the kiosk runs is safe
+# (a plain `cp` would rewrite the running script in place):
+install -m 755 deploy/start-weather ~/.local/bin/start-weather
 # Generate the logrotate config from the template (see Option 2 note):
 sed -e '/^[[:space:]]*#/d' -e '/^$/d' \
     -e "s|__LOG_FILE__|$HOME/.local/state/pi-weather-station/server.log|" \

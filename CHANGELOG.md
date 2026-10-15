@@ -30,6 +30,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   reboot or relaunch the kiosk.
 
 ### Fixed
+- **`install.sh` no longer rewrites a running `start-server` in place.** It copied
+  `~/.local/bin/start-server` (and `detect-display-scale.sh`) with a plain `cp`, which keeps the
+  file's inode, while the previous `start-server` was still waiting on the kiosk browser. Bash reads
+  a script as it goes, so when the browser exited, that process went on at its old byte offset in
+  the new file and ran a fragment of it: `start-server: line 215: ue: command not found` in
+  `kiosk.log` on every kiosk checked after the 2026-10-14 rollout. Harmless that time, but it could
+  have been any piece of the new script. Both scripts are now copied to a temp file next to the
+  destination and renamed over it (`install_script`); the running process keeps reading its own
+  copy. Installed contents, paths and modes are unchanged, so the updater's deploy-file hashes are
+  too. The readme's manual recipes (`start-server`, `detect-display-scale.sh`, `start-weather`)
+  now use `install -m 755` for the same reason. `test/atomicScriptInstall.test.js` runs the helper
+  against a script blocked mid-run (a plain `cp` as the control) and fails on any `cp` or
+  redirection onto `~/.local/bin`. Nothing to do on the kiosks: the fix applies from the next
+  `bash deploy/install.sh`, including the one that pulls it.
 - **Chromium no longer offers to translate the page.** On 2026-10-15, right after a kiosk relaunch,
   Chromium showed its Google Translate bubble ("anglais | français", with ⋮ and ×) in the top-right
   corner, over the clock. A kiosk has no browser chrome, so the bubble stayed until someone tapped
