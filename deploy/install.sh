@@ -40,11 +40,11 @@ echo ""
 # Catches the common mistake of running install.sh from a stale branch.
 # Skipped intentionally on feat/* and fix/* branches so that maintainers
 # can test in-development changes without the script silently switching
-# them off the branch they meant to install from. (Bash already loads the
-# script into memory before running, so the auto-switch wouldn't even
-# affect the running script — but it would replace the deploy/ files we
-# subsequently `cp` to ~/.local/bin and ~/.config/systemd/user, which is
-# the actually-confusing failure mode.)
+# them off the branch they meant to install from. (The auto-switch wouldn't
+# affect the running script itself — git writes a changed file as a new
+# one, and bash keeps reading the copy it opened — but it would replace the
+# deploy/ files we subsequently copy to ~/.local/bin and
+# ~/.config/systemd/user, which is the actually-confusing failure mode.)
 cd "$REPO_DIR"
 
 # Auto-discard local edits to all auto-generated tracked artifacts before
@@ -741,6 +741,25 @@ fi
 # Phase 5 — Service setup
 # ============================================================================
 
+# Install an executable script by replacing it atomically: copy to a temp
+# file in the destination directory, then rename it over the old copy. A
+# plain `cp` onto an existing file rewrites it IN PLACE (same inode), and
+# bash reads a script incrementally: the start-server still running from the
+# previous install (blocked on the kiosk browser) resumed at its old byte
+# offset in the NEW file when the browser exited, and ran whatever fragment
+# sat there (`start-server: line 215: ue: command not found` in kiosk.log on
+# every kiosk after the 2026-10-14 rollout). The rename gives the new copy
+# its own inode; a running bash keeps reading the old one to its end.
+# test/atomicScriptInstall.test.js keeps every script install on this path.
+install_script() {
+    local src="$1" dest="$2"
+    local tmp
+    tmp="$(dirname "$dest")/.$(basename "$dest").new.$$"
+    cp "$src" "$tmp"
+    chmod +x "$tmp"
+    mv -f "$tmp" "$dest"
+}
+
 echo ""
 if [[ "$PLATFORM" == "Darwin" ]]; then
     # macOS — launchd user agent
@@ -890,10 +909,10 @@ EOF
     echo ""
     echo ">> Deploying start-server..."
     mkdir -p ~/.local/bin
-    cp "$REPO_DIR/deploy/start-server" ~/.local/bin/start-server
-    chmod +x ~/.local/bin/start-server
-    cp "$REPO_DIR/deploy/detect-display-scale.sh" ~/.local/bin/detect-display-scale.sh
-    chmod +x ~/.local/bin/detect-display-scale.sh
+    # Atomic (install_script): start-server is usually RUNNING here — it
+    # waits on the kiosk browser until the relaunch/reboot that follows.
+    install_script "$REPO_DIR/deploy/start-server" ~/.local/bin/start-server
+    install_script "$REPO_DIR/deploy/detect-display-scale.sh" ~/.local/bin/detect-display-scale.sh
     echo ">> ~/.local/bin/start-server installed."
 
     # Report the auto-detected display scale so the installer can sanity-check
