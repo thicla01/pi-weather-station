@@ -1,7 +1,18 @@
 <!DOCTYPE html>
-<html lang="en">
+<!-- `lang` is only the pre-boot default: i18n/documentLang.js sets it to
+     the language the UI renders in. `translate="no"` is the HTML-standard
+     opt-out from machine translation (Safari, Firefox, the translators
+     that honour it). -->
+<html lang="en" translate="no">
   <head>
     <meta charset="utf-8" />
+    <!-- Never offer to translate this page. Chromium shows its Google
+         Translate bubble when the page's language differs from the
+         browser's, and in kiosk mode, with no browser chrome, the bubble
+         sits over the clock until someone taps its ×. Chromium ignores
+         `translate="no"` for this decision: it only checks for this meta,
+         as a direct child of <head> (Blink's HasNoTranslate). -->
+    <meta name="google" content="notranslate" />
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <!-- Both meta tags are needed: `mobile-web-app-capable` is the
          current standard (Chrome devtools warns when absent), while
