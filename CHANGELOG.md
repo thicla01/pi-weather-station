@@ -44,6 +44,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   against a script blocked mid-run (a plain `cp` as the control) and fails on any `cp` or
   redirection onto `~/.local/bin`. Nothing to do on the kiosks: the fix applies from the next
   `bash deploy/install.sh`, including the one that pulls it.
+- **Chromium no longer offers to translate the page.** On 2026-10-15, right after a kiosk relaunch,
+  Chromium showed its Google Translate bubble ("anglais | français", with ⋮ and ×) in the top-right
+  corner, over the clock. A kiosk has no browser chrome, so the bubble stayed until someone tapped
+  its ×. `client/src/index.html` declared `<html lang="en">` whatever language the UI rendered in,
+  so a French or Spanish UI looked like an English page to Chromium. The page now opts out of
+  machine translation: `<meta name="google" content="notranslate">` in `<head>`, the only signal
+  Chromium checks before it offers a translation (Blink's `HasNoTranslate`), plus `translate="no"`
+  on `<html>`, the HTML-standard opt-out other browsers' translators honour. `<html lang>` now
+  follows the language the UI is rendered in (`en`, `fr` or `es`), set at startup and on every
+  language change, so screen readers read the page with the right language rules. New
+  `client/src/i18n/documentLang.js`, tested in `test/documentLang.test.js`; new
+  `test/kioskNoTranslate.test.js` fails if the template or the committed `client/dist/index.html`
+  loses the opt-out. The kiosk launcher is unchanged (no `--disable-features=Translate`), so the
+  in-app updater applies the fix; it takes effect on the next page load.
 
 ## [3.3.2] - 2026-10-12
 
