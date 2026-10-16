@@ -13,25 +13,38 @@ body {
 /* Respect the OS-level "Reduce Motion" preference (macOS / iOS
  * Accessibility → Motion, Android "Remove animations", Windows
  * "Show animations off") silently — no UI toggle in Settings, the
- * user has already told us at the OS level. Standard WCAG approach:
- * crush every animation and transition duration to ~0 so the visual
- * end state still applies but the motion is removed. Specific
- * imperative animations (Leaflet zoom-easing, RainViewer timeline
- * playback) honour this preference via JS checks; this rule
- * covers all CSS-driven transitions across the app in one shot.
+ * user has already told us at the OS level. Every CSS transition is
+ * removed (`transition: none`): the new value applies at once, and no
+ * transition runs at all, not even a 0.01 ms one. CSS animations are
+ * crushed to ~0 so their end state still applies.
+ *
+ * Exception: Leaflet's zoom. Leaflet ends a zoom on the `transitionend`
+ * of its zoom transition; without a transition the zoom would stay
+ * unfinished until its 250 ms fallback timer (zoomend late, drags
+ * ignored). The zoom transition keeps 0.01 ms, so the zoom ends at
+ * once, as it did when this rule crushed every transition to 0.01 ms.
+ * The motion Leaflet runs in JavaScript for the app (its recentres at
+ * the same zoom, the inertia after a drag) is turned off by WeatherMap
+ * (ui/mapMotion.js). Not covered: Leaflet's own pans (keyboard, box
+ * zoom, popup autoPan; see ROADMAP), RainViewer playback (user-started)
+ * and Chart.js's own animations.
  *
  * Trap: "the end state still applies" includes an end state that
  * hides the element. An animation that fades out and holds its last
  * keyframe (`forwards` / `both` ending on `opacity: 0`) shows nothing
  * at all here, so it needs its own reduced-motion override, e.g.
  * `animation: none` (the dock toast in ControlButtons/styles.css).
- * test/reducedMotionGuards.test.js fails on one without it. */
+ * test/reducedMotionGuards.test.js fails on one without it, and pins
+ * the transition rule and its Leaflet exception. */
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
+    transition: none !important;
     scroll-behavior: auto !important;
+  }
+  .leaflet-zoom-anim .leaflet-zoom-animated {
+    transition: transform 0.01ms !important;
   }
 }
 

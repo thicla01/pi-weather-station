@@ -342,6 +342,8 @@ App                               Root — mounts the overlays and AmbientLayers
 │       │   │                          (ResizeObserver) + mobile maximize recenter
 │       │   ├── PanHandler            Programmatic re-centering with rail-offset math
 │       │   ├── RailOffsetTracker     Pans marker when rail width changes
+│       │   ├── MapInertia            Drag inertia off under the OS reduced-motion
+│       │   │                          preference, followed live (ui/mapMotion.js)
 │       │   ├── MapClickHandler       Click-to-recenter with 200 ms debounce
 │       │   ├── RadarFocusControl     Overlay button under the zoom stack — hides
 │       │   │                          hero+rail on LayoutPi and LayoutDesktop
@@ -364,6 +366,17 @@ App                               Root — mounts the overlays and AmbientLayers
 │       │     pointInGeometry (alert-polygon + radius-ring helpers)
 │       │   - RING_RISK_STYLE / DOT_COLOR_BY_TIER / ARROW_COLOR / RADAR_GEOMETRY
 │       │     / KM_PER_UNIT / METERS_PER_UNIT / BEARING_TO_DIR_* + reverse maps
+│       │
+│       │   Map motion in `ui/mapMotion.js` (CommonJS, tested):
+│       │   - recenterAnimates, mapInertia. Under the OS reduced-motion
+│       │     preference (`ui/systemPrefs.js`: prefersReducedMotion, and
+│       │     subscribeReducedMotion for a live change), a recentre at the
+│       │     same zoom (panWithRailOffset, an alert framing that keeps the
+│       │     zoom) passes `animate: false`, and drag inertia is off. A zoom
+│       │     change keeps Leaflet's animated path, which the reduced-motion
+│       │     rule in `styles/main.css` ends at once (`animate: false` would
+│       │     go through `_resetView`, which can leave the map without tiles
+│       │     until the new ones arrive).
 │       │
 │       │   Radar frame window in `ui/radarFrameStack.js` (CommonJS, tested):
 │       │   - framesToMount, assignSlots, RADAR_PRELOAD_REACH. While the timeline

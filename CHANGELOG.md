@@ -83,6 +83,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   channel in each edge token of each palette, pins that the other tokens are not read, and pins
   the `useMemo`. The in-app updater applies it.
 
+### Changed
+- **"Reduce motion" now removes transitions instead of shortening them, and stops the map's own
+  motion.** With the OS reduced-motion preference on (macOS / iOS "Reduce motion", Android "Remove
+  animations", Windows "Show animations" off), the global rule in `styles/main.css` used to shorten
+  every CSS transition to 0.01 ms (their delays kept), so each one still ran and fired its events.
+  It now sets `transition: none`: a new value applies at once, delays included, and no transition
+  runs. One exception keeps the map's zoom exactly as before: Leaflet ends a zoom on the
+  `transitionend` of its zoom transition, so `.leaflet-zoom-anim .leaflet-zoom-animated` keeps a
+  0.01 ms transform transition (without it, each zoom would wait for Leaflet's 250 ms fallback
+  timer). The motion Leaflet runs in JavaScript, which CSS can't reach, now follows the preference
+  too, live, without a reload. The map no longer glides on after a drag is released (inertia off;
+  back on when the preference is turned off). A recentre at the same zoom moves the map in one step
+  instead of a 0.25 s pan: the dock's recentre button, a tap on the map, a place picked in Places,
+  the rail offset on the desktop layout, and an alert framing that keeps the zoom. A recentre that
+  changes the zoom (most alert framings) keeps Leaflet's animated path, which the 0.01 ms exception
+  ends at once: without animation, Leaflet's `_resetView` can empty the tile layers for a frame. CSS
+  animations are unchanged (shortened to 0.01 ms), and so is Leaflet's `zoomAnimation` /
+  `fadeAnimation` / `markerZoomAnimation`. Without the preference nothing changes: on the Mac smoke,
+  every element's computed transitions and the screenshots are identical to before. New
+  `client/src/ui/mapMotion.js` (the decisions) and `WeatherMap/MapInertia.js`, tested in the new
+  `test/mapMotion.test.js` (with guards on every recentre call site and against `flyTo`);
+  `test/reducedMotionGuards.test.js` now also pins the transition rule, its Leaflet exception, and
+  that no stylesheet overrides it with an `!important` transition. Not covered: CSS animations,
+  Chart.js's own animations, Leaflet's own pans (keyboard arrows; the survey popup's auto-pan; the
+  box zoom, Shift + drag on the desktop only, when the box lands at the same zoom; a double click or
+  double tap at the deepest zoom, which can only pan), and the radar playback (`ROADMAP.md`). The
+  in-app updater applies it.
+
 ### Fixed
 - **`install.sh` no longer rewrites a running `start-server` in place.** It copied
   `~/.local/bin/start-server` (and `detect-display-scale.sh`) with a plain `cp`, which keeps the

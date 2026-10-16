@@ -16,6 +16,14 @@
 // declared only inside `@media (prefers-reduced-motion: no-preference)`
 // never applies under reduced motion, so the guard skips it.
 //
+// Transitions (2026-10, designer decision): the same global rule removes every
+// CSS transition (`transition: none !important`), with one exception, Leaflet's
+// zoom transition, kept at 0.01 ms so `transitionend` still ends a zoom at
+// once (without it Leaflet waits for its 250 ms fallback timer). The last
+// tests below pin both, and that no stylesheet beats the global rule with an
+// `!important` transition of its own. The JavaScript half (recentres,
+// inertia) is in mapMotion.test.js.
+//
 // Same spirit as react19Guards.test.js: mechanical, source-level, loud.
 
 const { test } = require("node:test");
@@ -284,4 +292,54 @@ test("the global reduced-motion rule still crushes animations (the premise of th
   const global = rules.find((r) => r.reducedMotion && r.selector.split(",").includes("*"));
   assert.ok(global, "styles/main.css no longer has a reduced-motion rule on `*`: revisit this guard");
   assert.match(global.body, /animation-duration\s*:/);
+});
+
+/**
+ * The style rules of styles/main.css, parsed without comments.
+ *
+ * @returns {{selector: string, body: string, offset: number, reducedMotion: boolean, motionSafe: boolean}[]}
+ *   every style rule of the global stylesheet
+ */
+const mainCssRules = () =>
+  parseCss(stripComments(fs.readFileSync(path.join(SRC_DIR, "styles", "main.css"), "utf8"))).rules;
+
+const TRANSITION_DECL_RE = /(?:^|;)\s*(?:-webkit-)?transition(?:-[a-z]+)?\s*:/;
+const IMPORTANT_TRANSITION_RE = /(?:^|;)\s*(?:-webkit-)?transition(?:-[a-z]+)?\s*:[^;]*!important/;
+
+test("the global reduced-motion rule removes every transition", () => {
+  const global = mainCssRules().find((r) => r.reducedMotion && r.selector.split(",").includes("*"));
+  assert.ok(global, "styles/main.css no longer has a reduced-motion rule on `*`");
+  assert.match(global.body, /(?:^|;)\s*transition\s*:\s*none\s*!important\s*(?:;|$)/);
+  // A crushed duration would still run a transition (and fire its events).
+  assert.doesNotMatch(global.body, /transition-duration/);
+});
+
+test("Leaflet's zoom transition keeps 0.01 ms under reduced motion (transitionend must fire)", () => {
+  const leaflet = mainCssRules().filter(
+    (r) => r.reducedMotion && r.selector === ".leaflet-zoom-anim .leaflet-zoom-animated",
+  );
+  assert.equal(leaflet.length, 1, "the Leaflet zoom exception is gone from styles/main.css");
+  assert.match(leaflet[0].body, /^\s*transition\s*:\s*transform\s+0\.01ms\s*!important\s*;?\s*$/);
+});
+
+test("no other transition is declared under reduced motion, and none is !important elsewhere", () => {
+  const reducedMotionTransitions = [];
+  const importantTransitions = [];
+  for (const file of walk(SRC_DIR)) {
+    for (const rule of parseCss(stripComments(fs.readFileSync(file, "utf8"))).rules) {
+      if (!TRANSITION_DECL_RE.test(rule.body)) continue;
+      if (rule.reducedMotion) reducedMotionTransitions.push(`${rel(file)}: ${rule.selector}`);
+      else if (IMPORTANT_TRANSITION_RE.test(rule.body)) importantTransitions.push(`${rel(file)}: ${rule.selector}`);
+    }
+  }
+  assert.deepEqual(reducedMotionTransitions.sort(), [
+    "styles/main.css: *,*::before,*::after",
+    "styles/main.css: .leaflet-zoom-anim .leaflet-zoom-animated",
+  ]);
+  assert.deepEqual(
+    importantTransitions,
+    [],
+    "An `!important` transition on a class beats the global `* { transition: none !important }` " +
+      "(higher specificity) and runs under reduced motion.",
+  );
 });
