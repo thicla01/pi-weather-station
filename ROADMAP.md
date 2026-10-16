@@ -66,6 +66,13 @@ Cost is small but not zero, which is why it is not in v1: the chip vocabulary is
 ### 🩹 Kiosk reliability — dedicated `pi-weather-kiosk.service` with `Restart=always`
 **Tech debt, deferred follow-up to the cgroup-kill fix (2026-06).** The kiosk is launched by an XDG/compositor autostart entry that runs `start-server` in the **foreground with no respawn** (fires once per session). Two consequences: (1) any browser crash — V3D/Chromium freeze is documented on this fleet — leaves the kiosk dark until the next login; (2) a button-relaunched kiosk inherited `pi-weather-server.service`'s cgroup and died on the next server restart (fixed tactically by `systemd-run --user --scope` in `relaunch-kiosk.sh`). A dedicated **`--user` kiosk service with `Restart=always`** (RestartSec/StartLimit backoff for a persistent V3D freeze) would fix **both** at the root: its own cgroup (sibling to the server, survives restarts) **and** automatic respawn after a crash. Blast radius is the reason it's deferred, not bundled: it must replace **four** autostart paths (labwc / wayfire / LXDE-pi / XDG `.desktop`) in `install.sh` + `uninstall.sh`, inject the Wayland env (`WAYLAND_DISPLAY`/`XDG_RUNTIME_DIR`) and order after `graphical-session.target`, handle the mixed Wayland/X11 fleet, and rework the relaunch button to `systemctl --user restart pi-weather-kiosk` (the pkill model races a `Restart=always` unit). **Not** git-pull-deployable (unit files need `install.sh`). Prototype on one Pi (the official 7″ DSI panel) before any fleet rollout; keep autostart as the fallback per compositor. See `incident_kiosk_cgroup_killed_by_server_restart.md`.
 
+### 👆 Double tap on the alert head row of the stacked rail and the phone layout
+**Possible follow-up, not scheduled (designer decision, 2026-10-16).** The double-tap guard (`client/src/ui/tapGuard.js`, `hooks/useTapGuard.js`) protects one command today: the ⤢ of the alert card on the short Pi rail, where opening the Alert view puts its back button under the finger. Two other surfaces have no ⤢. Tapping the alert's head row there expands `AlertDetailInline` in place, so a double tap opens the slab and closes it again:
+- LayoutPi's v3.2 stacked rail, shown when the viewport is taller than the 540 px priority-views gate (e.g. the 1024×640 10.1" panels): the compact card's `headCompact` zone;
+- LayoutMobile: the banner's `head` zone.
+
+It is a different case from the ⤢. The command does not change under the finger: the second tap repeats the same toggle. If it ever matters in use, call `guardTap(e)` from the head row's click handler (`toggleExpanded` in `ambient/AlertBanner`): a one-line change. LayoutDesktop has the same head row, usually driven by a mouse.
+
 ---
 
 ## Medium term — high impact, moderate complexity

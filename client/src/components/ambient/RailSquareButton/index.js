@@ -18,7 +18,9 @@ import styles from "./styles.css";
  * @param {object} props
  * @param {React.ComponentType<{className?: string}>} props.icon — icon
  *   component (e.g. RestoreIcon); rendered with `currentColor`.
- * @param {() => void} props.onClick — activation handler.
+ * @param {(event: React.MouseEvent) => void} props.onClick — activation
+ *   handler; it receives the click event (the alert card's ⤢ arms its
+ *   double-tap guard from it — `hooks/useTapGuard.js`).
  * @param {string} props.ariaLabel — accessible label (no visible text).
  * @param {string} [props.className] — optional positioning class.
  * @returns {JSX.Element} the square button
