@@ -211,6 +211,59 @@
   transition: opacity 150ms ease-out, visibility 0s linear 150ms;
 }
 
+/* Opaque containers — opaque card edges (ui/opaqueTokens.js).
+ *
+ * Blink paints a rounded card that has a fill and a translucent border
+ * through an offscreen clip layer (one Skia saveLayer per card); an
+ * opaque, solid border avoids it. Where a card sits straight on an opaque
+ * colour, its translucent edge always shows one fixed colour, so the card
+ * can take it as an opaque edge and look the same (to one level).
+ * AmbientLayers computes those edges over `--c-bg` (`--c-opaque-edge*`);
+ * a container maps them to the `--c-card-edge*` variables the cards read,
+ * ONLY for a subtree whose cards sit directly on `--c-bg`. Outside such a
+ * subtree the cards fall back to `--c-border` and render as before. The
+ * container never redefines `--c-surface` / `--c-border`: the hairlines
+ * and fill-less pills drawn on a card or on the bare background keep the
+ * translucent token (they cause no layer).
+ *
+ * Inventory of this layout's containers (all on `.layout`, whose
+ * background is `--c-bg`, opaque in every palette:
+ * test/opaqueBgToken.test.js):
+ *   - `.rail` — the glance column and the full-rail views (forecast,
+ *     conditions, alert, AI). Transparent itself, in every state, and in
+ *     its own grid column beside the map: never over it. YES. Its cards:
+ *     TimeBlock, HeroCompact (+ its ⤢), AlertBanner (+ its square),
+ *     AirAlertCard, AirCard, MetricsGrid cells, IndoorBlock,
+ *     AlertDetailInline (non-priority panels), ChartTabs' slab and metric
+ *     tabs, ConditionsView's feels card and minimize square, SunMoonBlock,
+ *     AlertView's view and square, AiView's sections and square.
+ *     Kept on `--c-border` (overrides that win over the card's own rule,
+ *     pinned by the test): a pressed metric cell or air-alert card (accent tint), and
+ *     the extreme alert's red-washed card with its ⤢ square (the square
+ *     would be 1.2 to 1.8 levels off on the wash).
+ *   - ChartTabs `.slab` and AlertView `.view` — cards on the rail, filled
+ *     with the translucent `--c-surface`: NOT containers (a card nested
+ *     in them is not on `--c-bg`). They read `--c-card-edge` themselves.
+ *     Only the `--c-surface-hybrid` boxes inside them (metric tabs, the
+ *     alert view's square) take an edge, within one level at 96 % fill.
+ *   - the dock cell (`.layout > :last-child`, BottomDock's `.dock`) — on
+ *     `--c-bg` in its own grid row under the map, sliding below the
+ *     screen edge (never over the map) when hidden. YES, for the dock's
+ *     own edge. What floats out of it over the map (the ControlButtons
+ *     toast, the health popover) must never read `--c-card-edge`.
+ *   - `.mapArea` — the map frame has its own `--c-bg` fill; the map and
+ *     everything over it (legend, timeline, zoom, ring labels, focus
+ *     control, mini-banner) stay translucent by design. NOT a container.
+ *     The frame's own edge is a later step.
+ * LayoutDesktop and LayoutMobile have no container: their rails float
+ * over the map. Firefox fills calm cards at 96 %; styles/main.css remaps
+ * `--c-opaque-edge` to match. test/opaqueTokens.test.js pins this list. */
+.rail,
+.layout > :last-child {
+  --c-card-edge: var(--c-opaque-edge);
+  --c-card-edge-hybrid: var(--c-opaque-edge-hybrid);
+}
+
 /* BottomDock cell spans both columns.
  *
  * `position: relative` + `z-index: 1100` is load-bearing for the

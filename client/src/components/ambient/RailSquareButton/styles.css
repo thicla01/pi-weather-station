@@ -18,7 +18,8 @@
   width: 28px;
   height: 28px;
   padding: 0;
-  border: 1px solid var(--c-border);
+  /* Opaque edge in LayoutPi's opaque containers (ui/opaqueTokens.js), for this --c-surface-hybrid fill; --c-border elsewhere. */
+  border: 1px solid var(--c-card-edge-hybrid, var(--c-border));
   border-radius: 6px;
   background-color: var(--c-surface-hybrid, var(--c-surface));
   color: var(--c-text-dim);

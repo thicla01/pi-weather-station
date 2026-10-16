@@ -11,8 +11,9 @@
   /* v3.2 framed layout: the dock is a rounded card inset in the gutter (the
    * LayoutPi grid gap/padding provide the inset), matching the mockup's
    * toolbar bar — a full border + radius rather than the old top-border-only
-   * full-bleed strip. */
-  border: 1px solid var(--c-border);
+   * full-bleed strip. On LayoutPi the dock cell maps --c-card-edge to the
+   * opaque edge (ui/opaqueTokens.js); elsewhere it is --c-border. */
+  border: 1px solid var(--c-card-edge, var(--c-border));
   border-radius: 14px;
   /* No `backdrop-filter` here, on purpose. The dock never sits over the
    * map: LayoutPi gives it its own grid row under the map cell (and

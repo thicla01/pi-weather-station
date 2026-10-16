@@ -13,7 +13,8 @@
 .banner {
   position: relative;
   background-color: var(--c-surface);
-  border: 1px solid var(--c-border);
+  /* Opaque edge in LayoutPi's opaque containers (ui/opaqueTokens.js); --c-border elsewhere. */
+  border: 1px solid var(--c-card-edge, var(--c-border));
   border-radius: 8px;
   padding: 12px 14px 12px 18px;
   color: var(--c-text);
@@ -331,6 +332,18 @@
  * band. Pi compact card only (the class is added only when isPi). */
 .compactExtreme {
   background-color: color-mix(in srgb, var(--c-danger) 16%, var(--c-surface-hybrid, var(--c-surface)));
+  /* Keeps the translucent edge: the opaque card edge is composited over
+   * --c-surface, so over this red wash it would be 20 to 27 levels off in
+   * one channel. Extreme alerts only: the card keeps its clip layer. */
+  border-color: var(--c-border);
+}
+/* Same for the card's ⤢ square (RailSquareButton, whose edge is the one
+ * composited over --c-bg): on this red wash it would be 1.2 to 1.8 levels
+ * off, 2 on R after rounding in night-red, past the one-level budget.
+ * (0,3,0) beats RailSquareButton's `.square.square` (0,2,0) whatever the
+ * order of the two modules in the bundle. */
+.compactExtreme .compactMax.compactMax {
+  border-color: var(--c-border);
 }
 .compactExtreme::before {
   width: 6px;
