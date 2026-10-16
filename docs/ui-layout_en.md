@@ -340,6 +340,7 @@ All floating controls over the Leaflet map follow the Claude Design Phase 3 v2.1
 - **On-map radius chips** — "50 km" / "100 km" labels at the rings' south-east intersection (unit-aware; hidden on mobile and past zoom 13, same gate as the rings).
 - **Attribution** — flush bottom-right, hugging the dock edge in every state (legal requirement — visible everywhere, including the mobile mini-card); slimmed to fit the 16 px corridor under the timeline bar / legend strip.
 - New radar-scoped CSS tokens (`--rc-*`, `--map-*`) live in `WeatherMap/styles.css`, switched per palette via `data-palette` (deliberately not added to `ui/tokens.js`). In nightRed the alert-tier tokens collapse to the red family while the precipitation scale keeps the true tile colours.
+- **Map background** — wherever no basemap tile is drawn (tiles loading or failed, the edge a pan or a zoom-out uncovers), the map shows the palette's page background `--c-bg`, not Leaflet's grey `#ddd`, on every layout (`ui/reset.css`).
 
 ---
 
