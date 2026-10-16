@@ -51,6 +51,16 @@
   text-size-adjust: 100%;
 }
 
+/* Map background: leaflet.css paints `.leaflet-container` #ddd, seen
+ * wherever no basemap tile is drawn (tiles loading or failed, the edge a
+ * pan uncovers, around a zoom's scaled tiles). Use the palette's page
+ * background, already around the map on LayoutPi and LayoutDesktop.
+ * (0,2,0) beats leaflet.css's (0,1,0) in any injection order; scoped to
+ * .ambientRoot, where --c-bg is set. test/mapBackground.test.js. */
+.ambientRoot .leaflet-container {
+  background-color: var(--c-bg);
+}
+
 /* Leaflet built-in controls — zoom buttons, attribution strip, and any
  * custom anchor controls — ship with hardcoded #fff backgrounds and
  * #000 text that read as visual outsiders in dark / nightRed mode.

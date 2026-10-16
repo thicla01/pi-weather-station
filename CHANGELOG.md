@@ -110,6 +110,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   box zoom, Shift + drag on the desktop only, when the box lands at the same zoom; a double click or
   double tap at the deepest zoom, which can only pan), and the radar playback (`ROADMAP.md`). The
   in-app updater applies it.
+- **The radar map's empty areas now show the palette's background, not Leaflet's grey.**
+  `leaflet.css` paints the map container `#ddd`, which showed wherever no basemap tile was drawn:
+  while tiles load or after one fails, on the edge a pan or a zoom-out uncovers, and in the
+  anti-aliased rounded corners of the map frame (LayoutPi) and of the mobile map card. In the dusk
+  and night-red palettes it was a light grey block, the brightest area on a dark screen. The
+  container now paints `--c-bg`, the page background of the active palette (day `#f4f0e8`, dusk
+  `#1c1a17`, night red `#100404`), on every layout. `--c-bg` is opaque and does not change with the
+  hybrid alert level, nor under the Firefox rule in `styles/main.css`. One rule in
+  `client/src/ui/reset.css`: `.ambientRoot .leaflet-container` (specificity (0,2,0), above
+  `leaflet.css`'s (0,1,0) in any stylesheet order). Measured in headless Chrome on the Mac (master's
+  bundle against this one; 800 × 480, 1280 × 800 and 390 × 844; day, dusk and night red; calm,
+  moderate and severe alert on the Pi layout): with the basemap tiles failed, the map's `#ddd`
+  pixels go from 62–91 % of the map to none, and the same pixels show the palette colour; after a
+  zoom-out with the new tiles held, the uncovered area shows the palette colour too; with the tiles
+  loaded, the only changed pixels are the frame's rounded corners (at most 68 on LayoutPi, 44 on
+  the mobile card, none on the full-bleed desktop map). New `test/mapBackground.test.js` pins the rule, its
+  token, every other stylesheet's `.leaflet-container` background and the one place a map is
+  mounted. The in-app updater applies it.
 
 ### Fixed
 - **`install.sh` no longer rewrites a running `start-server` in place.** It copied

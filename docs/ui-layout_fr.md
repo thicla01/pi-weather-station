@@ -339,6 +339,7 @@ Tous les contrôles flottants sur la carte Leaflet suivent la référence Claude
 - **Chips de rayon sur la carte** — étiquettes « 50 km » / « 100 km » à l'intersection sud-est des cercles (sensibles à l'unité ; masquées sur mobile et au-delà du zoom 13, même porte que les cercles).
 - **Attribution** — au ras du bas-droite, collée au bord du dock dans tous les états (obligation légale — visible partout, y compris la mini-carte mobile) ; amincie pour tenir dans le couloir de 16 px sous la barre de timeline / la bande de légende.
 - Les nouveaux tokens CSS du radar (`--rc-*`, `--map-*`) vivent dans `WeatherMap/styles.css`, commutés par palette via `data-palette` (délibérément pas ajoutés à `ui/tokens.js`). En nuit-rouge, les tokens des tiers d'alertes s'effondrent vers la famille rouge tandis que l'échelle de précipitations garde les vraies couleurs des tuiles.
+- **Fond de carte** — là où aucune tuile de fond de carte n'est dessinée (tuiles en chargement ou en échec, bord découvert par un déplacement ou un zoom arrière), la carte montre le fond de page de la palette, `--c-bg`, et non le gris `#ddd` de Leaflet, dans toutes les dispositions (`ui/reset.css`).
 
 ---
 
