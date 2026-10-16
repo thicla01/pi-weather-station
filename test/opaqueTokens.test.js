@@ -153,7 +153,16 @@ test("parseColor reads the token forms and rejects the rest", () => {
   assert.deepEqual(parseColor("rgba(42, 38, 32, 0.16)"), { r: 42, g: 38, b: 32, a: 0.16 });
   assert.deepEqual(parseColor("rgb(42 38 32 / 16%)"), { r: 42, g: 38, b: 32, a: 0.16 });
   assert.deepEqual(parseColor("rgb(1, 2, 3)"), { r: 1, g: 2, b: 3, a: 1 });
-  for (const bad of ["transparent", "#f4f0e8fe", "#ffff", "hsl(0 0% 0%)", "rgba(300, 0, 0, 1)", "rgba(0, 0, 0, 2)", ""]) {
+  // The forms the module header says it refuses: percentage channels (only
+  // the alpha may be a percentage), other colour functions, named colours,
+  // 4- and 8-digit hex, out-of-range values.
+  const refused = [
+    "transparent", "white", "#f4f0e8fe", "#ffff", "hsl(0 0% 0%)",
+    "rgb(50% 40% 30%)", "rgba(50%, 40%, 30%, 0.16)", "rgb(42 38 30% / 16%)",
+    "color-mix(in srgb, #2a2620 16%, transparent)", "var(--c-border)",
+    "rgba(300, 0, 0, 1)", "rgba(0, 0, 0, 2)", "",
+  ];
+  for (const bad of refused) {
     assert.throws(() => parseColor(bad), /unsupported colour/, bad);
   }
 });
@@ -372,6 +381,13 @@ test("AmbientLayers swaps the opaque edges with the same hybrid flag as --c-surf
   assert.match(src, /const surfaceVar = isHybrid \?/);
   assert.match(src, /const borderVar = isHybrid \?/);
   assert.match(src, /opaqueEdgeVars\(palette, isHybrid\)/);
+  // Memoised on the same two inputs: the React Compiler does not cache this
+  // call on its own (see the comment above it in AmbientLayers).
+  assert.match(
+    src,
+    /useMemo\(\s*\(\)\s*=>\s*opaqueEdgeVars\(palette, isHybrid\),\s*\[palette, isHybrid\],?\s*\)/,
+    "AmbientLayers must memoise opaqueEdgeVars(palette, isHybrid) on [palette, isHybrid]",
+  );
   assert.match(src, /["']--c-opaque-edge["']\s*:\s*opaqueEdge\s*,/);
   assert.match(src, /["']--c-opaque-edge-hybrid["']\s*:\s*opaqueEdgeHybrid\s*,/);
 });
@@ -394,6 +410,76 @@ test("opaqueEdgeVars never throws: an unparseable token leaves the edges unset (
   try {
     assert.deepEqual(opaqueEdgeVars(broken, false), { opaqueEdge: undefined, opaqueEdgeHybrid: undefined });
     assert.deepEqual(opaqueEdgeVars(broken, true), { opaqueEdge: undefined, opaqueEdgeHybrid: undefined });
+  } finally {
+    console.warn = warn;
+  }
+});
+
+test("a percentage channel in any edge token falls back the same way: no edges, a warning, no throw", () => {
+  // parseColor reads number channels only (module header). Rewrite each of
+  // the five tokens of every palette, one at a time, with the same colour in
+  // percentage channels: whichever token it is, the edges must come back
+  // unset (AmbientLayers then leaves --c-opaque-edge* unset and the cards
+  // keep their translucent var(--c-border) fallback, pinned above).
+  const asPercent = (str) => {
+    const { r, g, b, a } = parseColor(str);
+    const pct = (v) => `${+(v / 2.55).toFixed(2)}%`;
+    return `rgb(${pct(r)} ${pct(g)} ${pct(b)} / ${a})`;
+  };
+  const warn = console.warn;
+  const warnings = [];
+  console.warn = (msg) => warnings.push(String(msg));
+  try {
+    for (const [name, p] of Object.entries(palettes())) {
+      for (const key of KEYS) {
+        const percent = asPercent(p[key]);
+        assert.match(percent, /^rgb\([\d.]+% [\d.]+% [\d.]+% \/ [\d.]+\)$/, `${name}.${key}`);
+        const broken = { ...p, [key]: percent };
+        assert.throws(() => opaqueEdgeTokens(broken), /unsupported colour/, `${name}.${key}`);
+        for (const hybrid of [false, true]) {
+          warnings.length = 0;
+          assert.deepEqual(
+            opaqueEdgeVars(broken, hybrid),
+            { opaqueEdge: undefined, opaqueEdgeHybrid: undefined },
+            `${name}.${key} = ${percent}, hybrid ${hybrid}`,
+          );
+          assert.equal(warnings.length, 1, `${name}.${key}: one warning per call`);
+          assert.match(warnings[0], /unsupported colour/, `${name}.${key}`);
+          assert.ok(warnings[0].includes(percent), `${name}.${key}: the warning quotes the offending value (${warnings[0]})`);
+        }
+      }
+    }
+  } finally {
+    console.warn = warn;
+  }
+});
+
+test("only the five edge tokens are parsed: another token in a refused form changes nothing and warns nothing", () => {
+  // The module header limits the fallback to the five tokens
+  // opaqueEdgeTokens reads (KEYS). Any other palette token (an accent in
+  // hsl(), a named text colour, a color-mix() soft accent) must never reach
+  // parseColor: same edges, no warning.
+  const others = {
+    accent: "hsl(28 77% 41%)",
+    accentSoft: "color-mix(in srgb, #b85a18 16%, transparent)",
+    text: "black",
+    textDim: "rgb(43% 40% 35%)",
+    danger: "var(--c-danger)",
+  };
+  const warn = console.warn;
+  const warnings = [];
+  console.warn = (msg) => warnings.push(String(msg));
+  try {
+    for (const [name, p] of Object.entries(palettes())) {
+      const withOthers = { ...p, ...others };
+      assert.deepEqual(opaqueEdgeTokens(withOthers), opaqueEdgeTokens(p), name);
+      for (const hybrid of [false, true]) {
+        const vars = opaqueEdgeVars(withOthers, hybrid);
+        assert.deepEqual(vars, opaqueEdgeVars(p, hybrid), `${name}, hybrid ${hybrid}`);
+        assert.match(vars.opaqueEdge, /^#[0-9a-f]{6}$/, `${name}, hybrid ${hybrid}`);
+      }
+    }
+    assert.deepEqual(warnings, [], "no warning for a token outside the five");
   } finally {
     console.warn = warn;
   }

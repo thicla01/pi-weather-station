@@ -221,10 +221,19 @@
  * `opacity < 1` through its own offscreen layer (one saveLayer per
  * inactive icon, 3 on the Pi forecast view). The icons stroke in
  * `currentColor`, so a translucent colour dims them the same way with no
- * layer (measured: 3 → 0 layers; the strokes within two levels, on one
- * channel at the stroke's core, likely 70 % rounding to an 8-bit alpha of
- * 179/255 against the 0.7 group opacity of an 8-bit layer). Behind
- * @supports because the default browserslist targets still include
+ * layer (measured: 3 → 0 layers). Not within one level, though.
+ * ACCEPTED EXCEPTION (designer and maintainer, 2026-10-16) to the
+ * one-level criterion of the opaque card edges (ui/opaqueTokens.js),
+ * which stays the rule for every border: don't cite these icons to
+ * excuse a border that moves by more than one level. Measured on the
+ * screen of the 7" kiosk used for the check (a Raspberry Pi 4), per
+ * channel (the criterion's own metric: largest change of R, G or B, old
+ * opacity vs this rule): up to 9 levels in day and night-red, 8 at dusk,
+ * on 1 to 25 pixels of each icon's stroke. In headless Chrome on the
+ * Mac: up to 2 levels, at the stroke's core. The design report that
+ * asked for the exception quoted 8 and 4 levels on 1 to 15 pixels,
+ * measured in luminance.
+ * Behind @supports because the default browserslist targets still include
  * Chrome 109, which has no color-mix() and keeps the opacity above.
  * This block must stay BEFORE `.metricTabActive svg` below: same
  * specificity, and the active icon's accent colour must keep winning. */

@@ -26,6 +26,29 @@
 // translucent to Blink (the layer stays), while `rgba(…, 0.999)` only turns
 // opaque through 8-bit rounding — a trap measured on the bench.
 //
+// Colour forms. `parseColor` reads only the forms `ui/tokens.js` uses
+// today: `#rgb`, `#rrggbb`, and `rgb()` / `rgba()` whose three channels
+// are NUMBERS from 0 to 255 (comma or space syntax; the alpha may be a
+// number or a percentage). It refuses, among others, percentage channels
+// (`rgb(50% 40% 30%)`), `hsl()` and the other colour functions,
+// `color-mix()`, `var()`, named colours (`white`, `transparent`) and 4- or
+// 8-digit hex. One of the five tokens `opaqueEdgeTokens` reads (`bg`,
+// `surface`, `surfaceHybrid`, `border`, `borderHybrid`) in such a form
+// does not break the kiosk: `opaqueEdgeTokens` throws, `opaqueEdgeVars`
+// catches it, logs a warning that quotes the offending value (not the
+// token's name) and returns no edges, AmbientLayers leaves
+// `--c-opaque-edge*` unset, the containers' `--c-card-edge*` variables
+// (`--c-card-edge: var(--c-opaque-edge)` and `--c-card-edge-hybrid:
+// var(--c-opaque-edge-hybrid)`) then have no value, and every card takes
+// the fallback of its `var(--c-card-edge, var(--c-border))` or
+// `var(--c-card-edge-hybrid, var(--c-border))`: the translucent edge it
+// had before the opaque edges, clip layer included. So nothing looks
+// wrong; the layers just come back. Any other palette token (an accent in
+// `hsl()`, say) never reaches `parseColor`: no warning, no effect on the
+// edges. Before writing one of the five in a new form, extend
+// `parseColor` (`test/opaqueTokens.test.js` pins this fallback for a
+// percentage channel, and pins that the other tokens are not read).
+//
 // CommonJS on purpose (like ui/alertTitle.js and ui/radarFrameStack.js):
 // webpack accepts it next to the ESM tree (AmbientLayers imports it with an
 // ESM named import), and `test/opaqueTokens.test.js` runs the real module
@@ -37,8 +60,10 @@ const RGB_RE = /^rgba?\(\s*([\d.]+)\s*[,\s]\s*([\d.]+)\s*[,\s]\s*([\d.]+)\s*(?:[
 
 /**
  * Parse one token colour. Accepts the forms `ui/tokens.js` uses: `#rgb`,
- * `#rrggbb`, `rgb()` and `rgba()` (comma or space syntax, alpha as a
- * number or a percentage).
+ * `#rrggbb`, `rgb()` and `rgba()` with number channels (comma or space
+ * syntax, alpha as a number or a percentage). Percentage channels,
+ * `hsl()`, `color-mix()`, named colours and every other form throw (see
+ * the module header for what that does to the edges).
  *
  * @param {string} str colour string
  * @returns {{r: number, g: number, b: number, a: number}} channels 0-255,
@@ -151,8 +176,9 @@ function opaqueEdgeTokens(palette) {
  *   `#rrggbb` values: `opaqueEdge` → `--c-opaque-edge` (the current
  *   `--c-border` on the current `--c-surface`) and `opaqueEdgeHybrid` →
  *   `--c-opaque-edge-hybrid` (the current `--c-border` on
- *   `--c-surface-hybrid`). Both `undefined` when a palette token cannot be
- *   parsed: AmbientLayers then leaves the variables unset, every card falls
+ *   `--c-surface-hybrid`). Both `undefined` when one of the five tokens
+ *   `opaqueEdgeTokens` reads cannot be parsed (a warning quotes the
+ *   value): AmbientLayers then leaves the variables unset, every card falls
  *   back to its translucent `--c-border`, and the kiosk keeps rendering
  *   instead of throwing in the root's render.
  */

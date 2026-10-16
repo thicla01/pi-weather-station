@@ -39,8 +39,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   card rules read with a `var(--c-border)` fallback. The fills stay translucent: an opaque fill
   under text adds compositing layers on a Linux kiosk at DPR 1. The forecast view's inactive
   metric-tab icons lose their `opacity: 0.7` (one layer each) for a translucent stroke colour
-  (`color-mix()`, behind `@supports`; Chrome 109 keeps the opacity). Measured in headless Chrome
-  on the Mac (800 × 480, layer snapshots, the same counts in the day, dusk and night-red palettes):
+  (`color-mix()`, behind `@supports`; Chrome 109 keeps the opacity). Those strokes are an accepted
+  exception to the one-level colour rule below (designer and maintainer, 2026-10-16), which stays
+  the rule for every edge. On the screen of the 7" kiosk used for the check (a Raspberry Pi 4),
+  they move by up to 9 levels on one channel in day and night-red (8 at dusk), on 1 to 25 pixels
+  of each icon's stroke; up to 2 levels in headless Chrome on the Mac. (The design report that
+  asked for the exception quoted 8 and 4 levels on 1 to 15 pixels, measured in luminance; the
+  per-channel figures are the rule's own metric.) Measured in headless Chrome on
+  the Mac (800 × 480, layer snapshots, the same counts in the day, dusk and night-red palettes):
   glance 16 → 11 layers (18 → 11 with a moderate or severe alert), Conditions 12 → 2,
   forecast 7 → 2, AI 6 → 2, alert view 5 → 3; on a 1024 × 640 panel, glance 22 → 13. Edges keep
   their colour to one level per channel. Only the rounded corners' anti-aliasing changes, because
@@ -56,6 +62,26 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   of containers, the fallback on every reader, each reader's fill (an edge only on the fill it is
   composited over), the closed list of overrides that keep the translucent edge and the Firefox
   remap. The in-app updater applies it.
+- **The opaque card edges are computed only when the palette changes or alert mode turns on or off.**
+  Follow-up to the entry above, from its design review. AmbientLayers called `opaqueEdgeVars` on
+  every render of the root, and the React Compiler did not cache it: it assumes a call may change
+  its arguments, so `palette` stays open from `getPalette(tod)` down to the call, across the hooks
+  in between, and a cached block cannot contain a hook. The call is now in a `useMemo` on
+  `[palette, isHybrid]`: the hybrid flag (calm vs a moderate or severe alert), not its level, so a
+  moderate alert turning severe keeps the same edges. Checked on the compiled output: the
+  Compiler keeps it as its own cached block, and now also caches `getPalette(tod)`. No visible
+  change: in headless Chrome on the Mac the root's tokens and every element's computed colours
+  (glance, forecast, Conditions, AI and alert views) are the same as before in the day, dusk and
+  night-red palettes, calm and with a moderate or severe alert, and the screenshots differ only
+  where two boots of the old bundle differ too (clock, moon glyph, a few anti-aliased pixels).
+  `ui/opaqueTokens.js`'s header now says which colour forms its parser refuses (percentage
+  channels, `hsl()` and the other colour functions, `color-mix()`, `var()`, named colours, 4- and
+  8-digit hex) and what one of the five tokens it reads (`bg`, `surface`, `surfaceHybrid`,
+  `border`, `borderHybrid`) does in such a form: no edges, a console warning that quotes the
+  value, and every card back on its translucent `--c-border`, so the kiosk keeps rendering and only
+  the clip layers come back. `test/opaqueTokens.test.js` pins that fallback for a percentage
+  channel in each edge token of each palette, pins that the other tokens are not read, and pins
+  the `useMemo`. The in-app updater applies it.
 
 ### Fixed
 - **`install.sh` no longer rewrites a running `start-server` in place.** It copied

@@ -1,4 +1,4 @@
-import React, { useContext, useEffect, useState } from "react";
+import React, { useContext, useEffect, useMemo, useState } from "react";
 import { UiPrefsContext } from "~/AppContext";
 import styles from "./styles.css";
 import { getPalette } from "~/ui/tokens";
@@ -149,7 +149,23 @@ const AmbientLayers = () => {
   // Nothing reads these directly: only an opaque container (LayoutPi's
   // rail and dock cell) maps them to the `--c-card-edge*` variables the
   // cards read, so a card anywhere else keeps its translucent border.
-  const { opaqueEdge, opaqueEdgeHybrid } = opaqueEdgeVars(palette, isHybrid);
+  //
+  // The `useMemo` is not redundant with the React Compiler (checked on its
+  // output, 2026-10): the Compiler assumes a call may mutate its
+  // arguments, so `palette` stays open from `getPalette(tod)` down to this
+  // call, across the hooks in between, and a cached block cannot contain a
+  // hook. Without the `useMemo`, the parse + composite chain ran on every
+  // render of the root. With it, the Compiler keeps this call as its own
+  // block on `[isHybrid, palette]` (and now also caches `getPalette(tod)`).
+  // `palette` is a module-level object (`getPalette` returns it as is), so
+  // the call reruns only when the palette (`useTimeOfDay`'s key) or the
+  // hybrid FLAG (calm vs light/full) changes: going from a moderate to a
+  // severe alert (light → full) keeps the cached edges, which are the same
+  // for both levels.
+  const { opaqueEdge, opaqueEdgeHybrid } = useMemo(
+    () => opaqueEdgeVars(palette, isHybrid),
+    [palette, isHybrid],
+  );
   const stripColor = isHybridFull
     ? palette.danger
     : isHybridLight
