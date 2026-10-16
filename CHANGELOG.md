@@ -130,6 +130,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   mounted. The in-app updater applies it.
 
 ### Fixed
+- **A double tap on the alert card's ⤢ no longer closes the alert view it has just opened.** On
+  the short Pi rail (the 7" 800 × 480 kiosk, and any panel squeezed to 540 CSS px or less) the ⤢
+  opens AlertView, whose back button lands where the ⤢ was (same column, 4 px lower at 800 × 480
+  with the medium text size). The second tap of a double tap reached that button, so the view
+  opened and closed at once. The ⤢ now arms a double-tap guard: for 300 ms after its click, a tap
+  pressed inside a 60 × 58 px box centred on that click is swallowed whole (pointer, touch, the
+  compatibility mouse events, click and dblclick are stopped in the capture phase on the document
+  and default-prevented). Taps outside the box, or later, pass, and the tap that opened the view
+  is never touched; a keyboard activation does not arm the guard. The verdict is taken once per
+  tap, at its pointerdown, from the event's own timestamp, so a tap pressed inside the window is
+  swallowed even when its release comes after it. The guard listens only while it is armed and
+  removes its listeners itself (timer, unmount). New `client/src/ui/tapGuard.js` (CommonJS and
+  generic, so other commands that change what sits under the finger can pose it) and
+  `client/src/hooks/useTapGuard.js`; `test/tapGuard.test.js` runs both the logic and the DOM side
+  (+120, +170, +200 and +240 ms swallowed; +320 ms, exactly +300 ms and outside the box pass; box
+  edges included; no listener left behind). Mac smoke check (headless Chrome, 800 × 480, CDP
+  touch taps, three simulated alerts): the view stayed open after 12 of 12 double taps at +120 to
+  +240 ms, with the medium text size and again with the large one (master: closed after 12 of 12),
+  a second tap at +320 ms closed it on both, and the `1 / N` counter, the Hero ⤢ and a tap on
+  another control inside the window behaved as on master.
+  Only the priority card has this ⤢: the stacked rail of the 10.1" panels and LayoutDesktop /
+  LayoutMobile toggle the inline detail in place and are unchanged. The in-app updater applies it.
 - **`install.sh` no longer rewrites a running `start-server` in place.** It copied
   `~/.local/bin/start-server` (and `detect-display-scale.sh`) with a plain `cp`, which keeps the
   file's inode, while the previous `start-server` was still waiting on the kiosk browser. Bash reads

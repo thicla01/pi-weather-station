@@ -19,6 +19,7 @@ import { ExpandIcon } from "~/components/WeatherMap/icons";
 import AlertMetaChips from "~/components/ambient/AlertMetaChips";
 import useDismissedAlerts from "~/hooks/useDismissedAlerts";
 import useEligibleGovAlerts from "~/hooks/useEligibleGovAlerts";
+import useTapGuard from "~/hooks/useTapGuard";
 import {
   isCurrentlyPrecipitating,
   getRadarAlertState,
@@ -57,6 +58,12 @@ import styles from "./styles.css";
  *     row 1, title + "1 / N" cycle counter on row 2); tapping ⤢ opens the
  *     full `AlertView` (`piLayoutState = "alert"`) rather than toggling
  *     `AlertDetailInline`, which LayoutPi does not mount in that model.
+ *     The view's back button lands where the ⤢ was, so the ⤢ arms the
+ *     double-tap guard (`useTapGuard`, `ui/tapGuard.js`; Document 9, point
+ *     6): for 300 ms a second tap within 60 × 58 px of the first is
+ *     swallowed instead of closing the view it just opened. The ⤢ exists
+ *     only here — the v3.2 rail (the 10.1" panels) and desktop / mobile
+ *     have none: their head row toggles `AlertDetailInline` in place.
  *   - The **radar branch is suppressed** — `NowcastLine` is the always-
  *     present radar surface on Pi, so rendering it here too would double
  *     the same verdict. Desktop / mobile are unchanged on both points.
@@ -102,6 +109,8 @@ const AlertBanner = () => {
   const { piLayoutState } = useContext(SystemContext);
   const { t, i18n } = useTranslation();
   const { dismiss } = useDismissedAlerts();
+  // Double-tap guard for the priority card's ⤢ (see the JSDoc above).
+  const guardTap = useTapGuard();
 
   // On the 7" Pi rail (piLayoutState is non-null only inside LayoutPi) the
   // banner renders a single-row COMPACT gov card and the radar-derived
@@ -174,6 +183,13 @@ const AlertBanner = () => {
     const headKeyDown = (e) => {
       if (e.key === "Enter" || e.key === " ") { e.preventDefault(); headAction(); }
     };
+    // The priority card's ⤢: opening the Alert view puts its back button
+    // under the finger, so the tap that opens it arms the double-tap guard
+    // first (a keyboard activation does not arm it: no second tap to fear).
+    const openAlertView = (e) => {
+      guardTap(e);
+      headAction();
+    };
 
     // Cycle to the next eligible gov alert. The compact Pi counter doubles
     // as the navigation control (the AlertMiniCards list is dropped from
@@ -203,7 +219,7 @@ const AlertBanner = () => {
                 {testBadge}
                 <RailSquareButton
                   icon={ExpandIcon}
-                  onClick={headAction}
+                  onClick={openAlertView}
                   ariaLabel={t("alert.view.openRow", { defaultValue: "Open alert detail" })}
                   className={styles.compactMax}
                 />
