@@ -28,6 +28,34 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   **Rollout:** `start-server` changed, so the in-app updater asks for the manual recipe. Run
   `git pull && bash deploy/install.sh` once per kiosk (`sudo` needed for `/etc/chromium.d`), then
   reboot or relaunch the kiosk.
+- **The cards on the Pi rail no longer each cost an offscreen layer.** Blink paints a rounded box
+  that has a fill and a translucent border through an offscreen clip layer (a Skia `saveLayer`,
+  one per card); an opaque, solid border avoids it. On LayoutPi the rail and the dock sit on the
+  layout's opaque `--c-bg`, where a card's translucent edge always shows one fixed colour, so those
+  cards now draw that colour as an opaque `#rrggbb`. New `client/src/ui/opaqueTokens.js` composites
+  border over fill over `bg` for each palette, calm and hybrid; AmbientLayers mirrors the result
+  onto `--c-opaque-edge` / `--c-opaque-edge-hybrid` with the same hybrid switch as `--c-surface`;
+  LayoutPi's rail and dock cell map them to `--c-card-edge` / `--c-card-edge-hybrid`, which 17
+  card rules read with a `var(--c-border)` fallback. The fills stay translucent: an opaque fill
+  under text adds compositing layers on a Linux kiosk at DPR 1. The forecast view's inactive
+  metric-tab icons lose their `opacity: 0.7` (one layer each) for a translucent stroke colour
+  (`color-mix()`, behind `@supports`; Chrome 109 keeps the opacity). Measured in headless Chrome
+  on the Mac (800 × 480, layer snapshots, the same counts in the day, dusk and night-red palettes):
+  glance 16 → 11 layers (18 → 11 with a moderate or severe alert), Conditions 12 → 2,
+  forecast 7 → 2, AI 6 → 2, alert view 5 → 3; on a 1024 × 640 panel, glance 22 → 13. Edges keep
+  their colour to one level per channel. Only the rounded corners' anti-aliasing changes, because
+  Blink now shrinks the fill under the border instead of clipping a layer: up to 11 levels on a
+  few pixels per corner, and up to 48 on the one-pixel arc where an alert's severity strip meets a
+  card's left corners (the strip no longer bleeds into the border's anti-aliasing). Firefox, whose
+  calm fill is the 96 % one, gets the matching edge through the existing rule in `styles/main.css`.
+  Unchanged on purpose: LayoutDesktop and LayoutMobile (their rails float over the map), anything
+  over the map, the map frame, NowcastLine (two-colour border), the severity and air pills, a
+  pressed metric tile or air-alert card, and the Pi's red-washed extreme-alert card with its ⤢
+  square (follow-ups in `ROADMAP.md`). `test/opaqueTokens.test.js` pins the values (opaque
+  `#rrggbb`, within one level of the exact blend, four palettes, calm and hybrid), the closed list
+  of containers, the fallback on every reader, each reader's fill (an edge only on the fill it is
+  composited over), the closed list of overrides that keep the translucent edge and the Firefox
+  remap. The in-app updater applies it.
 
 ### Fixed
 - **`install.sh` no longer rewrites a running `start-server` in place.** It copied

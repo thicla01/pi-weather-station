@@ -24,7 +24,8 @@
   display: flex;
   flex-direction: column;
   background-color: var(--c-surface);
-  border: 1px solid var(--c-border);
+  /* Opaque edge in LayoutPi's opaque containers (ui/opaqueTokens.js); --c-border elsewhere. */
+  border: 1px solid var(--c-card-edge, var(--c-border));
   border-radius: 8px;
   color: var(--c-text);
   font-family: "Geist", system-ui, -apple-system, sans-serif;

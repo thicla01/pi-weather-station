@@ -23,7 +23,8 @@
    * against .grid (or further up), breaking placement. */
   position: relative;
   background-color: var(--c-surface);
-  border: 1px solid var(--c-border);
+  /* Opaque edge in LayoutPi's opaque containers (ui/opaqueTokens.js); --c-border elsewhere. */
+  border: 1px solid var(--c-card-edge, var(--c-border));
   border-radius: 8px;
   padding: 10px 12px 8px 12px;
   color: var(--c-text);
@@ -47,6 +48,10 @@
 
 .cellInteractive:active {
   background: var(--c-accent-soft);
+  /* The opaque card edge is --c-border composited over --c-surface, not
+   * over this tint: the pressed cell takes the translucent edge back (and
+   * Blink's clip layer with it, for the length of the press). */
+  border-color: var(--c-border);
   transform: scale(0.985);
 }
 

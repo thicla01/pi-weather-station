@@ -55,7 +55,10 @@ body {
  * calm fill (`--c-surface`) of the legend, the timeline bar and the
  * toast. Firefox instead uses, in every palette, the 96 % fill the slabs
  * already take in hybrid mode (any moderate-or-worse government alert);
- * the hybrid border and strip still mark that mode.
+ * the hybrid border and strip still mark that mode. The opaque card edge
+ * (`--c-opaque-edge`, see ui/opaqueTokens.js) follows that fill: a card on
+ * LayoutPi's rail takes the edge composited over the 96 % fill, the one
+ * AmbientLayers already computes for `--c-surface-hybrid` boxes.
  *
  * Dropping the filter also drops the containing block and stacking
  * context it creates, so layout must never depend on either: a
@@ -68,4 +71,5 @@ html[data-browser="firefox"] * {
 }
 html[data-browser="firefox"] .ambientRoot {
   --c-surface: var(--c-surface-hybrid) !important;
+  --c-opaque-edge: var(--c-opaque-edge-hybrid) !important;
 }

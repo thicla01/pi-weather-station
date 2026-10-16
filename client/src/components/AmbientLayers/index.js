@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useState } from "react";
 import { UiPrefsContext } from "~/AppContext";
 import styles from "./styles.css";
 import { getPalette } from "~/ui/tokens";
+import { opaqueEdgeVars } from "~/ui/opaqueTokens";
 import { useTimeOfDay, useHybridMode } from "~/ui/hybrid";
 import LayoutPi from "~/components/ambient/LayoutPi";
 import LayoutDesktop from "~/components/ambient/LayoutDesktop";
@@ -129,17 +130,26 @@ const AmbientLayers = () => {
   //   --c-strip-color     drives an inset box-shadow strip on slabs that
   //                       opt in via `box-shadow: inset 4px 0 0 var(--c-strip-color)`
   //
+  // (`--c-opaque-edge` / `--c-opaque-edge-hybrid`, the opaque stand-ins for
+  // `--c-border`, follow the same switch.)
+  //
   // `light` level (moderate alert) uses warn (amber); `full` level
   // (severe / extreme alert) uses danger (red). `none` keeps everything
   // calm — strip resolves to transparent so the slabs render unchanged.
   const isHybridFull = hybridLevelValue === "full";
   const isHybridLight = hybridLevelValue === "light";
-  const surfaceVar = isHybridFull || isHybridLight
-    ? palette.surfaceHybrid
-    : palette.surface;
-  const borderVar = isHybridFull || isHybridLight
-    ? palette.borderHybrid
-    : palette.border;
+  // One predicate for every hybrid swap: the opaque edges below must flip
+  // in the same render as the fill and border they stand in for.
+  const isHybrid = isHybridFull || isHybridLight;
+  const surfaceVar = isHybrid ? palette.surfaceHybrid : palette.surface;
+  const borderVar = isHybrid ? palette.borderHybrid : palette.border;
+  // Opaque stand-ins for `--c-border` on a slab fill (ui/opaqueTokens.js):
+  // the colour the translucent edge shows over the opaque `--c-bg`. A
+  // rounded card with an opaque edge skips Blink's offscreen clip layer.
+  // Nothing reads these directly: only an opaque container (LayoutPi's
+  // rail and dock cell) maps them to the `--c-card-edge*` variables the
+  // cards read, so a card anywhere else keeps its translucent border.
+  const { opaqueEdge, opaqueEdgeHybrid } = opaqueEdgeVars(palette, isHybrid);
   const stripColor = isHybridFull
     ? palette.danger
     : isHybridLight
@@ -156,6 +166,11 @@ const AmbientLayers = () => {
     "--c-surface-hybrid": palette.surfaceHybrid,
     "--c-border": borderVar,
     "--c-border-hybrid": palette.borderHybrid,
+    // `--c-border` on the current `--c-surface`, and on `--c-surface-hybrid`
+    // (both `#rrggbb`; the Firefox rule in styles/main.css remaps the first,
+    // as it does `--c-surface`).
+    "--c-opaque-edge": opaqueEdge,
+    "--c-opaque-edge-hybrid": opaqueEdgeHybrid,
     "--c-warn": palette.warn,
     "--c-danger": palette.danger,
     "--c-advisory": palette.advisory,

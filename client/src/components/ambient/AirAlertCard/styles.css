@@ -10,7 +10,8 @@
 .card {
   position: relative;
   background-color: var(--c-surface);
-  border: 1px solid var(--c-border);
+  /* Opaque edge in LayoutPi's opaque containers (ui/opaqueTokens.js); --c-border elsewhere. */
+  border: 1px solid var(--c-card-edge, var(--c-border));
   border-radius: 8px;
   padding: 9px 12px 9px 16px;
   color: var(--c-text);
@@ -26,6 +27,9 @@
  * only, the accent-soft + scale pair used across the metric tiles. */
 .card:active {
   background: var(--c-accent-soft);
+  /* Translucent edge while pressed: the opaque card edge is composited over
+   * --c-surface, not over this tint (same rule as the metric tiles). */
+  border-color: var(--c-border);
   transform: scale(0.99);
 }
 

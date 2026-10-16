@@ -7,7 +7,11 @@
 
 .slab {
   background-color: var(--c-surface);
-  border: 1px solid var(--c-border);
+  /* Opaque edge on LayoutPi's rail (ui/opaqueTokens.js); --c-border
+   * elsewhere. The edge is composited over this --c-surface fill: the
+   * --c-bg fill of `.slabMaximized` below only exists off LayoutPi, where
+   * nothing sets --c-card-edge. */
+  border: 1px solid var(--c-card-edge, var(--c-border));
   border-radius: 10px;
   padding: 10px 12px 12px 12px;
   color: var(--c-text);
@@ -178,7 +182,8 @@
   display: flex;
   gap: 0;
   background-color: var(--c-surface-hybrid, var(--c-surface));
-  border: 1px solid var(--c-border);
+  /* Opaque edge in LayoutPi's opaque containers (ui/opaqueTokens.js), for this --c-surface-hybrid fill; --c-border elsewhere. */
+  border: 1px solid var(--c-card-edge-hybrid, var(--c-border));
   border-radius: 10px;
   padding: 3px;
   margin-bottom: 10px;
@@ -210,6 +215,24 @@
   height: 12px;
   flex-shrink: 0;
   opacity: 0.7;
+}
+
+/* Same dimming, without the opacity: Blink paints an element with
+ * `opacity < 1` through its own offscreen layer (one saveLayer per
+ * inactive icon, 3 on the Pi forecast view). The icons stroke in
+ * `currentColor`, so a translucent colour dims them the same way with no
+ * layer (measured: 3 → 0 layers; the strokes within two levels, on one
+ * channel at the stroke's core, likely 70 % rounding to an 8-bit alpha of
+ * 179/255 against the 0.7 group opacity of an 8-bit layer). Behind
+ * @supports because the default browserslist targets still include
+ * Chrome 109, which has no color-mix() and keeps the opacity above.
+ * This block must stay BEFORE `.metricTabActive svg` below: same
+ * specificity, and the active icon's accent colour must keep winning. */
+@supports (color: color-mix(in srgb, red 50%, transparent)) {
+  .metricTabs .metricTab svg {
+    opacity: 1;
+    color: color-mix(in srgb, var(--c-text-dim) 70%, transparent);
+  }
 }
 
 .metricTabs .metricTab:focus-visible {

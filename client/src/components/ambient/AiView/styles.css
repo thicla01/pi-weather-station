@@ -47,7 +47,8 @@
 .section {
   flex: none;
   background-color: var(--c-surface);
-  border: 1px solid var(--c-border);
+  /* Opaque edge in LayoutPi's opaque containers (ui/opaqueTokens.js); --c-border elsewhere. */
+  border: 1px solid var(--c-card-edge, var(--c-border));
   border-radius: 10px;
   padding: 11px 14px;
 }
