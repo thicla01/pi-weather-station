@@ -22,6 +22,8 @@
 //      (or — in panWithRailOffset's case — the Leaflet map argument the
 //      caller passes in).
 
+import { recenterAnimates } from "~/ui/mapMotion";
+
 // ─── Sampling geometry ──────────────────────────────────────────────
 
 // Sampling-point bearings (clockwise from north). Dense layout
@@ -447,6 +449,10 @@ export function buildRingLayers(risk, dark, aiOff = false, nightRed = false) {
  * mode) the function falls back to a plain panTo / setView and the
  * marker sits at the true viewport centre.
  *
+ * The pan never changes the zoom, so under the OS reduced-motion
+ * preference it is never animated (`recenterAnimates`, ui/mapMotion.js):
+ * the non-animated `setView` moves the map in one step, tiles kept.
+ *
  * Not a hook — takes the Leaflet map as an argument, returns nothing,
  * has no React state. Safe to call from any component or imperative
  * handler that has a map reference.
@@ -458,17 +464,21 @@ export function buildRingLayers(risk, dark, aiOff = false, nightRed = false) {
  * @param {boolean} [opts.animate] — true for panTo, false for
  *   setView without animation (used on initial mount where animation
  *   looks janky)
+ * @param {boolean} [opts.reducedMotion] — the OS asks for reduced motion
+ *   (`prefersReducedMotion()`, read by the caller when it pans); true turns
+ *   an animated pan into the non-animated setView
  */
 export function panWithRailOffset(map, latLng, offset, opts = {}) {
-  const { animate = true } = opts;
+  const { animate = true, reducedMotion = false } = opts;
+  const zoom = map.getZoom();
+  const animated = recenterAnimates({ animate, fromZoom: zoom, toZoom: zoom, reducedMotion });
   const offsetX = (offset && offset.x) || 0;
   const offsetY = (offset && offset.y) || 0;
   if (!offsetX && !offsetY) {
-    if (animate) map.panTo(latLng);
-    else map.setView(latLng, map.getZoom(), { animate: false });
+    if (animated) map.panTo(latLng);
+    else map.setView(latLng, zoom, { animate: false });
     return;
   }
-  const zoom = map.getZoom();
   const point = map.project(latLng, zoom);
   // X: positive offset means rail covers the right edge; push the
   //    map centre RIGHT, which moves the marker visually LEFT.
@@ -478,7 +488,7 @@ export function panWithRailOffset(map, latLng, offset, opts = {}) {
   //    pixel Y points DOWN.
   const adjusted = point.add([offsetX / 2, -offsetY / 2]);
   const newCenter = map.unproject(adjusted, zoom);
-  if (animate) map.panTo(newCenter);
+  if (animated) map.panTo(newCenter);
   else map.setView(newCenter, zoom, { animate: false });
 }
 

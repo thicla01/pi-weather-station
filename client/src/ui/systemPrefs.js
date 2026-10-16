@@ -98,12 +98,29 @@ export function detectSystemDefaults() {
 }
 
 /**
+ * The OS-level reduced-motion media query. The same query drives the CSS
+ * side (`@media (prefers-reduced-motion: reduce)` in styles/main.css: no
+ * transitions, animations crushed to ~0) and the JS side below
+ * (WeatherMap's recentres and drag inertia, decided in ui/mapMotion.js).
+ * There is no in-app setting: the user has already expressed the
+ * preference at the OS level.
+ */
+const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
+
+/**
+ * Unsubscribe function handed back when there is nothing to listen to.
+ *
+ * @returns {undefined} nothing
+ */
+const NO_SUBSCRIPTION = () => undefined;
+
+/**
  * Check whether the user's OS / browser is signalling a preference
  * for reduced motion (Apple's "Reduce Motion" accessibility toggle,
  * Windows's "Show animations" off, Android's "Remove animations").
- * Used to silently disable non-essential transitions and animations
- * without exposing a UI toggle — the user has already expressed
- * their preference at the OS level.
+ * Read at the moment of use, so it is always current: WeatherMap calls
+ * it each time it issues a recentre. No UI toggle — the user has already
+ * expressed their preference at the OS level.
  *
  * Returns false in non-browser contexts (SSR, tests).
  *
@@ -117,8 +134,31 @@ export function prefersReducedMotion() {
     return false;
   }
   try {
-    return window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    return window.matchMedia(REDUCED_MOTION_QUERY).matches;
   } catch {
     return false;
   }
+}
+
+/**
+ * Call `onChange` whenever the OS reduced-motion preference flips, for
+ * state that must follow it live (WeatherMap/MapInertia.js). Read the new
+ * value with `prefersReducedMotion()`.
+ *
+ * @param {(event: MediaQueryListEvent) => void} onChange called on every flip
+ * @returns {() => void} removes the listener; a no-op when `matchMedia` is
+ *   absent (SSR, tests) or throws
+ */
+export function subscribeReducedMotion(onChange) {
+  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
+    return NO_SUBSCRIPTION;
+  }
+  let mq;
+  try {
+    mq = window.matchMedia(REDUCED_MOTION_QUERY);
+  } catch {
+    return NO_SUBSCRIPTION;
+  }
+  mq.addEventListener("change", onChange);
+  return () => mq.removeEventListener("change", onChange);
 }

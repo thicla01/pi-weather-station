@@ -73,6 +73,8 @@ import {
 } from "~/ui/radarFrameStack";
 import { chipProductType } from "~/ui/alertLogic";
 import { alertDisplayTitle } from "~/ui/alertTitle";
+import { prefersReducedMotion } from "~/ui/systemPrefs";
+import { recenterAnimates } from "~/ui/mapMotion";
 import { useTranslation } from "react-i18next";
 import debounce from "debounce";
 import axios from "axios";
@@ -82,6 +84,7 @@ import RadarTimeline from "./RadarTimeline";
 import RiskRing from "./RiskRing";
 import RingLabels from "./RingLabels";
 import MapResizer from "./MapResizer";
+import MapInertia from "./MapInertia";
 import RadarTileLayer from "./RadarTileLayer";
 import RadarFocusControl from "./RadarFocusControl";
 import {
@@ -153,6 +156,12 @@ const ALERT_RING_NUDGE_M = 3000;        // push 3 km outward, just past the rada
 // though a Warning covers it. Rendering in ASCENDING severity puts the worst
 // tier last so it paints on top. See issue #252.
 const TIER_PAINT_ORDER = { yellow: 0, orange: 1, red: 2 };
+
+// Framing of the alert the user picked (AlertGeometryOverlay's fitBounds):
+// the margin kept around the polygon on every side, in CSS pixels, and the
+// deepest zoom the framing may reach.
+const ALERT_FIT_PADDING = Object.freeze([40, 40]);
+const ALERT_FIT_MAX_ZOOM = 11;
 
 /**
  * Build the custom DivIcon used for the user's location marker. v2.14.64
@@ -301,7 +310,8 @@ function useRailOffset() {
  * Pans the map to `panToCoords` whenever that prop turns non-null, applying
  * the rail / HeroBand pixel offset so the target ends up at the visual centre
  * of the UNCOVERED map area rather than at the true viewport centre. The pan
- * is animated (`panWithRailOffset` default). Immediately calls
+ * is animated (`panWithRailOffset` default), except under the OS reduced-motion
+ * preference, read when the pan is issued: then it is one step. Immediately calls
  * `setPanToCoords(null)` afterwards, so the prop behaves as a one-shot command
  * rather than as state and the same coordinates can be re-requested later.
  *
@@ -318,7 +328,9 @@ const PanHandler = ({ panToCoords, setPanToCoords, railOffset }) => {
   const map = useMap();
   useEffect(() => {
     if (panToCoords) {
-      panWithRailOffset(map, [panToCoords.latitude, panToCoords.longitude], railOffset);
+      panWithRailOffset(map, [panToCoords.latitude, panToCoords.longitude], railOffset, {
+        reducedMotion: prefersReducedMotion(),
+      });
       setPanToCoords(null);
     }
   }, [panToCoords, map, setPanToCoords, railOffset]);
@@ -335,7 +347,8 @@ PanHandler.propTypes = {
  * Re-centres the map whenever `railOffset` changes — collapsing or
  * expanding the rail, or switching layouts, would otherwise leave
  * the marker in the wrong visual position. Pulls the current marker
- * latLng from context and re-applies the offset trick. Skipped when
+ * latLng from context and re-applies the offset trick, animated except
+ * under the OS reduced-motion preference. Skipped when
  * `markerPosition` isn't yet set (initial load before mapGeo lands).
  *
  * @param {object} props
@@ -359,7 +372,10 @@ const RailOffsetTracker = ({ railOffset, markerPosition }) => {
     if (prev && prev.x === railOffset.x && prev.y === railOffset.y) return;
     lastOffsetRef.current = railOffset;
     if (!markerPosition) return;
-    panWithRailOffset(map, markerPosition, railOffset, { animate: true });
+    panWithRailOffset(map, markerPosition, railOffset, {
+      animate: true,
+      reducedMotion: prefersReducedMotion(),
+    });
   }, [railOffset, markerPosition, map]);
   return null;
 };
@@ -585,18 +601,37 @@ const AlertGeometryOverlay = ({ highlightedAlertId = null, govAlerts = NO_ALERTS
     [alert, nightRed, dark]
   );
   // fitBounds when the alert (or its geometry) changes. Generous
-  // padding via `padding: [40, 40]` so the polygon doesn't sit
+  // padding (ALERT_FIT_PADDING) so the polygon doesn't sit
   // edge-to-edge against the map viewport — gives the user context
-  // (surrounding towns, radar tiles outside the zone). `maxZoom: 11`
+  // (surrounding towns, radar tiles outside the zone). ALERT_FIT_MAX_ZOOM
   // prevents an over-zoom on tiny polygons (a single-county polygon
   // would otherwise pin to z 13-14, losing the radar context).
+  //
+  // Under the OS reduced-motion preference (read when the framing is
+  // issued), a framing that lands on the current zoom is a plain pan, so
+  // it is made in one step (`animate: false`). A zoom change keeps
+  // Leaflet's animated path, a CSS zoom that styles/main.css ends at once:
+  // `animate: false` would send it through `_resetView`, which can leave
+  // the map without tiles until the new ones arrive. The landing zoom is
+  // Leaflet's own fitBounds arithmetic: getBoundsZoom with both paddings,
+  // capped at the maxZoom.
   useEffect(() => {
     if (!alert || !alert.geometry || !map) return;
     try {
       const tmp = L.geoJSON(alert.geometry);
       const bounds = tmp.getBounds();
       if (bounds.isValid()) {
-        map.fitBounds(bounds, { padding: [40, 40], maxZoom: 11 });
+        const options = { padding: ALERT_FIT_PADDING, maxZoom: ALERT_FIT_MAX_ZOOM };
+        if (prefersReducedMotion()) {
+          const toZoom = Math.min(
+            map.getBoundsZoom(bounds, false, L.point(ALERT_FIT_PADDING).multiplyBy(2)),
+            ALERT_FIT_MAX_ZOOM,
+          );
+          if (!recenterAnimates({ fromZoom: map.getZoom(), toZoom, reducedMotion: true })) {
+            options.animate = false;
+          }
+        }
+        map.fitBounds(bounds, options);
       }
     } catch {
       // GeoJSON parsing failed — silently skip the fitBounds. The
@@ -1580,6 +1615,8 @@ const WeatherMap = ({ zoom, dark }) => {
           longitude={longitude}
           zoom={zoom}
         />
+        {/* Drag inertia off under the OS reduced-motion preference, live. */}
+        <MapInertia />
         {/* RadarFocusControl moved OUT of the MapContainer with v3.1
          * Phase 3 — it's now a standalone overlay button (rendered
          * after the map alongside RadarLegend/RadarTimeline), no

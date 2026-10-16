@@ -83,7 +83,7 @@ Height gates: **≤ 520 px** compact Settings / Debug, compact timeline copy, an
 ## RULES — Kiosk & touch (the floor that wins)
 
 1. **No hover-painted state, ever.** The kiosk is a touchscreen: a `:hover` that paints a background sticks after a tap even behind a media-query gate ("drop, don't gate"). Hover may only drop opacity. `-webkit-tap-highlight-color: transparent` on every tappable surface.
-2. **No `animation: … infinite` on any kiosk-visible surface.** A composited loop keeps the Pi GPU awake every vsync (+12 °C measured). Transitions are one-shot, ≤ 300 ms, on user action only. `prefers-reduced-motion` crushes every duration to 0.01 ms.
+2. **No `animation: … infinite` on any kiosk-visible surface.** A composited loop keeps the Pi GPU awake every vsync (+12 °C measured). Transitions are one-shot, ≤ 300 ms, on user action only. `prefers-reduced-motion` removes every transition (`transition: none`; only Leaflet's zoom keeps 0.01 ms, so its `transitionend` still fires), shortens animations to 0.01 ms, and stops the map's own motion (no drag inertia, recentres at the same zoom in one step).
 3. **Hit targets ≥ 44 px** even when the visual is 28 px (pad the hit box, not the glyph).
 4. **External links = QR code only.** The kiosk browser has no chrome and no way back; a text link is a one-way trap. Point to stable vendor landing pages, never deep links with IDs or coordinates. (Exception: the localhost-only Debug panel.)
 5. **The map is never zoomed** by the text-density preference; Leaflet stays at native resolution.
