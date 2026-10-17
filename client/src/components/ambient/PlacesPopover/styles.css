@@ -84,19 +84,26 @@
 }
 
 /* Doubled class beats the `.ambientRoot button { border: 0 }` reset
- * (0,1,1); a single `.action` (0,1,0) would render frameless. */
+ * (0,1,1); a single `.action` (0,1,0) would render frameless.
+ * Edge: the card edge (ui/opaqueTokens.js). The button sits on the
+ * popover's opaque `--c-bg` (DetailsPopover's `.popover` is an opaque
+ * container), so its translucent `--c-border` over its `--c-surface`
+ * fill shows one fixed colour, which `--c-card-edge` carries as an opaque
+ * `#rrggbb`: no clip layer per button. The armed state below swaps in
+ * the opaque danger colour. */
 .action.action {
   min-width: 44px;
   min-height: 44px;
   padding: 0 6px;
-  border: 1px solid var(--c-border);
+  border: 1px solid var(--c-card-edge, var(--c-border));
   border-radius: 8px;
   /* Plain --c-surface on purpose: this popover always renders through the
    * DetailsPopover portal, whose CSS-variable whitelist does not carry
    * --c-surface-hybrid — a hybrid first choice here could never resolve
    * and only suggested a look that has never rendered (the portal
-   * whitelist trap documented on DetailsPopover). */
-  background: var(--c-surface);
+   * whitelist trap documented on DetailsPopover). It is also the fill
+   * `--c-card-edge` is composited over. */
+  background-color: var(--c-surface);
   color: var(--c-text-dim);
   font-size: 13px;
   cursor: pointer;

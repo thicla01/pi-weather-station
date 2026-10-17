@@ -1,5 +1,7 @@
-// Opaque card edges — the colour a slab's translucent edge shows over the
-// opaque `--c-bg`, as an opaque `#rrggbb`.
+// Opaque edges — the colour a rounded box's translucent edge shows over an
+// opaque backdrop, as an opaque `#rrggbb`: the card edges, over the cards'
+// fill on `--c-bg`, and the own-fill edges, over a box's own opaque fill
+// (see "Own-fill edges" below).
 //
 // Why: Blink paints a rounded box that has a painted background and a
 // border side that is not "opaque and solid" (alpha below 1, or dashed /
@@ -44,10 +46,31 @@
 // `var(--c-card-edge-hybrid, var(--c-border))`: the translucent edge it
 // had before the opaque edges, clip layer included. So nothing looks
 // wrong; the layers just come back. Any other palette token (an accent in
-// `hsl()`, say) never reaches `parseColor`: no warning, no effect on the
-// edges. Before writing one of the five in a new form, extend
-// `parseColor` (`test/opaqueTokens.test.js` pins this fallback for a
-// percentage channel, and pins that the other tokens are not read).
+// `hsl()`, say) never reaches `parseColor` through the card edges: no
+// warning, no effect on them. The own-fill edges below read one more
+// token, `accent`, for the health chip only: an `accent` in `hsl()` drops
+// `--c-edge-on-health-chip` alone, with a warning. Before writing one of
+// these tokens in a new form, extend `parseColor`
+// (`test/opaqueTokens.test.js` pins this fallback for a percentage
+// channel, and pins which tokens each function reads).
+//
+// Own-fill edges. A few rounded boxes paint their OWN opaque fill under a
+// translucent border: the LayoutPi map frame and the popovers (health,
+// DetailsPopover) on `--c-bg`, the dock's health chip on a `color-mix()`
+// of `--c-bg` and `--c-accent`. Their edge composites over that fill
+// alone, whatever lies beneath the box, so each fill gets its own opaque
+// token, read directly by the box (no container): `--c-edge-on-bg`,
+// `--c-edge-on-health-chip` (set by AmbientLayers from
+// `ownFillEdgeVars`). The chip's mix ratios live in CSS, not in
+// `ui/tokens.js`, so they are mirrored here (`HEALTH_CHIP_ACCENT_MIX`) and
+// pinned against the stylesheet by the test. Each own-fill token fails
+// alone: a token it needs that `parseColor` refuses, or a palette name
+// with no mirror, leaves that variable unset and its boxes on the old
+// translucent edge (a warning quotes the value); the other variable still
+// resolves. (The radar legend's "i" discs, on their own opaque
+// `--rc-surface-2`, keep their translucent edge on purpose: an opaque one
+// costs a composited layer on a DPR-1 Linux kiosk. See WeatherMap's
+// stylesheet and ROADMAP.md.)
 //
 // CommonJS on purpose (like ui/alertTitle.js and ui/radarFrameStack.js):
 // webpack accepts it next to the ESM tree (AmbientLayers imports it with an
@@ -196,10 +219,174 @@ function opaqueEdgeVars(palette, hybrid) {
     : { opaqueEdge: edge, opaqueEdgeHybrid: edgeHybridFill };
 }
 
+// ---- Own-fill edges ---------------------------------------------------------
+
+/**
+ * Accent share of the health chip's fill, per palette: the `t` of
+ * `color-mix(in oklab, var(--c-bg) (1 − t), var(--c-accent) t)` in
+ * `HealthIndicator/styles.css` (8 % in the base `.chipButton.chipButton`
+ * rule, i.e. day; 18 % in its `[data-palette="dusk" | "night" |
+ * "nightRed"]` rule). A mirror of the stylesheet, pinned by the test.
+ */
+const HEALTH_CHIP_ACCENT_MIX = Object.freeze({ day: 0.08, dusk: 0.18, night: 0.18, nightRed: 0.18 });
+
+// sRGB ↔ OKLab with Björn Ottosson's published sRGB matrices (CSS Color 4
+// defines `in oklab` through XYZ with matrices equal to about 1e-4, far
+// below one 8-bit level), straight alpha, channels 0-255.
+const toLinear = (c) => {
+  const v = c / 255;
+  return v <= 0.04045 ? v / 12.92 : ((v + 0.055) / 1.055) ** 2.4;
+};
+const fromLinear = (c) => 255 * (c <= 0.0031308 ? 12.92 * c : 1.055 * c ** (1 / 2.4) - 0.055);
+
+function rgbToOklab({ r, g, b }) {
+  const [R, G, B] = [r, g, b].map(toLinear);
+  const l = Math.cbrt(0.4122214708 * R + 0.5363325363 * G + 0.0514459929 * B);
+  const m = Math.cbrt(0.2119034982 * R + 0.6806995451 * G + 0.1073969566 * B);
+  const s = Math.cbrt(0.0883024619 * R + 0.2817188376 * G + 0.6299787005 * B);
+  return [
+    0.2104542553 * l + 0.793617785 * m - 0.0040720468 * s,
+    1.9779984951 * l - 2.428592205 * m + 0.4505937099 * s,
+    0.0259040371 * l + 0.7827717662 * m - 0.808675766 * s,
+  ];
+}
+
+function oklabToRgb([L, A, B]) {
+  const l = (L + 0.3963377774 * A + 0.2158037573 * B) ** 3;
+  const m = (L - 0.1055613458 * A - 0.0638541728 * B) ** 3;
+  const s = (L - 0.0894841775 * A - 1.291485548 * B) ** 3;
+  const clip = (v) => Math.min(255, Math.max(0, fromLinear(v)));
+  return {
+    r: clip(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s),
+    g: clip(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s),
+    b: clip(-0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s),
+    a: 1,
+  };
+}
+
+/**
+ * CSS `color-mix(in oklab, a (1 − t), b t)` of two OPAQUE colours:
+ * linear interpolation in OKLab, back to sRGB, clipped to the sRGB gamut.
+ * Channels stay unrounded (a fill for `compositeOver`). Checked against
+ * Chrome 155's display list for the health chip's fills (day #f0e4d8,
+ * dusk #3c2f22, night red #2b0c0c).
+ *
+ * @param {{r: number, g: number, b: number, a: number}} a first colour
+ *   (weight 1 − t); its alpha must be 1
+ * @param {{r: number, g: number, b: number, a: number}} b second colour
+ *   (weight t); its alpha must be 1
+ * @param {number} t weight of `b`, 0-1
+ * @returns {{r: number, g: number, b: number, a: number}} the opaque mix
+ * @throws {Error} when either colour is translucent (CSS would premultiply)
+ */
+function mixOklab(a, b, t) {
+  if (a.a !== 1 || b.a !== 1) {
+    throw new Error("opaqueTokens: mixOklab mixes opaque colours only");
+  }
+  const A = rgbToOklab(a);
+  const B = rgbToOklab(b);
+  return oklabToRgb(A.map((v, i) => v * (1 - t) + B[i] * t));
+}
+
+/**
+ * One border token composited over an opaque fill, as `#rrggbb`.
+ *
+ * @param {string} edge the border token (any alpha)
+ * @param {{r: number, g: number, b: number, a: number}} fill the box's own
+ *   fill; its alpha must be 1
+ * @returns {string} the opaque `#rrggbb` edge
+ * @throws {Error} when `edge` is not a `parseColor` form, or `fill` is
+ *   translucent
+ */
+function opaqueEdgeOver(edge, fill) {
+  return toHex(compositeOver(parseColor(edge), fill));
+}
+
+function mirrored(table, what, name) {
+  if (!Object.prototype.hasOwnProperty.call(table, name)) {
+    throw new Error(`opaqueTokens: no ${what} mirror for palette "${name}"`);
+  }
+  return table[name];
+}
+
+// The health chip's fill: `--c-bg` mixed with `--c-accent` in OKLab.
+function healthChipFill(palette, name) {
+  const t = mirrored(HEALTH_CHIP_ACCENT_MIX, "health-chip mix", name);
+  return mixOklab(parseColor(palette.bg), parseColor(palette.accent), t);
+}
+
+/**
+ * The three own-fill edge colours of one palette.
+ *
+ * @param {object} palette a `ui/tokens.js` palette (reads `bg`, `border`,
+ *   `borderHybrid`, `accent`)
+ * @param {string} name its key in `ui/tokens.js` (`day`, `dusk`, `night`,
+ *   `nightRed`): selects the mirrored chip mix
+ * @returns {{onBg: string, onBgHybrid: string, onHealthChip: string}}
+ *   `#rrggbb` values: `onBg` / `onBgHybrid` — calm `border` /
+ *   `borderHybrid` on `bg` (map frame, popovers); `onHealthChip` —
+ *   `borderHybrid` on the chip's mix (the chip reads `--c-border-hybrid`
+ *   in every state, so one value)
+ * @throws {Error} when one of the four tokens is not a `parseColor` form,
+ *   or `name` has no mirror
+ */
+function ownFillEdgeTokens(palette, name) {
+  const bg = parseColor(palette.bg);
+  const chip = healthChipFill(palette, name);
+  return {
+    onBg: opaqueEdgeOver(palette.border, bg),
+    onBgHybrid: opaqueEdgeOver(palette.borderHybrid, bg),
+    onHealthChip: opaqueEdgeOver(palette.borderHybrid, chip),
+  };
+}
+
+// One own-fill token, fail-soft: `undefined` and a warning quoting the
+// offending value instead of a throw in the root's render.
+function softEdge(compute) {
+  try {
+    return compute();
+  } catch (err) {
+    if (typeof console !== "undefined") console.warn(err.message);
+    return undefined;
+  }
+}
+
+/**
+ * The own-fill edges AmbientLayers mirrors onto the root for the current
+ * palette and alert state, switched by the same hybrid flag that raises
+ * `--c-border` (the chip's edge reads `--c-border-hybrid`, so it does not
+ * switch).
+ *
+ * @param {object} palette a `ui/tokens.js` palette
+ * @param {string} name its key in `ui/tokens.js` (AmbientLayers'
+ *   `useTimeOfDay()` value, the root's `data-palette`)
+ * @param {boolean} hybrid true in hybrid mode (hybrid level `light` or
+ *   `full`)
+ * @returns {{edgeOnBg: (string|undefined), edgeOnHealthChip: (string|undefined)}}
+ *   `#rrggbb` values for `--c-edge-on-bg` (the current `--c-border` on
+ *   `--c-bg`) and `--c-edge-on-health-chip` (`--c-border-hybrid` on the
+ *   chip's fill). Each is computed alone and is `undefined` when a token it
+ *   needs cannot be parsed or `name` has no mirror (a warning quotes the
+ *   value): AmbientLayers then leaves that variable unset and its boxes
+ *   keep their translucent fallback. Never throws.
+ */
+function ownFillEdgeVars(palette, name, hybrid) {
+  const border = hybrid ? palette.borderHybrid : palette.border;
+  return {
+    edgeOnBg: softEdge(() => opaqueEdgeOver(border, parseColor(palette.bg))),
+    edgeOnHealthChip: softEdge(() => opaqueEdgeOver(palette.borderHybrid, healthChipFill(palette, name))),
+  };
+}
+
 module.exports = {
   parseColor,
   compositeOver,
   toHex,
   opaqueEdgeTokens,
   opaqueEdgeVars,
+  HEALTH_CHIP_ACCENT_MIX,
+  mixOklab,
+  opaqueEdgeOver,
+  ownFillEdgeTokens,
+  ownFillEdgeVars,
 };

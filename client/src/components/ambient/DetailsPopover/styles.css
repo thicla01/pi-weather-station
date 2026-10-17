@@ -11,7 +11,28 @@
   max-height: min(420px, calc(100vh - 120px));
   overflow-y: auto;
   background-color: var(--c-bg);
-  border: 1px solid var(--c-border);
+  /* Opaque edges (ui/opaqueTokens.js). The popover's own fill is the
+   * opaque `--c-bg`, so its edge is the current `--c-border` composited
+   * over it (`--c-edge-on-bg`): opaque and solid, Blink skips the clip
+   * layer it paints a rounded box with a translucent edge through (one
+   * Skia saveLayer per open popover). Unset (a portal without the
+   * variable, or a token the parser refuses), it falls back to the
+   * translucent edge, layer included.
+   * The same fill makes the popover an opaque container: a card inside it
+   * sits on `--c-bg`, so a card filled with `--c-surface` may take
+   * `--c-card-edge` (→ `--c-opaque-edge`: the Places and Location
+   * buttons). In portal mode both variables are copied from the trigger
+   * (whitelist in index.js), so they stay consistent with the copied
+   * `--c-border` / `--c-surface`, Firefox's 96 % remap included.
+   * `--c-card-edge-hybrid` is NOT mapped here: it is composited over
+   * `--c-surface-hybrid`, which the portal does not copy, so a reader's
+   * `var(--c-surface-hybrid, var(--c-surface))` fill would fall back to
+   * the calm 0.85 surface under an edge made for the 0.96 one (up to 3
+   * levels off in night red). Unset in the portal, that reader keeps its
+   * translucent edge; in place, it inherits its ancestors' mapping (the
+   * LayoutPi rail's, whose fill resolves there, or none). */
+  border: 1px solid var(--c-edge-on-bg, var(--c-border));
+  --c-card-edge: var(--c-opaque-edge);
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
   padding: 10px 12px 12px;

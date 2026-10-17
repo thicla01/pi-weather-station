@@ -87,7 +87,13 @@
   max-height: 60vh;
   overflow-y: auto;
   background-color: var(--c-bg);
-  border: 1px solid var(--c-border);
+  /* Opaque edge (ui/opaqueTokens.js): the current `--c-border` over the
+   * popover's own opaque `--c-bg` fill (`--c-edge-on-bg`), so Blink skips
+   * the clip layer of a rounded box with a translucent edge. It floats out
+   * of the dock over the map, but its fill is opaque, so what lies beneath
+   * never shows through the edge. Never `--c-card-edge` (the dock cell's
+   * mapping is for the dock's own edge). Unset: the translucent edge. */
+  border: 1px solid var(--c-edge-on-bg, var(--c-border));
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.35);
   padding: 10px 12px;
@@ -296,7 +302,9 @@
   background-color: color-mix(in oklab, var(--c-bg) 92%, var(--c-accent) 8%);
   /* Single 1 px border in `--c-border-hybrid` — matches the design's
    * `rgba(216,207,184,0.65)` tan border (a visible-but-soft outline
-   * that defines the pill shape without competing with the fill). */
+   * that defines the pill shape without competing with the fill).
+   * Where `color-mix()` works, the @supports rule below swaps it for the
+   * same colour made opaque. */
   border: 1px solid var(--c-border-hybrid, var(--c-border, rgba(255, 255, 255, 0.18)));
   /* No drop shadow — the synthesis design carries the chip's "elevated
    * pill" feel purely through the fill colour and the border, no
@@ -318,6 +326,29 @@
   letter-spacing: 0.06em;
   transition: background-color 0.15s ease, border-color 0.15s ease;
   -webkit-tap-highlight-color: transparent;
+}
+
+/* Opaque edge (ui/opaqueTokens.js). The chip's fill is its own opaque
+ * colour (a mix of two opaque tokens), so its translucent
+ * `--c-border-hybrid` edge always shows one fixed colour:
+ * `--c-edge-on-health-chip`, the same in calm and hybrid mode. As an
+ * opaque solid edge it spares the chip Blink's offscreen clip layer (one
+ * Skia saveLayer on every dock where the chip has a fill). The mix ratios
+ * (8 % day, 18 % dark palettes, below) are mirrored in
+ * `HEALTH_CHIP_ACCENT_MIX`: change both together
+ * (test/opaqueTokens.test.js compares them).
+ * Behind @supports: without `color-mix()` the chip has no such fill (the
+ * build's postcss-preset-env guards the base rule's mix, so day falls back
+ * to `--c-bg`, where the opaque edge would be 13 levels off; the
+ * dark-palette mix below has no fallback at all), so the translucent edge
+ * stays there. The open and hover states below keep their own opaque
+ * accent border (they put the accent tint under it) and win on
+ * specificity; the phone-portrait rule (`border: 0`) comes later in this
+ * file. */
+@supports (color: color-mix(in oklab, red 50%, blue)) {
+  .chipButton.chipButton {
+    border-color: var(--c-edge-on-health-chip, var(--c-border-hybrid, var(--c-border, rgba(255, 255, 255, 0.18))));
+  }
 }
 
 /* Dark palettes (dusk, night, night-red) need a STRONGER mix percentage

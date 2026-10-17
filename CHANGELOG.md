@@ -54,14 +54,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   few pixels per corner, and up to 48 on the one-pixel arc where an alert's severity strip meets a
   card's left corners (the strip no longer bleeds into the border's anti-aliasing). Firefox, whose
   calm fill is the 96 % one, gets the matching edge through the existing rule in `styles/main.css`.
-  Unchanged on purpose: LayoutDesktop and LayoutMobile (their rails float over the map), anything
-  over the map, the map frame, NowcastLine (two-colour border), the severity and air pills, a
-  pressed metric tile or air-alert card, and the Pi's red-washed extreme-alert card with its ⤢
-  square (follow-ups in `ROADMAP.md`). `test/opaqueTokens.test.js` pins the values (opaque
-  `#rrggbb`, within one level of the exact blend, four palettes, calm and hybrid), the closed list
-  of containers, the fallback on every reader, each reader's fill (an edge only on the fill it is
-  composited over), the closed list of overrides that keep the translucent edge and the Firefox
-  remap. The in-app updater applies it.
+  Unchanged on purpose: LayoutDesktop (its rail floats over the map) and LayoutMobile (no
+  container yet), anything over the map, the map frame (since done, see below), NowcastLine
+  (two-colour border), the severity and air pills, a pressed metric tile or air-alert card, and
+  the Pi's red-washed extreme-alert card with its ⤢ square (follow-ups in `ROADMAP.md`).
+  `test/opaqueTokens.test.js` pins the values (opaque `#rrggbb`, within one level of the exact
+  blend, four palettes, calm and hybrid), the closed list of containers, the fallback on every
+  reader, each reader's fill (an edge only on the fill it is composited over), the closed list of
+  overrides that keep the translucent edge and the Firefox remap. The in-app updater applies it.
 - **The opaque card edges are computed only when the palette changes or alert mode turns on or off.**
   Follow-up to the entry above, from its design review. AmbientLayers called `opaqueEdgeVars` on
   every render of the root, and the React Compiler did not cache it: it assumes a call may change
@@ -82,6 +82,53 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   the clip layers come back. `test/opaqueTokens.test.js` pins that fallback for a percentage
   channel in each edge token of each palette, pins that the other tokens are not read, and pins
   the `useMemo`. The in-app updater applies it.
+- **The map frame, the popovers and the health chip no longer each cost an offscreen layer.**
+  Second step of the opaque edges above. These rounded boxes paint their own opaque fill under a
+  translucent border, so their edge always shows one fixed colour, the border composited over that
+  fill, whatever lies beneath the box (the map, a rail, the page). They now draw that colour as an
+  opaque `#rrggbb`, so Blink no longer paints each of them through an offscreen clip layer.
+  `ui/opaqueTokens.js` computes the colours for each palette and alert state (new `ownFillEdgeVars`,
+  with `opaqueEdgeOver` and `mixOklab`, which reproduces CSS `color-mix(in oklab, …)` for the health
+  chip's fill; the chip's mix ratios live in CSS, so the module mirrors them as
+  `HEALTH_CHIP_ACCENT_MIX` and the tests compare the two), and AmbientLayers mirrors them onto two
+  new root variables, which the boxes read directly with their old translucent edge as fallback:
+  `--c-edge-on-bg` (the LayoutPi map frame, the health popover, `DetailsPopover`) and
+  `--c-edge-on-health-chip` (the dock's health chip, behind `@supports (color: color-mix(…))`:
+  without `color-mix()` the chip has another fill). `DetailsPopover`'s `.popover`, filled with the
+  opaque `--c-bg`, also becomes an opaque container for the calm card edge (`--c-card-edge`), which
+  the Places popover's edit buttons and the location popover's pin button take; its portal whitelist
+  now copies `--c-edge-on-bg` and `--c-opaque-edge`. It maps no `--c-card-edge-hybrid` and its
+  portal copies no `--c-opaque-edge-hybrid`: that edge is composited over `--c-surface-hybrid`,
+  which the portal does not copy. The pin button is now filled with plain `--c-surface`: its
+  `--c-surface-hybrid` first choice never resolved in the portal, so nothing changes on screen.
+  Measured in headless Chrome on the Mac (layer snapshots; the same counts in the day, dusk and
+  night-red palettes, calm or with an alert): on the 7" layout (800 × 480), glance 11 → 9 layers,
+  Conditions 2 → 1, a popover open 11–13 → 9, Places in edit mode 15 → 10 (39 → 16 with six
+  favourites, every edit button had its own layer), a popover over Conditions 3 → 1; on a 1024 × 640
+  panel, glance 11 → 9; on the desktop layout, glance 19 → 18 and a popover open 19–21 → 18; on a
+  phone, a popover open 15 → 14. Compositing layers are unchanged in every measured state. At a
+  display scale of 1 the edges keep their colour to one level per channel (one isolated pixel of the
+  map frame's bottom edge moves 3 levels in some hybrid states, cause unknown), and only the
+  anti-aliasing of the rounded corners changes, as in the step above: up to 14 levels on the Pi and
+  22 on desktop (one or two pixels of a popover's outer arc over light map tiles); the chip is a
+  pill, so its whole outline changes (up to 12). At a fractional display scale (1.25, as on the
+  fleet's 10.1" panels) the popovers' and buttons' edges fall between device pixels, so the
+  anti-aliased fringe of their straight edges changes the same way, up to about 39 levels on one
+  pixel where a popover's edge crosses text (mostly 4 to 12); the border colour itself does not
+  move. Untouched on purpose: the health chip while open or hovered (accent tint under its own
+  opaque accent border, so no clip layer either way) and in browsers without `color-mix()`; the
+  radar legend's "i" disc and the mobile strip's "i" button, which paint their own opaque fill too,
+  but whose opaque edge cost a composited layer on a DPR-1 Linux browser (Chromium's LCD-text rule:
+  43 × 12 over the legend chip's label on the 7" glance at font size S, 24 × 24 on the phone's
+  maximized radar), paid on every frame instead of one saveLayer at raster. Firefox needs no change:
+  it remaps neither fill. Not covered yet: the radar timeline's return-to-now pill, the severity and
+  air pills and NowcastLine (`ROADMAP.md`). `test/opaqueTokens.test.js` pins the values (opaque,
+  within one level of the exact blend, four palettes, calm and hybrid; the chip against the fills
+  Chrome paints), the mirror, the closed list of readers with their fills and fallbacks, the two "i"
+  boxes left translucent, every rule of a reader's stylesheet that swaps its fill (any state,
+  at-rule or context selector, card edges included: it must take the edge back and win over the
+  reader's rule), the order of the chip's `@supports` rule, the portal whitelist and the new
+  container. The in-app updater applies it.
 
 ### Changed
 - **"Reduce motion" now removes transitions instead of shortening them, and stops the map's own

@@ -82,19 +82,29 @@
  * reset (0,1,1) — the same specificity dance RailSquareButton needed.
  * A single `.pinButton` (0,1,0) loses and the control renders frameless.
  *
- * Background uses the house `--c-surface-hybrid, --c-surface` pair, and
- * here the fallback is the branch that actually fires: this popover
- * renders through a React portal, and DetailsPopover copies only an
- * explicit whitelist of palette tokens into the portal node —
- * `--c-surface-hybrid` is not on it, `--c-surface` is. Do NOT "fix" this
- * by dropping the fallback (the button would lose its background in the
- * portal) — either keep the pair or add the token to that whitelist. */
+ * Background: plain `--c-surface`. This popover renders through a React
+ * portal, and DetailsPopover copies only an explicit whitelist of palette
+ * tokens into the portal node: `--c-surface` is on it,
+ * `--c-surface-hybrid` is not. The button used to name the house
+ * `--c-surface-hybrid, --c-surface` pair, whose first choice never
+ * resolved there, so the look is unchanged. Never name a token missing
+ * from that whitelist without its fallback (the button would lose its
+ * background in the portal).
+ *
+ * Edge: the card edge (ui/opaqueTokens.js). The button sits on the
+ * popover's opaque `--c-bg` (DetailsPopover's `.popover` is an opaque
+ * container), so its translucent `--c-border` over that `--c-surface`
+ * fill shows one fixed colour, which `--c-card-edge` carries as an opaque
+ * `#rrggbb`: no clip layer. Disabled, the 0.5 opacity group over the
+ * same `--c-bg` gives the same colour from the opaque edge as from the
+ * translucent chain (algebraically equal, to rounding), so it needs no
+ * exception; the group's own layer stays. */
 .pinButton.pinButton {
   min-height: 44px;
   padding: 0 12px;
-  border: 1px solid var(--c-border);
+  border: 1px solid var(--c-card-edge, var(--c-border));
   border-radius: 8px;
-  background: var(--c-surface-hybrid, var(--c-surface));
+  background-color: var(--c-surface);
   color: var(--c-text);
   font-size: 13px;
   font-weight: 700;

@@ -144,8 +144,13 @@
   /* v3.2: the radar is a framed rounded card (mockup parity) — the border
    * defines the card edge against the dark gutter (the inset alone is
    * invisible dark-on-dark). MIN drops both so the fullscreen radar reaches
-   * the screen edges. */
-  border: 1px solid var(--c-border);
+   * the screen edges.
+   * The edge is the current `--c-border` composited over the frame's own
+   * opaque `--c-bg` fill (`--c-edge-on-bg`, ui/opaqueTokens.js): an opaque
+   * solid edge, so Blink skips the frame's offscreen clip layer (one Skia
+   * saveLayer in every state but MIN). Unset, it falls back to the
+   * translucent edge, layer included. */
+  border: 1px solid var(--c-edge-on-bg, var(--c-border));
   border-radius: 14px;
 }
 .layout[data-pi-state="min"] .mapArea {
@@ -254,10 +259,15 @@
  *   - `.mapArea` — the map frame has its own `--c-bg` fill; the map and
  *     everything over it (legend, timeline, zoom, ring labels, focus
  *     control, mini-banner) stay translucent by design. NOT a container.
- *     The frame's own edge is a later step.
- * LayoutDesktop and LayoutMobile have no container: their rails float
- * over the map. Firefox fills calm cards at 96 %; styles/main.css remaps
- * `--c-opaque-edge` to match. test/opaqueTokens.test.js pins this list. */
+ *     The frame's own edge reads `--c-edge-on-bg` (its border over its
+ *     own fill), like the health popover that floats out of the dock:
+ *     own-fill edges, read directly, no container (ui/opaqueTokens.js).
+ * LayoutDesktop has no container: its rail floats over the map.
+ * LayoutMobile has none either, although its column sits on its own
+ * `--c-bg` (a possible container, ROADMAP). The only other container is
+ * DetailsPopover's `.popover`, whose own fill is `--c-bg`. Firefox fills
+ * calm cards at 96 %; styles/main.css remaps `--c-opaque-edge` to match.
+ * test/opaqueTokens.test.js pins this list. */
 .rail,
 .layout > :last-child {
   --c-card-edge: var(--c-opaque-edge);

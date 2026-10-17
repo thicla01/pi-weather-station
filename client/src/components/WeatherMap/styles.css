@@ -280,6 +280,13 @@
   transform: scale(0.96);
 }
 
+/* Translucent edge on purpose, although the disc paints its own opaque
+ * fill (the own-fill edges of ui/opaqueTokens.js would fit it): with an
+ * opaque edge, a DPR-1 Linux kiosk gets one more composited layer over the
+ * chip's label (43 × 12, "Overlap", measured on the 7" MID glance at font
+ * size S; gone without Chromium's LCD-text preference) — a per-frame cost
+ * above the chip's backdrop-filter, against one raster-time saveLayer.
+ * ROADMAP, "Offscreen layers left after the opaque card edges". */
 .legend-chip-i {
   width: 20px;
   height: 20px;
@@ -347,6 +354,9 @@
   height: 8px;
 }
 
+/* Translucent edge on purpose, like `.legend-chip-i`: an opaque one gives
+ * the button its own composited layer (24 × 24) above the strip's
+ * backdrop-filter on a DPR-1 Linux browser (LCD-text rule). */
 .legend-info-btn.legend-info-btn {
   margin-left: auto;
   width: 24px;
