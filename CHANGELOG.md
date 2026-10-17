@@ -130,6 +130,14 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   mounted. The in-app updater applies it.
 
 ### Fixed
+- **The dock's health chip looks the same in the day palette as in the dark ones.** Its mono
+  label (Geist Mono 10 px, 0.06 em tracking), dimmed text colour, no-wrap and the 0.15 s fill and
+  border transition sat in the dark-palette rule since the chip was introduced, so in the day
+  palette the "Services · OK" text showed the reset's inherited Geist 16 px at full strength and
+  the hover / open fill changed without a transition. They now live in the chip's base rule; the
+  dark-palette rule keeps only its stronger fill mix and inset highlight. The text shows on
+  LayoutDesktop only (narrower docks show the chip as a dot); the transition applies everywhere.
+  The cursor and tap highlight were already right (reset.css). The in-app updater applies it.
 - **A double tap on the alert card's ⤢ no longer closes the alert view it has just opened.** On
   the short Pi rail (the 7" 800 × 480 kiosk, and any panel squeezed to 540 CSS px or less) the ⤢
   opens AlertView, whose back button lands where the ⤢ was (same column, 4 px lower at 800 × 480

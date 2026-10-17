@@ -304,6 +304,20 @@
    * the fill contrast alone could read as flat; it's near-invisible on
    * the cream day palette. */
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
+  /* Type and feedback are the same in every palette. They sat in the
+   * dark-palette rule below until 2026-10, so the day chip showed the
+   * reset's inherited font (Geist 16 px) and full-strength text instead
+   * of the dimmed mono label, and had no transition. (The cursor and the
+   * tap highlight were already set for every button by reset.css.) */
+  color: var(--c-text-dim, var(--c-text));
+  cursor: pointer;
+  white-space: nowrap;
+  flex-shrink: 0;
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10px;
+  letter-spacing: 0.06em;
+  transition: background-color 0.15s ease, border-color 0.15s ease;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Dark palettes (dusk, night, night-red) need a STRONGER mix percentage
@@ -326,15 +340,6 @@
 [data-palette="nightRed"] .chipButton.chipButton {
   background-color: color-mix(in oklab, var(--c-bg) 82%, var(--c-accent) 18%);
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
-  color: var(--c-text-dim, var(--c-text));
-  cursor: pointer;
-  white-space: nowrap;
-  flex-shrink: 0;
-  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
-  font-size: 10px;
-  letter-spacing: 0.06em;
-  transition: background-color 0.15s ease, border-color 0.15s ease;
-  -webkit-tap-highlight-color: transparent;
 }
 
 /* All chip state rules use the doubled-class trick — same reason as the
