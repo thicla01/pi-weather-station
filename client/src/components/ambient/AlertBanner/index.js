@@ -186,6 +186,15 @@ const AlertBanner = () => {
     // The priority card's ⤢: opening the Alert view puts its back button
     // under the finger, so the tap that opens it arms the double-tap guard
     // first (a keyboard activation does not arm it: no second tap to fear).
+    // Known limit (bench session 5 on P9, 2026-10-16; no trial exercises it):
+    // the guard's 60 x 58 box is centred on the first tap, so it covers the
+    // back button only around the ⤢'s centre (11-19 px margins at 800 x 480).
+    // A first tap in the ⤢'s top three rows (y 17-19) and a second tap on the
+    // back button's bottom rows (y 47-49) are up to 32 px apart vertically,
+    // past the box's half-height of 29: that second tap closes the view.
+    // Kept until the D1 work makes the whole compact card the target (design
+    // decision of 2026-10-14); with a tap-centred box the limit stays in
+    // kind, for any second tap that drifts more than half the box.
     const openAlertView = (e) => {
       guardTap(e);
       headAction();
