@@ -139,6 +139,18 @@ const DetailsPopover = ({ open, onClose, title, anchor = "right", triggerRef = n
         // detail value with `--sev-{med,high}-ink` (via its tier-tint var);
         // without these the portaled value falls back to plain text ink.
         "--sev-low-ink", "--sev-med-ink", "--sev-high-ink",
+        // Opaque edges (ui/opaqueTokens.js): `--c-edge-on-bg` is the
+        // popover's own edge (the current border over its `--c-bg`
+        // fill); `--c-opaque-edge` feeds the popover's container mapping
+        // (`--c-card-edge`, styles.css) for the Places and Location
+        // buttons. Copied with `--c-border` / `--c-surface` so all stay
+        // in step (Firefox's remap included). Without them the edges fall
+        // back to the translucent `--c-border` and the clip layers come
+        // back. `--c-surface-hybrid` is still not copied, so neither is
+        // `--c-opaque-edge-hybrid`, the edge composited over it: those
+        // buttons are filled with `--c-surface`, the fill their card edge
+        // is composited over (pinned by test/opaqueTokens.test.js).
+        "--c-edge-on-bg", "--c-opaque-edge",
       ]) {
         const v = cs.getPropertyValue(name);
         if (v) vars[name] = v.trim();

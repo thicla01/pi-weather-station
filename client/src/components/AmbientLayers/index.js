@@ -2,7 +2,7 @@ import React, { useContext, useEffect, useMemo, useState } from "react";
 import { UiPrefsContext } from "~/AppContext";
 import styles from "./styles.css";
 import { getPalette } from "~/ui/tokens";
-import { opaqueEdgeVars } from "~/ui/opaqueTokens";
+import { opaqueEdgeVars, ownFillEdgeVars } from "~/ui/opaqueTokens";
 import { useTimeOfDay, useHybridMode } from "~/ui/hybrid";
 import LayoutPi from "~/components/ambient/LayoutPi";
 import LayoutDesktop from "~/components/ambient/LayoutDesktop";
@@ -130,8 +130,8 @@ const AmbientLayers = () => {
   //   --c-strip-color     drives an inset box-shadow strip on slabs that
   //                       opt in via `box-shadow: inset 4px 0 0 var(--c-strip-color)`
   //
-  // (`--c-opaque-edge` / `--c-opaque-edge-hybrid`, the opaque stand-ins for
-  // `--c-border`, follow the same switch.)
+  // (`--c-opaque-edge` / `--c-opaque-edge-hybrid` and `--c-edge-on-bg`,
+  // the opaque stand-ins for `--c-border`, follow the same switch.)
   //
   // `light` level (moderate alert) uses warn (amber); `full` level
   // (severe / extreme alert) uses danger (red). `none` keeps everything
@@ -166,6 +166,18 @@ const AmbientLayers = () => {
     () => opaqueEdgeVars(palette, isHybrid),
     [palette, isHybrid],
   );
+  // Own-fill edges (ui/opaqueTokens.js): the border on a box's OWN opaque
+  // fill, read directly by those boxes, no container: `--c-bg` (the
+  // LayoutPi map frame, the health popover, DetailsPopover) and the health
+  // chip's accent mix. `tod` picks the chip's mix ratio, mirrored from CSS
+  // (keyed on `data-palette`). Memoised for the same React Compiler reason
+  // as above; reruns on a palette change or a hybrid FLAG change only
+  // (`palette` is a function of `tod`, listed for the linter and the
+  // parse).
+  const { edgeOnBg, edgeOnHealthChip } = useMemo(
+    () => ownFillEdgeVars(palette, tod, isHybrid),
+    [palette, tod, isHybrid],
+  );
   const stripColor = isHybridFull
     ? palette.danger
     : isHybridLight
@@ -187,6 +199,12 @@ const AmbientLayers = () => {
     // as it does `--c-surface`).
     "--c-opaque-edge": opaqueEdge,
     "--c-opaque-edge-hybrid": opaqueEdgeHybrid,
+    // The border on a box's own opaque fill (`#rrggbb`; read directly by
+    // the box, with its translucent edge as fallback). The portaled
+    // DetailsPopover copies `--c-edge-on-bg` through its whitelist. No
+    // Firefox remap: neither fill changes there.
+    "--c-edge-on-bg": edgeOnBg,
+    "--c-edge-on-health-chip": edgeOnHealthChip,
     "--c-warn": palette.warn,
     "--c-danger": palette.danger,
     "--c-advisory": palette.advisory,
