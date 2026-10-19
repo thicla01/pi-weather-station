@@ -51,11 +51,12 @@ const SHIM = "./react-compiler-babel8.js";
 // ROADMAP › Technical debt item to remove it.
 const OPTED_OUT = {};
 
-// The compiler options, whole. `environment.enableTreatFunctionDepsAsConditional`
-// stops the compiler from reading, during render, a property that only a
-// closure reads (it keys the cached closure on the object instead): left
-// at its default, LocationDetailsPopover's cached pin handler read
-// `mapGeo.latitude` while rendering and threw when mapGeo was null.
+// The compiler options, whole. With `environment.enableTreatFunctionDepsAsConditional`
+// the compiler no longer assumes a closure runs, so during render it only
+// dereferences an object that render itself proves non-null (an unguarded
+// `mapGeo.latitude` in a handler is keyed on `mapGeo`). Left at its default,
+// LocationDetailsPopover's cached pin handler was keyed on `mapGeo.latitude`,
+// read while rendering, and threw when mapGeo was null.
 const COMPILER_OPTIONS = {
   target: "19",
   panicThreshold: "all_errors",
