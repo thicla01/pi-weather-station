@@ -159,7 +159,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   page's clock moved to 18:10: the next-sun line switched to sunrise at once, and the icon to the
   moon within the minute. A scan of the whole compiled bundle for clock reads inside cached blocks
   finds one more, older case: the "issued … ago" chip of AlertMetaChips, compiled since PR 318
-  (`ROADMAP.md`).
+  (fixed below, under Fixed).
   **A function the compiler skips now fails the build.** `.babelrc` sets `panicThreshold:
   "all_errors"`, so `npm run prod` and CI's client job stop on the first function the compiler
   can't compile, and print why. The seven functions that were never compiled for other reasons stay
@@ -221,6 +221,21 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   mounted. The in-app updater applies it.
 
 ### Fixed
+- **The alert banner's "Issued … ago" chip advances again.** Since the React Compiler arrived
+  (PR 318), the compiled AlertMetaChips cached its label on the alert's issue time and the
+  language, while the label's helper read the clock itself: "Issued 5 min ago" stayed on the banner
+  for as long as the alert did, until the language or the alert changed. Before PR 318 the label
+  moved on whenever the banner re-rendered, e.g. at each alert poll. The helpers now live in new
+  `client/src/ui/alertMetaFormat.js` (CommonJS, so `test/alertMetaFormat.test.js` runs the real
+  code) and take the current time as an argument; AlertMetaChips holds a clock in state that
+  advances once a minute, the label's finest unit. The expiry label uses the same clock, so
+  "Expires tomorrow 08:00" turns into "Expires 08:00" after midnight. Because that clock can be up
+  to a minute behind, an issue time up to a minute ahead of it reads as "Just issued" instead of
+  dropping the chip (further ahead, the issuer's clock is ahead of ours and the chip is still
+  dropped, as before). Checked on the compiled output (the label is now cached on the clock too)
+  and in the browser on a live NWS Flood Warning, with the page clock set 5 min after the issue
+  time: the chip read "6 min", then "7 min" a minute later, without the banner remounting. The
+  in-app updater applies it.
 - **The dock's health chip looks the same in the day palette as in the dark ones.** Its mono
   label (Geist Mono 10 px, 0.06 em tracking), dimmed text colour, no-wrap and the 0.15 s fill and
   border transition sat in the dark-palette rule since the chip was introduced, so in the day
