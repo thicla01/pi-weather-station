@@ -161,7 +161,7 @@ const TimeBlock = ({ compact = false }) => {
     // the weather payload; overnight the sunrise time is today's — a ~1 min
     // proxy for tomorrow's, and the clock time shown is what matters.
     const hasSun = sunriseTime && sunsetTime;
-    const isDay = hasSun && isDaylight(sunriseTime, sunsetTime);
+    const isDay = hasSun && isDaylight(sunriseTime, sunsetTime, now);
     const nextSunTime = hasSun ? (isDay ? sunsetTime : sunriseTime) : null;
     const sunStr = nextSunTime
       ? timeFormatter.format(new Date(nextSunTime)).replace(/\s+h\s*$/i, "")

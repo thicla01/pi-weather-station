@@ -97,7 +97,7 @@ const HeroBand = () => {
   const temperatureApparent = values?.temperatureApparent;
   const weatherCode = values?.weatherCode;
   const daylight = sunriseTime && sunsetTime
-    ? isDaylight(sunriseTime, sunsetTime)
+    ? isDaylight(sunriseTime, sunsetTime, now)
     : true;
   const parsed = parseWeatherCode(weatherCode, daylight);
   const tempUnitLabel = tempUnit === "k" ? "K" : `°${tempUnit.toUpperCase()}`;

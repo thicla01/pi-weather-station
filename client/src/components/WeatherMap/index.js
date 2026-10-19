@@ -502,6 +502,11 @@ ZoomLevelHandler.propTypes = {
  * @returns {null} renders nothing
  */
 const ZoomAnchorOffset = ({ railOffset }) => {
+  // Not compiled: the effect below monkey-patches the Leaflet map that
+  // useMap() returns, on purpose, and the React Compiler rejects writing
+  // to a hook's return value. Opting out keeps the build's panicThreshold
+  // "all_errors" (.babelrc) passing.
+  "use no memo";
   const map = useMap();
   // Latest offset without re-running the patch effect on every change —
   // useRailOffset can return a fresh object per measurement. Mirrored via

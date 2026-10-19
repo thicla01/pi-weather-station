@@ -57,6 +57,10 @@ const DOT_COLORS = {
  * @returns {JSX.Element} indicator + optional details popover
  */
 const HealthIndicator = ({ chip = false }) => {
+  // Not compiled: the React Compiler skips a component that suppresses a
+  // react-hooks rule (the polling effect's exhaustive-deps below). Opting
+  // out keeps the build's panicThreshold "all_errors" (.babelrc) passing.
+  "use no memo";
   const { t } = useTranslation();
   const [health, setHealth] = useState({
     status: "green",

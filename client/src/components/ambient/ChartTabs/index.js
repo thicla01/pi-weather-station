@@ -90,6 +90,10 @@ function readStoredView(key, max) {
  * @returns {JSX.Element} forecast slab
  */
 const ChartTabs = () => {
+  // Not compiled: React Compiler 1.0 can't lower a conditional inside a
+  // try/catch (the localStorage writes below). Opting out keeps the
+  // build's panicThreshold "all_errors" (.babelrc) passing.
+  "use no memo";
   const { t } = useTranslation();
   const [period, setPeriod] = useState("hourly");
   const [hourlyMetric, setHourlyMetric] = useState(() => readStoredView(STORAGE_KEY_HOURLY, METRICS.length));

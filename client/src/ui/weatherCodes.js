@@ -117,15 +117,22 @@ export function parseWeatherCode(code, isDay) {
 }
 
 /**
- * True iff the current local time falls between sunrise and sunset.
+ * True iff `now` falls between sunrise and sunset.
+ *
+ * `now` is an argument, not a `Date.now()` read in here, so a component
+ * passes a clock it holds in state. The React Compiler caches a call on its
+ * arguments: with the clock read inside, a compiled component keeps its
+ * first answer until sunrise or sunset themselves change, i.e. past the
+ * event (TimeBlock's next-sun line, HeroCompact's day/night icon).
  *
  * @param {Date|string|number} sunrise — sunrise time
  * @param {Date|string|number} sunset — sunset time
+ * @param {Date|number} now — the time to test (a Date or epoch ms)
  * @returns {boolean} true during daylight hours
  */
-export function isDaylight(sunrise, sunset) {
+export function isDaylight(sunrise, sunset, now) {
   const sunriseTime = new Date(sunrise).getTime();
   const sunsetTime = new Date(sunset).getTime();
-  const now = Date.now();
-  return now > sunriseTime && now < sunsetTime;
+  const nowTime = new Date(now).getTime();
+  return nowTime > sunriseTime && nowTime < sunsetTime;
 }
