@@ -173,8 +173,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   rendered with no map position, and with no error boundary outside the Debug panel that blanks
   the kiosk. No normal path reaches it today (found in the review of this change). The handler now
   returns early without `mapGeo`, and `.babelrc` sets
-  `environment.enableTreatFunctionDepsAsConditional`, so the compiler keys a closure on the object
-  it reads, never on a property that only the closure reads; with the guard in place, that option
+  `environment.enableTreatFunctionDepsAsConditional`: the compiler no longer assumes a closure runs,
+  so during render it only dereferences an object that render itself proves non-null (an unguarded
+  `mapGeo.latitude` in a handler is keyed on `mapGeo`); with the guard in place, that option
   changes no compiled file today.
   **A function the compiler skips now fails the build.** `.babelrc` sets `panicThreshold:
   "all_errors"`, so `npm run prod` and CI's client job stop on the first function the compiler
@@ -191,7 +192,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   opted-out functions by name, each with its reason, so a new opt-out is a deliberate change, and
   fails on a directive it can't parse (followed by a comment, or on the function's opening line),
   which the compiler would honour unseen. Bundle +24 KB (+1.4 %, +9.8 KB gzipped). Build 0 errors,
-  `npm test` 1160/1160. In the browser, the 7"
+  `npm test` 1168/1168. In the browser, the 7"
   layout (glance, Conditions, the sun, moon and location popovers, Places in edit mode) and the
   desktop layout (hero, rail, 24 h and 5-day columns, the Settings sliders) render and respond,
   follow a switch to English and °F, and log no console error. The in-app updater applies it.
@@ -225,6 +226,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   with `/api/health` failing, the health chip turns red and its popover line follows a switch to
   English and back; on the desktop layout the + and − buttons zoom 6 → 7 → 6 with the location
   marker held within 1 px.
+  **The compiler guard closes three gaps found in review.** `test/reactCompilerGuards.test.js` now
+  also fails on a `.babelignore` or a `package.json` below `client/` (both take files without JSX,
+  the hooks, out of the compiler without a build error), and on a `"use no memo"` that follows a
+  block comment on its line, including the tail of a comment opened on the line before.
+  `client/react-compiler-babel8.js` refuses an option the compiler would ignore: the compiler drops
+  an unknown key without a word, so a misspelt `panicThreshold` would turn the build's guard off. The
+  shim passes the options through the compiler's own `parsePluginOptions` and fails the build when
+  a top-level or `environment` key doesn't come out with its value; a misspelt key in `.babelrc`
+  now stops `npm run prod`. The shim runs in every build, CI's included, whose test job doesn't
+  install `client/node_modules`. The description of `enableTreatFunctionDepsAsConditional` above
+  and in the test is corrected: the compiler still reads a property during render when render
+  itself proves its object non-null; what the option guarantees is that a closure's reads never
+  dereference a null during render.
 
 ### Changed
 - **"Reduce motion" now removes transitions instead of shortening them, and stops the map's own
