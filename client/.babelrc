@@ -4,6 +4,10 @@
     ["@babel/preset-react", { "runtime": "automatic" }]
   ],
   "plugins": [
-    ["./react-compiler-babel8.js", { "target": "19", "panicThreshold": "all_errors" }]
+    ["./react-compiler-babel8.js", {
+      "target": "19",
+      "panicThreshold": "all_errors",
+      "environment": { "enableTreatFunctionDepsAsConditional": true }
+    }]
   ]
 }

@@ -107,7 +107,13 @@ const LocationDetailsPopover = ({ open, onClose, triggerRef = null, anchor = "le
   // place the pin precisely — not a statement about how they want to view the
   // place later. Restoring it on every jump fought the user instead of
   // helping them.
+  //
+  // The `mapGeo` check matters at render time, not only on click: the React
+  // Compiler keys its cached handler on the properties the handler reads, and
+  // reads them while rendering. Unguarded `mapGeo.latitude` threw there when
+  // mapGeo was null; guarded, the key is `mapGeo` itself.
   const handlePin = () => {
+    if (!mapGeo) return;
     setPinFailed(false);
     pinFavorite({ label: autoLabel, lat: mapGeo.latitude, lon: mapGeo.longitude })
       .then((ok) => setPinFailed(!ok));

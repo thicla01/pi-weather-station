@@ -160,6 +160,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   moon within the minute. A scan of the whole compiled bundle for clock reads inside cached blocks
   finds one more, older case: the "issued … ago" chip of AlertMetaChips, compiled since PR 318
   (fixed below, under Fixed).
+  One of the 25 would have thrown during render instead. LocationDetailsPopover reads
+  `mapGeo.latitude` only inside its pin handler, but the compiler keyed the cached handler on
+  `mapGeo.latitude` and `mapGeo.longitude`, read while rendering, so the popover threw whenever it
+  rendered with no map position, and with no error boundary outside the Debug panel that blanks
+  the kiosk. No normal path reaches it today (found in the review of this change). The handler now
+  returns early without `mapGeo`, and `.babelrc` sets
+  `environment.enableTreatFunctionDepsAsConditional`, so the compiler keys a closure on the object
+  it reads, never on a property that only the closure reads; with the guard in place, that option
+  changes no compiled file today.
   **A function the compiler skips now fails the build.** `.babelrc` sets `panicThreshold:
   "all_errors"`, so `npm run prod` and CI's client job stop on the first function the compiler
   can't compile, and print why. The seven functions that were never compiled for other reasons stay
