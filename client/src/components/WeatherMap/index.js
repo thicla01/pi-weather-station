@@ -520,7 +520,7 @@ function installZoomAnchor(map, offsetRef) {
 }
 
 /**
- * Anchors the +/- zoom buttons (and keyboard zoom) on the visual centre
+ * Anchors the +/- zoom buttons on the visual centre
  * of the NON-RAIL map area instead of Leaflet's default true-viewport
  * centre — so the location marker no longer drifts when zooming.
  *
@@ -542,6 +542,8 @@ function installZoomAnchor(map, offsetRef) {
  * default, so center-anchored zoom is preserved everywhere the rail does
  * not overlay the map. Scroll-wheel / double-click / box zoom are
  * untouched — they already anchor on the cursor via their own handlers.
+ * Leaflet's keyboard + / − keys aren't anchored either: its Keyboard
+ * handler calls `setZoom`, which the patch leaves alone.
  *
  * @param {object} props
  * @param {{x: Number, y: Number}} props.railOffset pixels covered by rail / HeroBand
