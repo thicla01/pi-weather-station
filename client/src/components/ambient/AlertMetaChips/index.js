@@ -1,80 +1,15 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
 import calendarIcon from "@iconify/icons-carbon/calendar";
 import timeIcon from "@iconify/icons-carbon/time";
+import { formatExpires, formatIssued } from "~/ui/alertMetaFormat";
 import styles from "./styles.css";
 
-/**
- * Format the freshness chip's relative-time label.
- *
- * Heuristic:
- *   < 1 min       → "Just issued"
- *   < 60 min      → "Issued N min ago"
- *   < 36 h        → "Issued Nh ago"
- *   else          → "Issued Nd ago"
- *
- * Falls back to null when the sentAt timestamp is missing or
- * unparseable — the caller drops the chip rather than rendering
- * an em-dash placeholder.
- *
- * @param {string|null} sentAt - ISO timestamp from the alert payload
- * @param {(key: string, opts?: object) => string} t - i18next translate; called with
- *   an `alert.issued*` key and the matching count bag (`{ minutes }` / `{ hours }` /
- *   `{ days }`) for interpolation
- * @returns {string|null} localized "Issued ... ago" string or null
- */
-function formatIssued(sentAt, t) {
-  if (!sentAt) return null;
-  const issuedMs = new Date(sentAt).getTime();
-  if (Number.isNaN(issuedMs)) return null;
-  const diffMs = Date.now() - issuedMs;
-  if (diffMs < 0) return null;          // upstream clock ahead of ours
-  const diffMin = Math.round(diffMs / 60_000);
-  if (diffMin < 1) return t("alert.issuedJustNow");
-  if (diffMin < 60) return t("alert.issuedMinutesAgo", { minutes: diffMin });
-  const diffH = Math.round(diffMin / 60);
-  if (diffH < 36) return t("alert.issuedHoursAgo", { hours: diffH });
-  const diffD = Math.round(diffH / 24);
-  return t("alert.issuedDaysAgo", { days: diffD });
-}
-
-/**
- * Format the expiration timestamp into a short localized form.
- * Same-day → "HH:MM", different day → "<weekday> HH:MM".
- *
- * @param {string|null} expiresAt - ISO timestamp
- * @param {string} lang - 'en' | 'fr' | 'es'
- * @param {(key: string) => string} t - i18next translate; used for the single key
- *   `alert.tomorrowShort`, the word prefixed to next-day times
- * @returns {string|null} short localized "Expires" body, or null
- */
-function formatExpires(expiresAt, lang, t) {
-  if (!expiresAt) return null;
-  const d = new Date(expiresAt);
-  if (Number.isNaN(d.getTime())) return null;
-  const now = new Date();
-  const sameDay = d.toDateString() === now.toDateString();
-  const tomorrow = new Date(now); tomorrow.setDate(now.getDate() + 1);
-  const isTomorrow = d.toDateString() === tomorrow.toDateString();
-  const hhmm = d.toLocaleTimeString(lang === "en" ? "en-US" : `${lang}-CA`, {
-    hour: "2-digit", minute: "2-digit", hour12: lang === "en",
-  });
-  if (sameDay) return hhmm;
-  if (isTomorrow) {
-    // "tomorrow" comes from the locale files like every other
-    // user-facing string — this is an alert surface, so the
-    // lbl()-style inline-trilingual exception (CLAUDE.md, Settings/
-    // Debug panels only) does NOT apply here.
-    return `${t("alert.tomorrowShort")} ${hhmm}`;
-  }
-  // > 2 days out — show the weekday short form ("Wed 14:30")
-  const weekday = d.toLocaleDateString(lang === "en" ? "en-US" : `${lang}-CA`, {
-    weekday: "short",
-  });
-  return `${weekday} ${hhmm}`;
-}
+// How often the issued and expiry labels are re-derived: their finest unit
+// is the minute.
+const LABEL_TICK_MS = 60 * 1000;
 
 /**
  * Row of three metadata chips that sit under the alert title:
@@ -105,9 +40,18 @@ const AlertMetaChips = ({ source, senderName, sentAt, expiresAt }) => {
   const { t, i18n } = useTranslation();
   const lang = (i18n.language || "en").slice(0, 2);
 
+  // Clock for the labels, held in state so the compiled component re-derives
+  // them: the React Compiler caches each label on its inputs, so without a
+  // clock among them "Issued 5 min ago" stayed for as long as the banner did.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), LABEL_TICK_MS);
+    return () => clearInterval(id);
+  }, []);
+
   const sourceLabel = senderName || source;
-  const issuedLabel = formatIssued(sentAt, t);
-  const expiresLabel = formatExpires(expiresAt, lang, t);
+  const issuedLabel = formatIssued(sentAt, t, now);
+  const expiresLabel = formatExpires(expiresAt, lang, t, now);
 
   if (!sourceLabel && !issuedLabel && !expiresLabel) return null;
 
