@@ -17,16 +17,19 @@
 //     with exactly COMPILER_OPTIONS (panicThreshold "all_errors", and closure
 //     dependencies treated as conditional, see below), and nothing else
 //     configures Babel for client/src: no `env` / `overrides` block, no other
-//     config file, no babel-loader options in webpack.config.js, no "babel"
-//     key in client/package.json. Any of those could switch the compiler off
-//     or lower the threshold while this file still looked right.
+//     config file, no .babelignore, no package.json below client/, no
+//     babel-loader options in webpack.config.js, no "babel" key in
+//     client/package.json. Any of those could switch the compiler off, for
+//     some files or all, or lower the threshold while this file still looked
+//     right.
 //  2. Every "use no memo" opt-out in client/src sits under a comment that
 //     starts "Not compiled:" and says why, and the set of opted-out functions
 //     matches OPTED_OUT exactly. An opt-out is the one-line way past a build
 //     failure, so adding one is a deliberate edit here; making a listed
 //     function compile means striking it from the list. A directive this
-//     test can't parse (a trailing comment, or on the function's opening
-//     line) fails too: the compiler honours it all the same.
+//     test can't parse (a trailing comment, a block comment before it on the
+//     same line, or on the function's opening line) fails too: the compiler
+//     honours it all the same.
 //
 // Same spirit as react19Guards.test.js: mechanical, text-level, loud.
 
@@ -96,7 +99,11 @@ function findOptOuts() {
     const lines = fs.readFileSync(abs, "utf8").split("\n");
     lines.forEach((text, i) => {
       if (!DIRECTIVE_RE.test(text)) {
-        if (DIRECTIVE_ANYWHERE_RE.test(text) && !COMMENT_LINE_RE.test(text)) {
+        // The line without its block comments, including the tail of one
+        // opened on an earlier line: `/* … */ "use no memo";` and
+        // `*/ "use no memo";` are code, however the line starts.
+        const code = text.replace(/\/\*.*?\*\//g, "").replace(/^.*?\*\//, "");
+        if (DIRECTIVE_ANYWHERE_RE.test(code) && !COMMENT_LINE_RE.test(code)) {
           found.push({ file, line: i + 1, name: null, comment: [], malformed: true });
         }
         return;
@@ -148,11 +155,17 @@ test("nothing else configures Babel for client/src", () => {
       if (entry.name === "node_modules" || entry.name === "dist") continue;
       const full = path.join(dir, entry.name);
       if (entry.isDirectory()) walkConfigs(full);
-      else if (/^(\.babelrc(\..+)?|babel\.config\..+)$/.test(entry.name)) strays.push(path.relative(CLIENT_DIR, full));
+      else if (/^(\.babelrc(\..+)?|\.babelignore|babel\.config\..+|package\.json)$/.test(entry.name)) {
+        strays.push(path.relative(CLIENT_DIR, full));
+      }
     }
   };
   walkConfigs(CLIENT_DIR);
-  assert.deepEqual(strays, [".babelrc"], "client/.babelrc must be the only Babel config under client/ (a babel.config.* or a nested .babelrc merges with it)");
+  assert.deepEqual(
+    strays.sort(),
+    [".babelrc", "package.json"],
+    "client/.babelrc and client/package.json must be the only Babel config files under client/: a babel.config.* merges with .babelrc, a nested .babelrc replaces it for the files below it, a .babelignore takes files out of Babel, and a nested package.json is a package boundary where Babel stops looking for client/.babelrc. A file without JSX (a hook) left out that way builds without the compiler and without an error."
+  );
   const pkg = JSON.parse(fs.readFileSync(path.join(CLIENT_DIR, "package.json"), "utf8"));
   assert.equal(pkg.babel, undefined, 'client/package.json must not carry a "babel" key');
   const webpackConfig = fs.readFileSync(path.join(CLIENT_DIR, "webpack.config.js"), "utf8");
@@ -169,7 +182,7 @@ test('every "use no memo" opt-out says why, and the opted-out functions match OP
   assert.deepEqual(
     malformed,
     [],
-    'Write a "use no memo" directive alone on its line, as the first statement of the function body, with its "// Not compiled:" reason on the lines above (the compiler honours a directive followed by a comment, or on the opening line, but this test could not see it)'
+    'Write a "use no memo" directive alone on its line, as the first statement of the function body, with its "// Not compiled:" reason on the lines above (the compiler honours a directive followed by a comment, after a block comment on its line, or on the opening line, but this test could not see it)'
   );
   const optOuts = all.filter((o) => !o.malformed);
   const unexplained = optOuts
