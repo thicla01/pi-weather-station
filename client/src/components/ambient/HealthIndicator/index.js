@@ -57,10 +57,6 @@ const DOT_COLORS = {
  * @returns {JSX.Element} indicator + optional details popover
  */
 const HealthIndicator = ({ chip = false }) => {
-  // Not compiled: the React Compiler skips a component that suppresses a
-  // react-hooks rule (the polling effect's exhaustive-deps below). Opting
-  // out keeps the build's panicThreshold "all_errors" (.babelrc) passing.
-  "use no memo";
   const { t } = useTranslation();
   const [health, setHealth] = useState({
     status: "green",
@@ -112,10 +108,12 @@ const HealthIndicator = ({ chip = false }) => {
           if (cancelled) return;
           // Network failure — couldn't reach the server at all.
           // Treat as red since none of the server-backed data can
-          // refresh either.
+          // refresh either. The comment is stored as an i18n key and
+          // translated at render, so the poll needs no `t` (and the
+          // line follows a language change).
           setHealth({
             status: "red",
-            issues: [{ service: "Server", status: null, comment: t("health.serverUnreachable"), critical: true }],
+            issues: [{ service: "Server", status: null, commentKey: "health.serverUnreachable", critical: true }],
             providerStatus: null,
             lastChecked: new Date().toISOString(),
             fetchError: true,
@@ -129,7 +127,6 @@ const HealthIndicator = ({ chip = false }) => {
       cancelled = true;
       clearInterval(id);
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- `t` is stable across renders for our use, and re-creating the interval on locale change isn't worth the churn
   }, []);
 
   // Dismiss popover on click outside.
@@ -238,18 +235,21 @@ const HealthIndicator = ({ chip = false }) => {
             <div className={styles.popoverEmpty}>{t("health.noIssues")}</div>
           ) : (
             <ul className={styles.issueList}>
-              {health.issues.map((issue) => (
-                <li
-                  key={issue.service}
-                  className={`${styles.issueItem} ${issue.critical ? styles.issueCritical : ""}`}
-                >
-                  <span className={styles.issueService}>{issue.service}</span>
-                  <span className={styles.issueDetail}>
-                    {issue.status != null ? `HTTP ${issue.status}` : "—"}
-                    {issue.comment ? ` · ${issue.comment}` : ""}
-                  </span>
-                </li>
-              ))}
+              {health.issues.map((issue) => {
+                const comment = issue.commentKey ? t(issue.commentKey) : issue.comment;
+                return (
+                  <li
+                    key={issue.service}
+                    className={`${styles.issueItem} ${issue.critical ? styles.issueCritical : ""}`}
+                  >
+                    <span className={styles.issueService}>{issue.service}</span>
+                    <span className={styles.issueDetail}>
+                      {issue.status != null ? `HTTP ${issue.status}` : "—"}
+                      {comment ? ` · ${comment}` : ""}
+                    </span>
+                  </li>
+                );
+              })}
             </ul>
           )}
           {/* Upstream provider statuspages section. Renders only when

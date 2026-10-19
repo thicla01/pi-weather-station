@@ -474,6 +474,52 @@ ZoomLevelHandler.propTypes = {
 };
 
 /**
+ * Monkey-patches `zoomIn` / `zoomOut` on a Leaflet map instance so they
+ * `setZoomAround` the non-rail visual centre while `offsetRef.current` holds a
+ * non-zero offset, and fall through to Leaflet's own methods otherwise.
+ * Writing to the imperative Leaflet handle (an external system, not React
+ * state) is the whole point, so it lives here, outside any component: the
+ * React Compiler (and react-hooks/immutability) reject a write to a value a
+ * hook returned, and this keeps ZoomAnchorOffset compiled.
+ *
+ * @param {L.Map} map the map to patch
+ * @param {{current: ?{x: Number, y: Number}}} offsetRef ref to the latest rail
+ *   / HeroBand offset, read at each zoom step
+ * @returns {() => void} restores the original methods
+ */
+function installZoomAnchor(map, offsetRef) {
+  const origZoomIn = map.zoomIn;
+  const origZoomOut = map.zoomOut;
+  const zoomAroundNonRailCentre = (delta) => {
+    const offset = offsetRef.current;
+    const offsetX = (offset && offset.x) || 0;
+    const offsetY = (offset && offset.y) || 0;
+    const size = map.getSize();
+    const anchor = L.point(size.x / 2 - offsetX / 2, size.y / 2 + offsetY / 2);
+    map.setZoomAround(map.containerPointToLatLng(anchor), map.getZoom() + delta);
+  };
+  // ZoomControl always passes an explicit delta; default to zoomDelta
+  // for any caller that omits it (mirrors Leaflet's own fallback).
+  const resolveDelta = (delta) => (delta == null ? map.options.zoomDelta : delta);
+  map.zoomIn = function patchedZoomIn(delta, options) {
+    const offset = offsetRef.current;
+    if (!offset || (!offset.x && !offset.y)) return origZoomIn.call(map, delta, options);
+    zoomAroundNonRailCentre(resolveDelta(delta));
+    return map;
+  };
+  map.zoomOut = function patchedZoomOut(delta, options) {
+    const offset = offsetRef.current;
+    if (!offset || (!offset.x && !offset.y)) return origZoomOut.call(map, delta, options);
+    zoomAroundNonRailCentre(-resolveDelta(delta));
+    return map;
+  };
+  return () => {
+    map.zoomIn = origZoomIn;
+    map.zoomOut = origZoomOut;
+  };
+}
+
+/**
  * Anchors the +/- zoom buttons (and keyboard zoom) on the visual centre
  * of the NON-RAIL map area instead of Leaflet's default true-viewport
  * centre — so the location marker no longer drifts when zooming.
@@ -488,8 +534,8 @@ ZoomLevelHandler.propTypes = {
  * Fix: override `zoomIn`/`zoomOut` on the map instance to `setZoomAround`
  * the non-rail visual centre — the exact inverse of the panWithRailOffset
  * placement `(W/2 - offsetX/2, H/2 + offsetY/2)`, the container point where
- * a centred marker sits — so that point stays pinned across zoom steps.
- * The original methods are restored on unmount.
+ * a centred marker sits — so that point stays pinned across zoom steps
+ * (`installZoomAnchor`). The original methods are restored on unmount.
  *
  * No-op when `railOffset` is zero (LayoutPi / LayoutMobile / focus
  * mode): the override falls straight through to Leaflet's centre-anchored
@@ -502,11 +548,6 @@ ZoomLevelHandler.propTypes = {
  * @returns {null} renders nothing
  */
 const ZoomAnchorOffset = ({ railOffset }) => {
-  // Not compiled: the effect below monkey-patches the Leaflet map that
-  // useMap() returns, on purpose, and the React Compiler rejects writing
-  // to a hook's return value. Opting out keeps the build's panicThreshold
-  // "all_errors" (.babelrc) passing.
-  "use no memo";
   const map = useMap();
   // Latest offset without re-running the patch effect on every change —
   // useRailOffset can return a fresh object per measurement. Mirrored via
@@ -516,44 +557,9 @@ const ZoomAnchorOffset = ({ railOffset }) => {
   useEffect(() => {
     offsetRef.current = railOffset;
   }, [railOffset]);
-  // The whole point of this component is to monkey-patch two methods on
-  // the imperative Leaflet map instance — an external system handle, not
-  // React-managed state — and restore the originals in the cleanup. The
-  // react-hooks/immutability rule cannot know that, so it is suppressed
-  // for this effect only.
-  // eslint-disable-next-line react-hooks/immutability -- deliberate Leaflet monkey-patch, restored on cleanup
-  useEffect(() => {
-    const origZoomIn = map.zoomIn;
-    const origZoomOut = map.zoomOut;
-    const zoomAroundNonRailCentre = (delta) => {
-      const offset = offsetRef.current;
-      const offsetX = (offset && offset.x) || 0;
-      const offsetY = (offset && offset.y) || 0;
-      const size = map.getSize();
-      const anchor = L.point(size.x / 2 - offsetX / 2, size.y / 2 + offsetY / 2);
-      map.setZoomAround(map.containerPointToLatLng(anchor), map.getZoom() + delta);
-    };
-    // ZoomControl always passes an explicit delta; default to zoomDelta
-    // for any caller that omits it (mirrors Leaflet's own fallback).
-    const resolveDelta = (delta) => (delta == null ? map.options.zoomDelta : delta);
-    // eslint-disable-next-line react-hooks/immutability -- deliberate monkey-patch of the imperative Leaflet map instance (external handle, not React state); originals restored in the cleanup below
-    map.zoomIn = function patchedZoomIn(delta, options) {
-      const offset = offsetRef.current;
-      if (!offset || (!offset.x && !offset.y)) return origZoomIn.call(map, delta, options);
-      zoomAroundNonRailCentre(resolveDelta(delta));
-      return map;
-    };
-    map.zoomOut = function patchedZoomOut(delta, options) {
-      const offset = offsetRef.current;
-      if (!offset || (!offset.x && !offset.y)) return origZoomOut.call(map, delta, options);
-      zoomAroundNonRailCentre(-resolveDelta(delta));
-      return map;
-    };
-    return () => {
-      map.zoomIn = origZoomIn;
-      map.zoomOut = origZoomOut;
-    };
-  }, [map]);
+  // Patch the map's zoom buttons for as long as this map is mounted; the
+  // cleanup restores Leaflet's own methods.
+  useEffect(() => installZoomAnchor(map, offsetRef), [map]);
   return null;
 };
 

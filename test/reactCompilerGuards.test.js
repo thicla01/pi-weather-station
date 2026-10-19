@@ -40,17 +40,13 @@ const SRC_DIR = path.join(CLIENT_DIR, "src");
 const SHIM = "./react-compiler-babel8.js";
 
 // Functions opted out of the compiler with "use no memo": file (relative to
-// client/src) → names of the functions, sorted. All seven predate the Babel 8
-// shim and stay uncompiled exactly as before it; each reason is the comment
-// above its directive (and ROADMAP › Technical debt).
-const OPTED_OUT = {
-  "components/ScreenSaver/index.js": ["ScreenSaver"],
-  "components/WeatherMap/index.js": ["ZoomAnchorOffset"],
-  "components/ambient/ChartTabs/index.js": ["ChartTabs"],
-  "components/ambient/DebugPanel/index.js": ["DebugPanel", "RadarSnapshotsBlock"],
-  "components/ambient/HealthIndicator/index.js": ["HealthIndicator"],
-  "hooks/useUpdateChecker.js": ["useUpdateChecker"],
-};
+// client/src) → names of the functions, sorted. Empty: the seven opt-outs
+// that predated the Babel 8 shim were rewritten to compile (a try/catch
+// moved into a plain helper, a suppressed react-hooks rule fixed, a counter
+// passed as an argument, the Leaflet zoom patch moved out of the
+// component). Add an entry only with the reason above its directive, and a
+// ROADMAP › Technical debt item to remove it.
+const OPTED_OUT = {};
 
 // The compiler options, whole. `environment.enableTreatFunctionDepsAsConditional`
 // stops the compiler from reading, during render, a property that only a

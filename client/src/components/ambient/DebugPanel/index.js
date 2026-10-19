@@ -38,6 +38,52 @@ import styles from "./styles.css";
 // the activeBuckets Set, just serialisable.
 const ACTIVE_BUCKETS_STORAGE_KEY = "pi-weather-debug-active-buckets";
 
+/**
+ * Read the pinned-bucket selection from localStorage. Falls back to just
+ * `server` on first run or when the stored value is missing / corrupt, and
+ * filters against the current BUCKETS list so a renamed bucket from an old
+ * build doesn't leave an unrenderable id pinned. Kept out of the component
+ * (as is `writeActiveBuckets`): the React Compiler can't lower a conditional
+ * inside a try/catch, and only component and hook bodies go through it.
+ *
+ * @returns {Set<string>} ids of the buckets to show
+ */
+function readActiveBuckets() {
+  const fallback = new Set(["server"]);
+  if (typeof window === "undefined") return fallback;
+  try {
+    const raw = window.localStorage.getItem(ACTIVE_BUCKETS_STORAGE_KEY);
+    if (!raw) return fallback;
+    const arr = JSON.parse(raw);
+    if (!Array.isArray(arr) || arr.length === 0) return fallback;
+    const known = new Set(BUCKETS.map((b) => b.id));
+    const valid = arr.filter((id) => known.has(id));
+    return valid.length > 0 ? new Set(valid) : fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+/**
+ * Persist the pinned-bucket selection. A full quota or disabled storage
+ * silently drops the write: the in-memory state still works for the
+ * current session.
+ *
+ * @param {Set<string>} activeBuckets ids of the pinned buckets
+ * @returns {void}
+ */
+function writeActiveBuckets(activeBuckets) {
+  if (typeof window === "undefined") return;
+  try {
+    window.localStorage.setItem(
+      ACTIVE_BUCKETS_STORAGE_KEY,
+      JSON.stringify(Array.from(activeBuckets)),
+    );
+  } catch {
+    // Quota exceeded or storage disabled — see above.
+  }
+}
+
 // CPU-temp colour thresholds for the Server-KPI live reading, aligned to
 // the CM5 / Pi-5 active-cooler fan trip points (50 / 60 / 67.5 / 75 °C;
 // hardware-critical 110 °C). Below trip point 2 the fan is quiet → neutral;
@@ -60,6 +106,10 @@ const LIVE_SENSOR_POLL_MS = 5000;
 // frames on a healthy kiosk — enough for a stable reading without making
 // the download feel slow.
 const CSV_EXPORT_FPS_SAMPLE_MS = 1000;
+
+// The small-screen query (the 7" Pi kiosk) under which the panel drops its
+// font-size zoom boost — the same threshold as the panel's CSS @media.
+const SHORT_VIEWPORT_MQ = "(max-height: 520px)";
 
 /**
  * Direction C Debug panel — port of the Claude Design canvas at
@@ -104,10 +154,6 @@ const CSV_EXPORT_FPS_SAMPLE_MS = 1000;
  *   \`localhostOnly\` on \`/api/debug\`).
  */
 const DebugPanel = () => {
-  // Not compiled: React Compiler 1.0 can't lower a conditional inside a
-  // try/catch (the stored-bucket read below). Opting out keeps the
-  // build's panicThreshold "all_errors" (.babelrc) passing.
-  "use no memo";
   const { t, i18n } = useTranslation();
   const lang = (i18n.language || "en").slice(0, 2);
   const {
@@ -129,36 +175,10 @@ const DebugPanel = () => {
   //
   // Persisted to localStorage so the chosen set survives both close/
   // reopen cycles AND full page reloads (service restart, browser
-  // refresh on the kiosk). Falls back to just `server` on first run
-  // or when the stored value is missing / corrupt. Filtered against
-  // the current BUCKETS list so a renamed bucket from an old build
-  // doesn't leave us with an unrenderable id pinned. */
-  const [activeBuckets, setActiveBuckets] = useState(() => {
-    const fallback = new Set(["server"]);
-    if (typeof window === "undefined") return fallback;
-    try {
-      const raw = window.localStorage.getItem(ACTIVE_BUCKETS_STORAGE_KEY);
-      if (!raw) return fallback;
-      const arr = JSON.parse(raw);
-      if (!Array.isArray(arr) || arr.length === 0) return fallback;
-      const known = new Set(BUCKETS.map((b) => b.id));
-      const valid = arr.filter((id) => known.has(id));
-      return valid.length > 0 ? new Set(valid) : fallback;
-    } catch {
-      return fallback;
-    }
-  });
+  // refresh on the kiosk) — see readActiveBuckets / writeActiveBuckets.
+  const [activeBuckets, setActiveBuckets] = useState(readActiveBuckets);
   useEffect(() => {
-    if (typeof window === "undefined") return;
-    try {
-      window.localStorage.setItem(
-        ACTIVE_BUCKETS_STORAGE_KEY,
-        JSON.stringify(Array.from(activeBuckets)),
-      );
-    } catch {
-      // Quota exceeded or storage disabled — silently drop the write;
-      // the in-memory state still works for the current session.
-    }
+    writeActiveBuckets(activeBuckets);
   }, [activeBuckets]);
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(false);
@@ -204,6 +224,21 @@ const DebugPanel = () => {
     return () => mq.removeEventListener("change", handler);
   }, []);
   const gridTwoWide = columnCount === 1 && wideViewport;
+
+  // Small screen (≤ 520 px height, i.e. the 7" Pi kiosk): the panel skips
+  // its font-size zoom boost (see `cssVars.zoom` below). Tracked in state
+  // like the two queries above rather than read during render, where the
+  // compiled component would keep the first answer until the palette or
+  // font size changed.
+  const [shortViewport, setShortViewport] = useState(
+    () => typeof window !== "undefined" && window.matchMedia(SHORT_VIEWPORT_MQ).matches,
+  );
+  useEffect(() => {
+    const mq = window.matchMedia(SHORT_VIEWPORT_MQ);
+    const handler = (e) => setShortViewport(e.matches);
+    mq.addEventListener("change", handler);
+    return () => mq.removeEventListener("change", handler);
+  }, []);
 
   const toggleBucket = useCallback((id) => {
     setActiveBuckets((prev) => {
@@ -285,9 +320,7 @@ const DebugPanel = () => {
     // `position: fixed; inset: 0` overlay compresses the effective
     // viewport, making the rail chips overflow vertically and the
     // header buttons wrap. Space wins over font size on the kiosk.
-    zoom: window.matchMedia("(max-height: 520px)").matches
-      ? 1
-      : resolvePanelFontSizeZoom(fontSize),
+    zoom: shortViewport ? 1 : resolvePanelFontSizeZoom(fontSize),
   };
 
   return (
@@ -1503,6 +1536,31 @@ const BucketStorage = ({ data, lang, gridTwoWide }) => {
 };
 
 /**
+ * Copy one radar AI prompt snapshot to the clipboard as plain text: a header
+ * line (time, position, language, source), the radar text passed to Claude,
+ * then the resulting summary. Kept out of RadarSnapshotsBlock: the React
+ * Compiler can't lower optional chaining inside a try/catch, and only
+ * component and hook bodies go through it.
+ *
+ * @param {{ts: number, lat: number, lon: number, lang: string, source: string, radarText: string, summary: string}} s
+ *   the snapshot, as served by `/api/debug`
+ * @returns {Promise<boolean>} true once the text is on the clipboard, false
+ *   when the write failed
+ */
+async function copySnapshotToClipboard(s) {
+  try {
+    const header = `[${new Date(s.ts).toLocaleString()}] ${s.lat?.toFixed(4)}, ${s.lon?.toFixed(4)} · ${s.lang} · ${s.source}`;
+    const text = `${header}\n\n--- Radar text passed to Claude ---\n${s.radarText}\n\n--- Resulting summary ---\n${s.summary}\n`;
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    // Clipboard requires a secure context + user gesture; both hold
+    // on localhost. Silent failure is fine.
+    return false;
+  }
+}
+
+/**
  * Recent radar AI prompt snapshots — collapsible per-entry with the
  * input radar text and the resulting Claude summary. Per-entry copy
  * button, plus a section-level JSON export so the user can ship a
@@ -1521,23 +1579,12 @@ const BucketStorage = ({ data, lang, gridTwoWide }) => {
  *   snapshots yet." note when the list is missing or empty.
  */
 const RadarSnapshotsBlock = ({ snapshots, lang }) => {
-  // Not compiled: React Compiler 1.0 can't lower optional chaining inside
-  // a try/catch (handleCopy below). Opting out keeps the build's
-  // panicThreshold "all_errors" (.babelrc) passing.
-  "use no memo";
   const [copiedIndex, setCopiedIndex] = useState(null);
   const hasAny = Array.isArray(snapshots) && snapshots.length > 0;
   const handleCopy = useCallback(async (s, i) => {
-    try {
-      const header = `[${new Date(s.ts).toLocaleString()}] ${s.lat?.toFixed(4)}, ${s.lon?.toFixed(4)} · ${s.lang} · ${s.source}`;
-      const text = `${header}\n\n--- Radar text passed to Claude ---\n${s.radarText}\n\n--- Resulting summary ---\n${s.summary}\n`;
-      await navigator.clipboard.writeText(text);
-      setCopiedIndex(i);
-      setTimeout(() => setCopiedIndex((cur) => (cur === i ? null : cur)), 1500);
-    } catch {
-      // Clipboard requires a secure context + user gesture; both hold
-      // on localhost. Silent failure is fine.
-    }
+    if (!(await copySnapshotToClipboard(s))) return;
+    setCopiedIndex(i);
+    setTimeout(() => setCopiedIndex((cur) => (cur === i ? null : cur)), 1500);
   }, []);
   const handleExportJson = useCallback(() => {
     if (!hasAny) return;

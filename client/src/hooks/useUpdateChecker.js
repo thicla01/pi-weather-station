@@ -28,10 +28,6 @@ const POLL_RETRY_DELAY_MS = 2000;
  *   `refreshUpdateCheck`, `triggerUpdate`, `saveSkippedSha`.
  */
 export function useUpdateChecker() {
-  // Not compiled: React Compiler 1.0 can't lower `attempts++` on a
-  // variable a closure captures (pollUntilReady below). Opting out keeps
-  // the build's panicThreshold "all_errors" (.babelrc) passing.
-  "use no memo";
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [latestVersion, setLatestVersion] = useState(null);
   const [latestSha, setLatestSha] = useState(null);
@@ -58,17 +54,19 @@ export function useUpdateChecker() {
     window.localStorage.setItem(SKIPPED_SHA_STORAGE_KEY, sha);
   }, []);
 
-  /** Poll /api/is-local until the server responds, then reload the page. */
+  /**
+   * Poll /api/is-local until the server responds, then reload the page.
+   * Each attempt schedules the next with its number, rather than counting
+   * in a captured variable (which the React Compiler can't lower).
+   */
   const pollUntilReady = useCallback(() => {
-    let attempts = 0;
-    const poll = () => {
-      attempts++;
-      if (attempts > POLL_MAX_ATTEMPTS) { setUpdateState("failed"); return; }
+    const poll = (attempt) => {
+      if (attempt > POLL_MAX_ATTEMPTS) { setUpdateState("failed"); return; }
       axios.get("/api/is-local")
         .then(() => window.location.reload())
-        .catch(() => { updatePollRef.current = setTimeout(poll, POLL_RETRY_DELAY_MS); });
+        .catch(() => { updatePollRef.current = setTimeout(() => poll(attempt + 1), POLL_RETRY_DELAY_MS); });
     };
-    updatePollRef.current = setTimeout(poll, POLL_INITIAL_DELAY_MS);
+    updatePollRef.current = setTimeout(() => poll(1), POLL_INITIAL_DELAY_MS);
   }, []);
 
   /**

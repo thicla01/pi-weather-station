@@ -52,6 +52,25 @@ function readStoredView(key, max) {
 }
 
 /**
+ * Write a value to localStorage, silently dropping the write when storage
+ * throws (some private-browsing modes) — failing quietly beats a broken UI
+ * for what is purely a comfort feature. Kept out of the component: the React
+ * Compiler can't lower a conditional inside a try/catch, and only component
+ * and hook bodies go through it.
+ *
+ * @param {String} key localStorage key
+ * @param {String} value value to store
+ * @returns {void}
+ */
+function writeStoredValue(key, value) {
+  try {
+    window.localStorage.setItem(key, value);
+  } catch {
+    /* ignore */
+  }
+}
+
+/**
  * Direction C forecast slab — v3.1 Phase 5 ("Prévisions, nommées").
  *
  * Header: the PRÉVISIONS title, the period toggle (24 h / 5 jours)
@@ -90,10 +109,6 @@ function readStoredView(key, max) {
  * @returns {JSX.Element} forecast slab
  */
 const ChartTabs = () => {
-  // Not compiled: React Compiler 1.0 can't lower a conditional inside a
-  // try/catch (the localStorage writes below). Opting out keeps the
-  // build's panicThreshold "all_errors" (.babelrc) passing.
-  "use no memo";
   const { t } = useTranslation();
   const [period, setPeriod] = useState("hourly");
   const [hourlyMetric, setHourlyMetric] = useState(() => readStoredView(STORAGE_KEY_HOURLY, METRICS.length));
@@ -118,17 +133,15 @@ const ChartTabs = () => {
   const slabRef = useRef(null);
   const cardActivityRef = useRef(0);
 
-  // Persist on change. Wrapped in try/catch because localStorage can
-  // throw in some private-browsing modes — failing silently is
-  // preferable to a broken UI for what is purely a comfort feature.
+  // Persist on change (writeStoredValue swallows a throwing localStorage).
   useEffect(() => {
-    try { window.localStorage.setItem(STORAGE_KEY_HOURLY, String(hourlyMetric)); } catch { /* ignore */ }
+    writeStoredValue(STORAGE_KEY_HOURLY, String(hourlyMetric));
   }, [hourlyMetric]);
   useEffect(() => {
-    try { window.localStorage.setItem(STORAGE_KEY_DAILY, String(dailyMetric)); } catch { /* ignore */ }
+    writeStoredValue(STORAGE_KEY_DAILY, String(dailyMetric));
   }, [dailyMetric]);
   useEffect(() => {
-    try { window.localStorage.setItem(STORAGE_KEY_OVERLAY, precipOverlay ? "1" : "0"); } catch { /* ignore */ }
+    writeStoredValue(STORAGE_KEY_OVERLAY, precipOverlay ? "1" : "0");
   }, [precipOverlay]);
 
   // Scroll the rail to the top when maximizing (same trick AiSummaryInline
