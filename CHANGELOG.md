@@ -214,8 +214,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   DebugPanel read `matchMedia("(max-height: 520px)")` while rendering, which the compiled panel
   would have kept until the palette or the font size changed. The query is now state with a change
   listener, like the panel's two other media queries, so dropping the zoom boost also follows a
-  live resize. ChartTabs and HealthIndicator re-render on every LayoutPi toggle (D1 bench
-  attribution, 2026-10-18); the gain there is not measured on a Pi yet. `OPTED_OUT` in
+  live resize. ChartTabs re-renders on every LayoutPi toggle (it reads `piLayoutState`; D1 bench
+  attribution, 2026-10-18); the gain there is not measured on a Pi yet. HealthIndicator only
+  re-renders on its 2-min poll, on opening its popover and on a language change. `OPTED_OUT` in
   `test/reactCompilerGuards.test.js` is now empty: the compiler compiles all 134 functions it sees
   in `client/src` (127 before), and `enableTreatFunctionDepsAsConditional` still changes no
   compiled file. Bundle +9.4 KB (+0.5 %, +3.6 KB gzipped). Build 0 errors, `npm test` 1168/1168. In
@@ -237,8 +238,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   now stops `npm run prod`. The shim runs in every build, CI's included, whose test job doesn't
   install `client/node_modules`. The description of `enableTreatFunctionDepsAsConditional` above
   and in the test is corrected: the compiler still reads a property during render when render
-  itself proves its object non-null; what the option guarantees is that a closure's reads never
-  dereference a null during render.
+  itself proves its object non-null; what the option guarantees is that it never makes render
+  throw on a null where the uncompiled render would not.
 
 ### Changed
 - **"Reduce motion" now removes transitions instead of shortening them, and stops the map's own
