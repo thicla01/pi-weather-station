@@ -78,6 +78,27 @@ function conditionKey(code) {
 }
 
 /**
+ * Format the screensaver's date line with the locale-specific `dateFormat`
+ * pattern from i18n ("cccc d LLLL" for fr → "vendredi 1 mai"), falling back
+ * to the browser's own date format when i18n or date-fns throws. Kept out of
+ * the component: the React Compiler can't lower a conditional inside a
+ * try/catch, and only component and hook bodies go through it.
+ *
+ * @param {Date} now Moment to format
+ * @param {object} i18n i18next instance from useTranslation (its `t` gives the pattern)
+ * @param {object} locale date-fns locale
+ * @returns {String} Formatted date
+ */
+function formatSleepDate(now, i18n, locale) {
+  try {
+    const pattern = i18n.t("dateFormat") || "EEEE, MMMM d";
+    return format(now, pattern, { locale });
+  } catch {
+    return now.toLocaleDateString();
+  }
+}
+
+/**
  * Fullscreen screensaver / sleep-mode overlay.
  *
  * Single DOM tree shared by stages 1 and 2 — class names on the root drive
@@ -95,10 +116,6 @@ function conditionKey(code) {
  * @returns {JSX.Element|null} Overlay, or null when stage = 0
  */
 const ScreenSaver = ({ stage }) => {
-  // Not compiled: React Compiler 1.0 can't lower a conditional inside a
-  // try/catch (the date-format fallback below). Opting out keeps the
-  // build's panicThreshold "all_errors" (.babelrc) passing.
-  "use no memo";
   const { i18n } = useTranslation();
   const {
     currentWeatherData,
@@ -224,13 +241,7 @@ const ScreenSaver = ({ stage }) => {
   // typographically consistent with the InfoPanel header.
   const lang = (i18n && i18n.language ? i18n.language.slice(0, 2) : "en");
   const locale = DATE_FNS_LOCALES[lang] || enUS;
-  let dateStr;
-  try {
-    const pattern = i18n.t("dateFormat") || "EEEE, MMMM d";
-    dateStr = format(now, pattern, { locale });
-  } catch {
-    dateStr = now.toLocaleDateString();
-  }
+  const dateStr = formatSleepDate(now, i18n, locale);
 
   // Time format follows the user's Settings preference. Using
   // toLocaleTimeString keeps the AM/PM marker locale-aware in 12 h mode.

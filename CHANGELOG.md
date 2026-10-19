@@ -195,6 +195,36 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   layout (glance, Conditions, the sun, moon and location popovers, Places in edit mode) and the
   desktop layout (hero, rail, 24 h and 5-day columns, the Settings sliders) render and respond,
   follow a switch to English and °F, and log no console error. The in-app updater applies it.
+- **The React Compiler now also compiles the seven functions that were opted out of it.** The
+  change above left ScreenSaver, ChartTabs, DebugPanel, RadarSnapshotsBlock, ZoomAnchorOffset,
+  HealthIndicator and `useUpdateChecker` uncompiled behind `"use no memo"`. Each is rewritten to
+  compile, with the same behaviour except where said. In the first four, the try/catch holding a conditional or an
+  optional chain (the compiler can't lower one inside a `try` yet) moves into a plain module
+  function, which the compiler doesn't see: `formatSleepDate`, `writeStoredValue`,
+  `readActiveBuckets` / `writeActiveBuckets` and `copySnapshotToClipboard`. HealthIndicator
+  suppressed `exhaustive-deps` on its poll, on the grounds that `t` was stable, which react-i18next
+  17 doesn't promise; the poll no longer needs `t`, because the "server unreachable" line is stored
+  as an i18n key and translated at render, so it now follows a language change instead of keeping
+  the language of the page's first render. `useUpdateChecker`'s post-update poll hands the attempt
+  number to the next attempt instead of `attempts++` on a captured variable (still 30 attempts).
+  ZoomAnchorOffset's patch of Leaflet's `zoomIn` / `zoomOut` moves into `installZoomAnchor(map,
+  offsetRef)`, which its effect calls and whose return value restores them; its two
+  `react-hooks/immutability` suppressions go with it. One new render-time read turned up:
+  DebugPanel read `matchMedia("(max-height: 520px)")` while rendering, which the compiled panel
+  would have kept until the palette or the font size changed. The query is now state with a change
+  listener, like the panel's two other media queries, so dropping the zoom boost also follows a
+  live resize. ChartTabs and HealthIndicator re-render on every LayoutPi toggle (D1 bench
+  attribution, 2026-10-18); the gain there is not measured on a Pi yet. `OPTED_OUT` in
+  `test/reactCompilerGuards.test.js` is now empty: the compiler compiles all 134 functions it sees
+  in `client/src` (127 before), and `enableTreatFunctionDepsAsConditional` still changes no
+  compiled file. Bundle +9.4 KB (+0.5 %, +3.6 KB gzipped). Build 0 errors, `npm test` 1168/1168. In
+  the browser (worktree server on the Mac): ChartTabs' hourly and daily metric and its
+  precipitation overlay are stored and come back after a reload; the screensaver shows the French date, its clock advances,
+  and it wakes on a tap; the Debug panel keeps its pinned buckets, drops its zoom boost at 800×480,
+  and the snapshot copy shows "Copied!" (and nothing, with no error, when the clipboard refuses);
+  with `/api/health` failing, the health chip turns red and its popover line follows a switch to
+  English and back; on the desktop layout the + and − buttons zoom 6 → 7 → 6 with the location
+  marker held within 1 px.
 
 ### Changed
 - **"Reduce motion" now removes transitions instead of shortening them, and stops the map's own
