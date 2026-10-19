@@ -77,6 +77,7 @@ pi-weather-station/
 │   │   ├── i18n/documentLang.js      # Keeps <html lang> on the rendered UI language (CommonJS, tested); index.html's notranslate meta keeps Chromium's translate bubble off the kiosk
 │   │   ├── ui/                       # Pure logic + design tokens — tokens.js (day/dusk/night/nightRed palettes), hybrid.js (useTimeOfDay palette key + hybrid-mode escalation), alertLogic.js, autoTabSelector.js (reducer), radarTileCooldown.js (failed radar tile URLs held 65 s, past RainViewer's 60 s rate-limit window), radarFrameStack.js (which RainViewer frames are mounted during playback / scrubbing — the displayed one ±2 — and which fixed layer slot each uses, so a step retargets a layer instead of creating one — plus the refresh hold: the frame on screen keeps its slot until a frame brought by the 10-min refresh has loaded in another; CommonJS so `test/radarFrameStack.test.js` runs it), piLayout.js, severity.js, weatherCodes.js, … + fonts.css / reset.css
 │   │   └── services/                 # conversions.js (unit conversions + labels: temp, speed, pressure, length — no km↔mi helper; that's KM_PER_UNIT in WeatherMap/geometry.js), formatting.js, brightnessRestore.js, geolocation.js, reverseGeocode.js
+│   ├── react-compiler-babel8.js # Wraps babel-plugin-react-compiler for Babel 8 (restores Babel 7's isLVal() during its pass, else every default-valued destructuring goes uncompiled); .babelrc runs it with panicThreshold "all_errors"
 │   └── dist/             # Compiled bundle (committed to git)
 ├── deploy/               # Multi-distro install.sh, systemd units, autostart, kiosk launcher,
 │                          # detect-display-scale.sh (per-panel kiosk auto-scale from physical PPI),
@@ -122,6 +123,8 @@ pi-weather-station/
 cd client && npm run prod
 ```
 The compiled `dist/` files are committed to git so Pis can `git pull` without rebuilding.
+
+**React Compiler.** The build runs `babel-plugin-react-compiler` through `client/react-compiler-babel8.js` (the compiler predates Babel 8; without the shim it skips every component or hook with a default-valued destructuring) with `panicThreshold: "all_errors"`: a component or hook the compiler can't compile fails `npm run prod` and prints why. Fix the code; if it truly can't compile, opt it out with `"use no memo"` as the first statement of its body, under a comment that starts `// Not compiled: <reason>`, and add it to `OPTED_OUT` in `test/reactCompilerGuards.test.js`. Compiled code assumes render is pure, and the compiler caches a call on its inputs: never read the clock (`Date.now()`, `new Date()`), storage or the DOM during render, not even inside a helper, or the result freezes. Pass a clock held in state instead, as `isDaylight(sunrise, sunset, now)` does.
 
 ### Server
 - All outbound axios calls must carry an explicit timeout — `10_000` by default (the `API_TIMEOUT_MS` / `TIMEOUT_MS` constants); a deliberately shorter fail-fast budget is fine (e.g. RainViewer radar fetches 8 s, NWS zone geometry 5 s, the debug probes); a missing timeout never is
@@ -180,7 +183,7 @@ These rules apply to every change, regardless of size. They exist to keep the co
 - **Local state first** — only promote state to `AppContext` if two or more unrelated components need it; `AppContext.js` is already large and should not grow without deliberate justification
 - **No inline styles for static values** — use CSS Modules; inline styles are reserved for values that are computed at runtime (e.g. `zoom`, `gridTemplateColumns`, CSS custom properties)
 - **Always clean up side effects** — every `setInterval`, `setTimeout`, or event listener registered in a `useEffect` must have a corresponding cleanup in the return function
-- **Never `X.defaultProps = {…}`** — React 19's automatic JSX runtime ignores it silently (the prop arrives `undefined`, zero warning in any build). Use destructuring defaults in the signature; for array/object defaults hoist a frozen module-scope constant so the reference stays stable across renders (see `NO_ALERTS` in `WeatherMap/index.js` — a bare `= []` allocates per render and busts memo chains). `test/react19Guards.test.js` fails the suite on any reappearance.
+- **Never `X.defaultProps = {…}`** — React 19's automatic JSX runtime ignores it silently (the prop arrives `undefined`, zero warning in any build). Use destructuring defaults in the signature; for array/object defaults hoist a frozen module-scope constant so the reference stays stable across renders (see `NO_ALERTS` in `WeatherMap/index.js` — a bare `= []` allocates per render and busts memo chains). `test/react19Guards.test.js` fails the suite on any reappearance. (The React Compiler handles these defaults only through the Babel 8 shim; see Client build.)
 
 ### ESLint suppressions
 - **Avoid `// eslint-disable-line` and `// eslint-disable-next-line`** — if a suppression is truly necessary, add an inline comment on the same line explaining *why* the rule is being bypassed

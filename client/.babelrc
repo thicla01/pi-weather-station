@@ -4,6 +4,6 @@
     ["@babel/preset-react", { "runtime": "automatic" }]
   ],
   "plugins": [
-    ["babel-plugin-react-compiler", { "target": "19" }]
+    ["./react-compiler-babel8.js", { "target": "19", "panicThreshold": "all_errors" }]
   ]
 }

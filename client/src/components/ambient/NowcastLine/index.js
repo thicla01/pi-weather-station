@@ -200,7 +200,7 @@ const NowcastLine = () => {
   // CALM tier — always present, sky-adaptive icon + radar-anchored text.
   const values = weather && weather.currentWeatherData?.data?.timelines?.[0]?.intervals?.[0]?.values;
   const isDay = weather && weather.sunriseTime && weather.sunsetTime
-    ? isDaylight(weather.sunriseTime, weather.sunsetTime)
+    ? isDaylight(weather.sunriseTime, weather.sunsetTime, nowTs)
     : true;
   const calm = calmNowcast(values?.weatherCode, isDay);
 

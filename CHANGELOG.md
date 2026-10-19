@@ -129,6 +129,50 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   at-rule or context selector, card edges included: it must take the edge back and win over the
   reader's rule), the order of the chip's `@supports` rule, the portal whitelist and the new
   container. The in-app updater applies it.
+- **The React Compiler now compiles the 25 components and hooks it had been skipping without a
+  word.** Under Babel 8 (the client's toolchain since PR 287) `babel-plugin-react-compiler` 1.0.0
+  could not lower a default value in a destructuring pattern: Babel 8 took `AssignmentPattern` and
+  `RestElement` out of the `LVal` alias (babel/babel#17387), and the compiler asks `path.isLVal()`
+  before it lowers a destructuring target. Every function with such a default (the signature
+  defaults that replace `defaultProps` since React 19) failed with "(BuildHIR::lowerAssignment)
+  Expected object property value to be an LVal, got: AssignmentPattern", and the default
+  `panicThreshold` left it as written, with no cache: 25 functions in 21 files, never compiled since
+  the compiler was enabled (PR 318). Among them: TimeBlock, HeroCompact, MetricsGrid, AirCard, the
+  sun, moon and location popovers with `DetailsPopover`, `PlacesPopover`, the daily and hourly
+  forecast columns, three WeatherMap alert overlays and `useFavoriteLocations`. Found during the D1
+  bench attribution (2026-10-18): the sun and moon popovers redid their `Intl.DateTimeFormat` and
+  astronomy work on every LayoutPi toggle (~3.5 ms per toggle under a 4× CPU throttle on the Mac).
+  New `client/react-compiler-babel8.js` wraps the compiler and gives `NodePath#isLVal()` its Babel 7
+  meaning during the compiler's own pass only (set when its `Program.enter` starts, restored in
+  `finally`; a pass-through under Babel 7). Checked over the 107 files of `client/src`: with the
+  shim, the compiler's output under Babel 8 is the one it gives under Babel 7 (the `@babel/core`
+  7.29.7 copy that eslint-plugin-react-hooks carries), except for how the generator escapes
+  non-ASCII strings; 126 functions compiled, against 101 before. There is no upstream fix yet: the
+  latest stable compiler is still 1.0.0, and its experimental builds up to 2026-05-07 make the same
+  `isLVal()` calls.
+  Compiled code assumes that render is pure, and two of the 25 read the clock during render through
+  `isDaylight()` (`ui/weatherCodes.js`), which called `Date.now()`. Compiled, TimeBlock's next-sun
+  line and HeroCompact's day/night icon would have kept their answer past sunset, until a weather
+  refresh changed another of their inputs. `isDaylight(sunrise, sunset, now)` now takes the time as
+  an argument: TimeBlock passes its minute clock, HeroBand and NowcastLine pass the clocks they
+  already had, and HeroCompact gets its own (one re-check a minute). Checked in the browser with the
+  page's clock moved to 18:10: the next-sun line switched to sunrise at once, and the icon to the
+  moon within the minute. A scan of the whole compiled bundle for clock reads inside cached blocks
+  finds one more, older case: the "issued … ago" chip of AlertMetaChips, compiled since PR 318
+  (`ROADMAP.md`).
+  **A function the compiler skips now fails the build.** `.babelrc` sets `panicThreshold:
+  "all_errors"`, so `npm run prod` and CI's client job stop on the first function the compiler
+  can't compile, and print why. The seven functions that were never compiled for other reasons stay
+  that way through an explicit `"use no memo"` under a `// Not compiled:` comment: ScreenSaver,
+  ChartTabs, DebugPanel and its RadarSnapshotsBlock (a conditional inside try/catch, not supported
+  yet), ZoomAnchorOffset (its deliberate monkey-patch of the Leaflet map), HealthIndicator (a
+  suppressed react-hooks rule) and `useUpdateChecker` (`attempts++` on a captured variable). New
+  `test/reactCompilerGuards.test.js` pins the shim and the threshold in `.babelrc`, and the
+  opted-out functions by name, each with its reason, so a new opt-out is a deliberate change. Bundle
+  +24 KB (+1.4 %, +9.8 KB gzipped). Build 0 errors, `npm test` 1160/1160. In the browser, the 7"
+  layout (glance, Conditions, the sun, moon and location popovers, Places in edit mode) and the
+  desktop layout (hero, rail, 24 h and 5-day columns, the Settings sliders) render and respond,
+  follow a switch to English and °F, and log no console error. The in-app updater applies it.
 
 ### Changed
 - **"Reduce motion" now removes transitions instead of shortening them, and stops the map's own

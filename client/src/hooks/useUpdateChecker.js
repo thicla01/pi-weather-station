@@ -28,6 +28,10 @@ const POLL_RETRY_DELAY_MS = 2000;
  *   `refreshUpdateCheck`, `triggerUpdate`, `saveSkippedSha`.
  */
 export function useUpdateChecker() {
+  // Not compiled: React Compiler 1.0 can't lower `attempts++` on a
+  // variable a closure captures (pollUntilReady below). Opting out keeps
+  // the build's panicThreshold "all_errors" (.babelrc) passing.
+  "use no memo";
   const [updateAvailable, setUpdateAvailable] = useState(false);
   const [latestVersion, setLatestVersion] = useState(null);
   const [latestSha, setLatestSha] = useState(null);

@@ -104,6 +104,10 @@ const CSV_EXPORT_FPS_SAMPLE_MS = 1000;
  *   \`localhostOnly\` on \`/api/debug\`).
  */
 const DebugPanel = () => {
+  // Not compiled: React Compiler 1.0 can't lower a conditional inside a
+  // try/catch (the stored-bucket read below). Opting out keeps the
+  // build's panicThreshold "all_errors" (.babelrc) passing.
+  "use no memo";
   const { t, i18n } = useTranslation();
   const lang = (i18n.language || "en").slice(0, 2);
   const {
@@ -1517,6 +1521,10 @@ const BucketStorage = ({ data, lang, gridTwoWide }) => {
  *   snapshots yet." note when the list is missing or empty.
  */
 const RadarSnapshotsBlock = ({ snapshots, lang }) => {
+  // Not compiled: React Compiler 1.0 can't lower optional chaining inside
+  // a try/catch (handleCopy below). Opting out keeps the build's
+  // panicThreshold "all_errors" (.babelrc) passing.
+  "use no memo";
   const [copiedIndex, setCopiedIndex] = useState(null);
   const hasAny = Array.isArray(snapshots) && snapshots.length > 0;
   const handleCopy = useCallback(async (s, i) => {

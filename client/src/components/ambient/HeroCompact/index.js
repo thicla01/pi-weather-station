@@ -1,4 +1,4 @@
-import React, { useContext, useRef, useState } from "react";
+import React, { useContext, useEffect, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
@@ -11,6 +11,9 @@ import LocationName from "~/components/LocationName";
 import LocationDetailsPopover from "~/components/ambient/LocationDetailsPopover";
 import { ExpandIcon } from "~/components/WeatherMap/icons";
 import styles from "./styles.css";
+
+// How often the day/night choice of the condition icon is re-checked.
+const DAYLIGHT_TICK_MS = 60 * 1000;
 
 /**
  * Direction C compact hero slab (Pi 7" + mobile) — v3.1 Phase 2
@@ -54,6 +57,16 @@ const HeroCompact = ({ shortPhaseName = false, hideAstro = false, hideFeelsLike 
   const { tempUnit } = useContext(UiPrefsContext);
   const { reverseGeoResult } = useContext(LocationContext);
   const { t } = useTranslation();
+
+  // Clock for the day/night icon, held in state so the compiled component
+  // re-checks it: the React Compiler caches isDaylight's answer with this
+  // render's other inputs, so without a clock among them the day icon would
+  // stay up past sunset until a weather refresh changed one of them.
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), DAYLIGHT_TICK_MS);
+    return () => clearInterval(id);
+  }, []);
 
   // v3.3 glance: a corner ⤢ that opens the Conditions view. Rendered in both
   // the placeholder and populated slabs so the affordance doesn't pop in when
@@ -126,7 +139,7 @@ const HeroCompact = ({ shortPhaseName = false, hideAstro = false, hideFeelsLike 
 
   const { temperature, temperatureApparent, weatherCode } = weatherData;
   const daylight = sunriseTime && sunsetTime
-    ? isDaylight(sunriseTime, sunsetTime)
+    ? isDaylight(sunriseTime, sunsetTime, now)
     : true;
   const parsed = parseWeatherCode(weatherCode, daylight);
   const tempUnitLabel = tempUnit === "k" ? "K" : `°${tempUnit.toUpperCase()}`;

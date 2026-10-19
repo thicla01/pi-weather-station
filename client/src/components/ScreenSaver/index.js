@@ -95,6 +95,10 @@ function conditionKey(code) {
  * @returns {JSX.Element|null} Overlay, or null when stage = 0
  */
 const ScreenSaver = ({ stage }) => {
+  // Not compiled: React Compiler 1.0 can't lower a conditional inside a
+  // try/catch (the date-format fallback below). Opting out keeps the
+  // build's panicThreshold "all_errors" (.babelrc) passing.
+  "use no memo";
   const { i18n } = useTranslation();
   const {
     currentWeatherData,
