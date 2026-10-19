@@ -183,9 +183,15 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   ChartTabs, DebugPanel and its RadarSnapshotsBlock (a conditional inside try/catch, not supported
   yet), ZoomAnchorOffset (its deliberate monkey-patch of the Leaflet map), HealthIndicator (a
   suppressed react-hooks rule) and `useUpdateChecker` (`attempts++` on a captured variable). New
-  `test/reactCompilerGuards.test.js` pins the shim and the threshold in `.babelrc`, and the
-  opted-out functions by name, each with its reason, so a new opt-out is a deliberate change. Bundle
-  +24 KB (+1.4 %, +9.8 KB gzipped). Build 0 errors, `npm test` 1160/1160. In the browser, the 7"
+  `test/reactCompilerGuards.test.js` pins the shim and its whole option object in `.babelrc`, and
+  fails on anything else that could configure Babel for `client/src` (an `env` or `overrides`
+  block, another Babel config file under `client/`, babel-loader options, a "babel" key in
+  `client/package.json`): each of those could switch the compiler off for some components
+  (`compilationMode: "annotation"`) or lower the threshold, with no error. It also pins the
+  opted-out functions by name, each with its reason, so a new opt-out is a deliberate change, and
+  fails on a directive it can't parse (followed by a comment, or on the function's opening line),
+  which the compiler would honour unseen. Bundle +24 KB (+1.4 %, +9.8 KB gzipped). Build 0 errors,
+  `npm test` 1160/1160. In the browser, the 7"
   layout (glance, Conditions, the sun, moon and location popovers, Places in edit mode) and the
   desktop layout (hero, rail, 24 h and 5-day columns, the Settings sliders) render and respond,
   follow a switch to English and °F, and log no console error. The in-app updater applies it.
