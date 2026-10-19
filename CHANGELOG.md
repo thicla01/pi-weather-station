@@ -157,9 +157,16 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   an argument: TimeBlock passes its minute clock, HeroBand and NowcastLine pass the clocks they
   already had, and HeroCompact gets its own (one re-check a minute). Checked in the browser with the
   page's clock moved to 18:10: the next-sun line switched to sunrise at once, and the icon to the
-  moon within the minute. A scan of the whole compiled bundle for clock reads inside cached blocks
-  finds one more, older case: the "issued … ago" chip of AlertMetaChips, compiled since PR 318
-  (fixed below, under Fixed).
+  moon within the minute. A third, AirCard, read it through `formatAge()` (`ui/formatAge.js`, date-fns
+  `formatDistanceToNow`): with its air-quality popover left open, the reading's age stayed as it was
+  until the next reading (about 30 min) instead of moving on at each weather poll (about 10 min).
+  `formatAge(observedAt, language, now)` now takes the time too (date-fns `formatDistance`), and the
+  age is rendered by new `ambient/ReadingAge`, which the popover mounts only while open: its clock
+  starts at the exact time on every opening and advances once a minute. A scan of the compiled
+  bundle that follows calls across modules, date-fns included, finds no other clock read inside a
+  cached block; the first scan of this change missed `formatAge`, and the review caught it. Two
+  older cases, compiled since PR 318, are fixed below under Fixed: AlertMetaChips' "issued … ago"
+  chip and AirAlertCard's reading age.
   One of the 25 would have thrown during render instead. LocationDetailsPopover reads
   `mapGeo.latitude` only inside its pin handler, but the compiler keyed the cached handler on
   `mapGeo.latitude` and `mapGeo.longitude`, read while rendering, so the popover threw whenever it
@@ -245,6 +252,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   and in the browser on a live NWS Flood Warning, with the page clock set 5 min after the issue
   time: the chip read "6 min", then "7 min" a minute later, without the banner remounting. The
   in-app updater applies it.
+- **The air-quality alert card's reading age advances while its popover is open.** Compiled since
+  PR 318, AirAlertCard (the AIR card on the Pi rail) cached the age shown in its popover on the
+  reading's time and the language, while `formatAge()` read the clock itself: the age stayed
+  where it was when the popover first rendered, until the next reading. It now uses
+  `ambient/ReadingAge`, like AirCard (see the React Compiler entry under Performance): a fresh clock
+  on every opening, then one tick a minute. The in-app updater applies it.
 - **The dock's health chip looks the same in the day palette as in the dark ones.** Its mono
   label (Geist Mono 10 px, 0.06 em tracking), dimmed text colour, no-wrap and the 0.15 s fill and
   border transition sat in the dark-palette rule since the chip was introduced, so in the day

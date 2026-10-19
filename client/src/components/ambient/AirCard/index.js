@@ -2,10 +2,10 @@ import React, { useContext, useRef, useState } from "react";
 import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
 import { WeatherDataContext, UiPrefsContext } from "~/AppContext";
-import { formatAge } from "~/ui/formatAge";
 import { formatDistanceKm } from "~/components/WeatherMap/geometry";
 import { AQ_NEUTRAL_LABEL_KEY, aqScaleLabelKey, formatAqValue } from "~/ui/airQualityDisplay";
 import DetailsPopover from "~/components/ambient/DetailsPopover";
+import ReadingAge from "~/components/ambient/ReadingAge";
 import styles from "./styles.css";
 
 // Source-specific label keys for the AQ detail popover. Mirrors the
@@ -159,7 +159,7 @@ const AirCard = ({ suppressAqRow = false }) => {
               {aqhiInfo.observedAt ? (
                 <div className={styles.detailRow}>
                   <span className={styles.detailLabel}>{t("metrics.detailAge")}</span>
-                  <span>{formatAge(aqhiInfo.observedAt, i18n.language)}</span>
+                  <ReadingAge observedAt={aqhiInfo.observedAt} language={i18n.language} />
                 </div>
               ) : null}
               {aqhiInfo.pollutant ? (
