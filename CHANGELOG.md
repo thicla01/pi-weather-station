@@ -215,8 +215,13 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   would have kept until the palette or the font size changed. The query is now state with a change
   listener, like the panel's two other media queries, so dropping the zoom boost also follows a
   live resize. ChartTabs re-renders on every LayoutPi toggle (it reads `piLayoutState`; D1 bench
-  attribution, 2026-10-18); the gain there is not measured on a Pi yet. HealthIndicator only
-  re-renders on its 2-min poll, on opening its popover and on a language change. `OPTED_OUT` in
+  attribution, 2026-10-18). On P9 (Pi 4, 2026-10-19: one session, day palette, 704 toggles in
+  alternated master / PR passes, bundle swapped over CDP, nothing deployed), a toggle's click
+  handler takes about 1.5 ms less (MIN↔MID 13.5 → 12.0 ms, p = 0.01; view open and close 14.6 →
+  13.0 ms, p = 0.02) and a view's closing reaches the screen about 5.6 ms sooner (p = 0.005). Missed
+  frames during a toggle don't change: they come from the transition and the map's resize, not from
+  React. How the gain splits among the newly compiled functions isn't measured. HealthIndicator
+  only re-renders on its 2-min poll, on opening its popover and on a language change. `OPTED_OUT` in
   `test/reactCompilerGuards.test.js` is now empty: the compiler compiles all 134 functions it sees
   in `client/src` (127 before), and `enableTreatFunctionDepsAsConditional` still changes no
   compiled file. Bundle +9.4 KB (+0.5 %, +3.6 KB gzipped). Build 0 errors, `npm test` 1168/1168. In
