@@ -102,8 +102,11 @@ function findOptOuts() {
       if (!DIRECTIVE_RE.test(text)) {
         // The line without its block comments, including the tail of one
         // opened on an earlier line: `/* … */ "use no memo";` and
-        // `*/ "use no memo";` are code, however the line starts.
-        const code = text.replace(/\/\*.*?\*\//g, "").replace(/^.*?\*\//, "");
+        // `*/ "use no memo";` are code, however the line starts. The tail
+        // is only cut where no quote comes before the `*/`, so a `*/` after
+        // the directive (`// see a/*/b`, `/\d*/`, a `**/*.js` glob) leaves
+        // the directive in place for the check.
+        const code = text.replace(/\/\*.*?\*\//g, "").replace(/^[^"'`]*?\*\//, "");
         if (DIRECTIVE_ANYWHERE_RE.test(code) && !COMMENT_LINE_RE.test(code)) {
           found.push({ file, line: i + 1, name: null, comment: [], malformed: true });
         }
