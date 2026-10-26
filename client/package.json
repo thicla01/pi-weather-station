@@ -48,18 +48,18 @@
     "babel-plugin-react-compiler": "^1.0.0",
     "css-loader": "^7.1.5",
     "eslint": "^9.39.5",
-    "eslint-plugin-jsdoc": "^65.1.0",
+    "eslint-plugin-jsdoc": "^65.3.12",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-webpack-plugin": "^6.0.0",
     "globals": "^17.13.0",
     "html-loader": "^5.1.0",
     "html-webpack-plugin": "^5.6.8",
-    "postcss": "^8.5.28",
+    "postcss": "^8.5.31",
     "postcss-loader": "^8.2.1",
-    "postcss-preset-env": "^11.6.0",
+    "postcss-preset-env": "^11.6.1",
     "style-loader": "^4.0.0",
-    "webpack": "^5.111.1",
+    "webpack": "^5.112.0",
     "webpack-cli": "^7.2.3"
   }
 }
