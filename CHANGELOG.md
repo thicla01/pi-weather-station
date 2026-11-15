@@ -292,6 +292,49 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   token, every other stylesheet's `.leaflet-container` background and the one place a map is
   mounted. The in-app updater applies it.
 
+### Changed (dependency maintenance, 2026-11)
+- **Dependency maintenance, 2026-11-15.** Four Dependabot PRs, no application code touched, **client
+  bundle rebuilt**. Each PR was verified on master `fbfc33d3` in a throwaway tree, then challenged by
+  a second independent pass (the two client PRs); the two client PRs were also built together.
+  - **Server (PR #434):** `axios` 1.20.0 → 1.21.0, `express` 5.2.1 → 5.3.0, `express-rate-limit`
+    8.7.0 → 8.7.2; the lockfile also moves express's own `content-type` 1.0.5 → 2.1.0 and
+    `content-disposition` 1.1.0 → 2.0.1. Our routes answer the same: a side-by-side harness gives
+    identical status codes and headers on both versions (JSON, the static bundle, the tile proxy,
+    the certificate download, 404s). `nwsZones`' `maxRedirects: 0` still refuses 301/302/303/307/308
+    without contacting the target. Rate-limit keys are identical for IPv4, IPv4-mapped, IPv6 (/56)
+    and NAT64; express-rate-limit 8.7.2's security fix (GHSA-j3cq-92fq-qg5f) concerns
+    `skipFailedRequests` / `skipSuccessfulRequests`, which neither limiter uses. **One logging
+    change:** Express 5.3's default error handler prints the whole error object instead of its
+    stack, so a malformed JSON body now reaches `server.log` (up to 10 000 characters); a terminal
+    error handler that logs only the type and message is planned as a follow-up.
+  - **Client, dev tree (PR #435):** `webpack` 5.111.1 → 5.112.2, `webpack-cli` 7.3.1,
+    `eslint-plugin-jsdoc` 65.1.0 → 65.4.2, `postcss` 8.5.32, `postcss-preset-env` 11.6.2,
+    `autoprefixer` 10.6.2, `globals` 17.14.0. webpack 5.112 writes the 14 wrapped CommonJS module
+    factories of React, ReactDOM and the scheduler as arrow functions (−112 bytes); none of them
+    reads `this` or `arguments`. Lint stays at 0 errors / 0 warnings, with the same 153 active rules.
+  - **Client, runtime (PR #436):** `@babel/core` 8.0.6 → 8.0.10 and `@babel/preset-env` 8.0.7
+    (build time), `react-dom` 19.3.1 (brings `react` 19.3.1; the client renderer differs by its
+    version string only), `chart.js` 4.5.1 → 4.6.1, `i18next` 26.4.2 → 26.7.1, `react-i18next`
+    17.1.11, `i18next-browser-languagedetector` 8.3.0, `axios` 1.21.0, `@iconify/react` 6.0.4. The
+    React Compiler shim (`client/react-compiler-babel8.js`) still holds under Babel 8.0.10: 134
+    functions compiled before and after, Babel's output identical for all 109 files of
+    `client/src`, 133 memo-cache allocations in the bundle. Translations: 23 top-level keys and
+    431 leaves per language, every `t()` result unchanged. Visible behaviour: Chart.js sizes the
+    chart canvas in whole pixels; axios now reads the XSRF cookie through the Cookie Store API
+    before each same-origin request (the server sets none, so no header is sent).
+  - **CI (PR #432):** `actions/setup-node` 7.0.0 → 7.1.0.
+  - **Rebuilt `client/dist`:** `bundle.min.js` 1 780 299 → 1 794 961 bytes (+14 662; the growth is
+    axios, i18next, chart.js and react-i18next) and its LICENSE file; the CSS, the deferred
+    stylesheet chunk, `index.html`, fonts and icons are byte-identical. Built with Node 24 on
+    master after the four merges: byte-identical to the combined build that was smoke-tested in a
+    browser (every `/api` call 200, no console error, chart tabs, live EN → ES → FR switch, the
+    desktop and the 800 × 480 Pi layouts). Server tests 1168/1168.
+  - Also merged automatically since the last batch (security patches, PRs #422, #423, #426-#430):
+    `follow-redirects` 1.16.2 (root and client), `body-parser` 2.4.0, `fast-uri` 3.1.9 (client),
+    `ip-address` 10.7.5.
+  - **Rollout:** server dependencies changed, so each Pi needs the in-app updater (it runs
+    `npm ci --omit=dev`); a bare `git pull` is not enough.
+
 ### Fixed
 - **The alert banner's "Issued … ago" chip advances again.** Since the React Compiler arrived
   (PR 318), the compiled AlertMetaChips cached its label on the alert's issue time and the
