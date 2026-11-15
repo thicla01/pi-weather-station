@@ -7,12 +7,22 @@
 # row per day. Re-runs are idempotent: a day already on file is updated to the
 # higher count (partial "today" only ever grows), never duplicated.
 #
-# Output columns: date,clones,clone_uniques,views,view_uniques
+# It also snapshots the top referrers. Unlike clones/views, GitHub's referrers
+# feed is NOT a daily series — it's the top 10 over a rolling 14-day window — so
+# it can't be a column in the daily CSV. Instead each run appends a dated
+# snapshot to a second file, which freezes a referrer (e.g. a spam source) in
+# local history before it ages out of GitHub's window. Re-running on the same
+# day overwrites that day's snapshot; earlier days are kept.
+#
+# Output files (both under ~/.local/share/pi-weather-station/ by default):
+#   traffic-history.csv    date,clones,clone_uniques,views,view_uniques
+#   traffic-referrers.csv  snapshot_date,referrer,count,uniques   ("(none)" row when empty)
 #
 # Usage:
-#   tools/track-traffic.sh                 # append/merge into the default CSV
+#   tools/track-traffic.sh                 # append/merge into the default CSVs
 #   REPO=owner/name tools/track-traffic.sh # track a different repo
-#   OUT=/path/to/file.csv tools/track-traffic.sh
+#   OUT=/path/to/file.csv tools/track-traffic.sh            # override the daily CSV
+#   REFERRERS_OUT=/path/to/refs.csv tools/track-traffic.sh  # override the referrers CSV
 #
 # Requires: gh (authenticated), jq.
 
@@ -74,3 +84,35 @@ rows="$(( $(wc -l < "$OUT") - 1 ))"
 echo "OK — $rows jour(s) archivé(s) dans $OUT"
 echo "Dernières lignes :"
 tail -n 5 "$OUT"
+
+# --- Referrers: dated snapshots of the rolling top-10 (see header) -----------
+REFERRERS_OUT="${REFERRERS_OUT:-$HOME/.local/share/pi-weather-station/traffic-referrers.csv}"
+today="$(date +%F)"
+mkdir -p "$(dirname "$REFERRERS_OUT")"
+[ -f "$REFERRERS_OUT" ] || echo "snapshot_date,referrer,count,uniques" > "$REFERRERS_OUT"
+
+# Secondary to the daily archive, so a referrers-only failure must not abort the
+# run (the main CSV is already written above): tolerate a gh error and skip.
+refs_json="$(gh api "repos/$REPO/traffic/popular/referrers" 2>/dev/null || true)"
+if [ -n "$refs_json" ]; then
+  # One "today,referrer,count,uniques" row per referrer; a "(none)" sentinel when
+  # the window has no referrers, so the snapshot date is still on record.
+  fresh_refs="$(
+    jq -rn --arg d "$today" --argjson refs "$refs_json" '
+      if ($refs | length) == 0 then [ $d, "(none)", 0, 0 ] | @csv
+      else $refs[] | [ $d, .referrer, .count, .uniques ] | @csv end
+    ' | tr -d '"'
+  )"
+  # Drop any existing rows for today (idempotent re-run), keep all earlier days,
+  # then append today's fresh snapshot. Sorted by date, then referrer.
+  ref_merged="$(
+    { tail -n +2 "$REFERRERS_OUT" | awk -F, -v t="$today" '$1 != t'; echo "$fresh_refs"; } \
+      | awk 'NF' | sort
+  )"
+  { echo "snapshot_date,referrer,count,uniques"; echo "$ref_merged"; } > "$REFERRERS_OUT"
+  echo
+  echo "Référents (instantané du $today) → $REFERRERS_OUT :"
+  awk -F, -v t="$today" 'NR==1 || $1==t' "$REFERRERS_OUT"
+else
+  echo "warn: référents non récupérés (gh a échoué) — $REFERRERS_OUT inchangé" >&2
+fi
