@@ -158,7 +158,7 @@ test("errorHandler: an escaped AxiosError (upstream 401) → 401, one line, no U
   assert.equal(r.res.status, 401);
   assert.equal(r.res.body, "Unauthorized");
   assert.deepEqual(r.lines, ["[error] 401 GET /api/axios-401 — ERR_BAD_REQUEST: Request failed with status code 401"]);
-  assert.ok(!r.lines[0].includes("tomorrow.io"));
+  assert.ok(!r.lines[0].includes("/v4/weather/realtime"), "the upstream URL must never reach the log");
   assertClean(r);
 });
 
@@ -169,7 +169,7 @@ test("errorHandler: an escaped AxiosError (upstream 503) → 503 with its stack 
   const [first, ...frames] = r.lines[0].split("\n");
   assert.equal(first, "[error] 503 GET /api/axios-503 — ERR_BAD_RESPONSE: Request failed with status code 503");
   assert.ok(frames.length >= 1 && frames.every((f) => /^\s+at\s/.test(f)));
-  assert.ok(!r.lines[0].includes("tomorrow.io"));
+  assert.ok(!r.lines[0].includes("/v4/weather/realtime"), "the upstream URL must never reach the log");
   assertClean(r);
 });
 
