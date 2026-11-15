@@ -126,6 +126,7 @@ const { checkForUpdate, clearCache: clearUpdateCache } = require("./updateChecke
 const rateLimit = require("express-rate-limit");
 const { socketPeerKeyGenerator } = require("./rateLimitKey");
 const { securityHeaders } = require("./securityHeaders");
+const { terminalErrorHandler } = require("./errorHandler");
 const { createSingleFlightGuard, createPerPeerConcurrencyGuard } = require("./singleFlight");
 
 const DIST_DIR = "/../client/dist";
@@ -1033,6 +1034,13 @@ app.post("/api/display-scale", localhostOnly, setDisplayScale);
 // browser launch flag). localhost-only — it cycles the Pi's physical kiosk.
 // NOT a server restart: spawns relaunch-kiosk.sh detached and returns at once.
 app.post("/api/relaunch-kiosk", localhostOnly, relaunchKiosk);
+
+// The terminal error handler — keep it the LAST middleware (after every route).
+// Express 5.3's default handler logs the whole error object, so a malformed
+// JSON body (or an escaped AxiosError, its URL and API key included) would land
+// in server.log; this one answers like finalhandler in production and logs one
+// sanitized line. See server/errorHandler.js.
+app.use(terminalErrorHandler);
 
 function shutdown() {
   saveCacheToDisk();

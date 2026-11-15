@@ -124,6 +124,29 @@ journalctl --user -u pi-sensehat-clock -n 50
 journalctl --user -u pi-sensehat-clock -f
 ```
 
+### Request errors (`[error]` lines)
+
+An error that reaches Express (a malformed JSON body, an exception a route
+did not catch) is answered and logged by the terminal error handler,
+`server/errorHandler.js`, the last middleware of `server/index.js`. It
+writes ONE line:
+
+```
+[2026-11-15 10:34:33] [error] 400 POST /api/kiosk-location — entity.parse.failed
+```
+
+— the status, the method, the path **without** its query string (which
+carries the kiosk's coordinates; cut at 200 characters), and the error's
+kind. An error whose message may quote its input logs its kind only: a
+body-parser error (its `type`), a `SyntaxError` (V8's JSON messages quote
+the input) and Node's `ERR_INVALID_*` argument errors. Any other error adds
+the first line of its message, cut at 200 characters, and a 5xx adds its
+stack frames. Credential parameters (`apikey=`, `key=`, `token=`,
+`access_token=`, `password=`, `secret=`, in any case) are redacted. The
+request body and the full error object are never logged: Express 5.3's own
+handler would print the whole object, request body and upstream URL (API
+key included) with it.
+
 ### Kiosk relaunch (`POST /api/relaunch-kiosk`)
 
 `deploy/relaunch-kiosk.sh` (spawned detached by `displayScaleCtrl`)
