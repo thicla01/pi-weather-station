@@ -305,8 +305,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
     and NAT64; express-rate-limit 8.7.2's security fix (GHSA-j3cq-92fq-qg5f) concerns
     `skipFailedRequests` / `skipSuccessfulRequests`, which neither limiter uses. **One logging
     change:** Express 5.3's default error handler prints the whole error object instead of its
-    stack, so a malformed JSON body now reaches `server.log` (up to 10 000 characters); a terminal
-    error handler that logs only the type and message is planned as a follow-up.
+    stack, so a malformed JSON body would reach `server.log` (up to 10 000 characters); the server
+    now logs such errors itself (see « Fixed », the terminal error handler).
   - **Client, dev tree (PR #435):** `webpack` 5.111.1 → 5.112.2, `webpack-cli` 7.3.1,
     `eslint-plugin-jsdoc` 65.1.0 → 65.4.2, `postcss` 8.5.32, `postcss-preset-env` 11.6.2,
     `autoprefixer` 10.6.2, `globals` 17.14.0. webpack 5.112 writes the 14 wrapped CommonJS module
@@ -336,6 +336,27 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
     `npm ci --omit=dev`); a bare `git pull` is not enough.
 
 ### Fixed
+- **Request errors no longer write request bodies or API keys into `server.log`.** The server had
+  no error middleware of its own, so every error that reached Express was answered and logged by
+  Express's default handler. Express 5.3 (this month's batch) makes that handler log the whole
+  error object: a malformed JSON body sent to any endpoint wrote up to 10 000 characters of that
+  body into the log (about 11 KB per request instead of 1.3 KB; the JSON parser runs before the
+  rate limiters and the localhost gates, so any client that reaches the port could do it), and an
+  AxiosError escaping a controller would have written the upstream URL, API key included (none
+  does today, by review). New `server/errorHandler.js`, the last middleware of `server/index.js`:
+  it answers with the status and headers Express would send under `NODE_ENV=production` (the
+  error's integer 4xx/5xx status and its headers), the status text as a plain-text body, and logs
+  one line — status, method, path without its query string (cut at 200 characters), the error's
+  kind; the first line of its message (200 characters at most, credential parameters such as
+  `apikey`, `key`, `token`, `access_token` redacted in any case) except for errors whose message
+  quotes their input (body-parser errors, `SyntaxError`, Node's `ERR_INVALID_*`); for a 5xx, its
+  stack frames, redacted the same way. It never hands the error back to Express, even when an
+  error carries an invalid status or header. Covered by `test/errorHandler.test.js` (a real
+  Express app with console output spied and a sentinel after the handler: malformed JSON, a very
+  long path, real `AxiosError`s with upstream 401 and 503, a thrown error, a `SyntaxError`, error
+  statuses and headers, headers already sent; and that `server/index.js` registers it last, with
+  no registration indented below). See `docs/logs.md`. The in-app updater applies it.
+
 - **The alert banner's "Issued … ago" chip advances again.** Since the React Compiler arrived
   (PR 318), the compiled AlertMetaChips cached its label on the alert's issue time and the
   language, while the label's helper read the clock itself: "Issued 5 min ago" stayed on the banner
