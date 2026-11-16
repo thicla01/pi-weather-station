@@ -143,7 +143,7 @@ Tracks outbound calls to paid/rate-limited external services. Counters are persi
 | **tomorrow.io** | `current`, `hourly`, `daily` | 25 | 500 | — | Realtime weather, hourly and daily forecasts — the limits apply to the sum of the three endpoints. `current` also counts the AI summary's weather backfill |
 | **mapbox** | `tiles` | — | — | 50 000 | Base map tile requests |
 | **locationiq** | `geocode` | — | 5 000 | — | Reverse geocoding |
-| **ipapi.co** | `geolocation` | — | 1 000 | — | IP-based default location |
+| **ipapi.co** | `geolocation` | — | 1 000 | — | IP-based default location — counts `GET /geolocation` requests (page loads), cache hits included, not calls to ipapi.co: a proxy for ipapi.co's 1 000/day call quota (a refresh's up to 5 calls are not counted) |
 | **anthropic** | `summary` | — | — | — | AI weather summary (no published quota) |
 
 > Limits are per service, not per endpoint: the panel's TOTAL row sums every endpoint of a service and is the only row that shows `used / cap`. Every cell, endpoint rows included, is tinted against the full service cap (`--c-warn` at ≥ 80 %, `--c-danger` at ≥ 100 %).

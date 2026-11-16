@@ -164,10 +164,17 @@ server/index.js  ─── entry point, routes, middleware, HTTPS server
     │                        Tomorrow.io envelope shape (source comparison).
     │
     ├── geolocationCtrl.js   Resolves the Pi's approximate location via
-    │                        ipapi.co with retry-with-backoff (5 attempts)
-    │                        and a 30-day disk cache (geolocation-cache.json)
-    │                        so cold boots survive transient network gaps
-    │                        and ipapi outages.
+    │                        ipapi.co, with a 30-day disk cache
+    │                        (geolocation-cache.json, read on the first
+    │                        request). An expired cache is served at once
+    │                        and refreshed in the background (one refresh
+    │                        at a time; 15 min cooldown after a failure,
+    │                        1 h after a 429). Only a missing cache makes a
+    │                        request wait, on one fetch shared by concurrent
+    │                        requests. Retry-with-backoff (5 attempts) on
+    │                        network errors, timeouts and 5xx — and on a 429
+    │                        when there is no cache — so cold boots survive
+    │                        transient network gaps and ipapi outages.
     │
     ├── sensehatCtrl.js      Lightweight JSON endpoint for the Sense HAT
     │                        display daemons (sensehat_weather.py,
@@ -884,7 +891,7 @@ cd ~/pi-weather-station && git pull && bash deploy/install.sh
 
 ### ADR-05 — Caches persisted to disk
 
-**Decision:** Both the server-side weather cache and the geolocation result are saved to disk (`server/weather-cache.json`, `server/geolocation-cache.json`) and reloaded at startup.
+**Decision:** Both the server-side weather cache and the geolocation result are saved to disk (`server/weather-cache.json`, `server/geolocation-cache.json`) and reused after a restart (the weather cache is reloaded at startup, the geolocation cache on the first `GET /geolocation`; an expired geolocation cache is still served while it is refreshed in the background).
 
 **Rationale:** Without persistence, every server restart (deployment, crash, reboot) would trigger a fresh set of Tomorrow.io API calls and an ipapi.co lookup. The Pi reboots on power loss; cache persistence avoids exhausting the daily quota on restart days, and avoids a "cold boot blank screen" when ipapi briefly fails.
 

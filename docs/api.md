@@ -146,7 +146,7 @@ Removes a single key from `settings.json`.
 ### `GET /geolocation`
 Returns the device's approximate location based on its public IP address (via ipapi.co). Used as the default map center when no custom coordinates are configured.
 
-The result is cached on disk (`server/geolocation-cache.json`, 30-day TTL). At cold boot, fresh fetches use retry-with-backoff (5 attempts, 1/2/4/8 s back-off between tries plus a 10 s timeout per attempt — ~65 s worst case). If all retries fail but a stale cache exists, the cached value is returned rather than 500.
+The result is cached on disk (`server/geolocation-cache.json`, 30-day TTL). A cache older than that is still served at once, and refreshed in the background: one refresh at a time, and after a failed one none for 15 min (1 h after a 429 from ipapi.co), so a page never waits for ipapi.co while any cache exists. Both fetches use retry-with-backoff (5 attempts, 1/2/4/8 s back-off between tries plus a 10 s timeout per attempt — ~65 s worst case) on network errors, timeouts (incl. 408), 5xx and an answer without coordinates, so a background refresh may cost up to 5 calls; it does not retry a 429. Only with no cache at all does the request wait: one fetch shared by concurrent requests, which retries a 429 too, since there is nothing else to serve. Other 4xx are never retried. With no cache and a failed fetch, the response is a 500. An expired cache is served at any age: a kiosk that moved (new public IP) gets its old location once, on the first request after the move, and the refreshed one from the next request on.
 
 - **Access:** 🌐 Public
 - **Response:** `{ "latitude": 45.5, "longitude": -73.6 }`

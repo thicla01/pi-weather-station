@@ -336,6 +336,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
     `npm ci --omit=dev`); a bare `git pull` is not enough.
 
 ### Fixed
+- **A kiosk no longer waits ~15 s at every page load when its location cache has expired.** A kiosk
+  with no manual location asks the server for one (`GET /geolocation`), and the page waits for the
+  answer at boot. The server kept ipapi.co's answer in a 30-day disk cache; once it expired, every
+  request waited for a fresh fetch with retries (5 attempts, 1/2/4/8 s apart) before falling back to
+  that same cache. When ipapi.co refused (429, rate limited), each page load took ~15 s longer — seen
+  on a kiosk on 2026-11-16, page boots of ~25.5 s instead of ~11 s until a retry got through, and the
+  reloads themselves kept ipapi.co busy. Now an expired cache is served at once, at any age, and
+  refreshed in the background: one refresh at a time; after a failed one, none for 15 min (1 h after a
+  429). The background refresh no longer retries a 429 (the expired cache is served meanwhile, and
+  each try costs a call against a rate-limited IP); network errors, timeouts and 5xx are still
+  retried. Only a kiosk with no cache at all waits: concurrent requests then share one fetch, which
+  retries a 429 too, since there is nothing else to serve. Other 4xx are never retried. One case
+  changes for the worse: a kiosk that moved (new public IP) gets its old location once, on the first
+  request after the move — e.g. the Places reset to automatic after months on a manual location — and
+  the refreshed one from the next page load on. The `[geolocation] Loaded cached coords` log line no
+  longer prints the coordinates, and the cache file is now read on the first `GET /geolocation`
+  instead of at server start (never, on a kiosk with a manual location). New
+  `test/geolocationCtrl.test.js` (expired cache served then refreshed, one refresh for concurrent
+  requests, the 429 and network-error cooldowns, the shared first fetch and its 429 retries, a failure
+  that does not stick, the clock stepped back, the real fetcher's shape check and timeout). The in-app
+  updater applies it.
+
 - **Request errors no longer write request bodies or API keys into `server.log`.** The server had
   no error middleware of its own, so every error that reached Express was answered and logged by
   Express's default handler. Express 5.3 (this month's batch) makes that handler log the whole
