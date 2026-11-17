@@ -39,7 +39,7 @@ pi-weather-station/
 │   ├── healthCtrl.js     # GET /api/health — red/yellow/green roll-up of external-service statuses
 │   ├── debugCtrl.js      # Debug panel data endpoint (localhost-only)
 │   ├── clientTracker.js  # Tracks remote client IP addresses
-│   ├── geolocationCtrl.js # Default location lookup via ipapi.co (retry + 30-day disk cache)
+│   ├── geolocationCtrl.js # Default location lookup via ipapi.co (30-day disk cache, read on the first request; an expired cache is served at once and refreshed in the background — one refresh at a time, 15 min cooldown after a failure, 1 h after a 429; only a missing cache makes a request wait, on one shared fetch; both fetches retry with back-off on network errors, timeouts and 5xx, the no-cache one on a 429 too, never on another 4xx)
 │   ├── responseTimer.js  # Per-endpoint response time tracking middleware
 │   ├── securityHeaders.js # Baseline security-header middleware (nosniff, frame DENY, no-referrer, CSP frame-ancestors)
 │   ├── errorHandler.js   # Terminal Express error handler (mounted LAST): finalhandler's status rule, the status text as body, ONE sanitized log line — never the request body, the query string or a credential (Express 5.3 logs the whole error object)
