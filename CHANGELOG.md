@@ -293,6 +293,40 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   mounted. The in-app updater applies it.
 
 ### Changed (dependency maintenance, 2026-11)
+- **Dependency maintenance, 2026-11-16.** Five Dependabot PRs, no application code touched, **client
+  bundle rebuilt**. Each PR was verified on master `5d126ec5` in a throwaway tree with only its own
+  manifests; the three majors were then challenged by a second independent pass, and the four client
+  PRs were built together.
+  - **Server (PR #438):** `express-rate-limit` 8.7.2 → 8.7.3. The only code change upstream is that
+    the middleware now awaits the 429 handler, so a rejected handler reaches Express's error
+    middleware instead of becoming an unhandled rejection; our limiters use the default handler, and
+    their 429 status, body and headers are unchanged. Rate-limit keys are identical on both versions
+    for IPv4, IPv4-mapped, IPv6 (/56) and NAT64.
+  - **Client, dev tree (PR #440):** `eslint-plugin-jsdoc` 65.4.2 → 65.4.5 (bug fixes). Lint stays at
+    0 errors / 0 warnings with the same resolved rules (34 jsdoc rules active).
+  - **Client, build (PR #441):** `@babel/core` 8.0.10 → 8.1.0. The React Compiler shim
+    (`client/react-compiler-babel8.js`) is still needed and still works: 134 functions compiled
+    before and after, the same list; without the shim 26 of them are still skipped silently.
+  - **Client, runtime (PRs #442 and #443, majors, merged in that order):** `i18next` 26.7.1 →
+    27.0.1 and `react-i18next` 17.1.11 → 18.0.1 (react-i18next 18 needs i18next ≥ 27.0.1, so #443
+    was rebased after #442; it drops `use-sync-external-store`). The app uses only `init` with
+    `supportedLngs` / `load: "languageOnly"`, `initReactI18next` and a bare `useTranslation()`, which
+    no breaking change of either major touches. Every `t()` result is unchanged in EN, FR and ES (431
+    leaves each, with interpolation and plural counts). Two documented behaviour changes cannot be
+    reached from the app: `t()` on an object node now returns the key, and an upper-case language
+    code ("FR") now resolves to its language. The emitted bundle still parses at the same ES level.
+    **Security note:** GHSA-q76c-gcvw-89x9 (published 2026-11-16) covers i18next below 27.1.3, the
+    previous 26.7.1 included. It needs a backend loading an inherited-property language code; the
+    client has no backend and sets `supportedLngs`, and such codes in `localStorage` fall back
+    normally (tested on 26.7.1 and 27.0.1). The 27.1.3 bump will follow through Dependabot.
+  - **Rebuilt `client/dist`:** `bundle.min.js` 1 794 961 → 1 792 374 bytes (−2 587) and its LICENSE
+    file (the `use-sync-external-store` banner is gone); the deferred stylesheet chunk, `index.html`,
+    fonts and icons are byte-identical. Built with Node 24 on master after the five merges, from an
+    emptied `client/dist`: byte-identical to the combined build that was smoke-tested in a browser
+    (every request 200, no console error, live EN → ES → FR switch with `<html lang>` following, the
+    desktop and the 800 × 480 Pi layouts). Server tests 1200/1200.
+  - **Rollout:** a server dependency changed, so each Pi needs the in-app updater (it runs
+    `npm ci --omit=dev`); kiosks pick up the new bundle on their next reload.
 - **Dependency maintenance, 2026-11-15.** Four Dependabot PRs, no application code touched, **client
   bundle rebuilt**. Each PR was verified on master `fbfc33d3` in a throwaway tree, then challenged by
   a second independent pass (the two client PRs); the two client PRs were also built together.
