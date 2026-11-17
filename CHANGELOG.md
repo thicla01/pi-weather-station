@@ -8,6 +8,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Performance
+- **The server loads the Anthropic SDK on its first Claude call, not at start-up.** The SDK loads
+  its whole API surface: 296 modules in 1.6.0 (PR #439), with `@opentelemetry/api`, against 191 in
+  0.131.0. Required at the top of `aiSummaryCtrl`, 1.6.0 made the server listen ~160 ms later and
+  with ~17 MB more RSS (Mac, Node 22, median of 5 starts: 396 → 239 ms and 80.4 → 63.0 MB once
+  lazy); 0.131.0 already cost most of that (required alone, ~105 ms and ~22 MB against ~160 ms and
+  ~29 MB for 1.6.0). `loadAnthropicSdk()` now requires it inside the billed path, after the no-key
+  gate, the summary cache and the calm-day fast path. The server process loads it on its first
+  billed call, whichever client asks. A kiosk laid out by LayoutPi (CSS width 800 to 1279 px, the
+  7" and 10.1" panels) asks for a summary only when its AI view opens (AiView is mounted lazily);
+  LayoutDesktop and LayoutMobile mount `AiSummaryInline`, which asks at mount and every 15 min; the
+  calm-day fast path (on by default) answers without Claude. So a Pi whose only client is its
+  LayoutPi kiosk now loads the SDK once the AI view opens on a day that is not calm, and a remote
+  viewer in a desktop or phone layout brings it in with its first summary that is not calm. A
+  server with no Anthropic key never loads it. The first billed call pays the load once, synchronously; Node caches the module for the next
+  ones. A broken SDK install now fails that call (a 500, shown in the service status) instead of
+  the server's start. New `test/aiSummaryLazySdk.test.js`: requiring the controller, a no-key
+  request, a calm-day summary and a summary-cache hit all leave the SDK unloaded; a billed call
+  (local fake Messages API, no network) loads it; and no server file requires it anywhere else.
 - **The Chromium kiosk no longer keeps an accessibility tree for every page.** Raspberry Pi OS's
   `rpi-chromium-mods` package adds `--force-renderer-accessibility` to every Chromium launch
   (`/etc/chromium.d/00-rpi-vars`), so the renderer kept the accessibility tree of the whole page up

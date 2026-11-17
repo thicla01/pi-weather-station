@@ -1,4 +1,3 @@
-const Anthropic = require("@anthropic-ai/sdk");
 const axios = require("axios").default;
 const { getSettingsData, isApiKeyConfigured } = require("./settingsCtrl");
 // Cache helpers + field-hash constants are imported from proxyCtrl rather
@@ -81,6 +80,28 @@ const TRUNCATED_SUMMARY_TTL = 5 * 60 * 1000;
 // Don't tighten it without measuring p99 latency at CLAUDE_EFFORT.
 const CLAUDE_MAX_RETRIES = 1;
 const CLAUDE_TIMEOUT_MS = 30_000;
+
+// The Anthropic SDK is required by the first Claude call, not when the
+// server starts. It loads its whole API surface (296 modules in 1.6.0, with
+// @opentelemetry/api; 191 in 0.131.0). Required at start-up, 1.6.0 made the
+// server listen ~160 ms later with ~17 MB more RSS (Mac, Node 22, median of
+// 5 starts: 396 → 239 ms, 80.4 → 63.0 MB once lazy); 0.131.0 already cost
+// most of that. The server process loads it on its first billed call,
+// whichever client asks. A kiosk laid out by LayoutPi (CSS width 800-1279
+// px, the 7" and 10.1" panels) asks for a summary only when its AI view
+// opens (AiView is mounted lazily); LayoutDesktop and LayoutMobile mount
+// AiSummaryInline, which asks at mount and every 15 min. The calm-day fast
+// path (on by default) answers without Claude. So a Pi whose only client is
+// its LayoutPi kiosk loads the SDK once the AI view opens on a day that is
+// not calm; a remote viewer in a desktop or phone layout brings it in with
+// its first summary that is not calm. A server with no key never loads it.
+// Node caches the
+// module: every later call is a lookup. The first call pays the load
+// synchronously, once. A broken install now fails that call (a 500,
+// recorded in the service status) instead of the server's start.
+function loadAnthropicSdk() {
+  return require("@anthropic-ai/sdk");
+}
 
 // Machine-readable `reason` on the two error bodies the clients base the AI
 // feature's availability on ({ error, reason }; every other error body is a
@@ -1130,6 +1151,7 @@ async function getWeatherSummary(req, res) {
   }
 
   try {
+    const Anthropic = loadAnthropicSdk();
     // Retry / timeout rationale: see CLAUDE_MAX_RETRIES / CLAUDE_TIMEOUT_MS.
     const client = new Anthropic({
       apiKey: settings.anthropicApiKey,
@@ -1235,5 +1257,7 @@ module.exports = {
     CALM_RADAR_BY_LANG,
     // Error contract the clients base AI availability on (useAiSummary)
     SUMMARY_ERROR_REASON,
+    // Lazy SDK load (test/aiSummaryLazySdk.test.js)
+    loadAnthropicSdk,
   },
 };

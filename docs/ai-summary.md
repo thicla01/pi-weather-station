@@ -289,6 +289,13 @@ function buildClaudeRequest(prompt, hasRadar) {
   model generates, not the cap, but the caps also set the dollar bound
   of the billed-call ceiling (see the comment above
   `MAX_CLAUDE_CALLS_PER_MIN`).
+- **SDK loaded on the first call.** `loadAnthropicSdk()` requires
+  `@anthropic-ai/sdk` inside the billed path, after the no-key gate, the
+  summary cache and the calm-day fast path, not at the top of the module.
+  Required at start-up, 1.6.0 made the server listen ~160 ms later with
+  ~17 MB more RSS (Mac, Node 22; 0.131.0 already cost most of that), and a
+  kiosk laid out by LayoutPi asks for a summary only when its AI view
+  opens. `test/aiSummaryLazySdk.test.js` pins it.
 - **Client settings.** `maxRetries: 1` (`CLAUDE_MAX_RETRIES`; the SDK
   default is 2) so a transient overload can't fan one request into
   three, and a 30 s timeout (`CLAUDE_TIMEOUT_MS`), a deliberate exception
