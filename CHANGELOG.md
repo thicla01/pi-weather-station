@@ -328,7 +328,9 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   `express-rate-limit` still at 8.7.3. Server tests 1200/1200. **Boot cost:** requiring the SDK
   takes ~160 ms and ~29 MB of RSS on the Mac (Node 22), against ~105 ms and ~22 MB for 0.131.0.
   **Behaviour difference:** 0.131.0's `x-api-key` header lost the whitespace around a key pasted
-  with it; inside `Bearer <key>` a leading space or tab stays (`Bearer  sk-…`). **Rollout:** a
+  with it; inside `Bearer <key>` a leading space or tab stays (`Bearer  sk-…`), and a
+  whitespace-only key, which 0.131.0 failed before sending, goes out as a bare `Bearer`. Both are
+  handled since (see « Fixed », the Anthropic key). **Rollout:** a
   server dependency changed, so each Pi needs the in-app updater (`npm ci --omit=dev`).
 - **Dependency maintenance, 2026-11-16.** Five Dependabot PRs, no application code touched, **client
   bundle rebuilt**. Each PR was verified on master `5d126ec5` in a throwaway tree with only its own
@@ -407,6 +409,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
     `npm ci --omit=dev`); a bare `git pull` is not enough.
 
 ### Fixed
+- **An Anthropic key saved with a space or tab in front is sent without it under SDK 1.x.** SDK 1.x
+  (PR #439, above) sends the key as `Authorization: Bearer <key>`. The HTTP layer strips whitespace
+  only at the two ends of a header value, so a space or tab saved before the key stayed inside the
+  header (`Bearer  sk-…`, `Bearer \tsk-…`), where 0.131.0's `x-api-key` header lost it and the key
+  worked. Whether the API accepts the padded forms is not documented (RFC 6750 allows several
+  spaces after `Bearer`, not a tab); none was sent to it. The Settings panel stores the key as
+  pasted, and `settings.json` can be edited by hand; only `install.sh`'s prompt (a bash `read`)
+  drops the whitespace. `aiSummaryCtrl` now trims a string key before it builds the client
+  (`anthropicKeyForRequest`). A key of whitespace only passes the no-key gate, which does not
+  change (it reads the stored value, the same rule as the remote mask and the client's boot read).
+  0.131.0 failed such a key locally, before sending anything; 1.6.0 sent it as a bare
+  `Authorization: Bearer` (a request with no credential) at every poll. It now fails locally
+  again, a 500 in the service status, with no request sent. New
+  `test/aiSummaryAnthropicKey.test.js` calls the `GET /api/weather-summary` handler
+  (`getWeatherSummary`, not the Express route and its rate limiter) with the real SDK pointed at
+  a local fake Messages API (`ANTHROPIC_BASE_URL`; no network, and only a throwaway
+  `settings.json` in the OS temp dir): padded keys arrive as `Bearer <key>`, a blank key sends
+  nothing. Without the fix, the keys with leading whitespace arrive padded (`Bearer  sk-…`,
+  `Bearer \tsk-…`, `Bearer   sk-…`), and the blank key reaches the API.
 - **A kiosk no longer waits ~15 s at every page load when its location cache has expired.** A kiosk
   with no manual location asks the server for one (`GET /geolocation`), and the page waits for the
   answer at boot. The server kept ipapi.co's answer in a 30-day disk cache; once it expired, every

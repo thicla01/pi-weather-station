@@ -307,6 +307,11 @@ function buildClaudeRequest(prompt, hasRadar) {
   gateway put in front of the API would have to read the new header.
   One real call was made before the merge (Haiku 5.5, HTTP 200). The
   request itself is unchanged.
+  The key is trimmed before the client is built
+  (`anthropicKeyForRequest`): inside `Bearer <key>` a space or tab pasted
+  before the key would stay, where `x-api-key` lost it. A whitespace-only
+  key fails there, locally (a 500), as it did with 0.131.0, instead of
+  going out as a bare `Bearer`.
 
 **Reading the reply.** `classifyClaudeReply()` reads the content blocks by
 `type`, never by position: a Haiku 5.5 reply can open with `thinking`

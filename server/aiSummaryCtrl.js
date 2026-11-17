@@ -343,6 +343,38 @@ function formatUsage(usage) {
 }
 
 /**
+ * The Anthropic key as the request sends it: a string key loses the
+ * whitespace around it, a blank one throws, and any other value passes
+ * through unchanged.
+ *
+ * SDK 1.x sends the key inside `Authorization: Bearer <key>`. The HTTP layer
+ * strips whitespace only at the two ends of a header value, so a space or
+ * tab pasted before the key stays between the scheme and the key
+ * (`Bearer  sk-…`). SDK 0.x sent the key alone in `x-api-key`, where the same
+ * paste was stripped and the key worked.
+ *
+ * The no-key gate keeps reading the stored value (settingsCtrl.
+ * isApiKeyConfigured, the rule the remote mask and the client's boot read
+ * share), so a whitespace-only key counts as configured and reaches this
+ * call. Trimmed, it is empty, and SDK 1.x would send it anyway, as a bare
+ * `Authorization: Bearer` (a request with no credential) at every poll.
+ * SDK 0.x failed it locally before sending ("Could not resolve
+ * authentication method"). Throwing here, inside the call's try, keeps
+ * that: the summary fails with a 500 recorded in the service status, and
+ * no request leaves.
+ *
+ * @param {*} value settings.anthropicApiKey as stored in settings.json
+ * @returns {*} the trimmed key, or the value itself when it is not a string
+ * @throws {Error} when the key is a string of whitespace only
+ */
+function anthropicKeyForRequest(value) {
+  if (typeof value !== "string") return value;
+  const key = value.trim();
+  if (key === "") throw new Error("Anthropic API key is blank (whitespace only)");
+  return key;
+}
+
+/**
  * Readable reason for a failed Anthropic call. The SDK builds err.message
  * as `${status} ${JSON.stringify(body)}`, so the old 100-char slice kept
  * only ~30 chars of the API's actual reason. Prefer the nested message.
@@ -1154,7 +1186,7 @@ async function getWeatherSummary(req, res) {
     const Anthropic = loadAnthropicSdk();
     // Retry / timeout rationale: see CLAUDE_MAX_RETRIES / CLAUDE_TIMEOUT_MS.
     const client = new Anthropic({
-      apiKey: settings.anthropicApiKey,
+      apiKey: anthropicKeyForRequest(settings.anthropicApiKey),
       maxRetries: CLAUDE_MAX_RETRIES,
       timeout: CLAUDE_TIMEOUT_MS,
     });
@@ -1225,7 +1257,8 @@ module.exports = {
   getRecentRadarSnapshots,
   // Exported for regression testing only — internal helpers, not part of
   // the public surface. See test/aiSummary.cache.test.js,
-  // test/aiSummaryCalmPath.test.js and test/aiSummaryClaudeReply.test.js.
+  // test/aiSummaryCalmPath.test.js, test/aiSummaryClaudeReply.test.js and
+  // test/aiSummaryAnthropicKey.test.js.
   __test: {
     buildSummaryCacheKey,
     SUMMARY_CACHE_TTL,
@@ -1247,6 +1280,7 @@ module.exports = {
     classifyClaudeReply,
     formatUsage,
     describeClaudeError,
+    anthropicKeyForRequest,
     CLAUDE_MODEL,
     CLAUDE_EFFORT,
     MAX_TOKENS_RADAR,
