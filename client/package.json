@@ -28,7 +28,7 @@
     "chartjs-plugin-datalabels": "^2.2.0",
     "date-fns": "^4.4.0",
     "debounce": "^3.0.0",
-    "i18next": "^26.7.1",
+    "i18next": "^27.0.1",
     "i18next-browser-languagedetector": "^8.3.0",
     "leaflet": "^1.9.4",
     "prop-types": "^15.7.2",
