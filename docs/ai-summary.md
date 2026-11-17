@@ -266,7 +266,10 @@ function buildClaudeRequest(prompt, hasRadar) {
 - **No sampling parameters.** The Haiku 4.5 call sent `temperature: 0`;
   Haiku 5.5 returns a 400 for any `temperature` other than 1, for a
   non-default `top_p` and for any `top_k`, and it also rejects an
-  assistant prefill and a `fallbacks` list. The request sends none of
+  assistant prefill and a `fallbacks` list. Since `@anthropic-ai/sdk`
+  1.x, which sends API version `2026-10-21`, the three sampling
+  parameters are a 400 on every model, even at their default values
+  (`temperature: 1` included). The request sends none of
   them; `test/aiSummaryClaudeReply.test.js` locks the shape.
 - **Adaptive thinking at low effort.** Adaptive thinking is Haiku 5.5's
   default; it is sent explicitly so a change of default can't silently
@@ -291,6 +294,12 @@ function buildClaudeRequest(prompt, hasRadar) {
   three, and a 30 s timeout (`CLAUDE_TIMEOUT_MS`), a deliberate exception
   to the project's 10 s outbound rule since a generated reply with
   thinking takes longer than a data fetch.
+- **SDK 1.x (since 2026-11-16, 0.131.0 → 1.6.0).** The SDK sends API
+  version `2026-10-21` (it sent `2023-06-01`) and the key as
+  `Authorization: Bearer <key>` instead of `x-api-key`. A proxy or
+  gateway put in front of the API would have to read the new header.
+  One real call was made before the merge (Haiku 5.5, HTTP 200). The
+  request itself is unchanged.
 
 **Reading the reply.** `classifyClaudeReply()` reads the content blocks by
 `type`, never by position: a Haiku 5.5 reply can open with `thinking`

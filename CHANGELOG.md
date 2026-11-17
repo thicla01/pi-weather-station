@@ -293,6 +293,25 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   mounted. The in-app updater applies it.
 
 ### Changed (dependency maintenance, 2026-11)
+- **Anthropic SDK 1.x, 2026-11-16 (PR #439, major).** `@anthropic-ai/sdk` 0.131.0 → 1.6.0, merged
+  after the five PRs below; no application code touched, client bundle untouched. What changes on
+  the wire: the SDK sends API version `2026-10-21` instead of `2023-06-01`, and the key as
+  `Authorization: Bearer <key>` instead of `x-api-key`. The API version's breaking changes miss our
+  only call (`messages.create` with model, `max_tokens`, adaptive thinking, `output_config.effort`
+  and one user message): `temperature` / `top_p` / `top_k` are now a 400 on every model even at
+  their defaults (we send none), a `document` block in an assistant turn and `citations` on user
+  text are a 400 (we send neither), and the SDK drops Text Completions and `betas` on the non-beta
+  Models methods (unused). The client takes one credential: passing two is a `TypeError`, and the
+  one passed is the only one used. The environment is not read for another. The SDK now depends on
+  `@opentelemetry/api` (1.10.0) and its licence moved from MIT to Apache-2.0. One real call was made
+  from the Mac before the merge, on current master with the PR's dependencies installed under
+  Node 22: Haiku 5.5 answered HTTP 200 in 4.9 s (974 input tokens, 986 output tokens including 716
+  thinking). The PR's lockfile predated #438. The merged lockfile is the one npm regenerates, with
+  `express-rate-limit` still at 8.7.3. Server tests 1200/1200. **Boot cost:** requiring the SDK
+  takes ~160 ms and ~29 MB of RSS on the Mac (Node 22), against ~105 ms and ~22 MB for 0.131.0.
+  **Behaviour difference:** 0.131.0's `x-api-key` header lost the whitespace around a key pasted
+  with it; inside `Bearer <key>` a leading space or tab stays (`Bearer  sk-…`). **Rollout:** a
+  server dependency changed, so each Pi needs the in-app updater (`npm ci --omit=dev`).
 - **Dependency maintenance, 2026-11-16.** Five Dependabot PRs, no application code touched, **client
   bundle rebuilt**. Each PR was verified on master `5d126ec5` in a throwaway tree with only its own
   manifests; the three majors were then challenged by a second independent pass, and the four client

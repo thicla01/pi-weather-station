@@ -43,6 +43,8 @@ const SUMMARY_CACHE_MAX = 200;
 // `output_config.effort` with a 400 (it only knows budget-based thinking),
 // and Haiku 5.5 rejects a non-default `temperature` / `top_p`, any
 // `top_k`, an assistant prefill and a `fallbacks` model list with a 400.
+// Since SDK 1.x (API version 2026-10-21) `temperature`, `top_p` and `top_k`
+// are a 400 on every model, even at their default values.
 // See docs/ai-summary.md § "Model upgrades".
 const CLAUDE_MODEL = "claude-haiku-5-5";
 // Adaptive thinking is Haiku 5.5's default; it is sent explicitly so a
