@@ -43,6 +43,7 @@ pi-weather-station/
 │   ├── responseTimer.js  # Per-endpoint response time tracking middleware
 │   ├── securityHeaders.js # Baseline security-header middleware (nosniff, frame DENY, no-referrer, CSP frame-ancestors)
 │   ├── errorHandler.js   # Terminal Express error handler (mounted LAST): finalhandler's status rule, the status text as body, ONE sanitized log line — never the request body, the query string or a credential (Express 5.3 logs the whole error object)
+│   ├── networkDefaults.js # Outbound-connection defaults, applied FIRST by index.js: IPv4-first name resolution + 5 s per connection attempt (Node's 250 ms dropped requests whenever the event loop was busy or a SYN was lost: `connect ETIMEDOUT <ipv4>; connect ENETUNREACH <ipv6>`)
 │   ├── rateLimitKey.js   # Rate-limit bucket key derived from the TCP socket peer — never req.ip/XFF
 │   ├── boundedCache.js   # BoundedMap + expiry-sweep primitives capping the in-memory caches (OOM guard)
 │   ├── singleFlight.js   # Concurrency-guard middlewares — single-flight 409 for a non-reentrant op (in-app updater) + per-peer in-flight cap (/api/nearby-alerts; local kiosk exempt)
@@ -129,6 +130,7 @@ The compiled `dist/` files are committed to git so Pis can `git pull` without re
 
 ### Server
 - All outbound axios calls must carry an explicit timeout — `10_000` by default (the `API_TIMEOUT_MS` / `TIMEOUT_MS` constants); a deliberately shorter fail-fast budget is fine (e.g. RainViewer radar fetches 8 s, NWS zone geometry 5 s, the debug probes); a missing timeout never is
+- `server/networkDefaults.js` must stay the first thing `server/index.js` runs (`test/networkDefaults.test.js` pins it): it sets IPv4-first resolution and gives each connection attempt 5 s. With Node's default 250 ms, any stall of the event loop longer than that (a radar analysis on a Pi 3B takes ~0.5 s) failed whatever upstream request had just started. A log line `connect ETIMEDOUT <ipv4>; connect ENETUNREACH <ipv6>` means an attempt timed out, not that IPv6 matters
 - Console output is timestamped (local time) via override in `server/index.js`
 - Logs: `tail -f ~/.local/state/pi-weather-station/server.log` on Linux (systemd drop-in pins StandardOutput there — XDG state dir, NOT `/tmp`, which is a tmpfs on Trixie; installs older than 2026-06 still write `/tmp/weather-server.log` until `install.sh` is re-run), `tail -f <repo>/server.log` on macOS (launchd plist points there, gitignored). **`journalctl --user -u pi-weather-server` only shows systemd lifecycle events on Linux — not the app's console output.** Full explanation in [`docs/logs.md`](docs/logs.md).
 

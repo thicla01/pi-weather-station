@@ -427,6 +427,28 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
     `npm ci --omit=dev`); a bare `git pull` is not enough.
 
 ### Fixed
+- **An upstream request no longer dies after 250 ms when the server is busy or a packet is lost.**
+  Since Node 20 a connection to a name with several addresses tries them in turn and gives each
+  one but the last 250 ms. The server asks for IPv4 first, and the stations have no IPv6 route, so
+  250 ms was the whole budget of a request: the IPv4 attempt was dropped, the IPv6 one failed at
+  once, and the 10 s request timeout never applied. The log line is
+  `connect ETIMEDOUT <ipv4>:443; connect ENETUNREACH <ipv6>:443`. Node raises that timeout from a
+  timer, and timers run before socket events, so a server whose event loop is busy for more than
+  250 ms drops an attempt the kernel had already completed. On a Pi 3B one fresh radar analysis
+  keeps the loop busy about half a second (measured 2026-11-19: a trivial endpoint answered in up
+  to 535 ms, 7 ms otherwise, while a bare connection took 21 to 65 ms), and the kiosk browser
+  starting does worse: after a kiosk relaunch the page came up without current weather or sun
+  times, and the line is in its log on most days, up to once an hour. On the wired Pi 4 and Pi 5
+  stations it appears a few times a week (0 to 5 in 8 days of logs on nine stations), once on two
+  stations in two cities one second apart, which suggests a lost SYN or a slow upstream. The new
+  `server/networkDefaults.js` gives each attempt 5 s
+  (`net.setDefaultAutoSelectFamilyAttemptTimeout`): enough for a busy loop and for the SYN
+  retransmissions at 1 s and 3 s, with half of the 10 s request timeout left for the next address
+  where IPv4 really is dead. It also carries the IPv4-first setting, moved from `server/index.js`
+  (whose comment wrongly said Node before 23 has no address fallback). Both apply to axios and to
+  `fetch`. `test/networkDefaults.test.js` reproduces the failure without a network (a 400 ms stall
+  right after the connection starts fails under Node's 250 ms, through axios and through `fetch`,
+  and succeeds under the server's defaults) and checks that `index.js` applies them first.
 - **An Anthropic key saved with a space or tab in front is sent without it under SDK 1.x.** SDK 1.x
   (PR #439, above) sends the key as `Authorization: Bearer <key>`. The HTTP layer strips whitespace
   only at the two ends of a header value, so a space or tab saved before the key stayed inside the
