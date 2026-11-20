@@ -1,11 +1,7 @@
-// Force IPv4-first DNS resolution for all outbound HTTP from this process.
-// Some networks advertise AAAA records but cannot actually route IPv6
-// (common with consumer routers); Node before v23 doesn't run Happy Eyeballs
-// by default, so axios calls to dual-stacked services like ipapi.co
-// (Cloudflare) try the IPv6 address first and fail with "Network is
-// unreachable" before falling back to IPv4. Forcing IPv4-first sidesteps
-// the issue entirely with no measurable cost on networks where IPv6 works.
-require("dns").setDefaultResultOrder("ipv4first");
+// Outbound-connection defaults, applied before any other module can open a
+// socket: IPv4-first name resolution, and 5 s per connection attempt instead
+// of Node's 250 ms. Why, with the measurements: server/networkDefaults.js.
+require("./networkDefaults").applyNetworkDefaults();
 
 // Prefix all console output with an ISO timestamp for log readability.
 //
