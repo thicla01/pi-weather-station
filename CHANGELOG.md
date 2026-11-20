@@ -7,6 +7,24 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 
 ## [Unreleased]
 
+### Added
+- **The map's starting zoom is a setting again: Settings → Local preferences → "Starting map
+  zoom".** Asked in [discussion 409](https://github.com/thicla01/pi-weather-station/discussions/409)
+  by a user who opens the station in a remote browser: a browser reloads the page on every visit
+  and lands back on zoom 7, while a kiosk rarely reloads. The starting zoom was still read from
+  `localStorage` (`defaultMapZoom`), but nothing had written it since the v2 Settings slider went
+  away with the v3 interface. The new block shows the stored level and has two buttons: **Use
+  current zoom** saves the level the map shows, **Back to default** forgets it (7 again). It is
+  per device, like the rest of Local preferences, so it works from a remote browser; a remote
+  browser sets its own starting zoom, not the kiosk's. The saved level applies from the next page
+  load: the block never moves the map. The v2 slider previewed its value with `map.setZoom`, which
+  keeps the map's true centre and so slides the position marker on the layouts where the rail
+  covers the map. Saved levels stay within 4 to 12, the slider's range: above 12 the radar is not
+  drawn, so a map zoomed to 15 saves 12 (the button shows the level it will save). A level typed
+  by hand in the console outside that range still opens as typed. Key, range and storage helpers
+  are in `client/src/ui/startMapZoom.js`; `test/startMapZoom.test.js` covers them and checks that
+  the block calls no zoom command.
+
 ### Performance
 - **The server loads the Anthropic SDK on its first Claude call, not at start-up.** The SDK loads
   its whole API surface: 296 modules in 1.6.0 (PR #439), with `@opentelemetry/api`, against 191 in

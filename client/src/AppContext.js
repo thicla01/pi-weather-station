@@ -11,6 +11,7 @@ import { useSenseHatMode } from "~/hooks/useSenseHatMode";
 import useIdleDetection from "~/hooks/useIdleDetection";
 import useFavoriteLocations from "~/hooks/useFavoriteLocations";
 import { placeLabelFromAddress } from "~/ui/placeLabel";
+import { START_ZOOM_STORAGE_KEY, DEFAULT_START_ZOOM } from "~/ui/startMapZoom";
 import axios from "axios";
 import tzlookup from "tz-lookup";
 
@@ -110,8 +111,10 @@ export const AlertsContext = createContext(null);
  */
 export const RadarStateContext = createContext(null);
 
-const DEFAULT_MAP_ZOOM_STORAGE_KEY = "defaultMapZoom";
-const DEFAULT_MAP_ZOOM_FALLBACK = 7; // historical hard-coded value before the slider
+// Key and fallback come from ui/startMapZoom.js, shared with the Settings
+// row that writes the starting zoom, so the two sides can't drift apart.
+const DEFAULT_MAP_ZOOM_STORAGE_KEY = START_ZOOM_STORAGE_KEY;
+const DEFAULT_MAP_ZOOM_FALLBACK = DEFAULT_START_ZOOM; // 7, the historical hard-coded value
 const DARK_MODE_STORAGE_KEY = "darkMode";
 // v2.15.5: sleepNightMode is *also* mirrored to localStorage so remote
 // clients can persist their own palette preference across reloads. The
@@ -556,14 +559,22 @@ export function AppContextProvider({ children }) {
   } = useSenseHatMode();
 
   // Map zoom — three pieces of state working together:
-  //   - defaultMapZoom : the user's preferred starting zoom, used on next mount
-  //                      (Leaflet's MapContainer reads `zoom` only on init).
+  //   - defaultMapZoom : the starting zoom this page load read from
+  //                      localStorage (Leaflet's MapContainer reads `zoom`
+  //                      only on init). Settings → Local preferences →
+  //                      "Starting map zoom" (StartZoomRow, through
+  //                      ui/startMapZoom.js) writes the key and leaves this
+  //                      state alone, on purpose: it feeds `<WeatherMap
+  //                      zoom>`, which MapResizer re-applies with `setView`
+  //                      on LayoutMobile, and a saved level must only apply
+  //                      from the next load, never move the map.
   //   - currentMapZoom : whatever Leaflet is showing right now, pushed up from
   //                      WeatherMap's zoomend listener so the Debug panel can
   //                      display it without poking into Leaflet.
-  //   - zoomToLevel    : transient signal sent when the user moves the
-  //                      Settings slider, picked up by WeatherMap's
-  //                      ZoomLevelHandler to call map.setZoom for live preview.
+  //   - zoomToLevel    : transient signal of `saveDefaultMapZoom`'s live
+  //                      preview, picked up by WeatherMap's ZoomLevelHandler
+  //                      to call map.setZoom. No caller since the v2 Settings
+  //                      slider was removed (ROADMAP, technical debt).
   const [defaultMapZoom, setDefaultMapZoom] = useState(DEFAULT_MAP_ZOOM_FALLBACK);
   const [currentMapZoom, setCurrentMapZoom] = useState(DEFAULT_MAP_ZOOM_FALLBACK);
   const [zoomToLevel, setZoomToLevel] = useState(null);
