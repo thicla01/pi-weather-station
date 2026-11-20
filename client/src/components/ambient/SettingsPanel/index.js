@@ -15,6 +15,13 @@ import { AppContext } from "~/AppContext";
 import { getPalette } from "~/ui/tokens";
 import { useTimeOfDay } from "~/ui/hybrid";
 import { resolvePanelFontSizeZoom } from "~/ui/fontSize";
+import {
+  DEFAULT_START_ZOOM,
+  clampStartZoom,
+  readStoredStartZoom,
+  saveStartZoom,
+  clearStartZoom,
+} from "~/ui/startMapZoom";
 import QrCode from "~/components/ambient/QrCode";
 import styles from "./styles.css";
 
@@ -248,7 +255,8 @@ const SettingsPanel = () => {
  * @param {object} props
  * @param {object} props.ctx — AppContext value; supplies each preference
  *   and its matching `saveXxx` helper (font size, clock, the five unit
- *   selectors, the hide/show flags) plus `isLocal`, which gates the
+ *   selectors, the hide/show flags), `currentMapZoom` for the "Starting
+ *   map zoom" block, plus `isLocal`, which gates the
  *   localhost-only "Show test alerts" row and, inverted, the remote-only
  *   "Read the guide ↗" link of the trust-cert block
  * @param {string} props.lang — short locale ("fr" | "en" | "es")
@@ -281,6 +289,9 @@ const SectionLocalPrefs = ({ ctx, lang }) => {
     showTestAlerts, saveShowTestAlerts,
     autoSelectTab, saveAutoSelectTab,
     showAlertRing, saveShowAlertRing,
+    // Live Leaflet zoom (radar-state slice), offered by the "Starting
+    // map zoom" block as the level to save.
+    currentMapZoom,
     // Locality gate for the localhost-only "Show test alerts" row. This
     // section renders for remote clients too, so the row is wrapped in
     // {isLocal} to keep it (and the feature) invisible to them. The
@@ -491,6 +502,13 @@ const SectionLocalPrefs = ({ ctx, lang }) => {
           onChange={saveBoolFlag(saveAutoSelectTab)}
         />
       </div>
+
+      {/* Starting map zoom (per-device, localStorage `defaultMapZoom`).
+        * Asked for by a remote-browser user (discussion 409): a browser
+        * reloads the page on every visit and lands back on the default
+        * zoom, while the kiosk rarely reloads. The block saves the zoom
+        * the map shows; it never moves the map (see StartZoomRow). */}
+      <StartZoomRow currentMapZoom={currentMapZoom} lang={lang} />
 
       {/* Trust-this-Pi helper. Downloads the self-signed CA cert
        * with `Content-Type: application/x-x509-ca-cert` so iOS /
@@ -1575,6 +1593,87 @@ const RelaunchButton = ({ lang, onConfirm }) => {
         ? lbl(lang, "Tap again — screen blacks ~15 s", "Encore — écran noir ~15 s", "Otra vez — pantalla negra ~15 s")
         : lbl(lang, "Relaunch kiosk to apply", "Relancer le kiosque pour appliquer", "Reiniciar el quiosco para aplicar")}
     </button>
+  );
+};
+
+/**
+ * "Starting map zoom" block of the Local preferences section. Saves the
+ * zoom the map shows right now as the level the map opens at on this
+ * device (localStorage `defaultMapZoom`, read at boot by AppContext's
+ * `loadStoredData`), or forgets it so the map opens at the default again.
+ *
+ * It never moves the map: no `map.setZoom`, no change to AppContext's
+ * `defaultMapZoom` (which feeds `<WeatherMap zoom>`). A saved level
+ * applies from the next page load. The reason (marker drift under a rail
+ * offset) and the storage helpers are in ui/startMapZoom.js.
+ *
+ * The stored level is local state, read once when the section mounts —
+ * the panel mounts its sections on open, so it is fresh every time.
+ * Nothing else in the app needs it.
+ *
+ * @param {object} props
+ * @param {number} props.currentMapZoom the Leaflet zoom on screen
+ *   (AppContext, pushed up by WeatherMap's MapZoomTracker)
+ * @param {string} props.lang short locale ("fr" | "en" | "es")
+ * @returns {JSX.Element} the block: label and stored level, the
+ *   explanation, "Use current zoom" (disabled when that level is already
+ *   the starting one) and "Back to default" (disabled when nothing is
+ *   stored)
+ */
+const StartZoomRow = ({ currentMapZoom, lang }) => {
+  const [stored, setStored] = useState(() => readStoredStartZoom());
+  // What "Use current zoom" would save: the zoom on screen, held inside
+  // the row's range. The button shows it, so a clamp is never a surprise.
+  const target = clampStartZoom(currentMapZoom);
+  const effective = stored ?? DEFAULT_START_ZOOM;
+  const handleUseCurrent = () => {
+    const saved = saveStartZoom(target);
+    if (saved !== null) setStored(saved);
+  };
+  const handleReset = () => {
+    if (clearStartZoom()) setStored(null);
+  };
+  return (
+    <div className={styles.startZoom}>
+      <div className={styles.startZoomHead}>
+        <span className={styles.startZoomLabel}>
+          {lbl(lang, "Starting map zoom", "Zoom de départ de la carte", "Zoom inicial del mapa")}
+        </span>
+        <span className={styles.startZoomValue} aria-live="polite">
+          {stored === null
+            ? lbl(lang, "Default:", "Par défaut :", "Predeterminado:")
+            : lbl(lang, "Saved:", "Enregistré :", "Guardado:")}
+          {" "}
+          {effective}
+        </span>
+      </div>
+      <div className={styles.startZoomDesc}>
+        {lbl(lang,
+          "Zoom the map to the level you want, then save it here. The map will open at that zoom on this device, from the next load. Levels 4 to 12 (the radar is not drawn above 12).",
+          "Zoomez la carte au niveau voulu, puis enregistrez-le ici. La carte s'ouvrira à ce zoom sur cet appareil, dès le prochain chargement. Niveaux 4 à 12 (le radar n'est pas dessiné au-delà de 12).",
+          "Ajuste el zoom del mapa al nivel deseado y guárdelo aquí. El mapa se abrirá con ese zoom en este dispositivo, a partir de la próxima carga. Niveles 4 a 12 (el radar no se dibuja por encima de 12).")}
+      </div>
+      <div className={styles.startZoomActions}>
+        <button
+          type="button"
+          className={styles.startZoomButton}
+          onClick={handleUseCurrent}
+          disabled={target === null || target === effective}
+        >
+          {lbl(lang, "Use current zoom", "Utiliser le zoom actuel", "Usar el zoom actual")}
+          {target === null ? "" : ` (${target})`}
+        </button>
+        <button
+          type="button"
+          className={`${styles.startZoomButton} ${styles.startZoomButtonSecondary}`}
+          onClick={handleReset}
+          disabled={stored === null}
+        >
+          {lbl(lang, "Back to default", "Revenir au défaut", "Volver al predeterminado")}
+          {` (${DEFAULT_START_ZOOM})`}
+        </button>
+      </div>
+    </div>
   );
 };
 
