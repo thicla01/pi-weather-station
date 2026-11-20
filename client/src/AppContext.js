@@ -10,6 +10,7 @@ import { useUiPreferences } from "~/hooks/useUiPreferences";
 import { useSenseHatMode } from "~/hooks/useSenseHatMode";
 import useIdleDetection from "~/hooks/useIdleDetection";
 import useFavoriteLocations from "~/hooks/useFavoriteLocations";
+import { useSunTimes } from "~/hooks/useSunTimes";
 import { placeLabelFromAddress } from "~/ui/placeLabel";
 import { START_ZOOM_STORAGE_KEY, DEFAULT_START_ZOOM } from "~/ui/startMapZoom";
 import axios from "axios";
@@ -840,16 +841,17 @@ export function AppContextProvider({ children }) {
   // server-side radar analyzer always uses RainViewer regardless — this
   // setting only affects the visible tile layer.
   const [radarSource, setRadarSource] = useState("rainviewer");
-  const [sunriseTime, setSunriseTime] = useState(null);
-  const [sunsetTime, setSunsetTime] = useState(null);
-  // Full sunrise-sunset.org payloads for today AND tomorrow, used by
-  // SunDetailsPopover. Keys mirror the upstream API ('sunrise', 'sunset',
-  // 'civil_twilight_begin', 'civil_twilight_end', 'day_length') so the
-  // popover can read fields directly without renaming. Each side is
-  // `null` until the first fetch resolves, or if the upstream call for
-  // that day failed (the popover renders em-dashes in that case).
-  const [sunriseSunsetToday, setSunriseSunsetToday] = useState(null);
-  const [sunriseSunsetTomorrow, setSunriseSunsetTomorrow] = useState(null);
+  // Sun times: today's sunrise / sunset, and the full sunrise-sunset.org
+  // payloads for today AND tomorrow (SunDetailsPopover). A failed refresh
+  // keeps the values that are still right and is tried again within
+  // minutes, not an hour later — see hooks/useSunTimes + ui/sunTimes.js.
+  const {
+    sunriseTime,
+    sunsetTime,
+    sunriseSunsetToday,
+    sunriseSunsetTomorrow,
+    updateSunriseSunset,
+  } = useSunTimes();
   const [isLocal, setIsLocal] = useState(true);
   const [remoteSecurityEnabled, setRemoteSecurityEnabled] = useState(false);
   const [debugEnabled, setDebugEnabled] = useState(false);
@@ -1587,52 +1589,6 @@ export function AppContextProvider({ children }) {
     });
   }, [weatherApiKey]);
 
-  const updateSunriseSunset = useCallback((coords) => {
-    return new Promise((resolve, reject) => {
-      if (!coords) {
-        setSunriseTime(null);
-        setSunsetTime(null);
-        return reject("No coords");
-      }
-      const { latitude, longitude } = coords;
-
-      // Pass today's LOCAL date so the upstream API returns sunrise /
-      // sunset for the user's day rather than "today UTC" — which,
-      // for users west of UTC during evening hours, is already the
-      // next UTC day and skips over today's local sunset (auto
-      // dark-mode flipped early as a result).
-      const d = new Date();
-      const localDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
-      axios
-        .get(`/api/sunrise-sunset?lat=${latitude}&lon=${longitude}&date=${localDate}&tomorrow=1`)
-        .then((res) => {
-          const { results, tomorrowResults } = res.data;
-          if (results) {
-            const { sunrise, sunset } = results;
-            setSunriseTime(sunrise);
-            setSunsetTime(sunset);
-            setSunriseSunsetToday(results);
-          } else {
-            setSunriseTime(null);
-            setSunsetTime(null);
-            setSunriseSunsetToday(null);
-          }
-          // `tomorrowResults` is only present when the upstream
-          // tomorrow call succeeded server-side (failure there is
-          // non-fatal and just omits the field). Mirror that here.
-          setSunriseSunsetTomorrow(tomorrowResults || null);
-          resolve(results);
-        })
-        .catch((err) => {
-          setSunriseTime(null);
-          setSunsetTime(null);
-          setSunriseSunsetToday(null);
-          setSunriseSunsetTomorrow(null);
-          reject(err);
-        });
-    });
-  }, []);
-
   /**
    * Updates current weather data
    *
@@ -2333,7 +2289,9 @@ export function AppContextProvider({ children }) {
     const DAILY_INTERVAL = 24 * 60 * 60 * 1000;
     const runCurrent = () => updateCurrentWeatherData(mapGeo).catch(() => undefined);
     const runHourly = () => {
-      updateSunriseSunset(mapGeo);
+      // A failure is handled inside useSunTimes (values kept when still
+      // right, retried after 30 s / 2 min / 5 min); nothing to do here.
+      updateSunriseSunset(mapGeo).catch(() => undefined);
       updateHourlyWeatherData(mapGeo).catch(() => undefined);
     };
     const runDaily = () => updateDailyWeatherData(mapGeo).catch(() => undefined);
