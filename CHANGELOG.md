@@ -427,6 +427,20 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
     `npm ci --omit=dev`); a bare `git pull` is not enough.
 
 ### Fixed
+- **A failed sun-times refresh no longer blanks the sun times, and is tried again within minutes.**
+  The page asks for sunrise and sunset with its hourly poller. Any failure erased the values it
+  had, and the next try came an hour later. Without sun times the automatic dark mode does nothing
+  (the palette keeps whatever it last held: the stored one after a start, so a kiosk relaunched at
+  night could sit in the day palette), the hero loses its day / night glyph and the sun rows go
+  blank. Seen on the Pi 3B bench on 2026-11-19: day palette at midnight after a kiosk relaunch
+  whose first requests failed (the server-side cause is the entry below). Now a failed refresh
+  keeps the values on screen when they answer the same place and the same local day, since they
+  are still right; values for another place or another day are dropped as before. A failed
+  request is tried again after 30 s, 2 min and 5 min, then the hourly poller takes over; a newer
+  request cancels a pending retry, and a late answer to an older request no longer overwrites a
+  newer one. The logic moved out of `AppContext` into `client/src/ui/sunTimes.js` (I/O injected)
+  with the thin `hooks/useSunTimes.js`; `test/sunTimes.test.js` runs every path without React.
+  Current weather still waits for its next 10-minute tick after a failure (ROADMAP).
 - **An upstream request no longer dies after 250 ms when the server is busy or a packet is lost.**
   Since Node 20 a connection to a name with several addresses tries them in turn and gives each
   one but the last 250 ms. The server asks for IPv4 first, and the stations have no IPv6 route, so
