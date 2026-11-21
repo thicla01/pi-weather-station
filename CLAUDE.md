@@ -101,7 +101,10 @@ pi-weather-station/
                            # both poll GET /api/sensehat over HTTPS and render on the LED matrix),
                            # gen-localization-glossary.js (generates docs/localization-glossary.md; npm test fails when stale),
                            # maintainer-only: capture-screenshots.js (docs/screenshots), compare-weather.js
-                           # (Tomorrow.io vs Open-Meteo diff), radar_grid_preview.js (Sense HAT grid), track-traffic.sh
+                           # (Tomorrow.io vs Open-Meteo diff), radar_grid_preview.js (Sense HAT grid), track-traffic.sh,
+                           # check-kiosk-localstorage.py (read-only integrity check of a kiosk's Chromium localStorage
+                           # leveldb after a power cut — `ssh pi@<ip> python3 - < tools/check-kiosk-localstorage.py`,
+                           # exit 1 on a torn journal or a damaged table; `--selftest` runs in `npm test`)
 ```
 
 ## Key Conventions

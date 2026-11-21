@@ -8,6 +8,17 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
 ## [Unreleased]
 
 ### Added
+- **Maintainer tool: `tools/check-kiosk-localstorage.py` checks a kiosk's localStorage after a
+  power cut.** A power cut can tear the leveldb journal that holds the kiosk's per-device
+  preferences; Chromium then drops every later write at each start (ROADMAP, "Kiosk preferences in
+  Chromium's localStorage don't survive a power cut"). The tool reads the base without writing
+  anything on the Pi: `ssh pi@<ip> python3 - < tools/check-kiosk-localstorage.py`. It verifies
+  every record of the journal, every block of the tables (snappy decompressed in pure Python) and
+  the manifest, reads leveldb's own `LOG`, names the tear, lists the writes found before and after
+  it, and exits 1 on damage (`--all` lists every write). Chromium-family browsers only. Nothing
+  runs on a Pi by itself. Its `--selftest` (hand-made clean and torn files) runs in `npm test`
+  when `python3` is available (`test/kioskLocalStorageCheck.test.js`). First use: RPi5-PWS5 after
+  a power cut on 2026-11-12, found clean.
 - **The map's starting zoom is a setting again: Settings → Local preferences → "Starting map
   zoom".** Asked in [discussion 409](https://github.com/thicla01/pi-weather-station/discussions/409)
   by a user who opens the station in a remote browser: a browser reloads the page on every visit
