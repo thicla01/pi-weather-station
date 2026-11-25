@@ -109,6 +109,26 @@
 // first is, and again once the scheduler is disposed); nothing in the app
 // reads it, and it has no visible effect.
 //
+// The style warm-up of a view's switch (the task itself: ui/styleWarmup.js).
+// With a `styleWarmup` step, once its view's host is warm the scheduler
+// runs that step too, in an idle callback of its own under the same gates
+// (at rest, loaded, no pointer down, the quiet second): one synchronous
+// task, no frame. Once per scheduler (a load), and again after content
+// mounts at that host's top (contentChanged forgets it with the host's
+// warmth, and the host is warmed again first). A step that finds something
+// in the way (not in MID, the focus where the switch would make it
+// inert…) runs nothing and waits for the scheduler's next turn (an input,
+// the rest, the load, content mounting). Once it has run, `data-pi-warmed`
+// carries its token after the hosts' states.
+//
+// The step may carry a gate of its own (the font set done loading,
+// ui/styleWarmup.js fontGateOpen). The gate is read at each turn with the
+// rest; when the step is wanted and only its gate is shut, the scheduler
+// asks for nothing and waits for the gate's `whenOpen` once (its wake-up:
+// the gate may have opened), then takes a turn as usual — the quiet second
+// is not restarted, so the step runs at the first idle after the gate
+// opens, under its other gates unchanged. dispose() cancels the wait.
+//
 // MODULE FORMAT: CommonJS on purpose, like ui/tapGuard.js and
 // ui/pressTint.js, so test/sheetWarmup.test.js runs the real module under
 // `node --test`: warmGate() and nextWarmHost() are pure; createSheetWarmup()
@@ -233,6 +253,11 @@ function whenIdle(step, scope = globalThis) {
  * @param {function(function(): void): function(): void} o.afterFrames - Runs a step at the start of the frame after the
  *   next one (LayoutPi's afterNextFrame); returns a canceller.
  * @param {function(): void} o.flushStyle - Brings style up to date (a warm pose cancelled by an input).
+ * @param {?{state: string, token: string, gate: ?{open: function(): boolean, whenOpen: function(function(): void): function(): void},
+ *   run: function(function(): void): {ran: boolean}}} [o.styleWarmup] - The style warm-up's step (ui/styleWarmup.js createStyleWarmup): run
+ *   once `state`'s host is warm and its gate, if any, is open (read again at each turn; when only the gate is missing, `whenOpen`
+ *   is waited for once, then a turn as usual, the quiet second not restarted); `run(done)` calls `done` once its task has run (null:
+ *   no such step).
  * @param {function(): number} [o.now] - The clock (ms).
  * @param {(fn: () => void, ms: number) => number} [o.setTimer] - setTimeout.
  * @param {(id: number) => void} [o.clearTimer] - clearTimeout.
@@ -246,6 +271,7 @@ function createSheetWarmup({
   whenIdle: askIdle,
   afterFrames,
   flushStyle,
+  styleWarmup = null,
   now = () => globalThis.performance.now(),
   setTimer = (fn, ms) => globalThis.setTimeout(fn, ms),
   clearTimer = (id) => globalThis.clearTimeout(id),
@@ -264,14 +290,24 @@ function createSheetWarmup({
   let warming = null;
   let warmingChanged = false;
   let disposed = false;
+  // The style warm-up (the `styleWarmup` step) has run since its host was last warmed.
+  let styleWarmed = false;
 
   const snapshot = () => hosts.map((h) => {
     const el = h.element();
     return { state: h.state, hasContent: Boolean(el && el.firstElementChild) };
   });
 
+  // The style warm-up's step is wanted: its host warm, the step not run since.
+  const styleWanted = () => styleWarmup !== null && !styleWarmed && warmed.has(styleWarmup.state);
+  // ... and due: its gate open too (the font set done loading, status "loaded" — read again at each turn).
+  const styleDue = () => styleWanted() && (!styleWarmup.gate || styleWarmup.gate.open());
+  // The step wanted, its gate shut: wait for the gate once (whenOpen), then a turn as usual.
+  let cancelGate = null;
+
   const publish = () => {
-    const value = warmedValue(order, warmed);
+    const hostsValue = warmedValue(order, warmed);
+    const value = styleWarmed ? [hostsValue, styleWarmup.token].filter(Boolean).join(" ") : hostsValue;
     if (value) root.setAttribute(WARMED_ATTRIBUTE, value);
     else root.removeAttribute(WARMED_ATTRIBUTE);
   };
@@ -304,6 +340,19 @@ function createSheetWarmup({
 
   let kick = null;
 
+  const waitGate = () => {
+    if (cancelGate !== null || disposed || !styleWarmup.gate) return;
+    cancelGate = styleWarmup.gate.whenOpen(() => {
+      cancelGate = null;
+      kick();
+    });
+  };
+
+  // Nothing to warm now: the style warm-up waits for its gate when that is all that is missing.
+  const idleUntilDue = () => {
+    if (styleWanted()) waitGate();
+  };
+
   const finish = () => {
     cancelFrames = null;
     root.removeAttribute(WARM_ATTRIBUTE);
@@ -316,9 +365,20 @@ function createSheetWarmup({
   const step = () => {
     cancelIdle = null;
     const state = nextWarmHost(snapshot(), warmed);
-    if (state === null) return;
+    if (state === null && !styleDue()) {
+      idleUntilDue();
+      return;
+    }
     if (!warmGate({ atRest, loaded, pointersDown: pointers.size, now: now(), quietSince }).go) {
       kick();
+      return;
+    }
+    if (state === null) {
+      // The style warm-up: one synchronous task; nothing to take off at the next frame. Blocked, it waits for the next turn.
+      styleWarmup.run(() => {
+        styleWarmed = true;
+        publish();
+      });
       return;
     }
     warming = state;
@@ -330,7 +390,10 @@ function createSheetWarmup({
   kick = () => {
     if (disposed || cancelIdle || cancelFrames) return;
     clearQuiet();
-    if (nextWarmHost(snapshot(), warmed) === null) return;
+    if (nextWarmHost(snapshot(), warmed) === null && !styleDue()) {
+      idleUntilDue();
+      return;
+    }
     const gate = warmGate({ atRest, loaded, pointersDown: pointers.size, now: now(), quietSince });
     if (gate.go) {
       cancelIdle = askIdle(step);
@@ -417,12 +480,19 @@ function createSheetWarmup({
     },
     contentChanged(state) {
       if (state === warming) warmingChanged = true;
+      // The style warm-up goes with its host's warmth: it runs again once the host is warm again.
+      if (styleWarmup !== null && state === styleWarmup.state) styleWarmed = false;
       if (warmed.delete(state)) publish();
       kick();
     },
     dispose() {
       disposed = true;
       stop(false);
+      if (cancelGate !== null) {
+        cancelGate();
+        cancelGate = null;
+      }
+      styleWarmed = false;
       // The `data-pi-warmed` list goes with the scheduler: a new one (another
       // host set) starts with no host warm, and a root without the overlay
       // shell keeps no trace.

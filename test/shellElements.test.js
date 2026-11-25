@@ -336,3 +336,16 @@ test("shellElements: the components read the presentation in render and subscrib
   assert.equal((timing.match(/shellElements\.present\(/g) || []).length, 1);
   assert.match(timing, /shellElements\.present\(chromeState, scrubberOpen\);\s*\}, \[active, chromeState, scrubberOpen, dockCellRef, shellElements\]\);/);
 });
+
+test("shellElements: viewChrome() lists the view chrome registered now (the style warm-up, ui/styleWarmup.js, reads it), a copy, emptied as each leaves", () => {
+  const reg = createShellElements();
+  assert.deepEqual(reg.viewChrome(), []);
+  const focus = { attrs: new Map(), toggleAttribute(n, on) { if (on) this.attrs.set(n, ""); else this.attrs.delete(n); }, removeAttribute(n) { this.attrs.delete(n); }, getAttribute(n) { return this.attrs.has(n) ? this.attrs.get(n) : null; } };
+  const clean = reg.viewChromeRef(focus);
+  const list = reg.viewChrome();
+  assert.deepEqual(list, [focus]);
+  list.length = 0;
+  assert.deepEqual(reg.viewChrome(), [focus], "a copy: the registry's set untouched");
+  clean();
+  assert.deepEqual(reg.viewChrome(), []);
+});

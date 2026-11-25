@@ -87,9 +87,10 @@ const LEGEND_OVERLAYS = new Map([
  * chrome, and of the chrome presentation they follow (see the header).
  * One per LayoutPi.
  *
- * @returns {{overlayRef: function(?Element): (function(): void|undefined), attributionRef: function(?Element): (function(): void|undefined), viewChromeRef: function(?Element): (function(): void|undefined), overlays: function(): Element[], liveScrubber: function(): boolean, attribution: function(): ?Element, present: function(string, boolean): void, presentation: function(): {legend: string, scrubber: boolean, banner: boolean}, viewHidden: function(): boolean, subscribe: function(function(): void): function(): void}}
+ * @returns {{overlayRef: function(?Element): (function(): void|undefined), attributionRef: function(?Element): (function(): void|undefined), viewChromeRef: function(?Element): (function(): void|undefined), overlays: function(): Element[], liveScrubber: function(): boolean, attribution: function(): ?Element, viewChrome: function(): Element[], present: function(string, boolean): void, presentation: function(): {legend: string, scrubber: boolean, banner: boolean}, viewHidden: function(): boolean, subscribe: function(function(): void): function(): void}}
  *   the three ref callbacks; the readers: the overlays mounted now, whether one of them is a live
- *   (not inert) scrubber, and the attribution corner (null before the map exists); and the chrome
+ *   (not inert) scrubber, the attribution corner (null before the map exists), and the view chrome
+ *   mounted now (the style warm-up, ui/styleWarmup.js, writes its `inert` as a view's opening does, and puts it back); and the chrome
  *   presentation: `present` (for the shell's timing), its two snapshots (a frozen
  *   overlayPresentation object, and whether a view hides the view chrome) and `subscribe`.
  */
@@ -135,6 +136,10 @@ function createShellElements() {
       return false;
     },
     attribution: () => attribution,
+    // The view chrome registered now (the radar-focus button): read by the
+    // style warm-up (ui/styleWarmup.js), which writes and puts back its
+    // `inert` in one task.
+    viewChrome: () => [...viewChrome],
     // The chrome now shows `chromeState` (with the scrubber flag): set the
     // registered elements' `inert` (toggleAttribute changes nothing where
     // it is already right), then tell the subscribers. Nothing at all when

@@ -1,6 +1,7 @@
 import { useEffect, useLayoutEffect, useRef } from "react";
 import { afterNextFrame } from "./useShellTiming";
 import { createSheetWarmup, whenIdle } from "~/ui/sheetWarmup";
+import { createStyleWarmup } from "~/ui/styleWarmup";
 
 /* Overlay shell: lay out AND paint each hidden view host once, out of
  * sight, before its first opening.
@@ -36,7 +37,16 @@ import { createSheetWarmup, whenIdle } from "~/ui/sheetWarmup";
  * scroll included), in an idle callback; any pointerdown, keydown or wheel
  * cancels at once. Mechanism, timing, constants, what it cannot warm, and
  * the attributes it sets (`data-pi-warm`, which styles.css reads, and
- * `data-pi-warmed`, for measurement tooling only): ui/sheetWarmup.js. */
+ * `data-pi-warmed`, for measurement tooling only): ui/sheetWarmup.js.
+ *
+ * With `styleWarm`, the same scheduler then runs the style warm-up of the
+ * alert view's switch, once the alert host is warm — one synchronous task
+ * at rest in MID that writes what the switch's commits write, forces style
+ * without a layout and puts it all back (ui/styleWarmup.js), its `style`
+ * token then in `data-pi-warmed`. The elements are read when the task
+ * runs: this hook's refs, the shell registry's view chrome, and Leaflet's
+ * zoom bar, looked up in the root once and again only when the one found
+ * is gone (as WeatherMap's ShellZoomInert does). */
 
 /**
  * Lays out and paints each of the given hidden view hosts once, out of sight
@@ -46,9 +56,10 @@ import { createSheetWarmup, whenIdle } from "~/ui/sheetWarmup";
  * @param {boolean} atRest - The overlay shell on, the sheet closed (MID or MIN), the last switch settled, and the weather data in.
  * @param {{current: ?Element}} rootRef - LayoutPi's root (read in the effects only).
  * @param {{current: ?Element}} sheetRef - The view sheet (read when an input takes a warm pose off, to flush style).
+ * @param {?{railRef: {current: ?Element}, dockCellRef: {current: ?Element}, dockShieldRef: {current: ?Element}, dockGuardRef: {current: ?Element}, alertHostRef: {current: ?Element}, shieldClassName: string, shellElements: {viewChrome: function(): Element[]}}} [styleWarm] - The style warm-up's elements (a stable object; null: no style warm-up): the rail frame, the dock cell, the dock band's shield and its guard, the alert host, the views' shield class, and the shell registry.
  * @returns {void}
  */
-export default function useHostWarmup(hosts, atRest, rootRef, sheetRef) {
+export default function useHostWarmup(hosts, atRest, rootRef, sheetRef, styleWarm = null) {
   // The scheduler of the current host set, and the last `atRest` it was told.
   const warmupRef = useRef(null);
   const atRestRef = useRef(atRest);
@@ -56,6 +67,28 @@ export default function useHostWarmup(hosts, atRest, rootRef, sheetRef) {
   useEffect(() => {
     const root = rootRef.current;
     if (!hosts.length || !root) return undefined;
+    // The style warm-up's zoom bar: Leaflet builds it, so it is looked up — once, and again only when the one found is gone.
+    let zoomBar = null;
+    const findZoomBar = () => {
+      if (!zoomBar || !zoomBar.isConnected) zoomBar = root.querySelector(".leaflet-control-zoom");
+      return zoomBar;
+    };
+    const styleWarmup = styleWarm
+      ? createStyleWarmup({
+        elements: () => ({
+          root,
+          rail: styleWarm.railRef.current,
+          sheet: sheetRef.current,
+          dockCell: styleWarm.dockCellRef.current,
+          dockShield: styleWarm.dockShieldRef.current,
+          dockGuard: styleWarm.dockGuardRef.current,
+          alertHost: styleWarm.alertHostRef.current,
+          viewChrome: styleWarm.shellElements.viewChrome(),
+          zoomBar: findZoomBar(),
+          shieldClassName: styleWarm.shieldClassName,
+        }),
+      })
+      : null;
     const warmup = createSheetWarmup({
       root,
       inputTarget: window,
@@ -68,6 +101,7 @@ export default function useHostWarmup(hosts, atRest, rootRef, sheetRef) {
         const sheet = sheetRef.current;
         if (sheet) window.getComputedStyle(sheet).getPropertyValue("transform");
       },
+      styleWarmup,
     });
     warmupRef.current = warmup;
     warmup.setAtRest(atRestRef.current);
@@ -104,7 +138,7 @@ export default function useHostWarmup(hosts, atRest, rootRef, sheetRef) {
       warmup.dispose();
       warmupRef.current = null;
     };
-  }, [hosts, rootRef, sheetRef]);
+  }, [hosts, rootRef, sheetRef, styleWarm]);
 
   // In the commit (a layout effect): a switch's own commit leaves the rest,
   // and a warm pose then comes off before that frame paints, so no opening

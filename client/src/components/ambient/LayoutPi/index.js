@@ -274,7 +274,17 @@ const LayoutPi = () => {
       : NO_WARM_HOSTS),
     [shellVariant, priority],
   );
-  useHostWarmup(warmHosts, shellVariant !== null && (atMid || focused) && shell.settled && currentWeatherData != null, rootRef, sheetRef);
+  // Then, once the alert host is warm, the style warm-up of the alert
+  // view's switch — the switch's writes posed, style forced and everything
+  // put back in one task at rest in MID (ui/styleWarmup.js), under the
+  // overlay shell with the priority views only.
+  const styleWarm = useMemo(
+    () => (shellVariant !== null && priority
+      ? { railRef, dockCellRef, dockShieldRef, dockGuardRef, alertHostRef, shieldClassName: styles.shield, shellElements }
+      : null),
+    [shellVariant, priority, shellElements],
+  );
+  useHostWarmup(warmHosts, shellVariant !== null && (atMid || focused) && shell.settled && currentWeatherData != null, rootRef, sheetRef, styleWarm);
 
   // v3.3 priority: the radar scrubber is a fullscreen-radar (MIN) tool, tracked
   // by the ephemeral `piScrubberOpen` flag (the dock timeline button sets it +

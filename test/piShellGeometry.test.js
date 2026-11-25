@@ -1391,8 +1391,11 @@ test("views' shield: it has its own layer (will-change: transform) only while it
   }
   // The selector can only match the views' shield: the class is used once in the JSX, on an element rendered
   // only while useShellTiming's `shield` holds, childless (no `position: fixed` descendant can take it as its
-  // containing block); the dock band's two are other classes, always mounted.
-  assert.equal((LAYOUT_PI_JS.match(/styles\.shield\b/g) || []).length, 1);
+  // containing block); the dock band's two are other classes, always mounted. The one other use is the style
+  // warm-up's stand-in (ui/styleWarmup.js): a childless div with that class, inserted and removed inside one
+  // synchronous task, before any frame — no frame paints it, so no layer is ever made for it.
+  assert.equal((LAYOUT_PI_JS.match(/styles\.shield\b/g) || []).length, 2);
+  assert.match(LAYOUT_PI_JS, /shieldClassName: styles\.shield,/);
   assert.match(LAYOUT_PI_JS, /\{shell\.shield && <div ref=\{shieldRef\} className=\{styles\.shield\} aria-hidden="true" \/>\}/);
   assert.match(LAYOUT_PI_JS, /className=\{styles\.dockShield\}/);
   assert.match(LAYOUT_PI_JS, /className=\{styles\.dockGuard\}/);
@@ -1515,7 +1518,23 @@ test("views: every hidden view host is laid out AND painted once before its firs
   // LayoutPi: the four hosts, conditions and alert first (the overlay shell, under the priority views only), at rest
   // with the sheet closed (MID or MIN, settled) and the data in; nothing under the grid shell.
   assert.match(LAYOUT_PI_JS, /\(shellVariant !== null && priority\s*\? \[\s*\{ state: "conditions", ref: conditionsHostRef \},\s*\{ state: "alert", ref: alertHostRef \},\s*\{ state: "ai", ref: aiHostRef \},\s*\{ state: "max", ref: forecastHostRef \},\s*\]\s*: NO_WARM_HOSTS\),\s*\[shellVariant, priority\],/);
-  assert.match(LAYOUT_PI_JS, /useHostWarmup\(warmHosts, shellVariant !== null && \(atMid \|\| focused\) && shell\.settled && currentWeatherData != null, rootRef, sheetRef\);/);
+  assert.match(LAYOUT_PI_JS, /useHostWarmup\(warmHosts, shellVariant !== null && \(atMid \|\| focused\) && shell\.settled && currentWeatherData != null, rootRef, sheetRef, styleWarm\);/);
+  // The style warm-up (ui/styleWarmup.js, test/styleWarmup.test.js): with the priority views under the overlay shell,
+  // the same scheduler runs the style warm-up of the alert's switch once the alert host is warm — its elements LayoutPi's
+  // own refs, the views' shield class and the shell registry (its view chrome), in a stable object; none under the grid
+  // shell.
+  assert.match(LAYOUT_PI_JS, /const styleWarm = useMemo\(\s*\(\) => \(shellVariant !== null && priority\s*\? \{ railRef, dockCellRef, dockShieldRef, dockGuardRef, alertHostRef, shieldClassName: styles\.shield, shellElements \}\s*: null\),\s*\[shellVariant, priority, shellElements\],\s*\);/);
+  assert.match(WARMUP_JS, /import \{ createStyleWarmup \} from "~\/ui\/styleWarmup";/);
+  assert.match(WARMUP_JS, /export default function useHostWarmup\(hosts, atRest, rootRef, sheetRef, styleWarm = null\) \{/);
+  assert.match(WARMUP_JS, /const styleWarmup = styleWarm\s*\? createStyleWarmup\(\{/);
+  assert.match(WARMUP_JS, /viewChrome: styleWarm\.shellElements\.viewChrome\(\),\s*zoomBar: findZoomBar\(\),/);
+  assert.match(WARMUP_JS, /elements: \(\) => \(\{\s*root,\s*rail: styleWarm\.railRef\.current,\s*sheet: sheetRef\.current,\s*dockCell: styleWarm\.dockCellRef\.current,\s*dockShield: styleWarm\.dockShieldRef\.current,\s*dockGuard: styleWarm\.dockGuardRef\.current,\s*alertHost: styleWarm\.alertHostRef\.current,\s*viewChrome: styleWarm\.shellElements\.viewChrome\(\),\s*zoomBar: findZoomBar\(\),\s*shieldClassName: styleWarm\.shieldClassName,\s*\}\),/);
+  assert.match(WARMUP_JS, /if \(!zoomBar \|\| !zoomBar\.isConnected\) zoomBar = root\.querySelector\("\.leaflet-control-zoom"\);/);
+  assert.match(WARMUP_JS, /styleWarmup,\s*\}\);/);
+  assert.match(WARMUP_JS, /\}, \[hosts, rootRef, sheetRef, styleWarm\]\);/);
+  // The views' shield the style warm-up stands in for is the one LayoutPi renders: that class, aria-hidden, before the
+  // dock band's shield.
+  assert.match(LAYOUT_PI_JS, /\{shell\.shield && <div ref=\{shieldRef\} className=\{styles\.shield\} aria-hidden="true" \/>\}\s*(\{\/\*[\s\S]*?\*\/\}\s*)?<div\s*ref=\{dockShieldRef\}/);
   assert.match(LAYOUT_PI_JS, /<div ref=\{conditionsHostRef\} className=\{styles\.conditionsHost\}>/);
   assert.match(LAYOUT_PI_JS, /<div ref=\{alertHostRef\} className=\{styles\.alertHost\}>/);
   assert.match(LAYOUT_PI_JS, /<div ref=\{aiHostRef\} className=\{styles\.aiHost\}>/);
@@ -3101,8 +3120,13 @@ test("shell: no development switch in it — the press tint always on, no close 
     const src = fs.readFileSync(file, "utf8");
     const rel = path.relative(SRC_DIR, file);
     assert.doesNotMatch(src, /data-pi-tint|piShellTapTint|piShellCloseMarks|piShellSheetStart|useCloseMarks/, rel);
-    // No User Timing in the shell's code.
-    if (rel.startsWith(path.join("components", "ambient", "LayoutPi")) || rel.startsWith("ui")) {
+    // No User Timing in the shell's code, but the style warm-up's two
+    // marks around its task (for measurement tooling, which waits for them, leaves the task out of its measures and
+    // times it).
+    if (rel === path.join("ui", "styleWarmup.js")) {
+      assert.deepEqual([...stripComments(src).matchAll(/performance\.(mark|measure|clearMarks|clearMeasures)\(([^)]*)\)/g)].map((m) => `${m[1]}(${m[2]})`), ["mark(name)"], rel);
+      assert.match(src, /const STYLE_WARM_START_MARK = "pi-k6-start";\s*const STYLE_WARM_END_MARK = "pi-k6-end";/);
+    } else if (rel.startsWith(path.join("components", "ambient", "LayoutPi")) || rel.startsWith("ui")) {
       assert.doesNotMatch(src, /performance\.(?:mark|measure|clearMarks|clearMeasures)\(/, rel);
     }
   }
