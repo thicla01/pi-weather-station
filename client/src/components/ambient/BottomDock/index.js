@@ -27,12 +27,12 @@ import styles from "./styles.css";
  * `--ctrl-btn-size: 44px` for the buttons inside, and ControlButtons moves
  * four of them into a "···" overflow menu (DockOverflowMenu). Out of MID the
  * band stays laid out, slid down and `visibility: hidden`
- * (LayoutPi/styles.css), and LayoutPi's shell timing makes this wrapper
- * inert from the commit that sends it away (the band must take no tap, focus
- * or assistive-tech visit on the way), by hand on the element `cellRef`
- * names, so a switch renders neither this component nor its buttons and
- * health chip (an `inert` prop would re-render all three at every view
- * switch).
+ * (LayoutPi/styles.css; in MIN, once its slide is over, out of the render),
+ * and LayoutPi's shell timing makes this wrapper inert from the commit that
+ * sends it away (the band must take no tap, focus or assistive-tech visit on
+ * the way), by hand on the element `cellRef` names, so a switch renders
+ * neither this component nor its buttons and health chip (an `inert` prop
+ * would re-render all three at every view switch).
  *
  * Memoized (React.memo): its props are constants or a stable ref in every
  * layout, so a parent's render never renders it, its buttons or its health

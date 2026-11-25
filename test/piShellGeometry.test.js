@@ -14,9 +14,11 @@
 //   - the CSS: custom properties equal to the module, every rule naming a
 //     box of the shell's own gated on the root attribute, transitions on
 //     transform / opacity only with `visibility` as a 0s step (boxes stay
-//     laid out, hidden once their slide or fade ends), nothing infinite, no
-//     will-change but the view sheet's and the views' shield's, and no
-//     `visibility: visible` anywhere in client/src;
+//     laid out, hidden once their slide or fade ends; in MIN the dock cell
+//     then leaves the render by a discrete `display` step, behind
+//     `@supports`), nothing infinite, no will-change but the view sheet's
+//     and the views' shield's, and no `visibility: visible` anywhere in
+//     client/src;
 //   - the map chrome in WeatherMap/styles.css: the per-state insets the
 //     shell's root declares equal chromeFor, every rule reading them is
 //     gated, the attribution moves by transform in step with the shell, and
@@ -43,8 +45,9 @@
 //     3 % of the travel), and RailOffsetTracker's default-free parameter
 //     pattern;
 //   - the timing: one React update per switch, every slide and fade in CSS
-//     from that commit (the rail, dock and sheet laid out in every state,
-//     `visibility: hidden` and inert once out); which frame the chrome and
+//     from that commit (the rail, dock and sheet `visibility: hidden` and
+//     inert once out, and laid out bar the dock cell in MIN once its slide
+//     is over, behind `@supports`); which frame the chrome and
 //     the map each change on (a view's map recentre once the SHEET's own
 //     transform transition has ended; one-frame closes; reduced motion's
 //     one frame, MIN ↔ MID and the views alike; form 2's one frame); the
@@ -521,7 +524,7 @@ test("chrome: MID ↔ MIN moves the attribution by translate(310px, 58px) — th
     ruleBody(LAYOUT_PI_CSS, '.layout[data-pi-shell][data-pi-state="min"] .railFrame'),
     /transform:\s*translateX\(calc\(100% \+ var\(--pi-rail-right\)\)\);/,
   );
-  assert.match(rulePart(LAYOUT_PI_CSS, '.layout[data-pi-shell][data-pi-state="min"] > [data-pi-dock-cell]'), /transform:\s*translateY\(100%\);/);
+  assert.match(sharedRulePart(LAYOUT_PI_CSS, DOCK_MIN), /transform:\s*translateY\(100%\);/);
   const minMap = customProps(ruleBody(WEATHER_MAP_CSS, `:global([data-pi-shell][data-pi-map="min"]) ${ATTRIBUTION_CORNER}`));
   assert.equal(minMap.get("--c-attr-right"), `${min.attrRight}px`);
   assert.equal(minMap.get("--c-attr-bottom"), `${min.attrBottom}px`);
@@ -606,12 +609,15 @@ test("CSS: the overlay shell moves by transform / opacity only — `visibility` 
     for (const { prop, duration, item } of transitionItems(body)) {
       // `clip-path`: only the dock band shield's cut-out, a hit area that
       // never paints (below).
-      const allowed = ["transform", "opacity", "visibility", "none", ...(/\.dockShield\b/.test(selector) ? ["clip-path"] : [])];
+      // The dock cell's MIN-only rule adds DOCK_MIN_STEP, a discrete step
+      // at the slide's end (the "dock cell in MIN" test below).
+      const allowed = ["transform", "opacity", "visibility", "none", ...(/\.dockShield\b/.test(selector) ? ["clip-path"] : []), ...(selector === DOCK_MIN ? [DOCK_MIN_STEP] : [])];
       assert.ok(allowed.includes(prop), `${selector}: transition on "${prop}"`);
       // `visibility` never fades: a 0s step, held by a delay at most (the
       // box stays visible until its slide or fade ends); the shield's
-      // cut-out likewise.
-      if (prop === "visibility" || prop === "clip-path") assert.equal(duration, "0s", `${selector}: ${item}`);
+      // cut-out likewise, and the dock cell's MIN step, discrete.
+      if (prop === "visibility" || prop === "clip-path" || prop === DOCK_MIN_STEP) assert.equal(duration, "0s", `${selector}: ${item}`);
+      if (prop === DOCK_MIN_STEP) assert.match(item, /\sallow-discrete$/, `${selector}: ${item}`);
     }
   }
 });
@@ -1124,6 +1130,30 @@ const bodiesOf = (css, selector) => {
 const rulePart = (css, part) => {
   const matches = rulesOf(css).filter((r) => r.selector.split(",").map((p) => p.trim()).includes(part));
   assert.equal(matches.length, 1, `expected exactly one rule listing \`${part}\`, found ${matches.length}`);
+  return matches[0].body;
+};
+
+// The dock cell in MIN has a rule of its own besides the shared out-pose
+// of MIN and the views: out of the render once its slide is over, by a
+// discrete `display` step (the "dock cell in MIN" test below).
+const DOCK_MIN = '.layout[data-pi-shell][data-pi-state="min"] > [data-pi-dock-cell]';
+const DOCK_MIN_STEP = "display";
+
+/**
+ * Declaration block of the one SHARED rule whose selector list contains
+ * `part` among other selectors — when `part` also has a rule of its own
+ * (the dock cell's MIN-only rule).
+ *
+ * @param {string} css stylesheet source
+ * @param {string} part one selector of the list, whitespace-normalised
+ * @returns {string} the shared rule's declaration block
+ */
+const sharedRulePart = (css, part) => {
+  const matches = rulesOf(css).filter((r) => {
+    const parts = r.selector.split(",").map((p) => p.trim());
+    return parts.length > 1 && parts.includes(part);
+  });
+  assert.equal(matches.length, 1, `expected exactly one shared rule listing \`${part}\`, found ${matches.length}`);
   return matches[0].body;
 };
 
@@ -1781,9 +1811,12 @@ test("motion end: form 1 with motion waits for its own transitions; reduced moti
   assert.equal(motionEnd(SHELL_MODES.instant), "frame");
   // Once out, the rail, the dock and the sheet stay laid out (no
   // `display: none` on any of them, in any state), so an entry starts from
-  // the tap's own frame, with no frame of layout first.
+  // the tap's own frame, with no frame of layout first — except the dock
+  // cell in MIN once its slide is over (the "dock cell in MIN" test: its
+  // entry starts from the tap's frame too, from a starting style).
   for (const { selector, body } of rulesOf(LAYOUT_PI_CSS)) {
     if (!/\[data-pi-shell\]|\[data-pi-form=/.test(selector) || !/display:\s*none/.test(body)) continue;
+    if (selector === DOCK_MIN) continue;
     assert.doesNotMatch(selector, /\.railFrame|\.sheet\b|> \[data-pi-dock-cell\]|\.dockShield/, `${selector}: out of the render`);
   }
   assert.doesNotMatch(SHELL_TIMING_JS, /flushSync\(\(\) => setPhase|presence|staged/i, "useShellTiming stages the rail, the dock or the sheet in or out of the render");
@@ -2047,7 +2080,7 @@ test("motion: no rail fade beside a view; the end-signal fallback is armed at th
   assert.doesNotMatch(stripComments(LAYOUT_PI_CSS), /--pi-rail-fade-duration/);
 });
 
-test("CSS: the rail, dock and sheet poses — laid out in every state; out is visibility: hidden once their slide or fade has ended, in returns at once", () => {
+test("CSS: the rail, dock and sheet poses — laid out in every state, bar the dock cell in MIN once its slide is over, behind @supports (its own test); out is visibility: hidden once their slide or fade has ended, in returns at once", () => {
   const SD = "var(--pi-shell-duration)";
   /**
    * The `visibility` item of a rule's transition: its delay ("0s" when none).
@@ -2086,7 +2119,7 @@ test("CSS: the rail, dock and sheet poses — laid out in every state; out is vi
   // Out (MIN and the views): slid down by its height, faded, inert,
   // hidden once the slide is over.
   for (const state of ["min", ...VIEW_STATES]) {
-    const body = rulePart(LAYOUT_PI_CSS, `.layout[data-pi-shell][data-pi-state="${state}"] > [data-pi-dock-cell]`);
+    const body = sharedRulePart(LAYOUT_PI_CSS, `.layout[data-pi-shell][data-pi-state="${state}"] > [data-pi-dock-cell]`);
     for (const decl of [/transform:\s*translateY\(100%\);/, /opacity:\s*0;/, /visibility:\s*hidden;/, /pointer-events:\s*none;/]) assert.match(body, decl, state);
     assert.equal(visibilityDelay(body), SD, state);
   }
@@ -2111,6 +2144,42 @@ test("CSS: the rail, dock and sheet poses — laid out in every state; out is vi
   for (const { selector, body } of rulesOf(LAYOUT_PI_CSS)) {
     if (/display:\s*none|visibility:\s*hidden/.test(body)) assert.doesNotMatch(selector, /mapArea|mapClip/, selector);
   }
+});
+
+test("dock cell in MIN: it leaves the render once its slide is over — display: none by a discrete step at the slide's end, back in MID from a starting style keyed on data-pi-moving (none at load), behind @supports; the shared out-pose and the views unchanged", () => {
+  const css = stripComments(LAYOUT_PI_CSS);
+  // The MIN-only rule and the entry's starting style, alone in their
+  // feature query: without discrete transitions the cell keeps the shared rule.
+  const block = css.match(/@supports \(transition-behavior: allow-discrete\)\s*\{\s*([^{}]+)\{([^{}]*)\}\s*@starting-style\s*\{\s*([^{}]+)\{([^{}]*)\}\s*\}\s*\}/);
+  assert.ok(block, "no @supports block for the dock cell in MIN and its starting style");
+  assert.equal(block[1].trim().replace(/\s+/g, " "), DOCK_MIN);
+  const body = block[2];
+  assert.match(body, /(?:^|;)\s*display:\s*none;/);
+  assert.doesNotMatch(body, /(?:^|;)\s*(?:content-visibility|visibility|transform|opacity|pointer-events|contain|will-change)\s*:/, "the MIN-only rule changes nothing but the render");
+  // Its transitions: the shared rule's three items as written, then the
+  // discrete display step at the slide's end (when `visibility` turns
+  // hidden): the slide out is unchanged.
+  const shared = transitionItems(sharedRulePart(LAYOUT_PI_CSS, DOCK_MIN)).map((t) => t.item);
+  assert.deepEqual(shared, [
+    "transform var(--pi-shell-duration) var(--pi-shell-easing)",
+    "opacity var(--pi-shell-duration) var(--pi-shell-easing)",
+    "visibility 0s linear var(--pi-shell-duration)",
+  ]);
+  assert.deepEqual(transitionItems(body).map((t) => t.item), [...shared, "display 0s linear var(--pi-shell-duration) allow-discrete"]);
+  // The entry: MIN's pose as the starting style of the MID cell, only while
+  // a switch moves (data-pi-moving, set in the switch's commit by
+  // useShellTiming): the cell's first style at load slides nothing in.
+  assert.equal(block[3].trim().replace(/\s+/g, " "), '.layout[data-pi-shell][data-pi-moving][data-pi-state="mid"] > [data-pi-dock-cell]');
+  assert.match(block[4], /(?:^|;)\s*transform:\s*translateY\(100%\);/);
+  assert.match(block[4], /(?:^|;)\s*opacity:\s*0;/);
+  assert.doesNotMatch(block[4], /(?:^|;)\s*(?:display|visibility|transition)\s*:/);
+  assert.match(SHELL_TIMING_JS, /root\.setAttribute\(MOVING_ATTRIBUTE, "true"\);/);
+  assert.match(SHELL_TIMING_JS, /const MOVING_ATTRIBUTE = "data-pi-moving";/);
+  // The one rule that takes the dock cell out of the render, MIN's
+  // selector only; the shared out-pose keeps all five states.
+  const noneRules = rulesOf(LAYOUT_PI_CSS).filter((r) => /\[data-pi-dock-cell\]/.test(r.selector) && /display:\s*none/.test(r.body));
+  assert.deepEqual(noneRules.map((r) => r.selector), [DOCK_MIN]);
+  for (const state of ["min", ...VIEW_STATES]) assert.match(sharedRulePart(LAYOUT_PI_CSS, `.layout[data-pi-shell][data-pi-state="${state}"] > [data-pi-dock-cell]`), /visibility:\s*hidden;/, state);
 });
 
 test("JSX: LayoutPi runs the timing hook on its own refs; the hook sets the dock cell's `inert`", () => {
@@ -2361,10 +2430,12 @@ test("toast: under the overlay shell every dock toast is centred over the cleare
 });
 
 test("toast: on the shell's dock a pending toast is dropped once the layout leaves MID, so it can't reappear mid-animation when the dock comes back", () => {
-  // The shell's dock stays laid out out of MID, only hidden: its toast's
-  // `toast-pop` keeps running unseen, and the toast only unmounts on its
-  // TOAST_TIMEOUT.
-  assert.match(rulePart(LAYOUT_PI_CSS, '.layout[data-pi-shell][data-pi-state="min"] > [data-pi-dock-cell]'), /visibility:\s*hidden;/);
+  // Out of MID the shell's dock stays mounted and hidden: laid out in the
+  // views, where its toast's `toast-pop` keeps running unseen, and in MIN,
+  // behind an `@supports (transition-behavior: allow-discrete)` gate, out
+  // of the render once its slide is over. Either way, left alone, the
+  // toast would only unmount on its TOAST_TIMEOUT.
+  assert.match(sharedRulePart(LAYOUT_PI_CSS, DOCK_MIN), /visibility:\s*hidden;/);
   // Tracked only on the shell's dock (null elsewhere: nothing runs without
   // the shell), cleared during render on any state but MID — only while a
   // toast is up (a toast is raised in MID only, so the state alone
@@ -2577,7 +2648,8 @@ test("motion: overlays leave in 100 ms and arrive at 150–300 ms — every tran
     if (![".layout[data-pi-shell] .sheet", WARM_POSE, ".layout[data-pi-shell] .shield"].includes(selector)) assert.doesNotMatch(body, /will-change/, `${rel}: ${selector}`);
     for (const { item, prop, duration, delay } of transitionItems(body)) {
       if (prop === "none") continue;
-      const steps = /\.dockShield\b/.test(selector) ? ["visibility", "clip-path"] : ["visibility"];
+      // The dock cell's MIN-only discrete step (DOCK_MIN_STEP).
+      const steps = /\.dockShield\b/.test(selector) ? ["visibility", "clip-path"] : selector === DOCK_MIN ? ["visibility", DOCK_MIN_STEP] : ["visibility"];
       assert.ok(["transform", "opacity", ...steps].includes(prop), `${rel}: ${selector}: transition on "${prop}"`);
       if (steps.includes(prop)) assert.equal(duration, "0s", `${rel}: ${selector}: ${item}`);
       if (delay === PREROLL_DELAY) assert.equal(selector, ".layout[data-pi-shell] .sheet", `${rel}: a pre-roll outside the view sheet (${item})`);
@@ -2589,7 +2661,7 @@ test("motion: overlays leave in 100 ms and arrive at 150–300 ms — every tran
         if (name === "animated") {
           assert.ok(played <= durationMs, `${rel}: ${selector}: ${item}`);
           assert.ok(ms <= overlayInDelayMs + overlayInMs, `${rel}: ${selector}: ends at ${ms} ms (${item})`);
-          if (prop !== "visibility" && prop !== "clip-path") durations.add(played);
+          if (!steps.includes(prop)) durations.add(played);
         } else {
           assert.equal(ms, 0, `${name}: ${rel}: ${selector}: ${item} still takes ${ms} ms`);
         }
@@ -2808,7 +2880,7 @@ test("scrubber: the flag survives the dock's timeline button (MIN and the flag i
 
 test("guard: no `visibility: visible` anywhere in client/src — a descendant would show through its hidden rail, dock, sheet or overlay", () => {
   // Under the overlay shell the rail, the dock, the sheet and the inactive map overlays
-  // are laid out and `visibility: hidden`; `visibility` inherits, so a
+  // are `visibility: hidden` when out; `visibility` inherits, so a
   // descendant setting `visible` would paint (and take taps) through its
   // hidden box. The shell's rules write the hidden poses only and let the
   // visible one inherit; nothing else in client/src sets it either.

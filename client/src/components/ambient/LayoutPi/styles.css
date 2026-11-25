@@ -384,16 +384,19 @@
  * arriving, and every slide and fade below starts from that one style
  * change. `data-pi-map` (what the map follows: here the attribution's
  * place) trails it while a view's sheet slides in. Out of their state the
- * rail, the dock and the sheet stay laid out (never `display: none`):
- * `visibility: hidden` and inert. Leaving, their `visibility` drops when
- * their slide or fade ends (`visibility 0s linear <duration>`, a discrete
- * transition: visible until then); arriving, it returns at once
- * (`visibility 0s`), so the entry runs from the tap's own frame. Every
- * delay here is a custom property set to 0 in form 2, and under reduced
- * motion as a guard behind styles/main.css, which removes every
+ * rail, the dock and the sheet stay laid out (never `display: none`,
+ * except the dock cell in MIN once its slide is over, behind an
+ * `@supports (transition-behavior: allow-discrete)` gate: the dock rules
+ * below): `visibility: hidden` and inert. Leaving, their `visibility`
+ * drops when their slide or fade ends (`visibility 0s linear <duration>`,
+ * a discrete transition: visible until then); arriving, it returns at
+ * once (`visibility 0s`), so the entry runs from the tap's own frame.
+ * Every delay here is a custom property set to 0 in form 2, and under
+ * reduced motion as a guard behind styles/main.css, which removes every
  * transition there since PR 411. From a switch's commit until one frame
  * after its last transition the root also carries `data-pi-moving`
- * (useShellTiming; nothing here reads it).
+ * (useShellTiming; here only the dock cell's starting style reads it,
+ * below).
  * In the JSX the rail becomes two new boxes (.railFrame / .railScroll), so
  * none of the `.rail` rules above match under the overlay shell (grid
  * placement, the 150 ms fade, the views' transparency): nothing to
@@ -755,9 +758,10 @@
 
 /* MIN and the views: slid down by its own height and faded, inert from
  * the switch's commit (LayoutPi; `pointer-events` as in the grid shell),
- * then `visibility: hidden` once the slide is over — laid out, never out
- * of the render. (0,4,0) beats the grid shell's `[data-pi-state] >
- * [data-pi-dock-cell]` rules, which also match here. */
+ * then `visibility: hidden` once the slide is over — laid out in the
+ * views; in MIN out of the render once the slide is over (the next
+ * rule, behind its `@supports` gate). (0,4,0) beats the grid shell's
+ * `[data-pi-state] > [data-pi-dock-cell]` rules, which also match here. */
 .layout[data-pi-shell][data-pi-state="min"] > [data-pi-dock-cell],
 .layout[data-pi-shell][data-pi-state="max"] > [data-pi-dock-cell],
 .layout[data-pi-shell][data-pi-state="conditions"] > [data-pi-dock-cell],
@@ -771,6 +775,45 @@
     transform var(--pi-shell-duration) var(--pi-shell-easing),
     opacity var(--pi-shell-duration) var(--pi-shell-easing),
     visibility 0s linear var(--pi-shell-duration);
+}
+
+/* In MIN only, once the slide is over, the dock cell leaves the render
+ * (`display: none`). On a Pi 4 kiosk, taking this cell out removed about
+ * half of the radar playback's extra delay in MIN, in threshold
+ * measurements. A discrete step at the end of the slide
+ * (`allow-discrete`, the moment `visibility` turns hidden): the slide out
+ * is unchanged. Back to MID the cell is displayed again in the switch's
+ * commit and slides in from its starting style, MIN's pose
+ * (translateY(100%), opacity 0), so the slide's transform transition
+ * exists for useShellTiming's read two frames on (the dock band's shield
+ * lowers at its end; with no transition to wait for, it would lower two
+ * frames after the commit). The starting style is keyed on
+ * `data-pi-moving` (set in the switch's commit by useShellTiming), so the
+ * cell's first style at load, with no switch, slides nothing in. The one
+ * exception to "once out, laid out": this cell, in MIN only, after its
+ * slide. Leaving the render from the exit itself, with a double rAF on
+ * the way back, is not used. The views keep the rule above, and so does
+ * the cell in MIN wherever the `@supports` gate below fails. The gate
+ * tests `transition-behavior: allow-discrete` alone; the rule also
+ * assumes that `display` transitions discretely and that
+ * `@starting-style` applies: without them the cell would leave or come
+ * back without sliding, and the dock band's shield would lower two frames
+ * after the commit. */
+@supports (transition-behavior: allow-discrete) {
+  .layout[data-pi-shell][data-pi-state="min"] > [data-pi-dock-cell] {
+    display: none;
+    transition:
+      transform var(--pi-shell-duration) var(--pi-shell-easing),
+      opacity var(--pi-shell-duration) var(--pi-shell-easing),
+      visibility 0s linear var(--pi-shell-duration),
+      display 0s linear var(--pi-shell-duration) allow-discrete;
+  }
+  @starting-style {
+    .layout[data-pi-shell][data-pi-moving][data-pi-state="mid"] > [data-pi-dock-cell] {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+  }
 }
 
 /* View sheet: opaque, flush with the right edge from x 210, a hairline on

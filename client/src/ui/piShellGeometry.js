@@ -514,11 +514,13 @@ function overlayPresentation(chromeState, scrubberOpen) {
 // CSS from that one style change, all started together on the
 // compositor's clock:
 //   - the rail frame, the dock band and the view sheet stay laid out in
-//     every state; out, they are `visibility: hidden` and inert. Leaving,
-//     their `visibility` waits for the end of their slide or fade
+//     every state, except the dock band in MIN once its slide is over:
+//     there it leaves the render, behind an
+//     `@supports (transition-behavior: allow-discrete)` gate
+//     (LayoutPi/styles.css). Out, they are `visibility: hidden` and inert.
+//     Leaving, their `visibility` waits for the end of their slide or fade
 //     (`visibility 0s linear <duration>`); arriving, it returns at once
-//     (`visibility 0s`), so the entry starts in the tap's own frame (no
-//     `display: none`, no frame of layout first);
+//     (`visibility 0s`), so the entry starts in the tap's own frame;
 //   - the map overlays (above): those leaving fade out in 100 ms, those
 //     arriving wait 150 ms (transition-delay) and fade in over 150 ms, so
 //     everything is over by 300 ms;

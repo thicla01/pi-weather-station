@@ -243,12 +243,15 @@ const ControlButtons = () => {
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
   }, []);
 
-  // The overlay shell's dock slides away and goes `visibility: hidden` once
-  // it is out of MID, while a pending toast's `toast-pop` keeps running
-  // unseen; back in MID within TOAST_TIMEOUT, the still-mounted toast would
-  // reappear mid-animation, out of context, and then vanish, unfaded, when
-  // its timer clears it. (A `display: none` dock would cancel the animation
-  // instead, and the toast would replay from 0 %.) So on that dock a toast
+  // The overlay shell's dock slides away once it is out of MID. In the
+  // views it stays laid out and goes `visibility: hidden`, while a pending
+  // toast's `toast-pop` keeps running unseen; back in MID within
+  // TOAST_TIMEOUT, the still-mounted toast would reappear mid-animation,
+  // out of context, and then vanish, unfaded, when its timer clears it. In
+  // MIN, behind an `@supports (transition-behavior: allow-discrete)` gate
+  // (LayoutPi/styles.css), it leaves the render (`display: none`) once its
+  // slide is over, cancelling the animation instead: back in MID the toast
+  // would replay from 0 %, out of context too. So on that dock a toast
   // is dropped as soon as piLayoutState leaves MID, adjusted during render
   // (no render of its own), the timeline button's own "Timeline shown"
   // included: it went with the exiting dock within 250 ms anyway. Only
@@ -260,7 +263,7 @@ const ControlButtons = () => {
   // elsewhere, and the timeline button's comes with its own switch to MIN),
   // but Places' "set as default" raises its own when the request resolves
   // (PlacesPopover `onNotify`), maybe after the dock has gone; kept, that
-  // one would show mid-animation if the dock came back within its 2.5 s,
+  // one would show out of context if the dock came back within its 2.5 s,
   // the very case this drop is for. Off the overlay shell the tracked value
   // stays null, so nothing here ever runs.
   const toastShellState = dockOverflow ? piLayoutState : null;

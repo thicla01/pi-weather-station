@@ -151,9 +151,12 @@ const NO_WARM_HOSTS = Object.freeze([]);
  *   its commit sets `inert` on what leaves and clears it on what arrives,
  *   and CSS runs every slide and fade from that style change. Once out,
  *   the rail, the dock and the sheet stay laid out, `visibility: hidden`
- *   and inert; an arriving one moves from the tap's own frame. Whatever
- *   must follow the motion (the view's recentre, the shields' release,
- *   the scrubber's work) waits for its transitions' own end.
+ *   and inert (except the dock cell in MIN: once its slide is over it
+ *   leaves the render, display: none in styles.css behind an `@supports`
+ *   gate, and slides back in from a starting style); an arriving one
+ *   moves from the tap's own frame. Whatever must follow the motion (the
+ *   view's recentre, the shields' release, the scrubber's work) waits for
+ *   its transitions' own end.
  *   Form 2 ("d1-form2", a fallback the shipped code never selects): the
  *   map sits in a clip the size of the cleared area (one-frame switches,
  *   no slides). Reduced motion: no transition; every switch in one frame,
@@ -249,7 +252,7 @@ const LayoutPi = () => {
   const focused = shownState === "min";
   const inView = isPiMaxView(shownState);
   // Under the overlay shell, the rail and the dock are live in MID only
-  // (laid out, hidden and inert elsewhere), the sheet in the views only.
+  // (hidden and inert elsewhere), the sheet in the views only.
   const atMid = shownState === "mid";
   // Overlay shell: with the sheet closed, the shell at rest and the
   // data in, lay out AND paint the hidden view hosts ahead, out of sight,
