@@ -322,7 +322,7 @@ test("Leaflet's zoom transition keeps 0.01 ms under reduced motion (transitionen
   assert.match(leaflet[0].body, /^\s*transition\s*:\s*transform\s+0\.01ms\s*!important\s*;?\s*$/);
 });
 
-test("no other transition is declared under reduced motion, and none is !important elsewhere", () => {
+test("no other transition is declared under reduced motion, bar the overlay shell's guards, and none is !important elsewhere", () => {
   const reducedMotionTransitions = [];
   const importantTransitions = [];
   for (const file of walk(SRC_DIR)) {
@@ -332,7 +332,11 @@ test("no other transition is declared under reduced motion, and none is !importa
       else if (IMPORTANT_TRANSITION_RE.test(rule.body)) importantTransitions.push(`${rel(file)}: ${rule.selector}`);
     }
   }
+  // The overlay shell's own `transition: none !important` rules, kept as a guard behind the global rule. They can
+  // only remove a transition, never run one.
   assert.deepEqual(reducedMotionTransitions.sort(), [
+    "components/ambient/LayoutPi/styles.css: .layout[data-pi-shell] .railFrame,.layout[data-pi-shell] .railFrame *,.layout[data-pi-shell] .railFrame::before,.layout[data-pi-shell] .railFrame::after,.layout[data-pi-shell] .railFrame *::before,.layout[data-pi-shell] .railFrame *::after,.layout[data-pi-shell]>[data-pi-dock-cell],.layout[data-pi-shell]>[data-pi-dock-cell] *,.layout[data-pi-shell]>[data-pi-dock-cell]::before,.layout[data-pi-shell]>[data-pi-dock-cell]::after,.layout[data-pi-shell]>[data-pi-dock-cell] *::before,.layout[data-pi-shell]>[data-pi-dock-cell] *::after,.layout[data-pi-shell] .sheet,.layout[data-pi-shell] .sheet *,.layout[data-pi-shell] .sheet::before,.layout[data-pi-shell] .sheet::after,.layout[data-pi-shell] .sheet *::before,.layout[data-pi-shell] .sheet *::after,.layout[data-pi-shell] [data-pi-overlay-el],.layout[data-pi-shell] [data-pi-overlay-el] *,.layout[data-pi-shell] [data-pi-overlay-el]::before,.layout[data-pi-shell] [data-pi-overlay-el]::after,.layout[data-pi-shell] [data-pi-overlay-el] *::before,.layout[data-pi-shell] [data-pi-overlay-el] *::after",
+    "components/ambient/LayoutPi/styles.css: .layout[data-pi-shell] :global(.leaflet-bottom.leaflet-right),.layout[data-pi-shell] .dockShield,.layout[data-pi-shell] .dockGuard",
     "styles/main.css: *,*::before,*::after",
     "styles/main.css: .leaflet-zoom-anim .leaflet-zoom-animated",
   ]);

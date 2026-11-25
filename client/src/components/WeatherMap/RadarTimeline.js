@@ -1,9 +1,8 @@
 import React, {
   useContext,
-  useState,
-  useEffect,
   useRef,
   useCallback,
+  useSyncExternalStore,
 } from "react";
 import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
@@ -20,6 +19,38 @@ import styles from "./styles.css";
 
 const RADAR_SPEED_LABELS = { 1: "1×", 2: "2×", 4: "4×" };
 const NOW_TICK_INTERVAL_MS = 30_000;
+const NOW_TICK_SEC = NOW_TICK_INTERVAL_MS / 1000;
+
+// Wall-clock seconds used to compute the frame's offset labels, read as an
+// external store (the clock). The snapshot is floored to the 30 s tick, so
+// it only changes on a tick boundary, at most 30 s stale: half the labels'
+// minute precision, as with the old 30 s state interval. A per-second
+// snapshot would change between a render and React's post-commit snapshot
+// check in about one render in thirty (the check runs whenever `subscribe`
+// changes, e.g. the overlay shell's `shellLive` flip, or the snapshot did),
+// forcing an extra synchronous render in the tap's own task. The change
+// signal fires just after each boundary (a timer re-armed to the next one; a
+// timer that fires a hair early finds no change and re-arms for the rest).
+// Module-level, so the render itself stays pure (no Date.now() in the
+// component body).
+const readNowSec = () => Math.floor(Date.now() / NOW_TICK_INTERVAL_MS) * NOW_TICK_SEC;
+const subscribeNowTick = (onTick) => {
+  let id = 0;
+  const armForNextBoundary = () => {
+    id = setTimeout(() => {
+      onTick();
+      armForNextBoundary();
+    }, NOW_TICK_INTERVAL_MS - (Date.now() % NOW_TICK_INTERVAL_MS));
+  };
+  armForNextBoundary();
+  return () => clearTimeout(id);
+};
+// The overlay shell keeps the scrubber mounted, hidden and inert
+// outside MIN (`shellLive` false): no tick then. The render that makes it
+// live (the switch's own commit) reads the clock afresh, so it never
+// shows a stale offset, and needs no render of its own.
+const NO_UNSUBSCRIBE = () => undefined;
+const subscribeNowDormant = () => NO_UNSUBSCRIBE;
 // Offsets at or beyond one hour read as hours, floored — the everyday
 // "il y a X h" convention (64 min → "1 h", 119 min → "1 h", 120 → "2 h").
 // Math.round with a higher threshold made "1 h" unreachable and labelled
@@ -70,6 +101,33 @@ function formatTickLabel(offsetMin) {
  * @param {boolean} props.dark Dark-palette variant
  * @param {boolean} props.compact Short-screen variant (7" kiosk) — shortens the source chip
  * @param {boolean} props.sourceStale Last frame-list refresh failed — chip flips to the warn tone
+ * @param {boolean} [props.shellLive] Overlay shell only: LayoutPi's
+ *   overlay shell keeps the scrubber mounted outside MIN: false there,
+ *   which makes it inert (hidden by the overlay shell's rules in
+ *   styles.css, never by opacity alone: it carries a backdrop blur) and
+ *   stops its clock; true in MIN with the scrubber open. Either way it
+ *   carries `data-pi-overlay-el`. Undefined everywhere else (mounted only
+ *   when shown).
+ * @param {boolean} [props.shellEngaged] Overlay shell only: whether the
+ *   scrubber's work runs (WeatherMap's `timelineEngaged`, which the shell
+ *   turns on once the switch to MIN has settled); mirrored on the bar as
+ *   `data-pi-engaged`, a signal only (nothing in the app reads it).
+ *   Undefined everywhere else.
+ * @param {function(): void} [props.onShellEngage] Overlay shell only: engages
+ *   the scrubber's work at once (useShellTiming `engageTimeline`, one
+ *   synchronous commit). Called, while `shellEngaged` is false, from the
+ *   capture phase of the bar's first pointer or key press, before any
+ *   control sees it: the playhead snaps to "now" in that commit, then
+ *   the same press acts normally on the engaged bar (play, step, return
+ *   to now, a tap on the track, a drag that continues), so a visible
+ *   control never ignores an input. The press engages the work at once
+ *   rather than waiting, queued, until the work is ready (useShellTiming).
+ *   Undefined everywhere else.
+ * @param {function(?Element): (function(): void|undefined)} [props.overlayRef]
+ *   Overlay shell only: the shell's overlay registry's ref callback
+ *   (ui/shellElements.js), attached to the bar, so LayoutPi's shell timing
+ *   finds it (its motion, and whether a live scrubber opens the dock band
+ *   shield's cut-out) without walking the DOM. Undefined everywhere else.
  * @returns {JSX.Element|null} Timeline overlay
  */
 const RadarTimeline = ({
@@ -80,6 +138,10 @@ const RadarTimeline = ({
   dark,
   compact,
   sourceStale,
+  shellLive,
+  shellEngaged,
+  onShellEngage,
+  overlayRef,
 }) => {
   const { t } = useTranslation();
   const { cycleRadarSpeed, toggleAnimateWeatherMap } = useContext(AppActionsContext);
@@ -104,16 +166,11 @@ const RadarTimeline = ({
   // mouse and touch into pointer events.
   const scrubberRef = useRef(null);
 
-  // Wall-clock seconds used to compute the frame's offset label.
-  // Lifted out of render into a state + 30 s interval so calling
-  // Date.now() doesn't become a side effect every parent re-render —
-  // the label only flips when a real minute passes. 30 s is half the
-  // label's minute precision, enough to never miss a boundary.
-  const [nowSec, setNowSec] = useState(() => Math.floor(Date.now() / 1000));
-  useEffect(() => {
-    const id = setInterval(() => setNowSec(Math.floor(Date.now() / 1000)), NOW_TICK_INTERVAL_MS);
-    return () => clearInterval(id);
-  }, []);
+  // Wall-clock seconds used to compute the frame's offset label: an
+  // external store, so Date.now() never runs in the render body, and the
+  // label flips on a 30 s tick (half its minute precision) — none while
+  // the overlay shell holds the scrubber hidden (`shellLive` false).
+  const nowSec = useSyncExternalStore(shellLive === false ? subscribeNowDormant : subscribeNowTick, readNowSec);
 
   const updateFromClientX = useCallback((clientX) => {
     const el = scrubberRef.current;
@@ -137,6 +194,11 @@ const RadarTimeline = ({
       e.currentTarget.releasePointerCapture(e.pointerId);
     }
   }, []);
+
+  // Overlay shell: the first press on the bar before its work is engaged
+  // engages it first (capture phase, so before the control's own handler);
+  // none once engaged, and none off the overlay shell.
+  const engageFirst = shellEngaged === false && onShellEngage ? () => onShellEngage() : undefined;
 
   if (!frames || frames.length === 0) return null;
   const frame = frames[currentIdx];
@@ -221,7 +283,15 @@ const RadarTimeline = ({
     : `RainViewer · ${cadenceMin} min`;
 
   return (
-    <div className={`${styles.radarTimeline} ${dark ? styles.radarTimelineDark : styles.radarTimelineLight}`}>
+    <div
+      ref={overlayRef}
+      className={`${styles.radarTimeline} ${dark ? styles.radarTimelineDark : styles.radarTimelineLight}`}
+      data-pi-overlay-el={shellLive === undefined ? undefined : "scrubber"}
+      inert={shellLive === false}
+      data-pi-engaged={shellEngaged === undefined ? undefined : String(shellEngaged)}
+      onPointerDownCapture={engageFirst}
+      onKeyDownCapture={engageFirst}
+    >
       <div className={styles.rtHeader}>
         <button
           type="button"
@@ -354,6 +424,10 @@ RadarTimeline.propTypes = {
   dark: PropTypes.bool,
   compact: PropTypes.bool,
   sourceStale: PropTypes.bool,
+  shellLive: PropTypes.bool,
+  shellEngaged: PropTypes.bool,
+  onShellEngage: PropTypes.func,
+  overlayRef: PropTypes.func,
 };
 
 export default RadarTimeline;

@@ -2,9 +2,12 @@
  *
  * The inner ControlButtons component brings its own flex layout for
  * the icons; this wrapper just gives it a uniform background, padding,
- * and a top border so the dock reads as separate from the content
- * above it. Touch-friendly height: 52px target (44px icon + 8px
- * padding above/below). */
+ * and a border so the dock reads as separate from the content around
+ * it. Height: 52 px minimum, for ControlButtons' 40 px cells
+ * (`--ctrl-btn-size` default) with 8 px padding above and below.
+ * LayoutPi's overlay shell is the exception: there the dock is a 58 px
+ * band of 44 px cells (LayoutPi/styles.css, and the overlay-shell rule at
+ * the end of this file). */
 
 .dock {
   background-color: var(--c-surface);
@@ -15,15 +18,19 @@
    * opaque edge (ui/opaqueTokens.js); elsewhere it is --c-border. */
   border: 1px solid var(--c-card-edge, var(--c-border));
   border-radius: 14px;
-  /* No `backdrop-filter` here, on purpose. The dock never sits over the
-   * map: LayoutPi gives it its own grid row under the map cell (and
-   * slides it out below the screen edge in MIN and the full-rail views),
-   * LayoutDesktop insets the map by `--c-dock-height` above it, and
-   * LayoutMobile stacks it under the scroll column, which clips the radar
-   * card. All that shows through the surface's 15 % alpha is the flat
-   * `--c-bg` of the layout. The only exception is LayoutMobile's
+  /* No `backdrop-filter` here, on purpose. Nothing but a flat colour
+   * ever shows through the dock. Outside LayoutPi's overlay shell it never
+   * sits over the map: LayoutPi's grid shell gives it its own grid row under
+   * the map cell (and slides it out below the screen edge in MIN and the
+   * full-rail views), LayoutDesktop insets the map by `--c-dock-height`
+   * above it, and LayoutMobile stacks it under the scroll column, which
+   * clips the radar card. All that shows through the surface's 15 % alpha is
+   * the flat `--c-bg` of the layout. The only exception is LayoutMobile's
    * pull-to-refresh, which slides the scroll column, radar card
-   * included, under the dock for the length of the gesture. So the
+   * included, under the dock for the length of the gesture. LayoutPi's
+   * overlay shell does lay the dock over the map, but repaints it as an
+   * opaque `--c-bg` band (LayoutPi/styles.css), so nothing shows through
+   * there either. So the
    * `blur(8px)` this rule carried from v3.1 Phase 1 until 2026-10 blurred
    * a solid colour, yet still cost a backdrop pass. It also made the dock
    * the containing block of the ControlButtons toast, which is
@@ -31,7 +38,10 @@
    * the toast landed 11 px right of and 11 px above the tapped button.
    * Any `filter`, `backdrop-filter`, `transform`, `perspective`,
    * `will-change` of those or `contain` added here would re-anchor the
-   * toast the same way. */
+   * toast the same way — and, on the overlay shell, shrink the "···"
+   * menu's full-screen tap-catching backdrop (DockOverflowMenu, also
+   * `position: fixed`) to the dock's box, letting taps meant to close
+   * the menu reach the map. */
   /* v2.16.5: reverted v2.16.2's safe-area-bottom padding. In iOS
    * PWA standalone, `100dvh` < physical screen height, so the
    * extra padding extended into a zone that the page doesn't
@@ -161,4 +171,17 @@
  * is kept for keyboard navigation. */
 .dock :global(div):focus-visible :global(svg) {
   color: var(--c-accent);
+}
+
+/* LayoutPi's overlay shell (`data-pi-shell` on the LayoutPi root, set under
+ * the priority-views model). Its dock is a 58 px band (LayoutPi/styles.css:
+ * 1 px hairline + 6 px padding above and below) built around 44 px touch
+ * targets: ControlButtons sizes its cells, and DockOverflowMenu its "···"
+ * trigger, from this property (40 px when unset, i.e. everywhere else). A
+ * custom property because CSS Modules hash ControlButtons' class names, so
+ * neither this file nor LayoutPi can target its cells directly. Inherited,
+ * so it sets nothing on the dock box itself: no transform, filter or contain
+ * at rest. */
+:global([data-pi-shell]) > .dock {
+  --ctrl-btn-size: 44px;
 }

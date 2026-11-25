@@ -4,6 +4,7 @@ import { useTranslation } from "react-i18next";
 import SourceBadge from "~/components/ambient/SourceBadge";
 import SeverityChip from "~/components/ambient/SeverityChip";
 import useEligibleGovAlerts from "~/hooks/useEligibleGovAlerts";
+import useTapGuard from "~/hooks/useTapGuard";
 import { chipProductType } from "~/ui/alertLogic";
 import { alertDisplayTitle } from "~/ui/alertTitle";
 import styles from "./styles.css";
@@ -18,9 +19,8 @@ import styles from "./styles.css";
  *
  * SHOW gate matches AlertBanner / AlertDetailInline (≥ 1 orange/red
  * gov alert at the point). Renders the currently-displayed alert
- * (mirrors `govAlertIdx`) so tapping the v3 banner to cycle in the
- * full layout, then collapsing the rail, still shows the same alert
- * here.
+ * (mirrors `govAlertIdx`) so cycling through the alerts in the full
+ * layout, then collapsing the rail, still shows the same alert here.
  *
  * Visual treatment: floating banner pinned to the top-right of the map
  * area, with the active palette's surface + left severity strip,
@@ -51,15 +51,37 @@ import styles from "./styles.css";
  * @param {object} props
  * @param {() => void} props.onExpand — called when the banner is tapped;
  *   the parent exits the full-screen map state (un-collapses the rail /
- *   restores the mobile radar card). Bound directly to `onClick`, so React
- *   passes a SyntheticMouseEvent; the type is zero-arity because callers
- *   ignore it.
+ *   restores the mobile radar card). Called with no argument, after the
+ *   optional double-tap guard (`guardTaps`); the type is zero-arity.
  * @param {string} [props.placement] — `"topRight"` (default, rail
  *   layouts) or `"belowControls"` (mobile maximized card: right-aligned
  *   under the restore button, clear of the zoom stack)
+ * @param {boolean} [props.guardTaps] — true when LayoutPi renders the
+ *   priority-views model (its `priority`, ui/piLayout.js
+ *   `priorityViewsEnabled()`): the tap then arms the double-tap guard
+ *   (hooks/useTapGuard.js) before restoring MID, which brings the rail
+ *   under the finger — the scope of the dock's AI and forecast buttons
+ *   (ControlButtons `inPriorityDock`). LayoutPi decides, from the model it
+ *   renders, so a 1280 px window under `forcePriorityViews` (LayoutDesktop)
+ *   never arms it. False or absent (LayoutDesktop's focus mode,
+ *   LayoutMobile's maximized card, the 10.1" stacked rail): no guard.
+ * @param {boolean} [props.shellLive] — Overlay shell only: LayoutPi's
+ *   overlay shell keeps the banner mounted in every state; true in MIN,
+ *   false elsewhere, which makes it inert (and hidden by its overlay-shell
+ *   rules in styles.css, so it fades from the switch's own commit). Either
+ *   way it carries `data-pi-overlay-el="banner"`. Undefined everywhere else
+ *   (mounted only when shown).
+ * @param {function(?Element): (function(): void|undefined)} [props.overlayRef]
+ *   — Overlay shell only: the shell's overlay registry's ref callback
+ *   (ui/shellElements.js), attached to the banner, so LayoutPi's shell
+ *   timing finds it without walking the DOM. Undefined everywhere else.
  * @returns {JSX.Element|null} mini-banner, or null when no alert is eligible
  */
-const FloatingMiniBanner = ({ onExpand, placement = "topRight" }) => {
+const FloatingMiniBanner = ({ onExpand, placement = "topRight", guardTaps = false, shellLive, overlayRef }) => {
+  // Restoring MID puts the rail under the finger: on the priority views
+  // (`guardTaps`), the tap arms the double-tap guard first (ui/tapGuard.js).
+  // Never armed, it holds no listener.
+  const guardTap = useTapGuard();
   const { t, i18n } = useTranslation();
   // Same eligible-alert derivation as AlertBanner — shared hook so the
   // collapsed-rail overlay shows the exact alert the full banner would,
@@ -89,9 +111,12 @@ const FloatingMiniBanner = ({ onExpand, placement = "topRight" }) => {
 
   return (
     <button
+      ref={overlayRef}
       type="button"
       className={`${styles.banner} ${placement === "belowControls" ? styles.belowControls : ""} ${styles[`tier-${currentAlert.tier}`]}`}
-      onClick={onExpand}
+      onClick={(e) => { if (guardTaps) guardTap(e); onExpand(); }}
+      data-pi-overlay-el={shellLive === undefined ? undefined : "banner"}
+      inert={shellLive === false}
     >
       <SourceBadge source={currentAlert.source} />
       {currentAlert.isTest ? <SourceBadge source={testLabel} variant="test" /> : null}
@@ -112,6 +137,9 @@ const FloatingMiniBanner = ({ onExpand, placement = "topRight" }) => {
 FloatingMiniBanner.propTypes = {
   onExpand: PropTypes.func.isRequired,
   placement: PropTypes.oneOf(["topRight", "belowControls"]),
+  guardTaps: PropTypes.bool,
+  shellLive: PropTypes.bool,
+  overlayRef: PropTypes.func,
 };
 
 export default FloatingMiniBanner;

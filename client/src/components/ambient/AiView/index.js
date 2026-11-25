@@ -1,4 +1,5 @@
-import React, { useContext, useMemo } from "react";
+import React, { useCallback, useContext, useMemo } from "react";
+import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
 import { RestoreIcon } from "~/components/WeatherMap/icons";
 import { AppActionsContext } from "~/AppContext";
@@ -90,9 +91,10 @@ function splitSummary(summary, t, period) {
  * and, since 2026-10, the taller 10.1" panels' v3.2 stacked rail (neither rail
  * shows the AI prose inline, so without this view the summary is unreadable).
  *
- * Mounted lazily (LayoutPi renders it only in the "ai" state) so the paid
- * Anthropic call fires on demand via `useAiSummary`, not as background
- * overhead. Presents the summary's three paragraphs as labelled sections titled
+ * Mounted lazily (LayoutPi's grid shell renders it only in the "ai" state)
+ * so the paid Anthropic call fires on demand via `useAiSummary`, not as
+ * background overhead. (The overlay shell mounts it at all times and gates the
+ * call on `active` instead.) Presents the summary's three paragraphs as labelled sections titled
  * by their real period — Now / [this evening|overnight|tomorrow] / Radar
  * analysis — with a loading state for the first fetch and an "unavailable"
  * fallback when a fetch fails (no summary yet) or the server answers its
@@ -105,24 +107,59 @@ function splitSummary(summary, t, period) {
  * settings.json edited after boot, or a failed boot settings read) or when
  * the key is cleared in Settings while the view is open.
  *
+ * @param {object} props
+ * @param {boolean} [props.active] Overlay shell only: LayoutPi's overlay
+ *   shell keeps this view mounted at all times, in a host skipped by
+ *   `content-visibility: hidden` outside the "ai" state, and passes true
+ *   only in that state: the summary is requested (and polled) only while
+ *   it is true, from the tap's own commit, and turning false clears it,
+ *   so the next opening shows the loading caption, as a fresh mount does,
+ *   never the previous summary (useAiSummary `active`). Defaults to true
+ *   (always so elsewhere: the lazy mount is the gate).
+ * @param {boolean} [props.replyReady] Overlay shell only: the shell's
+ *   view opens under a sheet that then slides in. The summary request
+ *   starts at once, as elsewhere; it passes false until the opening has
+ *   settled (the sheet landed, the map recentred under it), and the reply
+ *   is held outside React state until then (useAiSummary `ready`), so
+ *   even an instant reply renders no frame inside the slide — the loading
+ *   caption shows meanwhile. Defaults to true (always so elsewhere).
+ *
+ * Exported through React.memo: the overlay shell keeps this view mounted in
+ * every state, and LayoutPi re-renders at each switch, so without memo every
+ * view switch would re-render it, while closed, with the same two props.
+ * Memoized, it renders for its own state only — the "ai" opening
+ * (`active`), its settle (`replyReady`) and its close — and for its own
+ * subscriptions (the summary's state, the language, the contexts
+ * useAiSummary reads); still mounted, so the paint prewarm and the opening
+ * in the tap's own commit are unchanged. Elsewhere it renders only in the
+ * "ai" state anyway.
  * @returns {JSX.Element} the IA view
  */
-const AiView = () => {
+const AiView = ({ active = true, replyReady = true }) => {
   const { setPiLayoutState } = useContext(AppActionsContext);
   const { t } = useTranslation();
-  const { summary, available, period, errored } = useAiSummary();
+  const { summary, available, period, errored } = useAiSummary(replyReady, active);
   const sections = useMemo(() => (summary ? splitSummary(summary, t, period) : []), [summary, t, period]);
+  // The back button, one element while its handler and label hold, across
+  // the renders of this view's own state (the opening, its settle, the
+  // reply, the close).
+  const back = useCallback(() => setPiLayoutState("mid"), [setPiLayoutState]);
+  const backLabel = t("aiView.back", { defaultValue: "Back to overview" });
+  const backButton = useMemo(() => (
+    <RailSquareButton
+      icon={RestoreIcon}
+      back
+      onClick={back}
+      ariaLabel={backLabel}
+      className={styles.minimize}
+    />
+  ), [back, backLabel]);
 
   return (
     <div className={styles.view}>
       <div className={styles.header}>
         <span className={styles.title}>{t("aiView.title", { defaultValue: "AI summary" })}</span>
-        <RailSquareButton
-          icon={RestoreIcon}
-          onClick={() => setPiLayoutState("mid")}
-          ariaLabel={t("aiView.back", { defaultValue: "Back to overview" })}
-          className={styles.minimize}
-        />
+        {backButton}
       </div>
       <div className={styles.body}>
         {!available || (errored && !summary) ? (
@@ -146,4 +183,9 @@ const AiView = () => {
   );
 };
 
-export default AiView;
+AiView.propTypes = {
+  active: PropTypes.bool,
+  replyReady: PropTypes.bool,
+};
+
+export default React.memo(AiView);

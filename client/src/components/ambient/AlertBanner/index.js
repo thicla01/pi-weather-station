@@ -9,7 +9,7 @@ import {
   AlertsContext,
   AppActionsContext,
   WeatherDataContext,
-  SystemContext,
+  PiLayoutMountedContext,
 } from "~/AppContext";
 import SourceBadge from "~/components/ambient/SourceBadge";
 import ConfidencePill from "~/components/ambient/ConfidencePill";
@@ -26,6 +26,7 @@ import {
   chipProductType,
 } from "~/ui/alertLogic";
 import { alertDisplayTitle } from "~/ui/alertTitle";
+import { COUNTED_FROM, compactAlertCardName } from "~/ui/alertCardName";
 import { priorityViewsEnabled } from "~/ui/piLayout";
 import styles from "./styles.css";
 
@@ -55,15 +56,21 @@ import styles from "./styles.css";
  *     `AlertDetailInline` (v3.2 stacked rail).
  *   - **v3.3 priority views** (`priorityViewsEnabled()`, opt-in / short
  *     7"): the gov card is instead a **2-line** compact card (tags + ⤢ on
- *     row 1, title + "1 / N" cycle counter on row 2); tapping ⤢ opens the
- *     full `AlertView` (`piLayoutState = "alert"`) rather than toggling
- *     `AlertDetailInline`, which LayoutPi does not mount in that model.
- *     The view's back button lands where the ⤢ was, so the ⤢ arms the
- *     double-tap guard (`useTapGuard`, `ui/tapGuard.js`; Document 9, point
- *     6): for 300 ms a second tap within 60 × 58 px of the first is
- *     swallowed instead of closing the view it just opened. The ⤢ exists
- *     only here — the v3.2 rail (the 10.1" panels) and desktop / mobile
- *     have none: their head row toggles `AlertDetailInline` in place.
+ *     row 1, title + "1 / N" on row 2), and the WHOLE card is one
+ *     `<button>`: a tap anywhere on it opens the full `AlertView`
+ *     (`piLayoutState = "alert"`) on the alert shown, rather than toggling
+ *     `AlertDetailInline`, which LayoutPi does not mount in that model. Its
+ *     accessible name says the level, the source, the title and, with more
+ *     than one alert, "1 of N" (`ui/alertCardName.js`:
+ *     `alert.compactCardAria`, or `alert.compactCardAriaSingle` for a single
+ *     alert). The ⤢ stays as a cue, decorative, with no tap zone of its own;
+ *     "1 / N" is a passive indicator (no chevron) — switching alerts is the
+ *     Alert view's chips. The view's back button lands under the finger, so
+ *     the card arms the double-tap guard (`useTapGuard`, `ui/tapGuard.js`;
+ *     Document 9, point 6): for 300 ms a second tap within 60 × 58 px of the
+ *     first is swallowed instead of closing the view it just opened. The ⤢
+ *     exists only here — the v3.2 rail (the 10.1" panels) and desktop /
+ *     mobile have none: their head row toggles `AlertDetailInline` in place.
  *   - The **radar branch is suppressed** — `NowcastLine` is the always-
  *     present radar surface on Pi, so rendering it here too would double
  *     the same verdict. Desktop / mobile are unchanged on both points.
@@ -106,19 +113,20 @@ const AlertBanner = () => {
   const { govAlertExpanded } = useContext(AlertsContext);
   const { setGovAlertExpanded, selectGovAlert, setPiLayoutState } = useContext(AppActionsContext);
   const { currentWeatherData } = useContext(WeatherDataContext);
-  const { piLayoutState } = useContext(SystemContext);
   const { t, i18n } = useTranslation();
   const { dismiss } = useDismissedAlerts();
-  // Double-tap guard for the priority card's ⤢ (see the JSDoc above).
+  // Double-tap guard for the priority card (one button; see the JSDoc above).
   const guardTap = useTapGuard();
 
-  // On the 7" Pi rail (piLayoutState is non-null only inside LayoutPi) the
-  // banner renders a single-row COMPACT gov card and the radar-derived
-  // branch is suppressed entirely — v3.2 gives radar its own always-present
+  // On the 7" Pi rail (PiLayoutMountedContext: true only while LayoutPi is
+  // mounted, i.e. piLayoutState is non-null; it never changes with a view
+  // switch, so a switch doesn't re-render the banner) the banner renders a
+  // single-row COMPACT gov card and the radar-derived branch is suppressed
+  // entirely — v3.2 gives radar its own always-present
   // surface (NowcastLine), so an AlertBanner radar card here would duplicate
   // the same verdict. Desktop / mobile keep the full Phase-4 head + radar
   // banner unchanged.
-  const isPi = piLayoutState != null;
+  const isPi = useContext(PiLayoutMountedContext);
   // v3.3 priority model (opt-in/short-7"): the compact gov card opens the
   // full Alert view on tap instead of expanding AlertDetailInline inline.
   const priority = isPi && priorityViewsEnabled();
@@ -159,7 +167,9 @@ const AlertBanner = () => {
     const testBadge = currentAlert.isTest
       ? <SourceBadge source={testLabel} variant="test" />
       : null;
-    const hasOthers = eligibleGovAlerts.length > 1;
+    // The count shows from COUNTED_FROM eligible alerts, the threshold the
+    // compact card's accessible name follows too (ui/alertCardName.js).
+    const hasOthers = eligibleGovAlerts.length >= COUNTED_FROM;
 
     // v3.1 Phase 4c: the head row is the toggle for
     // `AlertDetailInline` — tap anywhere in the head expands /
@@ -178,34 +188,46 @@ const AlertBanner = () => {
     };
     // The compact card's tap target: open the full Alert view in the v3.3
     // priority model, else toggle the inline AlertDetailInline (v3.2). The
-    // cycle counter keeps its own (stop-propagated) tap zone either way.
+    // v3.2 card's cycle counter is a sibling tap zone of its own; the
+    // priority card's "1 / N" is passive.
     const headAction = priority ? () => setPiLayoutState("alert") : toggleExpanded;
     const headKeyDown = (e) => {
       if (e.key === "Enter" || e.key === " ") { e.preventDefault(); headAction(); }
     };
-    // The priority card's ⤢: opening the Alert view puts its back button
-    // under the finger, so the tap that opens it arms the double-tap guard
-    // first (a keyboard activation does not arm it: no second tap to fear).
-    // Known limit (bench session 5 on P9, 2026-10-16; no trial exercises it):
-    // the guard's 60 x 58 box is centred on the first tap, so it covers the
-    // back button only around the ⤢'s centre (11-19 px margins at 800 x 480).
-    // A first tap in the ⤢'s top three rows (y 17-19) and a second tap on the
-    // back button's bottom rows (y 47-49) are up to 32 px apart vertically,
-    // past the box's half-height of 29: that second tap closes the view.
-    // Kept until the D1 work makes the whole compact card the target (design
-    // decision of 2026-10-14); with a tap-centred box the limit stays in
-    // kind, for any second tap that drifts more than half the box.
+    // The priority card (one button): opening the Alert view puts its back
+    // button under the finger, so the tap that opens it arms the double-tap
+    // guard first (a keyboard activation does not arm it: no second tap to
+    // fear). The guard's 60 x 58 box is centred on the first tap, so on its
+    // own it covers the view's back button only when the first tap lands
+    // near it (the card's top-right corner, where the ⤢ sits): a second tap
+    // on the back button more than half the box from the first tap (30 px
+    // across, 29 px down) would pass and close the view. Under the overlay
+    // shell, the guard's back-button exception (ui/tapGuard.js,
+    // `[data-pi-shell] [data-pi-back]`) swallows that tap wherever the first
+    // one was: any gesture begun inside the window whose click lands on that
+    // button, even pressed on the sliding sheet.
     const openAlertView = (e) => {
       guardTap(e);
       headAction();
     };
 
-    // Cycle to the next eligible gov alert. The compact Pi counter doubles
-    // as the navigation control (the AlertMiniCards list is dropped from
-    // the MID rail), so it must step through the ELIGIBLE list — not the
-    // raw govAlerts — to never land on a filtered-out alert. Same index
+    // Cycle to the next eligible gov alert. The v3.2 compact card's counter
+    // doubles as the navigation control (the AlertMiniCards list is dropped
+    // from the MID rail), so it must step through the ELIGIBLE list — not
+    // the raw govAlerts — to never land on a filtered-out alert. Same index
     // space the mini-cards pass to selectGovAlert on desktop/mobile.
     const cycleNext = () => selectGovAlert((safeIdx + 1) % eligibleGovAlerts.length);
+    // The priority card's accessible name: level (the chip's full product
+    // word), source, title, and "1 of N" — left out with a single alert,
+    // like the passive "1 / N" indicator (ui/alertCardName.js).
+    const productWord = chipProductType(currentAlert.title_en, currentAlert.severity);
+    const cardName = compactAlertCardName(t, {
+      level: t(`alert.severity${productWord.charAt(0).toUpperCase()}${productWord.slice(1)}`),
+      source: currentAlert.source,
+      title,
+      current: safeIdx + 1,
+      count: eligibleGovAlerts.length,
+    });
 
     return (
       <div
@@ -214,45 +236,38 @@ const AlertBanner = () => {
       >
         {isPi ? (
           priority ? (
-            /* v3.3 priority glance — 2-line compact gov card. Row 1: the
-             * severity + source tags and the maximize ⤢ (RailSquareButton,
-             * opening the full AlertView — so the alert card carries the same
+            /* v3.3 priority glance — 2-line compact gov card, ONE button:
+             * a tap anywhere opens the full AlertView on the alert
+             * shown. Row 1: the severity + source tags and the ⤢ square,
+             * a decorative cue (RailSquareButton `decorative`, the same
              * square as the Hero / Nowcast). Row 2: the alert title on its
-             * OWN line (far less truncation than the old single row) + the
-             * "1 / N" cycle counter. The ⤢ and the counter are the two tap
-             * zones — siblings, no interactive nesting. */
-            <div className={styles.compactCard}>
-              <div className={styles.compactTop}>
+             * OWN line + the passive "1 / N" indicator. Spans only: a
+             * button's content is phrasing content. */
+            <button
+              type="button"
+              className={styles.compactCard}
+              onClick={openAlertView}
+              aria-label={cardName}
+              data-pi-press=""
+            >
+              <span className={styles.compactTop}>
                 <SeverityChip severity={currentAlert.severity} eventName={currentAlert.title_en} abbreviated />
                 <SourceBadge source={currentAlert.source} />
                 {testBadge}
-                <RailSquareButton
-                  icon={ExpandIcon}
-                  onClick={openAlertView}
-                  ariaLabel={t("alert.view.openRow", { defaultValue: "Open alert detail" })}
-                  className={styles.compactMax}
-                />
-              </div>
-              <div className={styles.compactBottom}>
+                <RailSquareButton icon={ExpandIcon} decorative className={styles.compactMax} />
+              </span>
+              <span className={styles.compactBottom}>
                 <span className={styles.titleCompact}>{title}</span>
                 {hasOthers && (
-                  <button
-                    type="button"
-                    className={styles.cycleCounter}
-                    onClick={cycleNext}
-                    aria-label={t("alert.cycleNextAria")}
-                  >
-                    <span className={styles.cycleCount}>
-                      {t("alert.activeAlertsCountShort", {
-                        current: safeIdx + 1,
-                        count: eligibleGovAlerts.length,
-                      })}
-                    </span>
-                    <InlineIcon icon={chevronRight} className={styles.cycleChevron} />
-                  </button>
+                  <span className={styles.cycleIndicator}>
+                    {t("alert.activeAlertsCountShort", {
+                      current: safeIdx + 1,
+                      count: eligibleGovAlerts.length,
+                    })}
+                  </span>
                 )}
-              </div>
-            </div>
+              </span>
+            </button>
           ) : (
           /* COMPACT one-row gov card (7" MID rail), v3.2 non-priority. Two
            * SIBLING tap zones — the cycle button is NOT nested inside the

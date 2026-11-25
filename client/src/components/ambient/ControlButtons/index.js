@@ -3,11 +3,14 @@ import { useTranslation } from "react-i18next";
 import {
   AppActionsContext,
   SystemContext,
+  PiLayoutContext,
   UiPrefsContext,
   AlertsContext,
 } from "~/AppContext";
-import { priorityViewsEnabled } from "~/ui/piLayout";
+import { piShellVariant, priorityViewsEnabled } from "~/ui/piLayout";
 import PlacesPopover from "~/components/ambient/PlacesPopover";
+import DockOverflowMenu from "~/components/ambient/DockOverflowMenu";
+import useTapGuard from "~/hooks/useTapGuard";
 import styles from "./styles.css";
 import { InlineIcon } from "@iconify/react";
 
@@ -74,6 +77,16 @@ const NEARBY_TIER_BADGE = {
 // past the user's next intended tap.
 const TOAST_TIMEOUT = 2500;
 
+// The two view buttons' glyphs (AI, forecast), one element each for the
+// module's lifetime (the remedy LocationName's pin got too): their buttons'
+// down state follows `piLayoutState`, so the React Compiler rebuilt each
+// button, glyph included, at every LayoutPi switch, and Iconify's
+// InlineIcon then rewrote its SVG's innerHTML (two SVG rewrites in the
+// dock's group per switch). An equal element is skipped; the DOM is the
+// same.
+const AI_VIEW_ICON = <InlineIcon icon={sparkleIcon} />;
+const FORECAST_VIEW_ICON = <InlineIcon icon={chartColumnIcon} />;
+
 /**
  * Buttons group component.
  *
@@ -88,6 +101,19 @@ const TOAST_TIMEOUT = 2500;
  * Every button is wrapped in its own `<div onClick>` so the toast
  * positioning logic (which measures the tapped button's bounding
  * rect via `e.currentTarget`) works uniformly.
+ *
+ * On LayoutPi's overlay shell (`piShellVariant()`, under the priority
+ * views), the buttons are 44 px targets (`--ctrl-btn-size`, set on the
+ * overlay shell's dock by BottomDock/styles.css) and four of them leave the
+ * row for a "···" overflow menu (`DockOverflowMenu`) after the System group:
+ * marker, legend (RainViewer only), and the localhost + DEBUG analysis-rings
+ * and debug-panel toggles. The update button stays in the row. The menu rows
+ * run the same actions as the buttons they replace. Every dock toast there,
+ * a menu row's included, is centred over the map area the rail and dock
+ * leave clear, 8 px above the legend chip, instead of anchored on its button
+ * (styles.css), and is dropped once the layout leaves MID, so it can't
+ * replay when the dock comes back. Off the overlay shell none of this
+ * renders.
  *
  * @returns {JSX.Element} Control buttons
  */
@@ -111,6 +137,12 @@ const ControlButtons = () => {
     setPiLayoutState,
     setPiScrubberOpen,
   } = useContext(AppActionsContext);
+  // The dock's view buttons (AI, forecast) arm the double-tap guard first
+  // (ui/tapGuard.js — a keyboard activation does not arm it), on the
+  // priority views only (guardViewTap below). So does the timeline button
+  // on the overlay shell's dock (`dockOverflow`), whose switch to MIN
+  // brings the radar scrubber's track under the finger.
+  const guardTap = useTapGuard();
   const {
     sleepNightMode,
     isLocal,
@@ -120,8 +152,8 @@ const ControlButtons = () => {
     updateAvailable,
     updateModalOpen,
     mobileRadarMaximized,
-    piLayoutState,
   } = useContext(SystemContext);
+  const { piLayoutState } = useContext(PiLayoutContext);
   const {
     darkMode,
     darkModeAuto,
@@ -149,6 +181,24 @@ const ControlButtons = () => {
   // LayoutPi sets piLayoutState ("mid") on mount in both. Drives the
   // view-open buttons that must work on every Pi panel (IA, forecast).
   const inPiDock = piLayoutState != null;
+  // LayoutPi's overlay shell. piShellVariant() is non-null only on the
+  // priority-views model, and a non-null piLayoutState means LayoutPi (not
+  // LayoutDesktop) is mounted, bar the commit of a layout switch (LayoutPi
+  // sets and clears it in a passive effect) — the same pair LayoutPi uses
+  // to stamp `data-pi-shell`, which sizes these buttons to 44 px. Under it
+  // the marker, legend, rings and debug buttons move to the "···" menu.
+  const dockOverflow = inPiDock && piShellVariant() !== null;
+  // The view buttons' double-tap guard (AI, forecast), armed only on the
+  // priority views (ui/tapGuard.js). On the 10.1" v3.2 stacked rail the
+  // same buttons open the view in the rail, away from the dock, and that
+  // rail keeps its behaviour — no guard.
+  const guardViewTap = (e) => {
+    if (inPriorityDock) guardTap(e);
+  };
+  // Gates of the conditional buttons, shared by the row buttons and their
+  // overflow-menu rows.
+  const hasLegend = radarSource === "rainviewer";
+  const hasDebugTools = isLocal && debugEnabled;
 
   // Places popover — local open state, anchored to its dock button. Kept
   // here rather than in AppContext: no other component needs to know
@@ -192,6 +242,31 @@ const ControlButtons = () => {
   useEffect(() => () => {
     if (toastTimeoutRef.current) clearTimeout(toastTimeoutRef.current);
   }, []);
+
+  // The overlay shell's dock slides away and goes `visibility: hidden` once
+  // it is out of MID, while a pending toast's `toast-pop` keeps running
+  // unseen; back in MID within TOAST_TIMEOUT, the still-mounted toast would
+  // reappear mid-animation, out of context, and then vanish, unfaded, when
+  // its timer clears it. (A `display: none` dock would cancel the animation
+  // instead, and the toast would replay from 0 %.) So on that dock a toast
+  // is dropped as soon as piLayoutState leaves MID, adjusted during render
+  // (no render of its own), the timeline button's own "Timeline shown"
+  // included: it went with the exiting dock within 250 ms anyway. Only
+  // while a toast is pending: the state alone tells the departure, so a
+  // switch with no toast up — nearly all of them — pays this render no
+  // second pass (tracking the last state seen in a state of its own, set at
+  // every switch, would). A toast up outside MID is dropped too, whenever
+  // it came: the dock's taps raise theirs in MID (the dock is inert
+  // elsewhere, and the timeline button's comes with its own switch to MIN),
+  // but Places' "set as default" raises its own when the request resolves
+  // (PlacesPopover `onNotify`), maybe after the dock has gone; kept, that
+  // one would show mid-animation if the dock came back within its 2.5 s,
+  // the very case this drop is for. Off the overlay shell the tracked value
+  // stays null, so nothing here ever runs.
+  const toastShellState = dockOverflow ? piLayoutState : null;
+  if (toast.message && toastShellState !== null && toastShellState !== "mid") {
+    setToast((prev) => ({ ...prev, message: "" }));
+  }
 
   // After the toast renders, clamp its horizontal position so the box
   // stays fully inside the viewport even when the tapped button is at
@@ -249,11 +324,15 @@ const ControlButtons = () => {
   // the tapped button (plus an 8 px gap), so the toast sits just above
   // the button regardless of where the dock lives in the layout.
   // Falls back to centred when no event is provided.
+  // On the overlay shell's dock (`dockOverflow`) no toast is anchored:
+  // every one takes the CSS fallback path, which the overlay-shell rule in
+  // styles.css places centred over the cleared map zone, 8 px above the
+  // legend chip.
   const notify = (key, e) => {
     let x = null;
     let bottom = null;
     let fullWidth = false;
-    if (e && e.currentTarget) {
+    if (e && e.currentTarget && !dockOverflow) {
       const buttonRect = e.currentTarget.getBoundingClientRect();
       x = buttonRect.left + buttonRect.width / 2;
       bottom = window.innerHeight - buttonRect.top + 8;
@@ -338,15 +417,20 @@ const ControlButtons = () => {
   // had a slash-through icon when the marker was ON — confusing
   // because the slash visually said "off" while the marker was
   // actually showing).
+  // Action, label and icon are named so the overflow-menu row (below)
+  // runs and shows exactly what this button does.
+  const markerAction = (e) => { toggleMarker(); notify(markerIsVisible ? "toasts.markerHidden" : "toasts.markerShown", e); };
+  const markerLabel = t(markerIsVisible ? "controls.hideMarker" : "controls.showMarker");
+  const markerIcon = markerIsVisible ? locationFilledIcon : locationOutlineIcon;
   const btnMarker = (
     <div
       key="marker"
-      onClick={(e) => { toggleMarker(); notify(markerIsVisible ? "toasts.markerHidden" : "toasts.markerShown", e); }}
-      title={t(markerIsVisible ? "controls.hideMarker" : "controls.showMarker")}
-      aria-label={t(markerIsVisible ? "controls.hideMarker" : "controls.showMarker")}
+      onClick={markerAction}
+      title={markerLabel}
+      aria-label={markerLabel}
     >
       <InlineIcon
-        icon={markerIsVisible ? locationFilledIcon : locationOutlineIcon}
+        icon={markerIcon}
       />
     </div>
   );
@@ -388,6 +472,20 @@ const ControlButtons = () => {
           // persisted radarTimelineVisible (a layout transition must not mutate
           // that v2/desktop/mobile pref). The dock is hidden in MIN, so this only
           // ever fires from the MID glance.
+          // Under the overlay shell (`dockOverflow`), the switch slides the
+          // dock away and brings the scrubber's track over the band, under
+          // the finger: the double-tap guard first, as the view buttons
+          // (ui/tapGuard.js) — for 300 ms a second tap inside the 60 × 58 px
+          // box centred on this click is swallowed whole, its compatibility
+          // mousedown and click included, so it can't seek the radar. This
+          // first tap still opens the timeline at once, and the bar takes
+          // every tap outside the box once it shows (the dock band shield's
+          // cut-out, LayoutPi). It comes on top of the dock band's local
+          // guard (LayoutPi `[data-pi-dock-guard]`, the band's height over
+          // this click until the dock's slide has ended), which stays. An
+          // overlay-shell measure only: off that shell this button arms
+          // nothing.
+          if (dockOverflow) guardTap(e);
           setPiScrubberOpen(true);
           setPiLayoutState("min");
           notify("toasts.timelineShown", e);
@@ -459,26 +557,28 @@ const ControlButtons = () => {
   // clicking it just flips `hideRadarLegend` regardless of whether
   // a legend is currently painted. When timestamps eventually
   // load, the legend follows the preference.
-  const btnLegend = radarSource === "rainviewer" ? (
+  // Action, label and ON state named for the overflow-menu row.
+  const legendAction = (e) => {
+    if (radarOverlaysDisabled) {
+      notify("toasts.radarOverlaysNeedMaximize", e);
+      return;
+    }
+    saveHideRadarLegend(!hideRadarLegend);
+    notify(hideRadarLegend ? "toasts.legendShown" : "toasts.legendHidden", e);
+  };
+  const legendLabel = radarOverlaysDisabled
+    ? t("controls.radarOverlaysNeedMaximize")
+    : t(hideRadarLegend ? "controls.showRadarLegend" : "controls.hideRadarLegend");
+  const legendOn = !hideRadarLegend && !radarOverlaysDisabled;
+  const btnLegend = hasLegend ? (
     <div
       key="legend"
       /* Same maximized-mobile promotion as the timeline button above. */
       data-dock-priority={mobileRadarMaximized === true ? undefined : "secondary"}
-      onClick={(e) => {
-        if (radarOverlaysDisabled) {
-          notify("toasts.radarOverlaysNeedMaximize", e);
-          return;
-        }
-        saveHideRadarLegend(!hideRadarLegend);
-        notify(hideRadarLegend ? "toasts.legendShown" : "toasts.legendHidden", e);
-      }}
-      className={`${radarOverlaysDisabled ? styles.buttonDisabled : ""} ${!hideRadarLegend && !radarOverlaysDisabled ? styles.buttonDown : ""}`}
-      title={radarOverlaysDisabled
-        ? t("controls.radarOverlaysNeedMaximize")
-        : t(hideRadarLegend ? "controls.showRadarLegend" : "controls.hideRadarLegend")}
-      aria-label={radarOverlaysDisabled
-        ? t("controls.radarOverlaysNeedMaximize")
-        : t(hideRadarLegend ? "controls.showRadarLegend" : "controls.hideRadarLegend")}
+      onClick={legendAction}
+      className={`${radarOverlaysDisabled ? styles.buttonDisabled : ""} ${legendOn ? styles.buttonDown : ""}`}
+      title={legendLabel}
+      aria-label={legendLabel}
       aria-disabled={radarOverlaysDisabled || undefined}
     >
       <InlineIcon icon={legendIcon} />
@@ -598,13 +698,16 @@ const ControlButtons = () => {
       <InlineIcon icon={settingsIcon} />
     </div>
   );
-  const btnDebug = isLocal && debugEnabled ? (
+  // Action and label named for the overflow-menu row.
+  const debugAction = (e) => { toggleDebugMenuOpen(); notify(debugMenuOpen ? "toasts.debugClosed" : "toasts.debugOpened", e); };
+  const debugLabel = t(debugMenuOpen ? "controls.closeDebug" : "controls.openDebug");
+  const btnDebug = hasDebugTools ? (
     <div
       key="debug"
-      onClick={(e) => { toggleDebugMenuOpen(); notify(debugMenuOpen ? "toasts.debugClosed" : "toasts.debugOpened", e); }}
+      onClick={debugAction}
       className={`${debugMenuOpen ? styles.buttonDown : ""}`}
-      title={t(debugMenuOpen ? "controls.closeDebug" : "controls.openDebug")}
-      aria-label={t(debugMenuOpen ? "controls.closeDebug" : "controls.openDebug")}
+      title={debugLabel}
+      aria-label={debugLabel}
     >
       <InlineIcon icon={bugIcon} />
     </div>
@@ -617,13 +720,16 @@ const ControlButtons = () => {
   // round-trips to settings.json the same way the panel toggle
   // does. `carbon:circle-dash` literally depicts the dashed
   // rings the button controls.
-  const btnRings = isLocal && debugEnabled ? (
+  // Action and label named for the overflow-menu row.
+  const ringsAction = (e) => { saveAdvancedAiFlag("radarAnalysisEnabled", !radarAnalysisEnabled); notify(radarAnalysisEnabled ? "toasts.radarRingsOff" : "toasts.radarRingsOn", e); };
+  const ringsLabel = t(radarAnalysisEnabled ? "controls.disableRadarRings" : "controls.enableRadarRings");
+  const btnRings = hasDebugTools ? (
     <div
       key="rings"
-      onClick={(e) => { saveAdvancedAiFlag("radarAnalysisEnabled", !radarAnalysisEnabled); notify(radarAnalysisEnabled ? "toasts.radarRingsOff" : "toasts.radarRingsOn", e); }}
+      onClick={ringsAction}
       className={`${radarAnalysisEnabled ? styles.buttonDown : ""}`}
-      title={t(radarAnalysisEnabled ? "controls.disableRadarRings" : "controls.enableRadarRings")}
-      aria-label={t(radarAnalysisEnabled ? "controls.disableRadarRings" : "controls.enableRadarRings")}
+      title={ringsLabel}
+      aria-label={ringsLabel}
     >
       <InlineIcon icon={circleDashIcon} />
     </div>
@@ -648,12 +754,13 @@ const ControlButtons = () => {
     ? (aiSummaryAvailable ? (
       <div
         key="bot"
-        onClick={() => setPiLayoutState("ai")}
+        onClick={(e) => { guardViewTap(e); setPiLayoutState("ai"); }}
         className={`${piLayoutState === "ai" ? styles.buttonDown : ""}`}
+        data-pi-press=""
         title={t("controls.openAiView")}
         aria-label={t("controls.openAiView")}
       >
-        <InlineIcon icon={sparkleIcon} />
+        {AI_VIEW_ICON}
       </div>
     ) : null)
     : (isLocal && debugEnabled && aiSummaryAvailable ? (
@@ -664,7 +771,7 @@ const ControlButtons = () => {
         title={t(aiSummaryUserVisible ? "controls.hideAiSummary" : "controls.showAiSummary")}
         aria-label={t(aiSummaryUserVisible ? "controls.hideAiSummary" : "controls.showAiSummary")}
       >
-        <InlineIcon icon={sparkleIcon} />
+        {AI_VIEW_ICON}
       </div>
     ) : null);
   // Forecast view-open (rail-affordance redesign 2026-06-24). Shown on the
@@ -682,12 +789,13 @@ const ControlButtons = () => {
   const btnForecast = inPiDock ? (
     <div
       key="forecast"
-      onClick={() => setPiLayoutState("max")}
+      onClick={(e) => { guardViewTap(e); setPiLayoutState("max"); }}
       className={`${piLayoutState === "max" ? styles.buttonDown : ""}`}
+      data-pi-press=""
       title={t("controls.openForecast")}
       aria-label={t("controls.openForecast")}
     >
-      <InlineIcon icon={chartColumnIcon} />
+      {FORECAST_VIEW_ICON}
     </div>
   ) : null;
   const btnUpdateLocal = updateAvailable && isLocal ? (
@@ -762,6 +870,27 @@ const ControlButtons = () => {
     </div>
   ) : null;
 
+  // The overlay shell's "···" rows, in the design's order: marker, legend,
+  // analysis rings, debug. Each runs its row button's action with the
+  // trigger element standing in for the tapped button (a row's own rect
+  // would be mid-screen, and the row is gone as soon as it is chosen);
+  // `notify` ignores the anchor on the overlay shell's dock anyway, where
+  // every toast is centred over the cleared map zone. The marker row is
+  // unconditional, so the menu is never empty (ECCC radar, no DEBUG).
+  // (Inline closures, not a `wrap(action)` helper: calling a helper here
+  // would hand the ref-reading actions to a function during render, which
+  // the React Compiler's `react-hooks/refs` rule rejects.)
+  const overflowItems = dockOverflow ? [
+    { id: "marker", icon: markerIcon, label: markerLabel, active: false, onSelect: (anchor) => markerAction({ currentTarget: anchor }) },
+    ...(hasLegend ? [
+      { id: "legend", icon: legendIcon, label: legendLabel, active: legendOn, onSelect: (anchor) => legendAction({ currentTarget: anchor }) },
+    ] : []),
+    ...(hasDebugTools ? [
+      { id: "rings", icon: circleDashIcon, label: ringsLabel, active: radarAnalysisEnabled, onSelect: (anchor) => ringsAction({ currentTarget: anchor }) },
+      { id: "debug", icon: bugIcon, label: debugLabel, active: debugMenuOpen, onSelect: (anchor) => debugAction({ currentTarget: anchor }) },
+    ] : []),
+  ] : null;
+
   const containerClass = `${styles.container} ${styles.grouped} ${
     darkMode ? styles.dark : styles.light
   } ${!mouseHide ? styles.showMouse : ""}`;
@@ -769,19 +898,21 @@ const ControlButtons = () => {
   // Labelled groups with hairline separators in CSS; group labels
   // CSS-hide on the 7" Pi kiosk and on mobile (see styles.css).
   // Map = view-affecting toggles; Display = palette / mode;
-  // System = app-level actions.
+  // System = app-level actions. Under the overlay shell the marker, legend,
+  // rings and debug buttons render in the trailing "···" group instead
+  // (`dockOverflow`).
   return (
     <div ref={containerRef} className={containerClass}>
       <div className={styles.group}>
         <span className={styles.groupLabel}>{t("controls.groupMap")}</span>
         {btnRecenter}
         {btnPlaces}
-        {btnMarker}
+        {dockOverflow ? null : btnMarker}
         {btnTimeline}
         {btnArrows}
-        {btnLegend}
+        {dockOverflow ? null : btnLegend}
         {btnWeatherAlerts}
-        {btnRings}
+        {dockOverflow ? null : btnRings}
       </div>
       {/* Views group (rail-affordance redesign 2026-06-24) — "change topic
         * to a full-rail content view", distinct from the Map group's
@@ -811,10 +942,26 @@ const ControlButtons = () => {
         <span className={styles.groupLabel}>{t("controls.groupSystem")}</span>
         {btnRefresh}
         {btnSettings}
-        {btnDebug}
+        {dockOverflow ? null : btnDebug}
         {btnUpdateLocal}
         {btnUpdateRemote}
       </div>
+      {/* The overlay shell's "···" in a group of its own (hairline
+        * separator before it, as on the design canvas), always present
+        * under that shell. Any layout change closes it in the switch's own
+        * render (DockOverflowMenu reads the layout state itself, only while
+        * it is open, so a switch with the menu closed doesn't render it) —
+        * no effect, no frame with an open menu over a sliding-out dock, and
+        * no remount (its Iconify glyph would set state on mount after every
+        * switch). */}
+      {dockOverflow ? (
+        <div className={styles.group}>
+          <DockOverflowMenu
+            label={t("controls.moreControls")}
+            items={overflowItems}
+          />
+        </div>
+      ) : null}
       {toastNode}
       {/* Mounted only while open, ON PURPOSE: unmount is what drops the
         * popover's transient state (edit mode, armed remove, half-open

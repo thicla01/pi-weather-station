@@ -3,8 +3,9 @@ import { createTapGuard } from "~/ui/tapGuard";
 
 /**
  * Double-tap guard for a command that changes what sits under the finger
- * (the alert card's ⤢ opening the Alert view, whose back button lands where
- * the ⤢ was). Returns `guardTap(event)`: call it from the command's click
+ * (the alert card on the short Pi rail, one button, opening the Alert view,
+ * whose back button lands near the card's top-right corner, where its ⤢
+ * cue sits). Returns `guardTap(event)`: call it from the command's click
  * handler with the click event, then run the command. For the next 300 ms a
  * second tap inside the 60 × 58 px box centred on that click is swallowed
  * whole (pointer, touch, compatibility mouse events, click), so it can't
@@ -13,7 +14,11 @@ import { createTapGuard } from "~/ui/tapGuard";
  * `detail` 0) does not arm it.
  *
  * Mechanism, constants and edge rules: `ui/tapGuard.js`. One guard per
- * component instance; its document listeners exist only while it is armed,
+ * component instance (arming it again from another of the component's
+ * commands keeps the taps it has already judged); its document listeners
+ * exist only while it is armed — past the 300 ms, until the first press or
+ * release dated after them (a tap pressed inside them but dispatched late
+ * is still swallowed) and the click of any tap it follows, 3 s at most —
  * and it is disposed (listeners and timer gone) on unmount.
  *
  * @returns {(event: (Event|object)) => boolean} guardTap — arms the guard

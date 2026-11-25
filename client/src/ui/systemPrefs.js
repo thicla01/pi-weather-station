@@ -1,3 +1,5 @@
+import { createMediaQueryFlag } from "./cachedFlags";
+
 /**
  * System-preferences detection — used to seed sensible defaults at
  * first launch when localStorage is empty. After the first launch,
@@ -108,19 +110,24 @@ export function detectSystemDefaults() {
 const REDUCED_MOTION_QUERY = "(prefers-reduced-motion: reduce)";
 
 /**
- * Unsubscribe function handed back when there is nothing to listen to.
- *
- * @returns {undefined} nothing
+ * The query's one MediaQueryList, made when this module loads, its
+ * `matches` cached and kept current by its own `change` listener, the
+ * first on that list (ui/cachedFlags.js). Reads cost a variable, not a
+ * new list (LayoutPi's shell timing reads it in every render, the view
+ * switch's click included), and every subscriber
+ * below listens on the same list, after the cache, so it reads the new
+ * value in its listener.
  */
-const NO_SUBSCRIPTION = () => undefined;
+const reducedMotionFlag = createMediaQueryFlag(REDUCED_MOTION_QUERY);
 
 /**
  * Check whether the user's OS / browser is signalling a preference
  * for reduced motion (Apple's "Reduce Motion" accessibility toggle,
  * Windows's "Show animations" off, Android's "Remove animations").
- * Read at the moment of use, so it is always current: WeatherMap calls
- * it each time it issues a recentre. No UI toggle — the user has already
- * expressed their preference at the OS level.
+ * Always current: the cached value follows every change of the
+ * preference (see above), so WeatherMap, which calls it each time it
+ * issues a recentre, reads what a fresh query would. No UI toggle — the
+ * user has already expressed their preference at the OS level.
  *
  * Returns false in non-browser contexts (SSR, tests).
  *
@@ -130,35 +137,19 @@ const NO_SUBSCRIPTION = () => undefined;
  *   the OS explicitly asks for them off.
  */
 export function prefersReducedMotion() {
-  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
-    return false;
-  }
-  try {
-    return window.matchMedia(REDUCED_MOTION_QUERY).matches;
-  } catch {
-    return false;
-  }
+  return reducedMotionFlag.matches();
 }
 
 /**
  * Call `onChange` whenever the OS reduced-motion preference flips, for
- * state that must follow it live (WeatherMap/MapInertia.js). Read the new
- * value with `prefersReducedMotion()`.
+ * state that must follow it live (WeatherMap/MapInertia.js, LayoutPi's
+ * shell timing). `prefersReducedMotion()` already returns the new value
+ * inside `onChange`.
  *
  * @param {(event: MediaQueryListEvent) => void} onChange called on every flip
  * @returns {() => void} removes the listener; a no-op when `matchMedia` is
  *   absent (SSR, tests) or throws
  */
 export function subscribeReducedMotion(onChange) {
-  if (typeof window === "undefined" || typeof window.matchMedia !== "function") {
-    return NO_SUBSCRIPTION;
-  }
-  let mq;
-  try {
-    mq = window.matchMedia(REDUCED_MOTION_QUERY);
-  } catch {
-    return NO_SUBSCRIPTION;
-  }
-  mq.addEventListener("change", onChange);
-  return () => mq.removeEventListener("change", onChange);
+  return reducedMotionFlag.subscribe(onChange);
 }

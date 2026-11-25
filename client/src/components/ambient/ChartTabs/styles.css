@@ -97,6 +97,35 @@
   display: none;
 }
 
+/* LayoutPi's overlay shell (`data-pi-shell` on the LayoutPi root, set under
+ * the priority-views model). There MAX opens in an opaque view sheet that
+ * has no padding of its own: the sheet is the card, so the maximized slab
+ * drops its surface, border and radius and keeps a 12 px / 14 px inset (as
+ * the design canvas draws the maximized forecast in the sheet, in
+ * internal px). Content width at L: 512 px, against 504 in the grid shell
+ * at 800 × 480. (0,3,0) beats `.slab.slabPiMax`; inert off the overlay
+ * shell. */
+:global([data-pi-shell]) .slab.slabPiMax {
+  background-color: transparent;
+  border: 0;
+  border-radius: 0;
+  padding: 12px 14px;
+}
+
+/* Overlay shell (as above): the chart area takes exactly the height the
+ * other rows leave, whatever the canvas inside it measures (flex-basis 0
+ * instead of the content's). MetricChart sizes the chart from its box
+ * while the host is hidden (`sizeFromBox`): with the content's basis, a
+ * canvas taller than its new box (the wind tab's direction row arriving,
+ * a larger text size) made the summary row share the shrink, so the box
+ * measured up to 1 px too tall and the opening's first two frames drew
+ * it so (245.8 in 244.8 at L). Same size at rest, where nothing shrinks;
+ * the grid tab keeps its own rule. (0,4,0) beats `.slabPiMax .chartArea`;
+ * inert off the overlay shell. */
+:global([data-pi-shell]) .slabPiMax .chartArea:not(.chartAreaGrid) {
+  flex-basis: 0;
+}
+
 /* ---- Header row: PRÉVISIONS · period pills · expand ----------------
  *
  * Specificity note: every button rule in this file is scoped under its
@@ -546,5 +575,50 @@
 
   .periodPills {
     margin-right: auto;
+  }
+}
+
+/* The forecast view's restore button under the overlay shell: no `:active`
+ * look of its own, never a `scale()`. `:active` restates the button's
+ * resting look. Under the overlay shell the button is always the PRESSED
+ * one (`piSheet` makes `maximized` true, hence aria-pressed="true"), whose
+ * resting look comes from the `[aria-pressed="true"]` rules above (icon
+ * --c-text, box --c-accent-soft): restating the unpressed look there would
+ * turn a held press into a dim icon on a surface box, a repaint. So the
+ * pressed pair (0,5,0 / 0,5,1) restates the pressed look over the
+ * unpressed pair (0,4,0 / 0,4,1), which still covers an unpressed button. */
+:global([data-pi-shell]) .headerRow .actionButton:active {
+  color: var(--c-text-dim);
+  transform: none;
+}
+
+:global([data-pi-shell]) .headerRow .actionButton:active::before {
+  background-color: var(--c-surface-hybrid, var(--c-surface));
+}
+
+:global([data-pi-shell]) .headerRow .actionButton[aria-pressed="true"]:active {
+  color: var(--c-text);
+}
+
+:global([data-pi-shell]) .headerRow .actionButton[aria-pressed="true"]:active::before {
+  background-color: var(--c-accent-soft);
+}
+
+/* The press tint (LayoutPi/styles.css) goes on the painted box, its
+ * ::before, not on the 44 px button, whose own fill the generic tint rule
+ * would otherwise paint (0,7,0 outranks its 0,6,0). LayoutPi's tint, the
+ * accent's soft fill, is this pressed box's resting fill: it would not show.
+ * So the box takes the accent at about twice that opacity (36 % against
+ * 16-18 % in the four palettes), a fill change with no geometry like the
+ * other triggers' tint (0,6,1: over the pressed `:active` pair). Behind
+ * @supports like the tab icons above (no color-mix() in Chrome 109): there
+ * the box keeps its resting fill and shows no tint. */
+:global([data-pi-shell]) .headerRow .actionButton[data-pi-pressed][data-pi-pressed][data-pi-pressed][data-pi-pressed] {
+  background-color: transparent;
+}
+
+@supports (color: color-mix(in srgb, red 50%, transparent)) {
+  :global([data-pi-shell]) .headerRow .actionButton[data-pi-pressed][data-pi-pressed][data-pi-pressed]::before {
+    background-color: color-mix(in srgb, var(--c-accent) 36%, transparent);
   }
 }

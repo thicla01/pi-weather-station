@@ -44,6 +44,7 @@ const ConditionsView = () => {
         <span className={styles.title}>{t("conditions.title", { defaultValue: "Conditions" })}</span>
         <RailSquareButton
           icon={RestoreIcon}
+          back
           onClick={() => setPiLayoutState("mid")}
           ariaLabel={t("conditions.back", { defaultValue: "Back to overview" })}
           className={styles.minimize}

@@ -1,0 +1,157 @@
+/* DockOverflowMenu — the "···" overflow of the overlay shell's dock band
+ * (ControlButtons renders it only under that shell, ui/piLayout.js
+ * piShellVariant).
+ *
+ * Doubled classes (`.trigger.trigger`, `.item.item`): `.ambientRoot button`
+ * in ui/reset.css (0,1,1) resets padding, background and border on every
+ * button, so a single class (0,1,0) would lose to it — the HealthIndicator
+ * chip uses the same trick.
+ *
+ * Touch rules (the shell's design constraints, and the dock's own history in
+ * BottomDock/styles.css): no `:hover` paint anywhere, `:active` feedback
+ * only, no tap highlight, no blur, no animation. */
+
+/* Positioned so the menu can sit above the trigger. No z-index: the
+ * backdrop and the menu then stack directly in the dock's own stacking
+ * context (the dock cell is z-index 1100 inside the LayoutPi root), above
+ * the other dock buttons and, through the dock, above the map, the rail
+ * and the sheet. */
+.wrap {
+  position: relative;
+  display: inline-flex;
+  flex: 0 0 auto;
+}
+
+/* Same 44 px target as its dock siblings: `--ctrl-btn-size` is set on the
+ * overlay shell's dock (BottomDock/styles.css); 40 px is ControlButtons' own
+ * default. Transparent at rest like them, with the dock's 7 px corner
+ * radius. */
+.trigger.trigger {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: var(--ctrl-btn-size, 40px);
+  height: var(--ctrl-btn-size, 40px);
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background-color: transparent;
+  color: var(--c-text);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Open: the dock's "this control is on" fill (`.buttonDown` →
+ * `--c-accent-soft`), as the Settings button shows while its panel is
+ * open. Drops back the moment the menu closes. */
+.trigger.trigger[aria-expanded="true"] {
+  background-color: var(--c-accent-soft);
+}
+
+.trigger.trigger:focus-visible,
+.item.item:focus-visible {
+  outline: 2px solid var(--c-accent);
+  outline-offset: -2px;
+}
+
+/* Transparent full-screen catcher behind the menu: a tap anywhere outside
+ * the menu closes it and goes no further — not to the map (Leaflet's
+ * tap-to-relocate, alert polygons) and not to another dock button.
+ * `position: fixed` resolves against the viewport because the dock
+ * carries no transform at rest (BottomDock/styles.css). `touch-action:
+ * none` so a pinch here can't zoom the page. */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1;
+  display: block;
+  touch-action: none;
+}
+
+/* The menu: right-aligned on the trigger (it sits near the band's right
+ * end, so it opens leftward and stays on screen), its bottom 12 px above
+ * the trigger's top — the band's 6 px padding and 1 px top hairline,
+ * plus a 5 px gap — and then above the map's attribution strip, which
+ * sits right over the band in MID (2 px above it, 15 px tall; the menu,
+ * a dock surface, must not cover that legal credit either):
+ * `--pi-dock-menu-lift`, 17 px, comes from the shell's root
+ * (LayoutPi/styles.css), so the menu's bottom lands at y 400.5 on 480,
+ * 4.5 px above the strip's top (405). Opaque `--c-bg`
+ * (test/opaqueBgToken), so nothing of the map shows through and nothing
+ * needs blurring. */
+.menu {
+  position: absolute;
+  right: 0;
+  bottom: calc(100% + 12px + var(--pi-dock-menu-lift, 0px));
+  z-index: 2;
+  margin: 0;
+  padding: 4px;
+  list-style: none;
+  min-width: 200px;
+  max-width: calc(100vw - 20px);
+  box-sizing: border-box;
+  background-color: var(--c-bg);
+  /* Opaque edge over its own fill (ui/opaqueTokens.js, PR 415): the
+   * current `--c-border` composited over the menu's own opaque `--c-bg`
+   * (`--c-edge-on-bg`), so Blink skips the clip layer of a rounded box
+   * with a translucent edge (one Skia saveLayer while the menu is open).
+   * It floats out of the dock band over the map like the health popover,
+   * whose edge it copies; its fill is opaque, so nothing beneath shows
+   * through the edge. Never `--c-card-edge` (the dock cell's mapping is
+   * for the dock's own edge). Unset: the translucent edge. */
+  border: 1px solid var(--c-edge-on-bg, var(--c-border));
+  border-radius: 10px;
+  color: var(--c-text);
+}
+
+/* A row: a 44 px target, icon then label on one line. */
+.item.item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px 0 6px;
+  border: 0;
+  border-radius: 7px;
+  background-color: transparent;
+  color: var(--c-text);
+  font-family: "Geist", system-ui, -apple-system, sans-serif;
+  font-size: 14px;
+  font-weight: 500;
+  line-height: 1.2;
+  text-align: start;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* Press feedback only (the menu closes on the tap, so a touch screen's
+ * sticky `:active` never outlives it). A neutral tint, never
+ * `--c-accent-soft`, which means "this toggle is on". */
+.item.item:active {
+  background-color: color-mix(in srgb, var(--c-text) 10%, transparent);
+}
+
+/* Icon cell: the dock's 24 px glyph (BottomDock's `.dock svg` rule sizes
+ * and colours it) in a 32 px rounded cell that takes the dock's ON fill
+ * when the row's toggle is on. */
+.icon {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 32px;
+  height: 32px;
+  border-radius: 7px;
+}
+
+.icon-on {
+  background-color: var(--c-accent-soft);
+}
+
+/* `min-width: 0` lets a label longer than the menu's `max-width` shrink
+ * to its ellipsis instead of pushing the row wider. */
+.label {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

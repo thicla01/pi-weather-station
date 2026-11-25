@@ -1,18 +1,27 @@
 import React, { useContext } from "react";
 import PropTypes from "prop-types";
-import { AppContext } from "~/AppContext";
+import { LocationContext } from "~/AppContext";
 import { InlineIcon } from "@iconify/react";
 import locationIcon from "@iconify/icons-ion/location-sharp";
 import styles from "./styles.css";
+
+// The pin glyph, created once at module scope: one element object for every
+// render lets React skip the icon's subtree when LocationName re-renders;
+// each LocationName instance still has its own InlineIcon fiber, so the DOM
+// and its first-mount span → svg swap are unchanged.
+const LOCATION_ICON = <InlineIcon icon={locationIcon} />;
 
 /**
  * Map location.
  *
  * Pure display component — the reverse-geocode fetch lives in
  * `AppContext` (see `reverseGeoResult` + its effect). This component
- * just formats whatever the context currently holds, so any consumer
- * that also wants the raw payload (e.g. `LocationDetailsPopover`)
- * reads from the same source without duplicating the fetch.
+ * just formats whatever the Location slice (`LocationContext`) currently
+ * holds, so any consumer that also wants the raw payload (e.g.
+ * `LocationDetailsPopover`) reads from the same source without
+ * duplicating the fetch. It subscribes to that slice alone, not to the
+ * legacy `AppContext` union, so it re-renders only when the position or
+ * its reverse-geocode changes.
  *
  * @param {object} props
  * @param {boolean} [props.stacked] — When true, render the primary place
@@ -22,7 +31,7 @@ import styles from "./styles.css";
  * @returns {JSX.Element} Location name
  */
 const LocationName = ({ stacked = false }) => {
-  const { mapGeo, reverseGeoResult } = useContext(AppContext);
+  const { mapGeo, reverseGeoResult } = useContext(LocationContext);
 
   // Three-state read on `reverseGeoResult` (see AppContext for the
   // sentinel meanings):
@@ -66,7 +75,7 @@ const LocationName = ({ stacked = false }) => {
     return (
       <div className={`${styles.container} ${styles.stacked}`}>
         <div className={`${styles.primary} ${lengthClass}`}>
-          <InlineIcon icon={locationIcon} /> {primary}
+          {LOCATION_ICON} {primary}
         </div>
         {secondary ? <div className={styles.secondary}>{secondary}</div> : null}
       </div>
@@ -76,7 +85,7 @@ const LocationName = ({ stacked = false }) => {
   return (
     <div className={`${styles.container}`}>
       <div>
-        <InlineIcon icon={locationIcon} /> {name}
+        {LOCATION_ICON} {name}
       </div>
     </div>
   );

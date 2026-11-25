@@ -3,7 +3,7 @@ import { useTranslation } from "react-i18next";
 import { InlineIcon } from "@iconify/react";
 import chevronRight from "@iconify/icons-carbon/chevron-right";
 import undoIcon from "@iconify/icons-carbon/undo";
-import { AppActionsContext, SystemContext } from "~/AppContext";
+import { AppActionsContext, PiLayoutMountedContext } from "~/AppContext";
 import SeverityChip from "~/components/ambient/SeverityChip";
 import useDismissedAlerts from "~/hooks/useDismissedAlerts";
 import useEligibleGovAlerts from "~/hooks/useEligibleGovAlerts";
@@ -67,14 +67,16 @@ const SEVERITY_RANK = {
  */
 const AlertMiniCards = () => {
   const { selectGovAlert } = useContext(AppActionsContext);
-  const { piLayoutState } = useContext(SystemContext);
   const { t, i18n } = useTranslation();
   const { restoreAll, dismissedCount } = useDismissedAlerts();
   const lang = (i18n.language || "en").slice(0, 2);
   const testLabel = t("alert.testTag", { defaultValue: "TEST" });
-  // On Pi the cycle counter owns multi-alert navigation, so the mini-card
-  // list is dropped — only the restore pill below survives here.
-  const isPi = piLayoutState != null;
+  // On Pi the mini-card list is dropped (the Alert view's Also active row
+  // under the priority views, the compact card's counter on the stacked
+  // rail, step through the alerts instead), so only the restore pill below
+  // survives here. (Whether LayoutPi is mounted alone: a view switch
+  // doesn't re-render this list.)
+  const isPi = useContext(PiLayoutMountedContext);
 
   // Eligible (red/orange, non-dismissed) gov alerts and the current
   // primary, from the shared hook — same derivation AlertBanner uses,

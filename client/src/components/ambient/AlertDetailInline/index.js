@@ -13,7 +13,7 @@ import documentIcon from "@iconify/icons-carbon/document";
 import radarWeatherIcon from "@iconify/icons-carbon/radar-weather";
 import binocularsIcon from "@iconify/icons-carbon/binoculars";
 import closeIcon from "@iconify/icons-carbon/close";
-import { AlertsContext, AppActionsContext, SystemContext } from "~/AppContext";
+import { AlertsContext, AppActionsContext, PiLayoutMountedContext } from "~/AppContext";
 import QrCode from "~/components/ambient/QrCode";
 import useEligibleGovAlerts from "~/hooks/useEligibleGovAlerts";
 import useDismissedAlerts from "~/hooks/useDismissedAlerts";
@@ -124,14 +124,14 @@ const TEST_MARKER_RE = /\bTEST\b|EXERCISE|SYSTEM MESSAGE/i;
 const AlertDetailInline = () => {
   const { govAlertExpanded, highlightedAlertId } = useContext(AlertsContext);
   const { setGovAlertExpanded, setHighlightedAlertId } = useContext(AppActionsContext);
-  const { piLayoutState } = useContext(SystemContext);
   const { dismiss } = useDismissedAlerts();
   const { i18n, t } = useTranslation();
   // On the 7" Pi compact card the dismiss ✕ is dropped from the banner row
   // (it crowded the cycle counter), so the dismiss affordance lives here in
   // the expanded detail footer instead — Pi only; desktop / mobile keep the
-  // banner ✕.
-  const isPi = piLayoutState != null;
+  // banner ✕. (Whether LayoutPi is mounted alone: a view switch doesn't
+  // re-render this section.)
+  const isPi = useContext(PiLayoutMountedContext);
 
   // Current eligible (red/orange, non-dismissed) gov alert, derived
   // by the same shared hook AlertBanner uses so the detail body and

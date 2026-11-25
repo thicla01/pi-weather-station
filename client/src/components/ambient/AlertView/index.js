@@ -5,7 +5,7 @@ import closeIcon from "@iconify/icons-carbon/close";
 import warningAltIcon from "@iconify/icons-carbon/warning-alt";
 import timeIcon from "@iconify/icons-carbon/time";
 import { RestoreIcon } from "~/components/WeatherMap/icons";
-import { AppActionsContext, SystemContext } from "~/AppContext";
+import { AppActionsContext, PiLayoutContext } from "~/AppContext";
 import { parseAlertText } from "~/ui/alertParser";
 import { chipProductType } from "~/ui/alertLogic";
 import { alertDisplayTitle } from "~/ui/alertTitle";
@@ -54,7 +54,7 @@ const DOT_CLASS = { red: "dotRed", orange: "dotOrange", yellow: "dotYellow" };
  */
 const AlertView = () => {
   const { setPiLayoutState, selectGovAlert } = useContext(AppActionsContext);
-  const { piLayoutState } = useContext(SystemContext);
+  const { piLayoutState } = useContext(PiLayoutContext);
   const { dismiss } = useDismissedAlerts();
   const { i18n, t } = useTranslation();
   const { eligibleGovAlerts, safeIdx, currentAlert } = useEligibleGovAlerts();
@@ -131,6 +131,7 @@ const AlertView = () => {
           {testBadge}
           <RailSquareButton
             icon={RestoreIcon}
+            back
             onClick={back}
             ariaLabel={t("alert.view.back", { defaultValue: "Back to overview" })}
             className={styles.minimize}

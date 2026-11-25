@@ -135,8 +135,8 @@ On a height-starved viewport the stacked rail above does not fit — on the 7" a
 
 - **Automatic** — `matchMedia("(max-height: 540px)")`, the CSS *viewport* height (not `window.screen.height`). On for the official 7" 800×480, and for any panel the kiosk display scale squeezes to the same height (e.g. a 7" 1024×600 panel auto-scaled to 1.25 → 819×480 CSS px). Roomier LayoutPi viewports — e.g. the 10.1" panels at 1024×640 CSS px — keep the v3.2 stacked rail.
 - **Stable across font sizes** — the S / M / L preference is a `zoom` scoped to the `.rail` subtree and never changes the viewport, so the model cannot flip between font sizes on the same screen.
-- **Manual override** — `localStorage.forcePriorityViews = "on"` forces the model on a taller viewport (dev / windowed testing). Either condition turns it on.
-- Unlike the layout switch, the gate has no `change` listener — it is read at render time (a kiosk viewport is fixed; a display-scale change relaunches the kiosk).
+- **Manual override** — `localStorage.forcePriorityViews = "on"` forces the model on a taller viewport (dev / windowed testing). Either condition turns it on. The key is read once per page load, and again when another tab changes it: in the same tab, reload after setting it.
+- Unlike the layout switch, the gate re-renders nothing when it changes. It is read from a cached `MediaQueryList` whose own `change` listener keeps the value current (`ui/cachedFlags.js`), but in the compiled bundle LayoutPi reads it once per mount (the React Compiler memoizes the argument-less `priorityViewsEnabled()` call), the alert card once per LayoutPi mount too, while the dock and the map re-read it at each `piLayoutState` change. A viewport that crosses 540 px therefore takes full effect only on LayoutPi's next mount (a layout switch or a reload); until then the map, the dock's view-button guard and its timeline button follow the new value from the next `piLayoutState` change. A kiosk viewport is fixed anyway (a display-scale change relaunches the kiosk).
 
 #### The glance (MID)
 

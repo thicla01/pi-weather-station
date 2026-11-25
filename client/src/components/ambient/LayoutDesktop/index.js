@@ -69,7 +69,8 @@ const LayoutDesktop = () => {
   // so the control disappears when the user switches to LayoutPi /
   // LayoutMobile (no orphaned button on those layouts). LayoutPi
   // mirrors this with `piLayoutState` ("mid" on mount, `null` on
-  // unmount); `piRadarMaximized` is derived from it in AppContext.
+  // unmount); `piRadarMaximized` is derived from it in AppContext.js
+  // (PiLayoutProvider, PiLayoutContext).
   useEffect(() => {
     setDesktopRadarMaximized(false);
     return () => setDesktopRadarMaximized(null);

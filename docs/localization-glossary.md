@@ -4,7 +4,7 @@
      Regenerate with: node tools/gen-localization-glossary.js
      Validation marks (☑) in the first column are carried forward while a row's wording is unchanged. -->
 
-**Generated** by `tools/gen-localization-glossary.js` on 2026-11-19. Re-run it after
+**Generated** by `tools/gen-localization-glossary.js` on 2026-11-25. Re-run it after
 touching a locale file or an inline `lbl()` string — every row below is derived, so a
 hand edit will be overwritten. The one exception is the **Validé** column: it is human
 review state, and the generator carries each `☑` forward only while the row still shows
@@ -20,7 +20,7 @@ Replace `☐` with `☑` when a native speaker has confirmed the FR and ES wordi
 
 | Source | Rows | Notes |
 |---|---|---|
-| `client/src/i18n/locales/{en,fr,es}.json` | 410 translated + 21 identical | Every kiosk-visible surface. 431 leaf keys total. |
+| `client/src/i18n/locales/{en,fr,es}.json` | 413 translated + 21 identical | Every kiosk-visible surface. 434 leaf keys total. |
 | `client/src/components/ambient/SettingsPanel/index.js` | 116 (+5 non-literal, not listed) | Settings overlay — the user-facing configuration surface. |
 | `client/src/components/ambient/DebugPanel/index.js` | 81 | Debug overlay — localhost-only, reached from a desktop browser or an SSH tunnel. |
 
@@ -66,6 +66,8 @@ reported here as a gap table, so an empty check means the three files are aligne
 | ☐ | Collapse | Réduire | Contraer | `alert.collapse` |
 | ☐ | Collapse the alert detail to see the map again | Réduire le détail de l'alerte pour revoir la carte | Contraer el detalle de la alerta para volver a ver el mapa | `alert.collapseAria` |
 | ☐ | Tap to collapse | Toucher pour replier | Toque para replegar | `alert.collapseRow` |
+| ☐ | {{level}}, {{source}}: {{title}}, {{current}} of {{count}} | {{level}}, {{source}} : {{title}}, {{current}} sur {{count}} | {{level}}, {{source}}: {{title}}, {{current}} de {{count}} | `alert.compactCardAria` |
+| ☐ | {{level}}, {{source}}: {{title}} | {{level}}, {{source}} : {{title}} | {{level}}, {{source}}: {{title}} | `alert.compactCardAriaSingle` |
 | ☐ | Show the next alert | Afficher l'alerte suivante | Mostrar la siguiente alerta | `alert.cycleNextAria` |
 | ☐ | Dismiss | Masquer | Ocultar | `alert.dismiss` |
 | ☐ | Hide for 4 h (resurfaces if it escalates) | Masquer 4 h (réapparaît si ça s'aggrave) | Ocultar 4 h (reaparece si se agrava) | `alert.dismissTooltip` |
@@ -272,6 +274,7 @@ reported here as a gap table, so an empty check means the three files are aligne
 | ☐ | Switch to light mode | Passer en mode clair | Cambiar a modo claro | `controls.lightMode` |
 | ☐ | Expand radar | Agrandir le radar | Ampliar el radar | `controls.maximizeRadar` |
 | ☐ | Restore radar size | Restaurer la taille du radar | Restaurar el tamaño del radar | `controls.minimizeRadar` |
+| ☐ | More controls | Plus de commandes | Más controles | `controls.moreControls` |
 | ☐ | Open AI summary | Ouvrir le résumé IA | Abrir el resumen IA | `controls.openAiView` |
 | ☐ | Open debug panel | Ouvrir le panneau de débogage | Abrir el panel de depuración | `controls.openDebug` |
 | ☐ | Open forecast | Ouvrir les prévisions | Abrir el pronóstico | `controls.openForecast` |

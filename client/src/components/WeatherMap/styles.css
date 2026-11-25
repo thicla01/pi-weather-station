@@ -241,8 +241,9 @@
 /* Compact chip replacing the legend card on short screens (≤ 520 px
  * height) wherever the map can't spare the room — timeline bar open,
  * or LayoutPi's narrow MID pane (Q5 mutual-exclusion rule; the gate
- * lives in WeatherMap). Tapping it opens the full legend as an overlay
- * sheet. Interactive, unlike the card. */
+ * lives in WeatherMap). Under LayoutPi's overlay shell the shell's state
+ * picks it instead, at any height (end of this file). Tapping it opens
+ * the full legend as an overlay sheet. Interactive, unlike the card. */
 /* Selector doubling (.x.x) on every <button>-styled rule below: the
  * global reset `.ambientRoot button` (ui/reset.css) is (0,1,1) and
  * strips font/color/background/border/padding from any single-class
@@ -406,7 +407,9 @@
  * slot and the earlier per-combo offsets): the timeline bar and the
  * legend strip both anchor at bottom: 16px, leaving a permanent 16 px
  * corridor at the map's bottom edge that the slimmed attribution fits
- * into. Right inset stays rail-aware on LayoutDesktop. */
+ * into. Right inset stays rail-aware on LayoutDesktop. (LayoutPi's
+ * overlay shell moves the strip by transform instead: see the end of
+ * this file.) */
 .map-wrapper :global(.leaflet-bottom.leaflet-right) {
   right: var(--c-rail-visible-width, 0px);
   bottom: 0;
@@ -603,7 +606,8 @@
  * On LayoutDesktop the right rail overlays the map, so the bar's
  * right inset adds the rail's visible width (same variable the
  * legend/scrubber used pre-redesign; falls back to 0 on LayoutPi
- * and LayoutMobile). */
+ * and LayoutMobile). LayoutPi's overlay shell sets it too, but shows
+ * the bar only in MIN, where its value is 0 (end of this file). */
 .radar-timeline {
   position: absolute;
   bottom: 16px;
@@ -1232,4 +1236,273 @@
     width: 11px;
     height: 11px;
   }
+}
+
+/* ============================================================
+ * LayoutPi's overlay shell.
+ *
+ * Matches only under LayoutPi's root when it carries `data-pi-shell`
+ * (set under the priority-views model, ui/piLayout.js piShellVariant). There
+ * the map stays at the full screen size in every state, and the rail
+ * (right), the 58 px dock band (bottom) and, in the views, an opaque
+ * sheet (x 210 to the right edge) lie over it. The chrome below reads
+ * these insets (values from ui/piShellGeometry.js chromeFor, pinned by
+ * test/piShellGeometry.test.js). MID's are declared on the shell's root
+ * (LayoutPi/styles.css); the other states' are set here, on the only boxes
+ * that read them, keyed on the root's attributes — never redefined on the
+ * root itself, where every change would restyle the root's whole subtree
+ * (inherited custom properties). `--c-rail-visible-width` has a MID value
+ * only: under the shell nothing reads it (the two base rules that do are
+ * overridden below). `--c-map-bottom-inset` follows the chrome's state
+ * (`data-pi-state`) and is read here only by the legend's detail sheet,
+ * which opens at rest; the attribution's three follow the map's
+ * (`data-pi-map`), which lags while a view's sheet slides in:
+ *   --c-rail-visible-width  map hidden at the right: MID 316 (300 px
+ *                           rail + 10 px gap + 6); unread under the shell
+ *   --c-map-bottom-inset    map hidden at the bottom: MID 58 (the dock)
+ *   --c-attr-right          attribution's right inset: MID 316, views
+ *                           596, MIN 6 (6 px from what it borders)
+ *   --c-attr-bottom         attribution lift: MID 60, views 2, MIN 2
+ *   --c-attr-max-width      attribution width: 192 px in the views
+ *   --pi-attr-duration      its move: the shell's 250 ms on MIN ↔ MID,
+ *                           0 on a view switch, form 2 and reduced motion
+ * and the overlays' fades on MIN ↔ MID:
+ *   --pi-overlay-out-duration  100 ms, those leaving, as the slide starts
+ *   --pi-overlay-in-delay      150 ms, those arriving wait for those
+ *                              leaving to be gone
+ *   --pi-overlay-in-duration   150 ms, then fade in (150 → 300 ms)
+ *   --pi-overlay-shift         the scrubber's 8 px rise
+ *   (the timings 0 under form 2 and reduced motion; under reduced motion
+ *   a guard behind styles/main.css, which removes every transition there
+ *   since PR 411)
+ * Form 2 is a fallback form the shipped code never selects
+ * (ui/piShellGeometry.js). Off the overlay shell no rule here matches and
+ * none of these is set.
+ * Zoom (16, 16) and focus (16, 100) need nothing: the map wrapper now
+ * starts at the screen's top-left corner.
+ * ============================================================ */
+
+/* The map overlays that differ between MID and MIN are all mounted under the
+ * overlay shell (RadarLegend renders its chip, raised chip and card
+ * together; the scrubber stays mounted), each live in one state only, and
+ * each keeps ONE place in every state (piShellGeometry.overlayPlacement), so
+ * none moves while it is visible: the chip above the dock band (bottom 74,
+ * the design canvas's top 372 + 34), the raised chip above the scrubber
+ * (bottom 122, the `.with-timeline` place elsewhere; WeatherMap never sets
+ * that class under the overlay shell), the card and the scrubber in the
+ * corner (bottom 16, the scrubber full width: its right inset pinned, never
+ * the state's rail width). The scrubber's box and corner radius are the
+ * shell root's `--pi-scrubber-inset` (16 px) and `--pi-scrubber-radius`
+ * (12 px, the base `.radar-timeline` radius), which the dock band shield's
+ * cut-out reads too (LayoutPi/styles.css): the two stay one value. The
+ * legend's detail sheet, which opens at rest, follows the chrome's inset.
+ * (0,3,0) / (0,4,0) beat the base `.legend-chip.legend-chip` and
+ * `.radar-timeline` rules. */
+:global([data-pi-shell]) .legend-chip.legend-chip {
+  bottom: calc(var(--c-dock-height, 0px) + 16px);
+}
+
+:global([data-pi-shell]) .legend-chip.legend-chip[data-pi-overlay-el="chip-raised"] {
+  bottom: 122px;
+}
+
+:global([data-pi-shell]) .radar-legend {
+  bottom: 16px;
+}
+
+:global([data-pi-shell]) .radar-timeline {
+  left: var(--pi-scrubber-inset);
+  right: var(--pi-scrubber-inset);
+  bottom: var(--pi-scrubber-inset);
+  border-radius: var(--pi-scrubber-radius);
+}
+
+:global([data-pi-shell]) .legend-overlay-sheet {
+  bottom: calc(var(--c-map-bottom-inset, 0px) + 16px);
+}
+
+/* MIN and the views: the detail sheet back in the corner (no dock). Keyed on
+ * the root's chrome state, set on the sheet (see the header). RadarLegend
+ * closes the sheet when its chrome enters a view, so the view states only
+ * keep the insets equal to chromeFor's (test/piShellGeometry.test.js);
+ * nothing shows there. */
+:global([data-pi-shell][data-pi-state="min"]) .legend-overlay-sheet,
+:global([data-pi-shell][data-pi-state="max"]) .legend-overlay-sheet,
+:global([data-pi-shell][data-pi-state="conditions"]) .legend-overlay-sheet,
+:global([data-pi-shell][data-pi-state="alert"]) .legend-overlay-sheet,
+:global([data-pi-shell][data-pi-state="ai"]) .legend-overlay-sheet {
+  --c-map-bottom-inset: 0px;
+}
+
+/* MIN ↔ MID: which overlays are live is the `inert` attribute, set in the
+ * switch's own commit from the chrome's state (the scrubber's by React,
+ * through WeatherMap; the legend's by hand, by LayoutPi's shell registry,
+ * ui/shellElements.js). Live and arriving: they wait 150 ms
+ * (`--pi-overlay-in-delay`, on the same clock as the slide), then fade in
+ * over 150 ms (150 → 300 ms), `visibility` returning as the fade starts; the
+ * scrubber also rises 8 px. A live scrubber takes taps from there, engaging
+ * its work on the first one if the switch hasn't settled yet (RadarTimeline
+ * `onShellEngage`); while the dock still slides out, the dock band's shield
+ * leaves its box uncovered from the same moment (LayoutPi/styles.css
+ * `.dockShield[data-scrubber]`), bar the second tap of a double tap on the
+ * dock's timeline button (the shield's double-tap guard over that click,
+ * `.dockGuard`, and the event guard that button arms, ui/tapGuard.js).
+ * Opacity only on the chip and card, so the chip's `:active` scale stays
+ * instant. */
+:global([data-pi-shell]) .radar-legend,
+:global([data-pi-shell]) .legend-chip.legend-chip {
+  transition:
+    opacity var(--pi-overlay-in-duration, 0ms) var(--pi-shell-easing, ease-out) var(--pi-overlay-in-delay, 0ms),
+    visibility 0s linear var(--pi-overlay-in-delay, 0ms);
+}
+
+:global([data-pi-shell]) .radar-timeline {
+  transition:
+    opacity var(--pi-overlay-in-duration, 0ms) var(--pi-shell-easing, ease-out) var(--pi-overlay-in-delay, 0ms),
+    transform var(--pi-overlay-in-duration, 0ms) var(--pi-shell-easing, ease-out) var(--pi-overlay-in-delay, 0ms),
+    visibility 0s linear var(--pi-overlay-in-delay, 0ms);
+}
+
+/* Inert (another state's): fading out in 100 ms where they are as the
+ * slide starts, then `visibility: hidden`, and so at rest. Hidden, never
+ * `opacity: 0` alone: all three carry a backdrop blur, which an
+ * invisible-but-painted box would keep re-rendering over the moving map
+ * (and a hidden box takes no tap, focus or assistive-tech visit). A
+ * hidden box mounted in this pose (boot, a view's close) never
+ * transitions. */
+:global([data-pi-shell]) .radar-legend[inert],
+:global([data-pi-shell]) .legend-chip.legend-chip[inert] {
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    opacity var(--pi-overlay-out-duration, 0ms) var(--pi-shell-easing, ease-out),
+    visibility 0s linear var(--pi-overlay-out-duration, 0ms);
+}
+
+:global([data-pi-shell]) .radar-timeline[inert] {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(var(--pi-overlay-shift, 0px));
+  transition:
+    opacity var(--pi-overlay-out-duration, 0ms) var(--pi-shell-easing, ease-out),
+    transform var(--pi-overlay-out-duration, 0ms) var(--pi-shell-easing, ease-out),
+    visibility 0s linear var(--pi-overlay-out-duration, 0ms);
+}
+
+/* …and its scrub surface, belt and braces: the invisible range input sets
+ * its own `pointer-events: auto` (`.rt-scrubber`). `inert` already covers
+ * the subtree; this keeps the 100 ms fade-out from seeking the radar even
+ * where `inert` were missing. Only while inert: the bare `.rt-track > *`
+ * trap noted at `.rt-track` would kill the scrub surface for good. Aimed at
+ * the track's input alone, not `*`: a universal last compound restyles the
+ * whole scrubber subtree each time `inert` flips. (The legend card is
+ * `pointer-events: none` with no interactive child, and the chip is a single
+ * button: nothing to add there.) */
+:global([data-pi-shell]) .radar-timeline[inert] .rt-scrubber {
+  pointer-events: none;
+}
+
+/* Views: Leaflet stays at its MID pose (railOffsetFor gives the views MID's
+ * offset: no pan, no polygon re-clip), and the map pane moves instead, by
+ * the CSS `translate` property — never `transform`, which is Leaflet's own
+ * (it pans the pane with translate3d; the two compose). Keyed on the MAP
+ * state, so it lands in the frame after the sheet's slide ends and goes in
+ * the frame the view closes. The value is viewPaneShift
+ * (ui/piShellGeometry.js): the MID marker (245, 211) to the strip's centre
+ * (105, 211), (−140, 0) on 800 px. Everything in the pane moves together;
+ * Leaflet's control corners (attribution) are outside it and stay put. The
+ * 140 px it uncovers at the right lie under the sheet. */
+:global([data-pi-shell][data-pi-map="max"]) :global(.leaflet-map-pane),
+:global([data-pi-shell][data-pi-map="conditions"]) :global(.leaflet-map-pane),
+:global([data-pi-shell][data-pi-map="alert"]) :global(.leaflet-map-pane),
+:global([data-pi-shell][data-pi-map="ai"]) :global(.leaflet-map-pane) {
+  translate: calc((var(--pi-sheet-left) + var(--pi-rail-span) - 100vw) / 2) 0;
+}
+
+/* A view switch: the overlays stay mounted while a view is open
+ * (WeatherMap `chromeMounted`), inert and hidden by the rules above, and
+ * hide and come back in the switch's own frame, with no fade — as in the
+ * grid shell, where opening a view unmounts them and closing it mounts them
+ * again.
+ * The MIN ↔ MID fades are untouched (`data-pi-switch="slide"`). Each
+ * selector outranks its base or `[inert]` rule by one attribute. */
+:global([data-pi-shell][data-pi-switch="view"]) .radar-legend,
+:global([data-pi-shell][data-pi-switch="view"]) .radar-legend[inert],
+:global([data-pi-shell][data-pi-switch="view"]) .legend-chip.legend-chip,
+:global([data-pi-shell][data-pi-switch="view"]) .legend-chip.legend-chip[inert],
+:global([data-pi-shell][data-pi-switch="view"]) .radar-timeline,
+:global([data-pi-shell][data-pi-switch="view"]) .radar-timeline[inert] {
+  transition: none;
+}
+
+/* The zoom bar and the focus button while a view is open: kept mounted,
+ * inert (set by hand in the view switch's commit: WeatherMap's
+ * ShellZoomInert on the bar, the shell registry on the button) and hidden,
+ * keyed on that `inert` so the two never disagree; back in the frame the
+ * view closes. */
+:global([data-pi-shell]) :global(.leaflet-control-zoom[inert]),
+:global([data-pi-shell]) .radar-focus-btn.radar-focus-btn[inert] {
+  visibility: hidden;
+}
+
+/* Attribution: a legal credit, always visible (test/mapAttribution
+ * forbids fading it) and never under the rail or the dock. So it moves,
+ * by transform, with the map: anchored in the map's bottom-right corner,
+ * translated left by its right inset and up by its lift. On MIN ↔ MID it
+ * slides with the shell (250 ms on the shell's curve, an approximation of
+ * Leaflet's pan easing; instant under form 2 and reduced motion) by
+ * exactly the rail's 310 px and the dock's 58 px — the design canvas's
+ * `translate(310px, 58px)` — so on each frame it keeps its 6 px from the
+ * sliding rail and its 2 px from the sliding dock, and the end of the
+ * move is MIN's place, right 6 and bottom 2: nothing jumps afterwards. A
+ * view switch moves it in one frame, with the map's instant recentre:
+ * opening a view, once the sheet has slid in (it stays at MID's place
+ * under the sliding sheet, above the leaving dock);
+ * closing one, in the frame the sheet disappears, before the rail and
+ * dock come back. MID: right 316, bottom 60. Views: right 596, bottom 2,
+ * wrapped to two lines in 192 px inside the 210 px strip (the shield over
+ * the map also makes its links inert). MIN: right 6, bottom 2. Its
+ * Leaflet flag is hidden in nightRed by ui/reset.css (the flag only,
+ * never the strip). */
+:global([data-pi-shell]) .map-wrapper :global(.leaflet-bottom.leaflet-right) {
+  right: 0;
+  bottom: 0;
+  transform: translate(calc(-1 * var(--c-attr-right, 0px)), calc(-1 * var(--c-attr-bottom, 0px)));
+  transition: transform var(--pi-attr-duration, 0ms) var(--pi-shell-easing, ease-out);
+}
+
+/* Its insets outside MID, keyed on the root's map state and set on the
+ * corner itself (see the header), which hands `--c-attr-max-width` down
+ * to the strip. MIN: the design canvas's right 6, bottom 2 — from MID
+ * exactly the rail's 310 px and the dock's 58 px, the design canvas's
+ * `translate(310px, 58px)`, run on the shell's 250 ms curve with the
+ * rail and the dock, so the strip keeps its 6 / 2 px from them on every
+ * frame and lands on MIN's place itself (the mirror back to MID). */
+:global([data-pi-shell][data-pi-map="min"]) .map-wrapper :global(.leaflet-bottom.leaflet-right) {
+  --c-attr-right: 6px;
+  --c-attr-bottom: 2px;
+}
+
+/* The views, once the sheet has slid in: 6 px short of the sheet (a
+ * right inset of the viewport width minus 204, 596 on 800) at bottom 2,
+ * on two lines within 192 px. */
+:global([data-pi-shell][data-pi-map="max"]) .map-wrapper :global(.leaflet-bottom.leaflet-right),
+:global([data-pi-shell][data-pi-map="conditions"]) .map-wrapper :global(.leaflet-bottom.leaflet-right),
+:global([data-pi-shell][data-pi-map="alert"]) .map-wrapper :global(.leaflet-bottom.leaflet-right),
+:global([data-pi-shell][data-pi-map="ai"]) .map-wrapper :global(.leaflet-bottom.leaflet-right) {
+  --c-attr-right: calc(100vw - 204px);
+  --c-attr-bottom: 2px;
+  --c-attr-max-width: 192px;
+}
+
+/* A view opening or closing moves it in one frame, with the map's
+ * instant recentre (MIN ↔ MID slides it with the shell: the root's
+ * `--pi-attr-duration`). */
+:global([data-pi-shell][data-pi-switch="view"]) .map-wrapper :global(.leaflet-bottom.leaflet-right) {
+  --pi-attr-duration: 0ms;
+}
+
+:global([data-pi-shell]) .map-wrapper :global(.leaflet-control-attribution) {
+  max-width: var(--c-attr-max-width, none);
+  text-align: right;
 }
