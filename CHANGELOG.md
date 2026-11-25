@@ -34,7 +34,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   ~29 MB for 1.6.0). `loadAnthropicSdk()` now requires it inside the billed path, after the no-key
   gate, the summary cache and the calm-day fast path. The server process loads it on its first
   billed call, whichever client asks. A kiosk laid out by LayoutPi (CSS width 800 to 1279 px, the
-  7" and 10.1" panels) asks for a summary only when its AI view opens (AiView is mounted lazily);
+  7" and 10.1" panels) asks for a summary only when its AI view opens (AiView is mounted lazily on
+  the 10.1" panels; on the 7" it stays mounted and requests only while open);
   LayoutDesktop and LayoutMobile mount `AiSummaryInline`, which asks at mount and every 15 min; the
   calm-day fast path (on by default) answers without Claude. So a Pi whose only client is its
   LayoutPi kiosk now loads the SDK once the AI view opens on a day that is not calm, and a remote
@@ -66,8 +67,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   reboot or relaunch the kiosk.
 - **The cards on the Pi rail no longer each cost an offscreen layer.** Blink paints a rounded box
   that has a fill and a translucent border through an offscreen clip layer (a Skia `saveLayer`,
-  one per card); an opaque, solid border avoids it. On LayoutPi the rail and the dock sit on the
-  layout's opaque `--c-bg`, where a card's translucent edge always shows one fixed colour, so those
+  one per card); an opaque, solid border avoids it. On LayoutPi the stacked rail and the dock sit on
+  the layout's opaque `--c-bg` (on the 7" overlay layout of PR 455, the dock and the view sheet; the
+  7" rail floats over the radar and keeps the translucent edge), where a card's translucent edge
+  always shows one fixed colour, so those
   cards now draw that colour as an opaque `#rrggbb`. New `client/src/ui/opaqueTokens.js` composites
   border over fill over `bg` for each palette, calm and hybrid; AmbientLayers mirrors the result
   onto `--c-opaque-edge` / `--c-opaque-edge-hybrid` with the same hybrid switch as `--c-surface`;
@@ -283,6 +286,63 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   throw on a null where the uncompiled render would not.
 
 ### Changed
+- **On the 7" screen the radar now fills the screen, and the rail, the dock and the views float over
+  it.** LayoutPi under the priority views (a CSS viewport 540 px tall or less, such as the official
+  7" at 800 × 480 or a panel the kiosk display scale squeezes to that height, or
+  `localStorage.forcePriorityViews = "on"`) gets a new shell. The map
+  fills the viewport in every state and is never resized. On the 800 × 480 screen the rail is a
+  300 px frame floating 10 px from the top and right edges, its cards over the radar with no blur
+  (85 % opaque; 96 % in nightRed, on Firefox and in hybrid alert mode), and the dock is an opaque
+  58 px band along the bottom, with 44 px buttons. MIN slides the rail and the dock away and pans
+  the map back to the screen centre. A view (alert, conditions, AI, forecast) opens in an opaque
+  sheet that slides in over the right of the map and leaves a 210 px strip of map beside it, the
+  marker moved there by translating the map's panes. Everything moves by `transform` and `opacity`,
+  the slides in 250 ms; under the OS reduced-motion preference, every switch takes one frame.
+  Before, the screen was a grid whose map column resized at every switch, and the views shrank the
+  map to a frozen thumbnail. The stacked rail of taller panels (the 10.1" at 1024 × 640 CSS px),
+  LayoutDesktop and LayoutMobile look as before. The shared code they run changes with no visible
+  effect: `LocationName` reads `LocationContext`, LayoutPi's state moved from `SystemContext` to its
+  own context, the priority-views gate and its override are cached flags, and the dock and the
+  charts are memoised.
+  - **The dock.** Marker, legend (RainViewer source only), radar rings and debug panel (localhost +
+    `DEBUG`) move into a "···" menu at the end of the row, whose rows run the same actions. Dock
+    toasts appear over the middle of the map area the rail and the dock leave clear, above the
+    legend chip, and are dropped when the layout leaves MID. So the timeline button's toast no
+    longer shows, and Places' "Default location updated" is not shown when its reply comes after the
+    dock has gone. The dock's view buttons take a background tint while pressed. In MIN the dock
+    leaves the render once its slide is over, behind an
+    `@supports (transition-behavior: allow-discrete)` gate; where that test fails, it stays laid
+    out, hidden and inert like the rail.
+  - **The alert card is one button.** A tap anywhere opens the Alert view on the alert shown, and
+    its "1 / N" is an indicator only: another alert is picked in the view's *Also active* row. Its
+    accessible name gives the level, the source, the title and "1 of N" (new keys
+    `alert.compactCardAria` and `alert.compactCardAriaSingle`, and `controls.moreControls` for the
+    menu, in EN, FR and ES).
+  - **The double-tap guard.** Six commands of this layout arm it: the alert card, the hero's ⤢, the
+    dock's AI, forecast and timeline buttons, and the FloatingMiniBanner; nothing arms it on the
+    other layouts, bar the dock's view buttons on the stacked rail after a viewport crossing 540 px
+    under a mounted LayoutPi (ROADMAP.md). A second gesture begun within its 300 ms that lands on a
+    view's back button is swallowed wherever the first tap was. Its listeners now retire on input
+    events, 3 s after arming at the latest (a timer before), so a second tap pressed inside the
+    window but handled late no longer passes. While they stay, a touch anywhere starts as blocking,
+    the first touch after the window included. The view sheet takes `touch-action: manipulation`, so
+    once they are gone its back button and body don't block. Like master since PR 412, the guard
+    doesn't cover a second tap dispatched before the first tap's click (see ROADMAP.md).
+  - **Before a view's first opening.** At rest, once the page and its fonts have loaded, each hidden
+    view that has content is laid out and painted once, out of sight. While a government alert is
+    shown, the alert view's switch then has its styles computed ahead, in one task at rest in MID:
+    once per page load with an alert shown, again when an alert appears after none was shown, and
+    never in calm weather; a tap that falls in that task (55–108 ms between its marks over 76 runs
+    on a Pi 4, median 78 ms) waits for it.
+  - **Measured** on a Raspberry Pi 4 with the official 7" screen, in three sessions against master
+    `13b212b3`, interleaved, by day, at dusk and in nightRed. Of 279 verdicts on view openings and
+    closings, 166 were better than master, 77 equal and 36 worse; closings were never worse. The
+    count did not pass under its own rule (missed frames during radar playback at dusk failed twice,
+    by 0.5 frame per pass) and was closed on that state by the maintainer. Three costs are listed in
+    ROADMAP.md (Technical debt). The shipped code is rebased on a later master and adds a few
+    changes the count did not measure, listed in PR 455. **Not yet measured on a Pi 3:** a first,
+    indicative session on a Pi 3B follows.
+  - No server or deploy file changes.
 - **"Reduce motion" now removes transitions instead of shortening them, and stops the map's own
   motion.** With the OS reduced-motion preference on (macOS / iOS "Reduce motion", Android "Remove
   animations", Windows "Show animations" off), the global rule in `styles/main.css` used to shorten
@@ -576,6 +636,8 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/).
   another control inside the window behaved as on master.
   Only the priority card has this ⤢: the stacked rail of the 10.1" panels and LayoutDesktop /
   LayoutMobile toggle the inline detail in place and are unchanged. The in-app updater applies it.
+  (Since PR 455, the whole card is one button whose ⤢ is only a cue, and the guard's listeners
+  retire on input events, 3 s at most: see the entry on the 7" overlay layout under Changed.)
 - **`install.sh` no longer rewrites a running `start-server` in place.** It copied
   `~/.local/bin/start-server` (and `detect-display-scale.sh`) with a plain `cp`, which keeps the
   file's inode, while the previous `start-server` was still waiting on the kiosk browser. Bash reads
