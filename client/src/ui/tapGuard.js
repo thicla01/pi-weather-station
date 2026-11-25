@@ -109,15 +109,18 @@
 // while they stay, a touch anywhere starts as blocking (a non-passive
 // document touchstart listener), the first one after the window included —
 // which then retires the guard. That changes something only where a touch
-// would not block anyway: not on the map (Leaflet's own listeners) nor in a
-// view of the overlay shell (the views' shield), but on that shell's rail
-// and live dock after a MIN ↔ MID command. Only the commands of the
+// would not block anyway: not on the map (Leaflet's own listeners) nor on
+// the views' shield (the strip of map beside an open view's sheet), but on
+// the overlay shell's rail frame and live dock after a MIN ↔ MID command,
+// and on a view's sheet after the command that opened it: each carries a
+// `touch-action: manipulation` region (LayoutPi/styles.css), so a touch
+// there blocks only while these listeners stay. Only the commands of the
 // priority views, which run in the overlay shell, arm the guard (except
 // after a viewport crossing 540 px under a mounted LayoutPi, when the
-// dock's view buttons can arm it in the stacked rail's full-rail views).
-// A tap is not delayed (its click waits for the touchend, already blocking:
-// React's root listener); a scroll's start waits for the main thread.
-// Hence a short safety bound.
+// dock's view buttons can arm it on the stacked rail: ROADMAP.md). A tap is
+// not delayed (its click waits for the touchend, already blocking: React's
+// root listener); a scroll's start waits for the main thread. Hence a short
+// safety bound.
 //
 // A released gesture also ends on the events' own time: an event dated at
 // or after its release plus TAP_GUARD_RELEASE_TAIL_MS is not part of it (a

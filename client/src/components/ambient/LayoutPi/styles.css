@@ -855,7 +855,26 @@
  * edge tokens (the inventory at the top of this file): its fill is the
  * opaque --c-bg and the views' cards sit right on it under the overlay shell
  * (ChartTabs' slab and AlertView's card drop their chrome there), so their
- * translucent edge always shows one fixed colour. */
+ * translucent edge always shows one fixed colour.
+ * `touch-action: manipulation`: in a view, the views' shield (`.shield`
+ * below: z 25, a layer of its own, `touch-action: none`, non-passive touch
+ * listeners) lies under the sheet. The compositor decides how to send a
+ * touch by the frontmost layer that has a touch region at its point; the
+ * sheet's layer had none, so the shield's decided, and every touch on the
+ * sheet (its back button, a view's body, the start of a body's scroll)
+ * was sent blocking, behind the main thread. This gives the sheet's layer,
+ * and the layers of its subtree, a region in front of the shield's that
+ * does not block once the tap guard (ui/tapGuard.js) has removed its
+ * document listeners (while they listen, every touch blocks anyway). It
+ * only drops double-tap zoom; a pinch and the views' scrolling bodies stay
+ * allowed (no view declares a touch-action, so a view body's effective one
+ * is this). A touch on the shield itself (the map strip left of the sheet,
+ * or what the sliding sheet has not covered yet) is still the shield's, and
+ * still cancelled.
+ * Outside the views the sheet is inert and hidden; in its warm frame,
+ * inert and `pointer-events: none` as well, so a tap goes to what lies
+ * beneath. Same fix as the rail frame's and the live dock's over the map;
+ * in the base rule, so a switch restyles nothing. */
 .layout[data-pi-shell] .sheet {
   --c-card-edge: var(--c-opaque-edge);
   --c-card-edge-hybrid: var(--c-opaque-edge-hybrid);
@@ -872,6 +891,7 @@
   background-color: var(--c-bg);
   border-left: 1px solid var(--c-border);
   will-change: transform;
+  touch-action: manipulation;
   transition:
     transform calc(var(--pi-shell-duration) + var(--pi-sheet-preroll)) var(--pi-shell-easing) calc(-1 * var(--pi-sheet-preroll)),
     visibility 0s linear 0s;

@@ -1383,14 +1383,15 @@ test("touch regions: the live rail and the live dock carry a touch-action: manip
   // shield, which takes a touch aimed at it).
   assert.match(ruleBody(LAYOUT_PI_CSS, ".layout[data-pi-shell] > [data-pi-dock-cell]:not([inert])"), /^\s*touch-action:\s*manipulation;\s*$/);
   // Every touch-action of the stylesheet, by selector: the views' shield and the raised band shield / guard block
-  // (none), the live rail and the live dock don't (manipulation); all under the shell's gate, so the grid shell is
-  // unchanged.
+  // (none), the live rail, the live dock and the views' sheet don't (manipulation); all under the shell's gate, so
+  // the grid shell is unchanged.
   const declared = rulesOf(LAYOUT_PI_CSS)
     .filter((r) => /touch-action/.test(r.body))
     .map((r) => [r.selector, r.body.match(/touch-action:\s*([^;]+);/)[1].trim()]);
   assert.deepEqual(declared, [
     [".layout[data-pi-shell] .railFrame", "manipulation"],
     [".layout[data-pi-shell] > [data-pi-dock-cell]:not([inert])", "manipulation"],
+    [".layout[data-pi-shell] .sheet", "manipulation"],
     [".layout[data-pi-shell] .shield", "none"],
     ['.layout[data-pi-shell] .dockShield[data-active="true"]', "none"],
     ['.layout[data-pi-shell] .dockGuard[data-active="true"]', "none"],
@@ -1405,6 +1406,41 @@ test("touch regions: the live rail and the live dock carry a touch-action: manip
   // The dock cell's inert is set by hand by useShellTiming outside MID (the attribute that rule's
   // `:not([inert])` keys on).
   assert.match(SHELL_TIMING_JS, /if \(dock\) dock\.toggleAttribute\("inert", chromeState !== "mid"\);/);
+});
+
+test("the views' sheet carries a touch-action: manipulation region, in front of the views' shield's, so the shield no longer decides the touches on its back button and its views' bodies; in its base rule only, no view declaring one", () => {
+  // The compositor sends a touch blocking or not by the frontmost layer with a touch region at its point; the sheet
+  // (its own layer by will-change: transform) had none, so the views' shield's (touch-action: none, non-passive
+  // listeners) decided. manipulation does not block and only drops double-tap zoom. The shield's none and the z order
+  // are pinned by the gesture-shield test above.
+  const sheet = ruleBody(LAYOUT_PI_CSS, ".layout[data-pi-shell] .sheet");
+  assert.match(sheet, /(?:^|;)\s*touch-action:\s*manipulation;/);
+  assert.match(sheet, /(?:^|;)\s*will-change:\s*transform;/);
+  // In the sheet's base rule only: no state or warm-pose rule of the sheet restyles it on a switch.
+  const onSheet = rulesOf(LAYOUT_PI_CSS).filter((r) => /\.sheet\b/.test(r.selector) && /touch-action/.test(r.body));
+  assert.deepEqual(onSheet.map((r) => r.selector), [".layout[data-pi-shell] .sheet"]);
+  // Outside the views the sheet is inert (LayoutPi).
+  assert.match(LAYOUT_PI_JS, /<div ref=\{sheetRef\} className=\{styles\.sheet\} inert=\{!inView\}>/);
+  // No view declares a touch-action, so a view body's effective one is the sheet's: in client/src only the map's
+  // controls, the dock's overflow menu and this stylesheet declare one, none of them inside the sheet, and no
+  // component sets one inline. (A stylesheet of client/src that starts declaring a touch-action, or a component
+  // that sets one inline, fails here and is reviewed against the sheet; a new one in this stylesheet fails the
+  // inventory above; a new one in the map's or the overflow menu's stylesheet is caught by neither.)
+  const walk = (dir, ext) => fs.readdirSync(dir, { withFileTypes: true }).flatMap((e) => {
+    const p = path.join(dir, e.name);
+    if (e.isDirectory()) return walk(p, ext);
+    return p.endsWith(ext) ? [p] : [];
+  });
+  const declaring = walk(SRC_DIR, ".css")
+    .filter((f) => /(?:^|[{;])\s*touch-action\s*:/.test(stripComments(fs.readFileSync(f, "utf8"))))
+    .map((f) => path.relative(SRC_DIR, f))
+    .sort();
+  assert.deepEqual(declaring, [
+    "components/WeatherMap/styles.css",
+    "components/ambient/DockOverflowMenu/styles.css",
+    "components/ambient/LayoutPi/styles.css",
+  ]);
+  assert.deepEqual(walk(SRC_DIR, ".js").filter((f) => /\btouchAction\b/.test(fs.readFileSync(f, "utf8"))), []);
 });
 
 test("views' shield: it has its own layer (will-change: transform) only while it is mounted — the view state until the close has settled, never MID or MIN at rest; the dock band's shield and guard have none", () => {
