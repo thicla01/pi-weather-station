@@ -952,7 +952,7 @@ test("dock: a 44 px button fits the 58 px band, and the shell's row fits its wid
   // ≤ 1279 px block: 4 px padding around the 18 px disc, 1 px border), and
   // the buttons per group from ControlButtons' JSX.
   const media = (css, query) => {
-    const m = stripComments(css).match(new RegExp(`@media ${query.replace(/[()]/g, "\\$&")} \\{([\\s\\S]*?)\\n\\}`));
+    const m = stripComments(css).match(new RegExp(`@media ${query.replace(/[\\()]/g, "\\$&")} \\{([\\s\\S]*?)\\n\\}`));
     assert.ok(m, `no @media ${query} block`);
     return m[1];
   };
@@ -2497,7 +2497,7 @@ test("touch: 44 px areas around the dock chip and the hero ⤢, 44 px on screen 
   ];
   const AREA = 8;
   const ZONE = 44;
-  const esc = (v) => v.replace(/[()/*.]/g, "\\$&");
+  const esc = (v) => v.replace(/[\\()/*.]/g, "\\$&");
   const ZONE_DECL = /\b(?:width|height):\s*(?:44px|calc\(44px \/ var\(--c-font-scale, 1\)\));/;
   for (const { name, css, host, size } of cases) {
     const after = ruleBody(css, `${host}::after`);
