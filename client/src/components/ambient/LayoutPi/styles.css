@@ -22,7 +22,13 @@
  *
  * The legacy right-edge chevron that previously drove this collapse
  * was removed in the 2026-05-28 v3.1 consolidation — see LayoutPi/
- * index.js for the migration note. */
+ * index.js for the migration note.
+ *
+ * All of the above is the grid shell, used with the priority views off.
+ * Under the priority-views model LayoutPi stamps `data-pi-shell` on the
+ * root, and the overlay shell at the end of this file replaces the grid —
+ * no column morph, no MapResizer refit; the map keeps the full screen and
+ * the rail, dock and view sheet float over it. */
 
 .layout {
   display: grid;
@@ -98,8 +104,9 @@
   flex: 1;
   min-height: 0;
 }
-/* The IA host is mounted lazily (only present in the "ai" state), so it needs
- * no data-pi-state guard — when in the DOM it always fills the rail. */
+/* In the grid shell the IA host is mounted lazily (only present in the "ai"
+ * state), so it needs no data-pi-state guard — when in the DOM it always
+ * fills the rail. */
 .aiHost {
   display: flex;
   flex-direction: column;
@@ -255,13 +262,20 @@
  *     `--c-bg` in its own grid row under the map, sliding below the
  *     screen edge (never over the map) when hidden. YES, for the dock's
  *     own edge. What floats out of it over the map (the ControlButtons
- *     toast, the health popover) must never read `--c-card-edge`.
+ *     toast, the health popover, the overlay shell's "···" menu) must never
+ *     read `--c-card-edge`; the two last read `--c-edge-on-bg`, their border
+ *     over their own `--c-bg` fill.
  *   - `.mapArea` — the map frame has its own `--c-bg` fill; the map and
  *     everything over it (legend, timeline, zoom, ring labels, focus
  *     control, mini-banner) stay translucent by design. NOT a container.
  *     The frame's own edge reads `--c-edge-on-bg` (its border over its
  *     own fill), like the health popover that floats out of the dock:
  *     own-fill edges, read directly, no container (ui/opaqueTokens.js).
+ *   - the overlay shell's view sheet (`.layout[data-pi-shell] .sheet`) —
+ *     filled with --c-bg; the views' cards sit right on it. YES.
+ *   - the overlay shell's rail (`.railFrame` / `.railScroll`, end of this
+ *     file) — unlike `.rail` above, it floats over the live map: NOT a
+ *     container, so its cards keep the translucent card edge.
  * LayoutDesktop has no container: its rail floats over the map.
  * LayoutMobile has none either, although its column sits on its own
  * `--c-bg` (a possible container, ROADMAP). The only other container is
@@ -293,7 +307,9 @@
  * the filter confined the toast to the dock's stacking context, which
  * had no z-index, so Leaflet painted over it. The blur is gone since
  * 2026-10 (the dock never sits over the map, see BottomDock/styles.css);
- * this rule stays for the reasons above. */
+ * this rule stays for the reasons above. The overlay shell (end of this
+ * file) is the one place the dock does sit over the map, as an opaque
+ * `--c-bg` band: still nothing to blur, and still no transform at rest. */
 .layout > :last-child {
   grid-column: 1 / -1;
   grid-row: 2;
@@ -306,12 +322,20 @@
  * + fade rather than display:none — the dock row is collapsed to 0 by the
  * `[data-pi-state="min"]` grid-template-rows above, and `.layout`'s
  * overflow:hidden clips the translated dock. Restoring MIN→MID brings it
- * back. pointer-events:none so it's inert while hidden. */
-.layout[data-pi-state="min"] > :last-child,
-.layout[data-pi-state="max"] > :last-child,
-.layout[data-pi-state="conditions"] > :last-child,
-.layout[data-pi-state="alert"] > :last-child,
-.layout[data-pi-state="ai"] > :last-child {
+ * back. pointer-events:none so it's inert while hidden.
+ * The dock cell is addressed by its `data-pi-dock-cell` attribute
+ * (BottomDock, which LayoutPi asks for it; the same box as the base
+ * rule's `> :last-child` above), never by `:last-child`, in every rule
+ * keyed on the state: a rule whose last compound is a bare structural
+ * pseudo-class makes the browser restyle the root's whole subtree on
+ * each `data-pi-state` change, map and rail included (a desktop Chromium
+ * trace: MID → MIN restyled the whole subtree, about a quarter of it once
+ * re-keyed). */
+.layout[data-pi-state="min"] > [data-pi-dock-cell],
+.layout[data-pi-state="max"] > [data-pi-dock-cell],
+.layout[data-pi-state="conditions"] > [data-pi-dock-cell],
+.layout[data-pi-state="alert"] > [data-pi-dock-cell],
+.layout[data-pi-state="ai"] > [data-pi-dock-cell] {
   opacity: 0;
   transform: translateY(60px);
   pointer-events: none;
@@ -330,3 +354,873 @@
  * stacked cards are still meaningfully shorter than the v2.14
  * baseline (56 px temp + 40 px clock), so the height-saving goal
  * is mostly preserved without the layout-constraint pain. */
+
+/* ============================================================
+ * The "overlay shell"
+ *
+ * Applies only when LayoutPi stamps `data-pi-shell` on the root, which it
+ * does under the priority-views model (ui/piLayout.js piShellVariant).
+ * Every rule below is keyed on `[data-pi-shell]` or `[data-pi-form]`, so
+ * off the overlay shell the grid shell above is the whole story. Geometry
+ * and values: ui/piShellGeometry.js; test/piShellGeometry.test.js checks
+ * the custom properties declared on the root here against it, and that
+ * every rule naming an overlay-shell-only box is gated. Form 2
+ * (`[data-pi-form="2"]`) is a fallback form the shipped code never
+ * selects (ui/piShellGeometry.js).
+ *
+ * The grid goes away. The root is a positioned box; the map fills it in
+ * every state and is never resized (no grid morph, no per-frame Leaflet
+ * refit); the rail, the dock and the view sheet float over it and move by
+ * transform / opacity only — 250 ms on a curve approximating Leaflet's
+ * pan easing (within 3 % of the travel), so they keep step with the map's
+ * recentring pan, nothing infinite, and no will-change but on the view
+ * sheet and the views' gesture shield (their rules below).
+ *
+ * Timing (LayoutPi/useShellTiming.js, rules in
+ * ui/piShellGeometry.js). A switch is ONE React update: its commit
+ * changes `data-pi-state` (what the chrome shows: rail, dock, sheet, view
+ * hosts, map overlays) and `data-pi-switch` (the switch's kind, "view" or
+ * "slide" for MIN ↔ MID) on the root, and `inert` on the boxes leaving and
+ * arriving, and every slide and fade below starts from that one style
+ * change. `data-pi-map` (what the map follows: here the attribution's
+ * place) trails it while a view's sheet slides in. Out of their state the
+ * rail, the dock and the sheet stay laid out (never `display: none`,
+ * except the dock cell in MIN once its slide is over, behind an
+ * `@supports (transition-behavior: allow-discrete)` gate: the dock rules
+ * below): `visibility: hidden` and inert. Leaving, their `visibility`
+ * drops when their slide or fade ends (`visibility 0s linear <duration>`,
+ * a discrete transition: visible until then); arriving, it returns at
+ * once (`visibility 0s`), so the entry runs from the tap's own frame.
+ * Every delay here is a custom property set to 0 in form 2, and under
+ * reduced motion as a guard behind styles/main.css, which removes every
+ * transition there since PR 411. From a switch's commit until one frame
+ * after its last transition the root also carries `data-pi-moving`
+ * (useShellTiming; here only the dock cell's starting style reads it,
+ * below).
+ * In the JSX the rail becomes two new boxes (.railFrame / .railScroll), so
+ * none of the `.rail` rules above match under the overlay shell (grid
+ * placement, the 150 ms fade, the views' transparency): nothing to
+ * neutralise there.
+ * No descendant of the rail, the dock or the sheet may set `visibility:
+ * visible` (it would show through its hidden box; test/piShellGeometry
+ * fails on one anywhere in client/src).
+ *
+ * Z order inside the root: map 0 (its own stacking context) < rail frame
+ * 20 < views' gesture shield, dock band shield and its double-tap guard
+ * 25 < view sheet 30 < dock 1100 (unchanged, see `.layout > :last-child`
+ * above).
+ * ============================================================ */
+
+.layout[data-pi-shell] {
+  /* Geometry, CSS px on the unzoomed screen (piShellGeometry.SHELL_GEOMETRY).
+   * The rail anchors on the right edge: on 800 × 480 it spans x 490–790,
+   * y 10 to at most 412, leaving a 490 × 422 map zone clear. */
+  --pi-rail-right: 10px;
+  --pi-rail-top: 10px;
+  --pi-rail-width: 300px;
+  --pi-rail-dock-gap: 10px;
+  --pi-sheet-left: 210px;
+  /* What the rail hides at the right in MID (300 + 10): the cleared map
+   * zone is the viewport minus this. */
+  --pi-rail-span: calc(var(--pi-rail-width) + var(--pi-rail-right));
+  /* Same property name as LayoutDesktop's dock (52 px there). */
+  --c-dock-height: 58px;
+  /* The dock toast (ControlButtons/styles.css, its overlay-shell rule): 8 px
+   * above the legend chip — dock 58 + gap 16 + chip 34 + 8
+   * (piShellGeometry.toastPlacement), and at most the cleared zone's width
+   * less 16 px a side. */
+  --pi-toast-bottom: 116px;
+  --pi-toast-side-gap: 16px;
+  /* The radar scrubber's box under the overlay shell: 16 px from the left,
+   * right and bottom edges (piShellGeometry overlayPlacement().scrubber),
+   * 12 px corners (SHELL_GEOMETRY.scrubberRadius, the base scrubber's
+   * radius). Read by its own overlay-shell rule (WeatherMap/styles.css) and
+   * by the dock band shield's cut-out (below), which must uncover exactly
+   * that box. */
+  --pi-scrubber-inset: 16px;
+  --pi-scrubber-radius: 12px;
+  /* The dock band's double-tap guard (below): a dock button's 44 px plus
+   * 8 px a side (SHELL_GEOMETRY.dockGuardWidth), centred on the click
+   * that started the switch. */
+  --pi-dock-guard-width: 60px;
+  /* Motion (piShellGeometry.SHELL_MOTION): an approximation of
+   * Leaflet's pan easing, 1 − (1 − t)², within 3 % of the travel (the
+   * CSS `ease-out` keyword, 0.58 vs 0.5, strays by 7 %). */
+  --pi-shell-duration: 250ms;
+  --pi-shell-easing: cubic-bezier(0, 0, 0.5, 1);
+  /* Map chrome insets, read by WeatherMap/styles.css (its overlay-shell
+   * block at the end) — piShellGeometry.chromeFor. This block is MID, the
+   * default state: attribution 6 px left of the rail (right 316) and 2 px
+   * above the dock (bottom 60); the legend's detail sheet above the dock
+   * (+ 58). Two groups: `--c-map-bottom-inset` follows the chrome
+   * (`data-pi-state`) and is read by nothing that moves on a switch (the
+   * overlays that fade each keep one place); the three `--c-attr-*` follow
+   * the map (`data-pi-map`), so the attribution moves in the frame the map
+   * recentres. The other states' values are NOT redefined here: a custom
+   * property inherits, so changing one on this root would restyle its
+   * whole subtree, map and rail included, on every switch (a desktop
+   * Chromium trace: every element under the root for any `data-pi-map` /
+   * `data-pi-switch` change, about a dozen with the values on their
+   * readers).
+   * WeatherMap/styles.css sets them on the only boxes that read them, keyed
+   * on the same root attributes: the legend's detail sheet
+   * (`--c-map-bottom-inset`) and the attribution corner (the three
+   * `--c-attr-*`, and `--pi-attr-duration` below), which hands
+   * `--c-attr-max-width` down to the strip inside it.
+   * `--c-rail-visible-width` is the existing contract (LayoutDesktop sets it
+   * too), MID's value kept here; under the overlay shell nothing reads it
+   * (the two WeatherMap rules that do, the attribution corner's and the
+   * scrubber's right inset, are overridden by their overlay-shell rules), so
+   * it has no per-state value. The others exist only under the overlay
+   * shell. Lengths with a unit, never a bare 0: they go into calc() sums. */
+  --c-rail-visible-width: 316px;
+  --c-map-bottom-inset: 58px;
+  --c-attr-right: 316px;
+  --c-attr-bottom: 60px;
+  --c-attr-max-width: none;
+  /* The attribution strip's height (WeatherMap/styles.css: a 10 px font
+   * on a 1.3 line, 1 px padding above and below, one line in MID), and
+   * how far the dock's "···" menu opens above its usual spot so it clears
+   * the strip: the strip's lift above the dock band's top edge plus its
+   * height, 60 − 58 + 15 = 17 px in MID (DockOverflowMenu/styles.css).
+   * Resolved here, from MID's --c-attr-bottom above (the other states'
+   * live on the attribution corner, which the menu doesn't inherit
+   * from), so it is MID's 17 px in every state: the menu exists only in
+   * MID (the dock is hidden, the menu closed, everywhere else). */
+  --pi-attr-height: 15px;
+  --pi-dock-menu-lift: max(0px, calc(var(--c-attr-bottom) - var(--c-dock-height) + var(--pi-attr-height)));
+  /* The attribution's move: the shell's slide on MIN ↔ MID, none on a
+   * view switch (WeatherMap/styles.css, on the attribution corner), where
+   * it jumps in the frame the map recentres. (No rail fade: the rail
+   * stays painted under a view's sheet.) */
+  --pi-attr-duration: var(--pi-shell-duration);
+  /* The view sheet's pre-roll (piShellGeometry.SHELL_MOTION.sheetPrerollMs,
+   * one 60 Hz frame): its opening slide starts this far into its curve
+   * and lasts this much longer, so it still lands at the shell's 250 ms
+   * (the `.sheet` rule below). 0 in form 2 and under reduced motion. */
+  --pi-sheet-preroll: 17ms;
+  /* The map overlays on MIN ↔ MID (piShellGeometry.SHELL_MOTION): those
+   * leaving fade out in 100 ms as the slide starts; those arriving wait
+   * 150 ms (a transition-delay, on the same clock as the slide) and fade
+   * in over 150 ms (150 → 300 ms), so the whole choreography is over by
+   * 300 ms; the scrubber and the FloatingMiniBanner also move 8 px. Read
+   * by WeatherMap/styles.css and FloatingMiniBanner/styles.css (their
+   * overlay-shell rules), and by the dock band's shield (its scrubber
+   * cut-out, below). */
+  --pi-overlay-out-duration: 100ms;
+  --pi-overlay-in-delay: 150ms;
+  --pi-overlay-in-duration: 150ms;
+  --pi-overlay-shift: 8px;
+  display: block;
+  position: relative;
+  padding: 0;
+  transition: none;
+}
+
+/* The other states' chrome insets (MIN: the legend's detail sheet back in
+ * the corner, the attribution 6 px from the right edge and 2 px above the
+ * bottom one; the views: the attribution 6 px short of the sheet, on two
+ * lines within 192 px) and the view switch's one-frame attribution move are
+ * set on their readers, keyed on this root's `data-pi-state`, `data-pi-map`
+ * and `data-pi-switch`: WeatherMap/styles.css, its overlay-shell block (the
+ * reason is under the MID values above). */
+
+/* Form 2 switches in one frame (no slides): every delay below is one of
+ * these properties, so it drops to 0 here (otherwise a box's `visibility`
+ * and the arriving overlays would lag 250 ms behind a one-frame switch).
+ * Reduced motion sets the same zeros, a guard behind styles/main.css,
+ * which removes every transition under reduced motion since PR 411. */
+.layout[data-pi-form="2"] {
+  --pi-shell-duration: 0ms;
+  --pi-overlay-out-duration: 0ms;
+  --pi-overlay-in-delay: 0ms;
+  --pi-overlay-in-duration: 0ms;
+  --pi-sheet-preroll: 0ms;
+}
+@media (prefers-reduced-motion: reduce) {
+  .layout[data-pi-shell] {
+    --pi-shell-duration: 0ms;
+      --pi-overlay-out-duration: 0ms;
+    --pi-overlay-in-delay: 0ms;
+    --pi-overlay-in-duration: 0ms;
+    --pi-sheet-preroll: 0ms;
+  }
+
+  /* Reduced motion: nothing in the shell's moving set transitions — the rail
+   * frame, the dock, the view sheet and the map overlays, everything inside
+   * them, and the attribution corner (useShellTiming's `moving` list; the
+   * corner has the next rule). A guard behind styles/main.css, which
+   * removes every transition under reduced motion since PR 411: with none,
+   * a switch paints in its own frame and its motion is over with its
+   * commit (piShellGeometry `motionEnd`). Nothing in client/src
+   * listens for transition events, and the dock's toast is an animation
+   * (ControlButtons/styles.css has its own override). The dock is
+   * addressed by its attribute, never `> :last-child *`: a structural
+   * pseudo-class followed by a descendant combinator makes the browser
+   * restyle the whole subtree of whatever element stops being its parent's
+   * last child, so every popover or overlay appended to <body> (the details
+   * popovers, the screensaver) would restyle the whole app. */
+  .layout[data-pi-shell] .railFrame,
+  .layout[data-pi-shell] .railFrame *,
+  .layout[data-pi-shell] .railFrame::before,
+  .layout[data-pi-shell] .railFrame::after,
+  .layout[data-pi-shell] .railFrame *::before,
+  .layout[data-pi-shell] .railFrame *::after,
+  .layout[data-pi-shell] > [data-pi-dock-cell],
+  .layout[data-pi-shell] > [data-pi-dock-cell] *,
+  .layout[data-pi-shell] > [data-pi-dock-cell]::before,
+  .layout[data-pi-shell] > [data-pi-dock-cell]::after,
+  .layout[data-pi-shell] > [data-pi-dock-cell] *::before,
+  .layout[data-pi-shell] > [data-pi-dock-cell] *::after,
+  .layout[data-pi-shell] .sheet,
+  .layout[data-pi-shell] .sheet *,
+  .layout[data-pi-shell] .sheet::before,
+  .layout[data-pi-shell] .sheet::after,
+  .layout[data-pi-shell] .sheet *::before,
+  .layout[data-pi-shell] .sheet *::after,
+  .layout[data-pi-shell] [data-pi-overlay-el],
+  .layout[data-pi-shell] [data-pi-overlay-el] *,
+  .layout[data-pi-shell] [data-pi-overlay-el]::before,
+  .layout[data-pi-shell] [data-pi-overlay-el]::after,
+  .layout[data-pi-shell] [data-pi-overlay-el] *::before,
+  .layout[data-pi-shell] [data-pi-overlay-el] *::after {
+    transition: none !important;
+  }
+
+  /* Apart from the overlays (none takes their poses): the attribution
+   * corner's own slide (its 0 ms `--pi-attr-duration`), the dock band
+   * shield's scrubber cut-out (its 0 ms delay here) and the double-tap
+   * guard's move to the switch's click (its `left`): the same guard
+   * behind styles/main.css as the rule above. */
+  .layout[data-pi-shell] :global(.leaflet-bottom.leaflet-right),
+  .layout[data-pi-shell] .dockShield,
+  .layout[data-pi-shell] .dockGuard {
+    transition: none !important;
+  }
+}
+
+/* nightRed cards at 96 %. Under the overlay shell the rail cards sit over
+ * the live radar, and nightRed's 85 % surface (rgba(40, 12, 12, .85)) lets
+ * it show through the cards; the design makes that surface 96 % outright.
+ * Done here rather than in ui/tokens.js, which can't be scoped to the
+ * overlay shell: redefining the property on the shell's root overrides the
+ * inline value it inherits from `.ambientRoot` (AmbientLayers' cssVars) for
+ * every card, view and piece of map chrome inside LayoutPi, without
+ * `!important`. In hybrid mode and on Firefox --c-surface is already the
+ * 96 % fill, so this changes nothing there. `data-palette` is the
+ * time-of-day palette key AmbientLayers stamps on its root
+ * (ui/hybrid.js). */
+:global(.ambientRoot[data-palette="nightRed"]) .layout[data-pi-shell] {
+  --c-surface: var(--c-surface-hybrid);
+  /* …and the opaque card edge with it: the containers' calm edge is
+   * composited over the 85 % fill, so with the cards at 96 % it takes the
+   * hybrid one, as the Firefox rule does in styles/main.css. */
+  --c-opaque-edge: var(--c-opaque-edge-hybrid);
+}
+
+/* The map fills the screen in every state. `z-index: 0` gives it its own
+ * stacking context, so Leaflet's panes and controls (z up to 1000) and
+ * the map's own overlays (timeline, legend sheet) stay below the rail,
+ * the sheet and the dock — LayoutDesktop's .mapArea does the same. */
+.layout[data-pi-shell] .mapArea {
+  position: absolute;
+  inset: 0;
+  border: 0;
+  border-radius: 0;
+  z-index: 0;
+}
+
+/* Rail frame: carries the position, size and MIN slide, and is never zoomed
+ * — `zoom` on this box would scale its own top, right and width
+ * (LayoutDesktop's rail records the effect: 320 px becomes 368 at L).
+ * Content-sized up to `max-height` (402 px on 480), so short content leaves
+ * no transparent box catching taps over visible map. Arriving (back to MID
+ * from MIN): it slides and fades in, and `visibility` returns at once, so it
+ * moves from the switch's own frame.
+ * `touch-action: manipulation`: the map lies under the rail in every state,
+ * and Leaflet's container carries non-passive touchstart listeners and
+ * `touch-action: none`; the compositor decides a touch by the frontmost
+ * layer that has a touch region at its point. A `manipulation` region
+ * gives the rail's layer one that does not block. It only drops
+ * double-tap zoom, as on the map's own controls (WeatherMap/styles.css);
+ * a pinch and a rail scroll stay allowed. Permanent, so a switch restyles
+ * nothing. */
+.layout[data-pi-shell] .railFrame {
+  position: absolute;
+  top: var(--pi-rail-top);
+  right: var(--pi-rail-right);
+  width: var(--pi-rail-width);
+  max-height: calc(100% - var(--pi-rail-top) - var(--c-dock-height) - var(--pi-rail-dock-gap));
+  z-index: 20;
+  display: flex;
+  flex-direction: column;
+  touch-action: manipulation;
+  transition:
+    transform var(--pi-shell-duration) var(--pi-shell-easing),
+    opacity var(--pi-shell-duration) var(--pi-shell-easing),
+    visibility 0s linear 0s;
+}
+
+/* Rail scroller: the zoomed subtree (font-size preference; internal
+ * budget 402 / 1.15 ≈ 349.6 px at L). It scrolls when the glance
+ * outgrows the frame; being a sibling of the map, a rail scroll never
+ * drags the map. `position: relative` as on the grid shell's `.rail`. */
+.layout[data-pi-shell] .railScroll {
+  position: relative;
+  min-height: 0;
+  overflow-x: hidden;
+  overflow-y: auto;
+  zoom: var(--c-font-scale, 1);
+}
+
+/* The glance column.
+ * - `display: flex` keeps it laid out while a view sheet slides over it.
+ *   The rule above that drops `.midPanel` (display: none) as soon as a
+ *   view opens would bare the map behind the rail for the first ~80 ms of
+ *   the slide; here the rail stays painted under the sheet (below).
+ * - Card gaps stay 10 px on screen whatever the density. The gap lives
+ *   inside the zoomed scroller, so a plain 10 px would become 11.5 px on
+ *   screen at L and 8.5 at S; it is a layout gutter, not text, so it
+ *   divides the zoom back out (8.7 internal px at L, the design's height
+ *   budget). The frame's 10 px top, right and dock gaps are unzoomed
+ *   already. */
+.layout[data-pi-shell] .railScroll > .midPanel {
+  display: flex;
+  gap: calc(10px / var(--c-font-scale, 1));
+}
+
+/* A view switch never moves the rail: it stays in its MID pose, at opacity 1
+ * and painted, under the opening sheet (x 490–790 lies inside the sheet's
+ * 210 → right edge, covered once the sheet's left edge passes x 490, about
+ * 80 ms in), inert from the switch's commit (LayoutPi), and is simply there
+ * when the sheet goes. No fade either way: a layer hidden by `visibility` or
+ * `content-visibility` keeps no tiles, even with `will-change`, and opacity
+ * 0 is unmeasured; opacity 1 costs nothing under the opaque sheet. */
+.layout[data-pi-shell][data-pi-switch="view"] .railFrame {
+  transition: none;
+}
+
+/* MIN: the rail slides out by its own width plus the right gap (310 px)
+ * and fades, inert from the switch's commit (LayoutPi); `visibility`
+ * drops once the slide is over, so children with their own stacking
+ * context can't leak through `opacity: 0` (see the `.rail` comment
+ * above). `transform: none` at rest, never translateX(0). */
+.layout[data-pi-shell][data-pi-state="min"] .railFrame {
+  transform: translateX(calc(100% + var(--pi-rail-right)));
+  opacity: 0;
+  visibility: hidden;
+  transition:
+    transform var(--pi-shell-duration) var(--pi-shell-easing),
+    opacity var(--pi-shell-duration) var(--pi-shell-easing),
+    visibility 0s linear var(--pi-shell-duration);
+}
+
+/* Dock: an opaque full-width band at the bottom, over the map. 58 px
+ * explicitly (1 px hairline + 6 + 44 px buttons + 6 is 57; the 44 px is
+ * `--ctrl-btn-size`, set on the overlay shell's dock in
+ * BottomDock/styles.css): the cleared zone's 422 px and the marker's y of
+ * 211 rest on it. (0,3,0) beats BottomDock's `.dock` card styling; `--c-bg`
+ * is opaque in every palette (test/opaqueBgToken.test.js). No transform,
+ * filter, will-change or contain at rest: the ControlButtons toast is
+ * `position: fixed` in viewport coordinates (BottomDock/styles.css).
+ * Arriving (back to MID): it slides up and fades in, `visibility` back at
+ * once. Its transform's end is what lowers the dock band's shield
+ * (useShellTiming). */
+.layout[data-pi-shell] > [data-pi-dock-cell] {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--c-dock-height);
+  box-sizing: border-box;
+  padding: 6px 10px;
+  border-width: 1px 0 0;
+  border-radius: 0;
+  background-color: var(--c-bg);
+  z-index: 1100;
+  transition:
+    transform var(--pi-shell-duration) var(--pi-shell-easing),
+    opacity var(--pi-shell-duration) var(--pi-shell-easing),
+    visibility 0s linear 0s;
+}
+
+/* The live dock (MID): a `touch-action: manipulation` region, so a touch on
+ * it is not sent blocking because of the map's region beneath (the rail's
+ * `.railFrame` rule says why). Only while the cell is not inert: an inert
+ * dock sliding out stays out of the decision, so the raised band shield
+ * (same layer, a `touch-action: none` region while raised) still takes a
+ * touch aimed at it and cancels it. The dock band shield's own region exists
+ * only while it is raised (its `[data-active="true"]` rule), or it would win
+ * over this one at rest. */
+.layout[data-pi-shell] > [data-pi-dock-cell]:not([inert]) {
+  touch-action: manipulation;
+}
+
+/* MIN and the views: slid down by its own height and faded, inert from
+ * the switch's commit (LayoutPi; `pointer-events` as in the grid shell),
+ * then `visibility: hidden` once the slide is over — laid out in the
+ * views; in MIN out of the render once the slide is over (the next
+ * rule, behind its `@supports` gate). (0,4,0) beats the grid shell's
+ * `[data-pi-state] > [data-pi-dock-cell]` rules, which also match here. */
+.layout[data-pi-shell][data-pi-state="min"] > [data-pi-dock-cell],
+.layout[data-pi-shell][data-pi-state="max"] > [data-pi-dock-cell],
+.layout[data-pi-shell][data-pi-state="conditions"] > [data-pi-dock-cell],
+.layout[data-pi-shell][data-pi-state="alert"] > [data-pi-dock-cell],
+.layout[data-pi-shell][data-pi-state="ai"] > [data-pi-dock-cell] {
+  transform: translateY(100%);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition:
+    transform var(--pi-shell-duration) var(--pi-shell-easing),
+    opacity var(--pi-shell-duration) var(--pi-shell-easing),
+    visibility 0s linear var(--pi-shell-duration);
+}
+
+/* In MIN only, once the slide is over, the dock cell leaves the render
+ * (`display: none`). On a Pi 4 kiosk, taking this cell out removed about
+ * half of the radar playback's extra delay in MIN, in threshold
+ * measurements. A discrete step at the end of the slide
+ * (`allow-discrete`, the moment `visibility` turns hidden): the slide out
+ * is unchanged. Back to MID the cell is displayed again in the switch's
+ * commit and slides in from its starting style, MIN's pose
+ * (translateY(100%), opacity 0), so the slide's transform transition
+ * exists for useShellTiming's read two frames on (the dock band's shield
+ * lowers at its end; with no transition to wait for, it would lower two
+ * frames after the commit). The starting style is keyed on
+ * `data-pi-moving` (set in the switch's commit by useShellTiming), so the
+ * cell's first style at load, with no switch, slides nothing in. The one
+ * exception to "once out, laid out": this cell, in MIN only, after its
+ * slide. Leaving the render from the exit itself, with a double rAF on
+ * the way back, is not used. The views keep the rule above, and so does
+ * the cell in MIN wherever the `@supports` gate below fails. The gate
+ * tests `transition-behavior: allow-discrete` alone; the rule also
+ * assumes that `display` transitions discretely and that
+ * `@starting-style` applies: without them the cell would leave or come
+ * back without sliding, and the dock band's shield would lower two frames
+ * after the commit. */
+@supports (transition-behavior: allow-discrete) {
+  .layout[data-pi-shell][data-pi-state="min"] > [data-pi-dock-cell] {
+    display: none;
+    transition:
+      transform var(--pi-shell-duration) var(--pi-shell-easing),
+      opacity var(--pi-shell-duration) var(--pi-shell-easing),
+      visibility 0s linear var(--pi-shell-duration),
+      display 0s linear var(--pi-shell-duration) allow-discrete;
+  }
+  @starting-style {
+    .layout[data-pi-shell][data-pi-moving][data-pi-state="mid"] > [data-pi-dock-cell] {
+      transform: translateY(100%);
+      opacity: 0;
+    }
+  }
+}
+
+/* View sheet: opaque, flush with the right edge from x 210, a hairline on
+ * its left. Always laid out at its final width; in the views it slides in by
+ * transform from the opening's own frame (`visibility` back at once), and
+ * its transition's end is what recentres the map (useShellTiming). No
+ * padding: as on the design canvas, the sheet itself is the view's surface,
+ * so its content spans (590 − 1) / zoom — 512 internal px at L, wider than
+ * the grid shell's 580 / 1.15 at 800 × 480. The views inset their own
+ * content instead: the forecast and alert cards drop their card chrome under
+ * the overlay shell (ChartTabs and AlertView stylesheets), and the
+ * conditions and AI hosts get the padding below.
+ * Pre-roll: the opening slide starts `--pi-sheet-preroll` (one 60 Hz frame,
+ * 17 ms) into its curve and lasts that much longer (a negative delay), so it
+ * still lands at the shell's 250 ms. Without it, the slide's first
+ * composited frame is its progress 0, `translateX(100%)`, entirely off
+ * screen: the opening showed nothing for a whole frame more than before the
+ * overlay shell (desktop Chromium traces at 4× and 6× CPU throttling: every
+ * view trailed the grid shell's at 800 × 480 by one frame on screen, two in
+ * a frame-timing measure). With it, the first frame already shows the sheet
+ * moved, about 69 px of it on 800 × 480 (the curve's first 6 % of time is
+ * 12 % of the travel). The transition starts in the tap's own frame, for
+ * every view. 0 in form 2 and under reduced motion (the root's
+ * properties), where nothing slides.
+ * `will-change: transform`: the first of the two exceptions to "no permanent
+ * will-change" (the views' shield has the other, its rule below). The
+ * will-change is permanent, the layer is not: closed, the sheet is
+ * `visibility: hidden` (the rule below) and paints nothing, and Chromium
+ * keeps no layer for it, will-change or not; its layer is created at each
+ * opening and dropped at each close (layer readings on a Pi 4 kiosk; a layer
+ * hidden by `visibility` keeps no tiles either) — and for the one warm frame
+ * of each view host at rest (the warm pose below), dropped on the next
+ * frame. Open, the sheet slides and lands on that layer of its own, so its
+ * content is not rasterized a second time when it lands (the gain is at the
+ * landing, not at the tap). It makes the sheet the containing block of any
+ * `position: fixed` descendant: none exists (the views' popovers that go
+ * fixed are portalled to <body>, DetailsPopover `portal`), pinned by
+ * test/piShellGeometry.test.js. And it is an opaque container for the card
+ * edge tokens (the inventory at the top of this file): its fill is the
+ * opaque --c-bg and the views' cards sit right on it under the overlay shell
+ * (ChartTabs' slab and AlertView's card drop their chrome there), so their
+ * translucent edge always shows one fixed colour.
+ * `touch-action: manipulation`: in a view, the views' shield (`.shield`
+ * below: z 25, a layer of its own, `touch-action: none`, non-passive touch
+ * listeners) lies under the sheet. The compositor decides how to send a
+ * touch by the frontmost layer that has a touch region at its point; the
+ * sheet's layer had none, so the shield's decided, and every touch on the
+ * sheet (its back button, a view's body, the start of a body's scroll)
+ * was sent blocking, behind the main thread. This gives the sheet's layer,
+ * and the layers of its subtree, a region in front of the shield's that
+ * does not block once the tap guard (ui/tapGuard.js) has removed its
+ * document listeners (while they listen, every touch blocks anyway). It
+ * only drops double-tap zoom; a pinch and the views' scrolling bodies stay
+ * allowed (no view declares a touch-action, so a view body's effective one
+ * is this). A touch on the shield itself (the map strip left of the sheet,
+ * or what the sliding sheet has not covered yet) is still the shield's, and
+ * still cancelled.
+ * Outside the views the sheet is inert and hidden; in its warm frame,
+ * inert and `pointer-events: none` as well, so a tap goes to what lies
+ * beneath. Same fix as the rail frame's and the live dock's over the map;
+ * in the base rule, so a switch restyles nothing. */
+.layout[data-pi-shell] .sheet {
+  --c-card-edge: var(--c-opaque-edge);
+  --c-card-edge-hybrid: var(--c-opaque-edge-hybrid);
+  position: absolute;
+  top: 0;
+  right: 0;
+  bottom: 0;
+  left: var(--pi-sheet-left);
+  z-index: 30;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: var(--c-bg);
+  border-left: 1px solid var(--c-border);
+  will-change: transform;
+  touch-action: manipulation;
+  transition:
+    transform calc(var(--pi-shell-duration) + var(--pi-sheet-preroll)) var(--pi-shell-easing) calc(-1 * var(--pi-sheet-preroll)),
+    visibility 0s linear 0s;
+}
+
+/* Outside the views: off the right edge, hidden and inert. The exit back
+ * to MID is instant (`transition: none`): an empty sheet sliding away
+ * after its host went hidden would look broken. Except in a host's warm
+ * frame (the root's `data-pi-warm`, the next rule). */
+.layout[data-pi-shell][data-pi-state="mid"]:not([data-pi-warm]) .sheet,
+.layout[data-pi-shell][data-pi-state="min"]:not([data-pi-warm]) .sheet {
+  transform: translateX(100%);
+  visibility: hidden;
+  transition: none;
+}
+
+/* The warm pose: for one idle frame per view host at rest, while the root's
+ * `data-pi-warm` names it (useHostWarmup, ui/sheetWarmup.js), the closed
+ * sheet is in place — the base rule's open position, no transform, not
+ * hidden — with that host un-skipped (the hosts' rule below), so Blink
+ * paints it and the compositor rasterizes the sheet's tiles like an
+ * opening's: the first rasterization of the views' content since load
+ * (shader programs, glyphs, decoded images; without it, a frame was skipped
+ * at the slide's start in 8 first openings out of 8) is paid there, out of
+ * sight, not at the first opening. The next frame takes the attribute off:
+ * off screen, hidden, the layer dropped.
+ *   - Opacity 0.001 (ui/sheetWarmup.js SHEET_WARM_OPACITY, pinned by
+ *     test/sheetWarmup.test.js): over Blink's 0.0004, under which it
+ *     paints nothing, and not 0, which the compositor neither draws nor
+ *     rasterizes; under half an 8-bit level, so no pixel changes.
+ *   - `will-change: transform, opacity`: the opacity applied by the
+ *     compositor, the tiles rasterized at full alpha (folded into the
+ *     sheet's paint, a 0.001 save-layer, Skia would draw nothing). Both on
+ *     the sheet, the will-change exception's element; the opacity only in
+ *     this pose, so never at rest outside a warm frame.
+ *   - Inert (LayoutPi: outside the views) and `pointer-events: none`: a
+ *     tap goes to the rail or the map beneath, and its pointerdown takes
+ *     the pose off at once.
+ *   - `transition: none`: it jumps in and out, nothing slides.
+ * Note: this makes the sheet's layer exist for that frame — on screen,
+ * invisible, never off screen and never kept. No mechanism paints the
+ * sheet without one (its permanent `will-change: transform` composites
+ * it, and over the composited map it would need one anyway). MID and MIN
+ * only: a view's state never takes it. */
+.layout[data-pi-shell][data-pi-state="mid"][data-pi-warm] .sheet,
+.layout[data-pi-shell][data-pi-state="min"][data-pi-warm] .sheet {
+  opacity: 0.001;
+  will-change: transform, opacity;
+  pointer-events: none;
+  transition: none;
+}
+
+/* The sheet's zoomed subtree: one grid cell of definite size, in which the
+ * four view hosts are stacked and always laid out (each a flex column
+ * filling the cell, which the views' own scrolling bodies rely on — the grid
+ * shell's `.rail` provides it). A view's opening then only switches which
+ * host shows: nothing mounts, nothing goes from `display: none` to its first
+ * layout, and the forecast chart keeps its size (in a desktop Chromium trace
+ * without this, the shown host's style and layout, and Chart.js resizing its
+ * canvas from 0 × 0 on the next frame, were paid inside the tap's commit or
+ * right after it). */
+.layout[data-pi-shell] .sheetInner {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-rows: minmax(0, 1fr);
+  zoom: var(--c-font-scale, 1);
+}
+
+/* (0,3,0), after the grid shell's `[data-pi-state] .forecastHost` /
+ * `.conditionsHost` / `.alertHost` rules and `.aiHost`: displayed in
+ * every state under the overlay shell, each in the one cell. */
+.layout[data-pi-shell] .forecastHost,
+.layout[data-pi-shell] .conditionsHost,
+.layout[data-pi-shell] .alertHost,
+.layout[data-pi-shell] .aiHost {
+  grid-area: 1 / 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* The hosts of the other states (all four outside the views):
+ * `content-visibility: hidden` skips their contents — no style, layout,
+ * paint, hit-testing, focus or assistive-tech visit — while keeping
+ * their layout for the next reveal, so a data refresh made while hidden
+ * is laid out at that reveal, and only what changed. The host's own box
+ * still hit-tests (only its contents are skipped): stacked over the
+ * shown one, it would swallow the view's taps, hence `pointer-events:
+ * none`. `contain-intrinsic-size` is the sheet's box on 800 × 480
+ * (589 × 480; the grid cell sizes the hosts, this is only for anything
+ * sizing from them). Written for the hidden hosts only, through
+ * `:not()`: the shown one keeps the initial values, so nothing here sets
+ * a `visibility: visible` lookalike (test/piShellGeometry's guard).
+ * The root's `data-pi-warm`, set by hand for one frame at rest with the
+ * sheet closed (useHostWarmup), leaves the host it names out too: a host
+ * never revealed has never been laid out, and its first opening after boot
+ * paid that in its first frame (one frame behind the grid shell at
+ * 800 × 480), and the first rasterization of its content. That frame puts
+ * the sheet in its warm pose (above), at opacity 0.001, so it lays the host
+ * out and paints it and shows nothing. Same selectors in the fallback below.
+ * */
+.layout[data-pi-shell]:not([data-pi-state="max"]):not([data-pi-warm="max"]) .forecastHost,
+.layout[data-pi-shell]:not([data-pi-state="conditions"]):not([data-pi-warm="conditions"]) .conditionsHost,
+.layout[data-pi-shell]:not([data-pi-state="alert"]):not([data-pi-warm="alert"]) .alertHost,
+.layout[data-pi-shell]:not([data-pi-state="ai"]):not([data-pi-warm="ai"]) .aiHost {
+  content-visibility: hidden;
+  contain-intrinsic-size: 589px 480px;
+  pointer-events: none;
+}
+
+/* Without `content-visibility` (the `@supports not` gate below) the four
+ * hosts would paint on top of each other: hide the other states' instead.
+ * `visibility: hidden` also takes them out of hit-testing, focus and the
+ * accessibility tree; their contents are then styled and laid out like the
+ * shown one's. */
+@supports not (content-visibility: hidden) {
+  .layout[data-pi-shell]:not([data-pi-state="max"]):not([data-pi-warm="max"]) .forecastHost,
+  .layout[data-pi-shell]:not([data-pi-state="conditions"]):not([data-pi-warm="conditions"]) .conditionsHost,
+  .layout[data-pi-shell]:not([data-pi-state="alert"]):not([data-pi-warm="alert"]) .alertHost,
+  .layout[data-pi-shell]:not([data-pi-state="ai"]):not([data-pi-warm="ai"]) .aiHost {
+    visibility: hidden;
+  }
+}
+
+/* Conditions and AI views in the sheet: their cards would otherwise
+ * touch the sheet's edges. Internal px (inside .sheetInner's zoom), set so
+ * each view's title and minimize square line up with the flattened
+ * forecast card's 12 px / 14 px inset (the views' own headers add 4 px on
+ * top and 2 px at the sides), and their cards keep a 12 px margin. */
+.layout[data-pi-shell] .conditionsHost,
+.layout[data-pi-shell] .aiHost {
+  padding: 8px 12px 12px;
+}
+
+/* Gesture lock for the map and the rail during a view (rendered from the
+ * view's opening until the switch back has settled: the dock back at rest
+ * and 300 ms gone since the close). Full width, not just the 210 px strip:
+ * for the 250 ms of the slide the sheet hasn't covered the map and the rail
+ * yet, and a tap there must not relocate the map, open an alert polygon's
+ * popup or hit a rail card; after the view, a tap in the dock's area while
+ * the dock slides back, or the second tap of a double tap on the close
+ * button, must not reach the map or the rail either. It sits under the sheet
+ * (z 25 < 30), so the sheet stays tappable from its first frame, under the
+ * dock (1100), and over the rail (20) and the map. Transparent;
+ * `touch-action: none` so a pinch here can't zoom the page now that
+ * Leaflet's container (touch-action: none) no longer receives it. A touch
+ * that begins here is cancelled at its touchstart (LayoutPi's
+ * useTouchCancel), so no click at the release can reach the map or the
+ * rail if the shield has gone by then.
+ * `will-change: transform`: its own composited layer, 800 × 480, which
+ * paints nothing. Without it Chromium squashes the shield into the rail's
+ * layer, under it in z: that layer grows from the rail's 300 × 256 to
+ * 800 × 480 in the opening's frame N and rasterizes two rail tiles there
+ * instead of one (12 layer readings out of 12, 36 traced openings out of
+ * 36). The second of the two exceptions to "no permanent will-change", after
+ * the sheet's; it exists only while the shield does: the element is mounted
+ * for a view, then until the close has settled (useShellTiming `shield`),
+ * never in MID or MIN at rest. Not on the dock band's shield or its guard:
+ * always mounted, they would hold a layer in every state. It would make the
+ * shield the containing block of a `position: fixed` descendant: it has no
+ * children. */
+.layout[data-pi-shell] .shield {
+  position: absolute;
+  inset: 0;
+  z-index: 25;
+  touch-action: none;
+  will-change: transform;
+}
+
+/* Gesture lock for the dock's band on a MIN ↔ MID switch. Always mounted
+ * (`[data-pi-dock-shield]`), it blocks only while useShellTiming holds
+ * `data-active="true"`: from the switch's commit until the dock's own
+ * transform transition has ended, or 300 ms after a one-frame switch
+ * (reduced motion, form 2). The dock goes inert on its first exit frame, and
+ * the scrubber or legend card that will cover the band stays hidden for the
+ * first 150 ms (`--pi-overlay-in-delay`), so a quick second tap on a dock
+ * button would otherwise reach the map and relocate the station; back to
+ * MID, the band above the rising dock is covered the same way. The band
+ * only, full width: the rail never reaches it (it ends 10 px above the dock)
+ * and the map above it stays live. Over the map (its overlays included) and
+ * under the dock (1100), so the dock takes its taps from its first frame
+ * back. Transparent; while raised, `touch-action: none` like the views'
+ * shield, and like it the touches it takes are cancelled: a second tap
+ * pressed here before the cut-out below opens doesn't send its compatibility
+ * mousedown and click to the scrubber the cut-out has uncovered by its
+ * release. Only while raised: `touch-action` sits in the `[data-active]`
+ * rule, and useShellTiming adds its cancel listeners when it raises it and
+ * removes them when it lowers it (once the touches begun on it have ended;
+ * ui/tapGuard.js toggleTouchCancel). With both on it at all times, it would
+ * keep a blocking touch region over the dock's band at rest despite
+ * `pointer-events: none`, and every touchstart on the dock would be sent
+ * blocking.
+ *
+ * Its clip-path is a cut-out that stays closed (a zero-area hole) except
+ * over an arriving scrubber: the shield lies over the map's overlays, so
+ * without it the scrubber, visible from 150 ms, would have the bottom
+ * 42 px of its box in the band under the still-raised shield until the
+ * dock's slide ends (~250 ms), and a tap on a visible control would be
+ * swallowed (a visible control must never ignore a tap). So `data-scrubber`
+ * (set by hand by useShellTiming in a switch's commit when a live scrubber
+ * is mounted) opens the hole over its box — `--pi-scrubber-inset` (16 px)
+ * from the band's left and right edges, down to that inset above the
+ * screen's bottom edge (the scrubber's own overlay-shell rule in
+ * WeatherMap/styles.css reads the same root properties), less a square of
+ * the inset plus `--pi-scrubber-radius` (12 px) at each bottom corner, where
+ * the bar's rounding would leave map uncovered — in the frame the
+ * scrubber becomes visible:
+ * a 0s step delayed by the same `--pi-overlay-in-delay`, started by the
+ * same commit, on the same clock. Leaving (the scrubber goes inert at
+ * once), the hole closes at once. Both polygons have the same vertices so
+ * the step is a transition; at rest the shield is inactive and its clip
+ * has no effect. Over the dock buttons' row, the double-tap guard below
+ * still covers the cut-out where the switch's own click landed, and so
+ * does the event guard the timeline button arms (ControlButtons,
+ * ui/tapGuard.js: 300 ms, a 60 × 58 px box centred on the click). */
+.layout[data-pi-shell] .dockShield {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: var(--c-dock-height);
+  z-index: 25;
+  pointer-events: none;
+  clip-path: polygon(evenodd, 0 0, 100% 0, 100% 100%, 0 100%, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0, 0 0);
+}
+
+.layout[data-pi-shell] .dockShield[data-active="true"] {
+  pointer-events: auto;
+  touch-action: none;
+}
+
+.layout[data-pi-shell] .dockShield[data-scrubber] {
+  /* The scrubber's inset, and its inset plus its corner radius (the
+   * corner squares), from the root's scrubber properties. */
+  --pi-cut-edge: var(--pi-scrubber-inset);
+  --pi-cut-corner: calc(var(--pi-scrubber-inset) + var(--pi-scrubber-radius));
+  clip-path: polygon(evenodd, 0 0, 100% 0, 100% 100%, 0 100%, 0 0, var(--pi-cut-edge) 0, calc(100% - var(--pi-cut-edge)) 0, calc(100% - var(--pi-cut-edge)) calc(100% - var(--pi-cut-corner)), calc(100% - var(--pi-cut-corner)) calc(100% - var(--pi-cut-corner)), calc(100% - var(--pi-cut-corner)) calc(100% - var(--pi-cut-edge)), var(--pi-cut-corner) calc(100% - var(--pi-cut-edge)), var(--pi-cut-corner) calc(100% - var(--pi-cut-corner)), var(--pi-cut-edge) calc(100% - var(--pi-cut-corner)), var(--pi-cut-edge) 0);
+  transition: clip-path 0s linear var(--pi-overlay-in-delay);
+}
+
+/* The dock band's double-tap guard: the cut-out above uncovers the
+ * scrubber's track right over the dock buttons' row (the bar's bottom 42 px
+ * lie in the band, its track at y 421-453 on 480), so without this the
+ * second tap of a double tap on the dock's timeline button, landing on the
+ * track once the bar shows (from 150 ms, or from the first frame under
+ * reduced motion), would engage the scrubber and seek the radar back in time
+ * — the very tap the band's shield exists to swallow (the shield is kept
+ * 300 ms, reduced motion included). Always mounted (`[data-pi-dock-guard]`),
+ * after the shield, at the same z (so over the map's overlays, the scrubber
+ * included, and under the dock). It blocks only while useShellTiming holds
+ * `data-active="true"`: raised with the shield, and only when the click that
+ * started the switch was on the dock; lowered with it. useShellTiming sets
+ * `--pi-dock-guard-x` on it, by hand, to that click's x: the guard spans the
+ * band's height and `--pi-dock-guard-width` (a dock button plus 8 px a side)
+ * centred there. A tap at the same place within the shield's window is a
+ * double tap by definition; the rest of the scrubber keeps taking taps as
+ * soon as it shows. The click's x is a viewport coordinate: the shell's root
+ * spans the viewport, as its `100vw` rules already assume. Transparent;
+ * while raised, `touch-action: none` like the shields, its touches cancelled
+ * like theirs (only while raised, as the band shield's above): a press on it
+ * lowered before its release doesn't hand its click to the scrubber beneath.
+ * Kept beside the event guard the timeline button arms (ui/tapGuard.js, a
+ * 60 × 58 px box for 300 ms from the click, the whole gesture with it): this
+ * one covers the band's whole height and lasts until the dock's slide has
+ * ended, past 300 ms on a loaded Pi 3B. */
+.layout[data-pi-shell] .dockGuard {
+  position: absolute;
+  bottom: 0;
+  left: calc(var(--pi-dock-guard-x, 0px) - var(--pi-dock-guard-width) / 2);
+  width: var(--pi-dock-guard-width);
+  height: var(--c-dock-height);
+  z-index: 25;
+  pointer-events: none;
+}
+
+.layout[data-pi-shell] .dockGuard[data-active="true"] {
+  pointer-events: auto;
+  touch-action: none;
+}
+
+/* Form 2 (a fallback the shipped code never selects, ui/piShellGeometry.js):
+ * the map is clipped to the zone the rail and dock leave clear (490 × 422 on
+ * 800 × 480), to the view strip in the views, and to nothing in MIN; the
+ * rail and dock then sit on the root's plain `--c-bg`. The clip changes size
+ * in one frame; the map inside keeps the full screen size (never `inset: 0`
+ * here, or Leaflet would resize and the map would move twice — once from
+ * MapResizer, once from the offset pan). */
+.layout[data-pi-form="2"] .mapClip {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: calc(100% - var(--pi-rail-width) - var(--pi-rail-right));
+  height: calc(100% - var(--c-dock-height));
+  overflow: hidden;
+}
+.layout[data-pi-form="2"][data-pi-state="min"] .mapClip {
+  width: 100%;
+  height: 100%;
+}
+.layout[data-pi-form="2"][data-pi-state="max"] .mapClip,
+.layout[data-pi-form="2"][data-pi-state="conditions"] .mapClip,
+.layout[data-pi-form="2"][data-pi-state="alert"] .mapClip,
+.layout[data-pi-form="2"][data-pi-state="ai"] .mapClip {
+  width: var(--pi-sheet-left);
+  height: 100%;
+}
+.layout[data-pi-form="2"] .mapClip > .mapArea {
+  inset: auto;
+  top: 0;
+  left: 0;
+  width: 100vw;
+  height: 100dvh;
+}
+
+/* The press tint (usePressTint): a view trigger touched by the finger takes
+ * the accent's soft fill as its background, nothing else (no geometry, no
+ * transition), from the touch-down; the release never removes it. Always on
+ * under the overlay shell, on the rail's triggers, the dock's view buttons
+ * and the views' back buttons alike, with no setting (measured: no cost in
+ * the opening frame, Event Timing equal or better with it). The tripled
+ * `data-pi-pressed` gives the rule the (0,6,0) of a rule keyed on a root
+ * attribute, which outranks the triggers' own backgrounds (the dock's
+ * grouped buttons are (0,4,1)). ChartTabs' restore button paints its box
+ * with ::before, so it takes the tint there (ChartTabs/styles.css, whose
+ * rules keep their specificity the same way). */
+.layout[data-pi-shell] [data-pi-press][data-pi-pressed][data-pi-pressed][data-pi-pressed] {
+  background-color: var(--c-accent-soft);
+}
+

@@ -1,4 +1,4 @@
-import React, { createContext, useState, useEffect, useRef, useCallback, useMemo } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { getSettings } from "~/settings";
 import PropTypes from "prop-types";
 import { getCoordsFromApi } from "~/services/geolocation";
@@ -51,7 +51,10 @@ export const AppActionsContext = createContext(null);
  * isSystemd), brightness + sleep + Sense HAT hardware
  * state, kiosk display-scale state (useDisplayScale), in-app updater
  * state, and global panel/layout flags (settings + debug menus, the
- * radar-maximized sentinels, the piLayoutState enum + piScrubberOpen).
+ * desktop / mobile radar-maximized sentinels). The LayoutPi shell's
+ * state (piLayoutState, piRadarMaximized, piScrubberOpen) is NOT here: it
+ * changes at every Pi view switch, and has its own context
+ * (PiLayoutContext, below).
  * Update cadence: a burst at boot while settings, /api/is-local and
  * /api/update-check resolve, then rare — user panel toggles, the
  * periodic update check, brightness slider drags, sleep-stage flips.
@@ -112,6 +115,44 @@ export const AlertsContext = createContext(null);
  */
 export const RadarStateContext = createContext(null);
 
+/**
+ * Pi-layout slice — field domain: the LayoutPi
+ * shell's state: the `piLayoutState` enum ("min" | "mid" | "max" |
+ * "alert" | "conditions" | "ai"; null while LayoutPi is not mounted), its
+ * derived `piRadarMaximized` boolean (MIN ⇔ true; null when not mounted)
+ * and the ephemeral `piScrubberOpen` flag. Update cadence: every LayoutPi
+ * switch (a dock button, the hero's ⤢, a view's back button, the focus
+ * square, the mini-banner) — the kiosk's hottest user-driven state.
+ *
+ * Not one of the seven slices: it is kept out of the System slice and out
+ * of the legacy AppContext union, and owned by PiLayoutProvider rather
+ * than by the state tree below it, so a switch re-renders only the
+ * components that read it — not every System or union consumer (the Sun /
+ * Moon popovers, ScreenSaver, the Settings / Debug panels, UpdateModal,
+ * the useTimeOfDay readers…), nor the provider of the seven slices. Never
+ * spread it back into the union "for compatibility": that would undo the
+ * point (every switch would re-render every union consumer again). Its
+ * setters stay in the Actions slice (identity-stable, so a switch never
+ * changes that slice). Subscribe here when the exact state matters; for
+ * "is LayoutPi mounted?" alone, read PiLayoutMountedContext.
+ */
+export const PiLayoutContext = createContext(null);
+
+/**
+ * Whether LayoutPi is mounted (`piLayoutState != null`), as a boolean that
+ * flips only when LayoutPi mounts or unmounts, never on a switch between
+ * its states: for the components that only branch on "am I on the Pi
+ * rail?" (the alert banner, mini-cards and inline detail), so a view
+ * switch doesn't re-render them. Owned by PiLayoutProvider, like
+ * PiLayoutContext. Default false: no provider, no LayoutPi.
+ */
+export const PiLayoutMountedContext = createContext(false);
+
+// The Pi-layout setters, handed from PiLayoutProvider to AppStateProvider,
+// whose Actions slice re-exports them: components keep reading them from
+// AppActionsContext. Internal, hence not exported.
+const PiLayoutActionsContext = createContext(null);
+
 // Key and fallback come from ui/startMapZoom.js, shared with the Settings
 // row that writes the starting zoom, so the two sides can't drift apart.
 const DEFAULT_MAP_ZOOM_STORAGE_KEY = START_ZOOM_STORAGE_KEY;
@@ -165,7 +206,98 @@ function isAnthropicKeyConfigured(value) {
 }
 
 /**
- * App context provider.
+ * Owner of the LayoutPi shell's state: PiLayoutContext (`piLayoutState`,
+ * `piRadarMaximized`, `piScrubberOpen`), PiLayoutMountedContext, and the
+ * setters' internal context, which AppStateProvider re-exports through its
+ * Actions slice. Its own component, above AppStateProvider: a LayoutPi
+ * switch is a state update here, so it
+ * re-renders this component and the readers of its contexts only. Its
+ * `children` element is built by AppContextProvider, which holds no state,
+ * so it is the same object at every render here and React skips it.
+ *
+ * @param {object} props
+ * @param {Node} props.children - AppStateProvider and the app below it
+ * @returns {JSX.Element} the Pi-layout providers around `children`
+ */
+function PiLayoutProvider({ children }) {
+  // The LayoutPi sentinel — same pattern as AppStateProvider's
+  // `mobileRadarMaximized` / `desktopRadarMaximized`. Added as
+  // part of the v3.1 chevron → RadarFocusControl consolidation
+  // (2026-05-28): the legacy chevron-driven panel-collapse mode
+  // on LayoutPi was replaced by the same focus-mode toggle
+  // LayoutDesktop already used, so the three layouts now share one
+  // mental model — "tap to focus the radar, tap again to restore."
+  // The WeatherMap RadarFocusControl renders whenever *either*
+  // `piRadarMaximized` or `desktopRadarMaximized` is non-null, and
+  // routes its toggle to whichever sentinel is active.
+  // v3.2 "3 états radar": the 7" Pi screen now has THREE layout states
+  // (MIN fullscreen radar / MID split / MAX forecast-forward), carried by a
+  // single enum `piLayoutState: "min" | "mid" | "max" | "alert" |
+  // "conditions" | "ai" | null`. The last three are the v3.3 full-rail views
+  // (Alert / Conditions / AI); "alert" and "conditions" are produced only
+  // when `priorityViewsEnabled()`, while "ai" is reachable from the dock's IA
+  // button on every LayoutPi (no Pi rail shows the AI summary inline);
+  // `MAX_VIEWS` in `ui/piLayout.js` lists every
+  // full-rail state. `null` keeps the sentinel meaning "LayoutPi not mounted"
+  // (the WeatherMap RadarFocusControl gate keys on non-null). MIN maps to the
+  // old focus-mode `true`; every other state maps to `false`.
+  const [piLayoutState, setPiLayoutState] = useState(null);
+  // v3.3 priority: ephemeral (NOT persisted) "radar scrubber open in MIN" flag.
+  // Decouples the priority MIN scrubber from the shared, persisted
+  // `radarTimelineVisible` pref so a layout transition never mutates a
+  // desktop/mobile setting (the regression LayoutMobile already guards). Set
+  // by the dock timeline button on entering MIN; cleared on leaving MIN.
+  const [piScrubberOpen, setPiScrubberOpen] = useState(false);
+  // Back-compat shim for the still-boolean Leaflet-side consumers (WeatherMap's
+  // RadarFocusControl gate + useRailOffset): they read `piRadarMaximized` (MIN ⇔ true) and
+  // call `setPiRadarMaximized(bool)`. Both are projected onto the enum so
+  // those files can migrate independently rather than all in one commit.
+  const piRadarMaximized = piLayoutState == null ? null : piLayoutState === "min";
+  const setPiRadarMaximized = useCallback((value) => {
+    // Honour the old useState dispatcher contract, including the
+    // functional-updater form `setPiRadarMaximized(prev => !prev)`:
+    // resolve the updater against the derived boolean (MIN ⇔ true)
+    // before projecting back onto the enum.
+    setPiLayoutState((prevEnum) => {
+      const resolved = typeof value === "function" ? value(prevEnum === "min") : value;
+      return resolved == null ? null : resolved ? "min" : "mid";
+    });
+  }, []);
+  // The setters, for AppStateProvider's Actions slice: two useState
+  // setters and a []-memoized callback, all identity-stable, so this
+  // value is built once and AppStateProvider never re-renders for it.
+  const piLayoutActions = useMemo(() => ({
+    setPiLayoutState,
+    setPiRadarMaximized,
+    setPiScrubberOpen,
+  }), [setPiRadarMaximized]);
+  const piLayoutSlice = useMemo(() => ({
+    piLayoutState,
+    piRadarMaximized,
+    piScrubberOpen,
+  }), [piLayoutState, piRadarMaximized, piScrubberOpen]);
+  const piLayoutMounted = piLayoutState != null;
+
+  return (
+    <PiLayoutActionsContext.Provider value={piLayoutActions}>
+      <PiLayoutMountedContext.Provider value={piLayoutMounted}>
+        <PiLayoutContext.Provider value={piLayoutSlice}>
+          {children}
+        </PiLayoutContext.Provider>
+      </PiLayoutMountedContext.Provider>
+    </PiLayoutActionsContext.Provider>
+  );
+}
+
+PiLayoutProvider.propTypes = {
+  children: PropTypes.oneOfType([
+    PropTypes.arrayOf(PropTypes.node),
+    PropTypes.node,
+  ]).isRequired,
+};
+
+/**
+ * App state provider (rendered by AppContextProvider, under PiLayoutProvider).
  *
  * Architecture (step 2b of the AppContext split): one state tree feeds
  * eight providers. The seven slice contexts (AppActions, System,
@@ -176,7 +308,9 @@ function isAnthropicKeyConfigured(value) {
  * innermost AppContext.Provider receives the spread union of the seven
  * slices (memoized over the slice identities), which keeps every
  * unmigrated consumer working unchanged and makes union completeness
- * true by construction.
+ * true by construction. The LayoutPi shell's state is not in this tree:
+ * PiLayoutProvider, above, owns it (PiLayoutContext), and only its
+ * identity-stable setters come down into the Actions slice.
  *
  * Migration policy: NEW components — and existing hot-path components
  * being touched anyway — subscribe to the narrowest slice(s) they
@@ -187,7 +321,7 @@ function isAnthropicKeyConfigured(value) {
  * @param {Node} props.children
  * @returns {JSX.Element} Context provider
  */
-export function AppContextProvider({ children }) {
+function AppStateProvider({ children }) {
   const [weatherApiKey, setWeatherApiKey] = useState(null);
   const [mapApiKey, setMapApiKey] = useState(null);
   const [reverseGeoApiKey, setReverseGeoApiKey] = useState(null);
@@ -408,48 +542,11 @@ export function AppContextProvider({ children }) {
   // mount and back to null on unmount. The Leaflet focus control
   // in WeatherMap reads this to decide whether to render itself.
   const [desktopRadarMaximized, setDesktopRadarMaximized] = useState(null);
-  // Same sentinel pattern again, this time for LayoutPi. Added as
-  // part of the v3.1 chevron → RadarFocusControl consolidation
-  // (2026-05-28): the legacy chevron-driven panel-collapse mode
-  // on LayoutPi was replaced by the same focus-mode toggle
-  // LayoutDesktop already used, so the three layouts now share one
-  // mental model — "tap to focus the radar, tap again to restore."
-  // The WeatherMap RadarFocusControl renders whenever *either*
-  // `piRadarMaximized` or `desktopRadarMaximized` is non-null, and
-  // routes its toggle to whichever sentinel is active.
-  // v3.2 "3 états radar": the 7" Pi screen now has THREE layout states
-  // (MIN fullscreen radar / MID split / MAX forecast-forward), carried by a
-  // single enum `piLayoutState: "min" | "mid" | "max" | "alert" |
-  // "conditions" | "ai" | null`. The last three are the v3.3 full-rail views
-  // (Alert / Conditions / AI); "alert" and "conditions" are produced only
-  // when `priorityViewsEnabled()`, while "ai" is reachable from the dock's IA
-  // button on every LayoutPi (no Pi rail shows the AI summary inline);
-  // `MAX_VIEWS` in `ui/piLayout.js` lists every
-  // full-rail state. `null` keeps the sentinel meaning "LayoutPi not mounted"
-  // (the WeatherMap RadarFocusControl gate keys on non-null). MIN maps to the
-  // old focus-mode `true`; every other state maps to `false`.
-  const [piLayoutState, setPiLayoutState] = useState(null);
-  // v3.3 priority: ephemeral (NOT persisted) "radar scrubber open in MIN" flag.
-  // Decouples the priority MIN scrubber from the shared, persisted
-  // `radarTimelineVisible` pref so a layout transition never mutates a
-  // desktop/mobile setting (the regression LayoutMobile already guards). Set
-  // by the dock timeline button on entering MIN; cleared on leaving MIN.
-  const [piScrubberOpen, setPiScrubberOpen] = useState(false);
-  // Back-compat shim for the still-boolean Leaflet-side consumers (WeatherMap's
-  // RadarFocusControl gate + useRailOffset): they read `piRadarMaximized` (MIN ⇔ true) and
-  // call `setPiRadarMaximized(bool)`. Both are projected onto the enum so
-  // those files can migrate independently rather than all in one commit.
-  const piRadarMaximized = piLayoutState == null ? null : piLayoutState === "min";
-  const setPiRadarMaximized = useCallback((value) => {
-    // Honour the old useState dispatcher contract, including the
-    // functional-updater form `setPiRadarMaximized(prev => !prev)`:
-    // resolve the updater against the derived boolean (MIN ⇔ true)
-    // before projecting back onto the enum.
-    setPiLayoutState((prevEnum) => {
-      const resolved = typeof value === "function" ? value(prevEnum === "min") : value;
-      return resolved == null ? null : resolved ? "min" : "mid";
-    });
-  }, []);
+  // The LayoutPi sentinel and the rest of the shell's state live in
+  // PiLayoutProvider (above this provider; see PiLayoutContext): only
+  // their setters come down here, for the Actions slice. They are
+  // identity-stable, so reading them never re-renders this provider.
+  const { setPiLayoutState, setPiRadarMaximized, setPiScrubberOpen } = useContext(PiLayoutActionsContext);
   // Display sub-tree (advanced.display.* in settings.json).
   // lightModeStyle / darkModeStyle drive the Mapbox style for each theme.
   const [lightModeStyle, setLightModeStyle] = useState("streets-v12");
@@ -2651,9 +2748,6 @@ export function AppContextProvider({ children }) {
     debugMenuOpen,
     mobileRadarMaximized,
     desktopRadarMaximized,
-    piRadarMaximized,
-    piLayoutState,
-    piScrubberOpen,
   }), [
     displayScaleAvailable,
     displayScaleOverride,
@@ -2700,9 +2794,6 @@ export function AppContextProvider({ children }) {
     debugMenuOpen,
     mobileRadarMaximized,
     desktopRadarMaximized,
-    piRadarMaximized,
-    piLayoutState,
-    piScrubberOpen,
   ]);
 
   // Location: the position of record + its derived lookups.
@@ -2947,6 +3038,38 @@ export function AppContextProvider({ children }) {
         </LocationContext.Provider>
       </SystemContext.Provider>
     </AppActionsContext.Provider>
+  );
+}
+
+AppStateProvider.propTypes = {
+  children: PropTypes.oneOfType([
+    PropTypes.arrayOf(PropTypes.node),
+    PropTypes.node,
+  ]).isRequired,
+};
+
+/**
+ * App context provider — the app's root provider (client/src/index.js).
+ *
+ * Two layers: PiLayoutProvider owns the
+ * LayoutPi shell's state (PiLayoutContext, PiLayoutMountedContext), and
+ * AppStateProvider, below it, owns everything else (the seven slices and
+ * the legacy union). A LayoutPi switch therefore re-renders
+ * PiLayoutProvider and the readers of its contexts only: this component
+ * holds no state, so the AppStateProvider element it hands down is the
+ * same object at every PiLayoutProvider render and React skips it, and
+ * AppStateProvider reads only the setters' context, whose value never
+ * changes.
+ *
+ * @param {object} props
+ * @param {Node} props.children - the app
+ * @returns {JSX.Element} the provider tree around `children`
+ */
+export function AppContextProvider({ children }) {
+  return (
+    <PiLayoutProvider>
+      <AppStateProvider>{children}</AppStateProvider>
+    </PiLayoutProvider>
   );
 }
 

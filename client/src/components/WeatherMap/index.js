@@ -1,5 +1,6 @@
 import React, {
   useEffect,
+  useLayoutEffect,
   useContext,
   useState,
   useCallback,
@@ -50,6 +51,7 @@ import PropTypes from "prop-types";
 import {
   AppActionsContext,
   SystemContext,
+  PiLayoutContext,
   LocationContext,
   UiPrefsContext,
   AlertsContext,
@@ -59,7 +61,8 @@ import useEligibleGovAlerts from "~/hooks/useEligibleGovAlerts";
 import SourceBadge from "~/components/ambient/SourceBadge";
 import SeverityChip from "~/components/ambient/SeverityChip";
 import { useTimeOfDay } from "~/ui/hybrid";
-import { isPiMaxView, priorityViewsEnabled } from "~/ui/piLayout";
+import { isPiMaxView, piShellVariant, priorityViewsEnabled } from "~/ui/piLayout";
+import { overlayPresentation, popupAutoPanPadding, railOffsetFor } from "~/ui/piShellGeometry";
 import {
   NO_SLOTS,
   RADAR_HOLD_DEADLINE_MS,
@@ -120,6 +123,11 @@ const NO_ALERTS = Object.freeze([]);
  * radar focus mode hides the rail, so the zero case must keep one stable
  * reference across renders). */
 const ZERO_RAIL_OFFSET = Object.freeze({ x: 0, y: 0 });
+
+/* No extra props for the survey popup outside the overlay shell: an empty
+ * spread leaves Leaflet's own auto-pan padding in place (see
+ * `surveyPopupPadding` in the main component). */
+const NO_POPUP_PADDING = Object.freeze({});
 
 /* Zoom threshold above which the analysis-zone dashed circles AND
  * the sampling-point dots stop rendering. At z=13 the inner 50 km
@@ -252,15 +260,46 @@ MapClickHandler.propTypes = {
  * pass runs. Deferring by a frame lets the browser commit the
  * stylesheet before we measure.
  *
+ * Under LayoutPi's overlay shell (LayoutPi passes `shellState`, the state
+ * its map follows) nothing above runs: the offset comes from that state
+ * alone, `railOffsetFor` in ui/piShellGeometry.js — MID `{x: 310, y: -58}`
+ * (rail at the right, the 58 px dock band at the bottom, hence the negative
+ * y), MIN zero (MID's in the unreachable fallback form `d1-still`), the
+ * four views MID's too (Leaflet stays at its MID pose under a view; the
+ * panes move by a CSS `translate`, WeatherMap/styles.css,
+ * ui/piShellGeometry.js viewPaneShift).
+ * Never measured: the MID x includes the rail's 10 px right gap, which no
+ * box's width carries, and a rect read mid-slide is shifted by the
+ * transform. The values are frozen and identity-stable per state. The
+ * shell decides WHEN the state changes (LayoutPi/useShellTiming.js):
+ * opening a view, only once the sheet has slid in.
+ *
+ * @param {?string} [shellState] Overlay shell only: its map state
+ *   (WeatherMap's `shellMapState`); undefined on every other layout
  * @returns {{x: Number, y: Number}} pixels of the map covered by the
- *   rail (x) and the HeroBand (y) — non-zero on LayoutDesktop only; the
+ *   rail (x) and the HeroBand (y; a negative y is a band covering the
+ *   BOTTOM, the overlay shell's dock) — measured and non-zero on
+ *   LayoutDesktop, state-derived under the overlay shell, zero on every
+ *   other layout; the
  *   frozen ZERO_RAIL_OFFSET in focus mode
  */
-function useRailOffset() {
-  const { desktopRadarMaximized, piRadarMaximized } = useContext(SystemContext);
+function useRailOffset(shellState) {
+  const { desktopRadarMaximized } = useContext(SystemContext);
+  const { piRadarMaximized } = useContext(PiLayoutContext);
   const focusActive = desktopRadarMaximized || piRadarMaximized;
+  // Overlay shell: null unless LayoutPi's overlay shell passed its map
+  // state (with forcePriorityViews on, a wide window renders LayoutDesktop,
+  // which passes nothing).
+  const shellOffset = railOffsetFor(shellState, piShellVariant());
+  const shellActive = shellOffset !== null;
   const [measured, setMeasured] = useState(ZERO_RAIL_OFFSET);
   useEffect(() => {
+    // Overlay shell: the offset is state-derived (returned below); nothing to
+    // measure, and no state write that would re-render the map one frame
+    // into each recentring pan.
+    if (shellActive) {
+      return undefined;
+    }
     // Focus mode hides HeroBand + rail via display:none — the hook's
     // return value DERIVES to zero below (no state write here:
     // react-hooks/set-state-in-effect), so there is nothing to measure.
@@ -278,6 +317,8 @@ function useRailOffset() {
       // edge) OVERLAY the map. On LayoutPi the map sits in its own
       // grid column with the rail in a separate column, so the visible
       // map area is already the full map — no shift needed at all.
+      // (LayoutPi's overlay shell, where the rail does overlay the map,
+      // never gets here: see the early return above.)
       // Pre-v2.14.68 the horizontal offset was applied on every
       // layout, which pushed the marker to the far left on LayoutPi
       // (rail offset shifted the map centre right when the marker was
@@ -298,7 +339,8 @@ function useRailOffset() {
       cancelAnimationFrame(handle);
       window.removeEventListener("resize", measure);
     };
-  }, [focusActive]);
+  }, [focusActive, shellActive]);
+  if (shellActive) return shellOffset;
   // Focus mode → a stable zero offset by derivation (frozen module
   // constant). On exit, the last pre-focus measurement is re-exposed for
   // the ~1 frame until the re-measure lands — the rail geometry is
@@ -321,7 +363,8 @@ function useRailOffset() {
  * @param {(coords: ?{latitude: Number, longitude: Number}) => void} props.setPanToCoords
  *   AppContext setter, called with null once the pan has been issued
  * @param {{x: Number, y: Number}} props.railOffset CSS pixels of the map hidden
- *   by the rail (x) and by the HeroBand (y); `{x: 0, y: 0}` when nothing overlays it
+ *   by the rail (x) and by the HeroBand (y; negative = a band at the bottom,
+ *   the overlay shell's dock); `{x: 0, y: 0}` when nothing overlays it
  * @returns {null} renders nothing
  */
 const PanHandler = ({ panToCoords, setPanToCoords, railOffset }) => {
@@ -351,18 +394,49 @@ PanHandler.propTypes = {
  * under the OS reduced-motion preference. Skipped when
  * `markerPosition` isn't yet set (initial load before mapGeo lands).
  *
+ * Under LayoutPi's overlay shell the offset changes on every MIN ↔ MID and
+ * MID ↔ view switch (state-derived, see useRailOffset), so this is what
+ * snaps the marker back to the anchor of the visible map each time (the
+ * user's own pan is not kept). The animated pan is Leaflet's default 250 ms
+ * on its 1 − (1 − t)² curve; the shell's CSS slides take the same 250 ms on
+ * cubic-bezier(0, 0, .5, 1), which approximates that curve to within 3 % of
+ * the travel (ui/piShellGeometry.js SHELL_MOTION). For a tap, React 19.3
+ * flushes passive effects synchronously at the end of the discrete-event
+ * commit, so the pan starts in the frame the shell's classes change.
+ * `instant` (reduced motion, and every switch to or from a view) instead
+ * pans with `animate: false` from a LAYOUT effect, which runs before paint
+ * on every update, so the map moves in the very frame its offset changes
+ * (with the attribution and the radar loop: LayoutPi/useShellTiming.js
+ * decides that frame); it records the offset first, so the passive effect
+ * below then sees no change.
+ *
  * @param {object} props
  * @param {{x: Number, y: Number}} props.railOffset CSS pixels of the map hidden
- *   by the rail (x) and by the HeroBand (y); compared by value, not identity,
- *   because `useRailOffset` returns a fresh object on every measurement
+ *   by the rail (x) and by the HeroBand (y; negative = a band at the bottom,
+ *   the overlay shell's dock); compared by value, not identity, because
+ *   `useRailOffset` returns a fresh object on every measurement
  * @param {?Array<Number>} props.markerPosition current marker position as
  *   `[lat, lon]` in decimal degrees, or null before `mapGeo` has resolved —
  *   in which case no re-centring happens
+ * @param {boolean} [props.instant] Overlay shell only: re-centre without
+ *   animation, from a layout effect (prefers-reduced-motion, view opens /
+ *   closes, and the unreachable fallback form 2); false everywhere else,
+ *   which leaves only the animated passive effect. No destructuring
+ *   default: `if (!instant)` treats undefined as false
  * @returns {null} renders nothing
  */
-const RailOffsetTracker = ({ railOffset, markerPosition }) => {
+const RailOffsetTracker = ({ railOffset, markerPosition, instant }) => {
   const map = useMap();
   const lastOffsetRef = useRef(railOffset);
+  // The overlay shell's one-frame path (see JSDoc). Inert unless `instant`.
+  useLayoutEffect(() => {
+    if (!instant) return;
+    const prev = lastOffsetRef.current;
+    if (prev && prev.x === railOffset.x && prev.y === railOffset.y) return;
+    lastOffsetRef.current = railOffset;
+    if (!markerPosition) return;
+    panWithRailOffset(map, markerPosition, railOffset, { animate: false });
+  }, [instant, railOffset, markerPosition, map]);
   useEffect(() => {
     // useRailOffset returns a fresh object every render even when
     // values haven't changed, so compare by x/y rather than identity.
@@ -383,6 +457,7 @@ const RailOffsetTracker = ({ railOffset, markerPosition }) => {
 RailOffsetTracker.propTypes = {
   railOffset: PropTypes.shape({ x: PropTypes.number, y: PropTypes.number }),
   markerPosition: PropTypes.array,
+  instant: PropTypes.bool,
 };
 
 /**
@@ -390,11 +465,14 @@ RailOffsetTracker.propTypes = {
  * prop is read once and never re-applied, so without this effect the
  * marker would stay at viewport-centre (behind the rail) until the
  * user clicks somewhere. Runs once when both map and marker are ready.
+ * (Under LayoutPi's overlay shell the MID offset is non-zero, so this
+ * runs at boot there too.)
  *
  * @param {object} props
  * @param {{x: Number, y: Number}} props.railOffset CSS pixels of the map hidden
- *   by the rail (x) and by the HeroBand (y); a zero offset on both axes means
- *   there is nothing to correct and the one-shot pan is skipped entirely
+ *   by the rail (x) and by the HeroBand (y; negative = a band at the bottom,
+ *   the overlay shell's dock); a zero offset on both axes means there is
+ *   nothing to correct and the one-shot pan is skipped entirely
  * @param {?Array<Number>} props.markerPosition marker position as `[lat, lon]`
  *   in decimal degrees; null until `mapGeo` resolves, which defers the pan
  * @returns {null} renders nothing
@@ -415,6 +493,88 @@ const InitialOffsetCentering = ({ railOffset, markerPosition }) => {
 InitialOffsetCentering.propTypes = {
   railOffset: PropTypes.shape({ x: PropTypes.number, y: PropTypes.number }),
   markerPosition: PropTypes.array,
+};
+
+/**
+ * Overlay shell only: the zoom bar stays mounted while a view is open,
+ * hidden and inert (`inert` here, `visibility: hidden` from the overlay
+ * shell's rule in styles.css keyed on it), so closing the view shows it
+ * again in that frame with nothing to mount. Leaflet builds the bar's DOM
+ * itself, so the attribute is set by hand, in the commit that changes the
+ * chrome: by a subscription to the shell registry's chrome presentation,
+ * which LayoutPi's shell timing updates in that commit (ui/shellElements.js;
+ * a `hidden` prop would render this component, and the MapContainer around
+ * it, at every view switch). The bar is looked up once (a view switch's
+ * commit walks no DOM): after the mount, once ZoomControl, an earlier
+ * sibling, has added it in its own passive effect, and again only when the
+ * bar found is gone. A language change remounts ZoomControl (its key), so
+ * the lookup runs again after one (`lang`), and a bar found takes the
+ * chrome's `inert` at once: one rebuilt while a view is open stays hidden
+ * instead of showing until the view closes. Unmounted (the shell turning
+ * off under a mounted LayoutPi, which the compiled LayoutPi never does; or
+ * the map going), it gives the bar back without the `inert` it set, as the
+ * shell registry does for the chrome React renders (ui/shellElements.js).
+ *
+ * @param {object} props
+ * @param {{viewHidden: function(): boolean, subscribe: function(function(): void): function(): void}} props.shell - LayoutPi's shell registry: whether a view hides the chrome, and the change signal.
+ * @param {string} [props.lang] - The UI language, ZoomControl's key: a change rebuilds the bar.
+ * @returns {null} renders nothing
+ */
+const ShellZoomInert = ({ shell, lang }) => {
+  const map = useMap();
+  const barRef = useRef(null);
+  const zoomBar = useCallback(() => {
+    if (!barRef.current || !barRef.current.isConnected) {
+      barRef.current = map.getContainer().querySelector(".leaflet-control-zoom");
+      if (barRef.current) barRef.current.toggleAttribute("inert", shell.viewHidden());
+    }
+    return barRef.current;
+  }, [map, shell]);
+  useEffect(() => {
+    zoomBar();
+  }, [zoomBar, lang]);
+  useLayoutEffect(() => {
+    const unsubscribe = shell.subscribe(() => {
+      const bar = zoomBar();
+      if (bar) bar.toggleAttribute("inert", shell.viewHidden());
+    });
+    return () => {
+      unsubscribe();
+      if (barRef.current) barRef.current.removeAttribute("inert");
+    };
+  }, [shell, zoomBar]);
+  return null;
+};
+
+ShellZoomInert.propTypes = {
+  shell: PropTypes.shape({
+    viewHidden: PropTypes.func.isRequired,
+    subscribe: PropTypes.func.isRequired,
+  }).isRequired,
+  lang: PropTypes.string,
+};
+
+/**
+ * Overlay shell only: registers this Leaflet map's
+ * bottom-right control corner (the attribution, which slides with the
+ * shell) with LayoutPi's shell registry (ui/shellElements.js), once per
+ * map, so the shell's timing never looks it up with a DOM query in a
+ * switch's commit. Found here, when the map mounts: Leaflet builds its
+ * four corners with the map, and the tiles, added in a later passive
+ * effect, aren't there yet.
+ *
+ * @param {object} props
+ * @param {function(?Element): (function(): void|undefined)} props.register - The registry's `attributionRef`.
+ * @returns {null} renders nothing
+ */
+const ShellAttributionCorner = ({ register }) => {
+  const map = useMap();
+  useLayoutEffect(() => register(map.getContainer().querySelector(".leaflet-bottom.leaflet-right")), [map, register]);
+  return null;
+};
+
+ShellAttributionCorner.propTypes = {
+  register: PropTypes.func.isRequired,
 };
 
 /**
@@ -544,9 +704,15 @@ function installZoomAnchor(map, offsetRef) {
  * untouched — they already anchor on the cursor via their own handlers.
  * Leaflet's keyboard + / − keys aren't anchored either: its Keyboard
  * handler calls `setZoom`, which the patch leaves alone.
+ * Under LayoutPi's overlay shell the offset is non-zero in MID
+ * (`{310, −58}`: a negative y puts the anchor in the band ABOVE a bottom
+ * dock), so +/- zoom around the marker at (245, 211) on 800 × 480; MIN is
+ * zero again (centre), except in the unreachable fallback form `d1-still`,
+ * which keeps MID's anchor.
  *
  * @param {object} props
  * @param {{x: Number, y: Number}} props.railOffset pixels covered by rail / HeroBand
+ *   (negative y = a band at the bottom, the overlay shell's dock)
  * @returns {null} renders nothing
  */
 const ZoomAnchorOffset = ({ railOffset }) => {
@@ -796,9 +962,41 @@ SurveyAlertContent.propTypes = {
  * @param {object} props
  * @param {Number} props.zoom zoom level
  * @param {Boolean} [props.dark] dark mode
+ * @param {string} [props.shellChromeState] LayoutPi's overlay shell
+ *   only: the layout state the map's chrome shows (zoom, focus
+ *   button, and which map overlays are live: legend chip, card or raised
+ *   chip, scrubber), which follows `piLayoutState` in the switch's own
+ *   commit (LayoutPi/useShellTiming.js).
+ *   Undefined everywhere else: `piLayoutState` itself.
+ * @param {string} [props.shellMapState] Overlay shell only: the layout state
+ *   the map itself follows (recentring offset, radar loop); held on the
+ *   previous state while a view's sheet slides in. Undefined everywhere
+ *   else.
+ * @param {boolean} [props.shellInstantRecentre] Overlay shell only: this
+ *   switch recentres without animation (RailOffsetTracker `instant`).
+ *   Undefined everywhere else.
+ * @param {boolean} [props.shellTimelineEngaged] Overlay shell only: whether
+ *   the radar scrubber's work runs (playhead snap, RainViewer frame
+ *   window); it turns on once a switch to MIN has settled, or at the
+ *   scrubber's first input before that (useShellTiming). Undefined
+ *   everywhere else.
+ * @param {function(): void} [props.shellEngageTimeline] Overlay shell
+ *   only: engages the scrubber's work at once, in one synchronous commit
+ *   (useShellTiming `engageTimeline`, one function for the shell's
+ *   lifetime); handed to RadarTimeline for its first input before the
+ *   settle. Undefined everywhere else.
+ * @param {{overlayRef: function(?Element): (function(): void|undefined), attributionRef: function(?Element): (function(): void|undefined), viewChromeRef: function(?Element): (function(): void|undefined), presentation: function(): object, viewHidden: function(): boolean, subscribe: function(function(): void): function(): void}} [props.shellElements]
+ *   Overlay shell only: LayoutPi's shell registry (ui/shellElements.js).
+ *   Its `overlayRef` goes on the overlay shell's map overlays
+ *   (RadarLegend's three elements, RadarTimeline) and
+ *   ShellAttributionCorner registers the attribution corner, so the
+ *   shell's timing reads them without walking the DOM; RadarLegend,
+ *   RadarFocusControl and ShellZoomInert take the whole registry, whose
+ *   chrome presentation sets their `inert` in each chrome change's commit,
+ *   by hand, so a switch renders none of them. Undefined everywhere else.
  * @returns {JSX.Element} Weather map
  */
-const WeatherMap = ({ zoom, dark }) => {
+const WeatherMap = ({ zoom, dark, shellChromeState, shellMapState, shellInstantRecentre, shellTimelineEngaged, shellEngageTimeline, shellElements }) => {
   const MAP_CLICK_DEBOUNCE_TIME = 200; //ms
   // `nightRed` is the long-wavelength sleep-stage-1 mode. Used here
   // to red-tint the dashed radar circles so they match the rest of
@@ -814,8 +1012,10 @@ const WeatherMap = ({ zoom, dark }) => {
   // off-centre projection trick that keeps the marker at the visual
   // centre of the non-rail area; see panWithRailOffset for the math.
   // Returns 0 when the rail doesn't overlay the map (LayoutPi /
-  // LayoutMobile) or in full-screen radar focus mode.
-  const railOffset = useRailOffset();
+  // LayoutMobile) or in full-screen radar focus mode. Under LayoutPi's
+  // overlay shell the rail and the dock band do overlay the map, and the
+  // offset is derived from the layout state instead (see useRailOffset).
+  const railOffset = useRailOffset(shellMapState);
   const {
     setMapPosition,
     setPanToCoords,
@@ -841,10 +1041,40 @@ const WeatherMap = ({ zoom, dark }) => {
     mapApiKey,
     mobileRadarMaximized,
     desktopRadarMaximized,
+  } = useContext(SystemContext);
+  const {
     piRadarMaximized,
     piLayoutState,
     piScrubberOpen,
-  } = useContext(SystemContext);
+  } = useContext(PiLayoutContext);
+  // LayoutPi's overlay shell (on under the priority-views model,
+  // ui/piLayout.js piShellVariant) passes the states its chrome and its map
+  // follow (LayoutPi/useShellTiming.js): the map's state can trail the
+  // real piLayoutState until a view's sheet has slid in; the chrome's
+  // follows it in the switch's own commit. Without the shell both are
+  // piLayoutState. Same gate as useRailOffset's overlay-shell branch.
+  const chromeLayoutState = shellChromeState ?? piLayoutState;
+  const mapLayoutState = shellMapState ?? piLayoutState;
+  const shellActive = shellMapState != null;
+  const instantRecentre = shellActive && Boolean(shellInstantRecentre);
+  // The focus button lights with the chrome (MIN shown), not the store.
+  const piFocusShown = shellChromeState != null ? shellChromeState === "min" : piRadarMaximized;
+  // Overlay shell: the map overlays that differ between MID and MIN (legend
+  // chip, card, raised chip, scrubber) are all mounted, and the chrome's
+  // state says which are live — in the switch's own commit, so they fade out
+  // or in from that style change (ui/piShellGeometry.js
+  // overlayPresentation). The scrubber takes its own from here; the legend's
+  // three, like the focus button and the zoom bar below, follow the shell
+  // registry instead, which LayoutPi's shell timing updates in that commit,
+  // by hand (ui/shellElements.js present), so a switch hands none of them a
+  // new prop. null everywhere else.
+  const shellOverlays = shellActive ? overlayPresentation(chromeLayoutState, piScrubberOpen) : null;
+  // Overlay shell: the timeline, the legend (chip, raised chip, card), the
+  // zoom bar and the focus button stay mounted while a view is open, hidden
+  // by `visibility` and inert (never by opacity alone), and come back at
+  // once when it closes. The grid shell unmounts them in the views
+  // (`chromeMounted` false there).
+  const chromeMounted = shellActive || !isPiMaxView(chromeLayoutState);
   const {
     browserGeo,
     mapGeo,
@@ -1135,9 +1365,14 @@ const WeatherMap = ({ zoom, dark }) => {
   // control (the dock button never touches the pref), so pinning on the
   // raw pref alone would freeze the priority-MIN scrubber whenever the
   // pref happens to be persisted false.
+  // (Overlay shell: the shell's latched value, which only follows MIN and
+  // the `piScrubberOpen` flag once a switch has settled, so the playhead
+  // snap and the frame window below never land inside a slide; see
+  // useShellTiming.)
   const priorityActive = priorityViewsEnabled() && piLayoutState != null;
+  const piScrubberEngaged = shellActive ? Boolean(shellTimelineEngaged) : (piLayoutState === "min" && piScrubberOpen);
   const timelineEngaged = priorityActive
-    ? (piLayoutState === "min" && piScrubberOpen)
+    ? piScrubberEngaged
     : radarTimelineVisible;
 
   const currentMapTimestampIdx = useMemo(() => {
@@ -1258,8 +1493,9 @@ const WeatherMap = ({ zoom, dark }) => {
     // Freeze the radar animation in the v3.2 MAX state: there the map is a
     // decorative ~190 px thumbnail, so cycling RainViewer frames just burns
     // the Pi GPU. This doesn't touch the user's `animateWeatherMap`
-    // preference — leaving MAX resumes it.
-    if (mapTimestamps && animateWeatherMap && !isPiMaxView(piLayoutState)) {
+    // preference — leaving MAX resumes it. (Overlay shell: with the map's
+    // state, so a view stops the loop once its sheet has slid in.)
+    if (mapTimestamps && animateWeatherMap && !isPiMaxView(mapLayoutState)) {
       animationIntervalRef.current = setInterval(() => {
         setRadarFrameIdx((prev) => {
           // Advance from the resolved current index — which collapses
@@ -1283,7 +1519,7 @@ const WeatherMap = ({ zoom, dark }) => {
     // closure over `prev`, so we don't need to recreate the interval
     // on every frame tick. Including it would clear and re-create the
     // interval every second, which previously starved button clicks.
-  }, [animateWeatherMap, mapTimestamps, radarSpeed, lastPastIdx, piLayoutState]);
+  }, [animateWeatherMap, mapTimestamps, radarSpeed, lastPastIdx, mapLayoutState]);
 
   // Initial mount: anchor the playhead at the most recent past frame
   // once the timestamps load, so the first paint shows current radar
@@ -1417,6 +1653,14 @@ const WeatherMap = ({ zoom, dark }) => {
     () => buildRadiusRingOptions(dark, nightRed),
     [dark, nightRed]
   );
+  // Under the overlay shell the rail and the dock lie over the map, so the
+  // survey popup's auto-pan keeps clear of them (padding derived from the
+  // state's offset; Leaflet reads it when the popup opens). Outside it
+  // nothing is added: Leaflet's default padding.
+  const surveyPopupPadding = useMemo(
+    () => (shellActive ? popupAutoPanPadding(railOffset) : NO_POPUP_PADDING),
+    [shellActive, railOffset]
+  );
   // The sampling grid is pure geodesic math over (centre, radius, unit) —
   // 161 points (481 extended) of offsetLatLon per call. Rebuilding it in
   // the render body recomputed the whole grid on every WeatherMap render.
@@ -1497,12 +1741,34 @@ const WeatherMap = ({ zoom, dark }) => {
   // `priorityActive` + the engagement branch are hoisted above the
   // currentMapTimestampIdx memo (they also gate the pin-to-now
   // derivation); `timelineShown` adds the render-only conditions.
-  const timelineShown = Boolean(mapTimestamps && mapTimestamps.length > 0)
-    && radarSource === "rainviewer"
+  // Under the overlay shell the scrubber is mounted wherever the legend is
+  // (`scrubberMounted`), live only in MIN with the `piScrubberOpen` flag
+  // (shellOverlays, from the switch's commit) and hidden, inert and stopped
+  // otherwise; `timelineShown` then means its work runs, which the shell
+  // only turns on once the switch to MIN has settled. `withTimeline` is
+  // never set there: each of the shell's overlays keeps one place
+  // (styles.css).
+  const timelineAvailable = Boolean(mapTimestamps && mapTimestamps.length > 0)
+    && radarSource === "rainviewer";
+  const timelineShown = timelineAvailable
     && (priorityActive
-      ? (piLayoutState === "min" && piScrubberOpen)
-      : (radarTimelineVisible && !isPiMaxView(piLayoutState)));
+      ? timelineEngaged
+      : (radarTimelineVisible && !isPiMaxView(chromeLayoutState)));
+  const scrubberMounted = shellActive ? timelineAvailable : timelineShown;
   const legendShown = Boolean(mapTimestamps) && radarSource === "rainviewer" && !hideRadarLegend;
+  // The legend's and the scrubber's props, each a value of its own here (for
+  // the overlay shell): the React Compiler memoizes an element on what its
+  // JSX reads, so these expressions inline would make both elements depend
+  // on the chrome's state (and on the presentation object), and a view
+  // switch would hand RadarLegend and RadarTimeline a new element with
+  // equal props: a render each. Under the overlay shell the legend ignores
+  // `chipMode` (false there); the scrubber's props change with its own
+  // presentation (MIN with the scrubber), its engagement, or never.
+  const legendChipMode = !shellActive && isSmallScreen && (timelineShown || chromeLayoutState === "mid");
+  const scrubberLive = shellOverlays ? shellOverlays.scrubber : undefined;
+  const scrubberEngaged = shellOverlays ? timelineEngaged : undefined;
+  const scrubberEngage = shellOverlays ? shellEngageTimeline : undefined;
+  const scrubberOverlayRef = shellOverlays && shellElements ? shellElements.overlayRef : undefined;
 
   // Radar frame window (RainViewer only — the ECCC WMS layer has no
   // timeline). Each timeline step used to swap the single radar
@@ -1577,7 +1843,7 @@ const WeatherMap = ({ zoom, dark }) => {
   }
 
   return (
-    <div className={`${styles.mapWrapper} ${timelineShown ? styles.withTimeline : ""} ${legendShown ? styles.withLegend : ""}`}>
+    <div className={`${styles.mapWrapper} ${timelineShown && !shellActive ? styles.withTimeline : ""} ${legendShown ? styles.withLegend : ""}`}>
       <MapContainer
         center={[latitude, longitude]}
         zoom={zoom}
@@ -1607,7 +1873,7 @@ const WeatherMap = ({ zoom, dark }) => {
         dragging={true}
         fadeAnimation={false}
       >
-        {!isPiMaxView(piLayoutState) && (
+        {chromeMounted && (
           <ZoomControl
             key={`zoom-${i18n.language}`}
             position="topleft"
@@ -1615,10 +1881,12 @@ const WeatherMap = ({ zoom, dark }) => {
             zoomOutTitle={t("radar.zoomOut", { defaultValue: "Zoom out" })}
           />
         )}
+        {shellElements && <ShellZoomInert shell={shellElements} lang={i18n.language} />}
+        {shellElements && <ShellAttributionCorner register={shellElements.attributionRef} />}
         <MapClickHandler onClick={mapClickHandler} />
         <PanHandler panToCoords={panToCoords} setPanToCoords={setPanToCoords} railOffset={railOffset} />
         <InitialOffsetCentering railOffset={railOffset} markerPosition={markerPosition} />
-        <RailOffsetTracker railOffset={railOffset} markerPosition={markerPosition} />
+        <RailOffsetTracker railOffset={railOffset} markerPosition={markerPosition} instant={instantRecentre} />
         <MapZoomTracker onZoomChange={setCurrentMapZoom} />
         <ZoomLevelHandler zoomToLevel={zoomToLevel} setZoomToLevel={setZoomToLevel} />
         <ZoomAnchorOffset railOffset={railOffset} />
@@ -1898,6 +2166,7 @@ const WeatherMap = ({ zoom, dark }) => {
             a single "Re-center here" that re-activates the point-based path. */}
         {showWeatherAlerts && surveyPopup ? (
           <Popup
+            {...surveyPopupPadding}
             position={surveyPopup.latlng}
             className={styles.surveyPopupWrapper}
             eventHandlers={{ remove: () => setSurveyPopup(null) }}
@@ -1913,11 +2182,11 @@ const WeatherMap = ({ zoom, dark }) => {
           it hides HeroBand + rail so the radar fills the viewport, and
           a short toast confirms the toggle. LayoutMobile has its own
           maximize button on the inset card (same icon pair). */}
-      {!isPiMaxView(piLayoutState)
+      {chromeMounted
         && ((desktopRadarMaximized !== null && desktopRadarMaximized !== undefined)
         || (piRadarMaximized !== null && piRadarMaximized !== undefined)) && (
         <RadarFocusControl
-          active={Boolean(piRadarMaximized != null ? piRadarMaximized : desktopRadarMaximized)}
+          active={Boolean(piRadarMaximized != null ? piFocusShown : desktopRadarMaximized)}
           onToggle={() => {
             if (piRadarMaximized != null) {
               setPiRadarMaximized(!piRadarMaximized);
@@ -1927,6 +2196,7 @@ const WeatherMap = ({ zoom, dark }) => {
           }}
           titleOn={t("controls.restorePanels", { defaultValue: "Restore panels" })}
           titleOff={t("controls.focusRadar", { defaultValue: "Focus radar" })}
+          shell={shellElements}
         />
       )}
       {/* Legend + timeline are RainViewer-specific (the legend's colour
@@ -1947,16 +2217,34 @@ const WeatherMap = ({ zoom, dark }) => {
           - LayoutPi's MID pane: the 7" glance map is ~470 × 390 px, and
             the card (~190 px tall with the nearby-alerts section, ~215 px
             at font size L) would cover half its height and part of the
-            analysis rings.
+            analysis rings. (Under the overlay shell the map stays
+            800 × 480, but the area the rail and dock leave clear is
+            490 × 422, so the same reasoning holds; the chip then sits
+            above the dock band, styles.css.)
           The fullscreen MIN radar without the scrubber has the room and
-          keeps the card. */}
-      {mapTimestamps && radarSource === "rainviewer" && !hideRadarLegend && !isPiMaxView(piLayoutState) && (
+          keeps the card. Under the overlay shell RadarLegend renders the
+          chip, the card and the raised chip together and the shell
+          registry's presentation names the live one (the others hidden and
+          inert; the registry sets that `inert` by hand in the switch's
+          commit, so a switch hands the legend no new prop), and the scrubber
+          stays mounted with `shellLive` saying whether it is live
+          (ui/piShellGeometry.js overlayPresentation) and `shellEngaged`
+          whether its work runs yet: live from the switch's commit and
+          visible from 150 ms, it takes every tap (bar the second tap of a
+          double tap on the dock's timeline button, which the dock band's
+          double-tap guard over that click, LayoutPi, and the event guard
+          that button arms, ui/tapGuard.js, swallow); the first one before
+          the switch to MIN has settled engages its work at once
+          (`onShellEngage`, one synchronous commit) and then acts normally,
+          so no scrub is pinned back to "now" and lost. */}
+      {mapTimestamps && radarSource === "rainviewer" && !hideRadarLegend && chromeMounted && (
         <RadarLegend
           dark={dark}
-          chipMode={isSmallScreen && (timelineShown || piLayoutState === "mid")}
+          chipMode={legendChipMode}
+          shell={shellElements}
         />
       )}
-      {timelineShown && (
+      {scrubberMounted && (
         <RadarTimeline
           frames={mapTimestamps}
           currentIdx={currentMapTimestampIdx}
@@ -1965,6 +2253,10 @@ const WeatherMap = ({ zoom, dark }) => {
           dark={dark}
           compact={isSmallScreen || isNarrow}
           sourceStale={timestampsStale}
+          shellLive={scrubberLive}
+          shellEngaged={scrubberEngaged}
+          onShellEngage={scrubberEngage}
+          overlayRef={scrubberOverlayRef}
         />
       )}
     </div>
@@ -1974,6 +2266,19 @@ const WeatherMap = ({ zoom, dark }) => {
 WeatherMap.propTypes = {
   zoom: PropTypes.number.isRequired,
   dark: PropTypes.bool,
+  shellChromeState: PropTypes.string,
+  shellMapState: PropTypes.string,
+  shellInstantRecentre: PropTypes.bool,
+  shellTimelineEngaged: PropTypes.bool,
+  shellEngageTimeline: PropTypes.func,
+  shellElements: PropTypes.shape({
+    overlayRef: PropTypes.func.isRequired,
+    attributionRef: PropTypes.func.isRequired,
+    viewChromeRef: PropTypes.func.isRequired,
+    presentation: PropTypes.func.isRequired,
+    viewHidden: PropTypes.func.isRequired,
+    subscribe: PropTypes.func.isRequired,
+  }),
 };
 
 

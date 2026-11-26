@@ -31,8 +31,9 @@
   background-color: var(--c-accent-soft);
   color: var(--c-text);
   font-family: "Geist", system-ui, -apple-system, sans-serif;
-  /* Plain px — NowcastLine renders ONLY inside the LayoutPi `.rail`, which
-   * already applies `zoom: var(--c-font-scale)`. A `calc(* font-scale)` here
+  /* Plain px — NowcastLine renders ONLY inside the LayoutPi `.rail` (or,
+   * on the overlay shell, its `.railScroll`), which already applies
+   * `zoom: var(--c-font-scale)`. A `calc(* font-scale)` here
    * double-scaled it (1.15² ≈ 1.32 at G) — the container zoom carries the
    * S/M/L preference on its own. (Same reason the maximize square below and
    * the .icon use plain px.) */
@@ -150,3 +151,30 @@
 .dot-high { background-color: var(--c-accent); }
 .dot-mid  { background-color: var(--c-warn); }
 .dot-low  { background-color: var(--c-danger); }
+
+/* LayoutPi's overlay shell (`data-pi-shell` on the LayoutPi root, set
+ * under the priority-views model). There the rail floats
+ * over the live radar instead of sitting on the layout's opaque --c-bg,
+ * so the line's fills are taken from the shared card recipe:
+ *   - alarm tiers (orange / red) become opaque, a 16 % warn / danger wash
+ *     over --c-surface-hybrid (alpha ≈ 0.966) — the .compactExtreme recipe
+ *     (AlertBanner/styles.css). The base fill they inherit elsewhere,
+ *     --c-accent-soft, is translucent: over moving rain the alarm would
+ *     read through to the radar colours. On an opaque line the RADAR badge
+ *     (--c-accent-soft) gets its pill back.
+ *   - calm sits on --c-surface like every other rail card (85 %, 96 % in
+ *     hybrid mode, on Firefox and, under the overlay shell, in nightRed —
+ *     LayoutPi/styles.css) instead of the always-96 % --c-surface-hybrid.
+ * (0,3,0) beats the doubled-class tier rules above. Off the overlay shell
+ * none of this matches. */
+:global([data-pi-shell]) .tier-orange.tier-orange {
+  background-color: color-mix(in srgb, var(--c-warn) 16%, var(--c-surface-hybrid));
+}
+
+:global([data-pi-shell]) .tier-red.tier-red {
+  background-color: color-mix(in srgb, var(--c-danger) 16%, var(--c-surface-hybrid));
+}
+
+:global([data-pi-shell]) .tier-calm.tier-calm {
+  background-color: var(--c-surface);
+}

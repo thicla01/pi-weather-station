@@ -332,6 +332,8 @@
       "alsoActive": "Also active"
     },
     "cycleNextAria": "Show the next alert",
+    "compactCardAria": "{{level}}, {{source}}: {{title}}, {{current}} of {{count}}",
+    "compactCardAriaSingle": "{{level}}, {{source}}: {{title}}",
     "airQualityAria": "Air quality alert — {{value}} {{scale}}, {{level}}. Tap for details.",
     "selectAlertAria": "Switch to this alert",
     "restoreDismissed_one": "Restore {{count}} hidden alert",
@@ -429,7 +431,8 @@
     "groupDisplay": "Display",
     "groupSystem": "System",
     "openPlaces": "Open places",
-    "closePlaces": "Close places"
+    "closePlaces": "Close places",
+    "moreControls": "More controls"
   },
   "mobile": {
     "settingsHint": "Open the app on the Pi locally for advanced settings."

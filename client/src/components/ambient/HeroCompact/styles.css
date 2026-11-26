@@ -253,3 +253,130 @@
 .withMax .location {
   padding-right: 34px;
 }
+
+/* The overlay shell's hero (`inlineConditionIcon`, passed by LayoutPi under
+ * the overlay shell only; the design canvas's inline-condition hero). The
+ * condition icon moves from its own row onto the label's first line, and the
+ * label sits bottom-aligned beside the numeral. Two label lines measure
+ * about 34 px (the first is 18 px, the icon's height), under the 39 px
+ * numeral, so the focal row stays numeral-bound and the hero holds 82
+ * internal px where the stacked icon-above-label column makes it ~97 with a
+ * two-line label.
+ *
+ * Width check, the design's worst case (FR, L, "-13 °F", "Majoritairement
+ * nuageux"): the rail's internal width is 300 / 1.15 = 260.9 px, the slab's
+ * content box 260.9 − 2 × 1 − 2 × 16 = 226.9, minus the 12 px focal gap and
+ * the "-13°F" block leaves the label column the design canvas's
+ * ~130.7 px; after the icon's 18 + 5 px, 107.7 px for "Majoritairement"
+ * (96.6 px in Geist Medium 13 px). "°C" is ~2 px wider than "°F" (105.8 px
+ * left), still enough. The second line gets the whole column, so even the
+ * longest label, "Pluie verglaçante légère", stays on two lines. Every
+ * value here equals the design canvas recipe; the 800–1279 px block above
+ * already sets the 39 px numeral, 15 px unit, 13 px label and 12 px gap. */
+.slab.inlineCond {
+  /* The populated slab is ~81.3 px on its own (1 + 10 + 15.3 place row +
+   * 6 + 39 + 9 + 1), so this pins the design canvas's 82 rather than
+   * stretching it; a min-height, not a height, so an unforeseen third label
+   * line or a wrapped place name grows the card instead of clipping it. It
+   * also replaces the .empty placeholder floor (110 px), which would make
+   * the slab shrink when the first payload lands. (0,2,0) beats .empty. */
+  min-height: 82px;
+}
+
+.condCol.condInline {
+  display: block;
+  align-self: flex-end;
+  margin-bottom: 2px;
+}
+
+.condInline .condText {
+  line-height: 1.2;
+}
+
+/* The icon wrapper is the inline box that flows with the text. Its svg
+ * goes block-level: @iconify's InlineIcon sets an inline
+ * `vertical-align: -0.125em` on the svg that no class rule can override,
+ * and a block box ignores vertical-align, so the wrapper's -4 px is the
+ * only offset left. */
+.condInline .condIcon {
+  display: inline-block;
+  width: 18px;
+  height: 18px;
+  margin-right: 5px;
+  vertical-align: -4px;
+  font-size: 18px;
+}
+
+.condInline .condIcon > svg {
+  display: block;
+}
+
+/* The hero's ⤢ on the overlay shell's rail (`[data-pi-shell]`, set on
+ * LayoutPi under the priority-views model; LayoutMobile never carries it):
+ * - raised 4 px (top 6 instead of 10), so the 28 px square clears the
+ *   first line of a long label, which now starts level with the numeral
+ *   (`.inlineCond` above);
+ * - a touch area 44 px wide and tall ON SCREEN at every text size, an
+ *   invisible ::after centred on the square (already `position:
+ *   absolute`); the visual is unchanged. The rail is zoomed by
+ *   `--c-font-scale`, so the area is 44 px divided by it in the rail's own
+ *   px (51.8 at S, 44 at M, 38.3 at L): a constant 44 px under the finger (a
+ *   fixed `inset: -8px` would give 37.4, 44 and 50.6 px). Centred, it
+ *   reaches past the square by (44 / scale − 28) / 2 on each side (11.9, 8
+ *   and 5.1 internal px), above the slab's top edge
+ *   into the 10 px gap over it and towards the slab's right edge; it
+ *   stays above `.location` with the button's z-index. No other
+ *   interactive element lies within its reach at S, M or L (measured at
+ *   800 × 480: the location button sits at the slab's left). (0,3,0)
+ *   beats `.maximize.maximize`. */
+:global([data-pi-shell]) .maximize.maximize {
+  top: 6px;
+}
+
+:global([data-pi-shell]) .maximize.maximize::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: calc(44px / var(--c-font-scale, 1));
+  height: calc(44px / var(--c-font-scale, 1));
+  transform: translate(-50%, -50%);
+}
+
+/* The place row stops short of the ⤢'s touch area. The area's left edge lies
+ * 12 + 14 + 22 / scale px from the slab's padding-box right edge (the
+ * square's right inset, half its width, half the area); the place row's
+ * content ends 16 px (the slab's padding) + this reserve from that edge, and
+ * the location button's 44 px ::before reaches 4 px past it: with 16px +
+ * 22px / scale, that reach stops 2 px short of the area at S, M and L alike.
+ * Without this reserve, a 40-character place name left the area 38.1 px on
+ * screen at L, the place button winning the rest. A long name now ellipsizes
+ * on one line (block + nowrap: an inline-flex row can't ellipsize its bare
+ * text node; the pin and the name keep the JSX's space between them). */
+:global([data-pi-shell]) .withMax .location {
+  padding-right: calc(16px + 22px / var(--c-font-scale, 1));
+}
+
+:global([data-pi-shell]) .withMax .locationButton.locationButton {
+  max-width: 100%;
+  min-width: 0;
+}
+
+:global([data-pi-shell]) .withMax .location > div,
+:global([data-pi-shell]) .withMax .location > button > div {
+  min-width: 0;
+  max-width: 100%;
+}
+
+:global([data-pi-shell]) .withMax .location > div > div,
+:global([data-pi-shell]) .withMax .location > button > div > div {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The hero's ⤢ under the overlay shell: never a `scale()` when pressed. */
+:global([data-pi-shell]) .maximize.maximize:active {
+  transform: none;
+}

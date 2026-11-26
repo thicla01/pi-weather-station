@@ -43,9 +43,10 @@ export function isAiSummaryKeyMissing(err) {
  * AiSummaryInline (the Phase-10 cleanup the slab's comment anticipated) so the
  * v3.3 AiView can reuse the exact fetch contract.
  *
- * Only fetches while mounted AND `available` AND awake — so mounting the AiView
- * lazily (on the user opening the IA view) means the paid Anthropic call fires
- * on demand, not as background overhead.
+ * Only fetches while mounted AND `active` AND `available` AND awake — so
+ * mounting the AiView lazily (LayoutPi's grid shell, on the user opening the
+ * IA view) or keeping it mounted with `active` false (the overlay shell)
+ * means the paid Anthropic call fires on demand, not as background overhead.
  *
  * `available` is AppContext's `aiSummaryAvailable`. It is normally settled
  * before this hook ever mounts — the boot settings read clears it when no
@@ -55,13 +56,36 @@ export function isAiSummaryKeyMissing(err) {
  * a boot settings read that failed), not the primary way the client learns
  * there is no key.
  *
+ * @param {boolean} [ready] Overlay shell only: false holds every reply
+ *   (summary, error, no-key) outside React state; once it turns true, the
+ *   last one is committed on the next animation frame (a reply landing
+ *   before that frame waits for it too); the request itself is not deferred.
+ *   LayoutPi's overlay shell keeps the AiView mounted and makes it `active`
+ *   in the tap's commit, so the request starts at the tap, as elsewhere,
+ *   and passes false until the view's opening has settled (its sheet
+ *   landed, the map recentred under it, then `data-pi-moving` dropped), so
+ *   even an instant reply renders no frame inside the slide. The extra
+ *   frame keeps the reply's render out of the frame interval in which
+ *   `data-pi-moving` drops, which measurement tooling still counts in the
+ *   motion window. Defaults to true (always so elsewhere: nothing is held
+ *   or deferred).
+ * @param {boolean} [active] Overlay shell only: false stops every request
+ *   and poll (an in-flight reply is dropped), and turning false clears the
+ *   summary, its period and the error flag in that same render, so the next
+ *   activation starts from the loading state a fresh mount has. LayoutPi's
+ *   overlay shell keeps the AiView mounted at all times (its host skipped by
+ *   `content-visibility: hidden` while closed) and passes true in the "ai"
+ *   state only: the request then starts in the tap's commit, as with the
+ *   lazy mount, and the view never shows the previous summary while its
+ *   sheet slides in. Defaults to true (always so elsewhere: the lazy mount
+ *   is the gate).
  * @returns {{ summary: string|null, available: boolean, lang: "en"|"fr"|"es",
  *   period: "evening"|"overnight"|"tomorrow"|null, errored: boolean }} the raw
  *   summary, the availability flag, the resolved language, the forecast-paragraph
  *   period kind (server-derived, titles the "next period" section), and whether
  *   the last fetch failed for any reason other than "no Anthropic key".
  */
-export default function useAiSummary() {
+export default function useAiSummary(ready = true, active = true) {
   const { mapGeo } = useContext(LocationContext);
   const {
     aiSummaryAvailable: serverAvailable,
@@ -88,17 +112,63 @@ export default function useAiSummary() {
   // back to "unavailable" instead of a permanent loading caption when no
   // summary is on screen yet; cleared on the next success.
   const [errored, setErrored] = useState(false);
+  // `active` (overlay shell): turning false clears what is shown, during
+  // render (React's adjust-on-change pattern), so the deactivating commit
+  // already holds the loading state and the next activation renders no stale
+  // summary, not even for a frame, and needs no render of its own.
+  const [wasActive, setWasActive] = useState(active);
+  if (active !== wasActive) {
+    setWasActive(active);
+    if (!active) {
+      setSummary(null);
+      setPeriod(null);
+      setErrored(false);
+    }
+  }
   const intervalRef = useRef(null);
+  // `ready` (overlay shell): a reply that lands while it is false is held
+  // here as the state writes it will make, outside React state, so it
+  // renders nothing; the effect below commits it on the animation frame
+  // after `ready` turns true — not in the task right after the settled
+  // render, which still falls in the frame interval where `data-pi-moving`
+  // drops (removed inside a requestAnimationFrame callback), so its cost
+  // would lengthen the last interval measurement tooling counts as motion.
+  // Until that frame `readyRef` stays false, so a reply landing in between
+  // is held too. The last reply wins. `readyRef` lets the fetch effect read
+  // the current value without restarting (and refetching) when it changes.
+  // Already ready (off the overlay shell, from mount): nothing is deferred.
+  const readyRef = useRef(ready);
+  const heldReplyRef = useRef(null);
+  useEffect(() => {
+    if (!ready) {
+      readyRef.current = false;
+      return undefined;
+    }
+    if (readyRef.current) return undefined;
+    const frame = requestAnimationFrame(() => {
+      readyRef.current = true;
+      const commitHeld = heldReplyRef.current;
+      heldReplyRef.current = null;
+      if (commitHeld) commitHeld();
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [ready]);
 
   useEffect(() => {
     // Suspend polling while the screensaver is up (nothing visible) — re-runs
     // on wake so the summary is fresh by the time the overlay fades.
-    if (!mapGeo || !available || sleepStage > 0) return undefined;
+    if (!active || !mapGeo || !available || sleepStage > 0) return undefined;
 
     // Cancellation flag: a slow build keyed to the previous position can
     // resolve after a pan and show the OLD location's narrative. Same pattern
     // as AppContext's AQI / pollen effects.
     let cancelled = false;
+    // A reply's state writes: made now, or held until `ready` (above).
+    const deliver = (commit) => {
+      if (cancelled) return;
+      if (readyRef.current) commit();
+      else heldReplyRef.current = commit;
+    };
     const fetchSummary = () => {
       const now = new Date();
       const localHour = now.getHours();
@@ -124,13 +194,17 @@ export default function useAiSummary() {
       axios
         .get(`/api/weather-summary?${params}`)
         .then((res) => {
-          if (cancelled) return;
-          setSummary(res.data.summary);
-          setPeriod(res.data.period ?? null);
-          setErrored(false);
+          // Read now, so a malformed body still lands in the catch below
+          // (as before), even when its state writes are held.
+          const text = res.data.summary;
+          const periodKind = res.data.period ?? null;
+          deliver(() => {
+            setSummary(text);
+            setPeriod(periodKind);
+            setErrored(false);
+          });
         })
         .catch((err) => {
-          if (cancelled) return;
           // No Anthropic key server-side → mark unavailable; authoritative
           // over the boot settings read, which never re-enables what this
           // switched off. Any other error (incl. the transient "no weather
@@ -138,8 +212,10 @@ export default function useAiSummary() {
           // caption to "unavailable" when nothing is shown yet; an
           // already-displayed summary stays on screen and the next poll
           // retries.
-          if (isAiSummaryKeyMissing(err)) setAvailable(false);
-          else setErrored(true);
+          deliver(() => {
+            if (isAiSummaryKeyMissing(err)) setAvailable(false);
+            else setErrored(true);
+          });
         });
     };
 
@@ -148,9 +224,12 @@ export default function useAiSummary() {
     intervalRef.current = setInterval(fetchSummary, REFRESH_INTERVAL);
     return () => {
       cancelled = true;
+      // A held reply belongs to this run (an old position, language or
+      // unit): drop it with the run.
+      heldReplyRef.current = null;
       clearInterval(intervalRef.current);
     };
-  }, [mapGeo, lang, available, setAvailable, tempUnit, speedUnit, distanceUnit, sleepStage]);
+  }, [active, mapGeo, lang, available, setAvailable, tempUnit, speedUnit, distanceUnit, sleepStage]);
 
   return { summary, available, lang, period, errored };
 }

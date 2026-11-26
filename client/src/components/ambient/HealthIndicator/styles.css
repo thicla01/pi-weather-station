@@ -550,3 +550,63 @@
   }
 }
 
+
+/* ============================================================
+ * LayoutPi's overlay-shell dock (`[data-pi-shell]`, set under the
+ * priority-views model). Gated: the chip sits in every BottomDock
+ * (desktop with its label, phones as a 36 px disc), where a wider hit
+ * area could reach the neighbouring button.
+ * ============================================================ */
+
+/* A 44 × 44 px touch area centred on the 28 px icon-only chip (18 px disc,
+ * 4 px padding, 1 px border), drawn by an invisible ::after; the visual is
+ * unchanged. Sized on its own, not from the chip's box: an absolute box
+ * resolves `inset` against its host's PADDING box, 26 px here (the 1 px
+ * border is outside it), so `inset: -8px` would give 42 px, 7 px past
+ * each visible edge. `left` / `top: 50%` resolve against that padding box
+ * too, whose centre is the chip's centre while the border stays the same on
+ * every side, and the translate is half the pseudo-element's own 44 px. The
+ * chip has no transform of its own (no `:active` scale) for this to fight,
+ * and the dock band is outside the rail's `zoom: var(--c-font-scale)`, so 44
+ * CSS px are 44 px on screen at every font size — a plain 44px, never
+ * scaled. On the 58 px band the chip is centred in the 44 px button row (its
+ * content row is 45 px: y 429.5 to 473.5 on 800 × 480), so the area spans
+ * the row exactly; on its right it stays 2 px inside the band's 10 px
+ * padding (x 754 to 798), and on its left it falls in the empty stretch
+ * `margin-left: auto` leaves. */
+:global([data-pi-shell]) .chipButton.chipButton {
+  position: relative;
+}
+
+:global([data-pi-shell]) .chipButton.chipButton::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 44px;
+  height: 44px;
+  transform: translate(-50%, -50%);
+}
+
+/* nightRed, no hard-coded white and no status fill: the disc becomes a
+ * 1.5 px `--c-text` ring around a `--c-text` glyph (the design canvas),
+ * instead of the nightRed `--c-text` disc with a dark glyph used
+ * elsewhere — the same red field, without a filled spot. `!important`
+ * overrides the inline DOT_COLORS fill and the `!important` `--c-text`
+ * disc above, which this selector outranks. The glyph is coloured on its
+ * SVG elements directly, for Firefox's currentColor-through-a-variable
+ * issue (see above). */
+:global(.ambientRoot[data-palette="nightRed"]) :global([data-pi-shell]) .chipIcon {
+  background-color: transparent !important;
+  color: var(--c-text);
+  box-shadow: 0 0 0 1.5px var(--c-text);
+}
+
+:global(.ambientRoot[data-palette="nightRed"]) :global([data-pi-shell]) .chipIcon svg path,
+:global(.ambientRoot[data-palette="nightRed"]) :global([data-pi-shell]) .chipIcon svg line {
+  stroke: var(--c-text);
+}
+
+:global(.ambientRoot[data-palette="nightRed"]) :global([data-pi-shell]) .chipIcon svg circle {
+  fill: var(--c-text);
+}

@@ -132,3 +132,32 @@
   height: 14px;
   color: var(--c-text-dim);
 }
+
+/* LayoutPi's overlay shell (`[data-pi-shell]`, set under the priority-views
+ * model; never set by LayoutDesktop or LayoutMobile). There the banner is
+ * one of the map overlays that change between MID and MIN: always mounted,
+ * live in MIN only, inert elsewhere (`shellLive`, set in the switch's own
+ * commit). Arriving, it waits 150 ms (a transition-delay), then fades in and
+ * drops 8 px into place over 150 ms (150 → 300 ms); leaving, it fades out
+ * and rises 8 px in 100 ms, then `visibility: hidden` (never opacity alone:
+ * it is a button). Opacity and transform only, `visibility` as a discrete
+ * step; the durations, delay and shift are the shell root's
+ * (LayoutPi/styles.css), the durations and delay 0 under reduced motion
+ * (and in the unreachable fallback form 2). (0,4,0) / (0,5,0) beat
+ * `.banner.banner`. */
+:global([data-pi-shell]) .banner.banner {
+  transition:
+    opacity var(--pi-overlay-in-duration, 0ms) var(--pi-shell-easing, ease-out) var(--pi-overlay-in-delay, 0ms),
+    transform var(--pi-overlay-in-duration, 0ms) var(--pi-shell-easing, ease-out) var(--pi-overlay-in-delay, 0ms),
+    visibility 0s linear var(--pi-overlay-in-delay, 0ms);
+}
+
+:global([data-pi-shell]) .banner.banner[inert] {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(calc(-1 * var(--pi-overlay-shift, 0px)));
+  transition:
+    opacity var(--pi-overlay-out-duration, 0ms) var(--pi-shell-easing, ease-out),
+    transform var(--pi-overlay-out-duration, 0ms) var(--pi-shell-easing, ease-out),
+    visibility 0s linear var(--pi-overlay-out-duration, 0ms);
+}

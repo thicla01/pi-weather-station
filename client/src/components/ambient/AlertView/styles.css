@@ -17,6 +17,19 @@
   color: var(--c-text);
 }
 
+/* LayoutPi's overlay shell (`data-pi-shell` on the LayoutPi root, set under
+ * the priority-views model). The view opens in an opaque sheet with no
+ * padding of its own, which is the view's surface (as the design canvas
+ * draws the forecast view): the card drops its fill, border and radius,
+ * and its header, selector and body keep their own 12 px insets. The
+ * header's tier strip then runs along the sheet's left hairline. Inert off
+ * the overlay shell. */
+:global([data-pi-shell]) .view {
+  background-color: transparent;
+  border: 0;
+  border-radius: 0;
+}
+
 .header {
   flex: none;
   padding: 10px 12px;

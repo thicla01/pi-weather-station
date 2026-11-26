@@ -20,7 +20,11 @@ const MOBILE_INVALIDATE_FINAL_MS = 350;
  *    and full-rail morphs (a 200 ms grid transition) and the LayoutMobile
  *    card maximize. (The LayoutDesktop radar focus toggle doesn't resize
  *    the full-bleed map: only the overlays hide, and RailOffsetTracker
- *    re-pans for the zeroed rail offset.) A ResizeObserver on the
+ *    re-pans for the zeroed rail offset. Nor does LayoutPi's overlay
+ *    shell, whose map stays at the full screen size in every state (the
+ *    unreachable fallback form 2's clip included): RailOffsetTracker
+ *    re-pans for the state-derived offset, and this observer only sees its
+ *    initial callback.) A ResizeObserver on the
  *    container calls `invalidateSize` whenever that size actually changes:
  *    on every frame of a transition, the last one included. Until
  *    2026-10-09 this was two timers fired 50 ms and 250 ms after a layout

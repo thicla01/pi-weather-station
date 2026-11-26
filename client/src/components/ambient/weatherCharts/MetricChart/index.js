@@ -1,4 +1,4 @@
-import React, { useContext, useMemo } from "react";
+import React, { useContext, useEffect, useMemo, useRef } from "react";
 import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
 import {
@@ -46,6 +46,12 @@ ChartJS.register(
 // scannable (hourly: every 3rd hour ≈ 8 arrows; daily: one per day).
 const MAX_DIR_ARROWS = 8;
 
+// The chart's per-instance plugins (the max/min value labels): one array
+// for every render, so a render of this component with the same data and
+// options hands react-chartjs-2's Chart nothing new. Read by Chart.js at
+// creation only; never mutated.
+const CHART_PLUGINS = Object.freeze([ChartDataLabels]);
+
 /**
  * Pull the interval list out of a Tomorrow.io envelope.
  *
@@ -81,9 +87,12 @@ function getIntervals(weatherData) {
  *   the chart container. Bound directly to `onClick`, so React passes a
  *   SyntheticMouseEvent; the type is zero-arity because callers ignore it (advances to the next metric tab — the v2
  *   muscle-memory gesture). Omitted means the chart area is inert.
+ * @param {boolean} [props.sizeFromBox] Overlay shell only: ChartTabs'
+ *   `piSheet` (the overlay shell's view sheet): size a new chart once from
+ *   its box's computed size (below). False elsewhere (unchanged there).
  * @returns {JSX.Element|null} the chart (plus the wind-direction row), an error label, or null while loading
  */
-const MetricChart = ({ cadence, metric, precipOverlay, onCycle }) => {
+const MetricChart = ({ cadence, metric, precipOverlay, onCycle, sizeFromBox = false }) => {
   const {
     hourlyWeatherData,
     hourlyWeatherDataErr,
@@ -96,6 +105,7 @@ const MetricChart = ({ cadence, metric, precipOverlay, onCycle }) => {
     clockTime,
     lengthUnit,
     speedUnit,
+    fontSize,
   } = useContext(UiPrefsContext);
   const { t, i18n } = useTranslation();
   const nightRed = useTimeOfDay() === "nightRed";
@@ -353,6 +363,54 @@ const MetricChart = ({ cadence, metric, precipOverlay, onCycle }) => {
     if (!sampled.some((d) => d != null)) return null;
     return sampled;
   }, [metric, series]);
+  const hasDirRow = Boolean(dirArrows);
+
+  // `sizeFromBox` (the overlay shell's view sheet): Chart.js sizes a new
+  // chart from its box's getBoundingClientRect(), i.e. in on-screen px,
+  // which inside the sheet's `zoom` (text size S or L) are not the box's
+  // own; its ResizeObserver corrects that once the box renders, and a host
+  // skipped by `content-visibility: hidden` reports nothing. A chart created
+  // there (at boot, or back from the grid tab) would show at the wrong size
+  // for the first frames of the view's opening, then resize. So size it from
+  // the box's computed size, the observer's own units (getComputedStyle lays
+  // the skipped box out on demand; a displayed box measures the same): once
+  // the chart exists (after react-chartjs-2 has created it — a child's
+  // effect runs first), and again whenever the text size changes, which
+  // resizes the box under the sheet's zoom while the hidden host reports
+  // nothing either (the first opening after it drew the chart at the old
+  // size for two frames), or the tab changes: the wind-direction row below
+  // the box comes or goes, and the summary row under the chart area differs
+  // per metric (no overlay chip on precip), both of which resize the box
+  // while the hidden host reports nothing (the auto-select feature switching
+  // to wind on a gust forecast drew 484×260.8 in a 484×246 box at L for the
+  // opening's first two frames; daily wind → precip left 260.8 in 263.3).
+  // ChartTabs' overlay-shell rule keeps the box's height independent of the
+  // canvas inside it, so one measure is exact.
+  const chartRef = useRef(null);
+  const boxRef = useRef(null);
+  const hasChart = Boolean(chartData);
+  useEffect(() => {
+    const chart = chartRef.current;
+    const box = boxRef.current;
+    if (!sizeFromBox || !chart || !box) return;
+    const cs = window.getComputedStyle(box);
+    const w = parseFloat(cs.width);
+    const h = parseFloat(cs.height);
+    if (w > 0 && h > 0) chart.resize(w, h);
+  }, [sizeFromBox, hasChart, fontSize, hasDirRow, metric, cadence]);
+
+  // The chart element, one per data / options pair (with CHART_PLUGINS
+  // above): an equal element lets React skip the Chart's render, whose
+  // effects only act on a new `data` or `options` anyway.
+  const chart = useMemo(() => (chartData ? (
+    <Chart
+      ref={chartRef}
+      type="bar"
+      data={chartData}
+      options={chartOptions}
+      plugins={CHART_PLUGINS}
+    />
+  ) : null), [chartData, chartOptions]);
 
   if (!chartData) {
     if (dataErr) {
@@ -371,13 +429,8 @@ const MetricChart = ({ cadence, metric, precipOverlay, onCycle }) => {
         * PARENT — without this wrapper the wind tab's arrow row would
         * shrink the canvas's flex box while the bitmap stayed full
         * height (vertical squash + DPR blur, review finding). */}
-      <div className={styles.canvasBox}>
-        <Chart
-          type="bar"
-          data={chartData}
-          options={chartOptions}
-          plugins={[ChartDataLabels]}
-        />
+      <div className={styles.canvasBox} ref={boxRef}>
+        {chart}
       </div>
       {dirArrows ? (
         <div className={styles.windDirRow} aria-hidden="true">
@@ -407,6 +460,7 @@ MetricChart.propTypes = {
   metric: PropTypes.oneOf(["temp", "wind", "precip"]).isRequired,
   precipOverlay: PropTypes.bool,
   onCycle: PropTypes.func,
+  sizeFromBox: PropTypes.bool,
 };
 
 export default MetricChart;

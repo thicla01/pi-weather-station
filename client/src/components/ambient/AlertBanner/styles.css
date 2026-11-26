@@ -219,14 +219,26 @@
 }
 
 /* v3.3 priority glance — 2-line compact gov card. Row 1: severity + source
- * tags and the maximize ⤢ (pushed right); row 2: the alert title on its own
- * full-width line + the cycle counter. Gives the title room the single row
- * never had, and the card finally carries the ⤢ square like its siblings. */
-.compactCard {
+ * tags and the ⤢ cue (pushed right); row 2: the alert title on its own
+ * full-width line + the passive "1 / N". Gives the title room the single row
+ * never had, and the card carries the ⤢ square like its siblings.
+ * The whole card is ONE <button> (AlertBanner/index.js), so the class is
+ * doubled to beat the `.ambientRoot button` reset (0,1,1), which zeroes the
+ * padding. No `:active` feedback. */
+.compactCard.compactCard {
   display: flex;
   flex-direction: column;
   gap: 4px;
+  width: 100%;
+  box-sizing: border-box;
   padding: 6px 12px;
+  text-align: left;
+  border-radius: inherit;
+}
+
+.compactCard.compactCard:focus-visible {
+  outline: 2px dashed var(--c-text);
+  outline-offset: -2px;
 }
 .compactTop {
   display: flex;
@@ -241,13 +253,16 @@
   align-items: center;
   gap: 8px;
 }
-/* Counter on row 2 must NOT stretch the row — it inherits align-self: stretch
- * + min-height 34px from the shared .cycleCounter (sized for the v3.2 single
- * row), which padded ~18px of dead space above/below the title. Centre it and
- * shrink to a compact-but-tappable height so row 2 hugs the title. */
-.compactBottom .cycleCounter {
-  align-self: center;
-  min-height: 24px;
+/* The priority card's "1 / N": a passive indicator, no chevron, no
+ * fill, no tap zone — the card is the target, and switching alerts is the
+ * Alert view's chips. The counter's mono type, in the dim ink. */
+.cycleIndicator {
+  flex-shrink: 0;
+  font-family: "Geist Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.02em;
+  color: var(--c-text-dim);
 }
 
 .headCompact {
@@ -281,9 +296,10 @@
 }
 
 /* Cycle counter — "1 / N" doubling as the next-alert control, the whole
- * multi-alert nav surface on Pi (mini-cards dropped). Sized as a real
- * touch target (min 34px tall, stretches to the row) — accent-soft fill +
- * chevron reads as a button (vs the passive desktop .counter). */
+ * multi-alert nav surface of the v3.2 card on Pi (mini-cards dropped).
+ * Sized as a real touch target (min 34px tall, stretches to the row) —
+ * accent-soft fill + chevron reads as a button (vs the passive desktop
+ * .counter). */
 .cycleCounter {
   display: inline-flex;
   align-items: center;
@@ -414,3 +430,6 @@
 @media (max-width: 479px) {
   .govAlert .title { font-size: 13px; }
 }
+
+/* (The compact card's ⤢ has no touch area of its own: the whole card is
+ * the button, far past 44 px on screen at every size.) */

@@ -10,6 +10,7 @@ import FeelsLikeLine from "~/components/ambient/FeelsLikeLine";
 import LocationName from "~/components/LocationName";
 import LocationDetailsPopover from "~/components/ambient/LocationDetailsPopover";
 import { ExpandIcon } from "~/components/WeatherMap/icons";
+import useTapGuard from "~/hooks/useTapGuard";
 import styles from "./styles.css";
 
 // How often the day/night choice of the condition icon is re-checked.
@@ -50,13 +51,30 @@ const DAYLIGHT_TICK_MS = 60 * 1000;
  *   corner affordance (the radar screen's four-corner square) that calls
  *   this; the v3.3 glance hero opens the Conditions view with it. Adds no
  *   card height (absolute corner).
+ * @param {boolean} [props.inlineConditionIcon] — Overlay shell only: put
+ *   the condition icon at the start of the label's first line instead of
+ *   on its own line above it, with the label bottom-aligned beside the
+ *   numeral. A two-line label then fits the numeral's 39 px, so the hero
+ *   holds 82 internal px instead of growing by the icon row. LayoutPi
+ *   passes it under the overlay shell only; the component never reads the
+ *   shell's gate itself (LayoutMobile mounts it too). False keeps the icon
+ *   on its own line, the markup unchanged.
  * @returns {JSX.Element} hero slab
  */
-const HeroCompact = ({ shortPhaseName = false, hideAstro = false, hideFeelsLike = false, onMaximize }) => {
+const HeroCompact = ({
+  shortPhaseName = false,
+  hideAstro = false,
+  hideFeelsLike = false,
+  onMaximize,
+  inlineConditionIcon = false,
+}) => {
   const { currentWeatherData, sunriseTime, sunsetTime } = useContext(WeatherDataContext);
   const { tempUnit } = useContext(UiPrefsContext);
   const { reverseGeoResult } = useContext(LocationContext);
   const { t } = useTranslation();
+  // The ⤢ opens the Conditions view, whose back button lands under the
+  // finger: it arms the double-tap guard first (ui/tapGuard.js).
+  const guardTap = useTapGuard();
 
   // Clock for the day/night icon, held in state so the compiled component
   // re-checks it: the React Compiler caches isDaylight's answer with this
@@ -71,11 +89,13 @@ const HeroCompact = ({ shortPhaseName = false, hideAstro = false, hideFeelsLike 
   // v3.3 glance: a corner ⤢ that opens the Conditions view. Rendered in both
   // the placeholder and populated slabs so the affordance doesn't pop in when
   // the first payload lands. Absolute-positioned — costs no card height.
+  // `data-pi-press`: the overlay shell's press tint (LayoutPi).
   const maximizeBtn = onMaximize ? (
     <button
       type="button"
       className={styles.maximize}
-      onClick={onMaximize}
+      onClick={(e) => { guardTap(e); onMaximize(); }}
+      data-pi-press=""
       aria-label={t("conditions.openAria", { defaultValue: "Open conditions" })}
     >
       <ExpandIcon className={styles.maximizeIcon} />
@@ -123,10 +143,15 @@ const HeroCompact = ({ shortPhaseName = false, hideAstro = false, hideFeelsLike 
     />
   ) : null;
 
+  // The overlay shell's modifier on the slab (its 82 px floor). Appended
+  // only when set, so the default class string stays the same, byte for
+  // byte.
+  const inlineClass = inlineConditionIcon ? ` ${styles.inlineCond}` : "";
+
   const weatherData = currentWeatherData?.data?.timelines?.[0]?.intervals?.[0]?.values;
   if (!weatherData) {
     return (
-      <div className={`${styles.slab} ${styles.empty} ${onMaximize ? styles.withMax : ""}`}>
+      <div className={`${styles.slab} ${styles.empty} ${onMaximize ? styles.withMax : ""}${inlineClass}`}>
         {maximizeBtn}
         <div className={styles.location}>
           {locationRow}
@@ -155,8 +180,17 @@ const HeroCompact = ({ shortPhaseName = false, hideAstro = false, hideFeelsLike 
     : null;
   const showFeelsLike = !hideFeelsLike && tempConverted != null && feelsConverted != null;
 
+  const condIcon = parsed?.icon ? (
+    <span className={styles.condIcon}>
+      <InlineIcon icon={parsed.icon} />
+    </span>
+  ) : null;
+  const feelsLike = showFeelsLike ? (
+    <FeelsLikeLine temp={tempConverted} feels={feelsConverted} />
+  ) : null;
+
   return (
-    <div className={`${styles.slab} ${onMaximize ? styles.withMax : ""}`}>
+    <div className={`${styles.slab} ${onMaximize ? styles.withMax : ""}${inlineClass}`}>
       {maximizeBtn}
       <div className={styles.location}>
         {locationRow}
@@ -167,19 +201,27 @@ const HeroCompact = ({ shortPhaseName = false, hideAstro = false, hideFeelsLike 
           <span className={styles.tempValue}>{tempConverted}</span>
           <span className={styles.tempUnit}>{tempUnitLabel}</span>
         </div>
-        <div className={styles.condCol}>
-          {parsed?.icon ? (
-            <span className={styles.condIcon}>
-              <InlineIcon icon={parsed.icon} />
-            </span>
-          ) : null}
-          {parsed?.descKey ? (
-            <div className={styles.condText}>{t(parsed.descKey)}</div>
-          ) : null}
-          {showFeelsLike ? (
-            <FeelsLikeLine temp={tempConverted} feels={feelsConverted} />
-          ) : null}
-        </div>
+        {inlineConditionIcon ? (
+          // Overlay shell: the icon flows inline at the start of the label,
+          // so a second line wraps under the icon (styles.css .condInline).
+          <div className={`${styles.condCol} ${styles.condInline}`}>
+            {condIcon || parsed?.descKey ? (
+              <div className={styles.condText}>
+                {condIcon}
+                {parsed?.descKey ? t(parsed.descKey) : null}
+              </div>
+            ) : null}
+            {feelsLike}
+          </div>
+        ) : (
+          <div className={styles.condCol}>
+            {condIcon}
+            {parsed?.descKey ? (
+              <div className={styles.condText}>{t(parsed.descKey)}</div>
+            ) : null}
+            {feelsLike}
+          </div>
+        )}
       </div>
       {!hideAstro && <AstroMetaLine shortPhaseName={shortPhaseName} />}
     </div>
@@ -191,6 +233,7 @@ HeroCompact.propTypes = {
   hideAstro: PropTypes.bool,
   hideFeelsLike: PropTypes.bool,
   onMaximize: PropTypes.func,
+  inlineConditionIcon: PropTypes.bool,
 };
 
 export default HeroCompact;

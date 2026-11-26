@@ -1,10 +1,16 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import PropTypes from "prop-types";
 
 import { ExpandIcon, RestoreIcon } from "./icons";
 import styles from "./styles.css";
 
 const TOAST_TIMEOUT_MS = 2000;
+
+// The overlay shell registry's `viewHidden` read without a subscription
+// (no toast pending, or no shell: the grid shell, the desktop).
+const NO_UNSUBSCRIBE = () => undefined;
+const subscribeNothing = () => NO_UNSUBSCRIBE;
+const readNotHidden = () => false;
 
 /**
  * Radar-focus toggle — the standalone 40 × 40 px button under the zoom
@@ -29,9 +35,17 @@ const TOAST_TIMEOUT_MS = 2000;
  *   handler need not return anything)
  * @param {string} props.titleOn Tooltip + toast when active (e.g. "Restore panels")
  * @param {string} props.titleOff Tooltip + toast when inactive (e.g. "Focus radar")
+ * @param {{viewChromeRef: function(?Element): (function(): void|undefined), viewHidden: function(): boolean, subscribe: function(function(): void): function(): void}} [props.shell]
+ *   Overlay shell only: LayoutPi's shell registry (ui/shellElements.js).
+ *   With a view open the button stays mounted, inert and, by the overlay
+ *   shell's rule in styles.css, hidden, and a pending toast is dropped. The
+ *   registry sets that `inert` by hand in the view switch's commit (the
+ *   button registers through `viewChromeRef`), so a view switch doesn't
+ *   render this component; undefined everywhere else (the grid shell
+ *   unmounts it in the views)
  * @returns {JSX.Element} Focus toggle button + transient toast
  */
-const RadarFocusControl = ({ active, onToggle, titleOn, titleOff }) => {
+const RadarFocusControl = ({ active, onToggle, titleOn, titleOff, shell }) => {
   const [toast, setToast] = useState(null);
   const toastTimerRef = useRef(null);
 
@@ -51,6 +65,32 @@ const RadarFocusControl = ({ active, onToggle, titleOn, titleOff }) => {
     e.currentTarget.blur();
   };
 
+  // The overlay shell keeps the button mounted while a view is open, where
+  // the grid shell unmounts it with its toast. Left alone, a pending
+  // toast would stay over the view's map strip for the rest of its 2 s,
+  // through the slide, and past the close if the view closes first (its
+  // place is in the strip, never under the sheet). So it is dropped when
+  // the button goes hidden. Whether it is hidden is the shell registry's
+  // (ui/shellElements.js), read in every render, which then renders the
+  // `inert` the registry has set by hand; subscribed only while a toast
+  // is pending: otherwise a view switch, which the
+  // registry tells in its commit, renders nothing here. With a toast
+  // pending, that commit's change renders this component once more, still
+  // before the frame that paints the switch, and the toast goes in that
+  // render (adjusted during render: a toast can only be shown while the
+  // button is visible); the effect below then clears its timer. That
+  // render is a second commit, synchronous (React flushes it before the
+  // switch's commit returns, in the same task), rather than in the
+  // switch's own commit, which only a prop could do, and a prop renders
+  // this component at every switch. Nothing differs on screen, and it
+  // happens only while a toast is pending. Off the overlay shell nothing
+  // is subscribed and this reads false.
+  const shellHidden = useSyncExternalStore(
+    shell && toast != null ? shell.subscribe : subscribeNothing,
+    shell ? shell.viewHidden : readNotHidden,
+  );
+  if (shellHidden && toast != null) setToast(null);
+
   useEffect(() => {
     if (toast == null) return undefined;
     toastTimerRef.current = setTimeout(() => setToast(null), TOAST_TIMEOUT_MS);
@@ -60,12 +100,14 @@ const RadarFocusControl = ({ active, onToggle, titleOn, titleOff }) => {
   return (
     <>
       <button
+        ref={shell ? shell.viewChromeRef : undefined}
         type="button"
         className={styles.radarFocusBtn}
         onClick={handleClick}
         onDoubleClick={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
         aria-pressed={active}
+        inert={shellHidden || undefined}
         aria-label={active ? titleOn : titleOff}
         title={active ? titleOn : titleOff}
       >
@@ -85,6 +127,11 @@ RadarFocusControl.propTypes = {
   onToggle: PropTypes.func.isRequired,
   titleOn: PropTypes.string.isRequired,
   titleOff: PropTypes.string.isRequired,
+  shell: PropTypes.shape({
+    viewChromeRef: PropTypes.func.isRequired,
+    viewHidden: PropTypes.func.isRequired,
+    subscribe: PropTypes.func.isRequired,
+  }),
 };
 
 export default RadarFocusControl;

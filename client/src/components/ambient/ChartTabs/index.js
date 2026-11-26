@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useRef, useState, useCallback } from "react";
+import PropTypes from "prop-types";
 import { useTranslation } from "react-i18next";
-import { SystemContext, AppActionsContext } from "~/AppContext";
+import { PiLayoutContext, AppActionsContext } from "~/AppContext";
 import MetricChart from "~/components/ambient/weatherCharts/MetricChart";
 import HourlyForecastColumns from "~/components/ambient/HourlyForecastColumns";
 import DailyForecastColumns from "~/components/ambient/DailyForecastColumns";
@@ -93,9 +94,9 @@ function writeStoredValue(key, value) {
  * right 12 px, `bottom: auto`, z-index 5) over its rail and emits
  * `data-chart-maximized="true"` (the layout widens the rail via
  * `:has()`). On LayoutPi (v3.2) the expand button
- * instead drives the shell MAX state (`piLayoutState`): the map shrinks
- * to a thumbnail and the rail goes full-width. Either way the grid
- * metric densifies (8 → 24 cells) and the chart area grows.
+ * instead drives the shell MAX state (`piLayoutState`): on the grid shell
+ * the map shrinks to a thumbnail and the rail goes full-width. Either way
+ * the grid metric densifies (8 → 24 cells) and the chart area grows.
  *
  * When the user opts in (Settings → "Auto-select forecast tab"),
  * `useAutoTabSelector` may command the active metric from current hazards;
@@ -106,9 +107,17 @@ function writeStoredValue(key, value) {
  * outlined TEST qualifier after the source badge, as every gov-alert
  * surface does.
  *
+ * @param {object} props
+ * @param {boolean} [props.piSheet] Overlay shell only: LayoutPi's overlay
+ *   shell, whose view sheet holds this slab in a host shown only in MAX
+ *   and skipped by `content-visibility: hidden` in every other state:
+ *   the slab renders its maximized layout in every state (so opening the
+ *   view re-lays out nothing in it), and MetricChart sizes its chart from
+ *   its box (`sizeFromBox`), since no resize is reported inside the
+ *   hidden host. False elsewhere (unchanged there).
  * @returns {JSX.Element} forecast slab
  */
-const ChartTabs = () => {
+const ChartTabs = ({ piSheet = false }) => {
   const { t } = useTranslation();
   const [period, setPeriod] = useState("hourly");
   const [hourlyMetric, setHourlyMetric] = useState(() => readStoredView(STORAGE_KEY_HOURLY, METRICS.length));
@@ -117,15 +126,15 @@ const ChartTabs = () => {
     try { return window.localStorage.getItem(STORAGE_KEY_OVERLAY) === "1"; } catch { return false; }
   });
   // v3.2: on LayoutPi the forecast slab no longer maximizes in place — its
-  // expand button drives the shell into the MAX state (forecast-forward:
-  // map → thumbnail, rail → full-width). `piLayoutState` is non-null only
-  // while LayoutPi is mounted, so on LayoutDesktop / LayoutMobile the slab
-  // keeps its original local in-rail maximize.
-  const { piLayoutState } = useContext(SystemContext);
+  // expand button drives the shell into the MAX state (forecast-forward; on
+  // the grid shell, map → thumbnail and rail → full-width). `piLayoutState`
+  // is non-null only while LayoutPi is mounted, so on LayoutDesktop /
+  // LayoutMobile the slab keeps its original local in-rail maximize.
+  const { piLayoutState } = useContext(PiLayoutContext);
   const { setPiLayoutState } = useContext(AppActionsContext);
   const onPi = piLayoutState != null;
   const [localMaximized, setLocalMaximized] = useState(false);
-  const maximized = onPi ? piLayoutState === "max" : localMaximized;
+  const maximized = piSheet || (onPi ? piLayoutState === "max" : localMaximized);
   const toggleMaximized = useCallback(() => {
     if (onPi) setPiLayoutState(piLayoutState === "max" ? "mid" : "max");
     else setLocalMaximized((m) => !m);
@@ -239,6 +248,7 @@ const ChartTabs = () => {
         metric={metric}
         precipOverlay={precipOverlay && metric !== "precip"}
         onCycle={cycleMetric}
+        sizeFromBox={piSheet}
       />
     );
   }
@@ -288,6 +298,8 @@ const ChartTabs = () => {
           aria-pressed={maximized}
           aria-label={expandLabel}
           title={expandLabel}
+          data-pi-back={maximized ? "" : undefined}
+          data-pi-press={maximized ? "" : undefined}
         >
           {maximized ? <RestoreIcon className={styles.actionIcon} /> : <ExpandIcon className={styles.actionIcon} />}
         </button>
@@ -344,6 +356,10 @@ const ChartTabs = () => {
       </div>
     </div>
   );
+};
+
+ChartTabs.propTypes = {
+  piSheet: PropTypes.bool,
 };
 
 export default ChartTabs;

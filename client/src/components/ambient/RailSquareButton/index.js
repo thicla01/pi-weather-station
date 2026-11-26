@@ -18,15 +18,30 @@ import styles from "./styles.css";
  * @param {object} props
  * @param {React.ComponentType<{className?: string}>} props.icon — icon
  *   component (e.g. RestoreIcon); rendered with `currentColor`.
- * @param {(event: React.MouseEvent) => void} props.onClick — activation
- *   handler; it receives the click event (the alert card's ⤢ arms its
- *   double-tap guard from it — `hooks/useTapGuard.js`).
- * @param {string} props.ariaLabel — accessible label (no visible text).
+ * @param {(event: React.MouseEvent) => void} [props.onClick] — activation
+ *   handler; it receives the click event. Required unless `decorative`.
+ * @param {string} [props.ariaLabel] — accessible label (no visible text).
+ *   Required unless `decorative`.
  * @param {string} [props.className] — optional positioning class.
- * @returns {JSX.Element} the square button
+ * @param {boolean} [props.back] — a view's back button: carries `data-pi-back`
+ *   (the double-tap guard swallows a press on it during its window under the
+ *   overlay shell, ui/tapGuard.js) and `data-pi-press` (the overlay shell's
+ *   press tint).
+ * @param {boolean} [props.decorative] — render the square as a cue inside a
+ *   larger control (a `<span>`, hidden from assistive tech, no tap zone or
+ *   pressed feedback of its own): the compact alert card, which is one
+ *   button.
+ * @returns {JSX.Element} the square button (or the decorative square)
  */
-const RailSquareButton = ({ icon, onClick, ariaLabel, className }) => {
+const RailSquareButton = ({ icon, onClick, ariaLabel, className, back = false, decorative = false }) => {
   const Icon = icon;
+  if (decorative) {
+    return (
+      <span className={`${styles.square} ${styles.decorative} ${className || ""}`} aria-hidden="true">
+        <Icon className={styles.icon} />
+      </span>
+    );
+  }
   return (
     <button
       type="button"
@@ -34,6 +49,8 @@ const RailSquareButton = ({ icon, onClick, ariaLabel, className }) => {
       onClick={onClick}
       aria-label={ariaLabel}
       title={ariaLabel}
+      data-pi-back={back ? "" : undefined}
+      data-pi-press={back ? "" : undefined}
     >
       <Icon className={styles.icon} />
     </button>
@@ -42,9 +59,11 @@ const RailSquareButton = ({ icon, onClick, ariaLabel, className }) => {
 
 RailSquareButton.propTypes = {
   icon: PropTypes.elementType.isRequired,
-  onClick: PropTypes.func.isRequired,
-  ariaLabel: PropTypes.string.isRequired,
+  onClick: PropTypes.func,
+  ariaLabel: PropTypes.string,
   className: PropTypes.string,
+  back: PropTypes.bool,
+  decorative: PropTypes.bool,
 };
 
 export default RailSquareButton;

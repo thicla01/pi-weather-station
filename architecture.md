@@ -310,7 +310,7 @@ Since v2.15 (Direction C introduced in v2.14 with `LayoutPi` + `LayoutDesktop`; 
 | Width | Layout | Audience |
 |---|---|---|
 | ≤ 799 px | **LayoutMobile** | Phone portrait (375-430 px iPhone / Android) — single scrollable column, mini radar with maximize button, pull-to-refresh |
-| 800-1279 px | **LayoutPi** | 7" / 10" Pi kiosk + small windows — map + rail split driven by `piLayoutState`: MIN (radar only) / MID (default split) / MAX (map thumbnail, forecast fills the rail) + the full-rail `ai` view; a ≤ 540 px-high viewport (e.g. the 7" 800×480) swaps the rail for the v3.3 priority-views glance (+ `conditions` / `alert` views) — state diagram in the `LayoutPi` JSDoc |
+| 800-1279 px | **LayoutPi** | 7" / 10" Pi kiosk + small windows — map + rail split driven by `piLayoutState`: MIN (radar only) / MID (default split) / MAX (map thumbnail, forecast fills the rail) + the full-rail `ai` view; a ≤ 540 px-high viewport (e.g. the 7" 800×480) swaps the rail for the v3.3 priority-views glance (+ `conditions` / `alert` views) and the grid for the overlay shell (map filling the viewport, never resized; rail, dock band and view sheet floating over it) — state diagram in the `LayoutPi` JSDoc |
 | ≥ 1280 px | **LayoutDesktop** | HD monitor + desktop — full-bleed map background, floating HeroBand + rail, the `RadarFocusControl` overlay button hides them for full radar view |
 
 Full layout reference (with safe-area / PWA notes) in [`docs/ui-layout_fr.md`](docs/ui-layout_fr.md) and [`_en.md`](docs/ui-layout_en.md).
@@ -347,13 +347,18 @@ App                               Root — mounts the overlays and AmbientLayers
 │       │   │                          failed-tile cooldown (no 429 storm)
 │       │   ├── MapResizer            invalidateSize on every container resize
 │       │   │                          (ResizeObserver) + mobile maximize recenter
+│       │   │                          (the 7" overlay shell never resizes the map)
 │       │   ├── PanHandler            Programmatic re-centering with rail-offset math
 │       │   ├── RailOffsetTracker     Pans marker when rail width changes
+│       │   │                          (7" overlay shell: per-state offset; a view
+│       │   │                           translates the map panes instead)
 │       │   ├── MapInertia            Drag inertia off under the OS reduced-motion
 │       │   │                          preference, followed live (ui/mapMotion.js)
 │       │   ├── MapClickHandler       Click-to-recenter with 200 ms debounce
 │       │   ├── RadarFocusControl     Overlay button under the zoom stack — hides
 │       │   │                          hero+rail on LayoutPi and LayoutDesktop
+│       │   │                          (on the 7" the rail and the dock slide away;
+│       │   │                           hidden and inert during a view)
 │       │   │                          (standalone button since v3.1 Phase 3, was a
 │       │   │                           Leaflet bar control before)
 │       │   ├── RiskRing              Dashed analysis rings (one or two stacked circles
@@ -413,7 +418,8 @@ App                               Root — mounts the overlays and AmbientLayers
 │       │     its tiles arrived.
 │       │
 │       ├── FloatingMiniBanner        Gov-alert chip over the map while the radar is
-│       │                             focused (Pi MIN / Desktop) or maximized (Mobile)
+│       │                             focused (Pi MIN / Desktop) or maximized (Mobile);
+│       │                             on the 7" its tap arms the double-tap guard
 │       ├── HeroBand / HeroCompact / TimeBlock    Layout-specific hero surfaces
 │       ├── AlertBanner               Alert head — gov (NWS/ECCC) and radar-derived
 │       │                             (RADAR) alerts; on the Pi rail the radar branch
@@ -439,7 +445,8 @@ App                               Root — mounts the overlays and AmbientLayers
 │       │   └── DailyForecastColumns  (minmax(0,1fr) grid + sub-799px tightening)
 │       ├── AiSummaryInline    [D/M]  Claude summary w/ maximize button
 │       ├── AiView              [Pi]  Full-rail "ai" state, every Pi panel (fetches
-│       │                             via components/hooks/useAiSummary)
+│       │                             via components/hooks/useAiSummary; the 7" shell
+│       │                             keeps it mounted, active only while open)
 │       ├── ConditionsView / AlertView   [Pi]  v3.3 priority views (≤ 540 px
 │       │                                      height only)
 │       └── BottomDock
@@ -452,13 +459,18 @@ App                               Root — mounts the overlays and AmbientLayers
 │           │   │                     (+ debug when local + DEBUG, update when
 │           │   │                     available). † RainViewer source only.
 │           │   │                     Secondary buttons hidden ≤600px portrait
-│           │   │                     via data-dock-priority="secondary"
+│           │   │                     via data-dock-priority="secondary". The 7"
+│           │   │                     dock moves marker, legend, rings and debug
+│           │   │                     into a "···" menu
+│           │   ├── DockOverflowMenu  [Pi 7"] "···" menu of the overlay shell's dock
 │           │   └── PlacesPopover     Favorite locations (mounted while open)
 │           └── HealthIndicator       Coloured dot + popover — polls /api/health,
 │                                     green/yellow/red, listing failing services
 │
 └── ScreenSaver                   Sleep-mode stage 1 (clock) + stage 2 (anti-burn-in dot)
 ```
+
+**LayoutPi's 7" overlay shell.** `LayoutPi/useShellTiming.js` (one state update per switch, shields, waits on the motion's own end), `useHostWarmup.js` (with `ui/sheetWarmup.js` and `ui/styleWarmup.js`: hidden views laid out and painted ahead, the alert view's switch styled ahead while an alert is shown), `usePressTint.js` (`ui/pressTint.js`), `useTouchCancel.js`; geometry and timing rules in `ui/piShellGeometry.js`, the shell's element registry in `ui/shellElements.js`, the double-tap guard in `ui/tapGuard.js` + `hooks/useTapGuard.js`. These `ui/` modules are CommonJS, tested under `test/`.
 
 The legacy v2 component tree (`InfoPanel` / `CurrentWeather` / `Clock` / `WeatherInfo` / `UvAqiBadges` / `Settings` / `Debug` / …) was **deleted in 2026-07**, together with the `experimentalUiC` flag that used to select it. The tree above is therefore the whole client at the surface level (leaf primitives such as `SourceBadge` or `DetailsPopover` are omitted) — there is no second UI path. Six directories sit under `client/src/components/` outside `ambient/`, and v3 consumes all of them:
 
@@ -471,13 +483,13 @@ The legacy v2 component tree (`InfoPanel` / `CurrentWeather` / `Clock` / `Weathe
 | `UpdateModal/` | In-app updater UX |
 | `ScreenSaver/` | Sleep-mode stages 1 and 2 |
 
-Plus two hook directories: `components/hooks/` (`useAiSummary`) and `~/hooks/` (`useUpdateChecker`, `useScreenSaver`, `useUiPreferences`, `useIdleDetection`, `useDismissedAlerts`, `useAutoTabSelector`, `useDisplayScale`, `useEligibleGovAlerts`, `useSenseHatMode`, `useFavoriteLocations`).
+Plus two hook directories: `components/hooks/` (`useAiSummary`) and `~/hooks/` (`useUpdateChecker`, `useScreenSaver`, `useUiPreferences`, `useIdleDetection`, `useDismissedAlerts`, `useAutoTabSelector`, `useDisplayScale`, `useEligibleGovAlerts`, `useSenseHatMode`, `useFavoriteLocations`, `useTapGuard`).
 
 > ⚠️ Naming trap for anyone reading pre-July commits: `ambient/AlertBanner` is a **different, live** component from the deleted `components/AlertBanner`. Same for `ambient/AiSummaryInline`, `ambient/IndoorBlock`, `ambient/SettingsPanel` and `ambient/DebugPanel` — those are the v3 surfaces and were never removed.
 
 ### State management
 
-All shared state lives in `AppContext.js` (React Context + `useState`). Components read from context and call setter functions exposed by the context value. As of v2.18, three coherent clusters have been extracted into dedicated hooks under `~/hooks/` — AppContext composes them via `useUpdateChecker()` / `useScreenSaver()` / `useUiPreferences()` and re-exports their returns through the context, so consumers don't see any difference at the call site. Since then `useDisplayScale`, `useSenseHatMode`, `useIdleDetection` and `useFavoriteLocations` have joined the same way, so AppContext now composes seven hooks. The value is additionally published through seven sliced contexts — `AppActionsContext`, `SystemContext`, `LocationContext`, `UiPrefsContext`, `WeatherDataContext`, `AlertsContext`, `RadarStateContext` — so a component subscribes only to the slice it reads (most of the v3 `ambient/` tree uses these; the original catch-all `AppContext` export remains and is still what about a dozen components import when they need several slices at once).
+All shared state lives in `AppContext.js` (React Context + `useState`). Components read from context and call setter functions exposed by the context value. As of v2.18, three coherent clusters have been extracted into dedicated hooks under `~/hooks/` — AppContext composes them via `useUpdateChecker()` / `useScreenSaver()` / `useUiPreferences()` and re-exports their returns through the context, so consumers don't see any difference at the call site. Since then `useDisplayScale`, `useSenseHatMode`, `useIdleDetection` and `useFavoriteLocations` have joined the same way, so AppContext now composes seven hooks. The value is additionally published through seven sliced contexts — `AppActionsContext`, `SystemContext`, `LocationContext`, `UiPrefsContext`, `WeatherDataContext`, `AlertsContext`, `RadarStateContext` — so a component subscribes only to the slice it reads (most of the v3 `ambient/` tree uses these; the original catch-all `AppContext` export remains and is still what about a dozen components import when they need several slices at once). The LayoutPi shell's state (`piLayoutState`, the derived `piRadarMaximized`, `piScrubberOpen`) is in none of them: it changes at every Pi view switch, so it lives in `PiLayoutContext` (plus the boolean `PiLayoutMountedContext` for components that only ask whether LayoutPi is mounted), owned by a small `PiLayoutProvider` above the slices' provider — a switch re-renders only the components that read it, never the slice consumers or the provider of the slices; its setters stay in `AppActionsContext`.
 
 ```
 AppContext
@@ -548,20 +560,20 @@ AppContext
 
 ### Responsive adaptations
 
-Detected two ways, both live (no reload): `window.matchMedia` listeners where JS has to branch (the layout dispatch in `AmbientLayers`, the WeatherMap legend / timeline gates), and plain CSS `@media` queries for styling-only changes (the panels' compact grids, the `LayoutMobile` landscape mapCard, the dock's portrait row). The 540 px row below is the exception — read per render, not watched.
+Detected two ways, both live (no reload): `window.matchMedia` listeners where JS has to branch (the layout dispatch in `AmbientLayers`, the WeatherMap legend / timeline gates), and plain CSS `@media` queries for styling-only changes (the panels' compact grids, the `LayoutMobile` landscape mapCard, the dock's portrait row). The 540 px row below is the exception — a cached value its own listener keeps current, which re-renders nothing by itself.
 
 | Trigger | Effect |
 |---|---|
 | `width ≤ 799 px` | Switch to `LayoutMobile` (single column, mini radar with maximize button, pull-to-refresh) |
-| `width 800-1279 px` | `LayoutPi` (map + rail split; `piLayoutState` MIN / MID / MAX + the `ai` view) |
+| `width 800-1279 px` | `LayoutPi` (map + rail split on the stacked rail, overlay shell on the 7"; `piLayoutState` MIN / MID / MAX + the `ai` view) |
 | `width ≥ 1280 px` | `LayoutDesktop` (full-bleed map + floating panels + `RadarFocusControl` overlay button) |
-| `max-height ≤ 520 px` | SettingsPanel + DebugPanel switch to compact 2-column layouts; WeatherMap collapses the radar legend to its (i) chip where the map can't spare the room (timeline open, or the Pi MID pane) and uses the compact timeline; on `LayoutMobile` in landscape the mini mapCard shrinks to 160 px. ChartTabs has no height gate. |
-| `max-height ≤ 540 px` (read per render by `priorityViewsEnabled()` in `ui/piLayout.js`, not a live listener; also forceable via the `forcePriorityViews` localStorage key) | `LayoutPi` switches to the v3.3 priority-views glance rail (+ `conditions` / `alert` full-rail views). Deliberately a **separate threshold** from 520 — don't unify the two queries |
+| `max-height ≤ 520 px` | SettingsPanel + DebugPanel switch to compact 2-column layouts; WeatherMap collapses the radar legend to its (i) chip where the map can't spare the room (timeline open; under LayoutPi's overlay shell the shell's state picks the legend's form instead, at any height: the chip in MID, a raised chip above the open scrubber, the card in MIN without it) and uses the compact timeline; on `LayoutMobile` in landscape the mini mapCard shrinks to 160 px. ChartTabs has no height gate. |
+| `max-height ≤ 540 px` (read by `priorityViewsEnabled()` in `ui/piLayout.js`, from a cached MediaQueryList that its own `change` listener keeps current — a change re-renders nothing by itself, and the compiled LayoutPi reads it once per mount, the React Compiler memoizing the argument-less call; also forceable via the `forcePriorityViews` localStorage key, read once per page load and again after another tab changes it — `ui/cachedFlags.js`) | `LayoutPi` switches to the v3.3 priority-views glance rail (+ `conditions` / `alert` full-rail views); the same gate selects LayoutPi's 7" overlay shell. Deliberately a **separate threshold** from 520 — don't unify the two queries |
 | `(max-width: 600px) and (orientation: portrait)` (was 479 px) | Dock hides `data-dock-priority="secondary"` buttons (timeline / arrows / legend / nearby alerts / auto / nightRed; timeline + legend stay while the mobile radar is maximized) — essentials only. Group spacing tightens further at ≤ 479 px |
 
 ### Font size zoom model
 
-Within the layouts, `zoom: var(--c-font-scale)` (S=0.85, M=1.0, L=1.15) is applied to the scrollable rail only — `.rail` in `LayoutPi` and `LayoutDesktop`. Two boundaries were established by trial:
+Within the layouts, `zoom: var(--c-font-scale)` (S=0.85, M=1.0, L=1.15) is applied to the scrollable rail and the 7" overlay shell's view sheet only — `.rail` in `LayoutDesktop` and on LayoutPi's stacked rail; on the 7" overlay shell, `.railScroll` inside the unzoomed `.railFrame` (zoom on the positioned frame would scale its own offsets) and the view sheet's `.sheetInner`. Two boundaries were established by trial:
 
 - **Not the `AmbientLayers` root.** It broke positioning of `position: absolute` children, because `100dvh` references inside the layout no longer matched the zoomed root.
 - **Not `LayoutDesktop`'s `heroSlot`.** Phase 7 polish briefly zoomed it too, but `zoom` expands a box visually without updating the layout engine's geometry: at scale 1.15 the slot painted ~968 px wide while its declared width stayed 842, the (also zoomed) rail marched left, and the clock got clipped by a ~150 px overlap. The hero is large enough at native size, so it stays unzoomed; `heroSlot`'s `right` offset instead multiplies `--c-rail-width` by `--c-font-scale` so the gap to the rail holds at every preference.
@@ -620,8 +632,9 @@ boot
       → GET /api/reverse-geocode → `reverseGeoResult` (rendered by LocationName)
   → ambient/AiSummaryInline mounts (LayoutMobile / LayoutDesktop)
       → GET /api/weather-summary (if Anthropic key present)
-      On LayoutPi the summary is not inline: ambient/AiView mounts on demand
-      when the user opens the IA view, and fetches via components/hooks/useAiSummary
+      On LayoutPi the summary is not inline: ambient/AiView requests it only while
+      the IA view is open (mounted on demand on the stacked rail; kept mounted,
+      inactive, on the 7"), and fetches via components/hooks/useAiSummary
   → ambient/IndoorBlock mounts → GET /api/indoor-temperature
   → useUpdateChecker polls GET /api/update-check (on mount + every 6 h); when
       updateAvailable (and not the skipped SHA) the dock shows an update
@@ -885,7 +898,7 @@ cd ~/pi-weather-station && git pull && bash deploy/install.sh
 
 **Consequences (as originally shipped on the v2 `InfoPanel`):** two compensations were required — `height: calc(100dvh / zoom)` to prevent grey areas or hidden controls, and a counter-zoom (`zoom: 1/parentZoom`) on chart wrappers so Chart.js measured the container in its natural coordinate space. *Both are gone as of 2026-07:* they were properties of the v2 panel, which was a full-height flex column with `zoom` on its outermost box. The v3 rail is absolutely positioned with explicit `top`/`bottom`, so its height is constrained independently of `zoom` and neither compensation is needed — `grep`ping for `100dvh / zoom` or a counter-zoom in `client/src/` now returns nothing.
 
-**Container, then and now:** the original context was the v2 `InfoPanel` container *(historical — that component was deleted in 2026-07)*. Since v3 the decision is unchanged but the container moved: within the layouts, `zoom` is applied to the scrollable rail only — `.rail` in `LayoutPi` / `LayoutDesktop` (the `SettingsPanel` / `DebugPanel` overlays, rendered outside `.ambientRoot`, apply their own boosted `zoom` via `resolvePanelFontSizeZoom`). Applying it to the `AmbientLayers` root broke `position: absolute` children (`100dvh` references no longer matched the zoomed root), and applying it to `LayoutDesktop`'s `heroSlot` clipped the clock (zoom grows the painted box without updating layout geometry). See "Font size zoom model" in section 4 for both rejected placements.
+**Container, then and now:** the original context was the v2 `InfoPanel` container *(historical — that component was deleted in 2026-07)*. Since v3 the decision is unchanged but the container moved: within the layouts, `zoom` is applied to the scrollable rail and the 7" overlay shell's view sheet only — `.rail` in `LayoutDesktop` and on LayoutPi's stacked rail; on the 7" overlay shell, `.railScroll` inside the unzoomed `.railFrame` and the view sheet's `.sheetInner` (the `SettingsPanel` / `DebugPanel` overlays, rendered outside `.ambientRoot`, apply their own boosted `zoom` via `resolvePanelFontSizeZoom`). Applying it to the `AmbientLayers` root broke `position: absolute` children (`100dvh` references no longer matched the zoomed root), and applying it to `LayoutDesktop`'s `heroSlot` clipped the clock (zoom grows the painted box without updating layout geometry). See "Font size zoom model" in section 4 for both rejected placements.
 
 ---
 

@@ -46,7 +46,7 @@ There is nothing to switch. v3 picks its layout from the viewport on its own and
 | Viewport | Layout |
 |---|---|
 | ≤ 799 px wide | Phone — single scrollable column, mini radar with a maximize button, pull-to-refresh |
-| 800-1279 px wide | Pi kiosk (7" / 10") — 2-column grid, radar plus an information rail |
+| 800-1279 px wide | Pi kiosk (7" / 10") — radar plus an information rail: a 2-column grid when the viewport is taller than 540 px (the 10"), the radar full screen under a floating rail and dock at 540 px tall or less (the 7") |
 | ≥ 1280 px wide | Desktop — full-bleed map with floating panels |
 
 Full layout reference: [`docs/ui-layout_en.md`](docs/ui-layout_en.md) (French: [`docs/ui-layout_fr.md`](docs/ui-layout_fr.md)). If you are reading older screenshots or release notes and want the v2 layout for reference, it is archived in [`docs/archive/ui-layout_v2_en.md`](docs/archive/ui-layout_v2_en.md).
@@ -66,7 +66,7 @@ Every v3 capture below is the **same location at the same hour** — Mont Belvie
 | Pi kiosk, 7" official screen (800×480) | Pi kiosk, 10" screen (1024×600) |
 |---|---|
 | [![Pi 7-inch kiosk layout](docs/screenshots/v3-pi7-day.webp)](docs/screenshots/v3-pi7-day.webp) | [![Pi 10-inch kiosk layout](docs/screenshots/v3-pi10-day.webp)](docs/screenshots/v3-pi10-day.webp) |
-| The lean radar-companion rail — alert, clock, hero, the locally-derived `RADAR` banner, air quality. The forecast and the AI prose are one dock tap away rather than in this glance. | The same layout with the vertical room for the full metrics grid: wind, gust, UV, humidity. |
+| The lean radar-companion rail — alert, clock, hero, the locally-derived `RADAR` banner, air quality. The forecast and the AI prose are one dock tap away rather than in this glance. | The stacked rail, with the vertical room for the full metrics grid: wind, gust, UV, humidity. |
 
 | Phone (< 800 px) | Night-vision red palette |
 |---|---|
@@ -79,7 +79,7 @@ The dark **dusk** palette (used whenever dark mode is on and the night-vision re
 
 - **Indoor sensors block** — temperature / humidity / air quality from Homebridge, shown with the outdoor metrics, under the metrics grid.
 - **AI-generated weather summary** powered by Claude, with a radar-movement paragraph describing nearby precipitation.
-- **Severe-weather alert banner** — fed by NWS (US) and ECCC (Canada) plus a local radar-derived tier. Every banner carries a leading `RADAR` / `ECCC` / `NWS` source badge so the origin is unambiguous; RADAR banners get an optional confidence pill (green / amber / red), and a tap cycles through multiple active government alerts.
+- **Severe-weather alert banner** — fed by NWS (US) and ECCC (Canada) plus a local radar-derived tier. Every banner carries a leading `RADAR` / `ECCC` / `NWS` source badge so the origin is unambiguous; RADAR banners get an optional confidence pill (green / amber / red), and several active government alerts can be stepped through (on the 7" priority views, from the alert view's *Also active* row).
 - **Gov-alert detail section** — collapsible block under the banner with the alert's full description and a QR code that opens the upstream alerts page on the user's phone (kiosk-safe: no risk of getting trapped on an external page).
 - **Direction-arrow overlay** on the map (optional, toggled from a button in the bottom dock; needs the radar analysis rings on) — shows per-bearing motion of nearby precipitation bands.
 - **Air quality and UV** — the air card shows the closest air-quality station across MELCC (Quebec), AirNow (US) and OpenAQ (global), with ECCC AQHI as the Canada-wide fallback, plus an optional pollen row (Open-Meteo); UV comes from Tomorrow.io's current conditions, as a tile in the metrics grid.

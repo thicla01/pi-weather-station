@@ -6,8 +6,9 @@ doing. It's powered by Claude (Anthropic API, Haiku 5.5 since 2026-10). The
 desktop and mobile layouts show it in the `AI SUMMARY` slab
 (`client/src/components/ambient/AiSummaryInline/`); on the Pi it lives in the
 full-rail AI view (`ambient/AiView`), opened from the dock's IA button. Both
-refresh it every 15 minutes while mounted; the Pi view is mounted only while
-it is open, so a Pi calls the endpoint only then.
+refresh it every 15 minutes while it is shown: the slab while mounted, the Pi
+view only while it is open (on the 7" it stays mounted, inactive, while
+closed), so a Pi calls the endpoint only then.
 
 This document explains exactly which pieces of work happen on the Pi and
 which happen on Anthropic's servers, how data flows between them, and how

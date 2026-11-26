@@ -7,8 +7,10 @@
  * padding: 0` — a single `.square` (0,1,0) loses, stripping the frame. The
  * doubled selector (0,2,0) wins. (Same trick the HeroCompact maximize uses.)
  *
- * Fixed 28px — the LayoutPi `.rail` already applies `zoom: var(--c-font-scale)`,
- * which scales this physically; a `* var(--c-font-scale)` here would double-
+ * Fixed 28px — the LayoutPi `.rail` (under the overlay shell, `.railScroll`
+ * and the view sheet's `.sheetInner`) already applies
+ * `zoom: var(--c-font-scale)`, which scales this physically; a
+ * `* var(--c-font-scale)` here would double-
  * scale it (see reference_font_scale_zoom_architecture). */
 .square.square {
   display: inline-flex;
@@ -31,6 +33,16 @@
   transform: scale(0.94);
 }
 
+/* Decorative (a cue inside a larger control, the compact alert card): no
+ * pressed feedback of its own, and the control's cursor. */
+.decorative.decorative {
+  cursor: inherit;
+}
+
+.decorative.decorative:active {
+  transform: none;
+}
+
 .square:focus-visible {
   outline: 2px dashed var(--c-text);
   outline-offset: 2px;
@@ -40,4 +52,10 @@
   width: 16px;
   height: 16px;
   display: block;
+}
+
+/* The views' back squares under the overlay shell: never a `scale()` when
+ * pressed. */
+:global([data-pi-shell]) .square.square:active {
+  transform: none;
 }

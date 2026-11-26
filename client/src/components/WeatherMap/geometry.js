@@ -453,13 +453,23 @@ export function buildRingLayers(risk, dark, aiOff = false, nightRed = false) {
  * preference it is never animated (`recenterAnimates`, ui/mapMotion.js):
  * the non-animated `setView` moves the map in one step, tiles kept.
  *
+ * In general the latLng lands at container point
+ * `(W/2 − offset.x/2, H/2 + offset.y/2)` — the centre of the uncovered
+ * area, and the anchor WeatherMap's ZoomAnchorOffset zooms around. A
+ * NEGATIVE `offset.y` means the band covers the BOTTOM edge instead of
+ * the top: LayoutPi's overlay shell passes `{x: 310, y: -58}` in
+ * MID (rail at the right, 58 px dock band at the bottom), which puts the
+ * marker at (245, 211) on 800 × 480 (ui/piShellGeometry.js).
+ *
  * Not a hook — takes the Leaflet map as an argument, returns nothing,
  * has no React state. Safe to call from any component or imperative
  * handler that has a map reference.
  *
  * @param {object} map — Leaflet map instance
  * @param {Array<Number>} latLng — `[lat, lon]`
- * @param {{x: Number, y: Number}} offset — pixels covered by rail / HeroBand
+ * @param {{x: Number, y: Number}} offset — pixels covered by rail (x, at the
+ *   right edge) / HeroBand (y, at the top edge; negative = a band at the
+ *   bottom edge, the overlay shell's dock)
  * @param {object} [opts]
  * @param {boolean} [opts.animate] — true for panTo, false for
  *   setView without animation (used on initial mount where animation
@@ -485,7 +495,9 @@ export function panWithRailOffset(map, latLng, offset, opts = {}) {
   // Y: positive offset means the HeroBand covers the top; push the
   //    map centre UP (smaller pixel Y), which moves the marker
   //    visually DOWN past the band. Subtract because Leaflet's
-  //    pixel Y points DOWN.
+  //    pixel Y points DOWN. A negative offset (a band at the bottom,
+  //    the overlay shell's dock) does the mirror: the centre moves DOWN and
+  //    the marker visually UP, above the band.
   const adjusted = point.add([offsetX / 2, -offsetY / 2]);
   const newCenter = map.unproject(adjusted, zoom);
   if (animated) map.panTo(newCenter);

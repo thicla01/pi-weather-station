@@ -122,7 +122,8 @@ test("each recentre site applies the reduced-motion decision", () => {
   const index = codeOf(path.join(WEATHER_MAP_DIR, "index.js"));
   // Both animated callers of panWithRailOffset pass the live preference.
   const animatedPans = [...index.matchAll(/panWithRailOffset\(([\s\S]*?)\);/g)].map((m) => m[1]);
-  assert.equal(animatedPans.length, 3, "PanHandler, RailOffsetTracker, InitialOffsetCentering");
+  // The overlay shell: RailOffsetTracker's instant re-pan is the fourth, with animate: false.
+  assert.equal(animatedPans.length, 4, "PanHandler, RailOffsetTracker (animated + overlay-shell instant), InitialOffsetCentering");
   for (const args of animatedPans) {
     if (/animate:\s*false/.test(args)) continue;
     assert.match(args, /reducedMotion:\s*prefersReducedMotion\(\)/, `panWithRailOffset(${args.trim()})`);

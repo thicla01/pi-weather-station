@@ -14,7 +14,7 @@
 //     chain border → fill → bg;
 //   - the opaque edge only reaches cards that really sit on `--c-bg`: a
 //     closed list of containers, a `var(--c-border)` fallback on every
-//     reader, the Firefox remap.
+//     reader, the remaps (OPAQUE_EDGE_REMAPS).
 //
 // The own-fill edges (map frame, popovers, health chip) are composited over
 // the box's OWN opaque fill instead, and read directly by the box: their
@@ -218,10 +218,17 @@ const JS_FILES = walk(SRC_DIR, [".js", ".jsx"]);
 // `.popover` is filled with the opaque --c-bg in every layout, in place or
 // portaled (the portal copies --c-opaque-edge with the other tokens); it
 // maps --c-card-edge only (CALM_ONLY_CONTAINERS).
+// One entry per rule (its selector list). The overlay shell's view sheet.
 const ALLOWED_CONTAINERS = {
-  "components/ambient/DetailsPopover/styles.css": [".popover"],
-  "components/ambient/LayoutPi/styles.css": [".rail", ".layout > :last-child"],
+  "components/ambient/DetailsPopover/styles.css": [[".popover"]],
+  "components/ambient/LayoutPi/styles.css": [[".rail", ".layout > :last-child"], [".layout[data-pi-shell] .sheet"]],
 };
+// Rules that redefine the root's opaque edge (reading its hybrid value): the
+// Firefox remap, and the overlay shell's nightRed rule (its cards at 96 %).
+const OPAQUE_EDGE_REMAPS = [
+  ["styles/main.css", 'html[data-browser="firefox"] .ambientRoot'],
+  ["components/ambient/LayoutPi/styles.css", ':global(.ambientRoot[data-palette="nightRed"]) .layout[data-pi-shell]'],
+];
 
 test("every --c-card-edge reader falls back to var(--c-border)", () => {
   let readers = 0;
@@ -350,7 +357,7 @@ test("--c-card-edge is only set by the listed opaque containers", () => {
   for (const file of CSS_FILES) {
     for (const { selectors, body } of rules(fs.readFileSync(file, "utf8"))) {
       if (/--c-card-edge[\w-]*\s*:/.test(body)) {
-        found[rel(file)] = [...(found[rel(file)] || []), ...selectors];
+        found[rel(file)] = [...(found[rel(file)] || []), selectors];
       }
     }
   }
@@ -370,29 +377,31 @@ test("--c-card-edge is only set by the listed opaque containers", () => {
 const CALM_ONLY_CONTAINERS = ["components/ambient/DetailsPopover/styles.css"];
 
 test("the containers map --c-card-edge* to the root's opaque edges", () => {
-  for (const [file, selectors] of Object.entries(ALLOWED_CONTAINERS)) {
-    const block = rules(fs.readFileSync(path.join(SRC_DIR, file), "utf8"))
-      .find((r) => r.selectors.join(",") === selectors.join(","));
-    assert.ok(block, `${file}: no rule for ${selectors.join(", ")}`);
-    assert.match(block.body, /--c-card-edge\s*:\s*var\(\s*--c-opaque-edge\s*\)\s*;/);
-    if (CALM_ONLY_CONTAINERS.includes(file)) {
-      assert.doesNotMatch(block.body, /--c-card-edge-hybrid\s*:/, `${file}: must not map --c-card-edge-hybrid (CALM_ONLY_CONTAINERS)`);
-    } else {
-      assert.match(block.body, /--c-card-edge-hybrid\s*:\s*var\(\s*--c-opaque-edge-hybrid\s*\)\s*;/);
+  for (const [file, ruleList] of Object.entries(ALLOWED_CONTAINERS)) {
+    for (const selectors of ruleList) {
+      const block = rules(fs.readFileSync(path.join(SRC_DIR, file), "utf8"))
+        .find((r) => r.selectors.join(",") === selectors.join(","));
+      assert.ok(block, `${file}: no rule for ${selectors.join(", ")}`);
+      assert.match(block.body, /--c-card-edge\s*:\s*var\(\s*--c-opaque-edge\s*\)\s*;/);
+      if (CALM_ONLY_CONTAINERS.includes(file)) {
+        assert.doesNotMatch(block.body, /--c-card-edge-hybrid\s*:/, `${file}: must not map --c-card-edge-hybrid (CALM_ONLY_CONTAINERS)`);
+      } else {
+        assert.match(block.body, /--c-card-edge-hybrid\s*:\s*var\(\s*--c-opaque-edge-hybrid\s*\)\s*;/);
+      }
+      assert.doesNotMatch(block.body, /--c-(?:surface|border)[\w-]*\s*:/, `${file}: a container must not redefine --c-surface / --c-border`);
     }
-    assert.doesNotMatch(block.body, /--c-(?:surface|border)[\w-]*\s*:/, `${file}: a container must not redefine --c-surface / --c-border`);
   }
   for (const file of CALM_ONLY_CONTAINERS) assert.ok(file in ALLOWED_CONTAINERS, `${file} is not a container`);
 });
 
-test("--c-opaque-edge* is read only by the containers and the Firefox rule", () => {
+test("--c-opaque-edge* is read only by the containers and the remaps (Firefox, overlay-shell nightRed)", () => {
   for (const file of CSS_FILES) {
     for (const { selectors, body } of rules(fs.readFileSync(file, "utf8"))) {
       if (!/var\(\s*--c-opaque-edge/.test(body)) continue;
       const key = selectors.join(",");
-      const isContainer = (ALLOWED_CONTAINERS[rel(file)] || []).join(",") === key;
-      const isFirefox = rel(file) === "styles/main.css" && key === 'html[data-browser="firefox"] .ambientRoot';
-      assert.ok(isContainer || isFirefox, `${rel(file)} ${key} reads --c-opaque-edge directly; read --c-card-edge instead`);
+      const isContainer = (ALLOWED_CONTAINERS[rel(file)] || []).some((list) => list.join(",") === key);
+      const isRemap = OPAQUE_EDGE_REMAPS.some(([f, sel]) => f === rel(file) && sel === key);
+      assert.ok(isContainer || isRemap, `${rel(file)} ${key} reads --c-opaque-edge directly; read --c-card-edge instead`);
     }
   }
 });
@@ -789,6 +798,9 @@ const OWN_FILL_READERS = [
   { token: "--c-edge-on-bg", file: "components/ambient/LayoutPi/styles.css", selector: ".mapArea", fill: BG_FILL, fallback: "var(--c-border)" },
   { token: "--c-edge-on-bg", file: "components/ambient/DetailsPopover/styles.css", selector: ".popover", fill: BG_FILL, fallback: "var(--c-border)" },
   { token: "--c-edge-on-bg", file: "components/ambient/HealthIndicator/styles.css", selector: ".popover", fill: BG_FILL, fallback: "var(--c-border)" },
+  // The overlay shell: the dock band's "···" menu, filled with --c-bg like
+  // the health popover it sits beside.
+  { token: "--c-edge-on-bg", file: "components/ambient/DockOverflowMenu/styles.css", selector: ".menu", fill: BG_FILL, fallback: "var(--c-border)" },
   {
     token: "--c-edge-on-health-chip",
     file: "components/ambient/HealthIndicator/styles.css",
@@ -1029,3 +1041,12 @@ test("the portaled DetailsPopover copies the edge tokens it needs, and nothing h
   assert.ok(!names.includes("--c-surface-hybrid"), "--c-surface-hybrid is not copied into the portal");
   assert.ok(!names.includes("--c-opaque-edge-hybrid"), "--c-opaque-edge-hybrid is not copied into the portal");
 });
+
+test("overlay shell: the nightRed rule that fills the cards at 96 % takes the hybrid opaque edge with it", () => {
+  const block = rules(fs.readFileSync(path.join(SRC_DIR, "components", "ambient", "LayoutPi", "styles.css"), "utf8"))
+    .find((r) => r.selectors.join(",") === ':global(.ambientRoot[data-palette="nightRed"]) .layout[data-pi-shell]');
+  assert.ok(block, "no overlay-shell nightRed rule");
+  assert.match(block.body, /--c-surface\s*:\s*var\(\s*--c-surface-hybrid\s*\)\s*;/);
+  assert.match(block.body, /--c-opaque-edge\s*:\s*var\(\s*--c-opaque-edge-hybrid\s*\)\s*;/);
+});
+
